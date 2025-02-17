@@ -11,4 +11,15 @@
     <ProjectReference Include="../CleanArchitectureTemplate.Shared/CleanArchitectureTemplate.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Commons/" />
+    <Folder Include="Commons/Bases/" />
+    <Folder Include="Commons/DTOs/" />
+    <Folder Include="Commons/IServices/" />
+    <Folder Include="Commons/Services/" />
+    <Folder Include="Commons/Validations/" />
+    <Folder Include="Modules/" />
+    <Folder Include="Modules/Auth/" />
+  </ItemGroup>
+
 </Project>

@@ -2,6 +2,7 @@ using System;
 using CleanArchitectureTemplate.API.Commons.Bases;
 using CleanArchitectureTemplate.Application.Commons.Interfaces;
 using CleanArchitectureTemplate.Application.Modules.ItemModule.DTOs;
+using CleanArchitectureTemplate.Application.Modules.ItemModule.Interfaces;
 using CleanArchitectureTemplate.Domain.Modules.ItemModule;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,7 +13,7 @@ namespace CleanArchitectureTemplate.API.Modules.ItemModule;
 [ApiController]
 public class ItemGetController : BaseGetController<Item, ItemGetDto>
 {
-    public ItemGetController(IBaseGetUseCase<Item, ItemGetDto> useCase) : base(useCase)
+    public ItemGetController(IItemGetUseCase<Item, ItemGetDto> useCase) : base(useCase)
     {
     }
 }
@@ -21,7 +22,7 @@ public class ItemGetController : BaseGetController<Item, ItemGetDto>
 [ApiController]
 public class ItemPostController : BasePostController<Item, ItemCreateDto>
 {
-    public ItemPostController(IBasePostUseCase<Item, ItemCreateDto> useCase) : base(useCase)
+    public ItemPostController(IItemPostUseCase<Item, ItemCreateDto> useCase) : base(useCase)
     {
     }
 
@@ -31,7 +32,7 @@ public class ItemPostController : BasePostController<Item, ItemCreateDto>
 [ApiController]
 public class ItemPutController : BasePutController<Item, ItemUpdateDto>
 {
-    public ItemPutController(IBasePutUseCase<Item, ItemUpdateDto> useCase) : base(useCase)
+    public ItemPutController(IItemPutUseCase<Item, ItemUpdateDto> useCase) : base(useCase)
     {
     }
 }
@@ -40,7 +41,7 @@ public class ItemPutController : BasePutController<Item, ItemUpdateDto>
 [ApiController]
 public class ItemDeleteController : BaseDeleteController<Item, ItemGetDto>
 {
-    public ItemDeleteController(IBaseDeleteUseCase<Item, ItemGetDto> useCase) : base(useCase)
+    public ItemDeleteController(IItemDeleteUseCase<Item, ItemGetDto> useCase) : base(useCase)
     {
     }
 }

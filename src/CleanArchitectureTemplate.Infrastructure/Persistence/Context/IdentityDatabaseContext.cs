@@ -1,5 +1,5 @@
 using System;
-
+using CleanArchitectureTemplate.Domain.Modules.ItemModule;
 using CleanArchitectureTemplate.Infrastructure.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -7,17 +7,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CleanArchitectureTemplate.Infrastructure.Persistence.Context;
 
-public class IdentityDatabaseContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
+public class IdentityDatabaseContext(DbContextOptions<IdentityDatabaseContext> options) : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>(options)
 {
-    public IdentityDatabaseContext(DbContextOptions<IdentityDatabaseContext> options) : base(options)
-    {
-    }
 
+    public DbSet<Item> Item { get; set; } = null!;
+    
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-
-
     }
 
 

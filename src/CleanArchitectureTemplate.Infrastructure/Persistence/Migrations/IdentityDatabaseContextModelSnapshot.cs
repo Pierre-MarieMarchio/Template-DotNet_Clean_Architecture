@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CleanArchitectureTemplate.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(IdentityDatabaseContext))]
-    partial class DatabaseContextModelSnapshot : ModelSnapshot
+    partial class IdentityDatabaseContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
@@ -22,7 +22,22 @@ namespace CleanArchitectureTemplate.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("CleanArchitectureTemplate.Infrastructure.Identity.AppUser", b =>
+            modelBuilder.Entity("CleanArchitectureTemplate.Domain.Modules.ItemModule.Item", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Item");
+                });
+
+            modelBuilder.Entity("CleanArchitectureTemplate.Infrastructure.Persistence.Identity.AppUser", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -230,7 +245,7 @@ namespace CleanArchitectureTemplate.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
-                    b.HasOne("CleanArchitectureTemplate.Infrastructure.Identity.AppUser", null)
+                    b.HasOne("CleanArchitectureTemplate.Infrastructure.Persistence.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -239,7 +254,7 @@ namespace CleanArchitectureTemplate.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
                 {
-                    b.HasOne("CleanArchitectureTemplate.Infrastructure.Identity.AppUser", null)
+                    b.HasOne("CleanArchitectureTemplate.Infrastructure.Persistence.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -254,7 +269,7 @@ namespace CleanArchitectureTemplate.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CleanArchitectureTemplate.Infrastructure.Identity.AppUser", null)
+                    b.HasOne("CleanArchitectureTemplate.Infrastructure.Persistence.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -263,7 +278,7 @@ namespace CleanArchitectureTemplate.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
                 {
-                    b.HasOne("CleanArchitectureTemplate.Infrastructure.Identity.AppUser", null)
+                    b.HasOne("CleanArchitectureTemplate.Infrastructure.Persistence.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)

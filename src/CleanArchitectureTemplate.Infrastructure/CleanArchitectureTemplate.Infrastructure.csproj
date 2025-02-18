@@ -14,7 +14,6 @@
   <ItemGroup>
     <Folder Include="Modules/AuthModule/" />
     <Folder Include="Modules/ItemModule/Configurations/" />
-    <Folder Include="Persistence/Migrations/" />
   </ItemGroup>
 
   <ItemGroup>

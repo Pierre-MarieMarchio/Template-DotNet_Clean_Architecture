@@ -3,8 +3,7 @@ using CleanArchitectureTemplate.Infrastructure.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DotNetEnv;
-using Scrutor;
-using CleanArchitectureTemplate.Application.Commons.Bases;
+
 
 var builder = WebApplication.CreateBuilder(args);
 Env.Load();

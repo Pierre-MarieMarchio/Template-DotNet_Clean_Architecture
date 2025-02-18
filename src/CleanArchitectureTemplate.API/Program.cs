@@ -1,14 +1,34 @@
 using CleanArchitectureTemplate.Infrastructure.Persistence.Context;
 using CleanArchitectureTemplate.Infrastructure.Persistence.Identity;
-using DotNetEnv;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using DotNetEnv;
+using Scrutor;
+using CleanArchitectureTemplate.Application.Commons.Bases;
 
 var builder = WebApplication.CreateBuilder(args);
 Env.Load();
 
 // Add services to the container.
 builder.Services.AddControllers();
+
+builder.Services.Scan(scan => scan
+    .FromAssemblyOf<Program>()
+    .AddClasses(classes => classes.Where(type => type.Name.EndsWith("Service")))
+    .AsImplementedInterfaces()
+    .WithTransientLifetime()
+    .AddClasses(classes => classes.Where(type => type.Name.EndsWith("Validator")))
+    .AsImplementedInterfaces()
+    .WithTransientLifetime()
+    .AddClasses(classes => classes.Where(type => type.Name.EndsWith("UseCase")))
+    .AsImplementedInterfaces()
+    .WithTransientLifetime()
+    .AddClasses(classes => classes.Where(type => type.Name.EndsWith("Repository")))
+    .AsImplementedInterfaces()
+    .WithTransientLifetime()
+    
+    );
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

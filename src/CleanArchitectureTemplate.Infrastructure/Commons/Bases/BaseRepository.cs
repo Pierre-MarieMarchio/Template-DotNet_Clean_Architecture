@@ -1,11 +1,13 @@
 using System;
+using CleanArchitectureTemplate.Domain.Commons.Bases;
+using CleanArchitectureTemplate.Infrastructure.Commons.Interfaces;
 using CleanArchitectureTemplate.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 
 namespace CleanArchitectureTemplate.Infrastructure.Commons.Bases;
 
 public abstract class BaseRepository<T> : IBaseRepository<T>
-    where T : class
+    where T : BaseModel
 {
 
     protected readonly IdentityDatabaseContext _context;

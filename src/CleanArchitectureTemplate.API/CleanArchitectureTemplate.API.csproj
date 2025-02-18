@@ -13,7 +13,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Scrutor" Version="6.0.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="7.2.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,10 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Commons/" />
-    <Folder Include="Commons/Bases/" />
-    <Folder Include="Commons/controllers/" />
-    <Folder Include="Modules/" />
     <Folder Include="Modules/Auth/" />
   </ItemGroup>
 

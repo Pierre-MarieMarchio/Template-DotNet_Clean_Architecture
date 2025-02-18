@@ -1,9 +1,10 @@
 using System;
+using CleanArchitectureTemplate.Domain.Commons.Bases;
 
-namespace CleanArchitectureTemplate.Infrastructure.Commons.Bases;
+namespace CleanArchitectureTemplate.Infrastructure.Commons.Interfaces;
 
 public interface IBaseRepository<T>
-    where T : class
+    where T : BaseModel
 {
     Task<List<T>> GetAllAsync();
     Task<T?> FindAsync(Guid id);

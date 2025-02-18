@@ -11,9 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Commons/Bases/" />
-    <Folder Include="Modules/" />
-    <Folder Include="Modules/Auth/" />
+    <Folder Include="Modules/AuthModule/" />
   </ItemGroup>
 
 </Project>

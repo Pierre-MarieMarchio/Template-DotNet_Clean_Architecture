@@ -12,14 +12,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Commons/" />
-    <Folder Include="Commons/Bases/" />
-    <Folder Include="Commons/DTOs/" />
-    <Folder Include="Commons/IServices/" />
-    <Folder Include="Commons/Services/" />
-    <Folder Include="Commons/Validations/" />
-    <Folder Include="Modules/" />
-    <Folder Include="Modules/Auth/" />
+    <Folder Include="Modules/AuthModule/" />
+    <Folder Include="Modules/AuthModule/DTOs/" />
+    <Folder Include="Modules/AuthModule/Interfaces/" />
+    <Folder Include="Modules/AuthModule/Services/" />
+    <Folder Include="Modules/AuthModule/UseCase/" />
+    <Folder Include="Modules/AuthModule/Validations/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="11.11.0" />
   </ItemGroup>
 
 </Project>

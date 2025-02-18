@@ -12,9 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Commons/Configuration/" />
-    <Folder Include="Modules/" />
-    <Folder Include="Modules/Auth/" />
+    <Folder Include="Modules/AuthModule/" />
+    <Folder Include="Modules/ItemModule/Configurations/" />
     <Folder Include="Persistence/Migrations/" />
   </ItemGroup>
 

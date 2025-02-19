@@ -12,12 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Modules/AuthModule/" />
-    <Folder Include="Modules/AuthModule/DTOs/" />
-    <Folder Include="Modules/AuthModule/Interfaces/" />
     <Folder Include="Modules/AuthModule/Services/" />
-    <Folder Include="Modules/AuthModule/UseCase/" />
-    <Folder Include="Modules/AuthModule/Validations/" />
   </ItemGroup>
 
   <ItemGroup>

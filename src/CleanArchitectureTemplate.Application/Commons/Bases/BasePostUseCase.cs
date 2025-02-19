@@ -1,5 +1,6 @@
 using System;
 using CleanArchitectureTemplate.Application.Commons.Interfaces;
+using CleanArchitectureTemplate.Application.Commons.Services;
 using CleanArchitectureTemplate.Domain.Commons.Bases;
 using CleanArchitectureTemplate.Infrastructure.Commons.Interfaces;
 using FluentValidation;
@@ -20,20 +21,11 @@ public abstract class BasePostUseCase<TModel, TDto> : BaseUseCase<TModel, TDto>,
 
     public virtual async Task<TDto> PostAsync(TDto entityDTO)
     {
-        await this.Validate(entityDTO);
+        await ValidationService.Validate(this._validator!, entityDTO);
 
         var entity = MapToEntity(entityDTO);
         var createdEntity = await this._repository.AddAsync(entity);
 
         return MapToDTO(createdEntity);
-    }
-
-    protected async Task Validate(TDto entityDTO)
-    {
-        var validator = await _validator.ValidateAsync(entityDTO);
-        if (!validator.IsValid)
-        {
-            throw new ValidationException(validator.Errors);
-        }
     }
 }

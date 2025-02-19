@@ -23,8 +23,4 @@
     <ProjectReference Include="../CleanArchitectureTemplate.Shared/CleanArchitectureTemplate.Shared.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Modules/AuthModule/" />
-  </ItemGroup>
-
 </Project>

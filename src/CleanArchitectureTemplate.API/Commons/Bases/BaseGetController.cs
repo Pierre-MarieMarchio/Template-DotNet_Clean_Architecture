@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using CleanArchitectureTemplate.Application.Commons.Bases;
 using CleanArchitectureTemplate.Application.Commons.Interfaces;
 using CleanArchitectureTemplate.Domain.Commons.Bases;
-using Swashbuckle.AspNetCore.Annotations;
+
 
 
 
@@ -29,7 +29,6 @@ public abstract class BaseGetController<TModel, TDto> : ControllerBase
     }
 
     [HttpGet]
-
     public virtual async Task<ActionResult<IEnumerable<TDto>>> GetAll()
     {
 
@@ -45,7 +44,6 @@ public abstract class BaseGetController<TModel, TDto> : ControllerBase
     }
 
     [HttpGet("{id}")]
-    
     public virtual async Task<ActionResult<TDto>> GetOne(Guid id)
     {
 

@@ -1,5 +1,4 @@
 using CleanArchitectureTemplate.Infrastructure.Persistence.Context;
-using CleanArchitectureTemplate.Infrastructure.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DotNetEnv;
@@ -33,6 +32,7 @@ var assembliesToScan = loadedAssemblies
     .Where(a => !a.IsDynamic && a.FullName.StartsWith("CleanArchitectureTemplate"))
     .ToArray();
 
+
 // Add services to the container.
 builder.Services.AddControllers();
 
@@ -59,9 +59,14 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddAuthorization();
 builder.Services.AddAuthentication().AddCookie(IdentityConstants.ApplicationScheme);
 
-builder.Services.AddIdentityCore<AppUser>()
-    .AddEntityFrameworkStores<IdentityDatabaseContext>()
-    .AddApiEndpoints();
+builder.Services.AddIdentityCore<IdentityUser<Guid>>(options =>
+{
+
+    options.User.RequireUniqueEmail = true;
+})
+.AddEntityFrameworkStores<IdentityDatabaseContext>()
+.AddDefaultTokenProviders();
+
 
 var connectionString = $"Server={Environment.GetEnvironmentVariable("DATABASE_SERVER")};Database={Environment.GetEnvironmentVariable("DATABASE_NAME")};User Id={Environment.GetEnvironmentVariable("DATABASE_USER")};Password={Environment.GetEnvironmentVariable("DATABASE_PASSWORD")};TrustServerCertificate=True;";
 builder.Services.AddDbContext<IdentityDatabaseContext>(opt => opt.UseSqlServer(connectionString));

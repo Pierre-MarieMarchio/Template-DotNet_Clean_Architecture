@@ -23,6 +23,7 @@ public class UserRepository : IUserRepository
             Id = result.Id,
             UserName = result.UserName ?? string.Empty,
             Email = result.Email ?? string.Empty,
+            PasswordHash = result.PasswordHash ?? string.Empty,
         };
     }
 
@@ -35,6 +36,7 @@ public class UserRepository : IUserRepository
             Id = result.Id,
             UserName = result.UserName ?? string.Empty,
             Email = result.Email ?? string.Empty,
+            PasswordHash= result.PasswordHash ?? string.Empty,
         };
     }
 

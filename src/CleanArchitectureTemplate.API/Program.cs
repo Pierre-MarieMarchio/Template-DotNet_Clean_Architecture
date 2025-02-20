@@ -9,29 +9,28 @@ var builder = WebApplication.CreateBuilder(args);
 Env.Load();
 
 var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies().ToList();
-var loadedPaths = loadedAssemblies.Select(a => a.Location).ToArray();
+var loadedNames = loadedAssemblies.Select(a => a.GetName().Name).ToArray();
 var referencedPaths = Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory, "*.dll");
 
 foreach (var path in referencedPaths)
 {
-    if (!loadedPaths.Contains(path))
+    try
     {
-        try
+        var assemblyName = AssemblyName.GetAssemblyName(path);
+        if (!loadedNames.Contains(assemblyName.Name))
         {
-            loadedAssemblies.Add(Assembly.LoadFrom(path));
+            loadedAssemblies.Add(Assembly.Load(assemblyName));
         }
-        catch
-        {
-            // Ignorer les erreurs de chargement d'assemblée
-        }
+    }
+    catch
+    {
+        //...
     }
 }
 
-
 var assembliesToScan = loadedAssemblies
-    .Where(a => !a.IsDynamic && a.FullName.StartsWith("CleanArchitectureTemplate"))
+    .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.FullName) && a.FullName.StartsWith("CleanArchitectureTemplate"))
     .ToArray();
-
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -48,32 +47,33 @@ builder.Services.Scan(scan => scan
     .AddClasses(classes => classes.Where(type => type.Name.EndsWith("UseCase")))
     .AsImplementedInterfaces()
     .WithTransientLifetime()
+    .AddClasses(classes => classes.Where(type => type.Name.EndsWith("Manager")))
+    .AsImplementedInterfaces()
+    .WithTransientLifetime()
     .AddClasses(classes => classes.Where(type => type.Name.EndsWith("Repository")))
     .AsImplementedInterfaces()
     .WithTransientLifetime());
 
 
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+
 builder.Services.AddAuthorization();
-builder.Services.AddAuthentication().AddCookie(IdentityConstants.ApplicationScheme);
-
-builder.Services.AddIdentityCore<IdentityUser<Guid>>(options =>
+builder.Services.AddIdentity<IdentityUser<Guid>, IdentityRole<Guid>>(options =>
 {
-
     options.User.RequireUniqueEmail = true;
 })
 .AddEntityFrameworkStores<IdentityDatabaseContext>()
 .AddDefaultTokenProviders();
-
 
 var connectionString = $"Server={Environment.GetEnvironmentVariable("DATABASE_SERVER")};Database={Environment.GetEnvironmentVariable("DATABASE_NAME")};User Id={Environment.GetEnvironmentVariable("DATABASE_USER")};Password={Environment.GetEnvironmentVariable("DATABASE_PASSWORD")};TrustServerCertificate=True;";
 builder.Services.AddDbContext<IdentityDatabaseContext>(opt => opt.UseSqlServer(connectionString));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

@@ -5,5 +5,5 @@ namespace CleanArchitectureTemplate.Application.Modules.AuthModule.Interfaces;
 
 public interface IRegisterUseCase
 {
-    public Task<UserDto> Register(RegisterDto dto);
+    public Task<UserDto> RegisterAsync(RegisterDto dto);
 }

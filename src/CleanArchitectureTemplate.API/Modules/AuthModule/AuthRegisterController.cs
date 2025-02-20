@@ -2,13 +2,12 @@ using System;
 using CleanArchitectureTemplate.Application.Modules.AuthModule.DTOs;
 using CleanArchitectureTemplate.Application.Modules.AuthModule.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Swashbuckle.AspNetCore.Annotations;
+
 
 namespace CleanArchitectureTemplate.API.Modules.AuthModule;
 
 [Route("api/Auth")]
 [ApiController]
-
 public class AuthRegisterController : ControllerBase
 {
 
@@ -21,13 +20,12 @@ public class AuthRegisterController : ControllerBase
     }
 
     [HttpPost("Register")]
-    [SwaggerOperation("Auth")]
     public virtual async Task<ActionResult<UserDto>> Create(RegisterDto dto)
     {
 
         try
         {
-            var createdItem = await this._useCase.Register(dto);
+            var createdItem = await this._useCase.RegisterAsync(dto);
             return Ok(createdItem);
         }
         catch (Exception e)

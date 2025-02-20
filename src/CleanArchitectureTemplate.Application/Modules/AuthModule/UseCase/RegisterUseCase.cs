@@ -4,7 +4,7 @@ using CleanArchitectureTemplate.Application.Modules.AuthModule.DTOs;
 using CleanArchitectureTemplate.Application.Modules.AuthModule.Interfaces;
 using CleanArchitectureTemplate.Infrastructure.Modules.AuthModule.Interfaces;
 using FluentValidation;
-using Microsoft.AspNetCore.Identity;
+
 
 namespace CleanArchitectureTemplate.Application.Modules.AuthModule.UseCase;
 public class RegisterUseCase : IRegisterUseCase
@@ -19,7 +19,7 @@ public class RegisterUseCase : IRegisterUseCase
         _validator = validator;
     }
 
-    public async Task<UserDto> Register(RegisterDto dto)
+    public async Task<UserDto> RegisterAsync(RegisterDto dto)
     {
         await ValidationService.Validate(this._validator!, dto);
 

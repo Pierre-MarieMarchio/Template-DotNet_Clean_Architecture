@@ -13,8 +13,11 @@
 
   <ItemGroup>
     <Folder Include="Commons/Repositories/" />
-    <Folder Include="Modules/AuthModule/Services/" />
     <Folder Include="Modules/ItemModule/Configurations/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>

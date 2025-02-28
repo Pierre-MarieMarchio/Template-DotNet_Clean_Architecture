@@ -8,7 +8,7 @@ using FluentValidation;
 
 namespace CleanArchitectureTemplate.Application.Modules.ItemModule.UseCase;
 
-public class ItemGetUseCase : BaseGetUseCase<Item, ItemGetDto>, IItemGetUseCase<Item, ItemGetDto>
+public class ItemGetUseCase : BaseGetUseCase<Item, ItemDto>, IItemGetUseCase<Item, ItemDto>
 {
 
     private readonly IItemService _itemService;
@@ -24,9 +24,9 @@ public class ItemGetUseCase : BaseGetUseCase<Item, ItemGetDto>, IItemGetUseCase<
         return data;
     }
 
-    protected override ItemGetDto MapToDTO(Item entity)
+    protected override ItemDto MapToDTO(Item entity)
     {
-        return new ItemGetDto
+        return new ItemDto
         {
             Id = entity.Id,
             UserName = entity.UserName,
@@ -85,7 +85,7 @@ public class ItemPutUseCase : BasePutUseCase<Item, ItemUpdateDto>, IItemPutUseCa
 
 }
 
-public class ItemDeleteUseCase : BaseDeleteUseCase<Item, ItemGetDto>, IItemDeleteUseCase<Item, ItemGetDto>
+public class ItemDeleteUseCase : BaseDeleteUseCase<Item, ItemDto>, IItemDeleteUseCase<Item, ItemDto>
 {
     public ItemDeleteUseCase(IItemRepository repository) : base(repository)
     {

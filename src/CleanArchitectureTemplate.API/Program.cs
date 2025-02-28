@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DotNetEnv;
 using System.Reflection;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -60,16 +62,35 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 
-builder.Services.AddAuthorization();
-builder.Services.AddIdentity<IdentityUser<Guid>, IdentityRole<Guid>>(options =>
-{
-    options.User.RequireUniqueEmail = true;
-})
-.AddEntityFrameworkStores<IdentityDatabaseContext>()
-.AddDefaultTokenProviders();
+
 
 var connectionString = $"Server={Environment.GetEnvironmentVariable("DATABASE_SERVER")};Database={Environment.GetEnvironmentVariable("DATABASE_NAME")};User Id={Environment.GetEnvironmentVariable("DATABASE_USER")};Password={Environment.GetEnvironmentVariable("DATABASE_PASSWORD")};TrustServerCertificate=True;";
 builder.Services.AddDbContext<IdentityDatabaseContext>(opt => opt.UseSqlServer(connectionString));
+
+builder.Services.AddAuthentication(opt => {
+
+    opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    opt.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+
+}).AddJwtBearer( opt => 
+
+    opt.TokenValidationParameters = new TokenValidationParameters {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        
+    }
+
+);
+builder.Services.AddAuthorization();
+builder.Services.AddIdentity<IdentityUser<Guid>, IdentityRole<Guid>>(opt =>
+{
+    opt.User.RequireUniqueEmail = true;
+})
+.AddEntityFrameworkStores<IdentityDatabaseContext>()
+.AddDefaultTokenProviders();
 
 var app = builder.Build();
 
@@ -80,11 +101,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+# region Conjfig. CORS
+app.UseCors();
+#endregion
 
-
-app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseHttpsRedirection();
+
+
+
 app.MapControllers();
 
 await app.RunAsync();

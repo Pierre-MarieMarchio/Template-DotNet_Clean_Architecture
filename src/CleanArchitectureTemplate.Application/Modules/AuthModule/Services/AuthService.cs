@@ -26,9 +26,9 @@ public class AuthService : IAuthService
 
         if (result.IsNotAllowed)
         {
-            throw new InvalidOperationException("you a are not allowed login");
+            throw new InvalidOperationException("you a are not allowed");
         }
-
+        
         if (result.RequiresTwoFactor)
         {
             throw new NotImplementedException();

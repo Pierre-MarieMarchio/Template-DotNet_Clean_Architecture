@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using CleanArchitectureTemplate.Application.Commons.Bases;
 using CleanArchitectureTemplate.Application.Commons.Interfaces;
 using CleanArchitectureTemplate.Domain.Commons.Bases;
+using Microsoft.AspNetCore.Authorization;
 
 
 namespace CleanArchitectureTemplate.API.Commons.Bases;
@@ -40,6 +41,7 @@ public abstract class BaseController<TModel, TDto, TPostDto, TPutDto> : Controll
 
     }
 
+    [Authorize]
     [HttpGet]
     public virtual async Task<ActionResult<IEnumerable<TDto>>> GetAll()
     {

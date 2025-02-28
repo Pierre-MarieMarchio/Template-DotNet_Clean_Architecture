@@ -10,6 +10,6 @@ public class LoginRequestDto
 public class LoginResponseDto
 {
     public required string AccessToken { get; set; }
-    public required string ExpirationTime {get; set;}
+    public required int ExpirationTime {get; set;}
     public required string RefreshToken { get; set; }
 }

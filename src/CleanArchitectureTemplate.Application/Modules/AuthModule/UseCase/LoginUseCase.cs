@@ -25,7 +25,7 @@ public class LoginUseCase : ILoginUseCase
     public async Task<LoginResponseDto> LoginAsync(LoginRequestDto dto)
     {
         await ValidationService.Validate(this._validator!, dto);
-        var user = await this._userRepository.GetUserbyEmailAsync(dto.Email) ?? throw new InvalidOperationException("Email or password not valid");
+        var user = await this._userRepository.GetUserbyEmailAsync(dto.Email) ?? throw new InvalidOperationException("Email or password is incorrect");
 
         return await this._authService.AuthenticateUserAsync(user, dto.Password);
     }

@@ -3,7 +3,7 @@ using CleanArchitectureTemplate.API.Commons.Bases;
 using CleanArchitectureTemplate.Application.Modules.ItemModule.DTOs;
 using CleanArchitectureTemplate.Application.Modules.ItemModule.Interfaces;
 using CleanArchitectureTemplate.Domain.Modules.ItemModule;
-using Microsoft.AspNetCore.Mvc;
+
 
 namespace CleanArchitectureTemplate.API.Modules.ItemModule;
 

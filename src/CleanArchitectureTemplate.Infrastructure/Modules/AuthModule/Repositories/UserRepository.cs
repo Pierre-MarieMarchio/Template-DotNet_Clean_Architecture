@@ -16,8 +16,8 @@ public class UserRepository : IUserRepository
 
     public async Task<User> GetUserbyEmailAsync(string email)
     {
-        var result = await _userManager.FindByEmailAsync(email) ?? throw new UnauthorizedAccessException($"User not valid");
-
+        var result = await _userManager.FindByEmailAsync(email) ?? throw new UnauthorizedAccessException($"Email or pasword not Valide");
+        
         return new User
         {
             Id = result.Id,
@@ -60,7 +60,7 @@ public class UserRepository : IUserRepository
             UserName = user.UserName,
             Email = user.Email,
         };
-
+        
         return await _userManager.UpdateAsync(appUser);
     }
 

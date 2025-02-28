@@ -5,5 +5,13 @@
       "Microsoft.AspNetCore": "Warning"
     }
   },
-  "ConnectionStrings": {}
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=aspnet-YourAppName;Trusted_Connection=True;MultipleActiveResultSets=true"
+  },
+  "JwtSettings": {
+    "SecretKey": "your_long_and_complex_secret_key",
+    "Issuer": "your_application",
+    "Audience": "your_clients",
+    "DurationInMinutes": 60
+  }
 }

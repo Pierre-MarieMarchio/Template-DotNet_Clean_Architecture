@@ -5,7 +5,7 @@ using CA.Domain.Commons.Bases;
 
 namespace CA.Application.Commons.Bases;
 
-public abstract class BaseGetByIdUseCase<TEntity, TRequest, TResponse>(IBaseRepository<TEntity> repository) : BaseUseCase<TRequest, TResponse>, IUseRepositoryUseCase<TEntity>
+public abstract class BaseGetByIdUseCase<TEntity, TRequest, TResponse>(IBaseRepository<TEntity> repository) : IBaseUseCase<TRequest, TResponse>, IUseRepositoryUseCase<TEntity>
     where TEntity : AuditableBaseEntity
     where TRequest : notnull
     where TResponse : class
@@ -14,9 +14,9 @@ public abstract class BaseGetByIdUseCase<TEntity, TRequest, TResponse>(IBaseRepo
 
     public IBaseRepository<TEntity> Repository => _repository;
 
-    public override async Task<TResponse> ExecuteAsync(TRequest id)
+    public virtual async Task<TResponse> ExecuteAsync(TRequest request)
     {
-        var result = await Repository.GetByIdAsync(id!);
+        var result = await Repository.GetByIdAsync(request!);
         var response = ResponseFactory.CreateResponse<TResponse>(result);
         return response;
     }

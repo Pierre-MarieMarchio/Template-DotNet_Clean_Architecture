@@ -6,7 +6,4 @@ namespace CA.Application.Modules.Auth.Interfaces.UseCases;
 
 public interface IConfirmEmailUseCase : IBaseUseCase<ConfirmEmailRequest, ConfirmEmailResponse>
 {
-
-
-
 }

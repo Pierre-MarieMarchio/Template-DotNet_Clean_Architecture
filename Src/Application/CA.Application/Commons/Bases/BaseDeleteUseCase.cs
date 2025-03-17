@@ -5,15 +5,14 @@ using CA.Domain.Commons.Bases;
 
 namespace CA.Application.Commons.Bases;
 
-public abstract class BaseDeleteUseCase<TEntity, TRequest, TResponse>(IBaseRepository<TEntity> repository)
-    : BaseUseCase<TRequest, TResponse>, IUseRepositoryUseCase<TEntity>
+public abstract class BaseDeleteUseCase<TEntity, TRequest, TResponse>(IBaseRepository<TEntity> repository) : IBaseUseCase<TRequest, TResponse>, IUseRepositoryUseCase<TEntity>
     where TEntity : AuditableBaseEntity
     where TRequest : notnull
     where TResponse : class
 {
 
 
-    public override async Task<TResponse> ExecuteAsync(TRequest request)
+    public virtual async Task<TResponse> ExecuteAsync(TRequest request)
     {
         var item = await Repository.GetByIdAsync(request);
         var result = await Repository.DeleteAsync(item);

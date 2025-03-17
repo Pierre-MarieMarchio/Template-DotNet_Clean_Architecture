@@ -12,7 +12,8 @@ public static class ResponseFactory
     public static List<TResponse> CreateResponseList<TResponse>(IEnumerable<object> result)
         where TResponse : class
     {
-        var response = result.Select(entity => Activator.CreateInstance(typeof(TResponse), entity) as TResponse).ToList();
-        return response as List<TResponse> ?? throw new InvalidOperationException("Failed to create response object.");
+        var response = result.Select(entity => Activator.CreateInstance(typeof(TResponse), entity) as TResponse).ToList() ?? throw new InvalidOperationException("Failed to create response object.");
+
+        return response!;
     }
 }

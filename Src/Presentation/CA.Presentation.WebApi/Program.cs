@@ -1,4 +1,3 @@
-
 using CA.Application;
 using CA.Infrastructure;
 using CA.Infrastructure.Commons.Contexts;
@@ -15,15 +14,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 bool useInMemoryDatabase = builder.Configuration.GetValue<bool>("UseInMemoryDatabase");
 
-
-// Add services to the container.
-
 builder.Services.AddApplicationLayer();
 builder.Services.AddIdentityInfrastructure(builder.Configuration, useInMemoryDatabase);
 builder.Services.AddPersistenceInfrastructure(builder.Configuration, useInMemoryDatabase);
 builder.Services.AddPresentationWebApiLayer();
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerExtensions();
 builder.Logging.AddConsole();

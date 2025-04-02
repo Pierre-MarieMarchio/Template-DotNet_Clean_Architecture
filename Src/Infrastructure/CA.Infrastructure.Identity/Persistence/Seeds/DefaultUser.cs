@@ -9,8 +9,8 @@ public static class DefaultUser
     {
         var defaultUser = new AppUser
         {
-            UserName = "Admin",
-            Email = "Admin@Admin.com",
+            UserName = "admin",
+            Email = "admin@admin",
             EmailConfirmed = true
         };
 

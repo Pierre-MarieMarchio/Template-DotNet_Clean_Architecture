@@ -23,7 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Application\CA.Application\CA.Application.csproj" />
-    <ProjectReference Include="..\..\Infrastructure\CA.Infrastructure.Identity\CA.Infrastructure.Identity.csproj" />
+    <ProjectReference
+      Include="..\..\Infrastructure\CA.Infrastructure.Identity\CA.Infrastructure.Identity.csproj" />
     <ProjectReference Include="..\..\Infrastructure\CA.Infrastructure\CA.Infrastructure.csproj" />
   </ItemGroup>
 

@@ -8,7 +8,7 @@ namespace CA.Infrastructure.Identity.Interfaces.Services;
 public interface IAppUserService
 {
     public Task<AppUser> CheckAndGeAsync(LoginRequest loginRequest, bool lockoutOnFailur = false);
-    public Task<AppUser> GetByEmailAsync(string Email);
+    public Task<AppUser> GetByEmailAsync(string email);
     public Task<AppUser> CreateAsync(AppUser user, string password);
     public Task<IEnumerable<Claim>> GenarateClaimsAsync(AppUser user);
     public Task<string> GenerateEmailTokenAsync(AppUser user);

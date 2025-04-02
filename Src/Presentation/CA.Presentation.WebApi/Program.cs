@@ -21,6 +21,7 @@ builder.Services.AddPresentationWebApiLayer();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerExtensions();
+builder.Services.AddCorsExtenssions();
 builder.Logging.AddConsole();
 
 
@@ -40,10 +41,12 @@ using (var scope = app.Services.CreateScope())
 
 }
 
+app.UseDevelopementCors();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseSwaggerExtensions();
 app.MapControllers();
+
 
 await app.RunAsync();

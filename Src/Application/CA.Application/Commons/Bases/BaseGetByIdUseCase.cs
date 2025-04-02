@@ -10,9 +10,7 @@ public abstract class BaseGetByIdUseCase<TEntity, TRequest, TResponse>(IBaseRepo
     where TRequest : notnull
     where TResponse : class
 {
-    private readonly IBaseRepository<TEntity> _repository = repository;
-
-    public IBaseRepository<TEntity> Repository => _repository;
+    public IBaseRepository<TEntity> Repository => repository;
 
     public virtual async Task<TResponse> ExecuteAsync(TRequest request)
     {

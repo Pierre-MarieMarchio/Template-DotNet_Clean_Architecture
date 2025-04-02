@@ -10,7 +10,7 @@ public abstract class BaseDeleteUseCase<TEntity, TRequest, TResponse>(IBaseRepos
     where TRequest : notnull
     where TResponse : class
 {
-
+    public IBaseRepository<TEntity> Repository => repository;
 
     public virtual async Task<TResponse> ExecuteAsync(TRequest request)
     {
@@ -20,5 +20,5 @@ public abstract class BaseDeleteUseCase<TEntity, TRequest, TResponse>(IBaseRepos
 
         return response;
     }
-    public IBaseRepository<TEntity> Repository => repository;
+
 }

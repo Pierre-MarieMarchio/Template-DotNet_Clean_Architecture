@@ -53,8 +53,7 @@ public class AppUserService(UserManager<AppUser> userManager, SignInManager<AppU
 
         if (!result.Succeeded)
         {
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Invalid Register Attempt : {errors}");
+            throw new InvalidOperationException($"Operation failed: Invalid Register Attempt");
         }
 
         var createdUser = await GetByEmailAsync(user.Email!);
@@ -66,14 +65,17 @@ public class AppUserService(UserManager<AppUser> userManager, SignInManager<AppU
     {
 
         var user = await userManager.FindByEmailAsync(email) ??
-            throw new InvalidOperationException($"Operation faild");
+            throw new InvalidOperationException($"Operation faild: Invalid Email Confirmation Attempt");
+        if (user.EmailConfirmed)
+        {
+            throw new InvalidOperationException($"Operation faild: Invalid Email Confirmation Attempt");
+        }
         var result = await userManager.ConfirmEmailAsync(user, token) ??
-            throw new InvalidOperationException($"Operation faild");
+            throw new InvalidOperationException($"Operation faild: Invalid Email Confirmation Attempt");
 
         if (!result.Succeeded)
         {
-            var errorMessages = string.Join(", ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Operation failed: {errorMessages}");
+            throw new InvalidOperationException($"Operation failed: Invalid Email Confirmation Attempt");
         }
 
         return result;
@@ -88,8 +90,7 @@ public class AppUserService(UserManager<AppUser> userManager, SignInManager<AppU
 
     public async Task<string> GenerateEmailTokenAsync(AppUser user)
     {
-        return await userManager.GenerateEmailConfirmationTokenAsync(user) ??
-            throw new Exception("Invalid Register Attempt");
+        return await userManager.GenerateEmailConfirmationTokenAsync(user);
     }
 
     public AppUser MapToAppUser(RegisterRequest user)

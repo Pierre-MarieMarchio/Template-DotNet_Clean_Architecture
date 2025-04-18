@@ -30,15 +30,28 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+
     if (!useInMemoryDatabase)
     {
-        await services.GetRequiredService<AppIdentityDbContext>().Database.MigrateAsync();
-        await services.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+        var identityDb = services.GetRequiredService<AppIdentityDbContext>();
+        var appDb = services.GetRequiredService<AppDbContext>();
+
+        await DatabaseHelper.EnsureDatabaseReadyAsync(identityDb);
+        await DatabaseHelper.EnsureDatabaseReadyAsync(appDb);
+
+        if ((await identityDb.Database.GetPendingMigrationsAsync()).Any())
+
+            await identityDb.Database.MigrateAsync();
+
+        if ((await appDb.Database.GetPendingMigrationsAsync()).Any())
+            await appDb.Database.MigrateAsync();
     }
 
-    await DefaultRole.SeedAsync(services.GetRequiredService<RoleManager<AppRole>>());
-    await DefaultUser.SeedAsync(services.GetRequiredService<UserManager<AppUser>>());
+    var roleManager = services.GetRequiredService<RoleManager<AppRole>>();
+    var userManager = services.GetRequiredService<UserManager<AppUser>>();
 
+    await DefaultRole.SeedAsync(roleManager);
+    await DefaultUser.SeedAsync(userManager);
 }
 
 app.UseDevelopementCors();

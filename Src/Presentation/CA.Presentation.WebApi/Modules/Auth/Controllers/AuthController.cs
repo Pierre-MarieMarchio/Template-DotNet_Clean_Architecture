@@ -3,6 +3,7 @@ using CA.Application.Modules.Auth.Interfaces.Managers;
 using CA.Domain.Modules.Auth.Exceptions;
 using CA.Presentation.WebApi.Commons.Factories;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Web;
 
@@ -106,6 +107,7 @@ public class AuthController(IAuthManager authManager) : ControllerBase
         return Ok(res);
     }
 
+    [Authorize]
     [HttpGet("test-cookie")]
     public IActionResult TestCookie()
     {

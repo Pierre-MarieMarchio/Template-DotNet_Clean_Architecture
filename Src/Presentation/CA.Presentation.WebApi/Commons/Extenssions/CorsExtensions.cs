@@ -11,6 +11,7 @@ public static class CorsExtensions
             opt.AddPolicy("development", builder =>
             {
                 builder.WithOrigins("http://localhost:4200")
+                .AllowCredentials()
                 .AllowAnyHeader()
                 .AllowAnyMethod();
             });

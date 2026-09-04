@@ -13,9 +13,9 @@
 # `10.0` silently change the contents of a "reproducible" build, and make it
 # impossible to tell from the Dockerfile whether a CVE has been picked up yet.
 # Bump these two ARGs deliberately; keep DOTNET_RUNTIME_TAG's patch level aligned
-# with the Microsoft.* package band in Directory.Packages.props (currently 10.0.10).
+# with the Microsoft.* package band in Directory.Packages.props (currently 10.0.11).
 ARG DOTNET_SDK_TAG=10.0.302-noble
-ARG DOTNET_RUNTIME_TAG=10.0.10-alpine3.23
+ARG DOTNET_RUNTIME_TAG=10.0.11-alpine3.23
 
 
 # ---------------------------------------------------------------------------
@@ -43,7 +43,13 @@ WORKDIR /src
 #    Management, so every PackageReference is version-less and restore fails
 #    outright ("NU1008 / versions must be centrally managed") if
 #    Directory.Packages.props is absent. global.json pins the SDK feature band.
-COPY ["global.json", "Directory.Build.props", "Directory.Packages.props", "./"]
+#
+#    Directory.Build.targets carries nothing this image needs — its one property
+#    applies to test projects, and no test project is built here — and it is copied
+#    anyway. An absent .targets file is not an error, it is simply not imported, so
+#    the day it grows a rule that does apply to a product project the image would
+#    build without it and differ from every other build silently.
+COPY ["global.json", "Directory.Build.props", "Directory.Build.targets", "Directory.Packages.props", "./"]
 
 # 2. Project files, one per project, laid out under Src/<layer>/. Every project the API
 #    references transitively must appear here, and at its real path: restore reads the

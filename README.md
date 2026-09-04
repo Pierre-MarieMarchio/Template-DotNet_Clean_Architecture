@@ -754,30 +754,46 @@ tests.
 dotnet test AppTemplate.sln
 ```
 
-With coverage, as CI runs it:
+That is one invocation for the whole suite, and one process tree: `global.json` names
+**Microsoft.Testing.Platform** as the test runner, so each test project builds as a console
+application hosting its own runner and the platform runs them in parallel.
+
+With coverage and the reports CI keeps:
 
 ```bash
 dotnet test AppTemplate.sln \
   --configuration Release \
-  --logger "trx;LogFileName=test-results.trx" \
   --results-directory TestResults \
-  --collect:"XPlat Code Coverage"
+  --report-xunit-trx \
+  --coverage \
+  --coverage-settings coverage.runsettings \
+  --coverage-output-format cobertura \
+  --minimum-expected-tests 3000
 ```
+
+These are the platform's switches, not VSTest's, and the resemblance is a trap: there is no
+`--logger` and no `--collect`, and `--settings` is accepted and then ignored, so coverage settings
+have to arrive through `--coverage-settings` or every exclusion in that file goes unapplied. One
+Cobertura report is written per test module; `Tools/CoverageGate.cs` merges them as a union over
+(source file, line) before comparing against the floor.
+
+`--minimum-expected-tests` is the platform's own answer to a run that is green because it executed
+nothing: it fails the run, with exit code 5, rather than reporting success over zero tests.
 
 Integration tests start a real PostgreSQL in Docker, so **Docker must be running**.
 CI runs on `ubuntu-latest`, which provides a Docker daemon; the hosted macOS and
 Windows runners do not.
 
 Every test project is listed in `AppTemplate.sln`, so `dotnet test AppTemplate.sln` runs all of
-them. Keep it that way: a project on disk but absent from the solution is skipped silently,
-and CI asserts against exactly that (see the "Assert test projects exist and are in the
-solution" step in `.github/workflows/ci.yml`) — a count stated here would be one more thing to
-keep in step, so it is deliberately not stated.
+them. Keep it that way: the platform runs the test modules the solution names, so a project on
+disk but absent from it is never run and nothing in the run says so. CI asserts against exactly
+that (see the "Assert test projects exist and are in the solution" step in
+`.github/workflows/ci.yml`) — a count stated here would be one more thing to keep in step, so it
+is deliberately not stated.
 
-> If the test projects opt into Microsoft.Testing.Platform
-> (`<TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>`), the
-> `--logger` / `--collect` flags change shape and both this section and
-> `.github/workflows/ci.yml` need updating together.
+> `Directory.Build.targets` is what sets `<OutputType>Exe</OutputType>` on every project with
+> `IsTestProject`, and it exists for that one line: `Directory.Build.props` is imported before a
+> project's own body, so `IsTestProject` is still empty there and the condition never matches.
 
 ## Database migrations
 
@@ -848,8 +864,9 @@ dotnet ef migrations has-pending-model-changes \
 
 ```
 AppTemplate.sln                         solution (classic format)
-global.json                    SDK pin
+global.json                    SDK pin, and the test runner the SDK drives
 Directory.Build.props          shared TFM, nullable, warnings-as-errors
+Directory.Build.targets        what only a test project needs, set after its own body
 Directory.Packages.props       Central Package Management — all versions
 .config/dotnet-tools.json      pinned local tools (dotnet-ef)
 docker-compose.yml             db + mailpit + minio + api + worker
@@ -1115,10 +1132,10 @@ docker build -f Src/Presentation/AppTemplate.Api/Dockerfile -t app-template-api:
 ```
 
 The build context is the **repository root**, not `Src/Presentation/AppTemplate.Api` — `Directory.Build.props`,
-`Directory.Packages.props` and `global.json` must be copied before `dotnet restore`
+`Directory.Build.targets`, `Directory.Packages.props` and `global.json` must be copied before `dotnet restore`
 or Central Package Management fails.
 
-- Multi-stage: `sdk:10.0.302-noble` builds, `aspnet:10.0.10-alpine3.23` runs. Both
+- Multi-stage: `sdk:10.0.302-noble` builds, `aspnet:10.0.11-alpine3.23` runs. Both
   pinned to a patch version.
 - Runs as **non-root** (`USER $APP_UID`). The alpine variant does not set `User`
   itself, so that line is load-bearing.

@@ -412,6 +412,29 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **Tests run on Microsoft.Testing.Platform, and `dotnet test` takes different switches.**
+  `global.json` names the runner, each test project builds as a console application hosting its own
+  runner, and one invocation runs the whole solution in parallel — no per-project loop, and the
+  architecture suite no longer needs a collector-free invocation of its own. The switches are not
+  interchangeable with the VSTest ones a derived project may have copied into its own scripts:
+  `--logger` and `--collect` are gone, replaced by `--report-xunit-trx` and `--coverage`, and
+  `--settings` is accepted and then silently ignored, so coverage settings must arrive through
+  `--coverage-settings`. `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk` and
+  `coverlet.collector` are gone with it; `xunit.v3` 4.0.0 requires the platform, and coverlet's own
+  collector does not support it on .NET 10. Adopting this in an existing project means editing every
+  place a test command is written down.
+- **`coverage.runsettings` is a different file for a different engine.** Coverage is collected by the
+  extension the platform ships, which takes .NET regular expressions where coverlet took globs, so
+  every filter in that file is rewritten. It also counts sequence points rather than lines: the same
+  code and the same tests measure 6,215 lines where coverlet measured 8,704, and score four points
+  higher over them. Every figure in `coverage.minimum` before the `extension` rows is on the old
+  scale and not comparable.
+- **The coverage floor is 88, up from 85.** A floor is worth what its margin is, and re-basing the
+  measurement left 85 protecting less than it used to. 88 is set against the lower of the two
+  configurations measured, so a local Debug run cannot fail a gate that CI's Release run would pass.
+- **`Directory.Build.targets` is new, and carries one property.** `<OutputType>Exe</OutputType>` for
+  every project with `IsTestProject`. It cannot live in `Directory.Build.props`, which is imported
+  before a project's own body, where `IsTestProject` is still empty.
 - **A mail's subject is no longer configured.** `EmailConfirmation:Subject`, `PasswordReset:Subject`
   and `EmailChange:Subject` are gone; the subject is the template's `<title>`. They were a second
   statement of the same fact and had already drifted from it — the registration mail was being

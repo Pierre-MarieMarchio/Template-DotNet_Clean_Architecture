@@ -56,11 +56,17 @@ jobs:
       - name: Build
         run: dotnet build "$SOLUTION" --configuration "$CONFIGURATION" --no-restore
 
-      # Architecture rules run without the coverage collector, for the reason
-      # documented in ci.yml. Here the whole solution runs plainly — no coverage
-      # is collected at release time, so the split is unnecessary.
+      # No coverage at release time: the floor is a gate on a change, and this
+      # workflow runs on a tag that already passed it. The test-count floor is here
+      # though, because the failure it catches is not about coverage — a release
+      # built from a solution that ran no tests is the one release nobody would
+      # question. Kept a round number below the real total, matching ci.yml.
       - name: Test
-        run: dotnet test "$SOLUTION" --configuration "$CONFIGURATION" --no-build
+        run: |
+          dotnet test "$SOLUTION" \
+            --configuration "$CONFIGURATION" \
+            --no-build \
+            --minimum-expected-tests 3000
 
       - name: Audit dependencies
         run: |

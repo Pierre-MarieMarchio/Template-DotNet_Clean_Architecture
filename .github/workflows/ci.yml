@@ -78,8 +78,9 @@ jobs:
       # A test suite that silently runs zero tests is worse than no test suite,
       # because it is green. Two things are asserted before `dotnet test` runs:
       # that test projects exist at all, and that every one of them is in the
-      # solution — a project on disk but absent from AppTemplate.sln is invisible to
-      # `dotnet test AppTemplate.sln` and would produce exactly that false green.
+      # solution — the platform enumerates the test modules the solution names, so a
+      # project on disk but absent from AppTemplate.sln is never run, and nothing in
+      # the run itself says so.
       - name: Assert test projects exist and are in the solution
         run: |
           set -euo pipefail
@@ -116,66 +117,53 @@ jobs:
       # ubuntu-latest provides one out of the box; the macOS and Windows hosted
       # runners do NOT, so this job must stay on Linux.
       #
-      # These are VSTest-shaped flags, which is what `dotnet test` uses by default
-      # with Microsoft.NET.Test.Sdk + xunit.runner.visualstudio. If the test
-      # projects ever set TestingPlatformDotnetTestSupport=true, --logger and
-      # --collect change shape and this step must change with them.
+      # One invocation for the whole solution, and one is enough for three separate
+      # reasons that used to each need their own handling:
       #
-      # The suite is split across two invocations for one reason, and it is not
-      # cosmetic: NetArchTest resolves each type it inspects through
-      # Type.GetType(name, throwOnError: true), and that resolution FAILS against
-      # a Coverlet-instrumented assembly. Collecting coverage over
-      # AppTemplate.Architecture.Tests makes 7 of its 40 tests throw
-      # (ModuleDependencyTests, LayerDependencyTests and the sensitivity checks),
-      # while all 40 pass without the collector. So the architecture rules run
-      # clean, and coverage is collected over everything else. Every test still
-      # runs exactly once. Do not merge these back into one step.
-      # One invocation per project: `dotnet test` takes a single project or solution
-      # (MSB1008 otherwise), and there is no --exclude-project. The set is discovered
-      # from disk rather than written out, because a hard-coded list is a third copy
-      # of the truth and it has already gone stale once — a new test project that
-      # nobody added to the list simply did not run, and nothing said so. Discovery
-      # cannot forget a project; the only exclusion is the architecture suite, for
-      # the Coverlet reason above, and it runs in the next step.
+      #   * The platform runs every test module in the solution, in parallel, in
+      #     one process tree. There is no per-project loop to keep in step with
+      #     what is on disk, and no list of projects to go stale.
+      #   * The architecture suite runs in the same invocation as everything else.
+      #     NetArchTest resolves each type it inspects through
+      #     Type.GetType(name, throwOnError: true), and that resolution fails
+      #     against a Coverlet-instrumented assembly — which is why it needed a
+      #     collector-free invocation of its own. This collector does not break it:
+      #     all 125 of its tests pass with the seven product assemblies it inspects
+      #     instrumented. Verify that before splitting this step again.
+      #   * minimum-expected-tests is the platform's own answer to a green run that
+      #     executed nothing. It is a floor and not an exact count, so it does not
+      #     have to be edited every time a test is added; it has to be raised when
+      #     it stops being a floor. The TRX summary below still prints the real
+      #     totals, and the step after it still fails a run that produced none.
+      #
+      # The flags are Microsoft.Testing.Platform's, which is what `dotnet test`
+      # drives now that global.json names it as the runner. They are not
+      # interchangeable with the VSTest ones: there is no --logger and no --collect,
+      # and passing the coverage settings file to --settings instead of
+      # --coverage-settings is accepted and then ignored.
       - name: Test (with coverage)
         run: |
-          set -euo pipefail
-          mapfile -t projects < <(find Tests -name '*.csproj' -not -path '*AppTemplate.Architecture.Tests*' | sort)
-          if [ "${#projects[@]}" -eq 0 ]; then
-            echo "::error title=No test projects::Discovery found nothing to run."
-            exit 1
-          fi
-          for project in "${projects[@]}"; do
-            echo "::group::$project"
-            dotnet test "$project" \
-              --configuration "$CONFIGURATION" \
-              --no-build \
-              --logger "trx;LogFileName=$(basename "$project" .csproj).trx" \
-              --logger "console;verbosity=normal" \
-              --results-directory TestResults \
-              --settings coverage.runsettings \
-              --collect:"XPlat Code Coverage"
-            echo "::endgroup::"
-          done
-
-      # No collector here: see the comment above.
-      - name: Test (architecture rules)
-        run: |
-          dotnet test Tests/Architecture/AppTemplate.Architecture.Tests \
+          dotnet test \
+            --solution "$SOLUTION" \
             --configuration "$CONFIGURATION" \
             --no-build \
-            --logger "trx;LogFileName=architecture-tests.trx" \
-            --logger "console;verbosity=normal" \
-            --results-directory TestResults
+            --results-directory TestResults \
+            --report-xunit-trx \
+            --coverage \
+            --coverage-settings coverage.runsettings \
+            --coverage-output-format cobertura \
+            --minimum-expected-tests 3000
 
       # Reads the TRX totals into the job summary, so a reviewer sees the counts
-      # without downloading an artifact — and so a run that executed zero tests is
-      # visible rather than merely green.
-      # A green run with no tests is a false pass: dotnet test exits zero when it finds
-      # nothing to run, so a project missing from the solution reads exactly like a project
-      # whose tests all passed. The counters come from the TRX files rather than from the
-      # console, which interleaves when assemblies run in parallel and can splice one
-      # assembly's line into another's.
+      # without downloading an artifact — and so the number that ran is a figure a
+      # reviewer can read rather than a policy that merely held.
+      #
+      # This is not the same assertion as minimum-expected-tests above and does not
+      # replace it. That switch fails a run that executed fewer tests than the floor;
+      # this step states how many ran, per the files themselves, and fails a run that
+      # produced no TRX at all. The counters come from the TRX files rather than from
+      # the console, which interleaves when modules run in parallel and can splice one
+      # module's line into another's.
       - name: Summarise test results
         if: always()
         run: |
@@ -433,7 +421,7 @@ jobs:
           fi
           for project in "${projects[@]}"; do
             echo "::group::$project"
-            dotnet test "$project" --configuration Release --no-build --logger "console;verbosity=normal"
+            dotnet test "$project" --configuration Release --no-build --output Detailed
             echo "::endgroup::"
           done
 

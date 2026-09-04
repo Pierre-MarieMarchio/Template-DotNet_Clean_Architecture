@@ -1,0 +1,56 @@
+﻿namespace AppTemplate.Application.Common;
+
+/// <summary>How a failure should be surfaced at the transport boundary.</summary>
+public enum ErrorType
+{
+    /// <summary>Maps to HTTP 400 / 422.</summary>
+    Validation,
+
+    /// <summary>Maps to HTTP 404.</summary>
+    NotFound,
+
+    /// <summary>The caller is not authenticated. Maps to HTTP 401.</summary>
+    Unauthorized,
+
+    /// <summary>The caller is authenticated but not allowed. Maps to HTTP 403.</summary>
+    Forbidden,
+
+    /// <summary>State prevents the operation, e.g. a duplicate. Maps to HTTP 409.</summary>
+    Conflict,
+
+    /// <summary>Maps to HTTP 429.</summary>
+    TooManyRequests,
+
+    /// <summary>
+    /// A condition the caller attached to the request does not hold against the current state.
+    /// Maps to HTTP 412.
+    /// </summary>
+    PreconditionFailed,
+
+    /// <summary>
+    /// The operation may only be performed conditionally, and the caller attached no condition.
+    /// Maps to HTTP 428.
+    /// </summary>
+    PreconditionRequired,
+}
+
+/// <param name="Code">Stable, dotted identifier clients may branch on, e.g. <c>todoList.notFound</c>.</param>
+/// <param name="Message">Human-readable description, safe to return to a client.</param>
+public sealed record Error(string Code, string Message, ErrorType Type)
+{
+    public static Error Validation(string code, string message) => new(code, message, ErrorType.Validation);
+
+    public static Error NotFound(string code, string message) => new(code, message, ErrorType.NotFound);
+
+    public static Error Unauthorized(string code, string message) => new(code, message, ErrorType.Unauthorized);
+
+    public static Error Forbidden(string code, string message) => new(code, message, ErrorType.Forbidden);
+
+    public static Error Conflict(string code, string message) => new(code, message, ErrorType.Conflict);
+
+    public static Error PreconditionFailed(string code, string message) =>
+        new(code, message, ErrorType.PreconditionFailed);
+
+    public static Error PreconditionRequired(string code, string message) =>
+        new(code, message, ErrorType.PreconditionRequired);
+}

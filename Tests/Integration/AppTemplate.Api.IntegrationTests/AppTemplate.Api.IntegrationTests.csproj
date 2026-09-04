@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- End-to-end tests for the API. Every test drives the real host over HTTP against a real
+       PostgreSQL instance in a container: the only substituted adapters are the ones that reach
+       outside the process, and both of those come from AppTemplate.Infrastructure.InMemory rather than
+       from a fake defined here. Nothing in this project knows an internal type of a module. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <!-- The API under test, plus the module that supplies the recording doubles. The API
+       deliberately does not reference AppTemplate.Infrastructure.InMemory, so the test host is the only
+       thing that composes both. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Presentation\AppTemplate.Api\AppTemplate.Api.csproj" />
+    <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.InMemory\AppTemplate.Infrastructure.InMemory.csproj" />
+  </ItemGroup>
+
+</Project>

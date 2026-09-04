@@ -3,10 +3,15 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
-# Environement
+# Environment / secrets
+#
+# appsettings.json and appsettings.Development.json ARE tracked on purpose: they
+# document the configuration schema and must contain no secrets. Real secrets go
+# to `dotnet user-secrets` (local) or environment variables (deployed).
+# Only machine-local overrides are ignored.
 .env
-appsettings.json
-appsettings.Development.json
+**/appsettings.*.local.json
+**/appsettings.local.json
 
 # User-specific files
 *.rsuser

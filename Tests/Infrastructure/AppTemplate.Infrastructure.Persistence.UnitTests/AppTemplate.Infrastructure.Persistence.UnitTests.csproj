@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the persistence layer's own logic — which, now that EF does not map the domain
+       types, means the mapper between an aggregate and its rows.
+
+       That mapper is the one place in this repository where an omission is silent: forgetting to copy
+       a property throws nothing, logs nothing and fails no test that was not written for it. The
+       aggregate simply comes back from the database with a value reset to its default. These tests
+       exist to make that class of defect impossible to introduce unnoticed, and they are reflection-
+       driven rather than hand-enumerated precisely so that a property added tomorrow is covered
+       without anybody remembering to cover it.
+
+       No database and no EF here: the mapper is deliberately EF-free, so it can be exercised with two
+       plain object graphs. Everything that needs a real PostgreSQL — the flush pipeline, the
+       concurrency token, event dispatch — is covered end to end in AppTemplate.Api.IntegrationTests.
+
+       This project is the sole holder of InternalsVisibleTo from AppTemplate.Infrastructure.Persistence: the
+       mapper and the record types are internal, and a test restricted to the public surface could not
+       tell a complete mapper from one with a hole in it. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

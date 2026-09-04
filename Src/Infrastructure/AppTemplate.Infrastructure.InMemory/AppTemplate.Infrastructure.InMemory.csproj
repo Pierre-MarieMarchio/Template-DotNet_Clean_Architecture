@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- First-class test doubles, shipped as a product project rather than hidden in a test
+       folder: they are composed the same way every other module is, so a test host, a demo
+       host and a local run all get them through the same DI entry point instead of each
+       re-inventing a fake. It takes no dependency on EF or MailKit — a double that needed
+       the real technology would not be a double. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,15 @@
+# Line-coverage floor, in percent. Read by .github/workflows/ci.yml and by tasks.ps1, so the gate
+# a developer runs locally is the gate CI runs. One value, one file, no second copy to drift.
+#
+# Set from measurement, never invented. A threshold above the real number fails on day one and gets
+# deleted; a threshold far below it lets coverage rot unnoticed, which is the same as having none.
+# The rule here is: a few points under the measured value, so an honest refactor has room but a
+# real regression trips it.
+#
+# Measured history — `./tasks.ps1 coverage` prints the current value:
+#   2026-08-05   83.80%  (2261/2698)  715 tests
+#   2026-08-05   86.53%  (2750/3178)  974 tests
+#
+# The weakest assembly is AppTemplate.Api at 76.55%; the total is what the gate enforces, so a large new
+# controller with no tests can pull the total down even while every other project improves.
+84

@@ -481,17 +481,30 @@ jobs:
       # third-party action: every action in this workflow is pinned to a commit
       # SHA, and one more supply-chain edge for a job that is allowed to fail is
       # a poor trade.
+      # The release archive and its published SHA-256, not the apt repository. k6's documented
+      # install fetches a signing key from a public keyserver, which needs dirmngr and a writable
+      # GNUPGHOME under sudo; the hosted runner has neither, so it failed before k6 was ever asked
+      # to do anything:
+      #
+      #   gpg: can't connect to the dirmngr: No such file or directory
+      #   gpg: keyserver receive failed: No dirmngr
+      #
+      # A pinned tarball verified against the checksum published beside it is one network call and
+      # no daemon, and it pins the version the way every action in this file is pinned by digest.
+      # Bump both lines together — a version without its checksum is a download nothing checks.
       - name: Install k6
         run: |
           set -euo pipefail
-          sudo gpg --no-default-keyring \
-            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
-            --keyserver hkp://keyserver.ubuntu.com:80 \
-            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
-            | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update
-          sudo apt-get install -y k6
+          version=v2.2.0
+          sha256=b5a8003c86f35f5cd5ceef1490312c48e587696c94d998cefc6d7b3b4cb1597d
+          archive="k6-${version}-linux-amd64"
+          curl -sSfL --retry 3 --retry-delay 2 \
+            -o /tmp/k6.tar.gz \
+            "https://github.com/grafana/k6/releases/download/${version}/${archive}.tar.gz"
+          echo "${sha256}  /tmp/k6.tar.gz" | sha256sum --check --strict -
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo install -m 0755 "/tmp/${archive}/k6" /usr/local/bin/k6
+          k6 version
 
       - name: Smoke
         run: k6 run -e BASE_URL=http://localhost:8080 Tests/Load/smoke.js

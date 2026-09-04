@@ -19,6 +19,7 @@ using AppTemplate.Application.Features.Auth.UseCases.Commands.RequestPasswordRes
 using AppTemplate.Application.Features.Auth.UseCases.Commands.ResendConfirmationEmail;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.ResetPassword;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.SetUpTwoFactor;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.VerifyTwoFactor;
 using AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser;
 using Microsoft.AspNetCore.Authorization;
@@ -49,6 +50,8 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// endpoints — <see cref="Login"/>, <see cref="LoginWithTwoFactor"/>, <see cref="Refresh"/> — where
 /// bad credentials, an invalid challenge or a spent refresh token are the expected refusal, and to
 /// every <c>[Authorize]</c> action, where it means the caller's token is missing or no longer valid.
+/// <see cref="LoginWithExternalProvider"/> is a token endpoint too, and its 401 covers every way an
+/// external sign-in can be refused, indistinguishably.
 /// </para>
 /// <para>
 /// The tight <see cref="RateLimitingExtensions.Authentication"/> budget is declared on each action that
@@ -83,7 +86,8 @@ public sealed class AuthController(
     ISetUpTwoFactorUseCase setUpTwoFactor,
     IConfirmTwoFactorSetupUseCase confirmTwoFactorSetup,
     IDisableTwoFactorUseCase disableTwoFactor,
-    IVerifyTwoFactorUseCase verifyTwoFactor) : ApiControllerBase
+    IVerifyTwoFactorUseCase verifyTwoFactor,
+    ISignInWithExternalProviderUseCase signInWithExternalProvider) : ApiControllerBase
 {
     /// <summary>Creates an account and sends a confirmation email.</summary>
     [HttpPost("register")]
@@ -150,6 +154,51 @@ public sealed class AuthController(
 
         return OkOrProblem(
             AuthResponseMapping.ToLoginResponse(await verifyTwoFactor.ExecuteAsync(command, cancellationToken)));
+    }
+
+    /// <summary>
+    /// Exchanges an <c>id_token</c> the client obtained from an identity provider for this API's own
+    /// token pair, creating or linking a local account on the way.
+    /// </summary>
+    /// <remarks>
+    /// This API issues no redirect and sets no cookie: the client runs the provider's
+    /// authorisation-code-with-PKCE flow itself and posts only its result here, so a browser app, a
+    /// phone and a desktop client all take the same two calls and the token model is untouched.
+    /// <para>
+    /// Answers with <see cref="ExternalLoginResponse"/>, which is <see cref="LoginResponse"/>'s shape
+    /// plus one field — including the <c>twoFactorRequired</c> branch, redeemed at
+    /// <see cref="LoginWithTwoFactor"/>. A provider proves who the caller is, which is what a password
+    /// proves and no more; serving a token pair here for an account with a second factor armed would
+    /// make linking a provider the way to walk around it.
+    /// </para>
+    /// <para>
+    /// One 401 for every refusal — a token that did not verify, a provider nobody configured, an
+    /// address the provider would not vouch for, an address held by an account that never confirmed
+    /// it, an account that may no longer sign in. Anyone can obtain an <c>id_token</c> for an address
+    /// they control, so a distinct answer for any of those turns this into a probe for which addresses
+    /// are registered here and which providers this installation accepts. The provider is a field of
+    /// the body rather than a route segment for the same reason, which
+    /// <see cref="SignInWithExternalProviderRequest"/> sets out.
+    /// </para>
+    /// </remarks>
+    [HttpPost("login/external")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
+    [NoStore]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ExternalLoginResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
+    public async Task<ActionResult<ExternalLoginResponse>> LoginWithExternalProvider(
+        [FromBody] SignInWithExternalProviderRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var command = new SignInWithExternalProviderCommand(request.Provider, request.IdToken);
+
+        return OkOrProblem(
+            AuthResponseMapping.ToExternalLoginResponse(
+                await signInWithExternalProvider.ExecuteAsync(command, cancellationToken)));
     }
 
     /// <summary>

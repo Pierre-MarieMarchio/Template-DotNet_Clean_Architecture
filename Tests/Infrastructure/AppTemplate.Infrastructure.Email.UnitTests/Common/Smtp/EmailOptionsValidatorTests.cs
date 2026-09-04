@@ -271,6 +271,86 @@ public sealed class EmailOptionsValidatorTests
         RejectionsFor(options).ShouldAllBe(failure => failure.Contains("Email:", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// The relay rules belong to the relay. A deployment sending over the HTTP transport has no host,
+    /// no port and no TLS mode, and applying them anyway would force an operator to invent three
+    /// values for a transport they do not use — values that mean nothing and that a reader would
+    /// later take for the truth about how this system sends mail.
+    /// </summary>
+    [Fact]
+    public void Validate_AsksForNoRelayWhenTheTransportIsNotSmtp()
+    {
+        var options = new EmailOptions
+        {
+            Transport = EmailOptions.PostmarkTransport,
+            FromAddress = "no-reply@example.invalid",
+            FromName = "AppTemplate",
+        };
+
+        _validator.Validate(name: null, options).Succeeded.ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// The sender identity is not the relay's. Whichever transport carries the message, it goes out
+    /// from an address, and a blank one is a bounce whatever the wire underneath.
+    /// </summary>
+    [Fact]
+    public void Validate_StillRequiresAFromAddressWhenTheTransportIsNotSmtp()
+    {
+        var options = new EmailOptions { Transport = EmailOptions.PostmarkTransport, FromAddress = "" };
+
+        RejectionMessageFor(options).ShouldContain("FromAddress");
+    }
+
+    /// <summary>Configuration is where casing is nobody's contract, here as much as for a host name.</summary>
+    [Theory]
+    [InlineData("smtp")]
+    [InlineData("SMTP")]
+    public void Validate_RecognisesTheSmtpTransportWhateverItsCasing(string transport)
+    {
+        var options = Valid();
+        options.Transport = transport;
+        options.Host = "";
+
+        RejectionMessageFor(options).ShouldContain("Host");
+    }
+
+    /// <summary>
+    /// An unrecognised transport is refused, and the message names the two that exist — because the
+    /// person reading it has just misspelt one of them and the alternative is a search through the
+    /// source for the accepted spellings.
+    /// </summary>
+    [Theory]
+    [InlineData("Postmrak")]
+    [InlineData("SendGrid")]
+    [InlineData("")]
+    public void Validate_RejectsATransportItDoesNotRecognise(string transport)
+    {
+        var options = Valid();
+        options.Transport = transport;
+
+        var message = RejectionMessageFor(options);
+
+        message.ShouldContain("Transport");
+        message.ShouldContain(EmailOptions.SmtpTransport);
+        message.ShouldContain(EmailOptions.PostmarkTransport);
+    }
+
+    /// <summary>
+    /// And it is refused on its own. Three relay failures piled on top of a misspelt transport would
+    /// bury the one mistake that caused them, and the first thing the operator would do is invent a
+    /// host to make them go away.
+    /// </summary>
+    [Fact]
+    public void Validate_ReportsAnUnrecognisedTransportWithoutTheRelayFailuresItWouldCause()
+    {
+        var options = new EmailOptions { Transport = "SendGrid", FromAddress = "no-reply@example.invalid" };
+
+        var failures = RejectionsFor(options);
+
+        failures.ShouldHaveSingleItem().ShouldContain("Transport");
+    }
+
     [Fact]
     public void Validate_ThrowsWhenThereAreNoOptionsToValidate()
     {

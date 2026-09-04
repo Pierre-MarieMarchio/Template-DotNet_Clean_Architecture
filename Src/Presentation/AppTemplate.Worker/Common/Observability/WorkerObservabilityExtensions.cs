@@ -14,8 +14,10 @@ namespace AppTemplate.Worker.Common.Observability;
 /// reference — see AppTemplate.Worker.csproj. A third project shared by both hosts would be the
 /// cleaner home for this, but splitting it out touches the solution file and both hosts' project
 /// files, which is a bigger change than adding telemetry to one of them; this class is the
-/// self-contained alternative, kept deliberately small (no ASP.NET Core instrumentation, no HTTP
-/// client instrumentation — this host answers no requests and calls no HTTP API).
+/// self-contained alternative, kept deliberately small: no ASP.NET Core instrumentation, because
+/// this host answers no request. Outbound HTTP <em>is</em> instrumented, matching the resilience
+/// policy in <c>Common/Outbound/</c> — the modules this host composes are the ones that call
+/// outwards, and a call this host makes without a span is a call nobody can see failed.
 /// </summary>
 public static class WorkerObservabilityExtensions
 {
@@ -52,6 +54,7 @@ public static class WorkerObservabilityExtensions
                 // issues — the same pairing AppTemplate.Api gets for a request and its query.
                 .AddSource(MaintenanceDiagnostics.Name)
                 .AddNpgsql()
+                .AddHttpClientInstrumentation()
                 .AddOtlpExporter(exporter =>
                 {
                     exporter.Endpoint = endpoint;
@@ -59,6 +62,7 @@ public static class WorkerObservabilityExtensions
                 }))
             .WithMetrics(metrics => metrics
                 .AddMeter(MaintenanceDiagnostics.Name)
+                .AddHttpClientInstrumentation()
                 // "AppTemplate.Reminders": AppTemplate.Infrastructure.Persistence.Features
                 // .Reminders.Observability.ReminderDiagnostics's own missed-cancellation counter. A
                 // literal rather than a shared constant because that class is internal to a

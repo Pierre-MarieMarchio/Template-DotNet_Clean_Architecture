@@ -14,11 +14,23 @@ namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueRe
 /// <c>UserId</c> rather than pretend an anonymous caller, and a use case that reads it would fail
 /// on its very first iteration.
 /// <para>
+/// <b>One host at a time.</b> The whole pass runs under <see cref="ILeaderLease"/>, and that guard
+/// belongs to this operation rather than to the timer that happens to start it: the per-reminder
+/// claim below has never defended against a concurrent pass. <c>Reminder.TryClaim</c> mutates
+/// in memory and the batch commits at the end, so two replicas ticking in the same second both read
+/// the claim as free, both send the mail, and only afterwards does one of them lose on <c>xmin</c> —
+/// once the duplicate is already delivered. Finding the lease taken is not a failure: another host
+/// is doing the work, so the pass returns zero notified and says so in the log, because zero on its
+/// own would be indistinguishable from a pass that had nothing due.
+/// </para>
+/// <para>
 /// <b>Delivery is at-least-once, on purpose.</b> A crash between <see cref="IReminderNotifier.NotifyAsync"/>
 /// succeeding and this use case's own commit lands the reminder back in the next pass's batch,
 /// still <c>Pending</c>, and it fires again. For a reminder a duplicate is harmless and a silent
 /// drop is not, so the trade is made deliberately in that direction rather than paid for an
-/// exactly-once guarantee this mechanism does not need.
+/// exactly-once guarantee this mechanism does not need. The lease narrows the duplication to that
+/// window and to a leadership handover mid-run; it does not remove it, and nothing here relies on
+/// it having done so.
 /// </para>
 /// <para>
 /// <b>Completion is re-checked here, not trusted from the event that should have cancelled the
@@ -47,17 +59,60 @@ public sealed class FireDueRemindersUseCase(
     IReminderDiagnostics diagnostics,
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider,
+    ILeaderLease lease,
     ILogger<FireDueRemindersUseCase> logger) : IFireDueRemindersUseCase
 {
     /// <summary>Caps one pass to a bounded amount of work; a backlog beyond this is picked up by
     /// the next run rather than loaded all at once.</summary>
     private const int _batchSize = 200;
 
+    /// <summary>
+    /// Names the exclusion, and is fixed for the life of the application.
+    /// </summary>
+    /// <remarks>
+    /// The lock key is derived from this string, so every host that must contend has to spell it
+    /// identically — and during a rolling deploy the hosts contending are two releases of this
+    /// binary at once. Renaming it would give them two different keys, each uncontended, and both
+    /// would fire the same batch believing itself the leader: the exact failure this exists to
+    /// prevent, occurring precisely while the code that prevents it is being deployed. Nothing in
+    /// the build can see that, which is why it is written here rather than left to be inferred.
+    /// </remarks>
+    private const string _leaseName = "apptemplate.reminders.fire-due";
+
     /// <summary>How long a claim is honoured before a host that died mid-attempt is presumed gone
     /// and another host may retry the same reminder.</summary>
     private static readonly TimeSpan _staleClaimAfter = TimeSpan.FromMinutes(5);
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    {
+        // The lease takes work that returns nothing while this use case owes its caller a count, so
+        // the count comes back through a local the delegate closes over. It is assigned at most
+        // once — the port runs the work once per call, awaited on this path — so there is nothing
+        // to synchronise, and it is still zero on the standby path exactly because the delegate
+        // never ran. An out parameter cannot cross an async lambda and a field would make one
+        // instance's count visible to another's pass; the local is what has neither problem.
+        int notified = 0;
+
+        bool ranHere = await lease.TryRunExclusivelyAsync(
+            _leaseName,
+            async leaseToken => notified = await FireDueBatchAsync(leaseToken),
+            cancellationToken);
+
+        if (!ranHere && logger.IsEnabled(LogLevel.Information))
+        {
+            // A standby pass and a pass with nothing due both come back as zero, and
+            // ReminderBackgroundService logs that count on every single pass so that "nothing has
+            // fired for days" cannot be mistaken for "nothing was due". This line is what keeps the
+            // third way of reaching zero from collapsing into the other two.
+            logger.LogInformation(
+                "Reminder pass skipped: another host holds the '{LeaseName}' lease.",
+                _leaseName);
+        }
+
+        return notified;
+    }
+
+    private async Task<int> FireDueBatchAsync(CancellationToken cancellationToken)
     {
         var now = dateTimeProvider.UtcNow;
         var due = await reminders.GetDueAsync(now, _batchSize, cancellationToken);

@@ -91,9 +91,10 @@ A few things worth knowing before you commit the result:
   CI workflow you inherit, your first push fails with it. One run fixes it permanently.
   It cannot be fixed in the template itself: no single committed ordering is correct for
   every possible name.
-- **The `TodoLists` and `Reminders` features ship by default** as the worked
+- **The `TodoLists`, `Reminders` and `Files` features ship by default** as the worked
   examples for [docs/ADDING-A-FEATURE.md](docs/ADDING-A-FEATURE.md): one aggregate
-  with child entities, one flat. There is no generator switch to exclude them;
+  with child entities, one flat, and one whose two halves live in different stores —
+  metadata in PostgreSQL, bytes behind a port to an S3-compatible object store. There is no generator switch to exclude them;
   [docs/REMOVING-THE-EXAMPLE-FEATURES.md](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
   is the verified procedure, and says what stops being demonstrated once they go.
 - `dotnet new uninstall <path-to-this-repository>` removes the template again.
@@ -733,13 +734,15 @@ Src/
                                       -> Application + Persistence
     AppTemplate.Infrastructure.Email/          MailKit SMTP sender, email options
                                       -> Application
+    AppTemplate.Infrastructure.Storage/        S3-compatible object store: signed grants, inventory
+                                      -> Application
     AppTemplate.Infrastructure.InMemory/       in-memory port implementations for tests/demo
                                       -> Application
   Presentation/
     AppTemplate.Api/                           controllers, composition root, Dockerfile
                                       -> Application + every module
-    AppTemplate.Worker/                        two BackgroundServices: maintenance use cases, and firing due reminders
-                                      -> Application + Persistence + Identity
+    AppTemplate.Worker/                        three BackgroundServices: maintenance, due reminders, file sweeps
+                                      -> Application + Persistence + Identity + Email + Storage
 
 Tests/
   Domain/AppTemplate.Domain.UnitTests/           the aggregate, in memory
@@ -748,6 +751,7 @@ Tests/
                                         the domain <-> row mapper, reflection-driven
   Infrastructure/AppTemplate.Infrastructure.Identity.UnitTests/  the authentication adapters
   Infrastructure/AppTemplate.Infrastructure.Email.UnitTests/     the MailKit sender, in isolation
+  Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests/   the S3 adapters, without a network
   Infrastructure/AppTemplate.Infrastructure.InMemory.UnitTests/  the test/demo doubles themselves
   Presentation/AppTemplate.Api.UnitTests/        controllers and request/response mapping
   Presentation/AppTemplate.Worker.UnitTests/     the maintenance loop and its resilience

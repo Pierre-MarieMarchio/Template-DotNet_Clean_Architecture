@@ -1,7 +1,13 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.Auth.Ports.ExternalIdentity;
+using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
+using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
+using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
+using AppTemplate.Infrastructure.InMemory.Features.Auth;
+using AppTemplate.Infrastructure.InMemory.Features.Files;
 using AppTemplate.Infrastructure.InMemory.Features.Reminders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -20,10 +26,13 @@ namespace AppTemplate.Infrastructure.InMemory;
 public static class InMemoryModule
 {
     /// <summary>
-    /// Replaces the clock, the email sender and the reminder notifier with controllable, recording
-    /// doubles. <see cref="IReminderNotifier"/>'s real adapter (<c>EmailReminderNotifier</c>, in
+    /// Replaces the clock, the email sender, the reminder notifier, the object store and the
+    /// external identity verifier with controllable, recording doubles.
+    /// <see cref="IReminderNotifier"/>'s real adapter (<c>EmailReminderNotifier</c>, in
     /// <c>AppTemplate.Infrastructure.Email</c>) sends actual mail, exactly like
-    /// <see cref="IEmailSender"/>'s, so it gets the same treatment here.
+    /// <see cref="IEmailSender"/>'s, so it gets the same treatment here; the two file ports' real
+    /// adapters talk to an S3 bucket and <see cref="IExternalIdentityVerifier"/>'s fetches a key set
+    /// from an identity provider, which are the same kind of dependency.
     /// <para>
     /// It <b>removes and re-adds</b> rather than relying on last-registration-wins, and it
     /// takes no <c>IConfiguration</c> because there is nothing to configure. Replacement is
@@ -56,6 +65,30 @@ public static class InMemoryModule
         services.AddScoped<IEmailSender, InMemoryEmailSender>();
 
         services.AddInMemoryReminderNotifications();
+        services.AddInMemoryFileContent();
+        services.AddInMemoryExternalIdentities();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the arranged <see cref="IExternalIdentityVerifier"/> on its own, without the clock
+    /// and email-sender swaps <see cref="AddInMemoryModule"/> also makes.
+    /// <para>
+    /// The real adapter (<c>ExternalIdentityVerifier</c>, in <c>AppTemplate.Infrastructure.Identity</c>)
+    /// fetches a provider's key set over HTTP, so it is an outward call like every other one replaced
+    /// here — and it is also the only port a test could not reach any other way, since presenting a
+    /// token it would accept means holding Google's private key.
+    /// </para>
+    /// </summary>
+    public static IServiceCollection AddInMemoryExternalIdentities(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.RemoveAll<IExternalIdentityVerifier>();
+        services.RemoveAll<AcceptedExternalIdentities>();
+        services.AddSingleton<AcceptedExternalIdentities>();
+        services.AddScoped<IExternalIdentityVerifier, InMemoryExternalIdentityVerifier>();
 
         return services;
     }
@@ -74,6 +107,41 @@ public static class InMemoryModule
         services.RemoveAll<RecordedReminderNotifications>();
         services.AddSingleton<RecordedReminderNotifications>();
         services.AddScoped<IReminderNotifier, InMemoryReminderNotifier>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the in-memory object store behind all three file ports, without the clock and
+    /// email-sender swaps <see cref="AddInMemoryModule"/> also makes.
+    /// <para>
+    /// The three ports share one <see cref="StoredObjects"/>, and they have to: the sweep behind
+    /// <see cref="IFileContentInventory"/> lists what <see cref="IFileContentStore"/> holds and
+    /// deletes through it, so two instances would make the inventory answer about a bucket nothing
+    /// ever writes to and the sweep would reclaim nothing while appearing to work. The inspector
+    /// reads the same objects for the same reason: it answers about the bytes a deposit left, and a
+    /// second store would mean it answered about none.
+    /// </para>
+    /// <para>
+    /// It needs a clock — the double stamps a deposit and expires a grant from
+    /// <see cref="IDateTimeProvider"/> — which <see cref="AddInMemoryModule"/> registers just above.
+    /// Called on its own, it inherits whatever clock the host already has.
+    /// </para>
+    /// </summary>
+    public static IServiceCollection AddInMemoryFileContent(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.RemoveAll<IFileContentStore>();
+        services.RemoveAll<IFileContentInventory>();
+        services.RemoveAll<IFileContentInspector>();
+        services.RemoveAll<StoredObjects>();
+        services.RemoveAll<ArrangedInspections>();
+        services.AddSingleton<StoredObjects>();
+        services.AddSingleton<ArrangedInspections>();
+        services.AddScoped<IFileContentStore, InMemoryFileContentStore>();
+        services.AddScoped<IFileContentInventory, InMemoryFileContentInventory>();
+        services.AddScoped<IFileContentInspector, InMemoryFileContentInspector>();
 
         return services;
     }

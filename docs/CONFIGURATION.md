@@ -44,7 +44,7 @@ be filled from user secrets or environment variables.
 >
 > | Section | Bound by | Declared in |
 > |---|---|---|
-> | `Jwt`, `Identity`, `RefreshToken`, `EmailConfirmation` | `AddIdentityModule` | beside the service each configures, under `AppTemplate.Infrastructure.Identity/<Subject>/` |
+> | `Jwt`, `Identity`, `RefreshToken`, `EmailConfirmation`, `IdentityTokens` | `AddIdentityModule` | beside the service each configures, under `AppTemplate.Infrastructure.Identity/<Subject>/` |
 > | `IdentitySeed` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Features/Identity/Seeding/` |
 > | `Email` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Options/` |
 > | `Database` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/PersistenceModule.cs` |
@@ -64,8 +64,8 @@ application-layer use cases `MaintenanceController` exposes over HTTP — on a t
 request, and rings a due reminder by mail through the exact same `IReminderNotifier` port the API
 would use if it ever called it. It composes `AddApplicationLayer`, `AddPersistenceModule`,
 `AddIdentityModule` **and** `AddEmailModule`, so it reads `ConnectionStrings`, `Database`,
-`IdempotencyPurge`, `Jwt`, `RefreshToken`, `EmailConfirmation`, `PasswordReset`, `EmailChange` and
-`Email` exactly like the API, plus its own `MaintenanceWorker` section below. `IdentitySeed` is
+`IdempotencyPurge`, `Jwt`, `RefreshToken`, `IdentityTokens`, `EmailConfirmation`, `PasswordReset`,
+`EmailChange` and `Email` exactly like the API, plus its own `MaintenanceWorker` section below. `IdentitySeed` is
 bound and validated too — `AddPersistenceModule` does that unconditionally — but every one of its
 members has a safe default (`Enabled: false`), so an absent section validates cleanly; the worker
 never *exercises* seeding either way, since `IIdentitySeeder`/`MigrateAndSeedForDevelopmentAsync`
@@ -224,6 +224,231 @@ instead of a second, unbounded one.
 `AddPersistenceModule` too, and its own `Database:MaxPoolSize` — independently configurable —
 holds connections against the same server. Size it in, not around.
 
+**The leader lease sits outside the pool, and that is deliberate.** `PostgresLeaderLease` opens its
+own `NpgsqlConnection` with `Pooling=false` for the duration of one guarded run, so a host running
+the reminder pass holds `MaxPoolSize + 1` connections rather than borrowing a pooled one. A pooled
+connection would be the wrong instrument twice over: the pool exists to amortise connections held
+for milliseconds, where a lease is held for as long as the work takes, and the lock's guarantee
+*is* the session's lifetime — it must disappear when the process does, not when a pooled connection
+is next recycled. Add one connection per replica that runs a leased loop to the budget above.
+
+**A transaction-pooling proxy in front of PostgreSQL breaks the lease, silently.** `pg_try_advisory_lock`
+is session-scoped, and pgBouncer in `transaction` or `statement` mode hands a client a different
+backend per transaction — so the lock would be taken on one backend and looked for on another,
+every host would believe it is the leader, and nothing would fail. Nothing in `deploy/` interposes
+a pooler today. If you add one, give this connection a `session`-mode route or a direct one.
+
+### `Email:Transport` — SMTP or an HTTP API
+
+`Email:Transport` picks which adapter satisfies `IEmailSender`. It defaults to `Smtp`, which is what
+every deployment cloned from this template before the option existed was already doing — a different
+default would have been a silent behaviour change for a repository that is cloned rather than
+referenced. An unrecognised value stops the process at start-up rather than falling back.
+
+| Value | Adapter | Section it needs |
+|---|---|---|
+| `Smtp` (default) | MailKit over SMTP | `Email:Host`, `Email:Port`, `Email:Security`, … |
+| `Postmark` | a typed `HttpClient` against Postmark's API | `Postmark:*` |
+
+**Why a third adapter exists at all.** `IEmailSender` had two, and one of them was a test double —
+which proves very little about a port. A third whose transport is radically different is what shows
+the seam is real. It is also what a deployment needs: **outbound SMTP is blocked at most hosting
+providers**, so a template that can only send by SMTP cannot send in production.
+
+**The SMTP settings stop being required when the transport is HTTP**, which is the point — an
+operator using Postmark has no SMTP server and should not have to invent a hostname for one.
+`Email:FromAddress` and `Email:FromName` stay required either way: sender identity is not a property
+of the transport.
+
+**There is no retry on a failed send, deliberately.** The outbound policy retries safe verbs only,
+and sending mail is a `POST`. That matches a decision this template already made: `RegisterUseCase`
+treats a delivery failure as a success carrying `confirmationEmailSent: false`, because the account
+was created and the caller can ask for the mail again.
+
+### `Postmark`
+
+Bound only when `Email:Transport` is `Postmark`.
+
+| Key | Type | Default | Secret |
+|---|---|---|---|
+| `ServerToken` | string | `""` | **yes** — empty in every tracked file |
+| `ApiBaseUrl` | string | `https://api.postmarkapp.com/` | no — must be an absolute `http`/`https` URL. Plain `http` is refused against anything but loopback, because the server token travels on it. |
+| `MessageStream` | string | `outbound` | no — **must not be blank.** Postmark applies no implicit stream, so an empty value is a refusal rather than a default. |
+
+### Rate limiting — one seam, one implementation, and no Redis
+
+The limiter is **in-process**, so the effective limit is the configured one **times the replica
+count**. That is documented rather than hidden, and it is a real gap for an API that means to be
+critical: a stated 100 requests a minute becomes 400 at four replicas, and the only place the true
+number exists is the pod count.
+
+What ships is the **seam**, not a distributed limiter: the counting is behind an abstraction, the
+in-process counters are the one implementation, and a distributed adapter would replace that one
+type. **Redis is deliberately not added.** This template already refused output caching and a
+security-stamp cache with reasons written down, so it has no distributed cache to reuse — and
+bringing a vendor in for a single capability is exactly the weight it avoids. Making the seam now
+means the day a deployment needs a shared count, it writes one adapter instead of rewriting the
+middleware.
+
+### `ExternalIdentity`
+
+Which providers a caller may present an `id_token` from. Bound by `AddIdentityModule`, so both hosts
+read it; only the API acts on it.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `KeySetLifetime` | TimeSpan | `00:15:00` | How long a provider's signing keys are cached. Range 1 minute–24 hours. |
+| `Providers:<n>:Name` | string | — | What the client names in the route. An operator's word, not the template's. |
+| `Providers:<n>:Issuers:<m>` | string | — | At least one. The `iss` the token must carry. |
+| `Providers:<n>:Audiences:<m>` | string | — | At least one. Your client id at that provider. |
+| `Providers:<n>:JwksUri` | string | — | Absolute https. **Exactly one** of this and `MetadataAddress`. |
+| `Providers:<n>:MetadataAddress` | string | — | Absolute https. OIDC discovery, if you prefer it to a fixed JWKS URI. |
+
+**There is no secret here, and there should not be.** Verifying an `id_token` is asymmetric
+cryptography: the template needs the provider's public keys and nothing else. If you find yourself
+wanting to configure a client secret, you are holding the wrong flow — this is not the authorisation
+code exchange, which happens in the client.
+
+**An empty list is a valid configuration.** A deployment that uses no external provider starts
+normally and refuses every external sign-in. A feature nobody enables must not be able to stop the
+process from booting.
+
+**One adapter, not one per provider.** Google, Microsoft and Apple differ in *values*, not in
+behaviour — they all speak OIDC — so adding Okta or Keycloak is a configuration entry rather than a
+class. Apple's one real quirk (the address arrives only at the first authorisation) is handled where
+it belongs, in the use case, because it is about linking rather than about verification.
+
+### `FileWorker` — `AppTemplate.Worker` only
+
+The Files feature's two sweeps and its inspection pass. Bound by the worker's own `Program.cs`; the
+API never reads this
+section, and deliberately does not carry it — a section nothing binds is a value an operator will
+believe they changed.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `PurgeAbandonedRegistrationsInterval` | TimeSpan | `01:00:00` | |
+| `PurgeAbandonedRegistrationsEnabled` | bool | `true` | Retires `Pending` rows whose upload never happened. |
+| `ReclaimOrphanedContentInterval` | TimeSpan | `12:00:00` | Each pass walks the store; that is why it is hours, not minutes. |
+| `ReclaimOrphanedContentEnabled` | bool | `true` | **Do not leave this off.** |
+| `InspectDepositedFilesInterval` | TimeSpan | `00:01:00` | Range 10 s–1 h. This is a **user-visible latency**: a file is not readable until this runs. |
+| `InspectDepositedFilesEnabled` | bool | `true` | **Off stops the feature**, it does not degrade it: no upload ever becomes readable. |
+
+**The reclamation sweep is not housekeeping, it is the feature's correctness guarantee.** There is no
+soft delete: `DELETE` removes the row, and the bytes are only ever removed because this pass
+re-derives "an object no row references is garbage". Turn it off and storage grows silently, with
+nothing to say so. The deletion domain event reclaims promptly as a fast path, and — per this
+repository's standing rule — nothing depends on it having run.
+
+Neither loop takes the leader lease. Both are idempotent, and the reclamation's safety comes from
+listing the store *before* reading the live keys rather than from being alone. At two replicas the
+reclamation does pay for a second full walk each cycle; the day that stops being worth paying, the
+lease belongs in the use case, not in the loop.
+
+### `ContentInspection`
+
+What a deposited file is checked against before it becomes readable. Entirely optional: an empty
+`ScannerHost` means no scanner, and the process starts normally.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `ScannerHost` | string | `""` | Empty = no scanner. Type sniffing still runs. |
+| `ScannerPort` | int | `3310` | clamd's default. Validated only when a host is set. |
+| `MaxScannableBytes` | long | `26214400` (25 MiB) | Must stay at or below the daemon's own `StreamMaxLength`. |
+
+**ClamAV speaks its own TCP protocol, not HTTP**, so the outbound resilience policy does not cover
+it — the same asymmetry the S3 SDK has. Its timeouts are set on the adapter by hand to agree with
+that budget.
+
+**Inspection is the only thing that makes a file readable**, so
+`FileWorker:InspectDepositedFilesInterval` is a latency a user feels, not a background cost — and
+`FileWorker:InspectDepositedFilesEnabled` set to `false` does not degrade the feature, it stops it.
+That is why the two live under `FileWorker` with the sweeps but are documented as the opposite kind
+of switch.
+
+### `Storage`
+
+Where the Files feature's bytes live. Bound by `AddStorageModule` and validated at start-up, so a
+bucket nobody can sign for stops the process instead of failing on the first upload.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `BucketName` | string | `""` | **Required.** One bucket, exclusive to this feature — the orphan sweep deletes anything in it that no row references. |
+| `Region` | string | `us-east-1` | |
+| `Endpoint` | string | `""` | Empty means AWS S3 itself. Set it for MinIO, R2, or any S3-compatible store. |
+| `PublicEndpoint` | string | `Endpoint` | The name a **client** resolves, when it is not the one this process uses. |
+| `ForcePathStyle` | bool | `false` | Required for MinIO: virtual-host addressing would resolve `<bucket>.minio`, which nothing serves. |
+| `AccessKeyId` | string | `""` | Leave **empty in production** — see below. |
+| `SecretAccessKey` | string | `""` | Same. Supplying exactly one of the pair is refused. |
+| `AllowInsecureTransport` | bool | `false` | Only a plain-HTTP local endpoint has business setting this. |
+| `MaxGrantLifetime` | TimeSpan | `00:30:00` | How long a signed upload or download URL stays valid. |
+
+**`PublicEndpoint` exists because a presigned URL covers the host it was signed for.** Measured on
+this repository: sign for `127.0.0.1:19000`, follow the URL as `localhost:19000` — same machine,
+same port, same server — and the store answers `403 SignatureDoesNotMatch`. So nothing downstream
+can rewrite the host: not the API, not a proxy, not the client. The name has to be right at signing
+time, which is what this key is.
+
+It matters wherever the store has two names. In `docker-compose.yml` the API reaches MinIO at
+`minio:9000` on the Docker network while a browser reaches it at `localhost:9000`; behind a
+Kubernetes service or a self-hosted gateway it is the same shape. The case where the need disappears
+is AWS S3 itself, where `Endpoint` is empty. Left unset it defaults to `Endpoint`, so a deployment
+that never knew the key behaves exactly as before.
+
+**Two of the three validation rules follow the *public* endpoint, and that is the point.** The
+scheme of the signed URL, and the refusal to send a bearer right in clear without
+`AllowInsecureTransport`, are properties of the endpoint that produces URLs. The typical deployment
+is the inverse of what the code used to assume — plain HTTP inside the mesh, TLS at the ingress —
+and it was being forced to allow insecure transport for the internal hop and then signing `http://`
+URLs for a public that was on `https://`. An internal endpoint in clear carries no file bytes and no
+reusable credential (Signature V4 puts a per-request signature on the wire, never the secret); a
+**public** endpoint in clear puts a reusable right to read or write an object into a proxy log, a
+`Referer` and a browser history.
+
+**Leave the two credentials empty.** Empty is not "unconfigured", it is the intended production
+shape: the AWS SDK's own credential chain resolves an instance role, and no long-lived key pair
+exists to leak. Set them only for a local MinIO, where `docker-compose.yml` already does it.
+
+**`MaxGrantLifetime` is a security setting wearing a duration.** A signed URL is a bearer right for
+as long as it lives — anyone who has it can read the object, with no further check. Shorten it
+rather than lengthen it, and see `SECURITY.md`.
+
+**The bucket is exclusive to this feature.** The orphan sweep reclaims bytes by difference — it
+lists the bucket and deletes every object no row names — so anything else stored there is deleted on
+the next pass.
+
+### Outbound HTTP — deliberately not configurable
+
+There is no section for it, and that is a decision rather than an omission. Each host installs one
+policy on `IHttpClientFactory`'s defaults (`Common/Outbound/OutboundHttpExtensions.cs`), so every
+typed client any module registers gets it:
+
+| | Value |
+|---|---|
+| Timeout per attempt | 10 s |
+| Timeout for the whole call, retries included | 30 s |
+| Retries | up to 3, exponential, with jitter, **on GET/HEAD/OPTIONS/TRACE only** |
+| Circuit breaker and concurrency limiter | the standard handler's defaults |
+
+These are guard rails, not tuning knobs. The 30 s total is chosen **against**
+`RequestTimeouts:Default`, which gives an inbound request 5 minutes: an outbound call happens inside
+an inbound one, so the enclosing budget has to be the longer of the two — the same rule
+`RequestTimeoutsOptions` states about the layer beneath it, applied one level up. A factor of ten
+leaves room for a request that calls several dependencies in turn. Exposing these as configuration
+would let an operator break that relationship with nothing to notice, so the reasoning lives in the
+code beside the numbers instead. A deployment that genuinely needs different values is editing a
+template it already owns.
+
+Retry is an allow-list of the **safe** verbs. PUT and DELETE are idempotent by specification and
+still excluded, because that promise belongs to the server at the other end and a default applies to
+servers nobody here controls — and replaying a large PUT because the response was slow doubles the
+bytes for nothing.
+
+Nothing in this template calls outwards yet. The policy is installed anyway so that the first
+adapter that does is not the one deciding what a timeout is, and two architecture rules keep the two
+escapes shut: a client built with `new` never meets the factory, and a host that never installs the
+defaults gives every client in it no budget at all.
+
 ### `IdempotencyPurge`
 
 | Key | Type | Default | Notes |
@@ -252,6 +477,7 @@ opposite. 1000 is a starting point, not a measured optimum for your ingestion ra
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `LifetimeInDays` | int | `7` | Range **1–90**. Token size (32 bytes) and hashing (SHA-256) are not configurable. |
+| `RetentionInDays` | int | `7` | Range **1–90**. How long an expired grant's row survives before `IRefreshTokenMaintenanceService` deletes it — a retention window on rows, not a lifetime on tokens. Read only where that sweep runs, so it appears in `AppTemplate.Worker/appsettings.json` and not the API's; both hosts bind and validate it. |
 
 ### `Identity`
 
@@ -271,6 +497,26 @@ partly-filled section neither tightens nor loosens anything unexpectedly.
 | `LockoutDurationInMinutes` | int | `15` | Minimum 1. |
 | `RequireConfirmedEmail` | bool | `true` | With this on, an unconfirmed account cannot log in — and the failure is indistinguishable from a wrong password (`auth.login.invalidCredentials`). |
 | `RequireUniqueEmail` | bool | `true` | **Cannot be `false`** — the user table has a unique index on the normalised email. |
+
+### `TwoFactor`
+
+The second factor's own settings. Every member has a safe default, so an absent section
+validates cleanly and behaves exactly as the tracked `appsettings.json` states.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `ChallengeLifetime` | timespan | `00:05:00` | Must be between **1 and 30 minutes**. This is what stands between a verified password and a token pair, and unlike a refresh token nobody is expected to hold on to it. |
+| `RecoveryCodeCount` | int | `10` | Must be **1–20**. How many single-use codes confirmation mints, shown once and never again. |
+| `Issuer` | string | `AppTemplate` | Must not be blank. **The label an authenticator app shows next to the account** — a user-visible string, so rename it with every other `AppTemplate` occurrence a fork replaces. |
+
+`SECURITY.md` describes the challenge as short-lived and the codes as ten; both of those are
+this section, not constants.
+
+### `ProblemTypes`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `BaseUri` | string | `https://apptemplate.example/problems` | Must be an absolute URI. Prefixes the `type` of every RFC 7807 body, so it is one of the values a fork changes before it publishes anything: the default names a domain it does not own. |
 
 ### `Email`
 
@@ -322,6 +568,23 @@ browsers never transmit — so the token stays out of server access logs, `Refer
 headers and intermediary request history. The page reads the fragment and **POSTs** it
 to `/api/v1/auth/confirm-email` as a JSON body. Confirmation is not a GET with a query
 string, for the same reason.
+
+### `IdentityTokens`
+
+The lifespan of a token minted by ASP.NET Identity's **default** data-protector token
+provider — which is to say email confirmation's, and any purpose added later that does
+not register a provider of its own. `PasswordReset` and `EmailChange` each have one, so
+neither is governed by this section; see the note under `PasswordReset` below.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Lifespan` | timespan | `1.00:00:00` | Must be between **5 minutes and 30 days**. This is the framework's own one-day default, stated here rather than inherited silently. |
+
+**It is a day where the other two are an hour**, and that asymmetry is worth a decision
+rather than a discovery: a confirmation link is mailed to an address nobody has proved
+yet, so it is the one token whose window is bounded by how long a person takes to open
+their mail. Shorten it if your users confirm promptly; the two shorter windows below are
+not evidence that this one was meant to match them.
 
 ### `PasswordReset`
 
@@ -456,6 +719,7 @@ terminating TLS is required to send it.
 | `OtlpEndpoint` | string | `""` | e.g. `http://collector:4317`. |
 | `OtlpProtocol` | string | `Grpc` | `Grpc` or `HttpProtobuf`. |
 | `ServiceName` | string? | `null` | Falls back to the assembly name and informational version. |
+| `TracesSamplingRatio` | double | `1.0` | Must be **greater than 0 and at most 1**. Not in any tracked `appsettings.json`; the default samples every trace, which is what a template should do until ingestion volume, rather than curiosity, argues for less. `NaN` is refused. |
 
 Read by `Src/Presentation/AppTemplate.Api/Common/Observability/ObservabilityExtensions.cs`. Traces cover
 ASP.NET Core, `HttpClient` and Npgsql; metrics cover ASP.NET Core and `HttpClient`. `/health*` is
@@ -631,6 +895,21 @@ purge some other way is not forced into both.
 - The loop honours cancellation immediately rather than waiting out the current `Interval`, and
   does not treat a shutdown mid-iteration as a failure to log.
 - **Set outside 1 second – 1 day** and the host fails `ValidateOnStart()` and does not boot.
+
+### `ReminderWorker` — `AppTemplate.Worker` only
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Interval` | timespan | `00:01:00` | How often the worker looks for due reminders. Range **1 second – 1 hour**. |
+| `Enabled` | bool | `true` | Off leaves the rest of this host running without firing reminders — a maintenance window, or a deployment still validating the `IReminderNotifier` it wired in before letting it ring anyone for real. |
+
+Read by `AppTemplate.Worker/Features/Reminders/ReminderWorkerOptions.cs`. There is no batch-size
+knob: `IFireDueRemindersUseCase` takes no command, so how many reminders one pass claims is
+`FireDueRemindersUseCase.BatchSize`'s concern and not something this host could pass through.
+
+- **Set outside 1 second – 1 hour** and the host fails `ValidateOnStart()` and does not boot.
+- `deploy/kubernetes/configmap-worker.yaml` sets both keys explicitly; they are not
+  worker-only in the sense of being undeclared.
 
 ### Not configurable — and why that is worth knowing
 

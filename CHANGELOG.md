@@ -21,6 +21,104 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **`Storage:PublicEndpoint`, because a presigned URL covers the host it was signed for.** Measured:
+  sign for `127.0.0.1:19000`, follow the URL as `localhost:19000` — same machine, same port, same
+  server — and the store answers `403 SignatureDoesNotMatch`. Nothing downstream can rewrite the
+  host, so the name has to be right at signing time. As shipped, `docker-compose.yml` was minting
+  URLs only a container could follow, because the API reaches MinIO at `minio:9000` and a browser
+  does not. Defaults to `Endpoint`, so a deployment that never knew the key is unchanged.
+  It also moves two validation rules onto the endpoint they were always about: the scheme of the
+  signed URL, and the refusal to hand out a bearer right in clear. The typical deployment is the
+  inverse of what the code assumed — plain inside the mesh, TLS at the ingress — and was being made
+  to allow insecure transport for the internal hop and then sign `http://` URLs for an `https://`
+  public.
+- **Deposited files are inspected before they are readable, and refused ones are quarantined.** The
+  declared media type is now checked against the leading bytes and the content is scanned, which
+  closes the two holes `SECURITY.md` had named — SVG declared as an image is refused outright, since
+  there is no safe version of serving one inline. Inspection runs in the worker rather than in the
+  request, because scanning 200 MiB inside an HTTP call is the same CPU-denial problem as resizing
+  an image there: the visible consequence is a `deposited` state a client can observe, and
+  `FileWorker:InspectDepositedFilesInterval` is therefore a user-facing latency rather than a
+  background cost. **A scanner that cannot be reached never releases a file** — fail-open would make
+  an outage the way through. `Quarantined` is persisted and terminal and costs no query a predicate,
+  because the one place that hands out bytes guards with an allow-list, which refuses a new state
+  the day it is added rather than the day someone extends a predicate. The refusal deliberately does
+  not say what tripped it; that goes to the operator's log, not to the depositor. ClamAV speaks its
+  own TCP protocol, so it escapes the outbound HTTP policy exactly as the S3 SDK does, and says so.
+- **A load smoke test, run non-blocking in CI.** Every timeout, pool size and rate limit in this
+  template was chosen by reasoning and none had ever been observed under concurrency. Its thresholds
+  describe a broken system rather than a slow one, and a `429` counts as a pass — punishing the rate
+  limiter for working would push someone to loosen it to get a green.
+- **A third `IEmailSender`, over an HTTP API rather than SMTP.** `Email:Transport` picks between
+  them and defaults to `Smtp`, so no existing deployment changes behaviour; an unrecognised value
+  stops the process rather than falling back. It is the first real consumer of the outbound HTTP
+  policy — a typed client that inherited the whole budget without asking — and it is what a
+  deployment usually needs, since outbound SMTP is blocked at most hosting providers. The SMTP
+  settings stop being required when the transport is HTTP, which is the point. Adds `Common/Http/`
+  to the email module's folder vocabulary and a `Postmark` section whose token is a secret.
+- **The rate limiter counts behind a seam, still in-process, and still without Redis.** The
+  effective limit remains the configured one times the replica count — that has not changed and is
+  documented — but the counting is now one type behind an abstraction, so a deployment that needs a
+  shared count writes an adapter instead of rewriting middleware. Not one existing rate-limiting
+  test was touched, which is the evidence that the behaviour did not move.
+- **A consumer for `StoredFileDeletedDomainEvent`, which three files already claimed existed.** It
+  reclaims a deleted file's bytes promptly; the sweep is what makes reclamation correct. The claim
+  had been written in the persistence tracker, the worker options and the reclamation use case
+  before anything implemented it, and every test was green — so `DomainEventTests` now requires
+  every domain event to be either consumed or listed, with the reason, as a decision.
+- **Signing in through an external identity provider, without a cookie or a redirect in sight.** The
+  client runs OAuth/PKCE itself and posts the provider's `id_token`; the API verifies it — signature
+  against cached JWKS, `iss`, `aud`, `exp`, `nbf` — and mints its own access/refresh pair. The token
+  model is untouched, so the same endpoint serves a SPA, a mobile app and a desktop client, and
+  ASP.NET's cookie-based `AddGoogle()` middleware would have contradicted the whole design.
+  **One adapter driven by configuration, not one class per provider**: Google, Microsoft and Apple
+  differ in values rather than behaviour, so adding Okta is a configuration entry. A link is keyed on
+  `(provider, subject)` and never on the address, because Apple returns the address only at the first
+  authorisation. Automatic linking needs both sides to have proved the address — a local account that
+  never confirmed its own is refused rather than linked, which is the account-takeover vector this
+  decision exists to close. And external sign-in runs the same tail as local sign-in, so two-factor is
+  not bypassed by it. `AspNetUserLogins` had been mapped and unused since the beginning; it is now
+  what the link is stored in. See `SECURITY.md`.
+- **A third example feature, `Files` — the first whose two halves live in different stores.** A
+  `StoredFile` aggregate in PostgreSQL and its bytes in an S3-compatible object store, joined only
+  inside a use case. Upload is two-step by necessity, not by taste: the API registers metadata as
+  `Pending` and returns a signed upload grant, the client writes to the store directly, and a
+  confirmation verifies size and checksum against what the store reports before the file becomes
+  `Available`. `RequestLimits:MaxRequestBodyBytes` is 65 536 and `IdempotencyFilter` SHA-256s the
+  whole body of every `POST`, so routing bytes through the API was never on the table. Reading works
+  the same way in reverse: the API issues a signed download grant and never serves a byte.
+  **There is no soft delete**: `DELETE` removes the row, and the bytes are reclaimed by a sweep that
+  deletes every object no row references — an effect that re-derives its own precondition, so it
+  needs no outbox and no tombstone. The object key is *stored, never derived*, so changing the key
+  scheme later moves no bytes; it carries an opaque prefix segment reserved for multi-tenancy that
+  nothing uses yet, because adding one after two years of files would mean moving every object.
+  Adds `AppTemplate.Infrastructure.Storage` (AWSSDK.S3), a `Storage` configuration section, and
+  `minio` to `docker-compose.yml`. `FilesController` exposes the six user-facing operations, and
+  `AppTemplate.Worker` gains a third loop for the two sweeps — the reclamation one being the
+  feature's correctness guarantee rather than housekeeping, which `FileWorker:ReclaimOrphanedContentEnabled`
+  says out loud. Content sniffing is deliberately still absent and is named in `SECURITY.md` as the
+  gap most likely to be exploited.
+- **One outbound HTTP budget, installed before the first outbound call exists.** 10 s per attempt,
+  30 s in total, three retries with jitter on safe verbs only, plus the standard circuit breaker and
+  concurrency limiter — set on `IHttpClientFactory`'s defaults in each host, so a module that
+  registers a typed client inherits it without opting in and cannot forget it. The 30 s is chosen
+  against `RequestTimeouts:Default`'s 5 minutes: an outbound call happens inside an inbound request,
+  so the enclosing budget must be the longer one. Deliberately not configurable — see
+  `docs/CONFIGURATION.md`. Two rules guard the escapes: `NoType_ConstructsItsOwnHttpClient` and
+  `EveryHost_InstallsTheOutboundPolicy`. Adds `Microsoft.Extensions.Http.Resilience` (which brings
+  Polly transitively) and `Common/Outbound/` to both hosts' folder vocabulary; the worker also gains
+  outbound HTTP instrumentation, which its telemetry had skipped on the grounds that it made no
+  outbound calls.
+- **`ILeaderLease`, so the worker can run at more than one replica.** The reminder pass runs under
+  a PostgreSQL session-level advisory lock (`PostgresLeaderLease`, on its own unpooled connection),
+  which one host takes and the rest skip without waiting. Losing that host closes the session and
+  releases the lock, which is the whole reason for choosing an advisory lock over a lease row with
+  an expiry. The guard is in `FireDueRemindersUseCase` and not in `ReminderBackgroundService`,
+  because "one host at a time" is a property of the operation and not of the timer that starts it.
+  It is **not** a fencing token: leadership can be lost mid-run, so delivery stays at-least-once.
+  Adds `Common/Leases/` to the persistence project's folder vocabulary, and one unpooled connection
+  per replica running a leased loop to the `Database:MaxPoolSize` budget — see
+  `docs/CONFIGURATION.md`, which also says why a transaction-pooling proxy would break it silently.
 - **A second example feature, `Reminders`: a flat aggregate, no child entities.** A reminder is
   scheduled on a to-do item, fired by `AppTemplate.Worker` on a due-date query, and cancelled when
   its item is completed. It exists to be *different in shape* from `TodoLists` — what a to-do list's
@@ -133,6 +231,14 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   exists, and `.github/scripts/check-workflows.py` catches a dangling `needs:`, an action pinned to
   a mutable tag, a missing `permissions:`, an undefined `$VAR` and a `run:` naming a script that is
   not on disk. Both are the kind of defect no compiler and no test can see.
+- A third gate, this one an architecture rule rather than a script:
+  `ConfigurationSurfaceTests` pairs every `SectionName` an options class declares against
+  `docs/CONFIGURATION.md`, **in both directions**. A bound section with no table, a bound key named
+  nowhere, and a documented key no class binds are each a failure. The guide opens by promising that
+  every setting the application reads is listed in it, and nothing had ever checked the promise —
+  it was false eleven times over when the rule was written. The converse direction is the one that
+  matters most: a key documented under a name nothing binds is set by an operator, ignored by the
+  binder, and leaves the default in place with no sign that it did.
 
 ### Fixed
 
@@ -142,6 +248,16 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `IdempotencyOptions:ClaimLease` bounds it, an expired claim is taken over by a conditional update
   whose zero-row result is the signal, and the filter no longer releases a claim whose write had
   already committed.
+- **Eleven configuration keys the application reads are now in the configuration guide**, which had
+  promised since its first line that all of them were. Four sections had no table at all —
+  `IdentityTokens`, `TwoFactor`, `ProblemTypes` and `ReminderWorker`, the last of which
+  `deploy/kubernetes/configmap-worker.yaml` sets explicitly — plus `RefreshToken:RetentionInDays`,
+  `Postmark:ApiBaseUrl`, `Postmark:MessageStream` and `OpenTelemetry:TracesSamplingRatio`. Two are
+  worth naming on their own: `IdentityTokens:Lifespan` is email confirmation's token lifespan and
+  defaults to **a day** where the two documented siblings are an hour, and `TwoFactor` holds the
+  challenge lifetime and the recovery-code count that `SECURITY.md` describes in prose as though they
+  were constants. The `Postmark` table also documented a `BaseAddress` key no options class has ever
+  had, which is the failure mode the new rule's converse direction exists for.
 - **`ConfirmEmailAsync` rotates the security stamp**, which is what makes the confirmation token
   single-use — the command documented it as such while the token stayed replayable until it expired.
 - **The worker's container image builds again**, and the release workflow publishes it. Its restore
@@ -195,6 +311,15 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **`AppTemplate.Worker` no longer receives the API's `Jwt:Key`.** It still needs the `Jwt` section
+  — it composes the identity module, and `JwtOptionsValidator` runs at startup — but it signs and
+  verifies nothing, so `docker-compose.yml` and `deploy/kubernetes/configmap-worker.yaml` now give
+  it a fixed placeholder and only the API's Deployment references the real key. `Jwt:Issuer` and
+  `Jwt:Audience` stay identical across both hosts.
+  **Migration for a derived project:** drop the `Jwt__Key` `secretKeyRef` from your worker
+  Deployment and set `Jwt__Key` to any non-blank value of at least 32 bytes in its ConfigMap. No
+  configuration *key* changed, so nothing fails if you do not — you simply keep handing a signing
+  key to a process that never uses it.
 - **The seven migrations that accumulated while the schema was still moving are recomposed into
   exactly two: `InitialCreate` (`identity` and `platform` — the schema every derived project keeps)
   and `AddExampleFeatures` (`todo` and `reminders`, and nothing else).** Net effect only: every table,
@@ -276,6 +401,10 @@ repeat the investigation. A template's value is as much in what it refuses as in
 | Output caching | Every response is per-user, so it either serves the wrong data or has no hit rate. |
 | `Deprecation`/`Sunset` headers | One version ships, so any date emitted would be invented. |
 | A queryable audit trail | A table the app can `UPDATE` through its own connection has the appearance of an audit trail without the property. |
+| Feature flags through OpenFeature | Every loop already has an `Enabled` key an operator can flip without a deploy, and `IOptionsMonitor` reloads them — so the kill switch exists and a vendor-neutral abstraction over one in-process provider would be an abstraction with one implementation, which this repository calls a guessed abstraction. Add it when a second provider is real. |
+| A CAPTCHA on registration | It is a real anti-abuse tool, but it puts a vendor on the critical path of authentication for a template that already has per-address rate limiting and account lockout. Named as an extension point rather than shipped. |
+| SMS or push for `IReminderNotifier` | The port already has two adapters; a third channel proves nothing the second did not, and adds a vendor. |
+| Redis, for the rate limiter or a cache | The seam exists so an adapter can be written; the dependency does not, because this template refused output caching and the security-stamp cache and so has no other use for one. |
 | Soft delete / restore | An invisible predicate on every read of every feature, where one omission leaks deleted rows silently. |
 
 ### Known gaps

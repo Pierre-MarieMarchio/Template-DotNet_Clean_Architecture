@@ -248,6 +248,31 @@ following has a substitute anywhere else in the template once both example featu
   `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` catches exactly this:
   with both examples gone, this fundamental cross-cutting abstraction has zero callers in the
   application layer.
+- **`Files` is an example feature, and the biggest one to weigh before deleting.** The aggregate,
+  its use cases, its persistence and its migration go the same way `TodoLists` and `Reminders` do.
+  What is worth keeping even if the feature goes is the *shape*: it is the only slice here whose
+  halves live in two different stores — an aggregate in PostgreSQL and bytes in an object store —
+  and `AppTemplate.Infrastructure.Storage` is what a second such feature would copy rather than
+  reinvent. Delete it if your project stores no files; keep the module and re-point it if it does.
+  Removing it means the `Storage` configuration section, the `minio`/`minio-bucket` services in
+  `docker-compose.yml`, and the two projects in `AppTemplate.sln`, `.template.config/template.json`
+  and both `Dockerfile`s go too.
+- **The outbound HTTP policy is base, and removing the examples does not touch it.** Both
+  `Common/Outbound/OutboundHttpExtensions.cs` files, the `Microsoft.Extensions.Http.Resilience`
+  reference in both hosts, and `OutboundHttpTests` stay. It has no consumer to lose because it has
+  none today: it is installed on `IHttpClientFactory`'s defaults so that the first adapter your
+  project adds inherits it. Keep both copies identical — a budget enforced in one host only is
+  worse than none.
+- **`ILeaderLease`, and with it the only reason the worker can run at more than one replica.** The
+  port and its `PostgresLeaderLease` adapter are **base**, not example — keep both. Its only caller
+  is `FireDueRemindersUseCase`, which is example, so the same rule that catches `IUnitOfWork` above
+  catches this one: with `Reminders` gone the port has zero consumers in the application layer and
+  `EveryApplicationPort_HasAConsumerInTheApplicationLayer` fails. Two honest ways out, and the
+  choice is about your project rather than about the template. Either put the first operation of
+  yours that must not run twice at once under the lease — which is what it is for, and the reason
+  to keep it — or, if you genuinely have no such operation, delete the port, the adapter, its
+  integration tests and the `Common/Leases/` entry in `LayoutConventionTests`, and remember that
+  `worker-deployment.yaml` may then no longer be raised above `replicas: 1`.
 - **The aggregate tracker / identity-map pattern** (`TodoListTracker`, `ReminderTracker`, and the
   three-contract registration trick documented on `PersistenceModule`). With both gone there is no
   tracker in the composed container at all —

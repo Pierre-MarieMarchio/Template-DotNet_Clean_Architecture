@@ -30,6 +30,9 @@ public sealed class FireDueRemindersUseCaseTests
     private readonly IReminderNotifier _notifier = Substitute.For<IReminderNotifier>();
     private readonly IReminderDiagnostics _diagnostics = Substitute.For<IReminderDiagnostics>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly ILeaderLease _lease = Substitute.For<ILeaderLease>();
+
+    public FireDueRemindersUseCaseTests() => GivenTheLeaseIsGranted();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -195,6 +198,66 @@ public sealed class FireDueRemindersUseCaseTests
             TestToken);
     }
 
+    /// <summary>
+    /// A pass that is not the leader is not a failure and not an error to report: another host is
+    /// firing this batch. What it must not do is any of the work.
+    /// </summary>
+    [Fact]
+    public async Task TheLeaseHeldByAnotherHost_LeavesTheWholePassUndone()
+    {
+        var reminder = ADueReminder();
+        GivenDueReminders(reminder);
+        GivenCompletionStates((reminder.TodoItemId, false));
+        GivenTheLeaseIsHeldElsewhere();
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.IsFailure.ShouldBeFalse();
+        result.Value.ShouldBe(0);
+        await _notifier.DidNotReceive().NotifyAsync(Arg.Any<ReminderNotification>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().GetDueAsync(
+            Arg.Any<DateTimeOffset>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        reminder.State.ShouldBe(ReminderState.Pending);
+    }
+
+    /// <summary>
+    /// The lease name is the lock key every replica derives, including the two releases running
+    /// side by side during a rolling deploy. The literal is repeated here on purpose: that is what
+    /// makes renaming the constant fail a test instead of silently splitting the leader in two.
+    /// </summary>
+    [Fact]
+    public async Task TheWholePass_RunsUnderOneNamedLease()
+    {
+        var reminder = ADueReminder();
+        GivenDueReminders(reminder);
+        GivenCompletionStates((reminder.TodoItemId, false));
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.Value.ShouldBe(1);
+        await _lease.Received(1).TryRunExclusivelyAsync(
+            "apptemplate.reminders.fire-due",
+            Arg.Any<Func<CancellationToken, Task>>(),
+            TestToken);
+    }
+
+    /// <summary>
+    /// A failure inside the work must not come back looking like a standby pass: the two answers
+    /// mean opposite things to whoever reads the log.
+    /// </summary>
+    [Fact]
+    public async Task AFailureInsideTheLease_SurfacesToTheCaller()
+    {
+        _repository.GetDueAsync(_now, Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("the due query is broken"));
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await UseCase().ExecuteAsync(TestToken));
+
+        exception.Message.ShouldBe("the due query is broken");
+    }
+
     private FireDueRemindersUseCase UseCase() => new(
         _repository,
         _targets,
@@ -202,7 +265,33 @@ public sealed class FireDueRemindersUseCaseTests
         _diagnostics,
         _unitOfWork,
         new StubDateTimeProvider(_now),
+        _lease,
         NullLogger<FireDueRemindersUseCase>.Instance);
+
+    /// <summary>
+    /// The substitute has to <em>call</em> the delegate, or every test here would assert against a
+    /// pass that never ran. The lambda is async and returns <c>Task&lt;bool&gt;</c> so that the work
+    /// is awaited inside the call rather than abandoned: a non-async one would return true while
+    /// the work was still an unobserved task, and an exception it threw would surface nowhere.
+    /// </summary>
+    private void GivenTheLeaseIsGranted() =>
+        _lease.TryRunExclusivelyAsync(
+                Arg.Any<string>(),
+                Arg.Any<Func<CancellationToken, Task>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                await call.Arg<Func<CancellationToken, Task>>()!(call.Arg<CancellationToken>());
+
+                return true;
+            });
+
+    private void GivenTheLeaseIsHeldElsewhere() =>
+        _lease.TryRunExclusivelyAsync(
+                Arg.Any<string>(),
+                Arg.Any<Func<CancellationToken, Task>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(false);
 
     private static Reminder ADueReminder(DateTimeOffset? claimedAt = null) =>
         AReminder.Rehydrated(_ownerId, dueAt: _now.AddMinutes(-1), claimedAt: claimedAt);

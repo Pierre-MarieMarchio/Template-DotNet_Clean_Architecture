@@ -131,6 +131,24 @@ services:
       Identity__RequireConfirmedEmail: ${IDENTITY_REQUIRE_CONFIRMED_EMAIL:-true}
       Identity__RequireUniqueEmail: ${IDENTITY_REQUIRE_UNIQUE_EMAIL:-true}
 
+
+      # --- Storage (object store for the Files feature) -----------------------
+      # The endpoint is the compose service, but the SIGNED URLs this host mints have to be
+      # reachable by whoever follows them — a browser on the host, not a container on this
+      # network. STORAGE_PUBLIC_ENDPOINT is what a client sees; leave it at localhost:9000 for
+      # the stack as shipped. ForcePathStyle is required for MinIO: virtual-host addressing
+      # would resolve <bucket>.minio, which nothing here serves.
+      Storage__BucketName: ${STORAGE_BUCKET_NAME:-app-files}
+      Storage__Endpoint: ${STORAGE_ENDPOINT:-http://minio:9000}
+      # The name a client OUTSIDE the Docker network resolves. The API reaches MinIO at
+      # minio:9000 here, and a presigned URL covers the host it was signed for — so nothing
+      # downstream can rewrite it, and left unset this stack would mint URLs only a container
+      # could follow. See docs/CONFIGURATION.md.
+      Storage__PublicEndpoint: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
+      Storage__ForcePathStyle: ${STORAGE_FORCE_PATH_STYLE:-true}
+      Storage__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
+      Storage__AccessKeyId: ${MINIO_ROOT_USER:-minioadmin}
+      Storage__SecretAccessKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
       # --- Email (SMTP) ------------------------------------------------------
       Email__Host: ${EMAIL_HOST:-mailpit}
       Email__Port: ${EMAIL_PORT:-1025}
@@ -223,6 +241,17 @@ services:
       ReminderWorker__Interval: ${REMINDER_WORKER_INTERVAL:-00:01:00}
       ReminderWorker__Enabled: ${REMINDER_WORKER_ENABLED:-true}
 
+      # --- FileWorker ----------------------------------------------------------
+      # Two sweeps for the Files feature. The reclamation one is the correctness guarantee of the
+      # whole feature — with no soft delete, bytes are only reclaimed because it re-derives "an
+      # object no row references is garbage" — so turning it off leaks storage silently. The purge
+      # of abandoned registrations is what retires a client that asked for an upload grant and
+      # never used it. See docs/CONFIGURATION.md.
+      FileWorker__PurgeAbandonedRegistrationsInterval: ${FILE_WORKER_PURGE_INTERVAL:-01:00:00}
+      FileWorker__PurgeAbandonedRegistrationsEnabled: ${FILE_WORKER_PURGE_ENABLED:-true}
+      FileWorker__ReclaimOrphanedContentInterval: ${FILE_WORKER_RECLAIM_INTERVAL:-12:00:00}
+      FileWorker__ReclaimOrphanedContentEnabled: ${FILE_WORKER_RECLAIM_ENABLED:-true}
+
       # --- Jwt, RefreshToken, EmailConfirmation, PasswordReset, EmailChange ----
       # AppTemplate.Infrastructure.Identity is composed for two things, and the smaller one used to
       # be the only one written down: IRefreshTokenMaintenance's sole adapter. The one that decides
@@ -252,6 +281,24 @@ services:
       # in its own right, for IReminderNotifier's adapter — a reminder that comes due is rung by
       # mail, see AppTemplate.Worker.csproj. Same variables and same values as the api service, so
       # both hosts reach the same mailpit sink.
+
+      # --- Storage (object store for the Files feature) -----------------------
+      # The endpoint is the compose service, but the SIGNED URLs this host mints have to be
+      # reachable by whoever follows them — a browser on the host, not a container on this
+      # network. STORAGE_PUBLIC_ENDPOINT is what a client sees; leave it at localhost:9000 for
+      # the stack as shipped. ForcePathStyle is required for MinIO: virtual-host addressing
+      # would resolve <bucket>.minio, which nothing here serves.
+      Storage__BucketName: ${STORAGE_BUCKET_NAME:-app-files}
+      Storage__Endpoint: ${STORAGE_ENDPOINT:-http://minio:9000}
+      # The name a client OUTSIDE the Docker network resolves. The API reaches MinIO at
+      # minio:9000 here, and a presigned URL covers the host it was signed for — so nothing
+      # downstream can rewrite it, and left unset this stack would mint URLs only a container
+      # could follow. See docs/CONFIGURATION.md.
+      Storage__PublicEndpoint: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
+      Storage__ForcePathStyle: ${STORAGE_FORCE_PATH_STYLE:-true}
+      Storage__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
+      Storage__AccessKeyId: ${MINIO_ROOT_USER:-minioadmin}
+      Storage__SecretAccessKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
       Email__Host: ${EMAIL_HOST:-mailpit}
       Email__Port: ${EMAIL_PORT:-1025}
       Email__Security: ${EMAIL_SECURITY:-None}
@@ -267,8 +314,49 @@ services:
         condition: service_started
     networks: [backend]
 
+  # The object store the Files feature writes to. In production this is S3 (or R2, or Azure Blob
+  # behind an S3 gateway); here it is MinIO, addressed through Storage__Endpoint. The API never
+  # carries a byte either way: it signs a URL and the client talks to this service directly, which
+  # is exactly why an endpoint the browser can reach has to be published on the host.
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"   # the S3 API — what Storage__Endpoint points at
+      - "9001:9001"   # the web console, for looking at what landed
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  # Creates the bucket once and exits. A throwaway container rather than an entrypoint script:
+  # `mc mb --ignore-existing` is idempotent, so a repeated `compose up` is harmless.
+  minio-bucket:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    # `anonymous set none` is deliberate and is the whole point: a publicly readable bucket would
+    # make every signed URL in this template decoration. The download grant is the only way in.
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin} &&
+      mc mb --ignore-existing local/${STORAGE_BUCKET_NAME:-app-files} &&
+      mc anonymous set none local/${STORAGE_BUCKET_NAME:-app-files}
+      "
+    networks: [backend]
+
 volumes:
   db-data:
+  minio-data:
 
 networks:
   # Declared explicitly rather than relying on the implicit default network, so

@@ -19,6 +19,19 @@ public static class AuthErrors
         "Email or password is incorrect.");
 
     /// <summary>
+    /// One error for every way signing in through an identity provider can fail: a token that did not
+    /// verify, a provider nobody configured, a provider that would not vouch for the address, an
+    /// address already held by an account that never confirmed it, and an account that may no longer
+    /// sign in. The last two are why this collapses as hard as <see cref="InvalidCredentials"/> does —
+    /// anyone can obtain an <c>id_token</c> for an address they control, so a distinct answer for
+    /// "that address belongs to an unconfirmed local account" would turn this endpoint into a probe
+    /// for which addresses have been registered here.
+    /// </summary>
+    public static Error ExternalSignInRefused { get; } = Error.Unauthorized(
+        "auth.externalSignIn.refused",
+        "The external sign-in could not be completed.");
+
+    /// <summary>
     /// Covers unknown, expired, revoked and replayed refresh tokens alike. A replay additionally
     /// revokes the whole family, but the response is identical.
     /// </summary>

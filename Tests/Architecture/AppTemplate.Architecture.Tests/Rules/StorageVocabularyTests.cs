@@ -76,7 +76,17 @@ public sealed class StorageVocabularyTests
     [Fact]
     public void NoTableContract_IsDeclaredInOrReachedFromTheApplicationLayer()
     {
-        var declaredOutsidePersistence = ContractsNamed("Table")
+        var tables = ContractsNamed("Table");
+
+        // Both assertions below filter a set down and require the remainder to be empty, which an
+        // empty set satisfies for free. Its two siblings above assert this floor and this one did
+        // not, so the day the word stopped being used — or the discovery stopped finding it — this
+        // rule would have gone on passing while observing nothing.
+        tables.Count.ShouldBeGreaterThanOrEqualTo(
+            1,
+            "No Table contract was found at all, so this rule is checking an empty set.");
+
+        var declaredOutsidePersistence = tables
             .Where(table => table.Assembly != ArchitectureAssemblies.Persistence)
             .Select(table => table.FullName ?? table.Name)
             .Order(StringComparer.Ordinal)

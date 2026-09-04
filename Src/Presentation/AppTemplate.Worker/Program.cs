@@ -3,8 +3,11 @@ using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.Persistence;
+using AppTemplate.Infrastructure.Storage;
 using AppTemplate.Worker.Common.Observability;
+using AppTemplate.Worker.Common.Outbound;
 using AppTemplate.Worker.Common.Security;
+using AppTemplate.Worker.Features.Files;
 using AppTemplate.Worker.Features.Maintenance;
 using AppTemplate.Worker.Features.Reminders;
 using Microsoft.Extensions.Options;
@@ -30,10 +33,17 @@ builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 // that, so the claim cannot rot again. See AppTemplate.Worker.csproj for what it costs in
 // configuration surface.
 // AddEmailModule is here for one port: a reminder that comes due is rung by mail.
+// Before the modules, so that a client any of them registers already has the budget on it. Nothing
+// in this host calls outwards over IHttpClientFactory today — the storage module's SDK carries its
+// own pool, see its own doc — but the policy is installed anyway, because the first adapter that
+// does must not be the one that decides what a timeout is. See Common/Outbound/.
+builder.Services.AddWorkerOutboundHttp();
+
 builder.Services.AddApplicationLayer();
 builder.Services.AddPersistenceModule(builder.Configuration);
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddEmailModule(builder.Configuration);
+builder.Services.AddStorageModule(builder.Configuration);
 
 // This host has no request and no principal — see BackgroundCurrentUser for what that means for
 // a use case that reads ICurrentUser.UserId. Scoped, matching AppTemplate.Api's own registration
@@ -50,6 +60,11 @@ builder.Services.AddOptions<ReminderWorkerOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<ReminderWorkerOptions>, ReminderWorkerOptionsValidator>();
 
+builder.Services.AddOptions<FileWorkerOptions>()
+    .Bind(builder.Configuration.GetSection(FileWorkerOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<FileWorkerOptions>, FileWorkerOptionsValidator>();
+
 // The JSON log alone is not enough: the maintenance loop only logs when a purge removes something,
 // so a purge broken for weeks would otherwise be invisible. See WorkerObservabilityExtensions and
 // MaintenanceDiagnostics. The reminder loop logs every pass unconditionally instead — see
@@ -58,6 +73,7 @@ builder.Services.AddWorkerObservability(builder.Configuration);
 
 builder.Services.AddHostedService<MaintenanceBackgroundService>();
 builder.Services.AddHostedService<ReminderBackgroundService>();
+builder.Services.AddHostedService<FileBackgroundService>();
 
 var host = builder.Build();
 

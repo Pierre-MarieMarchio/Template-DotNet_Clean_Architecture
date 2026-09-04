@@ -98,16 +98,16 @@ AppTemplate.Application/    Common/{Abstractions,Validation,Idempotency,Collecti
                    Features/<F>/{UseCases/{Commands,Queries}/<Operation>,Ports/<Port>,
                                  Consumers,Services,Policies,Extensions,Mapping,Dtos,Errors}
 AppTemplate.Infrastructure.Persistence/
-                   Common/{Contexts,Idempotency,Saving/{Auditing,DomainEvents,Tracking},Time}
+                   Common/{Contexts,Idempotency,Leases,Saving/{Auditing,DomainEvents,Tracking},Time}
                    Features/<F>/{Models,Configurations,Mapping,Tracking,Repositories,Queries,
                                  Observability,Seeding,Tables}
                    Migrations/
 AppTemplate.Api/            Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
-                                    Idempotency,Observability,OpenApi,Security}
+                                    Idempotency,Observability,OpenApi,Outbound,Security}
                    Features/<F>/{Controllers,Contracts/{Requests,Responses},Mapping}
-AppTemplate.Worker/         Common/{Observability,Security}
+AppTemplate.Worker/         Common/{Observability,Outbound,Security}
                    Features/<F>/            one BackgroundService, its options, its metrics
-AppTemplate.Infrastructure.Email/       Common/{Smtp}            Features/<F>/
+AppTemplate.Infrastructure.Email/       Common/{Http,Smtp}       Features/<F>/
 AppTemplate.Infrastructure.InMemory/    Common/{Email,Time}      Features/<F>/
 AppTemplate.Infrastructure.Identity/    by subject: Accounts, AccessTokens, RefreshTokens,
                                         EmailConfirmation, EmailChange, PasswordReset,
@@ -264,6 +264,24 @@ this repository:
   request rather than its outcome, so two requests always differ — an assertion that they are equal
   is asserting that two requests are the same one. Compare everything else.
 
+### The load smoke test
+
+`Tests/Load/smoke.js` is a k6 script, and CI runs it **non-blocking**. That is the design, not a
+concession: a hosted runner's timings are not a property of this code, so a threshold tight enough
+to mean anything on real hardware would be noise there — and a red build nobody can act on is a red
+build people learn to ignore. Its thresholds describe a **broken** system (requests failing,
+ten-second responses), never a slow one, and a `429` counts as a pass, because the rate limiter
+doing its job under load is the correct outcome and a test that punished it would push someone to
+loosen the limit to get a green.
+
+It exists because every timeout, pool size and rate limit in this template was chosen by reasoning,
+and nothing had ever observed the result under concurrency. Run it against a stack of your own:
+
+```bash
+docker compose up -d --build
+k6 run -e BASE_URL=http://localhost:8080 Tests/Load/smoke.js
+```
+
 ### Known sharp edge: coverage and the architecture tests
 
 NetArchTest resolves each type through `Type.GetType(name, throwOnError: true)`, and that fails
@@ -389,6 +407,20 @@ consistent but stale. A counter makes the divergence observable
 (`apptemplate.reminders.missed_cancellations`, watched per `SECURITY.md`). **Any consumer you add
 has to have that shape**, or the missing outbox stops being a cost and becomes a bug.
 
+**The refusal of an outbox was re-examined against a feature that could have overturned it, and it
+holds.** The `Files` feature looked like the counter-example: a thumbnail that is never generated
+because an event went missing is visible, and bytes that are never reclaimed accumulate. It is not
+one. The reclamation is a periodic sweep that re-derives its own precondition — an object no row
+references is garbage — so the deletion event is a fast path that shortens an interval and nothing
+more, in exactly the shape `CancelRemindersOnTodoItemCompletedConsumer` already had. Derivative
+generation, when a project adds it, gets the same treatment: sweep for available files without a
+derivative, and let the event only make it prompt.
+The thing that nearly cost this its meaning was not the design. Three files in that feature
+described the deletion consumer's behaviour in detail before the consumer existed, and every test
+was green, because nothing related the events raised to the consumers registered.
+`DomainEventTests` now does: every event is either consumed or written into a list saying why it is
+not.
+
 **Extract what two real cases prove identical, and nothing more.** A guessed abstraction is a worse
 defect than an assumed duplication: the duplication is visible and local, the wrong abstraction is
 neither. Measure first — `wc -l`, `diff` — and require two cases that do the same thing, not two
@@ -412,6 +444,37 @@ a use case depends on has become a port and needs declaring where ports are.
 The four-operation ceiling `PortConventionTests` enforces is a rule about **ports** — the façade a
 use case sees. A `Table` is not one, and `IRefreshTokenTable` has six operations deliberately: it is
 one table's whole surface, held narrow by having exactly one consumer rather than by a count.
+
+**There is one outbound HTTP budget, and it is a default rather than a call.** Each host installs
+it on `IHttpClientFactory`'s defaults from `Common/Outbound/`, so a module that registers a typed
+client inherits 10 s per attempt, 30 s in total, three retries with jitter, a circuit breaker and a
+concurrency bound without knowing any of it exists. That shape was forced rather than chosen: only
+the persistence project may be shared between infrastructure modules, so a shared HTTP project is
+not available, and putting `HttpClient` behind an application port is the abstraction
+`docs/ARCHITECTURE.md` refuses by name. A default beats a shared method anyway — nothing can forget
+it. Two rules guard the two escapes: `NoType_ConstructsItsOwnHttpClient` and
+`EveryHost_InstallsTheOutboundPolicy`.
+**Retry is an allow-list of the safe verbs** — GET, HEAD, OPTIONS, TRACE — and not the package's
+own deny-list, which would retry any verb it does not name. PUT and DELETE are out despite being
+idempotent by specification, because that promise belongs to the server at the other end and a
+default applies to servers nobody here controls. Relax it for one client whose server you know;
+never widen the default. **The 30 s total is bound to `RequestTimeouts:Default`'s 5 minutes**: an
+outbound call happens inside an inbound request, so the enclosing budget has to be the longer of
+the two, for the same reason `RequestTimeoutsOptions` gives about the layer below it. If either
+number moves, re-read both.
+
+**Exclusivity between hosts belongs to the operation, not to the loop that starts it.**
+`ILeaderLease` is an application port, and `FireDueRemindersUseCase` is what takes it — not
+`ReminderBackgroundService`. A `BackgroundService` is a trigger; a guard placed there protects the
+timer's callers and nobody else, and the two purges are already exposed over HTTP by
+`MaintenanceController` as the standing reminder that a second caller does turn up. The adapter is
+a PostgreSQL session-level advisory lock (`Common/Leases/`), chosen because losing the process
+releases the lock rather than stranding a lease until a timer says otherwise. **It is not a fencing
+token** — leadership can be lost mid-run — so anything run under it still has to survive a second
+host starting it. `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` is
+what holds the first sentence: a port this layer declares and never calls is a decision that has
+left the layer, and the fix is to move the decision back, not to move the file somewhere the rule
+does not look.
 
 **No MediatR, no dispatcher, no pipeline behaviours.** A controller names the use case it calls, and
 `F12` reaches the implementation. `LayerDependencyTests` forbids the package by name.

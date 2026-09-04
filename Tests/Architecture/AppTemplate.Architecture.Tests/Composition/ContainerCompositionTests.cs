@@ -137,9 +137,9 @@ public sealed class ContainerCompositionTests
     public void ThePortDiscovery_FindsEveryPortTheRepositoryHas()
     {
         ApplicationPorts.DomainRepositories.Count.ShouldBe(
-            2,
-            "One repository contract per aggregate, in the Domain: ITodoListRepository and " +
-            "IReminderRepository.");
+            3,
+            "One repository contract per aggregate, in the Domain: ITodoListRepository, " +
+            "IReminderRepository and IStoredFileRepository.");
 
         ApplicationPorts.Declared.Count.ShouldBeGreaterThanOrEqualTo(
             25,

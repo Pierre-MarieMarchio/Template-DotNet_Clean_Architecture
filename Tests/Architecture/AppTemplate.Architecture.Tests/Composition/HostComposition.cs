@@ -5,6 +5,7 @@ using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.InMemory;
 using AppTemplate.Infrastructure.Persistence;
+using AppTemplate.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -100,6 +101,11 @@ internal static class HostComposition
             // Mandatory STARTTLS: EmailOptionsValidator rejects any mode that can fall back to
             // plaintext against a non-loopback host.
             ["Email:Security"] = "StartTls",
+
+            // The bucket is the only required value: with no endpoint the module addresses AWS S3
+            // itself, and with no credentials the SDK's own chain resolves an instance role — which
+            // is the shape a deployment should be in, so it is the shape composed here.
+            ["Storage:BucketName"] = "app-template-architecture-tests",
         };
 
     /// <summary>
@@ -133,6 +139,7 @@ internal static class HostComposition
         services.AddPersistenceModule(configuration);
         services.AddIdentityModule(configuration);
         services.AddEmailModule(configuration);
+        services.AddStorageModule(configuration);
 
         AddHostSuppliedAdapters(services);
 
@@ -140,7 +147,7 @@ internal static class HostComposition
     }
 
     /// <summary>
-    /// The worker's composition: the same four modules, and deliberately <em>without</em>
+    /// The worker's composition: the same five modules, and deliberately <em>without</em>
     /// <c>AddHttpContextAccessor</c>, because that is the one difference between the two hosts that
     /// can break a graph. A module gaining a dependency on <c>IHttpContextAccessor</c> would leave
     /// the API's container green and stop the worker at start-up; nothing used to notice, because
@@ -164,6 +171,7 @@ internal static class HostComposition
         services.AddPersistenceModule(configuration);
         services.AddIdentityModule(configuration);
         services.AddEmailModule(configuration);
+        services.AddStorageModule(configuration);
 
         services.AddScoped<ICurrentUser, ArchitectureTestCurrentUser>();
 
@@ -203,6 +211,7 @@ internal static class HostComposition
         services.AddApplicationLayer();
         services.AddPersistenceModule(configuration);
         services.AddEmailModule(configuration);
+        services.AddStorageModule(configuration);
 
         services.AddScoped<ICurrentUser, ArchitectureTestCurrentUser>();
 

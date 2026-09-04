@@ -8,6 +8,8 @@ using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
+using AppTemplate.Application.Features.Auth.Ports.ExternalIdentity;
+using AppTemplate.Application.Features.Auth.Ports.ExternalLogins;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetTokens;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
@@ -28,6 +30,10 @@ using AppTemplate.Application.Features.Auth.UseCases.Commands.Register;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.RequestPasswordReset;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.ResendConfirmationEmail;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.ResetPassword;
+using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
+using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
+using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;
@@ -47,6 +53,7 @@ using AppTemplate.Application.Features.TodoLists.UseCases.Commands.UpdateTodoIte
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItem;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItems;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoList;
+using AppTemplate.Domain.Features.Files.Repositories;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using FluentValidation;
@@ -63,9 +70,11 @@ public sealed class ServiceRegistrationTests
 {
     /// <summary>
     /// Fifteen to-do list operations, twenty-three authentication ones, two maintenance operations,
-    /// and five reminder ones.
+    /// five reminder ones, nine for files — of which three, the abandonment purge, the orphan
+    /// reclamation and the deposit inspection, are reached only from the worker — and one for
+    /// signing in through an external identity provider.
     /// </summary>
-    private const int _knownUseCaseCount = 45;
+    private const int _knownUseCaseCount = 55;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
@@ -243,11 +252,19 @@ public sealed class ServiceRegistrationTests
         services.AddScoped(_ => Substitute.For<IReminderTargetQueries>());
         services.AddScoped(_ => Substitute.For<IReminderDiagnostics>());
         services.AddScoped(_ => Substitute.For<IUnitOfWork>());
+        services.AddScoped(_ => Substitute.For<ILeaderLease>());
+        services.AddScoped(_ => Substitute.For<IStoredFileRepository>());
+        services.AddScoped(_ => Substitute.For<IStoredFileQueries>());
+        services.AddScoped(_ => Substitute.For<IFileContentStore>());
+        services.AddScoped(_ => Substitute.For<IFileContentInventory>());
+        services.AddScoped(_ => Substitute.For<IFileContentInspector>());
         services.AddScoped(_ => Substitute.For<ICurrentUser>());
         services.AddScoped(_ => Substitute.For<IDateTimeProvider>());
         services.AddScoped(_ => Substitute.For<IEmailSender>());
         services.AddScoped(_ => Substitute.For<IUserAccountsService>());
         services.AddScoped(_ => Substitute.For<IUserProfilesService>());
+        services.AddScoped(_ => Substitute.For<IExternalIdentityVerifier>());
+        services.AddScoped(_ => Substitute.For<IExternalLoginsService>());
         services.AddScoped(_ => Substitute.For<IEmailConfirmationTokensService>());
         services.AddScoped(_ => Substitute.For<IPasswordResetTokensService>());
         services.AddScoped(_ => Substitute.For<IPasswordResetEmailFactory>());

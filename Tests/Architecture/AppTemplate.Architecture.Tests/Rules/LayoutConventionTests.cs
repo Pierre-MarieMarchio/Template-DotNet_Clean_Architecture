@@ -67,16 +67,16 @@ public sealed class LayoutConventionTests
         ["Src/Application/AppTemplate.Application"] =
             ["Abstractions", "Collections", "Concurrency", "Idempotency", "Results", "Validation"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] =
-            ["Smtp"],
+            ["Http", "Smtp"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] =
             ["Email", "Time"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
-            ["Contexts", "Idempotency", "Saving", "Time"],
+            ["Contexts", "Idempotency", "Leases", "Saving", "Time"],
         ["Src/Presentation/AppTemplate.Api"] =
             ["Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
-             "Idempotency", "Observability", "OpenApi", "Security"],
+             "Idempotency", "Observability", "OpenApi", "Outbound", "Security"],
         ["Src/Presentation/AppTemplate.Worker"] =
-            ["Observability", "Security"],
+            ["Observability", "Outbound", "Security"],
     };
 
     [Fact]
@@ -172,9 +172,22 @@ public sealed class LayoutConventionTests
     {
         string source = Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src");
 
-        var empty = Directory
+        var walked = Directory
             .EnumerateDirectories(source, "*", SearchOption.AllDirectories)
             .Where(folder => !IsBuildOutput(folder))
+            .ToList();
+
+        // The floor RuleAssertions asks every test in this project for, and the one test here that
+        // did not have it: this rule asserts an emptiness, so a walk that found no folders at all
+        // passes it. Its two siblings above establish their own candidate sets and would fail on a
+        // wrong root, but a rule that leans on a neighbour to be non-vacuous is one that stops being
+        // a guarantee the day the neighbour moves.
+        walked.Count.ShouldBeGreaterThanOrEqualTo(
+            200,
+            "Far fewer folders were found than this template holds, so the walk is not reading the " +
+            "tree it is meant to describe and every folder in it would read as non-empty.");
+
+        var empty = walked
             .Where(folder => !Directory.EnumerateFileSystemEntries(folder).Any())
             .Select(folder => Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, folder))
             .Order(StringComparer.Ordinal)

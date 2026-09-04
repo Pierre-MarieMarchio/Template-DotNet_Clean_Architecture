@@ -152,6 +152,29 @@ separate one — size in, not around.
 
 ## Secrets
 
+### Reading them from a secret manager, which the template deliberately does not abstract
+
+Azure Key Vault, AWS Secrets Manager, GCP Secret Manager and HashiCorp Vault all plug in as
+**`IConfiguration` providers**, not as ports. That is the whole integration:
+
+```csharp
+// Before any module is composed, so that every validated options section sees the values.
+builder.Configuration.AddAzureKeyVault(new Uri(vaultUri), new DefaultAzureCredential());
+```
+
+**There is no `ISecretStore` in this repository and there should not be.** A port here would be an
+abstraction layered over one .NET already provides, and it would buy nothing: the configuration
+system is already the seam, every section is already bound and validated at start-up, and a value
+that arrives from a vault is indistinguishable — by design — from one that arrived from an
+environment variable. Writing a port would mean every options class had two ways to be filled.
+
+What the template does enforce is the part that actually matters, and it enforces it already: **no
+secret is in tracked configuration**. Every secret-shaped value in every `appsettings.json` is an
+empty string, each section is validated with `ValidateOnStart()`, and the process refuses to boot
+rather than run half-configured. `deploy/kubernetes/secret.example.yaml` shows the shape without the
+values and says, at the top, to generate the object from a real manager rather than write it by
+hand. The one asymmetry worth knowing is that `Jwt__Key` reaches the API alone — see `SECURITY.md`.
+
 Every secret-shaped value the template validates at startup — `ConnectionStrings:Default`,
 `Jwt:Key`, the SMTP credentials — ships in `appsettings.json` as an empty string and fails
 `ValidateOnStart()` if it stays that way, so a pod that is missing one of them does not start,

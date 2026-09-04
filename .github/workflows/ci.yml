@@ -425,6 +425,78 @@ jobs:
         run: dotnet new uninstall .
 
   # ---------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # A load smoke test, deliberately non-blocking.
+  #
+  # This template had never been observed under any concurrency: every timeout,
+  # pool size and rate limit in it was chosen by reasoning. This job is what
+  # turns "nothing came apart" from an assumption into an observation.
+  #
+  # continue-on-error is the whole design. A hosted runner's timings are not a
+  # property of this code, so a threshold tight enough to mean anything on real
+  # hardware would be noise here — and a red build nobody can act on is a red
+  # build people learn to ignore. The thresholds in the script describe a broken
+  # system (requests failing, ten-second responses), not a slow one.
+  # ---------------------------------------------------------------------------
+  load:
+    name: Load smoke (non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Start the stack
+        run: |
+          cp .env.example .env
+          docker compose up -d --build api db mailpit minio minio-bucket
+
+      # The API applies migrations at startup in Development, so "the container
+      # is running" is not "the API is answering". Poll the liveness probe the
+      # orchestrator itself would use.
+      - name: Wait for the API
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/health > /dev/null 2>&1; then
+              echo "API answered on attempt $attempt."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::warning title=Load smoke::The API never became live; skipping the run."
+          docker compose logs --tail 50 api
+          exit 1
+
+      # Installed from Grafana's own apt repository rather than through a
+      # third-party action: every action in this workflow is pinned to a commit
+      # SHA, and one more supply-chain edge for a job that is allowed to fail is
+      # a poor trade.
+      - name: Install k6
+        run: |
+          set -euo pipefail
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Smoke
+        run: k6 run -e BASE_URL=http://localhost:8080 Tests/Load/smoke.js
+
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose logs --tail 200
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v
+
   compose:
     name: Compose manifest
     runs-on: ubuntu-latest

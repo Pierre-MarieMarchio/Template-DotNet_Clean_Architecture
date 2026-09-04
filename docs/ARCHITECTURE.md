@@ -24,9 +24,10 @@ one exists.
 ```mermaid
 graph RL
     Api[AppTemplate.Api<br/>controllers, composition root]
-    Worker[AppTemplate.Worker<br/>two BackgroundServices, composition root]
+    Worker[AppTemplate.Worker<br/>three BackgroundServices, composition root]
     Ident[AppTemplate.Infrastructure.Identity<br/>ASP.NET Identity policy, JWT, refresh tokens]
     Mail[AppTemplate.Infrastructure.Email<br/>MailKit SMTP]
+    Store[AppTemplate.Infrastructure.Storage<br/>S3-compatible object store]
     Mem[AppTemplate.Infrastructure.InMemory<br/>in-memory ports]
     Pers[AppTemplate.Infrastructure.Persistence<br/>the one DbContext, interceptors, unit of work,<br/>per-feature models, mapping, repositories, queries]
     App[AppTemplate.Application<br/>use cases, ports, Result]
@@ -37,14 +38,18 @@ graph RL
     Ident --> App
     Ident --> Pers
     Mail --> App
+    Store --> App
     Mem --> App
     Api --> App
     Api --> Pers
     Api --> Ident
     Api --> Mail
+    Api --> Store
     Worker --> App
     Worker --> Pers
     Worker --> Ident
+    Worker --> Mail
+    Worker --> Store
 ```
 
 `AppTemplate.Domain` having **no packages at all** is the load-bearing constraint. It is what
@@ -84,9 +89,12 @@ split runs there rather than putting every port in one layer:
 | `IEmailSender` | `AppTemplate.Application` | `MailKitEmailSender` |
 | `ICurrentUser` | `AppTemplate.Application` | `CurrentUser`, reading `HttpContext` claims |
 | `IDateTimeProvider` | `AppTemplate.Application` | `SystemDateTimeProvider` |
+| `ILeaderLease` | `AppTemplate.Application` | `PostgresLeaderLease`, a session-level advisory lock |
 | `IUserAccountsService` | `AppTemplate.Application` | `UserManager` / `SignInManager` wrapper |
 | `IEmailConfirmationTokensService` | `AppTemplate.Application` | ASP.NET Identity's default token provider |
 | `IAccessTokenIssuer` | `AppTemplate.Application` | signed JWT over the account's current claims |
+| `IExternalIdentityVerifier` | `AppTemplate.Application` | an `id_token` checked against a provider's JWKS |
+| `IExternalLoginsService` | `AppTemplate.Application` | the `(provider, subject)` link, over ASP.NET Identity |
 | `IRefreshTokenGrantsService` | `AppTemplate.Application` | opaque rotating grants over `IRefreshTokenTable` |
 | `IConfirmationEmailFactory` | `AppTemplate.Application` | HTML template plus the confirmation URL |
 
@@ -114,9 +122,10 @@ storage — one DbContext in one schema:
 
 | Module | Registers | Storage |
 |---|---|---|
-| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, the interceptor pipeline, `IUnitOfWork`, the aggregate repositories and read-side ports, `IRefreshTokenTable`, `IIdentitySeeder` | `AppDbContext` → `identity`, `todo`, `reminders`, `platform` |
+| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, the interceptor pipeline, `IUnitOfWork`, `ILeaderLease`, the aggregate repositories and read-side ports, `IRefreshTokenTable`, `IIdentitySeeder` | `AppDbContext` → `identity`, `todo`, `reminders`, `platform` |
 | `AppTemplate.Infrastructure.Identity` | the authentication ports, ASP.NET Identity, JWT bearer, refresh-token rotation | — (uses the shared context) |
 | `AppTemplate.Infrastructure.Email` | `IEmailSender`, `IReminderNotifier`, email options | — |
+| `AppTemplate.Infrastructure.Storage` | `IFileContentStore`, `IFileContentInventory`, storage options | one S3-compatible bucket |
 | `AppTemplate.Infrastructure.InMemory` | in-memory port implementations for tests and demos | — |
 
 **Persistence is the one module that holds more than one capability**, and that is

@@ -23,6 +23,10 @@ public sealed class HttpSurfaceTests
     [
         "ConfirmEmail",
         "Login",
+        // The external-provider entry point. Anonymous for exactly the reason /auth/login is: it is
+        // where a caller who holds no token of ours arrives. What it accepts is a provider's signed
+        // id_token, and the refusal path is deliberately as uninformative as the local one's.
+        "LoginWithExternalProvider",
         "LoginWithTwoFactor",
         "Logout",
         "Refresh",

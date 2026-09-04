@@ -1,6 +1,8 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
+using AppTemplate.Infrastructure.InMemory.Features.Auth;
 using AppTemplate.Infrastructure.InMemory.UnitTests.Fixtures;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -54,6 +56,37 @@ public sealed class InMemoryModuleTests
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// The identity verifier gets the same treatment for the same reason: its real adapter fetches a
+    /// provider's key set over HTTP, so a test host that kept it would be reaching out to Google.
+    /// </summary>
+    [Fact]
+    public void AddInMemoryModule_ReplacesAnExternalIdentityVerifierThatWasAlreadyRegistered()
+    {
+        var real = Substitute.For<IExternalIdentityVerifier>();
+
+        using var provider = ComposeAfter(services => services.AddSingleton(real));
+        using var scope = provider.CreateScope();
+
+        scope.ServiceProvider.GetServices<IExternalIdentityVerifier>()
+            .ShouldHaveSingleItem()
+            .ShouldNotBeSameAs(real);
+    }
+
+    /// <summary>
+    /// The arrangements are per host and not per scope: a use case arranges nothing itself, so a
+    /// second instance would refuse every token a test had just accepted.
+    /// </summary>
+    [Fact]
+    public void AddInMemoryModule_ServesOneSetOfArrangedIdentitiesForEveryScope()
+    {
+        using var provider = InMemoryHost.Compose();
+        using var scope = provider.CreateScope();
+
+        scope.ServiceProvider.GetRequiredService<AcceptedExternalIdentities>()
+            .ShouldBeSameAs(provider.GetRequiredService<AcceptedExternalIdentities>());
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.Metrics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics.Metrics;
 using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredRefreshTokens;
 using AppTemplate.Worker.Features.Maintenance;
@@ -27,8 +28,14 @@ public sealed class MaintenanceDiagnosticsTests
         var idempotency = new FakeIdempotencyPurge(count: 0);
         var refreshTokens = new FakeRefreshTokenPurge(count: 0);
 
-        var purgedMeasurements = new List<(long Value, string? Task)>();
-        var iterationMeasurements = new List<(long Value, string? Task, string? Outcome)>();
+        // Concurrent, not a List, for the reason FileDiagnosticsTests already records: the listener
+        // below is enabled on a static meter, so it receives every measurement any thread in this
+        // assembly records to it — and MaintenanceBackgroundServiceTests runs the same loop in
+        // parallel, recording to these same two counters every 20 ms. A List<T>.Add from two threads
+        // can drop an item, and the one dropped here is this test's own zero, which reads as "the
+        // metric never carried the case that would otherwise stay invisible".
+        var purgedMeasurements = new ConcurrentQueue<(long Value, string? Task)>();
+        var iterationMeasurements = new ConcurrentQueue<(long Value, string? Task, string? Outcome)>();
 
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, l) =>
@@ -45,12 +52,12 @@ public sealed class MaintenanceDiagnosticsTests
 
             if (instrument.Name == "apptemplate.worker.maintenance.purged")
             {
-                purgedMeasurements.Add((measurement, task));
+                purgedMeasurements.Enqueue((measurement, task));
             }
             else if (instrument.Name == "apptemplate.worker.maintenance.iterations")
             {
                 string? outcome = tagArray.FirstOrDefault(t => t.Key == "outcome").Value as string;
-                iterationMeasurements.Add((measurement, task, outcome));
+                iterationMeasurements.Enqueue((measurement, task, outcome));
             }
         });
         listener.Start();

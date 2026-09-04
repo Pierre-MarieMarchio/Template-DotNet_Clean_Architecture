@@ -10,6 +10,12 @@ namespace AppTemplate.Api.Common.Security;
 /// <summary>
 /// Rate limiting: together with account lockout, this is what bounds online password guessing.
 /// </summary>
+/// <remarks>
+/// This file owns the two budgets and what a refused caller is told; it does not own where the count
+/// is kept. That is <see cref="IRateLimitCounters"/>, and the split is the only thing standing
+/// between this template and a rate limit that a deployment can make hold across replicas — see that
+/// interface for what an implementation of it may and may not decide.
+/// </remarks>
 public static class RateLimitingExtensions
 {
     /// <summary>Applied to the authentication controller.</summary>
@@ -26,6 +32,7 @@ public static class RateLimitingExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.TryAddSingleton(RateLimiterWindow.Default);
+        services.TryAddSingleton<IRateLimitCounters, InProcessRateLimitCounters>();
 
         services.AddRateLimiter(options =>
         {
@@ -58,32 +65,20 @@ public static class RateLimitingExtensions
         });
 
         // A dependency-injected configure pass, separate from the one above, because it is the only
-        // way to read RateLimiterWindow here: AddRateLimiter's own delegate has no service provider
-        // to resolve from.
-        services.AddOptions<RateLimiterOptions>().Configure<RateLimiterWindow>((options, window) =>
-        {
-            // Behind a reverse proxy this needs ForwardedHeaders configured, or every request
-            // appears to come from the proxy and shares one partition either way.
-            options.AddPolicy(Authentication, httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: RateLimiterPartitionKeys.ForAddress(httpContext),
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = AuthenticationPermitLimit,
-                        Window = window.Duration,
-                        QueueLimit = 0,
-                    }));
+        // way to read RateLimiterWindow and IRateLimitCounters here: AddRateLimiter's own delegate
+        // has no service provider to resolve from.
+        services.AddOptions<RateLimiterOptions>().Configure<RateLimiterWindow, IRateLimitCounters>(
+            (options, window, counters) =>
+            {
+                // Behind a reverse proxy this needs ForwardedHeaders configured, or every request
+                // appears to come from the proxy and shares one partition either way.
+                options.AddPolicy(
+                    Authentication,
+                    counters.PartitionerFor(new RateLimitBudget(AuthenticationPermitLimit, window.Duration)));
 
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: RateLimiterPartitionKeys.ForAddress(httpContext),
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = GlobalPermitLimit,
-                        Window = window.Duration,
-                        QueueLimit = 0,
-                    }));
-        });
+                options.GlobalLimiter = PartitionedRateLimiter.Create(
+                    counters.PartitionerFor(new RateLimitBudget(GlobalPermitLimit, window.Duration)));
+            });
 
         return services;
     }

@@ -6,6 +6,8 @@ using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
+using AppTemplate.Application.Features.Auth.Ports.ExternalIdentity;
+using AppTemplate.Application.Features.Auth.Ports.ExternalLogins;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetTokens;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
@@ -21,6 +23,8 @@ using AppTemplate.Infrastructure.Identity.AccessTokens;
 using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Identity.EmailChange;
 using AppTemplate.Infrastructure.Identity.EmailConfirmation;
+using AppTemplate.Infrastructure.Identity.ExternalIdentity;
+using AppTemplate.Infrastructure.Identity.ExternalLogins;
 using AppTemplate.Infrastructure.Identity.PasswordReset;
 using AppTemplate.Infrastructure.Identity.RefreshTokens;
 using AppTemplate.Infrastructure.Identity.SecurityEvents;
@@ -129,10 +133,13 @@ public static class IdentityModule
         services.AddScoped<IPasswordResetEmailFactory, PasswordResetEmailFactory>();
         services.AddScoped<IEmailChangeEmailFactory, EmailChangeEmailFactory>();
         services.AddScoped<ISecurityEventLog, SecurityEventLog>();
+        services.AddScoped<IExternalIdentityVerifier, ExternalIdentityVerifier>();
+        services.AddScoped<IExternalLoginsService, ExternalLoginsService>();
 
         // Not a port: the account lookup and claim generation nine of the adapters above share.
         services.AddScoped<IAppUserDirectory, AppUserDirectory>();
 
+        AddExternalIdentityKeys(services);
         AddIdentityCore(services);
         AddJwtBearerAuthentication(services);
         AddDataProtection(services);
@@ -182,8 +189,38 @@ public static class IdentityModule
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<TwoFactorOptions>, TwoFactorOptionsValidator>();
 
+        // The one section that is allowed to be absent entirely: external sign-in is optional, and a
+        // deployment that does not offer it boots with no providers and refuses every attempt.
+        services.AddOptions<ExternalIdentityOptions>()
+            .Bind(configuration.GetSection(ExternalIdentityOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<ExternalIdentityOptions>, ExternalIdentityOptionsValidator>();
+
         // IdentitySeedOptions is deliberately absent: seeding is a persistence concern and the
         // persistence module binds and validates that section. The section name is unchanged.
+    }
+
+    /// <summary>
+    /// The one place this module reaches out over HTTP, and the whole reason it is a typed client.
+    /// <para>
+    /// <c>AddHttpClient</c> is what puts <see cref="SigningKeyDirectory"/> inside the outbound budget
+    /// each host installs on <c>IHttpClientFactory</c>'s defaults (<c>Common/Outbound/</c>): timeouts,
+    /// retry on the safe verbs only, a circuit breaker and a concurrency bound, none of which this
+    /// module names. The alternative shapes all escape it —
+    /// <c>ConfigurationManager&lt;OpenIdConnectConfiguration&gt;</c> and
+    /// <c>JwtBearerOptions.Backchannel</c> both build an <c>HttpClient</c> of their own unless handed
+    /// one, and neither would have been caught by <c>NoType_ConstructsItsOwnHttpClient</c>.
+    /// </para>
+    /// <para>
+    /// The cache is separate and a singleton because the client is transient by design: the factory
+    /// hands each instance a pooled handler so sockets and DNS rotate, and a cache living on it would
+    /// be a cache that never hit.
+    /// </para>
+    /// </summary>
+    private static void AddExternalIdentityKeys(IServiceCollection services)
+    {
+        services.AddSingleton<CachedSigningKeys>();
+        services.AddHttpClient<ISigningKeyDirectory, SigningKeyDirectory>();
     }
 
     private static void AddIdentityCore(IServiceCollection services)

@@ -1,11 +1,14 @@
 ﻿using System.Reflection;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
+using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.Reminders.Services;
 using AppTemplate.Application.Features.TodoLists.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CreateTodoList;
 using AppTemplate.Domain.Common.Events;
+using AppTemplate.Domain.Features.Files.Events;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +35,7 @@ public static class ServiceRegistration
         // discovery above never sees it. Bound explicitly, like the domain-event consumers below.
         services.AddScoped<ITodoListAccess, TodoListAccess>();
         services.AddScoped<IReminderAccess, ReminderAccess>();
+        services.AddScoped<IStoredFileAccess, StoredFileAccess>();
 
         services.AddDomainEventConsumer<TodoItemCompletedDomainEvent, LogTodoItemCompletedConsumer>();
 
@@ -39,6 +43,12 @@ public static class ServiceRegistration
         // of the other.
         services.AddDomainEventConsumer<
             TodoItemCompletedDomainEvent, CancelRemindersOnTodoItemCompletedConsumer>();
+
+        // The prompt half of reclaiming a deleted file's bytes. The orphan sweep is what makes it
+        // correct; this only makes it fast — see the consumer's own doc, and note that three files
+        // in the Files feature claimed this consumer existed before it did.
+        services.AddDomainEventConsumer<
+            StoredFileDeletedDomainEvent, ReclaimContentOnStoredFileDeletedConsumer>();
 
         return services;
     }

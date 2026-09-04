@@ -146,6 +146,49 @@ public sealed class ModuleDependencyTests
                 + "other by design, so applying the mechanism rule's forbidden list to them must fail.");
     }
 
+    /// <summary>
+    /// The assembly list the rules above address, against the modules that actually exist on disk.
+    /// </summary>
+    /// <remarks>
+    /// <c>ArchitectureAssemblies</c> is maintained by hand, and nothing about adding an
+    /// infrastructure module prompts anyone to extend it. It had already fallen behind:
+    /// <c>AppTemplate.Infrastructure.Storage</c> was referenced by this project, composed by
+    /// <c>HostComposition</c>, and absent from both lists — so five rules had no jurisdiction over the
+    /// module holding the object-store adapter and the content inspector, and every one of them passed
+    /// while never reading a type of it. The rules keyed on the project graph did cover it, because
+    /// <c>ProjectReferenceGraph</c> reads the disk, which is precisely the difference this rule closes.
+    /// <para>
+    /// The sharpest half is the forbidden list in the rule below: it is computed <em>from</em> these
+    /// assemblies, so a module missing here is not only unchecked as a subject — it is also not
+    /// forbidden as a dependency, and another module could reference it freely.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void EveryInfrastructureModuleOnDisk_IsAmongTheAssembliesTheseRulesAddress()
+    {
+        var onDisk = ProjectReferenceGraph.InfrastructureModules
+            .Select(project => project.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        onDisk.Count.ShouldBeGreaterThanOrEqualTo(
+            5,
+            "Far fewer infrastructure modules were found under Src than this template has, so the " +
+            "project walk is not reading the tree it is meant to describe.");
+
+        var addressed = ArchitectureAssemblies.AllInfrastructure
+            .Select(ArchitectureAssemblies.NamespaceOf)
+            .ToHashSet(StringComparer.Ordinal);
+
+        onDisk
+            .Except(addressed, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty(
+                "An infrastructure module exists that no rule in this file can see. Add it to "
+                + "ArchitectureAssemblies.AllInfrastructure — and to ProductionInfrastructure unless a "
+                + "host never composes it — or every rule written over those lists passes it by while "
+                + "reporting success.");
+    }
+
     [Fact]
     public void NoInfrastructureModule_DependsOnAnotherInfrastructureModule()
     {

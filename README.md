@@ -237,7 +237,10 @@ are in
 
 All routes are versioned. `api-supported-versions: 1.0` comes back on every
 response, and the version segment substitutes into the route
-(`api/v{version:apiVersion}/…`).
+(`api/v{version:apiVersion}/…`). The path is the only place the version is read
+from: the reader is `UrlSegmentApiVersionReader`, so an `?api-version=` query
+string or an `x-ms-version` header is not a second way in — it is ignored, and the
+mandatory path segment decides.
 
 ### Authentication — `api/v1/auth/*`
 

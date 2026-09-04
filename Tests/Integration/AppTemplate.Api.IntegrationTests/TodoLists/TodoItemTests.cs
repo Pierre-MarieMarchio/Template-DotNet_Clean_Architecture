@@ -1,8 +1,8 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
-using AppTemplate.Api.Features.TodoLists.Contracts;
+using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
+using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.TodoLists.Dtos;
 using Shouldly;
 using Xunit;
 
@@ -16,7 +16,7 @@ namespace AppTemplate.Api.IntegrationTests.TodoLists;
 public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
-    public async Task AddingAnItem_Returns201AndTheItemAppearsOnItsList()
+    public async Task AddingAnItem_Returns201WithTheItemAndItAppearsOnItsList()
     {
         var (client, _, _) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Chores");
@@ -27,12 +27,17 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
             TestToken);
 
         added.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var itemId = await ApiJson.ReadGuidAsync(added, TestToken);
+
+        // The created item is answered in full, already trimmed, and the ETag is the list's new one.
+        var created = await ApiJson.ReadAsync<TodoItemResponse>(added, TestToken);
+        created.Title.ShouldBe("Wash the car");
+        created.Description.ShouldBe("Before Friday");
+        added.Headers.ETag.ShouldNotBeNull();
 
         var detail = await ReadDetailAsync(client, listId);
         var item = detail.Items.Single();
 
-        item.Id.ShouldBe(itemId);
+        item.Id.ShouldBe(created.Id);
         item.Title.ShouldBe("Wash the car");
         item.Description.ShouldBe("Before Friday");
         item.IsCompleted.ShouldBeFalse();
@@ -76,7 +81,7 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("todoList.validationFailed");
+        (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("request.validationFailed");
 
         // Nothing was written: the whole command is one transaction.
         (await Database.CountAsync("""SELECT count(*) FROM todo."TodoItems" """, TestToken)).ShouldBe(0);
@@ -141,8 +146,12 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("todoItem.notFound");
     }
 
+    /// <summary>
+    /// The removal answers with the <em>list</em>, not the item: the item the route named is gone, so
+    /// the list is the only representation left to hand back.
+    /// </summary>
     [Fact]
-    public async Task RemovingAnItem_Returns204AndTakesItsTagsWithIt()
+    public async Task RemovingAnItem_AnswersWithTheListAndTakesItsTagsWithIt()
     {
         var (client, _, _) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Chores");
@@ -153,14 +162,19 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
             new Uri($"{TodoListsRoute}/{listId}/items/{itemId}", UriKind.Relative),
             TestToken);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var list = await ApiJson.ReadAsync<TodoListResponse>(response, TestToken);
+        list.Id.ShouldBe(listId);
+        list.Items.ShouldBeEmpty();
+        response.Headers.ETag.ShouldNotBeNull();
 
         (await ReadDetailAsync(client, listId)).Items.ShouldBeEmpty();
         (await Database.CountAsync("""SELECT count(*) FROM todo."TodoItemTags" """, TestToken)).ShouldBe(0);
     }
 
     [Fact]
-    public async Task CompletingAnItem_Returns204AndStampsTheCompletionInstant()
+    public async Task CompletingAnItem_AnswersWithTheItemAndStampsTheCompletionInstant()
     {
         var (client, _, _) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Chores");
@@ -174,7 +188,13 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
             content: null,
             TestToken);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var completed = await ApiJson.ReadAsync<TodoItemResponse>(response, TestToken);
+        completed.Id.ShouldBe(itemId);
+        completed.IsCompleted.ShouldBeTrue();
+        completed.CompletedAt.ShouldBe(completedAt);
+        response.Headers.ETag.ShouldNotBeNull();
 
         var item = (await ReadDetailAsync(client, listId)).Items.Single();
         item.IsCompleted.ShouldBeTrue();
@@ -196,7 +216,7 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
             .ShouldBe(["Apple", "Mango", "Zebra"]);
     }
 
-    private static async Task<TodoListDetailDto> ReadDetailAsync(HttpClient client, Guid listId)
+    private static async Task<TodoListResponse> ReadDetailAsync(HttpClient client, Guid listId)
     {
         using var response = await client.GetAsync(
             new Uri($"{TodoListsRoute}/{listId}", UriKind.Relative),
@@ -204,6 +224,6 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        return await ApiJson.ReadAsync<TodoListDetailDto>(response, TestToken);
+        return await ApiJson.ReadAsync<TodoListResponse>(response, TestToken);
     }
 }

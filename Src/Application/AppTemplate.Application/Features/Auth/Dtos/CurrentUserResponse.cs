@@ -1,4 +1,4 @@
-namespace AppTemplate.Application.Features.Auth.Dtos;
+﻿namespace AppTemplate.Application.Features.Auth.Dtos;
 
 public sealed record CurrentUserResponse(
     Guid UserId,

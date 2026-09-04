@@ -1,4 +1,4 @@
-using AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Common.Collections;
 using AppTemplate.Application.Features.TodoLists.Collections;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries;
 using Shouldly;

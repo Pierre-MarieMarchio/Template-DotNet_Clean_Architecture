@@ -1,4 +1,4 @@
-using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Concurrency;
 using Shouldly;
 using Xunit;

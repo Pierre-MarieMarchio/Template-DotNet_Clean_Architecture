@@ -1,8 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
-using AppTemplate.Api.Features.TodoLists.Contracts;
+using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 using Shouldly;
 using Xunit;
@@ -30,7 +29,7 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
 
         var problem = await ApiJson.ReadProblemAsync(response, TestToken);
-        problem.Code.ShouldBe("todoList.invariantViolated");
+        problem.Code.ShouldBe("domain.invariantViolated");
         problem.Status.ShouldBe(409);
         problem.Title.ShouldBe("Conflict");
         problem.Detail.ShouldBe("This list already contains an item titled 'Buy milk'.");
@@ -56,7 +55,7 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("todoList.invariantViolated");
+        (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("domain.invariantViolated");
     }
 
     [Fact]
@@ -67,14 +66,14 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
         var itemId = await AddTodoItemAsync(client, listId, "Do the thing");
 
         using var first = await CompleteAsync(client, listId, itemId);
-        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var second = await CompleteAsync(client, listId, itemId);
 
         second.StatusCode.ShouldBe(HttpStatusCode.Conflict);
 
         var problem = await ApiJson.ReadProblemAsync(second, TestToken);
-        problem.Code.ShouldBe("todoList.invariantViolated");
+        problem.Code.ShouldBe("domain.invariantViolated");
         problem.Detail.ShouldBe("Item 'Do the thing' is already completed.");
     }
 
@@ -91,7 +90,7 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
 
         using (var completed = await CompleteAsync(client, listId, itemId))
         {
-            completed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+            completed.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
         using (var duplicateTitle = await client.PostAsJsonAsync(
@@ -109,7 +108,7 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
 
         using (var overlongName = await client.PostAsJsonAsync(
             TodoListsRoute,
-            new CreateTodoListCommand(new string('x', TodoListName.MaxLength + 1)),
+            new CreateTodoListRequest(new string('x', TodoListName.MaxLength + 1)),
             TestToken))
         {
             await AssertCleanRefusalAsync(overlongName);
@@ -133,15 +132,15 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
         // before the aggregate is ever asked — a DomainException here would mean the two disagree.
         using var response = await client.PostAsJsonAsync(
             TodoListsRoute,
-            new CreateTodoListCommand(new string('x', TodoListName.MaxLength + 1)),
+            new CreateTodoListRequest(new string('x', TodoListName.MaxLength + 1)),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("todoList.validationFailed");
+        (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("request.validationFailed");
 
         using var atTheBound = await client.PostAsJsonAsync(
             TodoListsRoute,
-            new CreateTodoListCommand(new string('x', TodoListName.MaxLength)),
+            new CreateTodoListRequest(new string('x', TodoListName.MaxLength)),
             TestToken);
 
         atTheBound.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -159,9 +158,13 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
     }
 
     /// <summary>
-    /// A refusal the product decided on: a 4xx, a stable code, and no sign of the last-resort handler
-    /// — which is what a <c>traceId</c> or an "Unexpected error" title would mean.
+    /// A refusal the product decided on: a 4xx, a stable code, and no sign of the last-resort handler.
     /// </summary>
+    /// <remarks>
+    /// A <c>traceId</c> is not that sign. Every problem document carries one, by design, so it says
+    /// nothing about which layer authored the refusal — what distinguishes a decision from a crash is
+    /// the stable code, the title, and the absence of anything an exception would have leaked.
+    /// </remarks>
     private static async Task AssertCleanRefusalAsync(HttpResponseMessage response)
     {
         ((int)response.StatusCode).ShouldBeInRange(400, 499);
@@ -170,8 +173,8 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
 
         problem.Code.ShouldNotBeNullOrWhiteSpace();
         problem.Title.ShouldNotBe("Unexpected error");
-        problem.Body.ShouldNotContain("traceId");
         problem.Body.ShouldNotContain("Exception");
+        problem.Body.ShouldNotContain("StackTrace");
     }
 
     private static Task<HttpResponseMessage> CompleteAsync(HttpClient client, Guid listId, Guid itemId) =>

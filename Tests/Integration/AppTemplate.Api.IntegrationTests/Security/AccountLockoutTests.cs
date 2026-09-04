@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.Auth.UseCases.Commands;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.EntityFrameworkCore;
@@ -101,7 +101,7 @@ public sealed class AccountLockoutTests(ApiFixture fixture) : IntegrationTestBas
     }
 
     private static Task<HttpResponseMessage> AttemptAsync(HttpClient client, string email, string password) =>
-        client.PostAsJsonAsync($"{AuthRoute}/login", new LoginCommand(email, password), TestToken);
+        client.PostAsJsonAsync($"{AuthRoute}/login", new LoginRequest(email, password), TestToken);
 
     private async Task<AppUser> ReadUserAsync(string email)
     {

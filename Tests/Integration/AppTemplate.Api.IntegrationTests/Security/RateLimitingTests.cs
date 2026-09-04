@@ -1,7 +1,9 @@
 ﻿using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using AppTemplate.Api.Common.Security;
+using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.Auth.UseCases.Commands;
 using Shouldly;
 using Xunit;
 
@@ -13,15 +15,16 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The limit is ten requests per minute per client address. These tests are the only ones in the
-/// suite that deliberately reuse one client for many requests — everywhere else each client gets its
-/// own address so that a test cannot spend another's budget.
+/// The limit is ten requests per window per client address. These tests are among the few in the
+/// suite that deliberately reuse one client for many requests, or pin two clients to the same
+/// address — everywhere else each client gets its own address so that a test cannot spend another's
+/// budget. The window itself is widened for this host (see <c>ApiFactory</c>) so a slow run cannot
+/// cross a real boundary mid-test; the permit counts asserted here are the real production ones.
 /// </para>
 /// </remarks>
 public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    /// <summary>Matches <c>RateLimitingPolicies</c>' fixed-window permit limit.</summary>
-    private const int _permitsPerMinute = 10;
+    private const int _permitsPerMinute = RateLimitingPolicies.AuthenticationPermitLimit;
 
     [Fact]
     public async Task OnceThePerCallerLimitIsExceeded_TheNextRequestIs429()
@@ -65,7 +68,7 @@ public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(
 
         using var registration = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterCommand("late-comer", "late-comer@integration.test", ValidPassword),
+            new RegisterRequest("late-comer", "late-comer@integration.test", ValidPassword),
             TestToken);
 
         registration.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
@@ -94,9 +97,45 @@ public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(
         fromTheOtherCaller.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
+    /// <summary>
+    /// Mirrors <see cref="ExhaustingOneCallersBudget_LeavesAnotherCallerUnaffected"/> in reverse: two
+    /// distinct signed-in callers pinned to the same address on purpose. The authentication policy
+    /// must not tell them apart — it exists to slow down credential guessing on endpoints where,
+    /// by construction, there is no identity yet, and reading one here would defeat that.
+    /// </summary>
+    [Fact]
+    public async Task TheAuthenticationPolicy_SharesItsBudget_BetweenTwoSignedInCallersOnTheSameAddress()
+    {
+        const string sharedAddress = "10.20.30.40";
+        int permitsSpent = 0;
+
+        var first = CreateClientWithAddress(sharedAddress);
+        var second = CreateClientWithAddress(sharedAddress);
+
+        var firstUser = await RegisterConfirmedUserAsync(first, "shared-addr-first");
+        permitsSpent += 2; // register, confirm-email
+
+        await LoginAsync(first, firstUser);
+        permitsSpent += 1;
+
+        await RegisterConfirmedUserAsync(second, "shared-addr-second");
+        permitsSpent += 2;
+
+        for (; permitsSpent < _permitsPerMinute; permitsSpent++)
+        {
+            using var allowed = await AttemptLoginAsync(first);
+            allowed.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        }
+
+        // The address's budget is now spent on `first`'s traffic alone. `second` shares the address,
+        // so it finds the same empty budget despite never having failed a login itself.
+        using var rejected = await AttemptLoginAsync(second);
+        rejected.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
     private static Task<HttpResponseMessage> AttemptLoginAsync(HttpClient client) =>
         client.PostAsJsonAsync(
             $"{AuthRoute}/login",
-            new LoginCommand("nobody-at-all@integration.test", ValidPassword),
+            new LoginRequest("nobody-at-all@integration.test", ValidPassword),
             TestToken);
 }

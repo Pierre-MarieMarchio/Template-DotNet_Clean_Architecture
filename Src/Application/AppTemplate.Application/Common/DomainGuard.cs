@@ -1,4 +1,4 @@
-using AppTemplate.Domain.Common.Exceptions;
+﻿using AppTemplate.Domain.Common.Exceptions;
 
 namespace AppTemplate.Application.Common;
 

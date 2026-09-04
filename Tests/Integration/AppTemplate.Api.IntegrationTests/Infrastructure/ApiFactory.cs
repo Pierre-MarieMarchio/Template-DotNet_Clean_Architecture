@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using AppTemplate.Api.Common.Controllers;
+using AppTemplate.Api.Common.Security;
 using AppTemplate.Application;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using AppTemplate.Infrastructure.Email;
@@ -9,6 +10,7 @@ using AppTemplate.Infrastructure.InMemory;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -89,8 +91,48 @@ public sealed class ApiFactory : WebApplicationFactory<ApiControllerBase>
 
             // Gives each test its own rate-limit partition. See TestClientAddressStartupFilter.
             services.AddSingleton<IStartupFilter, TestClientAddressStartupFilter>();
+
+            // The fixed-window limiter has no injectable clock: it catches up to real elapsed time
+            // on the next acquire regardless of AutoReplenishment, so nothing short of the window
+            // itself can stop a slow run from crossing a real one-minute boundary between one
+            // request and the next and getting a false replenish. Widened far past anything a test
+            // could plausibly take, which leaves the permit counts under test untouched.
+            services.Replace(ServiceDescriptor.Singleton(new RateLimiterWindow(TimeSpan.FromHours(1))));
+
+            ExposeTheReasonATokenWasRefused(services);
         });
     }
+
+    /// <summary>
+    /// Surfaces why bearer validation refused a token, in a header only this host writes.
+    /// </summary>
+    /// <remarks>
+    /// The product deliberately tells an unauthenticated caller nothing beyond "a valid token is
+    /// required": expired, wrong signature and revoked security stamp must be indistinguishable, and a
+    /// test asserts exactly that. The cost is that a 401 nobody expected is undiagnosable, so the
+    /// reason is published here — in the test host, never in the product — where only a test can read
+    /// it.
+    /// </remarks>
+    internal const string AuthFailureHeader = "X-Test-Auth-Failure";
+
+    private static void ExposeTheReasonATokenWasRefused(IServiceCollection services) =>
+        services.PostConfigure<JwtBearerOptions>(
+            JwtBearerDefaults.AuthenticationScheme,
+            options =>
+            {
+                var writeProblem = options.Events!.OnChallenge;
+
+                options.Events.OnChallenge = context =>
+                {
+                    if (context.AuthenticateFailure is { } failure)
+                    {
+                        context.Response.Headers[AuthFailureHeader] =
+                            failure.Message.ReplaceLineEndings(" ");
+                    }
+
+                    return writeProblem(context);
+                };
+            });
 
     private static void ApplyConfiguration(string connectionString)
     {
@@ -133,6 +175,12 @@ public sealed class ApiFactory : WebApplicationFactory<ApiControllerBase>
             [$"{EmailConfirmationOptions.SectionName}__ConfirmEmailUrl"] =
                 "https://client.integration.test/confirm-email",
             [$"{EmailConfirmationOptions.SectionName}__Subject"] = "Confirm your email address",
+
+            // Required, and validated on start by whichever host composes the identity module — so
+            // its absence stops the host before a single test runs, not the test that needs it.
+            [$"{PasswordResetOptions.SectionName}__ResetPasswordUrl"] =
+                "https://client.integration.test/reset-password",
+            [$"{PasswordResetOptions.SectionName}__Subject"] = "Reset your password",
 
             [$"{IdentitySeedOptions.SectionName}__Enabled"] = "false",
 

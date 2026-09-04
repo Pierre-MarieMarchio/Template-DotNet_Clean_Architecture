@@ -1,4 +1,4 @@
-namespace AppTemplate.Api.Common.Errors;
+﻿namespace AppTemplate.Api.Common.Errors;
 
 /// <summary>
 /// The <c>type</c> member of a <c>ProblemDetails</c> response.

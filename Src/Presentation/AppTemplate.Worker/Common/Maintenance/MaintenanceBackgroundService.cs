@@ -1,3 +1,4 @@
+﻿using System.Diagnostics;
 using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Maintenance.UseCases.Commands;
@@ -100,25 +101,41 @@ internal sealed class MaintenanceBackgroundService(
     private async Task RunTaskAsync<TUseCase>(IServiceProvider services, string label, CancellationToken stoppingToken)
         where TUseCase : IUseCase<Result<int>>
     {
+        using Activity? activity = MaintenanceDiagnostics.ActivitySource.StartActivity("maintenance.purge");
+        activity?.SetTag("maintenance.task", label);
+
         try
         {
             var useCase = services.GetRequiredService<TUseCase>();
             Result<int> result = await useCase.ExecuteAsync(stoppingToken);
 
+            KeyValuePair<string, object?> taskTag = new("task", label);
+
             if (result.IsSuccess)
             {
-                if (result.Value > 0 && logger.IsEnabled(LogLevel.Information))
+                MaintenanceDiagnostics.Iterations.Add(1, taskTag, new("outcome", "success"));
+                MaintenanceDiagnostics.Purged.Add(result.Value, taskTag);
+                activity?.SetTag("maintenance.purged", result.Value);
+
+                // Unconditional on purpose: a purge that removes nothing for weeks, because its
+                // query silently stopped matching anything, used to be indistinguishable from a
+                // healthy one — this line, and the iterations counter above, are what make "the
+                // loop ran" visible even when there was nothing to do.
+                if (logger.IsEnabled(LogLevel.Information))
                 {
-                    logger.LogInformation("Purged {Count} {Label}.", result.Value, label);
+                    logger.LogInformation("Purge of {Label} completed: {Count} removed.", label, result.Value);
                 }
             }
             else
             {
+                Error error = result.Error!;
+                MaintenanceDiagnostics.Iterations.Add(1, taskTag, new("outcome", "failure"));
+                activity?.SetStatus(ActivityStatusCode.Error, error.Code);
                 logger.LogWarning(
                     "Purging {Label} reported a failure: {ErrorCode} — {ErrorMessage}.",
                     label,
-                    result.Error!.Code,
-                    result.Error.Message);
+                    error.Code,
+                    error.Message);
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -129,6 +146,8 @@ internal sealed class MaintenanceBackgroundService(
         }
         catch (Exception exception)
         {
+            MaintenanceDiagnostics.Iterations.Add(1, new("task", label), new("outcome", "exception"));
+            activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
             logger.LogError(exception, "Purging {Label} failed unexpectedly; will retry at the next interval.", label);
         }
     }

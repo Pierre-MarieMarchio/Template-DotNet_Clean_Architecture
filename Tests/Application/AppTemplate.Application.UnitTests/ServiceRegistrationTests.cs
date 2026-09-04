@@ -21,12 +21,9 @@ namespace AppTemplate.Application.UnitTests;
 public sealed class ServiceRegistrationTests
 {
     /// <summary>
-    /// Fifteen to-do list operations (the original nine, plus reopen, update, the three tag
-    /// operations and the item-collection read), ten authentication ones (the original six, plus
-    /// the profile read, change-password, and the two password-reset operations), and two
-    /// maintenance operations.
+    /// Fifteen to-do list operations, eleven authentication ones, and two maintenance operations.
     /// </summary>
-    private const int _knownUseCaseCount = 27;
+    private const int _knownUseCaseCount = 28;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];

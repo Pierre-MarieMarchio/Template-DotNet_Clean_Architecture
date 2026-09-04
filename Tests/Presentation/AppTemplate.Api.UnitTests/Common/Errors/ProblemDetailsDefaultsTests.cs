@@ -1,4 +1,4 @@
-using AppTemplate.Api.Common.Errors;
+﻿using AppTemplate.Api.Common.Errors;
 using AppTemplate.Api.UnitTests.TestSupport;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

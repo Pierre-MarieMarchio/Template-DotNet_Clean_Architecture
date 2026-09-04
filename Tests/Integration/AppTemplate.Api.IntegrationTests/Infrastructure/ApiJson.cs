@@ -1,12 +1,27 @@
-﻿using System.Globalization;
-using System.Text.Json;
+﻿using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 
 /// <summary>The RFC 7807 fields the suite asserts on, read out of a response body.</summary>
 /// <param name="Code">The <c>code</c> extension — the stable discriminator clients branch on.</param>
 /// <param name="Body">The raw body, so a failing assertion says what actually came back.</param>
-public sealed record ProblemResponse(int? Status, string? Title, string? Detail, string? Code, string Body);
+public sealed record ProblemResponse(int? Status, string? Title, string? Detail, string? Code, string Body)
+{
+    /// <summary>
+    /// <see cref="Body"/> with the <c>traceId</c> removed, for comparing two responses that must be
+    /// indistinguishable to a caller.
+    /// </summary>
+    /// <remarks>
+    /// Every problem document carries a <c>traceId</c>, and it identifies the request rather than its
+    /// outcome — so two responses to two requests always differ there, and comparing whole bodies
+    /// would assert that two requests were the same request. What must match is everything else.
+    /// </remarks>
+    public string BodyWithoutTraceId =>
+        Regex.Replace(Body, "\"traceId\"\\s*:\\s*\"[^\"]*\"", "\"traceId\":\"·\"", RegexOptions.None, _timeout);
+
+    private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(5);
+}
 
 /// <remarks>
 /// Bodies are read as text and parsed, rather than through <c>ReadFromJsonAsync</c>, for two
@@ -53,21 +68,6 @@ public static class ApiJson
             ReadString(root, "detail"),
             ReadString(root, "code"),
             body);
-    }
-
-    /// <summary>
-    /// Reads a bare <see cref="Guid"/> body. The create endpoints return the new id as a JSON
-    /// string rather than wrapping it in an object.
-    /// </summary>
-    public static async Task<Guid> ReadGuidAsync(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(response);
-
-        string body = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        return Guid.TryParse(body.Trim('"'), CultureInfo.InvariantCulture, out var value)
-            ? value
-            : throw new InvalidOperationException($"Expected a GUID body, got: {body}");
     }
 
     private static string? ReadString(JsonElement element, string name) =>

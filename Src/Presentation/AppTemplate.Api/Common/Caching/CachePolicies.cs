@@ -1,4 +1,4 @@
-namespace AppTemplate.Api.Common.Caching;
+﻿namespace AppTemplate.Api.Common.Caching;
 
 /// <summary>
 /// States whether a response may be stored at all, which this API previously left unsaid.

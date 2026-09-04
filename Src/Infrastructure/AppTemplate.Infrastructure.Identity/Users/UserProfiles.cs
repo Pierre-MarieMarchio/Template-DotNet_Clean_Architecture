@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using AppTemplate.Application.Features.Auth.Ports;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;

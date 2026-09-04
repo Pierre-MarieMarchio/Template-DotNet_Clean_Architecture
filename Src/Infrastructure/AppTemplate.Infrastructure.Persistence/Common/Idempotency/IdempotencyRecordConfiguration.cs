@@ -26,6 +26,14 @@ internal sealed class IdempotencyRecordConfiguration : IEntityTypeConfiguration<
 
     internal const int MaxLocationLength = 2048;
 
+    /// <summary>
+    /// A strong validator issued here is a quoted Base64Url of a 32-bit version — eight characters.
+    /// The bound is far above that so a future encoding, or a longer tag minted elsewhere, fits
+    /// without a migration, while staying small enough that the column can hold nothing but a
+    /// validator.
+    /// </summary>
+    internal const int MaxETagLength = 128;
+
     public void Configure(EntityTypeBuilder<IdempotencyRecord> builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -48,6 +56,7 @@ internal sealed class IdempotencyRecordConfiguration : IEntityTypeConfiguration<
 
         builder.Property(record => record.ResponseBody).HasMaxLength(MaxResponseBodyLength);
         builder.Property(record => record.Location).HasMaxLength(MaxLocationLength);
+        builder.Property(record => record.ETag).HasMaxLength(MaxETagLength);
 
         // The purge is a range scan over this column; without the index it would be a full table scan.
         builder.HasIndex(record => record.ExpiresAt);

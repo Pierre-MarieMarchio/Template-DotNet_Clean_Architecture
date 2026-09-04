@@ -1,4 +1,4 @@
-using AppTemplate.Application.Features.Auth.Ports;
+﻿using AppTemplate.Application.Features.Auth.Ports;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 

@@ -1,8 +1,9 @@
 ﻿using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using AppTemplate.Api.Features.Auth.Contracts.Requests;
+using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.Auth.Dtos;
-using AppTemplate.Application.Features.Auth.UseCases.Commands;
 using Shouldly;
 using Xunit;
 
@@ -35,8 +36,9 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
         wrongPassword.Detail.ShouldBe(unknownEmail.Detail);
 
         // The whole body, not only the fields the suite names: a difference anywhere in it is a
-        // difference an attacker can measure.
-        wrongPassword.Body.ShouldBe(unknownEmail.Body);
+        // difference an attacker can measure. Except the traceId, which names the request rather
+        // than its outcome and so differs between any two of them.
+        wrongPassword.BodyWithoutTraceId.ShouldBe(unknownEmail.BodyWithoutTraceId);
     }
 
     /// <summary>
@@ -55,7 +57,7 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
         var notConfirmed = await AttemptAsync(attempts, unconfirmed.Email, unconfirmed.Password);
 
         notConfirmed.Status.ShouldBe(401);
-        notConfirmed.Body.ShouldBe(unknownEmail.Body);
+        notConfirmed.BodyWithoutTraceId.ShouldBe(unknownEmail.BodyWithoutTraceId);
     }
 
     [Fact]
@@ -67,16 +69,24 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",
-            new LoginCommand(user.Email, user.Password),
+            new LoginRequest(user.Email, user.Password),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var session = (await ApiJson.ReadAsync<LoginOutcome>(response, TestToken))
-            .ShouldBeOfType<LoginOutcome.Authenticated>();
-        session.UserId.ShouldBe(user.Id);
-        session.AccessToken.ShouldNotBeNullOrWhiteSpace();
-        session.RefreshToken.ShouldNotBeNullOrWhiteSpace();
+        var authenticated = (await ApiJson.ReadAsync<LoginResponse>(response, TestToken))
+            .ShouldBeOfType<LoginResponse.Authenticated>();
+        authenticated.Tokens.AccessToken.ShouldNotBeNullOrWhiteSpace();
+        authenticated.Tokens.RefreshToken.ShouldNotBeNullOrWhiteSpace();
+
+        // The pair belongs to the account that presented the credentials, which the profile endpoint
+        // is what says: sign-in itself discloses no identity at all.
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", authenticated.Tokens.AccessToken);
+
+        using var profile = await client.GetAsync(new Uri($"{AuthRoute}/me", UriKind.Relative), TestToken);
+        profile.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ApiJson.ReadAsync<CurrentUserResponse>(profile, TestToken)).Email.ShouldBe(user.Email);
     }
 
     /// <summary>
@@ -93,14 +103,14 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
 
         using var forUnknown = await client.PostAsJsonAsync(
             $"{AuthRoute}/resend-confirmation-email",
-            new ResendConfirmationEmailCommand("nobody-at-all@integration.test"),
+            new ResendConfirmationEmailRequest("nobody-at-all@integration.test"),
             TestToken);
         forUnknown.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         Emails.LastTo("nobody-at-all@integration.test").ShouldBeNull();
 
         using var forUnconfirmed = await client.PostAsJsonAsync(
             $"{AuthRoute}/resend-confirmation-email",
-            new ResendConfirmationEmailCommand(unconfirmed.Email),
+            new ResendConfirmationEmailRequest(unconfirmed.Email),
             TestToken);
         forUnconfirmed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         Emails.LastTo(unconfirmed.Email).ShouldNotBeNull();
@@ -112,7 +122,7 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
     {
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",
-            new LoginCommand(email, password),
+            new LoginRequest(email, password),
             TestToken);
 
         return await ApiJson.ReadProblemAsync(response, TestToken);

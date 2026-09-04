@@ -1,9 +1,9 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using AppTemplate.Api.Features.Auth.Contracts.Requests;
+using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.Auth.Dtos;
-using AppTemplate.Application.Features.Auth.UseCases.Commands;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,13 +26,14 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
 
         using var registered = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterCommand("newcomer", email, ValidPassword),
+            new RegisterRequest("newcomer", email, ValidPassword),
             TestToken);
 
         registered.StatusCode.ShouldBe(HttpStatusCode.OK);
 
+        // No account id: sign-up publishes only what the rest of the journey addresses the account by,
+        // which is the address it was sent to.
         var account = await ApiJson.ReadAsync<RegisterResponse>(registered, TestToken);
-        account.UserId.ShouldNotBe(Guid.Empty);
         account.Email.ShouldBe(email);
         account.UserName.ShouldBe("newcomer");
         account.ConfirmationEmailSent.ShouldBeTrue();
@@ -48,18 +49,18 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         // does.
         using var tooEarly = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",
-            new LoginCommand(email, ValidPassword),
+            new LoginRequest(email, ValidPassword),
             TestToken);
         tooEarly.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         (await ApiJson.ReadProblemAsync(tooEarly, TestToken)).Code.ShouldBe("auth.login.invalidCredentials");
 
-        var (confirmedEmail, token) = ReadConfirmationLink(sent);
+        var (confirmedEmail, token) = ReadEmailLink(sent);
         confirmedEmail.ShouldBe(email);
         token.ShouldNotBeNullOrWhiteSpace();
 
         using var confirmed = await client.PostAsJsonAsync(
             $"{AuthRoute}/confirm-email",
-            new ConfirmEmailCommand(confirmedEmail, token),
+            new ConfirmEmailRequest(confirmedEmail, token),
             TestToken);
         confirmed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
@@ -67,21 +68,38 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
 
         using var loggedIn = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",
-            new LoginCommand(email, ValidPassword),
+            new LoginRequest(email, ValidPassword),
             TestToken);
         loggedIn.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var session = (await ApiJson.ReadAsync<LoginOutcome>(loggedIn, TestToken))
-            .ShouldBeOfType<LoginOutcome.Authenticated>();
-        session.UserId.ShouldBe(account.UserId);
+        // Signing in answers with tokens and nothing else: a caller that wants the account it just
+        // signed in as asks the profile endpoint.
+        var authenticated = (await ApiJson.ReadAsync<LoginResponse>(loggedIn, TestToken))
+            .ShouldBeOfType<LoginResponse.Authenticated>();
+        authenticated.Tokens.AccessToken.ShouldNotBeNullOrWhiteSpace();
 
         // The access token is a working credential, which is the only thing that makes the whole
         // flow worth anything.
         using var protectedRequest = new HttpRequestMessage(HttpMethod.Get, TodoListsRoute);
-        protectedRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        protectedRequest.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", authenticated.Tokens.AccessToken);
 
         using var reached = await client.SendAsync(protectedRequest, TestToken);
         reached.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        // And the profile it opens describes the account that was just registered.
+        using var profileRequest = new HttpRequestMessage(HttpMethod.Get, $"{AuthRoute}/me");
+        profileRequest.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", authenticated.Tokens.AccessToken);
+
+        using var profileResponse = await client.SendAsync(profileRequest, TestToken);
+        profileResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var profile = await ApiJson.ReadAsync<CurrentUserResponse>(profileResponse, TestToken);
+        profile.UserId.ShouldNotBe(Guid.Empty);
+        profile.Email.ShouldBe(email);
+        profile.UserName.ShouldBe("newcomer");
+        profile.EmailConfirmed.ShouldBeTrue();
     }
 
     /// <summary>
@@ -95,7 +113,7 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         var user = await RegisterUserAsync(client, "fragment");
 
         var sent = RequireLastEmailTo(user.Email);
-        var (_, token) = ReadConfirmationLink(sent);
+        var (_, token) = ReadEmailLink(sent);
 
         string href = sent.HtmlBody[(sent.HtmlBody.IndexOf("href=\"", StringComparison.Ordinal) + 6)..];
         href = href[..href.IndexOf('"', StringComparison.Ordinal)];
@@ -115,11 +133,11 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
     {
         var client = CreateClient();
         var user = await RegisterUserAsync(client, "tampered");
-        var (email, token) = ReadConfirmationLink(RequireLastEmailTo(user.Email));
+        var (email, token) = ReadEmailLink(RequireLastEmailTo(user.Email));
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/confirm-email",
-            new ConfirmEmailCommand(email, token + "x"),
+            new ConfirmEmailRequest(email, token + "x"),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -137,16 +155,16 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
     {
         var client = CreateClient();
         var user = await RegisterUserAsync(client, "known");
-        var (email, token) = ReadConfirmationLink(RequireLastEmailTo(user.Email));
+        var (email, token) = ReadEmailLink(RequireLastEmailTo(user.Email));
 
         using var wrongToken = await client.PostAsJsonAsync(
             $"{AuthRoute}/confirm-email",
-            new ConfirmEmailCommand(email, token + "x"),
+            new ConfirmEmailRequest(email, token + "x"),
             TestToken);
 
         using var unknownAddress = await client.PostAsJsonAsync(
             $"{AuthRoute}/confirm-email",
-            new ConfirmEmailCommand("nobody-at-all@integration.test", token),
+            new ConfirmEmailRequest("nobody-at-all@integration.test", token),
             TestToken);
 
         wrongToken.StatusCode.ShouldBe(unknownAddress.StatusCode);
@@ -154,7 +172,7 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         var first = await ApiJson.ReadProblemAsync(wrongToken, TestToken);
         var second = await ApiJson.ReadProblemAsync(unknownAddress, TestToken);
 
-        first.Body.ShouldBe(second.Body);
+        first.BodyWithoutTraceId.ShouldBe(second.BodyWithoutTraceId);
     }
 
     /// <summary>
@@ -171,15 +189,15 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
 
         using var resent = await client.PostAsJsonAsync(
             $"{AuthRoute}/resend-confirmation-email",
-            new ResendConfirmationEmailCommand(user.Email),
+            new ResendConfirmationEmailRequest(user.Email),
             TestToken);
         resent.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        var (email, token) = ReadConfirmationLink(RequireLastEmailTo(user.Email));
+        var (email, token) = ReadEmailLink(RequireLastEmailTo(user.Email));
 
         using var confirmed = await client.PostAsJsonAsync(
             $"{AuthRoute}/confirm-email",
-            new ConfirmEmailCommand(email, token),
+            new ConfirmEmailRequest(email, token),
             TestToken);
 
         confirmed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -200,11 +218,11 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
 
         using var registered = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterCommand("<a href='http://evil'>click</a>", email, ValidPassword),
+            new RegisterRequest("<a href='http://evil'>click</a>", email, ValidPassword),
             TestToken);
 
         registered.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await ApiJson.ReadProblemAsync(registered, TestToken)).Code.ShouldBe("auth.register.rejected");
+        (await ApiJson.ReadProblemAsync(registered, TestToken)).Code.ShouldBe("request.validationFailed");
 
         Emails.Snapshot().ShouldBeEmpty();
         (await Database.CountAsync("""SELECT count(*) FROM identity."User" """, TestToken)).ShouldBe(0);

@@ -4,9 +4,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
+using AppTemplate.Api.Features.Auth.Contracts.Requests;
+using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.Auth.Dtos;
-using AppTemplate.Application.Features.Auth.UseCases.Commands;
 using Shouldly;
 using Xunit;
 
@@ -43,7 +43,7 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
         using var authorised = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
         authorised.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.RefreshToken);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.Tokens.RefreshToken);
 
         using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
 
@@ -61,7 +61,7 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh",
-            new RefreshAccessTokenCommand(session.AccessToken),
+            new RefreshAccessTokenRequest(session.Tokens.AccessToken),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -73,8 +73,8 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
     {
         var (_, _, session) = await SignInAsync();
 
-        session.RefreshToken.ShouldNotBe(session.AccessToken);
-        session.RefreshTokenExpiresAt.ShouldBeGreaterThan(session.AccessTokenExpiresAt);
+        session.Tokens.RefreshToken.ShouldNotBe(session.Tokens.AccessToken);
+        session.Tokens.RefreshTokenExpiresAt.ShouldBeGreaterThan(session.Tokens.AccessTokenExpiresAt);
     }
 
     #endregion
@@ -88,14 +88,14 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
 
         using var refreshed = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh",
-            new RefreshAccessTokenCommand(first.RefreshToken),
+            new RefreshAccessTokenRequest(first.Tokens.RefreshToken),
             TestToken);
 
         refreshed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var second = await ApiJson.ReadAsync<RefreshAccessTokenResponse>(refreshed, TestToken);
+        var second = await ApiJson.ReadAsync<TokenResponse>(refreshed, TestToken);
 
-        second.RefreshToken.ShouldNotBe(first.RefreshToken);
+        second.RefreshToken.ShouldNotBe(first.Tokens.RefreshToken);
         second.AccessToken.ShouldNotBeNullOrWhiteSpace();
 
         // The replacement is a working credential, not just a different string.
@@ -116,7 +116,7 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
     {
         var (client, _, first) = await SignInAsync();
 
-        var second = await RefreshAsync(client, first.RefreshToken);
+        var second = await RefreshAsync(client, first.Tokens.RefreshToken);
 
         // Rotating once more establishes that the chain is working normally and leaves a live grant
         // behind, so anything that stops working below is the family revocation rather than a token
@@ -126,7 +126,7 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
         // The replay.
         using var replay = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh",
-            new RefreshAccessTokenCommand(first.RefreshToken),
+            new RefreshAccessTokenRequest(first.Tokens.RefreshToken),
             TestToken);
 
         replay.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -135,7 +135,7 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
         // The whole family is gone: the token that was live a moment ago no longer refreshes.
         using var afterReplay = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh",
-            new RefreshAccessTokenCommand(third.RefreshToken),
+            new RefreshAccessTokenRequest(third.RefreshToken),
             TestToken);
 
         afterReplay.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -153,8 +153,8 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
 
         var unknown = await ReadProblemForRefreshAsync(client, Base64Url.EncodeToString(new byte[32]));
 
-        await RefreshAsync(client, session.RefreshToken);
-        var consumed = await ReadProblemForRefreshAsync(client, session.RefreshToken);
+        await RefreshAsync(client, session.Tokens.RefreshToken);
+        var consumed = await ReadProblemForRefreshAsync(client, session.Tokens.RefreshToken);
 
         unknown.Status.ShouldBe(401);
         consumed.Status.ShouldBe(unknown.Status);
@@ -174,14 +174,14 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
 
         using var loggedOut = await client.PostAsJsonAsync(
             $"{AuthRoute}/logout",
-            new LogoutCommand(session.RefreshToken),
+            new LogoutRequest(session.Tokens.RefreshToken),
             TestToken);
 
         loggedOut.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         using var refreshed = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh",
-            new RefreshAccessTokenCommand(session.RefreshToken),
+            new RefreshAccessTokenRequest(session.Tokens.RefreshToken),
             TestToken);
 
         refreshed.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -204,10 +204,62 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/logout",
-            new LogoutCommand(Base64Url.EncodeToString(new byte[32])),
+            new LogoutRequest(Base64Url.EncodeToString(new byte[32])),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+    }
+
+    #endregion
+
+    #region Logout everywhere revokes every session
+
+    /// <summary>
+    /// Two sessions for the same account, one call to <c>logout-all</c> from either of them, and
+    /// neither session's refresh token survives — including the caller's own.
+    /// </summary>
+    [Fact]
+    public async Task LogoutEverywhere_RevokesTheRefreshTokensOfEverySession()
+    {
+        var setup = CreateClient();
+        var user = await RegisterConfirmedUserAsync(setup);
+
+        var deviceA = CreateClient();
+        var tokensA = await LoginAsync(deviceA, user);
+        deviceA.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokensA.AccessToken);
+
+        var deviceB = CreateClient();
+        var tokensB = await LoginAsync(deviceB, user);
+        deviceB.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokensB.AccessToken);
+
+        using var loggedOutAll = await deviceA.PostAsync(
+            new Uri($"{AuthRoute}/logout-all", UriKind.Relative), content: null, TestToken);
+        loggedOutAll.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        using var refreshA = await deviceA.PostAsJsonAsync(
+            $"{AuthRoute}/refresh", new RefreshAccessTokenRequest(tokensA.RefreshToken), TestToken);
+        refreshA.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+
+        using var refreshB = await deviceB.PostAsJsonAsync(
+            $"{AuthRoute}/refresh", new RefreshAccessTokenRequest(tokensB.RefreshToken), TestToken);
+        refreshB.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    /// <summary>
+    /// Deliberately not a security-stamp rotation: the caller asked to sign out its other devices, not
+    /// itself, so the access token it just used to make the call keeps working until it expires.
+    /// </summary>
+    [Fact]
+    public async Task LogoutEverywhere_DoesNotInvalidateTheCallersOwnAccessToken()
+    {
+        var (client, _, _) = await SignInAsync();
+
+        using var loggedOutAll = await client.PostAsync(
+            new Uri($"{AuthRoute}/logout-all", UriKind.Relative), content: null, TestToken);
+        loggedOutAll.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        using var stillAuthenticated = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        stillAuthenticated.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     #endregion
@@ -224,24 +276,24 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
         stored.Count.ShouldBe(1);
 
         string storedHash = stored[0].Trim();
-        storedHash.ShouldNotBe(session.RefreshToken);
+        storedHash.ShouldNotBe(session.Tokens.RefreshToken);
 
         // Not merely "different": it is the base64url SHA-256 of the token that was handed out, so a
         // database disclosure yields nothing that can be presented to the refresh endpoint.
         storedHash.ShouldBe(Base64Url.EncodeToString(
-            SHA256.HashData(Encoding.UTF8.GetBytes(session.RefreshToken))));
+            SHA256.HashData(Encoding.UTF8.GetBytes(session.Tokens.RefreshToken))));
     }
 
     [Fact]
     public async Task TheRotationChain_IsRecordedByHashOnly()
     {
         var (client, _, first) = await SignInAsync();
-        var second = await RefreshAsync(client, first.RefreshToken);
+        var second = await RefreshAsync(client, first.Tokens.RefreshToken);
 
         var stored = await Database.QueryAsync(_refreshTokenHashes, TestToken);
 
         stored.Count.ShouldBe(2);
-        stored.Select(hash => hash.Trim()).ShouldNotContain(first.RefreshToken);
+        stored.Select(hash => hash.Trim()).ShouldNotContain(first.Tokens.RefreshToken);
         stored.Select(hash => hash.Trim()).ShouldNotContain(second.RefreshToken);
 
         var successors = await Database.QueryAsync(
@@ -257,11 +309,11 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
 
     #endregion
 
-    private static async Task<RefreshAccessTokenResponse> RefreshAsync(HttpClient client, string refreshToken)
+    private static async Task<TokenResponse> RefreshAsync(HttpClient client, string refreshToken)
     {
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh",
-            new RefreshAccessTokenCommand(refreshToken),
+            new RefreshAccessTokenRequest(refreshToken),
             TestToken);
 
         if (response.StatusCode != HttpStatusCode.OK)
@@ -271,14 +323,14 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
                 await response.Content.ReadAsStringAsync(TestToken));
         }
 
-        return await ApiJson.ReadAsync<RefreshAccessTokenResponse>(response, TestToken);
+        return await ApiJson.ReadAsync<TokenResponse>(response, TestToken);
     }
 
     private static async Task<ProblemResponse> ReadProblemForRefreshAsync(HttpClient client, string refreshToken)
     {
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh",
-            new RefreshAccessTokenCommand(refreshToken),
+            new RefreshAccessTokenRequest(refreshToken),
             TestToken);
 
         return await ApiJson.ReadProblemAsync(response, TestToken);

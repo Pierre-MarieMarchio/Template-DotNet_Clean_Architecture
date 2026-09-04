@@ -1,9 +1,9 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
-using AppTemplate.Api.Features.TodoLists.Contracts;
+using AppTemplate.Api.Common.Contracts;
+using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
+using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Common;
-using AppTemplate.Application.Features.TodoLists.Dtos;
 using Shouldly;
 using Xunit;
 
@@ -86,7 +86,7 @@ public sealed class OwnershipIsolationTests(ApiFixture fixture) : IntegrationTes
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("todoList.notFound");
 
         using var read = await owner.GetAsync(new Uri($"{TodoListsRoute}/{listId}", UriKind.Relative), TestToken);
-        var detail = await ApiJson.ReadAsync<TodoListDetailDto>(read, TestToken);
+        var detail = await ApiJson.ReadAsync<TodoListResponse>(read, TestToken);
         detail.Items.Select(item => item.Title).ShouldNotContain("Smuggled");
     }
 
@@ -111,7 +111,7 @@ public sealed class OwnershipIsolationTests(ApiFixture fixture) : IntegrationTes
         (await ApiJson.ReadProblemAsync(removed, TestToken)).Code.ShouldBe("todoList.notFound");
 
         using var read = await owner.GetAsync(new Uri($"{TodoListsRoute}/{listId}", UriKind.Relative), TestToken);
-        var detail = await ApiJson.ReadAsync<TodoListDetailDto>(read, TestToken);
+        var detail = await ApiJson.ReadAsync<TodoListResponse>(read, TestToken);
         detail.Items.Single().IsCompleted.ShouldBeFalse();
     }
 
@@ -151,14 +151,14 @@ public sealed class OwnershipIsolationTests(ApiFixture fixture) : IntegrationTes
         await CreateTodoListAsync(intruder, "Intruder's list");
 
         using var intruderIndex = await intruder.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
-        var page = await ApiJson.ReadAsync<PagedResult<TodoListSummaryDto>>(intruderIndex, TestToken);
+        var page = await ApiJson.ReadAsync<PagedResponse<TodoListSummaryResponse>>(intruderIndex, TestToken);
 
         page.TotalCount.ShouldBe(1);
         page.Items.Single().Name.ShouldBe("Intruder's list");
         page.Items.Select(item => item.Id).ShouldNotContain(listId);
 
         using var ownerIndex = await owner.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
-        var ownerPage = await ApiJson.ReadAsync<PagedResult<TodoListSummaryDto>>(ownerIndex, TestToken);
+        var ownerPage = await ApiJson.ReadAsync<PagedResponse<TodoListSummaryResponse>>(ownerIndex, TestToken);
 
         ownerPage.TotalCount.ShouldBe(1);
         ownerPage.Items.Single().Id.ShouldBe(listId);
@@ -181,6 +181,6 @@ public sealed class OwnershipIsolationTests(ApiFixture fixture) : IntegrationTes
             new Uri($"{TodoListsRoute}/{listId}", UriKind.Relative),
             TestToken);
 
-        (await ApiJson.ReadAsync<TodoListDetailDto>(response, TestToken)).Name.ShouldBe(expected);
+        (await ApiJson.ReadAsync<TodoListResponse>(response, TestToken)).Name.ShouldBe(expected);
     }
 }

@@ -39,26 +39,28 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
     }
 
     /// <summary>
-    /// The readiness endpoint answers in minimal plaintext, so its body names no individual check. This
-    /// is what proves the database is what readiness reports on: exactly one context check is
-    /// registered, and it carries the tag the endpoint filters by.
+    /// The readiness endpoint answers in minimal plaintext, so its body names no individual check.
+    /// This is what proves what readiness reports on: the database it needs to serve a request, and
+    /// whether the host has begun shutting down. Both carry the tag the endpoint filters by.
     /// </summary>
     [Fact]
-    public void Readiness_CoversTheDatabase()
+    public void Readiness_CoversTheDatabaseAndTheShutdownSignal()
     {
-        ReadyCheckNames().ShouldBe(["database"]);
+        ReadyCheckNames().ShouldBe(["database", "shutdown"]);
     }
 
     /// <summary>
     /// Liveness must have no dependency at all: a database blip should not make an orchestrator
-    /// restart a process that is running perfectly well.
+    /// restart a process that is running perfectly well, and neither should a graceful shutdown —
+    /// failing liveness during a drain asks the orchestrator to kill a process that is finishing
+    /// its work correctly.
     /// </summary>
     [Fact]
     public void Liveness_RunsNoChecks()
     {
-        // The only registered check is a database check, and the liveness endpoint's predicate
+        // Both registered checks are readiness checks, and the liveness endpoint's predicate
         // excludes all of them.
-        Registrations().Select(registration => registration.Name).ShouldBe(["database"]);
+        Registrations().Select(registration => registration.Name).ShouldBe(["database", "shutdown"]);
     }
 
     [Fact]

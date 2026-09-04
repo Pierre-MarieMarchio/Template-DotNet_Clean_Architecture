@@ -1,4 +1,4 @@
-namespace AppTemplate.Application.Features.Auth.Ports;
+﻿namespace AppTemplate.Application.Features.Auth.Ports;
 
 /// <summary>
 /// The audit trail for authentication itself: who signed in, who failed to, whose account locked,
@@ -55,9 +55,8 @@ public enum SecurityEventKind
 
     /// <summary>
     /// A user's security stamp was rotated, invalidating every credential issued against the old
-    /// one. Nothing in this codebase rotates a stamp yet; the event exists so the feature that
-    /// eventually does — a password change, an admin-forced sign-out — has an audit point to call
-    /// from its first day rather than needing this port extended later.
+    /// one. Recorded by a password change and by a password reset, both through
+    /// <see cref="AppTemplate.Application.Features.Auth.CredentialInvalidation"/>.
     /// </summary>
     SecurityStampRotated,
 }

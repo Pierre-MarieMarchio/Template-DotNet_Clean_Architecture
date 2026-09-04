@@ -55,9 +55,9 @@ Every rejection — unknown, expired, revoked, replayed — returns the same
   depends on the answer. **This is a real trade-off, not a strict improvement**: body
   delivery removes the CSRF surface and works for mobile and service clients, at the cost
   of XSS exposure that a cookie would avoid.
-- The `RefreshTokens` table grows. Revoked rows are kept, because
-  `ReplacedByTokenHash` is what makes a replay detectable. A cleanup job for rows past
-  their expiry is left to the reader — this template does not ship one.
+- The `RefreshTokens` table grows. Revoked rows are kept for a retention window, because
+  `ReplacedByTokenHash` is what makes a replay detectable. `AppTemplate.Worker` sweeps rows
+  past that window in batches, over the index on `ExpiresAt`.
 
 ## Alternatives rejected
 

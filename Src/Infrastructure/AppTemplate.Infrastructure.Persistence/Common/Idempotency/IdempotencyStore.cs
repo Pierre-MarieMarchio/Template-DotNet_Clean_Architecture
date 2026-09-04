@@ -110,7 +110,8 @@ internal sealed class IdempotencyStore(
                     .SetProperty(record => record.IsCompleted, true)
                     .SetProperty(record => record.StatusCode, response.StatusCode)
                     .SetProperty(record => record.ResponseBody, response.Body)
-                    .SetProperty(record => record.Location, response.Location),
+                    .SetProperty(record => record.Location, response.Location)
+                    .SetProperty(record => record.ETag, response.ETag),
                 ct);
 
         if (updated == 0)
@@ -199,9 +200,11 @@ internal sealed class IdempotencyStore(
 
     /// <summary>
     /// What a lost race means for the loser, read off the row the winner (or an earlier attempt by
-    /// the same caller) wrote.
+    /// the same caller) wrote. Isolated from EF and Npgsql, like
+    /// <see cref="RunBatchedDeleteAsync"/>, so the rules it encodes — and the replay it rebuilds from
+    /// stored columns — can be exercised without a database.
     /// </summary>
-    private static IdempotencyClaim Decide(IdempotencyKey key, IdempotencyRecord existing)
+    internal static IdempotencyClaim Decide(IdempotencyKey key, IdempotencyRecord existing)
     {
         if (!string.Equals(existing.Fingerprint, key.Fingerprint, StringComparison.Ordinal))
         {
@@ -219,7 +222,11 @@ internal sealed class IdempotencyStore(
         }
 
         return IdempotencyClaim.Replay(
-            new IdempotentResponse(existing.StatusCode!.Value, existing.ResponseBody, existing.Location));
+            new IdempotentResponse(
+                existing.StatusCode!.Value,
+                existing.ResponseBody,
+                existing.Location,
+                existing.ETag));
     }
 
     private static bool IsPrimaryKeyViolation(DbUpdateException exception) =>

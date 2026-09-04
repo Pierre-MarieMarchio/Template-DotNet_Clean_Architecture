@@ -35,7 +35,7 @@ public sealed class IfMatchRequiredTests(ApiFixture fixture) : IntegrationTestBa
         var listId = await CreateTodoListAsync(client, "Groceries");
 
         using var host = StrictHost();
-        using var strict = ClientOf(host, session.AccessToken);
+        using var strict = ClientOf(host, session.Tokens.AccessToken);
 
         using var response = await RenameAsync(strict, listId, "Renamed unconditionally");
 
@@ -63,11 +63,11 @@ public sealed class IfMatchRequiredTests(ApiFixture fixture) : IntegrationTestBa
         string tag = await ReadETagAsync(client, listId);
 
         using var host = StrictHost();
-        using var strict = ClientOf(host, session.AccessToken);
+        using var strict = ClientOf(host, session.Tokens.AccessToken);
 
         using var response = await RenameAsync(strict, listId, "Renamed conditionally", tag);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     /// <summary>Reads are never conditional-only: a client has to be able to obtain a validator.</summary>
@@ -78,7 +78,7 @@ public sealed class IfMatchRequiredTests(ApiFixture fixture) : IntegrationTestBa
         var listId = await CreateTodoListAsync(client, "Groceries");
 
         using var host = StrictHost();
-        using var strict = ClientOf(host, session.AccessToken);
+        using var strict = ClientOf(host, session.Tokens.AccessToken);
 
         using var response = await strict.GetAsync(
             new Uri($"{TodoListsRoute}/{listId}", UriKind.Relative),

@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 using Shouldly;
 using Xunit;
 
@@ -70,7 +70,7 @@ public sealed class CacheHeaderTests(ApiFixture fixture) : IntegrationTestBase(f
 
         using var response = await client.PostAsJsonAsync(
             TodoListsRoute,
-            new CreateTodoListCommand("Groceries"),
+            new CreateTodoListRequest("Groceries"),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -86,7 +86,7 @@ public sealed class CacheHeaderTests(ApiFixture fixture) : IntegrationTestBase(f
 
         using var response = await RenameAsync(client, listId, "Renamed", await ReadETagAsync(client, listId));
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Headers.Contains("Cache-Control").ShouldBeFalse();
     }
 

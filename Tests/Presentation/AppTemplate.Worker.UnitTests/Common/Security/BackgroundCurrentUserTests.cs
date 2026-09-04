@@ -1,4 +1,4 @@
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Worker.Common.Security;
 using Shouldly;
 using Xunit;

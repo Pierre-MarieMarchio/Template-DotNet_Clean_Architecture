@@ -1,4 +1,4 @@
-using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
+﻿using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using Shouldly;
 using Xunit;
 

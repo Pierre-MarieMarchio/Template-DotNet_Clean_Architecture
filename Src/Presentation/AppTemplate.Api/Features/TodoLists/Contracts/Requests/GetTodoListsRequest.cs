@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.Api.Features.TodoLists.Contracts;
+﻿namespace AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 
 /// <summary>
 /// Bound from the query string.

@@ -1,4 +1,4 @@
-using AppTemplate.Application.Features.Maintenance.UseCases.Commands;
+﻿using AppTemplate.Application.Features.Maintenance.UseCases.Commands;
 using AppTemplate.Worker.Common.Maintenance;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;

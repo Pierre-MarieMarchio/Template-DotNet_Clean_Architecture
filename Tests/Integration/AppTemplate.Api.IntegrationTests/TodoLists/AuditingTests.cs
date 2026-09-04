@@ -23,7 +23,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
     [Fact]
     public async Task CreatingAList_StampsTheInstantAndTheRealCaller()
     {
-        var (client, user, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
         var createdAt = Clock.UtcNow;
 
         var listId = await CreateTodoListAsync(client, "Audited");
@@ -31,7 +31,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
         var stored = await LoadAggregateAsync(listId);
 
         stored.CreatedAt.ShouldBe(createdAt);
-        stored.CreatedBy.ShouldBe(user.Id);
+        stored.CreatedBy.ShouldBe(session.UserId);
         stored.LastModifiedAt.ShouldBeNull();
         stored.LastModifiedBy.ShouldBeNull();
     }
@@ -39,7 +39,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
     [Fact]
     public async Task ModifyingAList_StampsTheModificationAndLeavesTheCreationAlone()
     {
-        var (client, user, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
         var createdAt = Clock.UtcNow;
 
         var listId = await CreateTodoListAsync(client, "Audited");
@@ -52,9 +52,9 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
         var stored = await LoadAggregateAsync(listId);
 
         stored.CreatedAt.ShouldBe(createdAt);
-        stored.CreatedBy.ShouldBe(user.Id);
+        stored.CreatedBy.ShouldBe(session.UserId);
         stored.LastModifiedAt.ShouldBe(modifiedAt);
-        stored.LastModifiedBy.ShouldBe(user.Id);
+        stored.LastModifiedBy.ShouldBe(session.UserId);
     }
 
     /// <summary>
@@ -65,7 +65,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
     [Fact]
     public async Task AChangeToAChild_StampsTheRoot()
     {
-        var (client, user, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Audited");
         var itemId = await AddTodoItemAsync(client, listId, "An item");
 
@@ -84,7 +84,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
 
         afterComplete.LastModifiedAt.ShouldBe(completedAt);
         afterComplete.LastModifiedAt.ShouldNotBe(afterAdd.LastModifiedAt);
-        afterComplete.LastModifiedBy.ShouldBe(user.Id);
+        afterComplete.LastModifiedBy.ShouldBe(session.UserId);
     }
 
     /// <summary>
@@ -94,16 +94,16 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
     [Fact]
     public async Task TwoCallers_AreRecordedAsTwoDifferentCreators()
     {
-        var (firstClient, firstUser, _) = await SignInAsync("first");
-        var (secondClient, secondUser, _) = await SignInAsync("second");
+        var (firstClient, _, firstSession) = await SignInAsync("first");
+        var (secondClient, _, secondSession) = await SignInAsync("second");
 
         var firstList = await CreateTodoListAsync(firstClient, "First's list");
         var secondList = await CreateTodoListAsync(secondClient, "Second's list");
 
-        firstUser.Id.ShouldNotBe(secondUser.Id);
+        firstSession.UserId.ShouldNotBe(secondSession.UserId);
 
-        (await LoadAggregateAsync(firstList)).CreatedBy.ShouldBe(firstUser.Id);
-        (await LoadAggregateAsync(secondList)).CreatedBy.ShouldBe(secondUser.Id);
+        (await LoadAggregateAsync(firstList)).CreatedBy.ShouldBe(firstSession.UserId);
+        (await LoadAggregateAsync(secondList)).CreatedBy.ShouldBe(secondSession.UserId);
     }
 
     /// <summary>

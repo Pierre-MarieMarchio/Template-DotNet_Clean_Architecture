@@ -105,8 +105,16 @@ Content-Type: application/json
 }
 
 ###
-@accessToken = {{login.response.body.$.accessToken}}
-@refreshToken = {{login.response.body.$.refreshToken}}
+# The body is a discriminated union: `status` says which outcome it is, and the pair lives under
+# `tokens` so that /auth/refresh can answer with the same object.
+@accessToken = {{login.response.body.$.tokens.accessToken}}
+@refreshToken = {{login.response.body.$.tokens.refreshToken}}
+
+###
+# 7b. The caller's own profile. The only endpoint that publishes an account: neither register nor
+#     login returns one, so a client reads it here once it holds a token.
+GET {{api}}/auth/me
+Authorization: Bearer {{accessToken}}
 
 ###
 # 8. Without a token: 401. The application's fallback policy requires an authenticated user,
@@ -114,7 +122,8 @@ Content-Type: application/json
 GET {{api}}/todo-lists
 
 ###
-# 9. Create a list. 201 with a Location header pointing at request 11.
+# 9. Create a list. 201 with the created list as the body, its ETag, and a Location header pointing
+#    at request 11 — so a client can go straight on to a conditional write without reading first.
 # @name createList
 POST {{api}}/todo-lists
 Authorization: Bearer {{accessToken}}
@@ -161,7 +170,7 @@ Authorization: Bearer {{accessToken}}
 
 ###
 # 13. Rename the list conditionally, naming the version read in request 11. Applied because
-#     nothing has changed it since: 204.
+#     nothing has changed it since: 200, with the renamed list and the ETag it is now at.
 PUT {{api}}/todo-lists/{{todoListId}}
 Authorization: Bearer {{accessToken}}
 If-Match: {{todoListETag}}
@@ -185,15 +194,68 @@ Content-Type: application/json
 }
 
 ###
-# 15. Complete the item. No If-Match: Concurrency:IfMatch defaults to Optional, so an
-#     unconditional write is still accepted — see docs/adr/0013. Raises a domain event, published
-#     after the commit succeeds.
+# 15. Complete the item. 200 with the completed item and the list's new ETag. No If-Match:
+#     Concurrency:IfMatch defaults to Optional, so an unconditional write is still accepted — see
+#     docs/adr/0013. Raises a domain event, published after the commit succeeds.
 POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/complete
 Authorization: Bearer {{accessToken}}
 
 ###
 # 16. Completing it twice is refused by the aggregate's invariant, surfaced as a 409.
 POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/complete
+Authorization: Bearer {{accessToken}}
+
+###
+# 16b. Reopen the item completed by request 15. 200 with the item and the list's new ETag.
+POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/reopen
+Authorization: Bearer {{accessToken}}
+
+###
+# 16c. Replace the item's title and description. A PUT carrying the whole representation of the
+#      operation, never a PATCH — see docs/adr/0018. A field left out is a field cleared.
+PUT {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Buy oat milk",
+  "description": "One litre is enough"
+}
+
+###
+# 16d. Every item of the list, wrapped in an object rather than returned as a bare array so the
+#      shape can gain a field later. Not paginated: the aggregate is bounded by TodoList.MaxItems.
+#      The ETag is the list's — the list is the aggregate.
+GET {{api}}/todo-lists/{{todoListId}}/items
+Authorization: Bearer {{accessToken}}
+
+###
+# 16e. Add one tag. 200, not 201: adding a tag the item already carries is a no-op in the domain,
+#      and there is no GET on a single tag for a Location to name. Send it twice to see that.
+POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/tags
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "tag": "Urgent"
+}
+
+###
+# 16f. Replace the whole tag set. Total replacement, not a merge: what is absent is removed. An
+#      empty array clears the tags.
+PUT {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/tags
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "tags": ["errand", "dairy", "urgent"]
+}
+
+###
+# 16g. Remove one tag, named in the route and percent-encoded. Removing an absent tag is a no-op,
+#      for the same reason as adding a present one. A tag containing a / cannot be addressed this
+#      way — %2F is decoded before routing — so remove that one with request 16f instead.
+DELETE {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/tags/urgent
 Authorization: Bearer {{accessToken}}
 
 ###
@@ -297,7 +359,8 @@ DELETE {{api}}/todo-lists/{{firstCreate.response.body.$.id}}
 Authorization: Bearer {{accessToken}}
 
 ###
-# 29. Remove the item.
+# 29. Remove the item. 200 with the LIST, not the item: the item this route addresses no longer
+#     exists, so the list is the only representation left — and the only ETag left to write against.
 DELETE {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
 Authorization: Bearer {{accessToken}}
 
@@ -340,6 +403,54 @@ Content-Type: application/json
 }
 
 ###
+# 33a. Log out everywhere: revokes every refresh token grant for the account, not just one. 204,
+#      and no count in the body — it would tell the caller about other live sessions with nothing
+#      it can do about them. The access token used here keeps working: only refresh tokens are
+#      revoked, so the session that made this call is not the one it signs out.
+POST {{api}}/auth/logout-all
+Authorization: Bearer {{accessToken}}
+
+###
+# 33b. Change the password. Authenticated, and the current password is presented again as proof the
+#      session is not a stolen token. Every refresh token for the account is revoked, so the tokens
+#      captured above stop working — sign in again before running anything below that needs one.
+POST {{api}}/auth/change-password
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "{{password}}",
+  "newPassword": "{{newPassword}}"
+}
+
+###
+# 33c. Start a password reset. 204 for every well-formed address, registered or not: the response
+#      must not tell a caller which addresses exist. The token arrives by mail — read it out of
+#      mailpit the same way as request 4.
+POST {{api}}/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+###
+# Paste the token from the reset mail here.
+@resetToken = paste-the-token-from-request-33c
+
+###
+# 33d. Finish the reset. POST with a JSON body for the same reason as confirm-email: a single-use
+#      token must not land in access logs, browser history or a Referer header.
+POST {{api}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "token": "{{resetToken}}",
+  "newPassword": "{{resetPassword}}"
+}
+
+###
 # 34. Liveness. No dependency is checked, so an orchestrator does not restart the API because the
 #     database blinked. Anonymous by design.
 GET {{host}}/health
@@ -360,3 +471,20 @@ Content-Type: application/json
   "email": "nobody@localhost",
   "password": "wrong-password"
 }
+
+###
+# 37. Maintenance. Both purges answer 200 with {"deleted": n} — an object rather than a bare number,
+#     so a second field can be added without breaking callers. A scheduled job (a Kubernetes CronJob,
+#     a cloud scheduler) is expected to call these; the cadence is a deployment concern.
+#
+#     Expected to fail with the walkthrough account: these require the Administrator role, and
+#     registration does not grant it. Grant it in the database, or read this as documentation of the
+#     403 that default-deny produces.
+DELETE {{api}}/maintenance/idempotency-keys/expired
+Authorization: Bearer {{accessToken}}
+
+###
+# 38. The same, for refresh-token grants. The table only grows — one row per rotation — until an
+#     operator prunes it, which is why the endpoint exists at all.
+DELETE {{api}}/maintenance/refresh-tokens/expired
+Authorization: Bearer {{accessToken}}

@@ -1,9 +1,8 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
-using AppTemplate.Api.Features.TodoLists.Contracts;
+using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
+using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.TodoLists.Dtos;
-using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 using Shouldly;
 using Xunit;
 
@@ -15,28 +14,33 @@ namespace AppTemplate.Api.IntegrationTests.TodoLists;
 public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
-    public async Task Create_Returns201WithALocationHeaderThatResolvesToTheNewList()
+    public async Task Create_Returns201WithTheNewListItsETagAndAResolvableLocationHeader()
     {
         var (client, _, _) = await SignInAsync();
 
         using var created = await client.PostAsJsonAsync(
             TodoListsRoute,
-            new CreateTodoListCommand("Groceries"),
+            new CreateTodoListRequest("Groceries"),
             TestToken);
 
         created.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var id = await ApiJson.ReadGuidAsync(created, TestToken);
-        id.ShouldNotBe(Guid.Empty);
+        // The whole representation, so a caller that has just created a list can go on writing to it
+        // without reading it back.
+        var list = await ApiJson.ReadAsync<TodoListResponse>(created, TestToken);
+        list.Id.ShouldNotBe(Guid.Empty);
+        list.Name.ShouldBe("Groceries");
+        list.Items.ShouldBeEmpty();
+        created.Headers.ETag.ShouldNotBeNull();
 
         created.Headers.Location.ShouldNotBeNull();
-        created.Headers.Location!.ToString().ShouldEndWith(id.ToString());
+        created.Headers.Location!.ToString().ShouldEndWith(list.Id.ToString());
 
         // The header is not decoration: following it has to reach the resource.
         using var followed = await client.GetAsync(created.Headers.Location, TestToken);
 
         followed.StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await ApiJson.ReadAsync<TodoListDetailDto>(followed, TestToken)).Name.ShouldBe("Groceries");
+        (await ApiJson.ReadAsync<TodoListResponse>(followed, TestToken)).Name.ShouldBe("Groceries");
     }
 
     [Fact]
@@ -49,7 +53,7 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
         using var read = await client.GetAsync(new Uri($"{TodoListsRoute}/{id}", UriKind.Relative), TestToken);
         read.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var detail = await ApiJson.ReadAsync<TodoListDetailDto>(read, TestToken);
+        var detail = await ApiJson.ReadAsync<TodoListResponse>(read, TestToken);
         detail.Id.ShouldBe(id);
         detail.Name.ShouldBe("Reading list");
         detail.Items.ShouldBeEmpty();
@@ -67,7 +71,7 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
     }
 
     [Fact]
-    public async Task Rename_TakesTheIdFromTheRouteAndReturns204()
+    public async Task Rename_TakesTheIdFromTheRouteAndAnswersWithTheRenamedList()
     {
         var (client, _, _) = await SignInAsync();
         var id = await CreateTodoListAsync(client, "Before");
@@ -77,10 +81,15 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
             new RenameTodoListRequest("After"),
             TestToken);
 
-        renamed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        renamed.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var updated = await ApiJson.ReadAsync<TodoListResponse>(renamed, TestToken);
+        updated.Id.ShouldBe(id);
+        updated.Name.ShouldBe("After");
+        renamed.Headers.ETag.ShouldNotBeNull();
 
         using var read = await client.GetAsync(new Uri($"{TodoListsRoute}/{id}", UriKind.Relative), TestToken);
-        (await ApiJson.ReadAsync<TodoListDetailDto>(read, TestToken)).Name.ShouldBe("After");
+        (await ApiJson.ReadAsync<TodoListResponse>(read, TestToken)).Name.ShouldBe("After");
     }
 
     [Fact]
@@ -120,13 +129,13 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
 
         using var response = await client.PostAsJsonAsync(
             TodoListsRoute,
-            new CreateTodoListCommand("   "),
+            new CreateTodoListRequest("   "),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
         var problem = await ApiJson.ReadProblemAsync(response, TestToken);
-        problem.Code.ShouldBe("todoList.validationFailed");
+        problem.Code.ShouldBe("request.validationFailed");
         problem.Status.ShouldBe(400);
     }
 }

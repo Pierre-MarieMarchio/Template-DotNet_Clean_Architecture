@@ -1,4 +1,4 @@
-namespace AppTemplate.Application.Common.Concurrency;
+﻿namespace AppTemplate.Application.Common.Concurrency;
 
 public static class ConcurrencyErrors
 {

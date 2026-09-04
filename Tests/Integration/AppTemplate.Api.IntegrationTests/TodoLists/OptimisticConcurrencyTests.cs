@@ -1,10 +1,10 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
-using AppTemplate.Api.Features.TodoLists.Contracts;
+using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
+using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports;
 using AppTemplate.Domain.Features.TodoLists.Stores;
 using Microsoft.EntityFrameworkCore;
@@ -69,7 +69,7 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
             $"{TodoListsRoute}/{listId}",
             new RenameTodoListRequest("Renamed by the winner"),
             TestToken);
-        renamed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        renamed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // The stale writer now tries to commit what it decided before that happened.
         stale.Rename("Renamed by the loser");
@@ -128,7 +128,7 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
     /// <b>Why a burst rather than a contrived interleaving.</b> Several writers are fired at the same list
     /// at once and <em>every</em> response is checked, not just the interesting one. That makes the test
     /// meaningful whichever way the requests happen to interleave: a run in which they serialised produces
-    /// eight 204s and is retried, and a run in which any of them raced must produce a well-formed 409.
+    /// eight 200s and is retried, and a run in which any of them raced must produce a well-formed 409.
     /// The failure this guards — a lost update reported as success, or as a 500 — would show up in the
     /// per-response assertions on the very first burst.
     /// </para>
@@ -179,10 +179,10 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
     /// problem document of every request that lost.
     /// </summary>
     /// <remarks>
-    /// Every response is inspected. A 204 is a writer that won its race and a 409 is one that lost; both
-    /// are correct outcomes. Anything else — a 500 above all, but equally a 200 with a body — is a
-    /// failure, and it is asserted here rather than in the caller so that the very first burst catches it
-    /// even when the caller goes on to retry.
+    /// Every response is inspected. A 200 is a writer that won its race and a 409 is one that lost; both
+    /// are correct outcomes. Anything else — a 500 above all — is a failure, and it is asserted here
+    /// rather than in the caller so that the very first burst catches it even when the caller goes on
+    /// to retry.
     /// </remarks>
     private static async Task<List<ProblemResponse>> RaceRenamesAsync(HttpClient client, Guid listId, int attempt)
     {
@@ -212,8 +212,8 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
                 }
 
                 response.StatusCode.ShouldBe(
-                    HttpStatusCode.NoContent,
-                    "a concurrent write either wins (204) or is refused (409). Any other answer — a 500 "
+                    HttpStatusCode.OK,
+                    "a concurrent write either wins (200) or is refused (409). Any other answer — a 500 "
                     + "most of all — means the conflict escaped untranslated: "
                     + await response.Content.ReadAsStringAsync(TestToken));
             }
@@ -300,7 +300,7 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
                 new RenameTodoListRequest($"Round {round}"),
                 TestToken);
 
-            renamed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+            renamed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
             await using var scope = Fixture.Factory.Services.CreateAsyncScope();
             versions.Add((await LoadTodoListAsync(scope.ServiceProvider, listId)).Version);
@@ -374,7 +374,7 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
             + "about two clients holding one version.");
 
         using var first = await RenameAsync(client, listId, "Renamed by the first client", firstClientsETag);
-        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var second = await RenameAsync(client, listId, "Renamed by the second client", secondClientsETag);
 
@@ -396,7 +396,7 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
             "Renamed by the second client",
             await ReadETagAsync(client, listId));
 
-        retried.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        retried.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await ReadNameAsync(client, listId)).ShouldBe("Renamed by the second client");
     }
 
@@ -408,7 +408,7 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
     private static async Task<string> ReadNameAsync(HttpClient client, Guid listId) =>
         (await ReadDetailAsync(client, listId)).Name;
 
-    private static async Task<TodoListDetailDto> ReadDetailAsync(HttpClient client, Guid listId)
+    private static async Task<TodoListResponse> ReadDetailAsync(HttpClient client, Guid listId)
     {
         using var response = await client.GetAsync(
             new Uri($"{TodoListsRoute}/{listId}", UriKind.Relative),
@@ -416,6 +416,6 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        return await ApiJson.ReadAsync<TodoListDetailDto>(response, TestToken);
+        return await ApiJson.ReadAsync<TodoListResponse>(response, TestToken);
     }
 }

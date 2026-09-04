@@ -1,4 +1,4 @@
-using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Features.Maintenance.UseCases.Commands;
 
 namespace AppTemplate.Worker.UnitTests.Common.Maintenance;
@@ -7,8 +7,13 @@ namespace AppTemplate.Worker.UnitTests.Common.Maintenance;
 internal sealed class FakeIdempotencyPurge : IPurgeExpiredIdempotencyKeysUseCase
 {
     private readonly Exception? _failure;
+    private readonly int _count;
 
-    public FakeIdempotencyPurge(Exception? failure = null) => _failure = failure;
+    public FakeIdempotencyPurge(Exception? failure = null, int count = 3)
+    {
+        _failure = failure;
+        _count = count;
+    }
 
     public int CallCount { get; private set; }
 
@@ -21,7 +26,7 @@ internal sealed class FakeIdempotencyPurge : IPurgeExpiredIdempotencyKeysUseCase
             return Task.FromException<Result<int>>(_failure);
         }
 
-        return Task.FromResult(Result.Success(3));
+        return Task.FromResult(Result.Success(_count));
     }
 }
 
@@ -29,8 +34,13 @@ internal sealed class FakeIdempotencyPurge : IPurgeExpiredIdempotencyKeysUseCase
 internal sealed class FakeRefreshTokenPurge : IPurgeExpiredRefreshTokensUseCase
 {
     private readonly Exception? _failure;
+    private readonly int _count;
 
-    public FakeRefreshTokenPurge(Exception? failure = null) => _failure = failure;
+    public FakeRefreshTokenPurge(Exception? failure = null, int count = 5)
+    {
+        _failure = failure;
+        _count = count;
+    }
 
     public int CallCount { get; private set; }
 
@@ -43,7 +53,7 @@ internal sealed class FakeRefreshTokenPurge : IPurgeExpiredRefreshTokensUseCase
             return Task.FromException<Result<int>>(_failure);
         }
 
-        return Task.FromResult(Result.Success(5));
+        return Task.FromResult(Result.Success(_count));
     }
 }
 

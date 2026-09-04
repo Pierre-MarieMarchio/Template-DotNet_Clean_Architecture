@@ -38,6 +38,14 @@ public sealed class TelemetryOptions
     /// assembly. Set it when several deployments of this template share one collector.
     /// </summary>
     public string? ServiceName { get; set; }
+
+    /// <summary>
+    /// Fraction of traces kept, applied at the root span so a whole trace is kept or dropped
+    /// together. <c>1.0</c> (the default) keeps every trace — right for a first deployment, wrong
+    /// once ingestion is sustained enough that a trace and an Npgsql span per command are exported
+    /// for every single request. Lower once volume, not curiosity, calls for it.
+    /// </summary>
+    public double TracesSamplingRatio { get; set; } = 1.0;
 }
 
 internal sealed class TelemetryOptionsValidator : IValidateOptions<TelemetryOptions>
@@ -80,6 +88,15 @@ internal sealed class TelemetryOptionsValidator : IValidateOptions<TelemetryOpti
             failures.Add(
                 $"'{TelemetryOptions.SectionName}:{nameof(TelemetryOptions.ServiceName)}' is present but " +
                 "blank. Remove the key to fall back to the assembly name.");
+        }
+
+        // Written as the range that passes, then negated: with NaN every direct comparison is
+        // false, so a check written as "<= 0 or > 1" would silently let NaN through.
+        if (!(options.TracesSamplingRatio > 0 && options.TracesSamplingRatio <= 1))
+        {
+            failures.Add(
+                $"'{TelemetryOptions.SectionName}:{nameof(TelemetryOptions.TracesSamplingRatio)}' must be " +
+                $"greater than 0 and at most 1. It is '{options.TracesSamplingRatio}'.");
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

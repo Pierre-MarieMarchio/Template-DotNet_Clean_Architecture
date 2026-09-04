@@ -1,9 +1,9 @@
 ﻿using System.Globalization;
 using System.Net;
+using AppTemplate.Api.Common.Contracts;
+using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Collections;
-using AppTemplate.Application.Features.TodoLists.Dtos;
 using Shouldly;
 using Xunit;
 
@@ -336,12 +336,12 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
     private static async Task<HttpResponseMessage> GetAsync(HttpClient client, string query) =>
         await client.GetAsync(new Uri($"{TodoListsRoute}?{query}", UriKind.Relative), TestToken);
 
-    private static async Task<PagedResult<TodoListSummaryDto>> ReadPageAsync(HttpClient client, string query)
+    private static async Task<PagedResponse<TodoListSummaryResponse>> ReadPageAsync(HttpClient client, string query)
     {
         using var response = await GetAsync(client, query);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        return await ApiJson.ReadAsync<PagedResult<TodoListSummaryDto>>(response, TestToken);
+        return await ApiJson.ReadAsync<PagedResponse<TodoListSummaryResponse>>(response, TestToken);
     }
 }

@@ -28,6 +28,16 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// </remarks>
 public sealed class TestDatabase(IServiceProvider rootServices)
 {
+    /// <summary>
+    /// Excluded from the reset: the host builds its Data Protection key ring once and keeps it in
+    /// memory for as long as it runs. Truncating this table between tests is invisible today because
+    /// the suite never asks two hosts to read the same protected payload, but it would silently break
+    /// the day a multi-instance test does — the second host's ring would no longer agree with the
+    /// first's, and that would look like a sharing defect rather than what it actually is: a table
+    /// this reset wiped out from under a ring that was never supposed to be reset per test.
+    /// </summary>
+    private const string _dataProtectionKeysTableName = "DataProtectionKeys";
+
     private string? _truncateStatement;
 
     /// <summary>
@@ -49,7 +59,7 @@ public sealed class TestDatabase(IServiceProvider rootServices)
             WHERE table_schema IN (
                 '{AppDbContext.IdentitySchema}', '{AppDbContext.TodoSchema}', '{AppDbContext.PlatformSchema}')
               AND table_type = 'BASE TABLE'
-              AND table_name <> '{AppDbContext.MigrationsHistoryTableName}'
+              AND table_name NOT IN ('{AppDbContext.MigrationsHistoryTableName}', '{_dataProtectionKeysTableName}')
             ORDER BY table_schema, table_name
             """,
             cancellationToken);

@@ -4,8 +4,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Http;
+using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Shouldly;
@@ -33,7 +33,7 @@ public sealed class RequestBodySizeLimitTests(ApiFixture fixture) : IntegrationT
         var (_, _, session) = await SignInAsync();
 
         using var host = HostWithLoweredLimit();
-        using var limited = ClientOf(host, session.AccessToken);
+        using var limited = ClientOf(host, session.Tokens.AccessToken);
 
         // Far larger than a business-valid name, but that is the point: the middleware runs before
         // model binding or validation, so an oversized body never reaches either.
@@ -41,7 +41,7 @@ public sealed class RequestBodySizeLimitTests(ApiFixture fixture) : IntegrationT
 
         using var response = await limited.PostAsJsonAsync(
             TodoListsRoute,
-            new CreateTodoListCommand(oversizedName),
+            new CreateTodoListRequest(oversizedName),
             TestToken);
 
         response.StatusCode.ShouldBe(
@@ -64,11 +64,11 @@ public sealed class RequestBodySizeLimitTests(ApiFixture fixture) : IntegrationT
         var (_, _, session) = await SignInAsync();
 
         using var host = HostWithLoweredLimit();
-        using var limited = ClientOf(host, session.AccessToken);
+        using var limited = ClientOf(host, session.Tokens.AccessToken);
 
         using var response = await limited.PostAsJsonAsync(
             TodoListsRoute,
-            new CreateTodoListCommand("Groceries"),
+            new CreateTodoListRequest("Groceries"),
             TestToken);
 
         response.StatusCode.ShouldBe(

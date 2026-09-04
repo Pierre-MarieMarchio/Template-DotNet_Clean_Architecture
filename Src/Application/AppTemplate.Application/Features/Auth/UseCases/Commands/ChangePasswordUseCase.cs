@@ -1,4 +1,4 @@
-using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
@@ -55,10 +55,8 @@ public sealed class ChangePasswordUseCase(
                     change.RejectionMessage ?? "The submitted password does not meet the required policy."));
         }
 
-        // The security stamp already rotated inside ChangePasswordAsync, which fails every access
-        // token in circulation. Refresh tokens survive that rotation, so they are revoked here.
-        await refreshTokens.RevokeAllForUserAsync(userId.Value, cancellationToken);
-        securityEventLog.Record(SecurityEvent.SecurityStampRotated(userId.Value));
+        // The security stamp already rotated inside ChangePasswordAsync.
+        await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
 
         return Result.Success();
     }

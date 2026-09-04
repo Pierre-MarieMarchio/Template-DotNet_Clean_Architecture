@@ -1,5 +1,7 @@
 ﻿using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Security;
+using AppTemplate.Api.Features.Maintenance.Contracts.Responses;
+using AppTemplate.Api.Features.Maintenance.Mapping;
 using AppTemplate.Application.Features.Maintenance.UseCases.Commands;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,11 +23,23 @@ namespace AppTemplate.Api.Features.Maintenance.Controllers;
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
 public sealed class MaintenanceController(
-    IPurgeExpiredIdempotencyKeysUseCase purgeExpiredIdempotencyKeys) : ApiControllerBase
+    IPurgeExpiredIdempotencyKeysUseCase purgeExpiredIdempotencyKeys,
+    IPurgeExpiredRefreshTokensUseCase purgeExpiredRefreshTokens) : ApiControllerBase
 {
     /// <summary>Deletes every idempotency key whose retention window has passed.</summary>
     [HttpDelete("idempotency-keys/expired")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(int))]
-    public async Task<ActionResult<int>> PurgeExpiredIdempotencyKeys(CancellationToken cancellationToken) =>
-        OkOrProblem(await purgeExpiredIdempotencyKeys.ExecuteAsync(cancellationToken));
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PurgeResponse))]
+    public async Task<ActionResult<PurgeResponse>> PurgeExpiredIdempotencyKeys(CancellationToken cancellationToken) =>
+        OkOrProblem(
+            MaintenanceMapping.ToPurgeResponse(await purgeExpiredIdempotencyKeys.ExecuteAsync(cancellationToken)));
+
+    /// <summary>
+    /// Deletes every refresh-token grant whose retention window has passed. Nothing a caller does
+    /// triggers this: the table only grows, one row per rotation, until an operator prunes it.
+    /// </summary>
+    [HttpDelete("refresh-tokens/expired")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PurgeResponse))]
+    public async Task<ActionResult<PurgeResponse>> PurgeExpiredRefreshTokens(CancellationToken cancellationToken) =>
+        OkOrProblem(
+            MaintenanceMapping.ToPurgeResponse(await purgeExpiredRefreshTokens.ExecuteAsync(cancellationToken)));
 }

@@ -1,4 +1,4 @@
-using AppTemplate.Infrastructure.Identity.Notifications;
+﻿using AppTemplate.Infrastructure.Identity.Notifications;
 using AppTemplate.Infrastructure.Identity.Options;
 using Microsoft.Extensions.Options;
 using Shouldly;

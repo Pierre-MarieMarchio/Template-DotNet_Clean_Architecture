@@ -54,6 +54,10 @@ public static class ObservabilityPolicies
                 serviceVersion: ServiceVersion,
                 serviceInstanceId: Environment.MachineName))
             .WithTracing(tracing => tracing
+                // TraceIdRatioBasedSampler decides once, at the root, so a trace is never kept for
+                // some of its spans and dropped for the rest. A ratio of 1 (the default) behaves
+                // exactly like the SDK's own AlwaysOn sampler.
+                .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(telemetry.TracesSamplingRatio)))
                 .AddAspNetCoreInstrumentation(instrumentation =>
                 {
                     instrumentation.Filter = static context => !IsHealthProbe(context.Request.Path);
@@ -74,6 +78,19 @@ public static class ObservabilityPolicies
             .WithMetrics(metrics => metrics
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
+                // Built into the runtime and Npgsql themselves — no extra package. GC, thread-pool
+                // and process counters are the only way to tell "the box is under pressure" apart
+                // from "the box is slow for some other reason".
+                .AddMeter("System.Runtime")
+                // db.client.connection.count vs .max is the pool-saturation question Database:MaxPoolSize
+                // exists to answer; db.client.connection.npgsql.pending_requests is callers already
+                // queued for a connection — both invisible today because the Npgsql span in the trace
+                // above only starts once a connection has been handed out.
+                .AddMeter("Npgsql")
+                // aspnetcore.rate_limiting.requests, tagged by policy and result (acquired /
+                // endpoint_limiter / global_limiter / request_canceled) — the rejection count the
+                // rate limiter itself never surfaces anywhere else.
+                .AddMeter("Microsoft.AspNetCore.RateLimiting")
                 .AddOtlpExporter(exporter =>
                 {
                     exporter.Endpoint = endpoint;

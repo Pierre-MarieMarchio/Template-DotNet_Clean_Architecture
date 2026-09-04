@@ -6,6 +6,26 @@
     <DockerfileContext>..\..\..</DockerfileContext>
   </PropertyGroup>
 
+  <!-- AV0029 and AV0030 ask for the per-version OpenAPI integration in Asp.Versioning.OpenApi,
+       which is a separate package. Program.cs already produces one document per version, by hand,
+       and the two are equivalent in structure: the same 38 paths, the same 49 schemas and the same
+       bearer scheme come out either way. What differs is the prose. That package replaces the XML
+       comment source generator in Microsoft.AspNetCore.OpenApi with a transformer of its own, and
+       10.2.3 renders <see cref="..."/> as the empty string — so 26 schema descriptions in this
+       document lose the type they name and read "for the reason  gives." It handles <para> and
+       <c> better than the generator does, which is the trade on offer, and it is not one a
+       reference page can take: a sentence with a hole in it is worse than a paragraph break that
+       did not happen.
+
+       Suppressed at the project level rather than with a #pragma because AV0029 also fires inside
+       OpenApiXmlCommentSupport.generated.cs, which no source-level directive can reach.
+
+       Revisit when Asp.Versioning.OpenApi resolves a cref to the type name. The check is
+       OpenApiDocumentTests, which asserts on exactly the descriptions that regress. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);AV0029;AV0030</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>

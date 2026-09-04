@@ -98,14 +98,24 @@ AppTemplate.Application/    Common/{Abstractions,Validation,Idempotency,Collecti
                    Features/<F>/{UseCases/{Commands,Queries}/<Operation>,Ports/<Port>,
                                  Consumers,Services,Policies,Extensions,Mapping,Dtos,Errors}
 AppTemplate.Infrastructure.Persistence/
-                   Common/{Contexts,Auditing,DomainEvents,Mapping,Time,UnitOfWork,Idempotency}
-                   Features/<F>/{Models,Configurations,Mapping,Tracking,Repositories,Queries}
+                   Common/{Contexts,Auditing,DomainEvents,Mapping,Time,Tracking,UnitOfWork,
+                           Idempotency}
+                   Features/<F>/{Models,Configurations,Mapping,Tracking,Repositories,Queries,
+                                 Observability,Seeding,Stores}
                    Migrations/
 AppTemplate.Api/            Common/{Controllers,Contracts,Errors,Http,Idempotency,Caching,
                                     Security,Startup,OpenApi,Lifecycle,Observability,Concurrency}
                    Features/<F>/{Controllers,Contracts/{Requests,Responses},Mapping}
+AppTemplate.Worker/         Common/{Observability,Security}
+                   Features/<F>/            one BackgroundService, its options, its metrics
 Tests/             a 1:1 mirror of Src/
 ```
+
+The vocabulary under `Features/<F>/` is closed, and
+`LayoutConventionTests.EveryFeatureFolder_IsNamedFromItsLayersVocabulary` holds it for all five
+projects above — including `AppTemplate.Worker`, whose list is deliberately empty: its features
+hold their files side by side with no subfolder, so the first subfolder anyone adds has to be
+argued for in an ADR rather than created quietly.
 
 A folder is only present when it has content: a feature with no read-side projection has no
 `Queries/`, one with no domain-event consumer has no `Consumers/`. `UseCases/{Commands,Queries}/`

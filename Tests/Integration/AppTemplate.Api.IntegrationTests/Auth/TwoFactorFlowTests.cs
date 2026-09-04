@@ -17,7 +17,7 @@ namespace AppTemplate.Api.IntegrationTests.Auth;
 /// <para>
 /// Login and the second step are always exercised from a freshly created client rather than the one
 /// enrollment used: both are anonymous, and reusing the enrollment client would spend its
-/// <see cref="AppTemplate.Api.Common.Security.RateLimitingPolicies.Authentication"/> budget down to
+/// <see cref="AppTemplate.Api.Common.Security.RateLimitingExtensions.Authentication"/> budget down to
 /// nothing across a single test.
 /// </para>
 /// </summary>

@@ -30,7 +30,7 @@ public sealed class SecurityHeaderOptions
 
     /// <summary>
     /// Sent on every response the API itself produces. The API-reference page in Development is the
-    /// one exception and is not governed by this value — see <see cref="SecurityHeadersPolicies"/>.
+    /// one exception and is not governed by this value — see <see cref="SecurityHeadersExtensions"/>.
     /// </summary>
     public string ContentSecurityPolicy { get; set; } = DefaultContentSecurityPolicy;
 }

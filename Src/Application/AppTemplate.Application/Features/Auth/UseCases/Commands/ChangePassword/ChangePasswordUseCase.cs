@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Policies;
@@ -41,19 +41,18 @@ public sealed class ChangePasswordUseCase(
             request.NewPassword,
             cancellationToken);
 
-        if (change.Outcome is PasswordChangeOutcome.IncorrectCurrentPassword)
+        if (change.Status is PasswordChangeStatus.IncorrectCurrentPassword)
         {
             return Result.Failure(AuthErrors.IncorrectCurrentPassword);
         }
 
-        if (change.Outcome is PasswordChangeOutcome.Rejected)
+        if (change.Status is PasswordChangeStatus.Rejected)
         {
             return Result.Failure(
                 AuthErrors.RegistrationRejected(
                     change.RejectionMessage ?? "The submitted password does not meet the required policy."));
         }
 
-        // The security stamp already rotated inside ChangePasswordAsync.
         await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
 
         return Result.Success();

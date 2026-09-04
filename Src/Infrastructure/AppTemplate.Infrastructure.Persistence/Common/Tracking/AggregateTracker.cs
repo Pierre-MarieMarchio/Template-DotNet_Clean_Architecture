@@ -2,7 +2,6 @@
 using AppTemplate.Domain.Common.Events;
 using AppTemplate.Domain.Common.Primitives;
 using AppTemplate.Infrastructure.Persistence.Common.DomainEvents;
-using AppTemplate.Infrastructure.Persistence.Common.Mapping;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Tracking;

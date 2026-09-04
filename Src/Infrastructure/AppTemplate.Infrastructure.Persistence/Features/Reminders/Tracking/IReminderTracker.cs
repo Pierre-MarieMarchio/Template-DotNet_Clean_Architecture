@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Infrastructure.Persistence.Common.DomainEvents;
-using AppTemplate.Infrastructure.Persistence.Common.Mapping;
+using AppTemplate.Infrastructure.Persistence.Common.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Reminders.Tracking;

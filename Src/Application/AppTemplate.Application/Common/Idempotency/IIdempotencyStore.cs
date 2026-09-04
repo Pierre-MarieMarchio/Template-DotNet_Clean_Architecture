@@ -7,7 +7,7 @@ public interface IIdempotencyStore
 {
     /// <summary>
     /// Attempts to claim <paramref name="key"/>. Two concurrent claims of the same key can only ever
-    /// produce one <see cref="IdempotencyOutcome.Claimed"/>; the loser sees whatever the winner's row
+    /// produce one <see cref="IdempotencyStatus.Claimed"/>; the loser sees whatever the winner's row
     /// currently says — including when the "winner" is a retry reclaiming a lease the original
     /// claimant never gave up.
     /// </summary>

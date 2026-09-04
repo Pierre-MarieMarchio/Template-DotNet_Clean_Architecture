@@ -1,6 +1,13 @@
 # 0025 — A closed folder vocabulary, one file per public type
 
-Status: Accepted
+Status: Accepted — **amended by [0028](0028-a-folder-vocabulary-for-every-project-not-only-four.md)**
+
+> **Amendment.** Two additions, both triggered by this record's own *Revisit when*.
+> `Persistence/Features/<F>/` also allows `Observability/`, for an adapter that reports on a feature
+> without storing anything for it. And `Src/Presentation/AppTemplate.Worker` is now part of the
+> checked vocabulary, with an **empty** list: its features hold a `BackgroundService`, its options
+> and its metrics side by side, so the first subfolder added there has to be argued for. Everything
+> below is otherwise unchanged.
 
 ## Context
 
@@ -50,7 +57,7 @@ named exceptions:
   all in `IUseCase.cs`.
 
 `Mapping/` is the same word regardless of what sits behind it. It names a static class in the
-Api and Application layers (`TodoListMapping`, `TodoListProjection`) and an injected service in
+Api and Application layers (`TodoListResponseMapping`, `TodoListDtoMapping`) and an injected service in
 Persistence (`ITodoListMapper` / `TodoListMapper`, registered as
 `services.TryAddSingleton<ITodoListMapper, TodoListMapper>()` in `PersistenceModule.cs`).
 Static versus injected is a fact about the mapping's dependencies, not about what it is for, and

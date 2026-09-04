@@ -3,29 +3,29 @@
 /// <summary>The verdict <see cref="IIdempotencyStore.ClaimAsync"/> reaches for one key.</summary>
 public sealed record IdempotencyClaim
 {
-    private IdempotencyClaim(IdempotencyOutcome outcome, IdempotentResponse? response)
+    private IdempotencyClaim(IdempotencyStatus status, IdempotentResponse? response)
     {
-        Outcome = outcome;
+        Status = status;
         Response = response;
     }
 
-    public IdempotencyOutcome Outcome { get; }
+    public IdempotencyStatus Status { get; }
 
-    /// <summary>Set only for <see cref="IdempotencyOutcome.Replay"/>.</summary>
+    /// <summary>Set only for <see cref="IdempotencyStatus.Replay"/>.</summary>
     public IdempotentResponse? Response { get; }
 
-    public static IdempotencyClaim Claimed() => new(IdempotencyOutcome.Claimed, null);
+    public static IdempotencyClaim Claimed() => new(IdempotencyStatus.Claimed, null);
 
-    public static IdempotencyClaim InProgress() => new(IdempotencyOutcome.InProgress, null);
+    public static IdempotencyClaim InProgress() => new(IdempotencyStatus.InProgress, null);
 
     public static IdempotencyClaim Replay(IdempotentResponse response)
     {
         ArgumentNullException.ThrowIfNull(response);
 
-        return new(IdempotencyOutcome.Replay, response);
+        return new(IdempotencyStatus.Replay, response);
     }
 
-    public static IdempotencyClaim KeyReused() => new(IdempotencyOutcome.KeyReused, null);
+    public static IdempotencyClaim KeyReused() => new(IdempotencyStatus.KeyReused, null);
 
-    public static IdempotencyClaim NotReplayable() => new(IdempotencyOutcome.NotReplayable, null);
+    public static IdempotencyClaim NotReplayable() => new(IdempotencyStatus.NotReplayable, null);
 }

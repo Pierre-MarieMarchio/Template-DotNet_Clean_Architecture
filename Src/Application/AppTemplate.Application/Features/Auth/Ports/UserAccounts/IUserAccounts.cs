@@ -13,7 +13,7 @@
 /// </summary>
 public interface IUserAccounts
 {
-    Task<AccountCreation> CreateAsync(
+    Task<AccountCreationOutcome> CreateAsync(
         string userName,
         string email,
         string password,
@@ -24,7 +24,7 @@ public interface IUserAccounts
     /// because the response time is otherwise an oracle for which addresses are registered, and must
     /// count the failure towards lockout.
     /// </summary>
-    Task<CredentialCheck> VerifyCredentialAsync(
+    Task<CredentialCheckOutcome> VerifyCredentialAsync(
         string email,
         string password,
         CancellationToken cancellationToken = default);
@@ -39,7 +39,7 @@ public interface IUserAccounts
     /// account. Refresh tokens are untouched by that rotation and are the caller's responsibility to
     /// revoke.
     /// </summary>
-    Task<PasswordChange> ChangePasswordAsync(
+    Task<PasswordChangeOutcome> ChangePasswordAsync(
         Guid userId,
         string currentPassword,
         string newPassword,

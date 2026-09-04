@@ -23,7 +23,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands
 public sealed class FireDueRemindersUseCaseTests
 {
     private static readonly Guid _ownerId = Guid.CreateVersion7();
-    private static readonly DateTimeOffset _now = FixedDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
 
     private readonly IReminderRepository _repository = Substitute.For<IReminderRepository>();
     private readonly IReminderTargets _targets = Substitute.For<IReminderTargets>();
@@ -201,7 +201,7 @@ public sealed class FireDueRemindersUseCaseTests
         _notifier,
         _diagnostics,
         _unitOfWork,
-        new FixedDateTimeProvider(_now),
+        new StubDateTimeProvider(_now),
         NullLogger<FireDueRemindersUseCase>.Instance);
 
     private static Reminder ADueReminder(DateTimeOffset? claimedAt = null) =>

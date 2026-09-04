@@ -91,7 +91,7 @@ dotnet_naming_style.underscore_camel.capitalization = camel_case
 # Each entry below is scoped to a single file and states why the rule does not apply.
 # Never add a repo-wide NoWarn instead of an entry here.
 
-[Src/Application/AppTemplate.Application/Common/Error.cs]
+[Src/Application/AppTemplate.Application/Common/Results/Error.cs]
 # CA1716 warns that the type name `Error` collides with a VB.NET reserved keyword, so that
 # VB consumers would need bracket-escaping. This template is a C#-only ASP.NET Core API
 # with no cross-language consumers, and `Error` is the established name for this concept in
@@ -99,7 +99,7 @@ dotnet_naming_style.underscore_camel.capitalization = camel_case
 # clarity to satisfy a constraint that does not exist here.
 dotnet_diagnostic.CA1716.severity = none
 
-[Src/Application/AppTemplate.Application/Common/Result.cs]
+[Src/Application/AppTemplate.Application/Common/Results/Result.cs]
 # CA1000 discourages public static members on a generic type because callers must name the
 # type argument (`Result<Foo>.Success(x)`). The type-inferring entry points already exist on
 # the non-generic `Result` (`Result.Success<T>` / `Result.Failure<T>`), plus an implicit

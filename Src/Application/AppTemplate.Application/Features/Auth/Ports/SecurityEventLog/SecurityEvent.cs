@@ -5,20 +5,20 @@ namespace AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 /// <summary>
 /// One fact for <see cref="ISecurityEventLog"/> to record. <see cref="UserId"/> is <c>null</c> only
 /// for a failed authentication against an address that named no account at all — there is nothing
-/// to identify that attempt by that is not the address itself. <see cref="Outcome"/> is set only for
+/// to identify that attempt by that is not the address itself. <see cref="Status"/> is set only for
 /// <see cref="SecurityEventKind.AuthenticationFailed"/>. <see cref="Role"/> is set only for
 /// <see cref="SecurityEventKind.RoleGranted"/> and <see cref="SecurityEventKind.RoleRevoked"/>.
 /// </summary>
 public sealed record SecurityEvent(
     SecurityEventKind Kind,
     Guid? UserId,
-    CredentialCheckOutcome? Outcome = null,
+    CredentialCheckStatus? Status = null,
     string? Role = null)
 {
     public static SecurityEvent LoginSucceeded(Guid userId) =>
         new(SecurityEventKind.LoginSucceeded, userId);
 
-    public static SecurityEvent AuthenticationFailed(Guid? userId, CredentialCheckOutcome outcome) =>
+    public static SecurityEvent AuthenticationFailed(Guid? userId, CredentialCheckStatus outcome) =>
         new(SecurityEventKind.AuthenticationFailed, userId, outcome);
 
     public static SecurityEvent AccountLockedOut(Guid userId) =>

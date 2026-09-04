@@ -1,14 +1,15 @@
 ﻿namespace AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 
-public enum AccountCreationOutcome
+/// <param name="RejectionMessage">
+/// Describes the submitted values, never the account store, so it is safe to return verbatim.
+/// Set only for <see cref="AccountCreationStatus.Rejected"/>.
+/// </param>
+public sealed record AccountCreationOutcome(AccountCreationStatus Status, Guid UserId, string? RejectionMessage)
 {
-    Created,
+    public static AccountCreationOutcome Conflict { get; } = new(AccountCreationStatus.Conflict, Guid.Empty, null);
 
-    /// <summary>The user name or the email address is taken. Which one is deliberately not said.</summary>
-    Conflict,
+    public static AccountCreationOutcome Created(Guid userId) => new(AccountCreationStatus.Created, userId, null);
 
-    /// <summary>
-    /// The store refused the values themselves — password policy, allowed characters, format.
-    /// </summary>
-    Rejected,
+    public static AccountCreationOutcome Rejected(string message) =>
+        new(AccountCreationStatus.Rejected, Guid.Empty, message);
 }

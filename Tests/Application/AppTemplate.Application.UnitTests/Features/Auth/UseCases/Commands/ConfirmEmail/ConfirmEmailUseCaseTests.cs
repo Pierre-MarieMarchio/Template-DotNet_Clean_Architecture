@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.ConfirmEmail;
 using NSubstitute;
@@ -19,9 +19,9 @@ public sealed class ConfirmEmailUseCaseTests
     /// Every way redeeming can fail. Read off the enum, so a new outcome cannot be added without a
     /// decision about how it is answered.
     /// </summary>
-    public static TheoryData<EmailConfirmationOutcome> Refusals =>
-        [.. Enum.GetValues<EmailConfirmationOutcome>()
-            .Where(outcome => outcome is not EmailConfirmationOutcome.Confirmed)];
+    public static TheoryData<EmailConfirmationStatus> Refusals =>
+        [.. Enum.GetValues<EmailConfirmationStatus>()
+            .Where(outcome => outcome is not EmailConfirmationStatus.Confirmed)];
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -47,7 +47,7 @@ public sealed class ConfirmEmailUseCaseTests
     [Fact]
     public async Task ARedeemedToken_Confirms()
     {
-        GivenTheOutcomeIs(EmailConfirmationOutcome.Confirmed);
+        GivenTheOutcomeIs(EmailConfirmationStatus.Confirmed);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -61,7 +61,7 @@ public sealed class ConfirmEmailUseCaseTests
     /// </summary>
     [Theory]
     [MemberData(nameof(Refusals))]
-    public async Task EveryRefusal_AnswersWithTheSameError(EmailConfirmationOutcome outcome)
+    public async Task EveryRefusal_AnswersWithTheSameError(EmailConfirmationStatus outcome)
     {
         GivenTheOutcomeIs(outcome);
 
@@ -82,9 +82,9 @@ public sealed class ConfirmEmailUseCaseTests
     {
         var errors = new List<Error>();
 
-        foreach (var outcome in Enum.GetValues<EmailConfirmationOutcome>())
+        foreach (var outcome in Enum.GetValues<EmailConfirmationStatus>())
         {
-            if (outcome is EmailConfirmationOutcome.Confirmed)
+            if (outcome is EmailConfirmationStatus.Confirmed)
             {
                 continue;
             }
@@ -103,7 +103,7 @@ public sealed class ConfirmEmailUseCaseTests
     [Fact]
     public async Task TheAddressAndTheToken_AreForwardedAsGiven()
     {
-        GivenTheOutcomeIs(EmailConfirmationOutcome.Confirmed);
+        GivenTheOutcomeIs(EmailConfirmationStatus.Confirmed);
         using var cancellation = new CancellationTokenSource();
 
         await _useCase.ExecuteAsync(AValidRequest(), cancellation.Token);
@@ -116,7 +116,7 @@ public sealed class ConfirmEmailUseCaseTests
 
     private static ConfirmEmailCommand AValidRequest() => new("someone@example.com", "a-token");
 
-    private void GivenTheOutcomeIs(EmailConfirmationOutcome outcome) =>
+    private void GivenTheOutcomeIs(EmailConfirmationStatus outcome) =>
         _confirmationTokens.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(outcome);
 }

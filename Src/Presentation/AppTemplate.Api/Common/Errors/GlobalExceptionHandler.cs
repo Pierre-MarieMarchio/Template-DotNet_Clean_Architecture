@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Concurrency;
 using AppTemplate.Domain.Common.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Timeouts;
@@ -9,7 +9,7 @@ namespace AppTemplate.Api.Common.Errors;
 /// <summary>
 /// Last-resort handler for anything that escapes a use case. It answers
 /// <c>application/problem+json</c> with the same stable <c>code</c> extension as
-/// <see cref="ErrorResults"/>, and never puts <c>exception.Message</c> in the response.
+/// <see cref="ErrorMapping"/>, and never puts <c>exception.Message</c> in the response.
 /// </summary>
 internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
 {
@@ -24,7 +24,7 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         //
         // Like the DomainException arm below, this is a net rather than a path: with the framework's
         // own RequestTimeoutsMiddleware, a timeout is answered by the policy's WriteTimeoutResponse
-        // (see LifecyclePolicies) while the response has not started, and once it has, the middleware
+        // (see HostLifecycleExtensions) while the response has not started, and once it has, the middleware
         // clears this feature before rethrowing — and ExceptionHandlerMiddleware skips every handler
         // on a started response anyway. So this arm does not fire today. It is what keeps a deadline
         // from being logged and measured as a client hangup should anything ever relay one here, and

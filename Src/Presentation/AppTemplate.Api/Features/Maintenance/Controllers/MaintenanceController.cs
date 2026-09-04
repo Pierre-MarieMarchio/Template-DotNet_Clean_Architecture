@@ -20,7 +20,7 @@ namespace AppTemplate.Api.Features.Maintenance.Controllers;
 /// </remarks>
 [Route("api/v{version:apiVersion}/maintenance")]
 [Asp.Versioning.ApiVersion("1.0")]
-[Authorize(Policy = Policies.Administrator)]
+[Authorize(Policy = AuthorizationPolicies.Administrator)]
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
 public sealed class MaintenanceController(
@@ -32,7 +32,7 @@ public sealed class MaintenanceController(
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PurgeResponse))]
     public async Task<ActionResult<PurgeResponse>> PurgeExpiredIdempotencyKeys(CancellationToken cancellationToken) =>
         OkOrProblem(
-            MaintenanceMapping.ToPurgeResponse(await purgeExpiredIdempotencyKeys.ExecuteAsync(cancellationToken)));
+            MaintenanceResponseMapping.ToPurgeResponse(await purgeExpiredIdempotencyKeys.ExecuteAsync(cancellationToken)));
 
     /// <summary>
     /// Deletes every refresh-token grant whose retention window has passed. Nothing a caller does
@@ -42,5 +42,5 @@ public sealed class MaintenanceController(
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PurgeResponse))]
     public async Task<ActionResult<PurgeResponse>> PurgeExpiredRefreshTokens(CancellationToken cancellationToken) =>
         OkOrProblem(
-            MaintenanceMapping.ToPurgeResponse(await purgeExpiredRefreshTokens.ExecuteAsync(cancellationToken)));
+            MaintenanceResponseMapping.ToPurgeResponse(await purgeExpiredRefreshTokens.ExecuteAsync(cancellationToken)));
 }

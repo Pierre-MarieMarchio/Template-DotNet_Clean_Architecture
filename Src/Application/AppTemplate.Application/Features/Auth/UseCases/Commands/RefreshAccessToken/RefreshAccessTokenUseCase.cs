@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
@@ -16,7 +16,7 @@ public sealed class RefreshAccessTokenUseCase(
     ISecurityEventLog securityEventLog,
     IValidator<RefreshAccessTokenCommand> validator) : IRefreshAccessTokenUseCase
 {
-    public async Task<Result<RefreshAccessTokenResponse>> ExecuteAsync(
+    public async Task<Result<RefreshAccessTokenOutcome>> ExecuteAsync(
         RefreshAccessTokenCommand request,
         CancellationToken cancellationToken = default)
     {
@@ -26,7 +26,7 @@ public sealed class RefreshAccessTokenUseCase(
 
         if (validation.IsFailure)
         {
-            return validation.To<RefreshAccessTokenResponse>();
+            return validation.To<RefreshAccessTokenOutcome>();
         }
 
         // Rotation comes first and is single-use, so a replayed token is refused here rather than
@@ -35,7 +35,7 @@ public sealed class RefreshAccessTokenUseCase(
 
         if (rotation is not { Succeeded: true, UserId: { } userId, Token: { } refreshToken })
         {
-            return Result.Failure<RefreshAccessTokenResponse>(AuthErrors.InvalidRefreshToken);
+            return Result.Failure<RefreshAccessTokenOutcome>(AuthErrors.InvalidRefreshToken);
         }
 
         // A grant issued before the account was locked out or disabled must not keep minting tokens,
@@ -45,12 +45,12 @@ public sealed class RefreshAccessTokenUseCase(
             await refreshTokens.RevokeAllForUserAsync(userId, cancellationToken);
             securityEventLog.Record(SecurityEvent.RefreshTokenRevoked(userId));
 
-            return Result.Failure<RefreshAccessTokenResponse>(AuthErrors.InvalidRefreshToken);
+            return Result.Failure<RefreshAccessTokenOutcome>(AuthErrors.InvalidRefreshToken);
         }
 
         var accessToken = await accessTokens.IssueAsync(userId, cancellationToken);
 
-        return Result.Success(new RefreshAccessTokenResponse(
+        return Result.Success(new RefreshAccessTokenOutcome(
             accessToken.Value,
             accessToken.ExpiresAt,
             refreshToken.Value,

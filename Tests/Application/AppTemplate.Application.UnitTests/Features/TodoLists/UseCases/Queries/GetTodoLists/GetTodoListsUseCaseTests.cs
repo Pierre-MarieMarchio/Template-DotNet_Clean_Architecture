@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Collections;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;
@@ -109,8 +109,8 @@ public sealed class GetTodoListsUseCaseTests
     #endregion
 
     /// <summary>
-    /// All of paging/sort/cursor/filter parsing lives in <c>TodoListRequestBinder</c> now, and is
-    /// exercised exhaustively in <c>TodoListRequestBinderTests</c>. This use case only has to prove
+    /// All of paging/sort/cursor/filter parsing lives in <c>GetTodoListsRequestBinder</c> now, and is
+    /// exercised exhaustively in <c>GetTodoListsRequestBinderTests</c>. This use case only has to prove
     /// it delegates to the binder and propagates its failure — one representative case.
     /// </summary>
     [Fact]
@@ -179,7 +179,7 @@ public sealed class GetTodoListsUseCaseTests
     #endregion
 
     private static TodoListSummaryDto ASummary() =>
-        new(Guid.CreateVersion7(), "Groceries", 3, 1, FixedDateTimeProvider.DefaultInstant);
+        new(Guid.CreateVersion7(), "Groceries", 3, 1, StubDateTimeProvider.DefaultInstant);
 
     private GetTodoListsUseCase UseCaseFor(ICurrentUser currentUser) => new(_queries, currentUser);
 

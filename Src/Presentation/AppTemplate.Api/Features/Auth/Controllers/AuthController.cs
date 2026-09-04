@@ -24,14 +24,6 @@ using AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-// UseCases.Commands.ConfirmTwoFactorSetup declares an application-layer type by the same name.
-using ConfirmTwoFactorSetupResponse = AppTemplate.Api.Features.Auth.Contracts.Responses.ConfirmTwoFactorSetupResponse;
-// UseCases.Queries.GetCurrentUser declares an application-layer type by the same name.
-using CurrentUserResponse = AppTemplate.Api.Features.Auth.Contracts.Responses.CurrentUserResponse;
-// UseCases.Commands.Register declares an application-layer type by the same name.
-using RegisterResponse = AppTemplate.Api.Features.Auth.Contracts.Responses.RegisterResponse;
-// UseCases.Commands.SetUpTwoFactor declares an application-layer type by the same name.
-using SetUpTwoFactorResponse = AppTemplate.Api.Features.Auth.Contracts.Responses.SetUpTwoFactorResponse;
 
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
@@ -59,7 +51,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// every <c>[Authorize]</c> action, where it means the caller's token is missing or no longer valid.
 /// </para>
 /// <para>
-/// The tight <see cref="RateLimitingPolicies.Authentication"/> budget is declared on each action that
+/// The tight <see cref="RateLimitingExtensions.Authentication"/> budget is declared on each action that
 /// handles a credential — a password, a TOTP code, a recovery code — and on none that does not.
 /// <see cref="GetCurrentUser"/> and <see cref="LogoutEverywhere"/> are the exceptions and stay on the
 /// global limiter: reading one's own profile, or clearing one's own sessions, is not an attempt at a
@@ -96,7 +88,7 @@ public sealed class AuthController(
     /// <summary>Creates an account and sends a confirmation email.</summary>
     [HttpPost("register")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(RegisterResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
@@ -108,13 +100,13 @@ public sealed class AuthController(
 
         var command = new RegisterCommand(request.UserName, request.Email, request.Password);
 
-        return OkOrProblem(AuthMapping.ToRegisterResponse(await register.ExecuteAsync(command, cancellationToken)));
+        return OkOrProblem(AuthResponseMapping.ToRegisterResponse(await register.ExecuteAsync(command, cancellationToken)));
     }
 
     /// <summary>Exchanges credentials for an access token and a refresh token.</summary>
     [HttpPost("login")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [NoStore]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(LoginResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -127,7 +119,7 @@ public sealed class AuthController(
 
         var command = new LoginCommand(request.Email, request.Password);
 
-        return OkOrProblem(AuthMapping.ToLoginResponse(await login.ExecuteAsync(command, cancellationToken)));
+        return OkOrProblem(AuthResponseMapping.ToLoginResponse(await login.ExecuteAsync(command, cancellationToken)));
     }
 
     /// <summary>
@@ -143,7 +135,7 @@ public sealed class AuthController(
     /// </remarks>
     [HttpPost("login/two-factor")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [NoStore]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(LoginResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -157,7 +149,7 @@ public sealed class AuthController(
         var command = new VerifyTwoFactorCommand(request.ChallengeToken, request.Code);
 
         return OkOrProblem(
-            AuthMapping.ToLoginResponse(await verifyTwoFactor.ExecuteAsync(command, cancellationToken)));
+            AuthResponseMapping.ToLoginResponse(await verifyTwoFactor.ExecuteAsync(command, cancellationToken)));
     }
 
     /// <summary>
@@ -166,7 +158,7 @@ public sealed class AuthController(
     /// </summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [NoStore]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TokenResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -180,7 +172,7 @@ public sealed class AuthController(
         var command = new RefreshAccessTokenCommand(request.RefreshToken);
 
         return OkOrProblem(
-            AuthMapping.ToTokenResponse(await refreshAccessToken.ExecuteAsync(command, cancellationToken)));
+            AuthResponseMapping.ToTokenResponse(await refreshAccessToken.ExecuteAsync(command, cancellationToken)));
     }
 
     /// <summary>
@@ -189,7 +181,7 @@ public sealed class AuthController(
     /// </summary>
     [HttpPost("confirm-email")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     public async Task<ActionResult> ConfirmEmail(
@@ -209,7 +201,7 @@ public sealed class AuthController(
     /// enumerate accounts.</remarks>
     [HttpPost("resend-confirmation-email")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     public async Task<ActionResult> ResendConfirmationEmail(
@@ -226,7 +218,7 @@ public sealed class AuthController(
     /// <summary>Revokes a refresh token, ending the session it belongs to.</summary>
     [HttpPost("logout")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     public async Task<ActionResult> Logout(
@@ -254,7 +246,7 @@ public sealed class AuthController(
 
     /// <summary>The authenticated caller's own profile. Takes no input: the identity is the token's.</summary>
     /// <remarks>
-    /// One of two actions here without <see cref="RateLimitingPolicies.Authentication"/> — see
+    /// One of two actions here without <see cref="RateLimitingExtensions.Authentication"/> — see
     /// <see cref="LogoutEverywhere"/> for the other — so it falls to the global limiter. A profile
     /// read is not an attempt at a credential, and a client that polls this — a session check on
     /// every app start — must not be spending the allowance that exists to slow brute force down. It
@@ -266,7 +258,7 @@ public sealed class AuthController(
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CurrentUserResponse))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<CurrentUserResponse>> GetCurrentUser(CancellationToken cancellationToken) =>
-        OkOrProblem(AuthMapping.ToCurrentUserResponse(await getCurrentUser.ExecuteAsync(cancellationToken)));
+        OkOrProblem(AuthResponseMapping.ToCurrentUserResponse(await getCurrentUser.ExecuteAsync(cancellationToken)));
 
     /// <summary>
     /// Replaces the caller's password. The current one is presented again as proof that the session
@@ -274,7 +266,7 @@ public sealed class AuthController(
     /// </summary>
     [HttpPost("change-password")]
     [Authorize]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
@@ -297,13 +289,13 @@ public sealed class AuthController(
     /// </summary>
     [HttpPost("two-factor/setup")]
     [Authorize]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [NoStore]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(SetUpTwoFactorResponse))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<SetUpTwoFactorResponse>> SetUpTwoFactor(CancellationToken cancellationToken) =>
-        OkOrProblem(AuthMapping.ToSetUpTwoFactorResponse(await setUpTwoFactor.ExecuteAsync(cancellationToken)));
+        OkOrProblem(AuthResponseMapping.ToSetUpTwoFactorResponse(await setUpTwoFactor.ExecuteAsync(cancellationToken)));
 
     /// <summary>
     /// Confirms enrollment with a first code and turns two-factor sign-in on. Returns ten recovery
@@ -315,7 +307,7 @@ public sealed class AuthController(
     /// </summary>
     [HttpPost("two-factor/confirm")]
     [Authorize]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [NoStore]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ConfirmTwoFactorSetupResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -329,7 +321,7 @@ public sealed class AuthController(
         var command = new ConfirmTwoFactorSetupCommand(request.CurrentPassword, request.Code);
 
         return OkOrProblem(
-            AuthMapping.ToConfirmTwoFactorSetupResponse(await confirmTwoFactorSetup.ExecuteAsync(command, cancellationToken)));
+            AuthResponseMapping.ToConfirmTwoFactorSetupResponse(await confirmTwoFactorSetup.ExecuteAsync(command, cancellationToken)));
     }
 
     /// <summary>
@@ -339,7 +331,7 @@ public sealed class AuthController(
     /// </summary>
     [HttpPost("two-factor/disable")]
     [Authorize]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
@@ -366,7 +358,7 @@ public sealed class AuthController(
     /// </remarks>
     [HttpPost("change-email")]
     [Authorize]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
@@ -389,7 +381,7 @@ public sealed class AuthController(
     /// </summary>
     [HttpPost("confirm-email-change")]
     [Authorize]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
@@ -411,11 +403,11 @@ public sealed class AuthController(
     /// </remarks>
     [HttpPost("forgot-password")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     public async Task<ActionResult> RequestPasswordReset(
-        [FromBody] ForgotPasswordRequest request,
+        [FromBody] RequestPasswordResetRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -431,7 +423,7 @@ public sealed class AuthController(
     /// </summary>
     [HttpPost("reset-password")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitingPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     public async Task<ActionResult> ResetPassword(

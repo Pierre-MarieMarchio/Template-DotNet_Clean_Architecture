@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.Logout;

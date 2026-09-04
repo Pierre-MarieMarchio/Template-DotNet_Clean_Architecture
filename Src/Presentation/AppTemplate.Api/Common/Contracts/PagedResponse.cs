@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 
 namespace AppTemplate.Api.Common.Contracts;
 

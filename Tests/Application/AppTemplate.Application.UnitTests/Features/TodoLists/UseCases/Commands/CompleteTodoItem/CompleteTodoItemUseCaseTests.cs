@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CompleteTodoItem;
 using AppTemplate.Application.UnitTests.TestDoubles;
@@ -19,7 +19,7 @@ public sealed class CompleteTodoItemUseCaseTests
 
     private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
-    private readonly FixedDateTimeProvider _clock = new();
+    private readonly StubDateTimeProvider _clock = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -180,7 +180,7 @@ public sealed class CompleteTodoItemUseCaseTests
     public async Task AnAlreadyCompletedItem_BecomesAConflict()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        var firstCompletion = FixedDateTimeProvider.DefaultInstant.AddDays(-1);
+        var firstCompletion = StubDateTimeProvider.DefaultInstant.AddDays(-1);
         list.CompleteItem(itemId, firstCompletion);
         list.ClearDomainEvents();
         _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
@@ -196,7 +196,7 @@ public sealed class CompleteTodoItemUseCaseTests
     public async Task AnAlreadyCompletedItem_KeepsItsOriginalCompletionTimeAndDoesNotCommit()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        var firstCompletion = FixedDateTimeProvider.DefaultInstant.AddDays(-1);
+        var firstCompletion = StubDateTimeProvider.DefaultInstant.AddDays(-1);
         list.CompleteItem(itemId, firstCompletion);
         list.ClearDomainEvents();
         _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
@@ -223,7 +223,7 @@ public sealed class CompleteTodoItemUseCaseTests
         result.IsSuccess.ShouldBeTrue();
         var item = list.Items.ShouldHaveSingleItem();
         item.IsCompleted.ShouldBeTrue();
-        item.CompletedAt.ShouldBe(FixedDateTimeProvider.DefaultInstant);
+        item.CompletedAt.ShouldBe(StubDateTimeProvider.DefaultInstant);
     }
 
     /// <summary>
@@ -240,7 +240,7 @@ public sealed class CompleteTodoItemUseCaseTests
         var useCase = new CompleteTodoItemUseCase(
             new TodoListAccess(_repository, StubCurrentUser.WithId(_callerId)),
             _unitOfWork,
-            new FixedDateTimeProvider(pinnedInstant),
+            new StubDateTimeProvider(pinnedInstant),
             new CompleteTodoItemCommandValidator());
 
         await useCase.ExecuteAsync(new CompleteTodoItemCommand(list.Id, itemId), TestToken);

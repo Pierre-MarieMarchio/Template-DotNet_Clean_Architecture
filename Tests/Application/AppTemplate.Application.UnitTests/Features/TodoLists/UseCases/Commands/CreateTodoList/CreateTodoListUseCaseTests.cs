@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CreateTodoList;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Features.TodoLists.Entities;
@@ -18,7 +18,7 @@ public sealed class CreateTodoListUseCaseTests
 
     private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
-    private readonly FixedDateTimeProvider _clock = new();
+    private readonly StubDateTimeProvider _clock = new();
     private readonly CreateTodoListCommandValidator _validator = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -202,7 +202,7 @@ public sealed class CreateTodoListUseCaseTests
         var domainEvent = staged.ShouldHaveSingleItem().DomainEvents.ShouldHaveSingleItem()
             .ShouldBeOfType<TodoListCreatedDomainEvent>();
         domainEvent.OwnerId.ShouldBe(_callerId);
-        domainEvent.OccurredOn.ShouldBe(FixedDateTimeProvider.DefaultInstant);
+        domainEvent.OccurredOn.ShouldBe(StubDateTimeProvider.DefaultInstant);
     }
 
     #endregion

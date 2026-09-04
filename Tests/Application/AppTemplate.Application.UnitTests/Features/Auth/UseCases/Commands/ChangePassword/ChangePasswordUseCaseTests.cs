@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
@@ -47,7 +47,7 @@ public sealed class ChangePasswordUseCaseTests
     [Fact]
     public async Task AMatchingCurrentPassword_Succeeds()
     {
-        GivenTheOutcomeIs(PasswordChange.Changed);
+        GivenTheOutcomeIs(PasswordChangeOutcome.Changed);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -57,7 +57,7 @@ public sealed class ChangePasswordUseCaseTests
     [Fact]
     public async Task AWrongCurrentPassword_IsRefused()
     {
-        GivenTheOutcomeIs(PasswordChange.IncorrectCurrentPassword);
+        GivenTheOutcomeIs(PasswordChangeOutcome.IncorrectCurrentPassword);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -69,7 +69,7 @@ public sealed class ChangePasswordUseCaseTests
     [Fact]
     public async Task ARejectedNewPassword_ReportsTheStoresMessage()
     {
-        GivenTheOutcomeIs(PasswordChange.Rejected("Passwords must have at least one digit."));
+        GivenTheOutcomeIs(PasswordChangeOutcome.Rejected("Passwords must have at least one digit."));
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -85,7 +85,7 @@ public sealed class ChangePasswordUseCaseTests
     [Fact]
     public async Task ASuccessfulChange_RevokesEveryRefreshTokenForTheAccount()
     {
-        GivenTheOutcomeIs(PasswordChange.Changed);
+        GivenTheOutcomeIs(PasswordChangeOutcome.Changed);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -95,7 +95,7 @@ public sealed class ChangePasswordUseCaseTests
     [Fact]
     public async Task ASuccessfulChange_RecordsTheSecurityStampRotation()
     {
-        GivenTheOutcomeIs(PasswordChange.Changed);
+        GivenTheOutcomeIs(PasswordChangeOutcome.Changed);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -105,7 +105,7 @@ public sealed class ChangePasswordUseCaseTests
     [Fact]
     public async Task AWrongCurrentPassword_RevokesNothing()
     {
-        GivenTheOutcomeIs(PasswordChange.IncorrectCurrentPassword);
+        GivenTheOutcomeIs(PasswordChangeOutcome.IncorrectCurrentPassword);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -115,7 +115,7 @@ public sealed class ChangePasswordUseCaseTests
 
     private static ChangePasswordCommand ARequest() => new("old password", "correct horse battery");
 
-    private void GivenTheOutcomeIs(PasswordChange change) =>
+    private void GivenTheOutcomeIs(PasswordChangeOutcome change) =>
         _accounts.ChangePasswordAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(change);
 

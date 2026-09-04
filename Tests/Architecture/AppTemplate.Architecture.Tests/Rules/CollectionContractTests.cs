@@ -1,8 +1,8 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Collections;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;

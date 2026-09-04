@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
@@ -59,7 +59,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
     [Fact]
     public async Task AWrongPassword_IsRefused()
     {
-        GivenTheOutcomeIs(TwoFactorConfirmation.IncorrectPassword);
+        GivenTheOutcomeIs(TwoFactorConfirmationOutcome.IncorrectPassword);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -75,7 +75,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
     [Fact]
     public async Task AWrongPassword_ArmsNothingAndRevokesNoRefreshTokenAndRecordsNoEvent()
     {
-        GivenTheOutcomeIs(TwoFactorConfirmation.IncorrectPassword);
+        GivenTheOutcomeIs(TwoFactorConfirmationOutcome.IncorrectPassword);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -86,7 +86,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
     [Fact]
     public async Task ARightPasswordButAWrongCode_IsRefused()
     {
-        GivenTheOutcomeIs(TwoFactorConfirmation.InvalidCode);
+        GivenTheOutcomeIs(TwoFactorConfirmationOutcome.InvalidCode);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -97,7 +97,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
     [Fact]
     public async Task ARightPasswordButAWrongCode_RevokesNoRefreshTokenAndRecordsNoEvent()
     {
-        GivenTheOutcomeIs(TwoFactorConfirmation.InvalidCode);
+        GivenTheOutcomeIs(TwoFactorConfirmationOutcome.InvalidCode);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -109,7 +109,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
     [Fact]
     public async Task ARightPasswordAndCode_AnswersWithTheFreshRecoveryCodes()
     {
-        GivenTheOutcomeIs(TwoFactorConfirmation.Confirmed(["ABCDE-12345", "FGHIJ-67890"]));
+        GivenTheOutcomeIs(TwoFactorConfirmationOutcome.Confirmed(["ABCDE-12345", "FGHIJ-67890"]));
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -120,7 +120,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
     [Fact]
     public async Task ARightPasswordAndCode_RecordsThatTwoFactorSignInIsNowArmed()
     {
-        GivenTheOutcomeIs(TwoFactorConfirmation.Confirmed(["a code"]));
+        GivenTheOutcomeIs(TwoFactorConfirmationOutcome.Confirmed(["a code"]));
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -135,7 +135,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
     [Fact]
     public async Task ARightPasswordAndCode_RevokesEveryRefreshTokenForTheAccount()
     {
-        GivenTheOutcomeIs(TwoFactorConfirmation.Confirmed(["a code"]));
+        GivenTheOutcomeIs(TwoFactorConfirmationOutcome.Confirmed(["a code"]));
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -145,7 +145,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
     private static ConfirmTwoFactorSetupCommand ARequest() => new("correct horse battery", "123456");
 
-    private void GivenTheOutcomeIs(TwoFactorConfirmation confirmation) =>
+    private void GivenTheOutcomeIs(TwoFactorConfirmationOutcome confirmation) =>
         _enrollment.ConfirmAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(confirmation);
 

@@ -71,7 +71,7 @@ internal sealed class IdempotencyStore(
     /// <summary>
     /// What the loser of the initial insert race does next: read the row it collided with, and either
     /// accept its verdict or — when that row is an unfinished claim whose lease has run out — reclaim
-    /// it for this attempt instead of reporting <see cref="IdempotencyOutcome.InProgress"/> forever.
+    /// it for this attempt instead of reporting <see cref="IdempotencyStatus.InProgress"/> forever.
     /// </summary>
     private async Task<IdempotencyClaim> ClaimExistingAsync(
         AppDbContext context,
@@ -269,7 +269,7 @@ internal sealed class IdempotencyStore(
     /// <summary>
     /// Whether an unfinished claim's lease has run out, and it is therefore fair game for
     /// <see cref="ClaimExistingAsync"/> to reclaim on behalf of a new retry instead of reporting
-    /// <see cref="IdempotencyOutcome.InProgress"/> for the rest of the row's retention window.
+    /// <see cref="IdempotencyStatus.InProgress"/> for the rest of the row's retention window.
     /// Isolated from EF, like <see cref="Decide"/>, so it can be exercised without a database.
     /// </summary>
     internal static bool HasExpiredLease(IdempotencyRecord existing, DateTimeOffset now) =>

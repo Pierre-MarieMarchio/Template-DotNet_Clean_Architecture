@@ -7,12 +7,12 @@
 /// </summary>
 public interface IRoleAssignments
 {
-    Task<RoleAssignmentChange> AddRoleAsync(
+    Task<RoleAssignmentChangeOutcome> AddRoleAsync(
         Guid userId,
         string role,
         CancellationToken cancellationToken = default);
 
-    Task<RoleAssignmentChange> RemoveRoleAsync(
+    Task<RoleAssignmentChangeOutcome> RemoveRoleAsync(
         Guid userId,
         string role,
         CancellationToken cancellationToken = default);

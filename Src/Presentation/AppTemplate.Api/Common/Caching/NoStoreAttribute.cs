@@ -7,7 +7,7 @@
 /// <remarks>
 /// It marks the actions that answer with a token — <c>AuthController.Login</c> and
 /// <c>AuthController.Refresh</c>. Without it those responses carry no <c>Cache-Control</c> at all:
-/// <see cref="CachePolicies"/> writes its default only for a GET or a HEAD, and a token is handed
+/// <see cref="CacheHeaderExtensions"/> writes its default only for a GET or a HEAD, and a token is handed
 /// back from a POST.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Method)]

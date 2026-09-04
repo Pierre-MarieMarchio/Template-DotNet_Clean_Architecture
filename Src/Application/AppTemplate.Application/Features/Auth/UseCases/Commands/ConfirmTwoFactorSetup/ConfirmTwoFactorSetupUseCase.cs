@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Policies;
@@ -17,7 +17,7 @@ public sealed class ConfirmTwoFactorSetupUseCase(
     ICurrentUser currentUser,
     IValidator<ConfirmTwoFactorSetupCommand> validator) : IConfirmTwoFactorSetupUseCase
 {
-    public async Task<Result<ConfirmTwoFactorSetupResponse>> ExecuteAsync(
+    public async Task<Result<ConfirmTwoFactorSetupOutcome>> ExecuteAsync(
         ConfirmTwoFactorSetupCommand request,
         CancellationToken cancellationToken = default)
     {
@@ -27,35 +27,35 @@ public sealed class ConfirmTwoFactorSetupUseCase(
 
         if (validation.IsFailure)
         {
-            return validation.To<ConfirmTwoFactorSetupResponse>();
+            return validation.To<ConfirmTwoFactorSetupOutcome>();
         }
 
         var userId = currentUser.RequireUserId();
 
         if (userId.IsFailure)
         {
-            return userId.To<ConfirmTwoFactorSetupResponse>();
+            return userId.To<ConfirmTwoFactorSetupOutcome>();
         }
 
         var confirmation = await enrollment.ConfirmAsync(
             userId.Value, request.CurrentPassword, request.Code, cancellationToken);
 
-        if (confirmation.Outcome is TwoFactorConfirmationOutcome.IncorrectPassword)
+        if (confirmation.Status is TwoFactorConfirmationStatus.IncorrectPassword)
         {
-            return Result.Failure<ConfirmTwoFactorSetupResponse>(AuthErrors.IncorrectCurrentPassword);
+            return Result.Failure<ConfirmTwoFactorSetupOutcome>(AuthErrors.IncorrectCurrentPassword);
         }
 
-        if (confirmation.Outcome is TwoFactorConfirmationOutcome.InvalidCode)
+        if (confirmation.Status is TwoFactorConfirmationStatus.InvalidCode)
         {
-            return Result.Failure<ConfirmTwoFactorSetupResponse>(AuthErrors.InvalidTwoFactorCode);
+            return Result.Failure<ConfirmTwoFactorSetupOutcome>(AuthErrors.InvalidTwoFactorCode);
         }
 
         securityEventLog.Record(SecurityEvent.TwoFactorEnabled(userId.Value));
 
-        // The security stamp already rotated inside ConfirmAsync: arming two-factor sign-in is a
-        // security-posture change every other session must re-authenticate under.
+        // Arming two-factor sign-in is a security-posture change every other session must
+        // re-authenticate under.
         await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
 
-        return Result.Success(new ConfirmTwoFactorSetupResponse(confirmation.RecoveryCodes!));
+        return Result.Success(new ConfirmTwoFactorSetupOutcome(confirmation.RecoveryCodes!));
     }
 }

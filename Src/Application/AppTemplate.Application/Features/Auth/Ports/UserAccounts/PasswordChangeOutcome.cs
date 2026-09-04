@@ -1,12 +1,15 @@
 ﻿namespace AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 
-public enum PasswordChangeOutcome
+/// <param name="RejectionMessage">
+/// Describes the submitted password, never the account store, so it is safe to return verbatim. Set
+/// only for <see cref="PasswordChangeStatus.Rejected"/>.
+/// </param>
+public sealed record PasswordChangeOutcome(PasswordChangeStatus Status, string? RejectionMessage = null)
 {
-    Changed,
+    public static PasswordChangeOutcome Changed { get; } = new(PasswordChangeStatus.Changed);
 
-    /// <summary>The supplied current password did not match the one on file.</summary>
-    IncorrectCurrentPassword,
+    public static PasswordChangeOutcome IncorrectCurrentPassword { get; } =
+        new(PasswordChangeStatus.IncorrectCurrentPassword);
 
-    /// <summary>The current password matched, but the store refused the new one itself.</summary>
-    Rejected,
+    public static PasswordChangeOutcome Rejected(string message) => new(PasswordChangeStatus.Rejected, message);
 }

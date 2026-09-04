@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.AccountLockouts;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
@@ -62,7 +62,7 @@ public sealed class LockAccountUseCaseTests
     [Fact]
     public async Task AnUnknownAccount_IsReportedAsNotFound()
     {
-        GivenTheOutcomeIs(LockoutChangeOutcome.NoSuchAccount);
+        GivenTheOutcomeIs(LockoutChangeStatus.NoSuchAccount);
 
         var result = await UseCase().ExecuteAsync(new LockAccountCommand(_targetId), TestToken);
 
@@ -73,7 +73,7 @@ public sealed class LockAccountUseCaseTests
     [Fact]
     public async Task AKnownAccount_Succeeds()
     {
-        GivenTheOutcomeIs(LockoutChangeOutcome.Applied);
+        GivenTheOutcomeIs(LockoutChangeStatus.Applied);
 
         var result = await UseCase().ExecuteAsync(new LockAccountCommand(_targetId), TestToken);
 
@@ -84,7 +84,7 @@ public sealed class LockAccountUseCaseTests
     [Fact]
     public async Task ASuccessfulLock_RevokesEveryRefreshTokenForTheTarget()
     {
-        GivenTheOutcomeIs(LockoutChangeOutcome.Applied);
+        GivenTheOutcomeIs(LockoutChangeStatus.Applied);
 
         await UseCase().ExecuteAsync(new LockAccountCommand(_targetId), TestToken);
 
@@ -94,7 +94,7 @@ public sealed class LockAccountUseCaseTests
     [Fact]
     public async Task ASuccessfulLock_RecordsBothTheAdministrativeActionAndTheStampRotation()
     {
-        GivenTheOutcomeIs(LockoutChangeOutcome.Applied);
+        GivenTheOutcomeIs(LockoutChangeStatus.Applied);
 
         await UseCase().ExecuteAsync(new LockAccountCommand(_targetId), TestToken);
 
@@ -105,7 +105,7 @@ public sealed class LockAccountUseCaseTests
     [Fact]
     public async Task AStoreRefusal_RevokesNothing()
     {
-        GivenTheOutcomeIs(LockoutChangeOutcome.Rejected);
+        GivenTheOutcomeIs(LockoutChangeStatus.Rejected);
 
         var result = await UseCase().ExecuteAsync(new LockAccountCommand(_targetId), TestToken);
 
@@ -114,7 +114,7 @@ public sealed class LockAccountUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    private void GivenTheOutcomeIs(LockoutChangeOutcome outcome) =>
+    private void GivenTheOutcomeIs(LockoutChangeStatus outcome) =>
         _lockouts.LockAsync(_targetId, Arg.Any<CancellationToken>()).Returns(outcome);
 
     private LockAccountUseCase UseCaseFor(ICurrentUser currentUser) =>

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
@@ -41,8 +41,8 @@ public sealed class LoginUseCaseTests
     /// Every way the credential check can refuse. Read off the enum rather than listed, so a new
     /// outcome cannot be added without a decision about how it is answered.
     /// </summary>
-    public static TheoryData<CredentialCheckOutcome> Refusals =>
-        [.. Enum.GetValues<CredentialCheckOutcome>().Where(outcome => outcome is not CredentialCheckOutcome.Verified)];
+    public static TheoryData<CredentialCheckStatus> Refusals =>
+        [.. Enum.GetValues<CredentialCheckStatus>().Where(outcome => outcome is not CredentialCheckStatus.Verified)];
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -96,10 +96,10 @@ public sealed class LoginUseCaseTests
     /// </summary>
     [Theory]
     [MemberData(nameof(Refusals))]
-    public async Task EveryRefusal_AnswersWithTheSameError(CredentialCheckOutcome outcome)
+    public async Task EveryRefusal_AnswersWithTheSameError(CredentialCheckStatus outcome)
     {
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(CredentialCheck.Refused(outcome));
+            .Returns(CredentialCheckOutcome.Refused(outcome));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -117,12 +117,12 @@ public sealed class LoginUseCaseTests
     public async Task ARefusal_IsRecordedAsAnAuthenticationFailure()
     {
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(CredentialCheck.Refused(CredentialCheckOutcome.IncorrectPassword));
+            .Returns(CredentialCheckOutcome.Refused(CredentialCheckStatus.IncorrectPassword));
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
         _securityEventLog.Received(1)
-            .Record(SecurityEvent.AuthenticationFailed(null, CredentialCheckOutcome.IncorrectPassword));
+            .Record(SecurityEvent.AuthenticationFailed(null, CredentialCheckStatus.IncorrectPassword));
     }
 
     /// <summary>
@@ -135,15 +135,15 @@ public sealed class LoginUseCaseTests
     {
         var errors = new List<Error>();
 
-        foreach (var outcome in Enum.GetValues<CredentialCheckOutcome>())
+        foreach (var outcome in Enum.GetValues<CredentialCheckStatus>())
         {
-            if (outcome is CredentialCheckOutcome.Verified)
+            if (outcome is CredentialCheckStatus.Verified)
             {
                 continue;
             }
 
             _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-                .Returns(CredentialCheck.Refused(outcome));
+                .Returns(CredentialCheckOutcome.Refused(outcome));
 
             var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -156,10 +156,10 @@ public sealed class LoginUseCaseTests
 
     [Theory]
     [MemberData(nameof(Refusals))]
-    public async Task ARefusedLogin_MintsNoToken(CredentialCheckOutcome outcome)
+    public async Task ARefusedLogin_MintsNoToken(CredentialCheckStatus outcome)
     {
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(CredentialCheck.Refused(outcome));
+            .Returns(CredentialCheckOutcome.Refused(outcome));
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -176,8 +176,8 @@ public sealed class LoginUseCaseTests
     public async Task ARefusalCarryingAnAccount_IsStillARefusal()
     {
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new CredentialCheck(
-                CredentialCheckOutcome.LockedOut,
+            .Returns(new CredentialCheckOutcome(
+                CredentialCheckStatus.LockedOut,
                 new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", TwoFactorEnabled: false)));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
@@ -301,7 +301,7 @@ public sealed class LoginUseCaseTests
         var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", twoFactorEnabled);
 
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(CredentialCheck.Verified(account));
+            .Returns(CredentialCheckOutcome.Verified(account));
 
         _accessTokens.IssueAsync(account.UserId, Arg.Any<CancellationToken>())
             .Returns(new IssuedAccessToken("access-token", _accessTokenExpiry));

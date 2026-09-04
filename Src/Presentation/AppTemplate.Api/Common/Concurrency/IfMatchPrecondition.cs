@@ -4,22 +4,6 @@ using Microsoft.Net.Http.Headers;
 
 namespace AppTemplate.Api.Common.Concurrency;
 
-/// <summary>What a request's <c>If-Match</c> header amounts to.</summary>
-internal enum IfMatchState
-{
-    /// <summary>No header. Whether that is allowed is policy, not syntax.</summary>
-    Absent,
-
-    /// <summary><c>*</c>: the resource must exist, whatever version it is at.</summary>
-    Any,
-
-    /// <summary>One or more entity tags.</summary>
-    Tags,
-
-    /// <summary>Present, but not <c>*</c> and not a list of quoted entity tags.</summary>
-    Malformed,
-}
-
 /// <param name="Required">
 /// The versions the tags name, or <c>null</c> when the header states no version at all.
 /// </param>
@@ -60,7 +44,7 @@ internal sealed record IfMatchPrecondition(IfMatchState State, VersionPreconditi
 
         foreach (var tag in tags)
         {
-            if (EntityTagValue.TryReadVersion(tag, out uint version))
+            if (EntityTagMapping.TryReadVersion(tag, out uint version))
             {
                 versions.Add(version);
             }

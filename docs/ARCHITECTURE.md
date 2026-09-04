@@ -122,12 +122,14 @@ deliberate. It is partitioned internally as `Common/` (the mechanisms) plus
 `Features/<Feature>/` (models, configurations, mapping, tracking, repositories, queries,
 and — for a technical port rather than an aggregate, such as `IRefreshTokenStore` —
 stores), and an architecture test asserts that nothing under `Common/` depends on a
-feature's domain or persistence types. `AppDbContext` is excepted, because it applies
-every feature's configuration and is therefore the model's composition root;
-`Common/Observability/ReminderDiagnostics.cs` — the adapter for `IReminderDiagnostics`,
-a port that exists to observe `Reminders` — is a second exception the test does not
-need to name, since it checks dependencies rather than identifiers and this file has
-none on a forbidden namespace. See
+feature's domain or persistence types, nor on a feature's application-layer surface.
+`AppDbContext` is the one exception, because it applies every feature's configuration and
+is therefore the model's composition root. There used to be a second:
+`ReminderDiagnostics`, the adapter behind `IReminderDiagnostics`, sat under
+`Common/Observability/` while naming a feature in everything but its dependencies — which
+is precisely why the test could not see it. It now lives with the feature it counts, at
+`Features/Reminders/Observability/ReminderDiagnostics.cs`, and the rule has grown the third
+forbidden namespace that would have caught it. See
 [ADR 0010](adr/0010-one-persistence-project-one-dbcontext.md) for why the contexts were
 merged and [ADR 0011](adr/0011-persistence-models-separate-from-the-domain.md) for why EF
 maps rows rather than aggregates.
@@ -167,8 +169,8 @@ The Worker proves that the Application layer is composable by a non-HTTP host �
 references neither `AppTemplate.Api` nor `AppTemplate.Domain` (verified in
 `Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj`), and it calls real use
 cases without shortcutting to infrastructure
-(`Common/Maintenance/MaintenanceBackgroundService.cs`,
-`Common/Reminders/ReminderBackgroundService.cs`). It shows, in the same stroke, what
+(`Features/Maintenance/MaintenanceBackgroundService.cs`,
+`Features/Reminders/ReminderBackgroundService.cs`). It shows, in the same stroke, what
 that costs: a host has to satisfy, on its own, the ports that describe its calling
 context. Its `ICurrentUser` (`Common/Security/BackgroundCurrentUser.cs`) **throws** on
 `UserId`, because it has no caller to name — there is no HTTP request and no principal
@@ -292,7 +294,7 @@ HTTP 500.
 
 `Error` carries a stable dotted `Code` (`todoList.notFound`,
 `auth.login.invalidCredentials`) and an `ErrorType` that says how the transport should
-render it. `ErrorResults` is the single place where that becomes an HTTP status and a
+render it. `ErrorMapping` is the single place where that becomes an HTTP status and a
 ProblemDetails body, so a given situation always produces the same status on every
 endpoint. Codes are grouped in one file per vertical — `TodoListErrors`, `AuthErrors` —
 which is what stops the same situation from acquiring two codes; a code no single
@@ -394,7 +396,7 @@ supersedes [ADR 0006](adr/0006-two-dbcontexts-one-database.md).
 `AppTemplate.Api` is thin on purpose. A controller binds, calls one use case, and maps:
 
 - `ApiControllerBase` turns a `Result` into `200` / `201 + Location` / `204`, or hands
-  the `Error` to `ErrorResults`. No business logic, no `try`/`catch`, no hand-rolled
+  the `Error` to `ErrorMapping`. No business logic, no `try`/`catch`, no hand-rolled
   error shapes.
 - **Authorisation is default-deny.** `Program.cs` installs an authorization fallback
   policy requiring an authenticated user, so an endpoint is protected unless it opts

@@ -8,7 +8,7 @@
 /// the caller's id rather than by an email address: the caller already authenticated, so there is no
 /// anonymous address to protect from enumeration on the account-lookup side. What still must not be
 /// disclosed is whether <em>the new</em> address is already registered — see
-/// <see cref="EmailChangeRequest"/>.
+/// <see cref="EmailChangeRequestOutcome"/>.
 /// </para>
 /// <para>
 /// Composing and delivering the message is not here, for the reason given on
@@ -26,7 +26,7 @@ public interface IEmailChangeTokens
     /// <paramref name="newEmail"/> — proof that a stolen session alone cannot move the account to an
     /// address the attacker controls.
     /// </summary>
-    Task<EmailChangeRequest> IssueAsync(
+    Task<EmailChangeRequestOutcome> IssueAsync(
         Guid userId,
         string currentPassword,
         string newEmail,
@@ -37,7 +37,7 @@ public interface IEmailChangeTokens
     /// stamp as part of this call — see <c>IUserAccounts.ChangePasswordAsync</c> for what that
     /// invalidates and what it does not.
     /// </summary>
-    Task<EmailChangeConfirmation> RedeemAsync(
+    Task<EmailChangeConfirmationOutcome> RedeemAsync(
         Guid userId,
         string newEmail,
         string token,

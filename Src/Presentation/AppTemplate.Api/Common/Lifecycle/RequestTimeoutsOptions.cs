@@ -33,7 +33,7 @@ public sealed class RequestTimeoutsOptions
 
     /// <summary>
     /// 10 minutes by default, reachable only through the
-    /// <see cref="LifecyclePolicies.LongRequestTimeoutPolicy"/> named policy, for a future endpoint
+    /// <see cref="HostLifecycleExtensions.LongRequestTimeoutPolicy"/> named policy, for a future endpoint
     /// whose normal work — not a stream — legitimately runs longer than <see cref="Default"/> (a
     /// bulk import, say). It is still an ordinary request/response, so a timeout here can still
     /// answer a <c>ProblemDetails</c>.

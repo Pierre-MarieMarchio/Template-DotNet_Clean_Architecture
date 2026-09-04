@@ -22,7 +22,7 @@ public interface ITwoFactorAdministration
     /// through the target account's own credential. A no-op, not a failure, on an account that
     /// already has it off.
     /// </summary>
-    Task<TwoFactorAdministrativeDisableOutcome> DisableAsync(
+    Task<TwoFactorAdministrativeDisableStatus> DisableAsync(
         Guid userId,
         CancellationToken cancellationToken = default);
 }

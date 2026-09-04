@@ -12,7 +12,7 @@ internal static class ATodoList
     /// <summary>The creation event is already cleared, so callers assert on their own events only.</summary>
     internal static TodoList OwnedBy(Guid ownerId, string name = "Groceries")
     {
-        var list = TodoList.Create(ownerId, name, FixedDateTimeProvider.DefaultInstant);
+        var list = TodoList.Create(ownerId, name, StubDateTimeProvider.DefaultInstant);
         list.ClearDomainEvents();
 
         return list;

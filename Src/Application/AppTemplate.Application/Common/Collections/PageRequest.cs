@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Common.Results;
+
+namespace AppTemplate.Application.Common.Collections;
 
 /// <summary>A validated paging request, in either mode.</summary>
 public sealed record PageRequest

@@ -1,11 +1,15 @@
 ﻿namespace AppTemplate.Application.Features.Auth.Ports.RoleAssignments;
 
-public enum RoleAssignmentChangeOutcome
+/// <param name="RejectionMessage">
+/// Names the role or describes why the store refused, so it is safe to return verbatim. Set only for
+/// <see cref="RoleAssignmentChangeStatus.Rejected"/>.
+/// </param>
+public sealed record RoleAssignmentChangeOutcome(RoleAssignmentChangeStatus Status, string? RejectionMessage = null)
 {
-    Applied,
+    public static RoleAssignmentChangeOutcome Applied { get; } = new(RoleAssignmentChangeStatus.Applied);
 
-    NoSuchAccount,
+    public static RoleAssignmentChangeOutcome NoSuchAccount { get; } = new(RoleAssignmentChangeStatus.NoSuchAccount);
 
-    /// <summary>The store refused the change itself — an unknown role, or one already in that state.</summary>
-    Rejected,
+    public static RoleAssignmentChangeOutcome Rejected(string message) =>
+        new(RoleAssignmentChangeStatus.Rejected, message);
 }

@@ -14,7 +14,7 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 /// Some requests are answered before any of this API's code runs: a body that is not JSON, a route
 /// segment that fails its <c>:guid</c> constraint, a verb no action accepts, a media type nothing
 /// reads. Those come from the framework, not from an <c>Error</c>, so they never pass through
-/// <c>ErrorResults</c> and do not inherit its <c>code</c>. The API's contract is that a client
+/// <c>ErrorMapping</c> and do not inherit its <c>code</c>. The API's contract is that a client
 /// branches on <c>code</c> and never on prose — which is worth nothing on precisely the inputs a
 /// client is most likely to get wrong by accident.
 /// </remarks>
@@ -85,7 +85,7 @@ public sealed class FrameworkProblemDetailsTests(ApiFixture fixture) : Integrati
 
     /// <summary>
     /// A code the application authored must survive: the default must fill the field in, never
-    /// overwrite a more specific value that <c>ErrorResults</c> already set.
+    /// overwrite a more specific value that <c>ErrorMapping</c> already set.
     /// </summary>
     [Fact]
     public async Task AnErrorTheApplicationAuthored_KeepsItsOwnCode()

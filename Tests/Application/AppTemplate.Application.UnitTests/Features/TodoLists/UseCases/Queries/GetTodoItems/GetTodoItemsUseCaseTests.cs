@@ -1,5 +1,6 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItems;
@@ -50,7 +51,7 @@ public sealed class GetTodoItemsUseCaseTests
         var listId = Guid.CreateVersion7();
         var items = new[] { new TodoItemDto(Guid.CreateVersion7(), "Buy milk", null, false, null, []) };
         var detail = new Versioned<TodoListDetailDto>(
-            new TodoListDetailDto(listId, "Groceries", FixedDateTimeProvider.DefaultInstant, null, items),
+            new TodoListDetailDto(listId, "Groceries", StubDateTimeProvider.DefaultInstant, null, items),
             _listVersion);
         _queries.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>()).Returns(detail);
 

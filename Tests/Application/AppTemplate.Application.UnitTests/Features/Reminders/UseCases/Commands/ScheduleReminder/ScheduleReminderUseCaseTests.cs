@@ -1,5 +1,6 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
@@ -15,7 +16,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands
 public sealed class ScheduleReminderUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
-    private static readonly DateTimeOffset _now = FixedDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
 
     private readonly ITodoListQueries _todoLists = Substitute.For<ITodoListQueries>();
     private readonly IReminderRepository _reminders = Substitute.For<IReminderRepository>();
@@ -174,7 +175,7 @@ public sealed class ScheduleReminderUseCaseTests
         _reminders,
         _unitOfWork,
         currentUser,
-        new FixedDateTimeProvider(),
+        new StubDateTimeProvider(),
         _validator);
 
     private ScheduleReminderUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));

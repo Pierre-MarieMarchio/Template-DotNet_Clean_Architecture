@@ -4,7 +4,7 @@
 /// The fixed-window length both rate-limiting policies use.
 /// </summary>
 /// <remarks>
-/// A registered default rather than a literal inside <see cref="RateLimitingPolicies"/>, so a host
+/// A registered default rather than a literal inside <see cref="RateLimitingExtensions"/>, so a host
 /// that cannot tolerate the built-in limiter's real-time window — the fixed-window limiter exposes
 /// no injectable clock, so this is the only lever available to a caller that needs one — can replace
 /// this singleton before the limiter is built, the same way <c>AddInMemoryModule</c> replaces the

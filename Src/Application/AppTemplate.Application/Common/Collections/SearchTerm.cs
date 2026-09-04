@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Common.Results;
+
+namespace AppTemplate.Application.Common.Collections;
 
 /// <summary>
 /// A caller's free-text search input, trimmed and length-checked. It knows nothing about SQL or

@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+﻿using AppTemplate.Application.Common.Results;
+using FluentValidation;
 
 namespace AppTemplate.Application.Common.Validation;
 

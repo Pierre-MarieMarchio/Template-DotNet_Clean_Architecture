@@ -28,7 +28,7 @@ public sealed class IfMatchPreconditionTests
     [Fact]
     public void Read_IsTags_ForAKnownStrongEntityTag()
     {
-        string tag = EntityTagValue.From(7);
+        string tag = EntityTagMapping.From(7);
 
         var precondition = IfMatchPrecondition.Read(ARequestWithIfMatch(tag));
 
@@ -40,8 +40,8 @@ public sealed class IfMatchPreconditionTests
     [Fact]
     public void Read_AcceptsSeveralTags_AsOneAcceptableSet()
     {
-        string first = EntityTagValue.From(1);
-        string second = EntityTagValue.From(2);
+        string first = EntityTagMapping.From(1);
+        string second = EntityTagMapping.From(2);
 
         var precondition = IfMatchPrecondition.Read(ARequestWithIfMatch($"{first}, {second}"));
 

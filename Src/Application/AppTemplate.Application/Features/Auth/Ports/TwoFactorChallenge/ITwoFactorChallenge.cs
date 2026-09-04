@@ -25,7 +25,7 @@ public interface ITwoFactorChallenge
     /// app's current code first, a recovery code second — and consumes the challenge on a match. A
     /// wrong code leaves the challenge live, so the caller can retry until it expires.
     /// </summary>
-    Task<TwoFactorRedemption> RedeemAsync(
+    Task<TwoFactorRedemptionOutcome> RedeemAsync(
         string challengeToken,
         string code,
         CancellationToken cancellationToken = default);

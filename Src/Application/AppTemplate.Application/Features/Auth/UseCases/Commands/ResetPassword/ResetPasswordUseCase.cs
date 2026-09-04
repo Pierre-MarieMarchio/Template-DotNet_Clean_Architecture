@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Policies;
@@ -32,7 +32,7 @@ public sealed class ResetPasswordUseCase(
             request.NewPassword,
             cancellationToken);
 
-        if (reset.Outcome is PasswordResetOutcome.Rejected)
+        if (reset.Status is PasswordResetStatus.Rejected)
         {
             return Result.Failure(
                 AuthErrors.PasswordResetRejected(
@@ -41,12 +41,11 @@ public sealed class ResetPasswordUseCase(
 
         // An unknown address and an invalid or expired token collapse to the same error, for the
         // reason ConfirmEmailUseCase gives — telling them apart is exactly what a probe wants.
-        if (reset.Outcome is not PasswordResetOutcome.Reset || reset.UserId is not { } userId)
+        if (reset.Status is not PasswordResetStatus.Reset || reset.UserId is not { } userId)
         {
             return Result.Failure(AuthErrors.InvalidPasswordReset);
         }
 
-        // The security stamp already rotated inside the store's reset call.
         await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId, cancellationToken);
 
         return Result.Success();

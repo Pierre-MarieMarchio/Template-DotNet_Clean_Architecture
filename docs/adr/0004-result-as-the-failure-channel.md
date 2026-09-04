@@ -33,7 +33,7 @@ Three separate problems came out of that:
 `Error` is a record of `(Code, Message, ErrorType)`. `Code` is a stable dotted
 identifier — `todoList.notFound`, `auth.login.invalidCredentials` — and it is the
 contract: **clients branch on `code`, never on the prose in `detail`**. `ErrorType` says
-how the transport should render the failure, and `ErrorResults` is the single place that
+how the transport should render the failure, and `ErrorMapping` is the single place that
 turns it into an HTTP status and an RFC 7807 body.
 
 Codes live in one file per vertical (`TodoListErrors`, `AuthErrors`) so that the same

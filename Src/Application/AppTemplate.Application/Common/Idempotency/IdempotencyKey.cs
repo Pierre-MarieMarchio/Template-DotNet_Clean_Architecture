@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Application.Common.Idempotency;
+﻿using AppTemplate.Application.Common.Results;
+
+namespace AppTemplate.Application.Common.Idempotency;
 
 /// <summary>
 /// A validated <c>Idempotency-Key</c> header, scoped to the caller and the request it was sent

@@ -5,6 +5,9 @@ namespace AppTemplate.Domain.Features.TodoLists.Repositories;
 /// <summary>
 /// Deliberately not generic: a repository that fits every entity can only offer CRUD, which is
 /// what an aggregate exists to hide. One method per thing a use case actually needs.
+/// <para>
+/// Nothing here writes: <c>Add</c> and <c>Remove</c> stage, and <c>IUnitOfWork</c> is what commits.
+/// </para>
 /// </summary>
 public interface ITodoListRepository
 {
@@ -16,9 +19,8 @@ public interface ITodoListRepository
     /// <returns>The aggregate, or <c>null</c> when no list has that id.</returns>
     Task<TodoList?> GetAsync(Guid id, CancellationToken cancellationToken);
 
-    /// <summary>Stages a new aggregate for insertion.</summary>
     void Add(TodoList todoList);
 
-    /// <summary>Stages an aggregate for deletion, together with everything it owns.</summary>
+    /// <summary>Removes the list and everything it owns.</summary>
     void Remove(TodoList todoList);
 }

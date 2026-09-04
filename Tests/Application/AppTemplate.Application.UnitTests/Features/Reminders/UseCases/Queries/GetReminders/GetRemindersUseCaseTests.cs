@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminders;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Features.Reminders.Entities;
@@ -83,8 +83,8 @@ public sealed class GetRemindersUseCaseTests
     [Fact]
     public async Task TheCallersOwnReminders_AreOrderedByDueDate()
     {
-        var later = AReminder.OwnedBy(_callerId, dueAt: FixedDateTimeProvider.DefaultInstant.AddDays(2), todoListId: _todoListId, todoItemId: _todoItemId);
-        var sooner = AReminder.OwnedBy(_callerId, dueAt: FixedDateTimeProvider.DefaultInstant.AddDays(1), todoListId: _todoListId, todoItemId: _todoItemId);
+        var later = AReminder.OwnedBy(_callerId, dueAt: StubDateTimeProvider.DefaultInstant.AddDays(2), todoListId: _todoListId, todoItemId: _todoItemId);
+        var sooner = AReminder.OwnedBy(_callerId, dueAt: StubDateTimeProvider.DefaultInstant.AddDays(1), todoListId: _todoListId, todoItemId: _todoItemId);
         _repository.GetForTodoItemAsync(_todoItemId, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyList<Reminder>)[later, sooner]);
 

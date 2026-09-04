@@ -72,10 +72,10 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
         var user = await RegisterConfirmedUserAsync(client);
 
         using var forKnown = await client.PostAsJsonAsync(
-            $"{AuthRoute}/forgot-password", new ForgotPasswordRequest(user.Email), TestToken);
+            $"{AuthRoute}/forgot-password", new RequestPasswordResetRequest(user.Email), TestToken);
         using var forUnknown = await client.PostAsJsonAsync(
             $"{AuthRoute}/forgot-password",
-            new ForgotPasswordRequest("nobody-at-all@integration.test"),
+            new RequestPasswordResetRequest("nobody-at-all@integration.test"),
             TestToken);
 
         forKnown.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -101,7 +101,7 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
         var (client, user, session) = await SignInAsync();
 
         using var requested = await client.PostAsJsonAsync(
-            $"{AuthRoute}/forgot-password", new ForgotPasswordRequest(user.Email), TestToken);
+            $"{AuthRoute}/forgot-password", new RequestPasswordResetRequest(user.Email), TestToken);
         requested.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var (email, token) = ReadEmailLink(RequireLastEmailTo(user.Email));
@@ -140,7 +140,7 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
         var user = await RegisterConfirmedUserAsync(client, "reset-known");
 
         using var forgot = await client.PostAsJsonAsync(
-            $"{AuthRoute}/forgot-password", new ForgotPasswordRequest(user.Email), TestToken);
+            $"{AuthRoute}/forgot-password", new RequestPasswordResetRequest(user.Email), TestToken);
         forgot.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var (email, token) = ReadEmailLink(RequireLastEmailTo(user.Email));

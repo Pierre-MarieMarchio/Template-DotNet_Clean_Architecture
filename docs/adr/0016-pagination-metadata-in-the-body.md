@@ -4,7 +4,7 @@ Status: Accepted
 
 ## Context
 
-`PagedResult<TItem>` (`Src/Application/AppTemplate.Application/Common/PagedResult.cs`)
+`PagedResult<TItem>` (`Src/Application/AppTemplate.Application/Common/Results/PagedResult.cs`)
 already carries `Page`, `PageSize`, `TotalCount`, and derives `TotalPages` and
 `HasNextPage` from them. Keyset pagination is being added alongside it, which means the
 same envelope also carries an opaque cursor for the next page. RFC 8288 defines a second,

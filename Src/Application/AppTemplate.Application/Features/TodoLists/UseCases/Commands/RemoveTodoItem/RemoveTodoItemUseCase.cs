@@ -1,5 +1,6 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Extensions;
@@ -49,6 +50,6 @@ public sealed class RemoveTodoItemUseCase(
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // The item is gone; the list is what is left to describe, under its new version.
-        return TodoListProjection.Detail(todoList);
+        return TodoListDtoMapping.Detail(todoList);
     }
 }

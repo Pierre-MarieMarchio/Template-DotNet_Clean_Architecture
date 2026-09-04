@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
 
@@ -22,22 +22,22 @@ public sealed class SetUpTwoFactorUseCase(
     ITwoFactorEnrollment enrollment,
     ICurrentUser currentUser) : ISetUpTwoFactorUseCase
 {
-    public async Task<Result<SetUpTwoFactorResponse>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<SetUpTwoFactorOutcome>> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         var userId = currentUser.RequireUserId();
 
         if (userId.IsFailure)
         {
-            return userId.To<SetUpTwoFactorResponse>();
+            return userId.To<SetUpTwoFactorOutcome>();
         }
 
         var started = await enrollment.BeginAsync(userId.Value, cancellationToken);
 
-        if (started.Outcome is TwoFactorSetupOutcome.AlreadyEnabled)
+        if (started.Status is TwoFactorSetupStatus.AlreadyEnabled)
         {
-            return Result.Failure<SetUpTwoFactorResponse>(AuthErrors.TwoFactorAlreadyEnabled);
+            return Result.Failure<SetUpTwoFactorOutcome>(AuthErrors.TwoFactorAlreadyEnabled);
         }
 
-        return Result.Success(new SetUpTwoFactorResponse(started.SharedKey!, started.AuthenticatorUri!));
+        return Result.Success(new SetUpTwoFactorOutcome(started.SharedKey!, started.AuthenticatorUri!));
     }
 }

@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.AddTodoItem;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CompleteTodoItem;
@@ -199,7 +199,7 @@ public sealed class VersionPreconditionTests
                 new CompleteTodoItemUseCase(
                         access,
                         _unitOfWork,
-                        new FixedDateTimeProvider(),
+                        new StubDateTimeProvider(),
                         new CompleteTodoItemCommandValidator())
                     .ExecuteAsync(new CompleteTodoItemCommand(list.Id, itemId, precondition), TestToken)),
 

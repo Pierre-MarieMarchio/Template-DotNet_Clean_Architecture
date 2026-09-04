@@ -165,7 +165,7 @@ app.UseStatusCodePages();
 // are commitments over a whole domain that this application cannot know. The component terminating
 // TLS is the one that knows them and must send the header — see docs/adr/0012.
 
-app.UseCors(CorsPolicies.Default);
+app.UseCors(CorsExtensions.Default);
 app.UseRateLimiter();
 
 // After the rate limiter, so a rejected request never starts a clock that then has to be torn
@@ -183,7 +183,7 @@ app.MapControllers();
 // can even share one source address and partition. A traffic spike then answers the probe 429 too,
 // which the orchestrator reads as "unhealthy" on /health/ready and as "kill it" on /health — right
 // as the instance is already struggling, cascading the load onto whatever replicas survive.
-// ObservabilityPolicies excludes these same two paths from traces and logs for an unrelated reason
+// ObservabilityExtensions excludes these same two paths from traces and logs for an unrelated reason
 // (they would dominate every signal); this is the exclusion that keeps the instance alive.
 app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {

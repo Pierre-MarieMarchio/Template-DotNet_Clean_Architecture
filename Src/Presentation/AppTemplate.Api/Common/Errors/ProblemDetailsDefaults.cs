@@ -5,7 +5,7 @@ namespace AppTemplate.Api.Common.Errors;
 
 /// <summary>
 /// The single normaliser every <c>ProblemDetails</c> producer in this API funnels through, so a 400
-/// from model binding, one from <see cref="ErrorResults"/> and one from
+/// from model binding, one from <see cref="ErrorMapping"/> and one from
 /// <see cref="GlobalExceptionHandler"/> end up with the same three members filled in: <c>code</c>,
 /// <c>traceId</c> and <c>type</c>.
 /// <para>

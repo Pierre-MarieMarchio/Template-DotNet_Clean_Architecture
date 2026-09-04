@@ -1,16 +1,29 @@
-﻿namespace AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
+﻿using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 
-/// <summary>
-/// Why redeeming a challenge ended the way it did. Both non-<see cref="Verified"/> members must
-/// reach a caller as the same error — see <c>AuthErrors.InvalidTwoFactorChallenge</c>.
-/// </summary>
-public enum TwoFactorRedemptionOutcome
+namespace AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
+
+/// <param name="Account">
+/// Present for <see cref="TwoFactorRedemptionStatus.Verified"/> and for
+/// <see cref="TwoFactorRedemptionStatus.InvalidCode"/> alike — a live challenge was found either
+/// way, so there is an account to attribute a failed attempt to in the audit trail, and to issue
+/// tokens for once one succeeds. Absent for <see cref="TwoFactorRedemptionStatus.InvalidChallenge"/>:
+/// nothing live was ever found.
+/// </param>
+/// <param name="UsedRecoveryCode">
+/// Set only for <see cref="TwoFactorRedemptionStatus.Verified"/>, so the use case can record that a
+/// one-time code — not the authenticator app — completed this sign-in.
+/// </param>
+public sealed record TwoFactorRedemptionOutcome(
+    TwoFactorRedemptionStatus Status,
+    AccountIdentity? Account = null,
+    bool UsedRecoveryCode = false)
 {
-    Verified,
+    public static TwoFactorRedemptionOutcome InvalidChallenge { get; } =
+        new(TwoFactorRedemptionStatus.InvalidChallenge);
 
-    /// <summary>The token is unknown, malformed, expired, or already redeemed.</summary>
-    InvalidChallenge,
+    public static TwoFactorRedemptionOutcome InvalidCode(AccountIdentity account) =>
+        new(TwoFactorRedemptionStatus.InvalidCode, account);
 
-    /// <summary>The challenge is live, but the code did not match it — neither the authenticator app nor a recovery code.</summary>
-    InvalidCode,
+    public static TwoFactorRedemptionOutcome Verified(AccountIdentity account, bool usedRecoveryCode) =>
+        new(TwoFactorRedemptionStatus.Verified, account, usedRecoveryCode);
 }

@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Errors;
-using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -17,7 +17,7 @@ namespace AppTemplate.Api.Common.Controllers;
 // reachable at the same layer, ahead of every action, for the same reason.
 //
 // No [Produces("application/json")]: it is a result filter that unconditionally overwrites
-// ObjectResult.ContentTypes, including the "application/problem+json" that ErrorResults sets on
+// ObjectResult.ContentTypes, including the "application/problem+json" that ErrorMapping sets on
 // every error response. System.Text.Json is the only output formatter registered, so a success
 // response still negotiates to JSON without it.
 [ApiController]
@@ -64,7 +64,7 @@ public abstract class ApiControllerBase : ControllerBase
             return result.Error!.ToActionResult(HttpContext);
         }
 
-        string tag = EntityTagValue.From(result.Value.Version);
+        string tag = EntityTagMapping.From(result.Value.Version);
         Response.Headers.ETag = tag;
 
         return IfNoneMatchPrecondition.Matches(Request, tag)
@@ -82,7 +82,7 @@ public abstract class ApiControllerBase : ControllerBase
             return result.Error!.ToActionResult(HttpContext);
         }
 
-        Response.Headers.ETag = EntityTagValue.From(result.Value.Version);
+        Response.Headers.ETag = EntityTagMapping.From(result.Value.Version);
 
         return Serialised(result.Value.Value);
     }
@@ -123,7 +123,7 @@ public abstract class ApiControllerBase : ControllerBase
             return result.Error!.ToActionResult(HttpContext);
         }
 
-        Response.Headers.ETag = EntityTagValue.From(result.Value.Version);
+        Response.Headers.ETag = EntityTagMapping.From(result.Value.Version);
 
         return Located(routeName, routeValues(result.Value.Value), result.Value.Value);
     }
@@ -155,8 +155,8 @@ public abstract class ApiControllerBase : ControllerBase
 
         return ifMatch.State switch
         {
-            IfMatchState.Malformed => PreconditionProblems.Malformed.ToActionResult(HttpContext),
-            IfMatchState.Absent when IfMatchIsRequired() => PreconditionProblems.Required.ToActionResult(HttpContext),
+            IfMatchState.Malformed => PreconditionErrors.Malformed.ToActionResult(HttpContext),
+            IfMatchState.Absent when IfMatchIsRequired() => PreconditionErrors.Required.ToActionResult(HttpContext),
             _ => null,
         };
     }

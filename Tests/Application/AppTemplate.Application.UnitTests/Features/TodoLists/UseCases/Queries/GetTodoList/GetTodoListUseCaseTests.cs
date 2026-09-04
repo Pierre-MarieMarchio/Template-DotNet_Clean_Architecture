@@ -1,5 +1,6 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoList;
@@ -157,7 +158,7 @@ public sealed class GetTodoListUseCaseTests
     #endregion
 
     private static Versioned<TodoListDetailDto> ADetailFor(Guid listId) =>
-        new(new TodoListDetailDto(listId, "Groceries", FixedDateTimeProvider.DefaultInstant, null, []), _listVersion);
+        new(new TodoListDetailDto(listId, "Groceries", StubDateTimeProvider.DefaultInstant, null, []), _listVersion);
 
     private GetTodoListUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(_queries, currentUser, new GetTodoListQueryValidator());

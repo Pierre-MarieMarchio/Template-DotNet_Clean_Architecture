@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
@@ -47,7 +47,7 @@ public sealed class ConfirmEmailChangeUseCaseTests
     [Fact]
     public async Task ASuccessfulChange_Succeeds()
     {
-        GivenTheOutcomeIs(EmailChangeConfirmation.Changed);
+        GivenTheOutcomeIs(EmailChangeConfirmationOutcome.Changed);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -57,9 +57,9 @@ public sealed class ConfirmEmailChangeUseCaseTests
     /// <summary>Every way redeeming can fail except a rejected address, collapsed to one error.</summary>
     [Theory]
     [MemberData(nameof(GenericRefusals))]
-    public async Task ABadTokenOrAMissingAccount_AnswerWithTheSameError(EmailChangeConfirmationOutcome outcome)
+    public async Task ABadTokenOrAMissingAccount_AnswerWithTheSameError(EmailChangeConfirmationStatus outcome)
     {
-        GivenTheOutcomeIs(new EmailChangeConfirmation(outcome));
+        GivenTheOutcomeIs(new EmailChangeConfirmationOutcome(outcome));
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -69,13 +69,13 @@ public sealed class ConfirmEmailChangeUseCaseTests
             "The email change link is invalid or has expired."));
     }
 
-    public static TheoryData<EmailChangeConfirmationOutcome> GenericRefusals =>
-        [EmailChangeConfirmationOutcome.NoSuchAccount, EmailChangeConfirmationOutcome.InvalidToken];
+    public static TheoryData<EmailChangeConfirmationStatus> GenericRefusals =>
+        [EmailChangeConfirmationStatus.NoSuchAccount, EmailChangeConfirmationStatus.InvalidToken];
 
     [Fact]
     public async Task ARejectedNewAddress_ReportsTheStoresMessage()
     {
-        GivenTheOutcomeIs(EmailChangeConfirmation.Rejected("That address is not allowed."));
+        GivenTheOutcomeIs(EmailChangeConfirmationOutcome.Rejected("That address is not allowed."));
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -90,7 +90,7 @@ public sealed class ConfirmEmailChangeUseCaseTests
     [Fact]
     public async Task ASuccessfulChange_RevokesEveryRefreshTokenForTheAccount()
     {
-        GivenTheOutcomeIs(EmailChangeConfirmation.Changed);
+        GivenTheOutcomeIs(EmailChangeConfirmationOutcome.Changed);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -100,7 +100,7 @@ public sealed class ConfirmEmailChangeUseCaseTests
     [Fact]
     public async Task ASuccessfulChange_RecordsTheSecurityStampRotation()
     {
-        GivenTheOutcomeIs(EmailChangeConfirmation.Changed);
+        GivenTheOutcomeIs(EmailChangeConfirmationOutcome.Changed);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -110,7 +110,7 @@ public sealed class ConfirmEmailChangeUseCaseTests
     [Fact]
     public async Task AFailedChange_RevokesNothing()
     {
-        GivenTheOutcomeIs(EmailChangeConfirmation.InvalidToken);
+        GivenTheOutcomeIs(EmailChangeConfirmationOutcome.InvalidToken);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -120,7 +120,7 @@ public sealed class ConfirmEmailChangeUseCaseTests
 
     private static ConfirmEmailChangeCommand ARequest() => new("new@example.com", "a-token");
 
-    private void GivenTheOutcomeIs(EmailChangeConfirmation confirmation) =>
+    private void GivenTheOutcomeIs(EmailChangeConfirmationOutcome confirmation) =>
         _emailChangeTokens.RedeemAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(confirmation);
 

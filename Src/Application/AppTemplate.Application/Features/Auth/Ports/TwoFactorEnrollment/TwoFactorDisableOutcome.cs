@@ -1,9 +1,8 @@
 ﻿namespace AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
 
-public enum TwoFactorDisableOutcome
+public sealed record TwoFactorDisableOutcome(TwoFactorDisableStatus Status)
 {
-    Disabled,
+    public static TwoFactorDisableOutcome Disabled { get; } = new(TwoFactorDisableStatus.Disabled);
 
-    /// <summary>The supplied current password did not match the one on file.</summary>
-    IncorrectPassword,
+    public static TwoFactorDisableOutcome IncorrectPassword { get; } = new(TwoFactorDisableStatus.IncorrectPassword);
 }

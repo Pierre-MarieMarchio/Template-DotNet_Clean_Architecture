@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Policies;
@@ -43,19 +43,18 @@ public sealed class ConfirmEmailChangeUseCase(
             request.Token,
             cancellationToken);
 
-        if (confirmation.Outcome is EmailChangeConfirmationOutcome.Rejected)
+        if (confirmation.Status is EmailChangeConfirmationStatus.Rejected)
         {
             return Result.Failure(
                 AuthErrors.EmailChangeRejected(
                     confirmation.RejectionMessage ?? "The new email address was rejected."));
         }
 
-        if (confirmation.Outcome is not EmailChangeConfirmationOutcome.Changed)
+        if (confirmation.Status is not EmailChangeConfirmationStatus.Changed)
         {
             return Result.Failure(AuthErrors.InvalidEmailChange);
         }
 
-        // The security stamp already rotated inside ChangeEmailAsync.
         await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
 
         return Result.Success();

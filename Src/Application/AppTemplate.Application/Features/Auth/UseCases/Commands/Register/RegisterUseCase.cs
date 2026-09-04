@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
@@ -20,7 +20,7 @@ public sealed class RegisterUseCase(
     IValidator<RegisterCommand> validator,
     ILogger<RegisterUseCase> logger) : IRegisterUseCase
 {
-    public async Task<Result<RegisterResponse>> ExecuteAsync(
+    public async Task<Result<RegisterOutcome>> ExecuteAsync(
         RegisterCommand request,
         CancellationToken cancellationToken = default)
     {
@@ -30,7 +30,7 @@ public sealed class RegisterUseCase(
 
         if (validation.IsFailure)
         {
-            return validation.To<RegisterResponse>();
+            return validation.To<RegisterOutcome>();
         }
 
         var creation = await accounts.CreateAsync(
@@ -39,9 +39,9 @@ public sealed class RegisterUseCase(
             request.Password,
             cancellationToken);
 
-        if (creation.Outcome is not AccountCreationOutcome.Created)
+        if (creation.Status is not AccountCreationStatus.Created)
         {
-            return Result.Failure<RegisterResponse>(ToError(creation));
+            return Result.Failure<RegisterOutcome>(ToError(creation));
         }
 
         securityEventLog.Record(SecurityEvent.Registered(creation.UserId));
@@ -55,15 +55,15 @@ public sealed class RegisterUseCase(
             request.Email,
             cancellationToken);
 
-        return Result.Success(new RegisterResponse(
+        return Result.Success(new RegisterOutcome(
             creation.UserId,
             request.UserName,
             request.Email,
             confirmationEmailSent));
     }
 
-    private static Error ToError(AccountCreation creation) =>
-        creation.Outcome is AccountCreationOutcome.Conflict
+    private static Error ToError(AccountCreationOutcome creation) =>
+        creation.Status is AccountCreationStatus.Conflict
             ? AuthErrors.RegistrationConflict
             : AuthErrors.RegistrationRejected(
                 creation.RejectionMessage ?? "The submitted password does not meet the required policy.");

@@ -26,7 +26,7 @@ public interface IEmailConfirmationTokens
     /// Redeems a token. An already-confirmed address is not short-circuited to success, which would
     /// answer "does this address exist and is it confirmed?" for any caller with a junk token.
     /// </summary>
-    Task<EmailConfirmationOutcome> RedeemAsync(
+    Task<EmailConfirmationStatus> RedeemAsync(
         string email,
         string token,
         CancellationToken cancellationToken = default);

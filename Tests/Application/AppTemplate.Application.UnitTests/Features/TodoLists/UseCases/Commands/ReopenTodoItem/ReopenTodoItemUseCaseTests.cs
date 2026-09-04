@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.ReopenTodoItem;
 using AppTemplate.Application.UnitTests.TestDoubles;
@@ -17,7 +17,7 @@ public sealed class ReopenTodoItemUseCaseTests
 
     private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
-    private readonly FixedDateTimeProvider _clock = new();
+    private readonly StubDateTimeProvider _clock = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -49,7 +49,7 @@ public sealed class ReopenTodoItemUseCaseTests
     public async Task ACompletedItem_IsReopenedAndRaisesTheReopenedEvent()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        list.CompleteItem(itemId, FixedDateTimeProvider.DefaultInstant);
+        list.CompleteItem(itemId, StubDateTimeProvider.DefaultInstant);
         list.ClearDomainEvents();
         _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
 

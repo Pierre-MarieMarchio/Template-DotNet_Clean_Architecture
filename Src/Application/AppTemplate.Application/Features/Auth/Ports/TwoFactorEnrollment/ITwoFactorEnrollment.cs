@@ -22,7 +22,7 @@ public interface ITwoFactorEnrollment
     /// confirmation hands back the same one rather than silently replacing it, so reloading the setup
     /// page does not invalidate a code the caller already scanned.
     /// </summary>
-    Task<TwoFactorSetup> BeginAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<TwoFactorSetupOutcome> BeginAsync(Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Verifies the current password and the first code against the pending secret and, on a match
@@ -34,7 +34,7 @@ public interface ITwoFactorEnrollment
     /// disarming it does, so a caller who could not disable it with a stolen session alone must not be
     /// able to arm it with one either.
     /// </summary>
-    Task<TwoFactorConfirmation> ConfirmAsync(
+    Task<TwoFactorConfirmationOutcome> ConfirmAsync(
         Guid userId,
         string currentPassword,
         string code,
@@ -45,7 +45,7 @@ public interface ITwoFactorEnrollment
     /// password is required for the reason <c>IUserAccounts.ChangePasswordAsync</c> gives: a stolen
     /// session alone must not be able to strip the account's second factor.
     /// </summary>
-    Task<TwoFactorDisable> DisableAsync(
+    Task<TwoFactorDisableOutcome> DisableAsync(
         Guid userId,
         string currentPassword,
         CancellationToken cancellationToken = default);

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.RoleAssignments;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
@@ -43,7 +43,7 @@ public sealed class AddRoleUseCaseTests
     [Fact]
     public async Task AnUnknownAccount_IsReportedAsNotFound()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.NoSuchAccount);
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.NoSuchAccount);
 
         var result = await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, _role), TestToken);
 
@@ -54,7 +54,7 @@ public sealed class AddRoleUseCaseTests
     [Fact]
     public async Task AKnownAccount_Succeeds()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.Applied);
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
 
         var result = await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, _role), TestToken);
 
@@ -64,7 +64,7 @@ public sealed class AddRoleUseCaseTests
     [Fact]
     public async Task AnUnseededRole_ReportsTheStoresMessage()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.Rejected("Role 'Ghost' does not exist."));
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Rejected("Role 'Ghost' does not exist."));
 
         var result = await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, "Ghost"), TestToken);
 
@@ -76,7 +76,7 @@ public sealed class AddRoleUseCaseTests
     [Fact]
     public async Task ASuccessfulGrant_RevokesEveryRefreshTokenForTheTarget()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.Applied);
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
 
         await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, _role), TestToken);
 
@@ -86,7 +86,7 @@ public sealed class AddRoleUseCaseTests
     [Fact]
     public async Task ASuccessfulGrant_RecordsBothTheAdministrativeActionAndTheStampRotation()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.Applied);
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
 
         await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, _role), TestToken);
 
@@ -97,7 +97,7 @@ public sealed class AddRoleUseCaseTests
     [Fact]
     public async Task AStoreRefusal_RevokesNothing()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.Rejected("already assigned"));
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Rejected("already assigned"));
 
         await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, _role), TestToken);
 
@@ -105,7 +105,7 @@ public sealed class AddRoleUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    private void GivenTheOutcomeIs(RoleAssignmentChange change) =>
+    private void GivenTheOutcomeIs(RoleAssignmentChangeOutcome change) =>
         _roles.AddRoleAsync(_targetId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(change);
 
     private AddRoleUseCase UseCase() => new(_roles, _refreshTokens, _securityEventLog, new AddRoleCommandValidator());

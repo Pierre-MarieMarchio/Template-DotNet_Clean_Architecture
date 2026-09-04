@@ -7,7 +7,7 @@ namespace AppTemplate.Infrastructure.Identity.UnitTests.Fixtures;
 /// <summary>
 /// Computes the six-digit code a real authenticator app would show for a given shared key, so a test
 /// can prove a right code is accepted without ever advancing a clock ASP.NET Identity does not read
-/// — see <c>TwoFactorEnrollment</c> for why <see cref="AppTemplate.Application.Common.Abstractions.IDateTimeProvider"/>
+/// — see <c>TwoFactorEnrollmentService</c> for why <see cref="AppTemplate.Application.Common.Abstractions.IDateTimeProvider"/>
 /// has no say over a TOTP window.
 /// <para>
 /// Reached through reflection rather than a call, because <c>Rfc6238AuthenticationService</c> —

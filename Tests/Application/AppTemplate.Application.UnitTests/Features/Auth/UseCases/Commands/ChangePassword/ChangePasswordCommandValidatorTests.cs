@@ -24,7 +24,7 @@ public sealed class ChangePasswordCommandValidatorTests
     [Fact]
     public void ANewPasswordBelowTheFloor_IsRejected() =>
         ShouldFailOn(
-            new ChangePasswordCommand("old password", new string('a', PasswordRules.AbsoluteMinimumPasswordLength - 1)),
+            new ChangePasswordCommand("old password", new string('a', PasswordPolicy.AbsoluteMinimumPasswordLength - 1)),
             "NewPassword");
 
     [Fact]

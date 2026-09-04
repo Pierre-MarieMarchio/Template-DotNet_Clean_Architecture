@@ -1,4 +1,4 @@
-﻿using AppTemplate.Infrastructure.Identity.Users;
+﻿using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -7,13 +7,13 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.Accounts;
 
 /// <summary>
-/// <see cref="UserProfiles"/> always reads the store — see <c>IUserProfiles</c> for why a claims-based
+/// <see cref="UserProfilesService"/> always reads the store — see <c>IUserProfilesService</c> for why a claims-based
 /// shortcut is refused — so these assert what it reads and how it maps what comes back.
 /// </summary>
-public sealed class UserProfilesTests
+public sealed class UserProfilesServiceTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
 
@@ -60,7 +60,7 @@ public sealed class UserProfilesTests
         profile.TwoFactorEnabled.ShouldBeTrue();
     }
 
-    private UserProfiles CreateProfiles()
+    private UserProfilesService CreateProfiles()
     {
         var options = new OptionsWrapper<IdentityOptions>(new IdentityOptions());
 
@@ -75,6 +75,6 @@ public sealed class UserProfilesTests
             Substitute.For<IServiceProvider>(),
             NullLogger<UserManager<AppUser>>.Instance);
 
-        return new UserProfiles(userManager);
+        return new UserProfilesService(userManager);
     }
 }

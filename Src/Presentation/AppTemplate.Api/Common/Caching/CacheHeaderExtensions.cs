@@ -5,7 +5,7 @@
 /// contract instead of leaving one implied.
 /// </summary>
 /// <remarks>
-/// See <c>docs/adr/0019-caching-is-revalidation-not-storage.md</c>: <c>private</c> confines storage to
+/// Caching here is revalidation, not storage: <c>private</c> confines storage to
 /// the end client, never a shared cache, because every read here is scoped to the caller's own rows.
 /// <c>no-cache</c> still permits that client to store the response, but requires it to revalidate with
 /// the origin before reuse — which is precisely what the strong <c>ETag</c> / <c>If-None-Match</c> /

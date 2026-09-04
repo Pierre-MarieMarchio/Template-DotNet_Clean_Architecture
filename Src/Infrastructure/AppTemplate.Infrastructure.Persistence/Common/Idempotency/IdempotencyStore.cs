@@ -95,7 +95,7 @@ internal sealed class IdempotencyStore(
             return Decide(key, existing);
         }
 
-        // Same two-participant rendezvous as RefreshTokenStore.TryRotateAsync: the WHERE clause
+        // Same two-participant rendezvous as RefreshTokenTable.TryRotateAsync: the WHERE clause
         // restates every condition that made the row reclaimable, so the database — not this read —
         // decides which of two simultaneous retries wins. Zero rows affected means we lost.
         int reclaimed = await context.IdempotencyKeys

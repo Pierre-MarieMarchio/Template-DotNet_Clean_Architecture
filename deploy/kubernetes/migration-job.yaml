@@ -1,5 +1,5 @@
-# The "explicit step" docs/adr/0009 requires instead of migrating at application startup — the
-# ADR names a Kubernetes Job running `database update` as exactly the right shape for it. Apply
+# The "explicit step" CONTRIBUTING.md's Migrations section requires instead of migrating at
+# application startup, and a Kubernetes Job running `database update` is its shape here. Apply
 # this and wait for it to complete BEFORE api-deployment.yaml or worker-deployment.yaml rolls;
 # see deploy/kubernetes/README.md for why `kubectl apply -f deploy/kubernetes/` alone does not
 # give you that ordering.

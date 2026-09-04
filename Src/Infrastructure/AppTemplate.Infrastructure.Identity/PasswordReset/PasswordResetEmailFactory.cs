@@ -1,25 +1,25 @@
 ﻿using System.Globalization;
 using System.Net;
-using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailComposer;
-using AppTemplate.Infrastructure.Identity.Options;
+using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailFactory;
+using AppTemplate.Infrastructure.Identity.EmailConfirmation;
 using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Notifications;
+namespace AppTemplate.Infrastructure.Identity.PasswordReset;
 
 /// <summary>
 /// Renders the password-reset email and hands it back for the caller to deliver. Encoding and link
-/// construction mirror <see cref="ConfirmationEmailComposer"/> exactly — see there for why every
+/// construction mirror <see cref="ConfirmationEmailFactory"/> exactly — see there for why every
 /// substituted value is HTML-encoded and why the token travels in the link's fragment.
 /// </summary>
-internal sealed class PasswordResetEmailComposer(IOptions<PasswordResetOptions> options)
-    : IPasswordResetEmailComposer
+internal sealed class PasswordResetEmailFactory(IOptions<PasswordResetOptions> options)
+    : IPasswordResetEmailFactory
 {
-    private const string _templateResourceSuffix = "Templates.PasswordResetEmailTemplate.html";
+    private const string _templateResourceSuffix = "PasswordReset.PasswordResetEmailTemplate.html";
 
-    /// <summary>Read once for the process, and by exactly one thread. See <see cref="ConfirmationEmailComposer"/>.</summary>
+    /// <summary>Read once for the process, and by exactly one thread. See <see cref="ConfirmationEmailFactory"/>.</summary>
     private static readonly Lazy<Task<string>> _template = new(ReadTemplateAsync);
 
-    public async Task<PasswordResetEmail> ComposeAsync(
+    public async Task<PasswordResetEmail> CreateAsync(
         string userName,
         string email,
         string token,
@@ -69,10 +69,10 @@ internal sealed class PasswordResetEmailComposer(IOptions<PasswordResetOptions> 
         return template;
     }
 
-    /// <summary>Embedded rather than copied, for the reason <see cref="ConfirmationEmailComposer"/> gives.</summary>
+    /// <summary>Embedded rather than copied, for the reason <see cref="ConfirmationEmailFactory"/> gives.</summary>
     private static async Task<string> ReadTemplateAsync()
     {
-        var assembly = typeof(PasswordResetEmailComposer).Assembly;
+        var assembly = typeof(PasswordResetEmailFactory).Assembly;
         string resourceName = Array.Find(
                 assembly.GetManifestResourceNames(),
                 name => name.EndsWith(_templateResourceSuffix, StringComparison.Ordinal))

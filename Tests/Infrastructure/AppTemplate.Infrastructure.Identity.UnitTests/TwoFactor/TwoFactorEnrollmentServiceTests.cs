@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
-using AppTemplate.Infrastructure.Identity.Options;
+using AppTemplate.Infrastructure.Identity.Accounts;
+using AppTemplate.Infrastructure.Identity.TwoFactor;
 using AppTemplate.Infrastructure.Identity.UnitTests.Fixtures;
-using AppTemplate.Infrastructure.Identity.Users;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -10,15 +10,15 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.TwoFactor;
 
 /// <summary>
-/// <see cref="TwoFactorEnrollment"/> over a real <see cref="UserManager{TUser}"/>, with a real
+/// <see cref="TwoFactorEnrollmentService"/> over a real <see cref="UserManager{TUser}"/>, with a real
 /// <see cref="AuthenticatorTokenProvider{TUser}"/> registered under
 /// <see cref="TokenOptions.DefaultAuthenticatorProvider"/> — so a right code is proven right the same
 /// way a real authenticator app would be checked, not assumed.
 /// </summary>
-public sealed class TwoFactorEnrollmentTests
+public sealed class TwoFactorEnrollmentServiceTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
 
@@ -199,7 +199,7 @@ public sealed class TwoFactorEnrollmentTests
         user.SecurityStamp.ShouldBe(stampAfterBegin);
     }
 
-    /// <summary>The caller already authenticated as this id — see <c>UserAccounts.ChangePasswordAsync</c>.</summary>
+    /// <summary>The caller already authenticated as this id — see <c>UserAccountsService.ChangePasswordAsync</c>.</summary>
     [Fact]
     public async Task ConfirmAsync_AnAccountWithNoPasswordHash_IsReportedAsAnIncorrectPassword()
     {
@@ -256,7 +256,7 @@ public sealed class TwoFactorEnrollmentTests
         user.TwoFactorEnabled.ShouldBeTrue();
     }
 
-    /// <summary>The caller already authenticated as this id — see <c>UserAccounts.ChangePasswordAsync</c>.</summary>
+    /// <summary>The caller already authenticated as this id — see <c>UserAccountsService.ChangePasswordAsync</c>.</summary>
     [Fact]
     public async Task DisableAsync_AnAccountThatNoLongerExists_IsReportedAsAnIncorrectPassword()
     {
@@ -336,7 +336,7 @@ public sealed class TwoFactorEnrollmentTests
         return user;
     }
 
-    private TwoFactorEnrollment CreateEnrollment(int recoveryCodeCount = 10)
+    private TwoFactorEnrollmentService CreateEnrollment(int recoveryCodeCount = 10)
     {
         var userManager = new UserManager<AppUser>(
             _store,
@@ -353,10 +353,10 @@ public sealed class TwoFactorEnrollmentTests
 
         var options = new OptionsWrapper<TwoFactorOptions>(new TwoFactorOptions { RecoveryCodeCount = recoveryCodeCount });
 
-        return new TwoFactorEnrollment(userManager, _directory, options);
+        return new TwoFactorEnrollmentService(userManager, _directory, options);
     }
 
-    /// <summary>A hasher whose verification result the test controls — see <c>UserAccountsChangePasswordTests</c>.</summary>
+    /// <summary>A hasher whose verification result the test controls — see <c>UserAccountsServiceChangePasswordTests</c>.</summary>
     private sealed class ConfigurableHasher : IPasswordHasher<AppUser>
     {
         public PasswordVerificationResult NextVerification { get; set; } = PasswordVerificationResult.Failed;

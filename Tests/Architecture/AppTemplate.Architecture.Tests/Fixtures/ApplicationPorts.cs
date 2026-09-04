@@ -66,8 +66,8 @@ internal static class ApplicationPorts
             .OrderBy(type => type.FullName, StringComparer.Ordinal)];
 
     /// <summary>
-    /// The repository contracts, which ADR 0024 puts in the Domain because their signatures name
-    /// nothing but aggregates. They are ports in every sense that matters to a composed host — a
+    /// The repository contracts, which live in the Domain because their signatures name nothing but
+    /// aggregates. They are ports in every sense that matters to a composed host — a
     /// module satisfies them and the container has to resolve them — so a rule about "every port"
     /// that skipped them would be checking the easier half.
     /// </summary>

@@ -1,19 +1,19 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Idempotency;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
-using AppTemplate.Application.Features.Reminders.Ports.ReminderTargets;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
-using AppTemplate.Infrastructure.Persistence.Common.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
-using AppTemplate.Infrastructure.Persistence.Common.DomainEvents;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
+using AppTemplate.Infrastructure.Persistence.Common.Saving;
+using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
+using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
+using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Common.Time;
-using AppTemplate.Infrastructure.Persistence.Common.Tracking;
-using AppTemplate.Infrastructure.Persistence.Common.UnitOfWork;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Stores;
+using AppTemplate.Infrastructure.Persistence.Features.Identity.Tables;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Observability;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Queries;
@@ -147,7 +147,7 @@ public static class PersistenceModule
         services.AddScoped<IDomainEventSource>(provider => provider.GetRequiredService<ReminderTracker>());
 
         services.TryAddScoped<IReminderRepository, ReminderRepository>();
-        services.TryAddScoped<IReminderTargets, ReminderTargets>();
+        services.TryAddScoped<IReminderTargetQueries, ReminderTargetQueries>();
 
         // Wraps a static Meter/Counter pair (see ReminderDiagnostics), so one instance per process
         // is a choice made for clarity, not a requirement: a scoped registration would have been
@@ -157,7 +157,7 @@ public static class PersistenceModule
 
     private static void AddIdentityFeature(IServiceCollection services)
     {
-        services.TryAddScoped<IRefreshTokenStore, RefreshTokenStore>();
+        services.TryAddScoped<IRefreshTokenTable, RefreshTokenTable>();
 
         // Constructible only once the identity module has composed ASP.NET Identity, because seeding an
         // account means hashing a password and generating a security stamp — not writing a row. That is

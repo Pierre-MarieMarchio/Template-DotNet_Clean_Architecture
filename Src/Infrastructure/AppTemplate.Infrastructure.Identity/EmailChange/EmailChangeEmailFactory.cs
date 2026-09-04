@@ -1,25 +1,25 @@
 ﻿using System.Globalization;
 using System.Net;
-using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailComposer;
-using AppTemplate.Infrastructure.Identity.Options;
+using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailFactory;
+using AppTemplate.Infrastructure.Identity.EmailConfirmation;
 using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Notifications;
+namespace AppTemplate.Infrastructure.Identity.EmailChange;
 
 /// <summary>
 /// Renders the email-change confirmation message and hands it back for the caller to deliver.
-/// Encoding and link construction mirror <see cref="ConfirmationEmailComposer"/> exactly — see there
+/// Encoding and link construction mirror <see cref="ConfirmationEmailFactory"/> exactly — see there
 /// for why every substituted value is HTML-encoded and why the token travels in the link's fragment.
 /// </summary>
-internal sealed class EmailChangeEmailComposer(IOptions<EmailChangeOptions> options)
-    : IEmailChangeEmailComposer
+internal sealed class EmailChangeEmailFactory(IOptions<EmailChangeOptions> options)
+    : IEmailChangeEmailFactory
 {
-    private const string _templateResourceSuffix = "Templates.EmailChangeEmailTemplate.html";
+    private const string _templateResourceSuffix = "EmailChange.EmailChangeEmailTemplate.html";
 
-    /// <summary>Read once for the process, and by exactly one thread. See <see cref="ConfirmationEmailComposer"/>.</summary>
+    /// <summary>Read once for the process, and by exactly one thread. See <see cref="ConfirmationEmailFactory"/>.</summary>
     private static readonly Lazy<Task<string>> _template = new(ReadTemplateAsync);
 
-    public async Task<EmailChangeEmail> ComposeAsync(
+    public async Task<EmailChangeEmail> CreateAsync(
         string userName,
         string newEmail,
         string token,
@@ -69,10 +69,10 @@ internal sealed class EmailChangeEmailComposer(IOptions<EmailChangeOptions> opti
         return template;
     }
 
-    /// <summary>Embedded rather than copied, for the reason <see cref="ConfirmationEmailComposer"/> gives.</summary>
+    /// <summary>Embedded rather than copied, for the reason <see cref="ConfirmationEmailFactory"/> gives.</summary>
     private static async Task<string> ReadTemplateAsync()
     {
-        var assembly = typeof(EmailChangeEmailComposer).Assembly;
+        var assembly = typeof(EmailChangeEmailFactory).Assembly;
         string resourceName = Array.Find(
                 assembly.GetManifestResourceNames(),
                 name => name.EndsWith(_templateResourceSuffix, StringComparison.Ordinal))

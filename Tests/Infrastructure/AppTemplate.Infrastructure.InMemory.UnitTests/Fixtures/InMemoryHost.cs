@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Infrastructure.InMemory.Email;
-using AppTemplate.Infrastructure.InMemory.Time;
+using AppTemplate.Infrastructure.InMemory.Common.Email;
+using AppTemplate.Infrastructure.InMemory.Common.Time;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Fixtures;

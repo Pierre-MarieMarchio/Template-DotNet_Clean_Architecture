@@ -6,7 +6,7 @@ public enum EmailChangeConfirmationStatus
 
     /// <summary>
     /// The caller already authenticated as this id, so an absent account is not an enumeration
-    /// concern here — see <see cref="IEmailChangeTokens"/>. It only means the account was deleted
+    /// concern here — see <see cref="IEmailChangeTokensService"/>. It only means the account was deleted
     /// after the token was issued.
     /// </summary>
     NoSuchAccount,

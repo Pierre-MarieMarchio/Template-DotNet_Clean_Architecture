@@ -5,15 +5,15 @@ using System.Text;
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
-using AppTemplate.Infrastructure.Identity.Options;
+using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Users;
+namespace AppTemplate.Infrastructure.Identity.TwoFactor;
 
 /// <summary>
-/// <see cref="ITwoFactorChallenge"/> over <see cref="UserManager{TUser}"/>'s authentication-token
+/// <see cref="ITwoFactorChallengeService"/> over <see cref="UserManager{TUser}"/>'s authentication-token
 /// store — the same <c>AspNetUserTokens</c> table ASP.NET Identity already uses for the authenticator
 /// key and recovery codes, under a login provider name of this module's own so the two never collide.
 /// <para>
@@ -26,22 +26,22 @@ namespace AppTemplate.Infrastructure.Identity.Users;
 /// <para>
 /// <b>Format.</b> The token handed to the caller is <c>{userId}.{secret}</c>: a login is anonymous,
 /// so the account has to be self-describing rather than found by an index this table does not offer.
-/// Only <c>SHA-256(secret)</c> is stored, for the same reason <c>RefreshTokenGrants</c> stores only a
+/// Only <c>SHA-256(secret)</c> is stored, for the same reason <c>RefreshTokenGrantsService</c> stores only a
 /// refresh token's hash. <c>SetAuthenticationTokenAsync</c> overwrites in place, so issuing a new
 /// challenge for an account supersedes whichever one came before it — there is never more than one
 /// live challenge per account for an attacker to choose between.
 /// </para>
 /// </summary>
-internal sealed class TwoFactorChallenge(
+internal sealed class TwoFactorChallengeService(
     UserManager<AppUser> userManager,
     IAppUserDirectory directory,
     IDateTimeProvider dateTimeProvider,
-    IOptions<TwoFactorOptions> options) : ITwoFactorChallenge
+    IOptions<TwoFactorOptions> options) : ITwoFactorChallengeService
 {
     private const string _loginProvider = "TwoFactorChallenge";
     private const string _tokenName = "PendingLogin";
 
-    /// <summary>256 bits of entropy, for the reason <c>RefreshTokenGrants</c> gives for its own secret.</summary>
+    /// <summary>256 bits of entropy, for the reason <c>RefreshTokenGrantsService</c> gives for its own secret.</summary>
     private const int _secretSizeInBytes = 32;
 
     public async Task<IssuedTwoFactorChallenge> IssueAsync(Guid userId, CancellationToken cancellationToken = default)

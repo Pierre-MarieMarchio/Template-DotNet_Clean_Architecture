@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 using AppTemplate.Worker.Features.Reminders;
+using AppTemplate.Worker.UnitTests.TestSupport;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -26,7 +27,9 @@ public sealed class ReminderBackgroundServiceTests
         using var service = CreateService(useCase, EnabledOptions());
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await WaitUntilAsync(() => useCase.CallCount >= 3);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => useCase.CallCount >= 3,
+            "the reminder loop to have run three times");
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         // The point: a permanently failing pass does not stop the loop from reaching a later one.
@@ -103,14 +106,4 @@ public sealed class ReminderBackgroundServiceTests
             NullLogger<ReminderBackgroundService>.Instance);
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-
-        while (!condition())
-        {
-            timeout.Token.ThrowIfCancellationRequested();
-            await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token);
-        }
-    }
 }

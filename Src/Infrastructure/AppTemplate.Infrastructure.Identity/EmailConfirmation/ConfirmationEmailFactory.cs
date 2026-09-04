@@ -1,10 +1,9 @@
 ﻿using System.Globalization;
 using System.Net;
-using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
-using AppTemplate.Infrastructure.Identity.Options;
+using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailFactory;
 using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Notifications;
+namespace AppTemplate.Infrastructure.Identity.EmailConfirmation;
 
 /// <summary>
 /// Renders the confirmation email and hands it back for the caller to deliver.
@@ -14,10 +13,10 @@ namespace AppTemplate.Infrastructure.Identity.Notifications;
 /// The confirmation parameters are URL-encoded and travel in the link's fragment, so the single-use
 /// token never reaches a server log, a browser history entry or a <c>Referer</c> header.
 /// </summary>
-internal sealed class ConfirmationEmailComposer(IOptions<EmailConfirmationOptions> options)
-    : IConfirmationEmailComposer
+internal sealed class ConfirmationEmailFactory(IOptions<EmailConfirmationOptions> options)
+    : IConfirmationEmailFactory
 {
-    private const string _templateResourceSuffix = "Templates.RegisterEmailTemplate.html";
+    private const string _templateResourceSuffix = "EmailConfirmation.RegisterEmailTemplate.html";
 
     /// <summary>
     /// Read once for the process, and by exactly one thread. This service is scoped, so a plain static
@@ -26,7 +25,7 @@ internal sealed class ConfirmationEmailComposer(IOptions<EmailConfirmationOption
     /// </summary>
     private static readonly Lazy<Task<string>> _template = new(ReadTemplateAsync);
 
-    public async Task<ConfirmationEmail> ComposeAsync(
+    public async Task<ConfirmationEmail> CreateAsync(
         string userName,
         string email,
         string token,
@@ -82,7 +81,7 @@ internal sealed class ConfirmationEmailComposer(IOptions<EmailConfirmationOption
     /// </summary>
     private static async Task<string> ReadTemplateAsync()
     {
-        var assembly = typeof(ConfirmationEmailComposer).Assembly;
+        var assembly = typeof(ConfirmationEmailFactory).Assembly;
         string resourceName = Array.Find(
                 assembly.GetManifestResourceNames(),
                 name => name.EndsWith(_templateResourceSuffix, StringComparison.Ordinal))

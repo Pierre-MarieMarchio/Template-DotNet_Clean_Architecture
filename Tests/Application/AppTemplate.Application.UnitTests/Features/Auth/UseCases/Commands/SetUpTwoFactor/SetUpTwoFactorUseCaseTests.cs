@@ -12,7 +12,7 @@ public sealed class SetUpTwoFactorUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly ITwoFactorEnrollment _enrollment = Substitute.For<ITwoFactorEnrollment>();
+    private readonly ITwoFactorEnrollmentService _enrollment = Substitute.For<ITwoFactorEnrollmentService>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 

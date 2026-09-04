@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.ResendConfirmationEmail;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,15 +17,15 @@ namespace AppTemplate.Application.UnitTests.Features.Auth.UseCases.Commands.Rese
 /// </summary>
 public sealed class ResendConfirmationEmailUseCaseTests
 {
-    private readonly IEmailConfirmationTokens _confirmationTokens = Substitute.For<IEmailConfirmationTokens>();
-    private readonly IConfirmationEmailComposer _composer = Substitute.For<IConfirmationEmailComposer>();
+    private readonly IEmailConfirmationTokensService _confirmationTokens = Substitute.For<IEmailConfirmationTokensService>();
+    private readonly IConfirmationEmailFactory _emailFactory = Substitute.For<IConfirmationEmailFactory>();
     private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
     private readonly ResendConfirmationEmailUseCase _useCase;
 
     public ResendConfirmationEmailUseCaseTests() =>
         _useCase = new ResendConfirmationEmailUseCase(
             _confirmationTokens,
-            _composer,
+            _emailFactory,
             _emailSender,
             new ResendConfirmationEmailCommandValidator(),
             NullLogger<ResendConfirmationEmailUseCase>.Instance);
@@ -60,7 +60,7 @@ public sealed class ResendConfirmationEmailUseCaseTests
 
         result.IsSuccess.ShouldBeTrue();
 
-        await _composer.Received(1).ComposeAsync(
+        await _emailFactory.Received(1).CreateAsync(
             "someone",
             "someone@example.com",
             "confirmation-token",
@@ -86,7 +86,7 @@ public sealed class ResendConfirmationEmailUseCaseTests
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        _composer.ReceivedCalls().ShouldBeEmpty();
+        _emailFactory.ReceivedCalls().ShouldBeEmpty();
         _emailSender.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -175,7 +175,7 @@ public sealed class ResendConfirmationEmailUseCaseTests
         _confirmationTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new PendingConfirmation("someone", "confirmation-token"));
 
-        _composer.ComposeAsync(
+        _emailFactory.CreateAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),

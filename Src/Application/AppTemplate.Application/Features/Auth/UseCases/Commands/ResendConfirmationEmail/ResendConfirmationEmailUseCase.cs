@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
-using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
@@ -9,8 +9,8 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.ResendConfirmationEmail;
 
 public sealed class ResendConfirmationEmailUseCase(
-    IEmailConfirmationTokens confirmationTokens,
-    IConfirmationEmailComposer composer,
+    IEmailConfirmationTokensService confirmationTokens,
+    IConfirmationEmailFactory emailFactory,
     IEmailSender emailSender,
     IValidator<ResendConfirmationEmailCommand> validator,
     ILogger<ResendConfirmationEmailUseCase> logger) : IResendConfirmationEmailUseCase
@@ -47,7 +47,7 @@ public sealed class ResendConfirmationEmailUseCase(
     {
         try
         {
-            var message = await composer.ComposeAsync(
+            var message = await emailFactory.CreateAsync(
                 pending.UserName,
                 email,
                 pending.Token,

@@ -17,8 +17,8 @@ public sealed class RemoveRoleUseCaseTests
     private static readonly Guid _callerId = Guid.CreateVersion7();
     private static readonly Guid _targetId = Guid.CreateVersion7();
 
-    private readonly IRoleAssignments _roles = Substitute.For<IRoleAssignments>();
-    private readonly IRefreshTokenGrants _refreshTokens = Substitute.For<IRefreshTokenGrants>();
+    private readonly IRoleAssignmentsService _roles = Substitute.For<IRoleAssignmentsService>();
+    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

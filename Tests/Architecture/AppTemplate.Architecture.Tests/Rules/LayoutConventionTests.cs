@@ -18,8 +18,9 @@ public sealed class LayoutConventionTests
     /// <summary>
     /// The folders a feature may hold, per layer. Closed on purpose: a word outside this list is a
     /// concept a reader has to infer from its contents, and one feature inventing a word the others
-    /// do not use is how a layout stops being an index. Adding one is an ADR
-    /// (docs/adr/0025-closed-folder-vocabulary-per-layer.md), not a mkdir.
+    /// do not use is how a layout stops being an index. Adding a word is an edit to
+    /// CONTRIBUTING.md's Layout section and to this list, argued for in the pull request — not a
+    /// mkdir.
     /// </summary>
     private static readonly Dictionary<string, string[]> _vocabulary = new(StringComparer.Ordinal)
     {
@@ -28,7 +29,7 @@ public sealed class LayoutConventionTests
         ["Src/Domain/AppTemplate.Domain"] =
             ["Entities", "Events", "Repositories", "ValueObjects"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
-            ["Configurations", "Mapping", "Models", "Observability", "Queries", "Repositories", "Seeding", "Stores", "Tracking"],
+            ["Configurations", "Mapping", "Models", "Observability", "Queries", "Repositories", "Seeding", "Tables", "Tracking"],
         ["Src/Presentation/AppTemplate.Api"] =
             ["Contracts", "Controllers", "Mapping"],
 
@@ -37,7 +38,86 @@ public sealed class LayoutConventionTests
         // correct vocabulary today is "none", and the first subfolder anyone adds fails this test
         // instead of quietly inventing a word the other hosts do not use.
         ["Src/Presentation/AppTemplate.Worker"] = [],
+
+        // Same reason, one layer down. These two modules have both a transverse adapter and a
+        // feature-scoped one, which is what earns them Common/ and Features/ at all; the feature
+        // half is one adapter and its recording double, side by side.
+        ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] = [],
+        ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] = [],
     };
+
+    /// <summary>
+    /// The folders a project's <c>Common/</c> may hold, per project. Closed for the same reason as
+    /// the feature vocabulary above, and added later for a reason worth keeping: nothing checked
+    /// <c>Common/</c> in any layer, and it is where every layout defect of the last month appeared —
+    /// twelve top-level folders in the Api with three vague names among them, a one-file
+    /// <c>Mapping/</c> in the persistence project borrowing a word that already meant something else
+    /// one level down.
+    /// <para>
+    /// Only the first level is checked. A word a reader meets on the way in has to be one of these;
+    /// what a folder holds below that is the folder's own business — <c>Saving/</c> partitions
+    /// itself into <c>Auditing/</c>, <c>DomainEvents/</c> and <c>Tracking/</c> and that is a
+    /// detail of one subject, not a word the layout offers.
+    /// </para>
+    /// </summary>
+    private static readonly Dictionary<string, string[]> _commonVocabulary = new(StringComparer.Ordinal)
+    {
+        ["Src/Domain/AppTemplate.Domain"] =
+            ["Abstractions", "Events", "Exceptions", "Primitives"],
+        ["Src/Application/AppTemplate.Application"] =
+            ["Abstractions", "Collections", "Concurrency", "Idempotency", "Results", "Validation"],
+        ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] =
+            ["Smtp"],
+        ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] =
+            ["Email", "Time"],
+        ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
+            ["Contexts", "Idempotency", "Saving", "Time"],
+        ["Src/Presentation/AppTemplate.Api"] =
+            ["Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
+             "Idempotency", "Observability", "OpenApi", "Security"],
+        ["Src/Presentation/AppTemplate.Worker"] =
+            ["Observability", "Security"],
+    };
+
+    [Fact]
+    public void EveryCommonFolder_IsNamedFromItsProjectsVocabulary()
+    {
+        var checkedProjects = 0;
+        var offenders = new List<string>();
+
+        foreach ((string project, string[] allowed) in _commonVocabulary)
+        {
+            string common = Path.Combine(ProjectReferenceGraph.RepositoryRoot, project, "Common");
+
+            if (!Directory.Exists(common))
+            {
+                continue;
+            }
+
+            checkedProjects++;
+
+            offenders.AddRange(Directory
+                .EnumerateDirectories(common)
+                .Select(Path.GetFileName)
+                .Where(folder => folder is not null && !allowed.Contains(folder, StringComparer.Ordinal))
+                .Select(folder => $"{project}: 'Common/{folder}' is not one of " +
+                    $"[{string.Join(", ", allowed)}]"));
+
+            offenders.AddRange(Directory
+                .EnumerateFiles(common, "*.cs")
+                .Select(file => $"{project}: 'Common/{Path.GetFileName(file)}' sits loose at the " +
+                    "root of Common, which names no responsibility at all"));
+        }
+
+        checkedProjects.ShouldBe(
+            _commonVocabulary.Count,
+            "A project's Common folder was not found, so its vocabulary was never checked.");
+
+        offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
+            "Common/ is the half of a project that knows no feature, and a word invented there is " +
+            "read by everyone. Adding one is an edit to this list and to CONTRIBUTING.md's Layout " +
+            "section, argued for in the pull request.");
+    }
 
     /// <summary>
     /// A top-level public type declaration. Anchored at column zero because a nested type is indented

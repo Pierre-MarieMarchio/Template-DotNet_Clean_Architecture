@@ -1,6 +1,8 @@
-﻿using Microsoft.Extensions.Options;
+﻿using AppTemplate.Infrastructure.Identity.Accounts;
+using AppTemplate.Infrastructure.Identity.EmailConfirmation;
+using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Options;
+namespace AppTemplate.Infrastructure.Identity.PasswordReset;
 
 /// <summary>
 /// Where the reset link points, and how long the token behind it stays valid.
@@ -13,7 +15,7 @@ namespace AppTemplate.Infrastructure.Identity.Options;
 /// </summary>
 public sealed class PasswordResetOptions
 {
-    public const string SectionName = "PasswordResetOutcome";
+    public const string SectionName = "PasswordReset";
 
     /// <summary>
     /// Absolute URL of the page that completes the reset. The email address and the single-use token

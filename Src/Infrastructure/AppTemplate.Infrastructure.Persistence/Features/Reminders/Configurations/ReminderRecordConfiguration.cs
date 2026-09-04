@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Reminders.Configurations;
 
-/// <summary>Mapping for the reminder root row.</summary>
 internal sealed class ReminderRecordConfiguration : IEntityTypeConfiguration<ReminderRecord>
 {
     public void Configure(EntityTypeBuilder<ReminderRecord> builder)

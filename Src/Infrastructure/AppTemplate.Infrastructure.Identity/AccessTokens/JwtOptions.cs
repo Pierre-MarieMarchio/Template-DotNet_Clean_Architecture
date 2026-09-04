@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
-namespace AppTemplate.Infrastructure.Identity.Options;
+namespace AppTemplate.Infrastructure.Identity.AccessTokens;
 
 /// <summary>
 /// Access-token signing and validation settings. Bound and validated at startup: the previous

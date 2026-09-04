@@ -24,7 +24,7 @@ namespace AppTemplate.Api.IntegrationTests.Auth;
 /// This test host seeds no identity data at all (<c>IdentitySeed:Enabled</c> is <c>false</c> for the
 /// whole suite — see <c>ApiFactory</c> and <c>AdministratorPolicyTests</c>), and no HTTP route can
 /// grant the very first Administrator when none exists yet. <see cref="GrantRoleAsync"/> bootstraps
-/// one directly through <see cref="IRoleAssignments"/> instead, inside a scope of the caller's own —
+/// one directly through <see cref="IRoleAssignmentsService"/> instead, inside a scope of the caller's own —
 /// the same convention <c>LoadTodoListAsync</c> uses to read an aggregate back through the
 /// application port rather than a persistence internal.
 /// </remarks>
@@ -208,7 +208,7 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
     }
 
     /// <summary>
-    /// No stamp to rotate here — see <c>IAccountDeletion</c> — because the row the stamp lived on is
+    /// No stamp to rotate here — see <c>IAccountDeletionService</c> — because the row the stamp lived on is
     /// simply gone: the bearer handler looks the account up by id before it ever compares a stamp,
     /// and an id that no longer resolves fails there regardless.
     /// </summary>
@@ -368,7 +368,7 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
 
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
 
-        var roles = scope.ServiceProvider.GetRequiredService<IRoleAssignments>();
+        var roles = scope.ServiceProvider.GetRequiredService<IRoleAssignmentsService>();
         var change = await roles.AddRoleAsync(userId, role, TestToken);
 
         if (change.Status != RoleAssignmentChangeStatus.Applied)
@@ -379,7 +379,7 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
     }
 
     /// <summary>
-    /// Puts the role's own catalog row in place. <see cref="IRoleAssignments"/> only assigns a role
+    /// Puts the role's own catalog row in place. <see cref="IRoleAssignmentsService"/> only assigns a role
     /// that already exists — it never invents one, the same as <c>AddToRoleAsync</c> underneath it —
     /// and the row <c>IdentitySeeder</c> would normally create is absent here because
     /// <c>IdentitySeed:Enabled</c> is <c>false</c> for the whole suite. Raw SQL against the schema

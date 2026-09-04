@@ -17,12 +17,21 @@ metadata:
     app.kubernetes.io/part-of: app-template
     app.kubernetes.io/component: worker
 spec:
-  # One, deliberately. MaintenanceWorkerOptions has no leader election and no locking between
-  # replicas — a second one would run the exact same purge on the exact same schedule, wasting a
-  # connection from this same Database__MaxPoolSize budget for no benefit (both purges are
-  # idempotent deletes against an already-covered range, not a correctness problem). Raise this
-  # only if you have an actual reason to, and remember it counts against the same pool budget as
-  # every API replica — see docs/DEPLOYMENT.md.
+  # One, and this is a ceiling rather than a preference: there is no leader election and no locking
+  # between replicas, so two of these is not merely wasteful, it is wrong.
+  #
+  # The two purges would be fine. They are idempotent deletes over an already-covered range, so a
+  # second replica costs a connection from this same Database__MaxPoolSize budget and nothing else.
+  # The reminder loop is not. FireDueRemindersUseCase claims a reminder in memory with
+  # Reminder.TryClaim, notifies, and commits the whole batch at the end — so two replicas ticking
+  # in the same second both see ClaimedAt as null, both take the claim, and both send the mail
+  # before either commit happens and one of them loses on xmin. That claim was written against a
+  # host that died mid-attempt, not against a concurrent pass.
+  #
+  # Do NOT raise this to get availability. At one replica a stopped pod means no reminders and no
+  # purges, with nothing alerting on it — see SECURITY.md's Known gaps, which says what to watch
+  # until leadership exists. And remember this counts against the same pool budget as every API
+  # replica — see docs/DEPLOYMENT.md.
   replicas: 1
   selector:
     matchLabels:
@@ -66,11 +75,9 @@ spec:
                 secretKeyRef:
                   name: app-template-secrets
                   key: ConnectionStrings__Default
-            - name: Jwt__Key
-              valueFrom:
-                secretKeyRef:
-                  name: app-template-secrets
-                  key: Jwt__Key
+            # Jwt__Key is deliberately absent here. It comes from configmap-worker.yaml as a
+            # meaningless placeholder, because this host signs and verifies nothing — see that
+            # file, and SECURITY.md. It is the one secretKeyRef the API has that this pod does not.
             # This host composes AppTemplate.Infrastructure.Email too (see configmap-worker.yaml
             # and AppTemplate.Worker.csproj), so it needs the same SMTP credentials as the API.
             - name: Email__UserName

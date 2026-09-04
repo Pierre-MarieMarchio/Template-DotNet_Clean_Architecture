@@ -11,7 +11,7 @@ namespace AppTemplate.Api.IntegrationTests.Caching;
 /// Every read states whether its response may be stored, and every write leaves the question alone.
 /// </summary>
 /// <remarks>
-/// See <c>docs/adr/0019-caching-is-revalidation-not-storage.md</c>. <c>private</c> confines storage to
+/// <c>private</c> confines storage to
 /// the end client; <c>no-cache</c> still lets that client store the response, but only reuse it after
 /// revalidating with the origin — which is what makes the strong <c>ETag</c> this API already
 /// publishes worth having.

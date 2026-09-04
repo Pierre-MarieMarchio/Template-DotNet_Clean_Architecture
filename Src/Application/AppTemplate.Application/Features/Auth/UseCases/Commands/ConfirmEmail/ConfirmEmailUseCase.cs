@@ -9,7 +9,7 @@ namespace AppTemplate.Application.Features.Auth.UseCases.Commands.ConfirmEmail;
 /// <summary>
 /// Redeeming the token rotates the account's security stamp, which is what makes it single-use.
 /// <para>
-/// It does <em>not</em> then call <c>CredentialInvalidation</c>, unlike every other operation that
+/// It does <em>not</em> then call <c>CredentialInvalidationPolicy</c>, unlike every other operation that
 /// rotates a stamp. Sign-in requires a confirmed email, so no session can exist yet and there are no
 /// refresh tokens to revoke — calling it would be a no-op dressed as a precaution. A deployment that
 /// sets <c>Identity:RequireConfirmedEmail</c> to false changes that: sessions become possible before
@@ -18,7 +18,7 @@ namespace AppTemplate.Application.Features.Auth.UseCases.Commands.ConfirmEmail;
 /// </para>
 /// </summary>
 public sealed class ConfirmEmailUseCase(
-    IEmailConfirmationTokens confirmationTokens,
+    IEmailConfirmationTokensService confirmationTokens,
     IValidator<ConfirmEmailCommand> validator) : IConfirmEmailUseCase
 {
     public async Task<Result> ExecuteAsync(ConfirmEmailCommand request, CancellationToken cancellationToken = default)

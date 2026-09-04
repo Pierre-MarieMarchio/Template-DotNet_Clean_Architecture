@@ -1,12 +1,11 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Identity.IntegrationTests.Fixtures;
-using AppTemplate.Infrastructure.Identity.Options;
-using AppTemplate.Infrastructure.Identity.Tokens;
-using AppTemplate.Infrastructure.Identity.Users;
+using AppTemplate.Infrastructure.Identity.RefreshTokens;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Stores;
+using AppTemplate.Infrastructure.Persistence.Features.Identity.Tables;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -14,7 +13,7 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.IntegrationTests.Tokens;
+namespace AppTemplate.Infrastructure.Identity.IntegrationTests.RefreshTokens;
 
 /// <summary>
 /// Single-use rotation, against a real database.
@@ -25,7 +24,7 @@ namespace AppTemplate.Infrastructure.Identity.IntegrationTests.Tokens;
 /// when two requests arrive at the same instant, so it is asserted the same way — two presentations
 /// held at a rendezvous until both are past the read, then released into the write together.
 /// </remarks>
-public sealed class RefreshTokenRotationTests(GrantStoreFixture fixture) : IClassFixture<GrantStoreFixture>
+public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClassFixture<GrantTableFixture>
 {
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -134,13 +133,13 @@ public sealed class RefreshTokenRotationTests(GrantStoreFixture fixture) : IClas
     /// <c>UserManager</c> would drag ASP.NET Identity's whole store in for one <c>FindById</c>, and
     /// that lookup is not what these tests are about.
     /// </summary>
-    private static RefreshTokenGrants CreateGrants(IServiceProvider scoped, IAppUserDirectory directory) =>
+    private static RefreshTokenGrantsService CreateGrants(IServiceProvider scoped, IAppUserDirectory directory) =>
         new(
-            scoped.GetRequiredService<IRefreshTokenStore>(),
+            scoped.GetRequiredService<IRefreshTokenTable>(),
             directory,
             scoped.GetRequiredService<IUnitOfWork>(),
             scoped.GetRequiredService<IDateTimeProvider>(),
             new OptionsWrapper<RefreshTokenOptions>(new RefreshTokenOptions()),
             Substitute.For<ISecurityEventLog>(),
-            NullLogger<RefreshTokenGrants>.Instance);
+            NullLogger<RefreshTokenGrantsService>.Instance);
 }

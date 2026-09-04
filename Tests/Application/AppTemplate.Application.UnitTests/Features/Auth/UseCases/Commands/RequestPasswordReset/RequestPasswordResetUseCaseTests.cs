@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetTokens;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.RequestPasswordReset;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,15 +17,15 @@ namespace AppTemplate.Application.UnitTests.Features.Auth.UseCases.Commands.Requ
 /// </summary>
 public sealed class RequestPasswordResetUseCaseTests
 {
-    private readonly IPasswordResetTokens _resetTokens = Substitute.For<IPasswordResetTokens>();
-    private readonly IPasswordResetEmailComposer _composer = Substitute.For<IPasswordResetEmailComposer>();
+    private readonly IPasswordResetTokensService _resetTokens = Substitute.For<IPasswordResetTokensService>();
+    private readonly IPasswordResetEmailFactory _emailFactory = Substitute.For<IPasswordResetEmailFactory>();
     private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
     private readonly RequestPasswordResetUseCase _useCase;
 
     public RequestPasswordResetUseCaseTests() =>
         _useCase = new RequestPasswordResetUseCase(
             _resetTokens,
-            _composer,
+            _emailFactory,
             _emailSender,
             new RequestPasswordResetCommandValidator(),
             NullLogger<RequestPasswordResetUseCase>.Instance);
@@ -53,7 +53,7 @@ public sealed class RequestPasswordResetUseCaseTests
 
         result.IsSuccess.ShouldBeTrue();
 
-        await _composer.Received(1).ComposeAsync(
+        await _emailFactory.Received(1).CreateAsync(
             "someone",
             "someone@example.com",
             "reset-token",
@@ -75,7 +75,7 @@ public sealed class RequestPasswordResetUseCaseTests
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        _composer.ReceivedCalls().ShouldBeEmpty();
+        _emailFactory.ReceivedCalls().ShouldBeEmpty();
         _emailSender.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -125,7 +125,7 @@ public sealed class RequestPasswordResetUseCaseTests
         _resetTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new PendingPasswordReset("someone", "reset-token"));
 
-        _composer.ComposeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _emailFactory.CreateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new PasswordResetEmail("Reset your password", "<html>the body</html>"));
     }
 }

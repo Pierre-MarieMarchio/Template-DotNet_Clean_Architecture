@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Features.Auth.Ports.AccountLockouts;
-using AppTemplate.Infrastructure.Identity.Users;
+using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,15 +8,15 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.Accounts;
 
 /// <summary>
-/// <see cref="AccountLockouts"/> over a real <see cref="UserManager{TUser}"/>: whether locking and
+/// <see cref="AccountLockoutsService"/> over a real <see cref="UserManager{TUser}"/>: whether locking and
 /// unlocking reach the store the way the automatic, timed lockout in
-/// <c>UserAccounts.VerifyCredentialAsync</c> already does, and — the gap this type exists to close —
+/// <c>UserAccountsService.VerifyCredentialAsync</c> already does, and — the gap this type exists to close —
 /// whether locking also rotates the security stamp.
 /// </summary>
-public sealed class AccountLockoutsTests
+public sealed class AccountLockoutsServiceTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
 
@@ -91,7 +91,7 @@ public sealed class AccountLockoutsTests
     /// <c>SetLockoutEndDateAsync</c> refuses outright — <c>UserLockoutNotEnabled</c> — when the
     /// account's <c>LockoutEnabled</c> flag is false, which is also exactly the state an account is
     /// in when nobody has ever locked it out. Discovered by this suite: without the fallback in
-    /// <see cref="AccountLockouts.UnlockAsync"/>, this case answered <c>Rejected</c> for an account
+    /// <see cref="AccountLockoutsService.UnlockAsync"/>, this case answered <c>Rejected</c> for an account
     /// that was never anything but unlocked.
     /// </summary>
     [Fact]
@@ -168,7 +168,7 @@ public sealed class AccountLockoutsTests
         return user;
     }
 
-    private AccountLockouts CreateLockouts()
+    private AccountLockoutsService CreateLockouts()
     {
         var options = new OptionsWrapper<IdentityOptions>(new IdentityOptions());
 
@@ -183,6 +183,6 @@ public sealed class AccountLockoutsTests
             Substitute.For<IServiceProvider>(),
             NullLogger<UserManager<AppUser>>.Instance);
 
-        return new AccountLockouts(userManager, _directory);
+        return new AccountLockoutsService(userManager, _directory);
     }
 }

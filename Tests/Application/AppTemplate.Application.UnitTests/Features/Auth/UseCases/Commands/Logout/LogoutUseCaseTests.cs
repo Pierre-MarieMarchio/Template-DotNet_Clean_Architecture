@@ -10,7 +10,7 @@ namespace AppTemplate.Application.UnitTests.Features.Auth.UseCases.Commands.Logo
 
 public sealed class LogoutUseCaseTests
 {
-    private readonly IRefreshTokenGrants _refreshTokens = Substitute.For<IRefreshTokenGrants>();
+    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly LogoutUseCase _useCase;
 

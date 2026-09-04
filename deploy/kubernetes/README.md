@@ -25,7 +25,7 @@ whatever it finds in whatever order it lists the directory, and does not wait fo
 finish before touching a `Deployment`. That is fine for `configmap-*`, `secret.example.yaml`
 (replaced with real values), `api-service.yaml` and `ingress.yaml`. It is **not** fine for
 `migration-job.yaml`: the whole point of applying migrations as their own step
-(`docs/adr/0009`) is that they finish, successfully, before any pod that expects the new schema
+is that they finish, successfully, before any pod that expects the new schema
 starts taking traffic. Run it as its own pipeline step:
 
 ```bash

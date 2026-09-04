@@ -4,8 +4,10 @@ A Clean Architecture layout for a .NET 10 HTTP API. This document records the
 decisions and, more usefully, the reasons — including the things this template
 deliberately does **not** do.
 
-One decision per file, with its alternatives, lives in [adr/](adr/README.md). This
-page is the map; the ADRs are the argument.
+The decisions this template already made, and the shape they impose, are in
+[CONTRIBUTING.md](../CONTRIBUTING.md#decisions-already-made-and-the-shape-they-impose) — each one
+held by a test where a test can hold it. This
+page is the map; that section and the tests it names are the argument.
 
 ## The four layers and the dependency rule
 
@@ -71,22 +73,22 @@ behaviour, and staged for a commit someone else owns — is declared in
 signature names only domain types. **Every other port** — a read projected to DTOs, or
 a platform capability with no aggregate behind it — is declared in
 **`AppTemplate.Application`**, under `Features/<Feature>/Ports/<Port>/`. See
-[ADR 0024](adr/0024-repository-in-domain-query-ports-in-application.md) for why the
+the section above for why the
 split runs there rather than putting every port in one layer:
 
 | Port | Declared in | Implementation (Infrastructure) |
 |---|---|---|
 | `ITodoListRepository`, `IReminderRepository` | `AppTemplate.Domain` | EF Core repositories over `AppDbContext` |
-| `ITodoListQueries`, `IReminderTargets` | `AppTemplate.Application` | EF Core projections to DTOs |
+| `ITodoListQueries`, `IReminderTargetQueries` | `AppTemplate.Application` | EF Core projections to DTOs |
 | `IUnitOfWork` | `AppTemplate.Application` | one `SaveChangesAsync` on `AppDbContext` |
 | `IEmailSender` | `AppTemplate.Application` | `MailKitEmailSender` |
 | `ICurrentUser` | `AppTemplate.Application` | `CurrentUser`, reading `HttpContext` claims |
 | `IDateTimeProvider` | `AppTemplate.Application` | `SystemDateTimeProvider` |
-| `IUserAccounts` | `AppTemplate.Application` | `UserManager` / `SignInManager` wrapper |
-| `IEmailConfirmationTokens` | `AppTemplate.Application` | ASP.NET Identity's default token provider |
+| `IUserAccountsService` | `AppTemplate.Application` | `UserManager` / `SignInManager` wrapper |
+| `IEmailConfirmationTokensService` | `AppTemplate.Application` | ASP.NET Identity's default token provider |
 | `IAccessTokenIssuer` | `AppTemplate.Application` | signed JWT over the account's current claims |
-| `IRefreshTokenGrants` | `AppTemplate.Application` | opaque rotating grants over `IRefreshTokenStore` |
-| `IConfirmationEmailComposer` | `AppTemplate.Application` | HTML template plus the confirmation URL |
+| `IRefreshTokenGrantsService` | `AppTemplate.Application` | opaque rotating grants over `IRefreshTokenTable` |
+| `IConfirmationEmailFactory` | `AppTemplate.Application` | HTML template plus the confirmation URL |
 
 There is no `IEfCoreRepository`, no `ISmtpClient`, no `IHttpContextWrapper`. The
 point of the seam is that the application layer can be read, and tested, without
@@ -112,7 +114,7 @@ storage — one DbContext in one schema:
 
 | Module | Registers | Storage |
 |---|---|---|
-| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, the interceptor pipeline, `IUnitOfWork`, the aggregate repositories and read-side ports, `IRefreshTokenStore`, `IIdentitySeeder` | `AppDbContext` → `identity`, `todo`, `reminders`, `platform` |
+| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, the interceptor pipeline, `IUnitOfWork`, the aggregate repositories and read-side ports, `IRefreshTokenTable`, `IIdentitySeeder` | `AppDbContext` → `identity`, `todo`, `reminders`, `platform` |
 | `AppTemplate.Infrastructure.Identity` | the authentication ports, ASP.NET Identity, JWT bearer, refresh-token rotation | — (uses the shared context) |
 | `AppTemplate.Infrastructure.Email` | `IEmailSender`, `IReminderNotifier`, email options | — |
 | `AppTemplate.Infrastructure.InMemory` | in-memory port implementations for tests and demos | — |
@@ -120,7 +122,7 @@ storage — one DbContext in one schema:
 **Persistence is the one module that holds more than one capability**, and that is
 deliberate. It is partitioned internally as `Common/` (the mechanisms) plus
 `Features/<Feature>/` (models, configurations, mapping, tracking, repositories, queries,
-and — for a technical port rather than an aggregate, such as `IRefreshTokenStore` —
+and — for row access to one table rather than an aggregate, such as `IRefreshTokenTable` —
 stores), and an architecture test asserts that nothing under `Common/` depends on a
 feature's domain or persistence types, nor on a feature's application-layer surface.
 `AppDbContext` is the one exception, because it applies every feature's configuration and
@@ -130,8 +132,8 @@ is therefore the model's composition root. There used to be a second:
 is precisely why the test could not see it. It now lives with the feature it counts, at
 `Features/Reminders/Observability/ReminderDiagnostics.cs`, and the rule has grown the third
 forbidden namespace that would have caught it. See
-[ADR 0010](adr/0010-one-persistence-project-one-dbcontext.md) for why the contexts were
-merged and [ADR 0011](adr/0011-persistence-models-separate-from-the-domain.md) for why EF
+below for why the contexts were
+merged and why EF
 maps rows rather than aggregates.
 
 **One DI module per project.** `AppTemplate.Api`'s composition root is a list of
@@ -153,7 +155,7 @@ next step is `AppTemplate.Infrastructure.Persistence.Core` + `.PostgreSql`, or
 
 If a second database engine ever genuinely arrives, the split is mechanical then, with
 the real second implementation in hand to shape it. Doing it speculatively means
-guessing at that shape. See [ADR 0007](adr/0007-module-per-capability-infrastructure.md).
+guessing at that shape.
 
 ## A second host: `AppTemplate.Worker`
 
@@ -206,7 +208,7 @@ checks the wiring instead of a runtime registry.
 This is not an argument against MediatR in general. It is an argument that a template
 should not pay for it before there is a pipeline to put in it. Adding it later is
 mechanical; removing it once every handler assumes it is not. See
-[ADR 0002](adr/0002-no-mediatr-no-cqrs-ceremony.md).
+`CONTRIBUTING.md`, which also names the package the architecture tests forbid.
 
 There is a read/write split, but it is the useful part of CQRS without the machinery —
 two ports rather than two stacks:
@@ -214,7 +216,7 @@ two ports rather than two stacks:
 | Port | Purpose |
 |---|---|
 | `ITodoListRepository`, `IReminderRepository` | Write side. Load and stage whole aggregates. |
-| `ITodoListQueries`, `IReminderTargets` | Read side. Return DTOs projected in SQL, no aggregate materialisation. |
+| `ITodoListQueries`, `IReminderTargetQueries` | Read side. Return DTOs projected in SQL, no aggregate materialisation. |
 
 Reads do not need invariants enforced, and loading a full aggregate to render a list
 view is pure waste. Both read methods take the owner's id as a parameter, so
@@ -237,7 +239,7 @@ Two concrete defects in the `BaseRepository<T>` this replaces:
    things produced two transactions with no way to roll back the first.
 
 Repository methods now only *stage* work. See
-[ADR 0003](adr/0003-aggregate-oriented-repository.md).
+`CONTRIBUTING.md`.
 
 ## Aggregates and domain events
 
@@ -312,7 +314,7 @@ there is no second copy of the rule in Application that could drift from the fir
 Costs, honestly: every use case signature carries `Result`, callers must check
 `IsSuccess`, and `Result` is a class, so there is an allocation per call. Both are
 worth it for making the failure set explicit at the boundary. See
-[ADR 0004](adr/0004-result-as-the-failure-channel.md).
+`CONTRIBUTING.md`.
 
 ## The transaction boundary, and who owns it
 
@@ -388,8 +390,8 @@ matters — no table-name collisions, grantable separately — at none of that c
 
 `AppDbContextFactory` is a design-time factory reading `ConnectionStrings__Default` from
 the environment, with a visible localhost fallback, so `dotnet ef` works without booting
-the host. See [ADR 0010](adr/0010-one-persistence-project-one-dbcontext.md), which
-supersedes [ADR 0006](adr/0006-two-dbcontexts-one-database.md).
+the host. Two contexts on one database were tried first and merged: a second context bought a
+boundary the schema already had, and cost a second migration history.
 
 ## The HTTP boundary
 
@@ -429,8 +431,8 @@ supersedes [ADR 0006](adr/0006-two-dbcontexts-one-database.md).
 | A service layer above use cases | The use case *is* the application service. |
 | An abstraction over `DbContext` | `DbContext` is already a unit of work and a set of repositories. `IUnitOfWork` exists to own the *commit boundary*, not to hide EF Core. |
 | Swashbuckle | Replaced by the built-in `Microsoft.AspNetCore.OpenApi` plus Scalar for the UI (development only). |
-| A refresh-token cookie | The refresh token is returned in the response body. See [ADR 0005](adr/0005-opaque-rotating-refresh-tokens.md). |
-| Migrations at startup in production | Development only. See [ADR 0009](adr/0009-no-migrations-at-startup-in-production.md). |
+| A refresh-token cookie | The refresh token is returned in the response body: opaque, rotated on every presentation, and stored only as a SHA-256 hash. |
+| Migrations at startup in production | Development only; a deployment applies them as an explicit step. |
 | An outbox | Domain-event handlers run in-process. If a handler must reach another system, add one — do not do the I/O inline. |
 | `ForwardedHeaders` | Required for correct rate-limit partitioning and client IPs behind a proxy, but the correct configuration depends on your topology, so it is a deliberate blank. |
 

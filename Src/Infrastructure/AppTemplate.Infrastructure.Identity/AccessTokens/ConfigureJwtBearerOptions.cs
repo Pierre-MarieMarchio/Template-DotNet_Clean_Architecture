@@ -1,5 +1,4 @@
 ﻿using System.Security.Claims;
-using AppTemplate.Infrastructure.Identity.Options;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
@@ -9,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
-namespace AppTemplate.Infrastructure.Identity.Bearer;
+namespace AppTemplate.Infrastructure.Identity.AccessTokens;
 
 /// <summary>
 /// Configures bearer validation from the validated <see cref="JwtOptions"/>. Done through

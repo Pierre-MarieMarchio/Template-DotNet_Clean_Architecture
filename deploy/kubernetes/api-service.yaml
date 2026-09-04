@@ -1,5 +1,6 @@
 # ClusterIP only. Nothing reaches the API pods directly — ingress.yaml is the one entry point,
-# and it is also the one place TLS terminates (docs/adr/0012).
+# and it is also the one place TLS terminates — see docs/DEPLOYMENT.md, "HSTS is the Ingress's
+# responsibility".
 apiVersion: v1
 kind: Service
 metadata:

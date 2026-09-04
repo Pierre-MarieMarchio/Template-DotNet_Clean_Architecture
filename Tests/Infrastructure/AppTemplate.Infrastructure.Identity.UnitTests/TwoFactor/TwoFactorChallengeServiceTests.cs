@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
-using AppTemplate.Infrastructure.Identity.Options;
+using AppTemplate.Infrastructure.Identity.Accounts;
+using AppTemplate.Infrastructure.Identity.TwoFactor;
 using AppTemplate.Infrastructure.Identity.UnitTests.Fixtures;
-using AppTemplate.Infrastructure.Identity.Users;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -11,15 +11,15 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.TwoFactor;
 
 /// <summary>
-/// <see cref="TwoFactorChallenge"/> over a real <see cref="UserManager{TUser}"/>: whether a challenge
+/// <see cref="TwoFactorChallengeService"/> over a real <see cref="UserManager{TUser}"/>: whether a challenge
 /// is genuinely single-use, superseding, self-describing and time-limited — the four properties
-/// <c>ITwoFactorChallenge</c> promises — and whether a right code from either the authenticator app
+/// <c>ITwoFactorChallengeService</c> promises — and whether a right code from either the authenticator app
 /// or a recovery code is actually accepted.
 /// </summary>
-public sealed class TwoFactorChallengeTests
+public sealed class TwoFactorChallengeServiceTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
     private static readonly DateTimeOffset _now = DateTimeOffset.UnixEpoch.AddYears(5);
@@ -41,7 +41,7 @@ public sealed class TwoFactorChallengeTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    public TwoFactorChallengeTests() => _dateTimeProvider.UtcNow.Returns(_now);
+    public TwoFactorChallengeServiceTests() => _dateTimeProvider.UtcNow.Returns(_now);
 
     [Fact]
     public async Task IssueAsync_EmbedsTheUserIdInTheChallengeToken()
@@ -204,7 +204,7 @@ public sealed class TwoFactorChallengeTests
         right.Status.ShouldBe(TwoFactorRedemptionStatus.Verified);
     }
 
-    /// <summary>Only the latest challenge for an account is ever live — see <c>ITwoFactorChallenge</c>.</summary>
+    /// <summary>Only the latest challenge for an account is ever live — see <c>ITwoFactorChallengeService</c>.</summary>
     [Fact]
     public async Task IssueAsync_CalledAgain_SupersedesThePreviousChallenge()
     {
@@ -305,7 +305,7 @@ public sealed class TwoFactorChallengeTests
         return user;
     }
 
-    private TwoFactorChallenge CreateChallenges(TimeSpan? challengeLifetime = null)
+    private TwoFactorChallengeService CreateChallenges(TimeSpan? challengeLifetime = null)
     {
         var userManager = new UserManager<AppUser>(
             _store,
@@ -323,6 +323,6 @@ public sealed class TwoFactorChallengeTests
         var options = new OptionsWrapper<TwoFactorOptions>(
             new TwoFactorOptions { ChallengeLifetime = challengeLifetime ?? TimeSpan.FromMinutes(5) });
 
-        return new TwoFactorChallenge(userManager, _directory, _dateTimeProvider, options);
+        return new TwoFactorChallengeService(userManager, _directory, _dateTimeProvider, options);
     }
 }

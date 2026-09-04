@@ -1,17 +1,17 @@
-﻿using AppTemplate.Infrastructure.Identity.Notifications;
-using AppTemplate.Infrastructure.Identity.Options;
+﻿using AppTemplate.Infrastructure.Identity.EmailChange;
+using AppTemplate.Infrastructure.Identity.UnitTests.PasswordReset;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Notifications;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.EmailChange;
 
 /// <summary>
-/// Mirrors <see cref="PasswordResetEmailComposerTests"/>: the composer's job is to put a
+/// Mirrors <see cref="PasswordResetEmailFactoryTests"/>: the factory's job is to put a
 /// user-supplied name into an HTML document, which makes it an injection site, and the encoding is
 /// the whole defence.
 /// </summary>
-public sealed class EmailChangeEmailComposerTests
+public sealed class EmailChangeEmailFactoryTests
 {
     private const string _confirmPage = "https://localhost:5001/confirm-email-change";
 
@@ -22,7 +22,7 @@ public sealed class EmailChangeEmailComposerTests
     {
         const string hostile = "<a href=\"https://evil.test\">click me</a>";
 
-        var message = await CreateComposer().ComposeAsync(
+        var message = await CreateFactory().CreateAsync(
             hostile,
             "victim@identity.test",
             "change-token",
@@ -39,7 +39,7 @@ public sealed class EmailChangeEmailComposerTests
     [Fact]
     public async Task ComposeAsync_PutsTheTokenInTheLinkFragment()
     {
-        var message = await CreateComposer().ComposeAsync(
+        var message = await CreateFactory().CreateAsync(
             "someone",
             "someone.new@identity.test",
             "a+token/with=reserved characters",
@@ -52,7 +52,7 @@ public sealed class EmailChangeEmailComposerTests
     [Fact]
     public async Task ComposeAsync_CarriesTheConfiguredSubject()
     {
-        var message = await CreateComposer().ComposeAsync(
+        var message = await CreateFactory().CreateAsync(
             "someone",
             "someone.new@identity.test",
             "change-token",
@@ -61,7 +61,7 @@ public sealed class EmailChangeEmailComposerTests
         message.Subject.ShouldBe("Confirm your new email address");
     }
 
-    private static EmailChangeEmailComposer CreateComposer() =>
+    private static EmailChangeEmailFactory CreateFactory() =>
         new(new OptionsWrapper<EmailChangeOptions>(new EmailChangeOptions
         {
             ConfirmEmailChangeUrl = new Uri(_confirmPage, UriKind.Absolute),

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Authentication policy: who a caller is, how that is proved, how long the proof lasts.
 
@@ -23,9 +23,9 @@
   <!-- Embedded rather than copied to the output directory: a deployment cannot then lose the
        template and turn every registration into a FileNotFoundException. -->
   <ItemGroup>
-    <EmbeddedResource Include="Templates\RegisterEmailTemplate.html" />
-    <EmbeddedResource Include="Templates\PasswordResetEmailTemplate.html" />
-    <EmbeddedResource Include="Templates\EmailChangeEmailTemplate.html" />
+    <EmbeddedResource Include="EmailConfirmation\RegisterEmailTemplate.html" />
+    <EmbeddedResource Include="PasswordReset\PasswordResetEmailTemplate.html" />
+    <EmbeddedResource Include="EmailChange\EmailChangeEmailTemplate.html" />
   </ItemGroup>
 
   <ItemGroup>

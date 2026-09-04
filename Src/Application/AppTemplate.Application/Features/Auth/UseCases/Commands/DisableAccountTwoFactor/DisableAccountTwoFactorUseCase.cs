@@ -11,18 +11,18 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.DisableAccountTwoFactor;
 
 /// <summary>
-/// The self-guard here is not <see cref="SelfAdministrationGuard"/>'s usual reason. Disabling two
+/// The self-guard here is not <see cref="SelfAdministrationPolicy"/>'s usual reason. Disabling two
 /// factor on the caller's own account is not the self-inflicted, nobody-left-to-undo-it lockout that
 /// <see cref="AuthErrors.CannotLockOwnAccount"/> and <see cref="AuthErrors.CannotDeleteOwnAccount"/>
 /// refuse — sign-in still works afterward, just with one fewer step. It is refused for the reason
 /// this whole capability exists to close: an administrator's own session is a session like any
 /// other, and letting it reach this capability against its own account would let a stolen one strip
-/// its second factor without ever producing the password <c>ITwoFactorEnrollment.DisableAsync</c>
+/// its second factor without ever producing the password <c>ITwoFactorEnrollmentService.DisableAsync</c>
 /// demands of everybody else. See <see cref="AuthErrors.CannotDisableOwnTwoFactor"/>.
 /// </summary>
 public sealed class DisableAccountTwoFactorUseCase(
-    ITwoFactorAdministration administration,
-    IRefreshTokenGrants refreshTokens,
+    ITwoFactorAdministrationService administration,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<DisableAccountTwoFactorCommand> validator) : IDisableAccountTwoFactorUseCase
@@ -47,7 +47,7 @@ public sealed class DisableAccountTwoFactorUseCase(
             return callerId;
         }
 
-        var guard = SelfAdministrationGuard.EnsureNotSelf(
+        var guard = SelfAdministrationPolicy.EnsureNotSelf(
             callerId.Value,
             request.UserId,
             AuthErrors.CannotDisableOwnTwoFactor);
@@ -64,7 +64,7 @@ public sealed class DisableAccountTwoFactorUseCase(
             return Result.Failure(ToError(outcome));
         }
 
-        await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
         securityEventLog.Record(SecurityEvent.TwoFactorDisabledByAdministrator(request.UserId));
 
         return Result.Success();

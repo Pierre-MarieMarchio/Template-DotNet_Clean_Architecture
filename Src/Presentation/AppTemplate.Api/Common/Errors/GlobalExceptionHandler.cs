@@ -136,7 +136,7 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         };
 
         problem.Extensions["code"] = code;
-        ProblemDetailsDefaults.Normalise(problem, httpContext);
+        ProblemDetailsNormaliser.Normalise(problem, httpContext);
 
         httpContext.Response.StatusCode = status;
         await httpContext.Response.WriteAsJsonAsync(

@@ -23,7 +23,7 @@ namespace AppTemplate.Api.Features.Reminders.Controllers;
 /// <see cref="GetRemindersQuery"/> both need that context. Rescheduling and cancelling are reached
 /// by the reminder's own id alone, because <see cref="RescheduleReminderCommand"/> and
 /// <see cref="CancelReminderCommand"/> name only <c>ReminderId</c> — a reminder is its own
-/// aggregate root (<c>docs/adr/0024</c>), addressed independently of the list or item it is about,
+/// aggregate root, addressed independently of the list or item it is about,
 /// unlike a <c>TodoItem</c> which is reachable only through its list.
 /// </para>
 /// <para>

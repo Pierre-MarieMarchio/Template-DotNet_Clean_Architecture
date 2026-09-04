@@ -2,7 +2,7 @@
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
-using AppTemplate.Application.Features.Reminders.Ports.ReminderTargets;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using Microsoft.Extensions.Logging;
 
@@ -34,7 +34,7 @@ namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueRe
 /// <b>A deleted item needs no domain event to be handled correctly, for the same reason.</b>
 /// Removing a to-do item or deleting its list raises nothing (see the domain — only creation,
 /// completion and reopening do), and none is needed: an id absent from
-/// <see cref="IReminderTargets.GetCompletionStatesAsync"/>'s result is cancelled here exactly
+/// <see cref="IReminderTargetQueries.GetCompletionStatesAsync"/>'s result is cancelled here exactly
 /// like a completed one, the next time this reminder comes up for firing. An orphaned reminder is
 /// self-healing on its own schedule; that is also why it is not counted as a missed cancellation —
 /// see <see cref="IReminderDiagnostics"/>.
@@ -42,7 +42,7 @@ namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueRe
 /// </summary>
 public sealed class FireDueRemindersUseCase(
     IReminderRepository reminders,
-    IReminderTargets targets,
+    IReminderTargetQueries targets,
     IReminderNotifier notifier,
     IReminderDiagnostics diagnostics,
     IUnitOfWork unitOfWork,

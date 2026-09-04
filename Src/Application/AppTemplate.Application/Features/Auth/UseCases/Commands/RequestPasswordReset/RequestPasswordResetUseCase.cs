@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
-using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetTokens;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
@@ -9,8 +9,8 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.RequestPasswordReset;
 
 public sealed class RequestPasswordResetUseCase(
-    IPasswordResetTokens resetTokens,
-    IPasswordResetEmailComposer composer,
+    IPasswordResetTokensService resetTokens,
+    IPasswordResetEmailFactory emailFactory,
     IEmailSender emailSender,
     IValidator<RequestPasswordResetCommand> validator,
     ILogger<RequestPasswordResetUseCase> logger) : IRequestPasswordResetUseCase
@@ -46,7 +46,7 @@ public sealed class RequestPasswordResetUseCase(
     {
         try
         {
-            var message = await composer.ComposeAsync(
+            var message = await emailFactory.CreateAsync(
                 pending.UserName,
                 email,
                 pending.Token,

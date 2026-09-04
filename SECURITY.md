@@ -29,7 +29,7 @@ against your production system.
 - **Opaque, rotating refresh tokens**, never JWTs. Only a hash is stored. Presenting a token always
   consumes it, and replaying one that was already consumed **revokes the whole family** for that
   user. Consumption is a single conditional `UPDATE` — zero affected rows *is* the replay signal —
-  so two simultaneous presentations cannot both succeed. See `docs/adr/0005`.
+  so two simultaneous presentations cannot both succeed.
 - **Account lockout** and a configurable password policy with a floor that configuration cannot
   lower. Email confirmation is required to sign in.
 - **JWT validation** with issuer and audience always checked, a pinned algorithm list, thirty
@@ -74,7 +74,8 @@ against your production system.
 - **`UseHttpsRedirection` is deliberately absent.** TLS terminates upstream and the container listens
   on plain 8080; a redirect would answer the orchestrator's health probe with a 307.
 - **The application sends no HSTS header.** This is a decision, not an omission — see
-  `docs/adr/0012`, and the deployment obligation below.
+  the deployment obligation below: only the component terminating TLS knows the domain, its
+  subdomains and the certificate, so only it can promise what HSTS promises.
 - **CORS denies by default.** An empty `Cors:AllowedOrigins` allows nothing rather than everything,
   and `AllowCredentials` is never set, because it is the combination of credentials and a permissive
   origin policy that turns CORS into a hole.
@@ -96,7 +97,8 @@ against your production system.
   `ConcurrencyConflictException` and a `409`.
 - **Conditional requests.** Every read of a `TodoList` or `TodoItem` publishes a strong `ETag`, and
   every write honours `If-Match` — a stale, malformed or unrecognised version is refused with `412`.
-  `If-Match: *` and no `If-Match` header at all are covered by `docs/adr/0013`; see the known gap
+  `If-Match: *` and no `If-Match` header at all are both accepted while `Concurrency:IfMatch` is
+  `Optional`; see the known gap
   below for what stays your responsibility.
 - **Request logging never touches the `Authorization` header, cookies, the query string or the body.**
   It logs a fixed field list, so a credential cannot arrive in a log by accident. The auth endpoints
@@ -120,7 +122,18 @@ against your production system.
   insecure transport is opted into explicitly, so an unencrypted mail path is always a visible,
   auditable choice.
 - The container runs as a non-root user and exposes only `8080/tcp`; CI asserts both.
-- **Migrations are not applied at startup outside Development** (`docs/adr/0009`).
+- **Migrations are not applied at startup outside Development.**
+- **The access-token signing key reaches one host, not both.** `AppTemplate.Worker` composes the
+  identity module — it has to, see `docs/CONFIGURATION.md` — and `JwtOptionsValidator` therefore
+  demands a `Jwt:Key` of it at startup. That host signs nothing and verifies nothing: `AccessTokenIssuer`
+  is the only thing that uses the key, no background loop resolves it, and bearer validation needs an
+  inbound request this process does not have. So it is given a self-describing placeholder from
+  `deploy/kubernetes/configmap-worker.yaml` and `docker-compose.yml`, and only `api-deployment.yaml`
+  references the real value in `deploy/kubernetes/secret.example.yaml`. Both hosts still share
+  `Jwt:Issuer` and `Jwt:Audience`, which are the two values they genuinely have to agree about.
+  Until this change the worker mounted the API's signing key, which made a container whose whole job
+  is sending reminder mail and deleting expired rows one compromise away from minting an access
+  token for any user in the system.
 
 ## What a deployment must still do
 
@@ -139,7 +152,8 @@ against your production system.
    two empty lists as *trust every caller*, which lets a client forge its own partition key and
    bypass the limiter just as completely. The options validator refuses to start in that state.
 4. **Supply `Jwt:Key` from a secret manager**, with real entropy, and rotate it. Never from a file
-   in source control. Same for `ConnectionStrings:Default` and the SMTP credentials.
+   in source control. Same for `ConnectionStrings:Default` and the SMTP credentials. Give it to
+   `AppTemplate.Api` and to nothing else — the worker needs the *section*, not the *key*.
 5. **Set `Cors:AllowedOrigins`** to your real origins, and **narrow `AllowedHosts`** from `*` to the
    hostnames you serve.
 6. **Apply migrations as a separate step** — the release workflow builds a self-contained bundle.
@@ -185,6 +199,26 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   Closing it means taking delivery off the request: queue the message durably and answer on both
   branches at once. A detached task is not the fix — it drops the mail on the next deployment — and
   neither is a fixed delay, which would have to exceed the relay's own variance to hide anything.
+- **The background work has no high availability, and no number of replicas fixes that today.**
+  `deploy/kubernetes/worker-deployment.yaml` fixes `replicas: 1` and argues only against *two*.
+  It says nothing about **zero**, which is the interesting number: with that pod down, no reminder
+  is rung, no expired refresh-token grant is deleted and no idempotency key is reclaimed, and
+  nothing alerts on any of it — the host serves no traffic, so it has no readiness probe, and the
+  loops log a healthy pass rather than emitting a heartbeat anything watches. A deployment should
+  alert on the absence of `apptemplate.reminders.missed_cancellations` samples, or on the pod's
+  restart count, until something better exists.
+  Raising the count is not the answer as things stand. The manifest's own comment reasons about the
+  two purges — idempotent deletes over an already-covered range, so a second replica wastes a
+  connection and nothing more — and is silent about the loop where it matters.
+  `FireDueRemindersUseCase` claims a reminder with `Reminder.TryClaim` **in memory**, notifies, and
+  commits the whole batch once at the end. Two replicas ticking in the same second both read
+  `ClaimedAt` as null, both take the claim, and both send the mail; only then does one of them lose
+  on `xmin` and roll back. The claim defends against a host that died mid-attempt, which is what it
+  was written for, and not against a concurrent pass. So `replicas: 2` means every due reminder is
+  delivered twice, systematically — not as a rare duplicate the at-least-once contract allows for.
+  Closing it means leadership, not more replicas: a PostgreSQL session-level advisory lock held on
+  a dedicated connection, so that losing the process releases it and a standby takes over. That is
+  also what would let a file-derivative loop scale out later.
 - **Nothing bounds distributed credential stuffing.** Lockout is per account and rate limiting is
   per client address, so one password tried against a hundred thousand accounts from a thousand
   addresses trips neither. Closing it needs something neither of those two mechanisms is: a global
@@ -206,7 +240,7 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
 - **`If-Match` is optional by default.** Every read publishes a strong `ETag` and every write
   honours `If-Match`, refusing a stale or unrecognised version with `412`, but a request that sends
   no `If-Match` at all is still accepted unless `Concurrency:IfMatch` is set to `Required` — see
-  `docs/adr/0013`. Until you set it, a slow user's form submission can still overwrite a change made
+  `Concurrency:IfMatch`. Until you set it, a slow user's form submission can still overwrite a change made
   after it was rendered without anything detecting it.
 - **Domain-event delivery is best-effort, with no outbox.** Consumers are now isolated from one
   another: one throwing is logged with its event and consumer type, and the remaining consumers of
@@ -214,14 +248,16 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   side effect is lost and never retried, and a process that dies between the commit and the dispatch
   loop loses every consumer for that save, because nothing durable recorded that the event was
   raised. Closing that needs an outbox, plus a dispatcher, a dead-letter path and idempotent
-  consumers; `docs/adr/0017` records why this template refuses to ship half of it.
+  consumers, and this template refuses to ship half of one: a dispatcher with no dead-letter queue
+  and no alert on lag is worse than an acknowledged gap, because it looks solved.
   The reminder feature shows the alternative, and it is the pattern to copy: the effect re-reads
   the state it depends on at the moment it acts, so a lost cancellation delays a reminder's
   retirement instead of firing it wrongly, and the reminder worker counts every such divergence —
   a non-zero `apptemplate.reminders.missed_cancellations` is the number of events that went missing. A
   consumer whose effect *cannot* be re-derived, because nothing re-reads the state later — mail,
   money, a call to a third party — still needs an outbox before you rely on it.
-  See `docs/adr/0026`.
+  No consumer is the only thing keeping a rule true: every effect re-derives its precondition when
+  it runs, so a lost event leaves the system stale rather than wrong.
 - **Idempotency keys expire only where the worker runs.** `Idempotency:Retention` stamps each row's
   `ExpiresAt`; it does not delete anything. `AppTemplate.Worker`'s maintenance loop calls the purge
   on its own schedule, and the same operation is exposed as
@@ -235,6 +271,6 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   `CancellationToken`, so an abandoned request still runs its user-store I/O to completion.
 - **No audit log of security-relevant events.** Logins, lockouts, token-family revocations and
   password changes are traced but not recorded in a queryable, tamper-evident store. This stays open
-  deliberately: `docs/adr/0021` records why a table this application can `UPDATE` and `DELETE`
+  deliberately: a table this application can `UPDATE` and `DELETE`
   through the same connection as business data would look like an audit trail without being one, and
   what closing it properly requires.

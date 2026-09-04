@@ -294,7 +294,7 @@ public sealed class TodoListsController(
     /// <remarks>
     /// A <c>PUT</c> carrying the complete title/description representation, not a <c>PATCH</c>: every
     /// write on this surface is a named operation on the aggregate —
-    /// <c>docs/adr/0018-no-patch.md</c>. An omitted description therefore clears the one stored.
+    /// there is no <c>PATCH</c>. An omitted description therefore clears the one stored.
     /// </remarks>
     [HttpPut("{todoListId:guid}/items/{todoItemId:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TodoItemResponse))]

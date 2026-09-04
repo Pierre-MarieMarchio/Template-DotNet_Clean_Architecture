@@ -1,8 +1,8 @@
-﻿using AppTemplate.Infrastructure.Identity.Options;
+﻿using AppTemplate.Infrastructure.Identity.TwoFactor;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Options;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.TwoFactor;
 
 /// <summary>
 /// The validator runs under <c>ValidateOnStart</c>, so what it rejects is what stops the process from

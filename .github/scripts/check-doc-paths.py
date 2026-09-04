@@ -3,6 +3,14 @@
 A wrong path in a template's documentation costs the reader an hour, so it is worth a check
 rather than a proofread. Only paths inside backticks are considered — prose mentioning a folder
 by name is not a claim about the tree.
+
+A second pass covers the files that explain themselves in comments rather than in Markdown —
+the deployment manifests, the `.http` scratchpad, the build scripts. They cite a document by
+bare path with no backticks around it, so the first pass cannot see them, and deleting a
+documentation directory left seven such references pointing at nothing while this check stayed
+green. Only the documentation directory's own prefix is considered there: unlike a bare
+filename, it is unambiguous enough to check without inventing false positives out of code
+identifiers.
 """
 
 from __future__ import annotations
@@ -21,9 +29,6 @@ CANDIDATE = re.compile(
     r"(?:Src|Tests|docs|\.github|\.config)/[\w\-./]+"
     r"|^(?:[\w\-.]+\.(?:sln|slnx|props|json|yml|md|ps1|http|runsettings|minimum|csproj|py))$"
 )
-
-# Referenced by name in ADR tables and prose without a directory, resolved relative to docs/adr.
-ADR_LOCAL = re.compile(r"^\d{4}-[\w\-]+\.md$")
 
 missing: list[str] = []
 checked = 0
@@ -48,20 +53,6 @@ for md in md_files:
             continue
 
         cleaned = raw.removeprefix("./")
-
-        # `docs/adr/0009` is accepted shorthand for the numbered record; resolve by prefix.
-        adr_shorthand = re.match(r"^docs/adr/(\d{4})$", cleaned)
-        if adr_shorthand:
-            checked += 1
-            if not any((REPO / "docs" / "adr").glob(f"{adr_shorthand.group(1)}-*.md")):
-                missing.append(f"{rel_md}: `{raw}` (no ADR with that number)")
-            continue
-
-        if ADR_LOCAL.match(cleaned):
-            checked += 1
-            if not (REPO / "docs" / "adr" / cleaned).exists():
-                missing.append(f"{rel_md}: `{raw}`")
-            continue
 
         if "/" not in cleaned:
             # A bare filename in prose is not a claim that it sits at the repository root.
@@ -96,42 +87,48 @@ for md in md_files:
 
 print(f"Scanned {len(md_files)} Markdown file(s); checked {checked} path reference(s).")
 
-# --- The ADR index -----------------------------------------------------------------------
-# docs/adr/README.md carries a table with one row per record. A new record whose row nobody
-# added is invisible to every reader who starts from the index, and the omission is silent:
-# the file is still there, so no link is broken and the check above passes.
-adr_dir = REPO / "docs" / "adr"
-adr_problems: list[str] = []
-adr_count = 0
+# --- Second pass: bare docs/ references in the files that comment rather than document. --------
 
-if adr_dir.is_dir():
-    index = adr_dir / "README.md"
-    if not index.exists():
-        adr_problems.append("docs/adr/README.md is missing, so the records have no index")
-    else:
-        index_text = index.read_text(encoding="utf-8")
-        records = sorted(p.name for p in adr_dir.glob("[0-9][0-9][0-9][0-9]-*.md"))
-        adr_count = len(records)
+# Trailing punctuation belongs to the sentence, not to the path. A possessive is the one that
+# does not look like punctuation: a reference written as "<path>'s own recommendation" names a
+# document, not a directory whose last segment ends in an apostrophe-s.
+TRAILING = re.compile(r"(?:'s|[.,;:)\]]+)$")
+BARE_DOC_PATH = re.compile(r"(?<![\w`/])docs/[\w\-./]+")
 
-        for record in records:
-            if record not in index_text:
-                adr_problems.append(f"docs/adr/README.md has no row for `{record}`")
+COMMENTING_SUFFIXES = (".yaml", ".yml", ".http", ".ps1", ".py", ".props", ".cs", ".editorconfig")
 
-        # And the reverse: a row naming a record that no longer exists.
-        for linked in sorted(set(re.findall(r"\(((?:\d{4})-[\w\-]+\.md)\)", index_text))):
-            if not (adr_dir / linked).exists():
-                adr_problems.append(f"docs/adr/README.md links `{linked}`, which does not exist")
+commenting_files = sorted(
+    p for p in REPO.rglob("*")
+    if p.is_file()
+    and p.suffix in COMMENTING_SUFFIXES
+    and "bin" not in p.parts
+    and "obj" not in p.parts
+    and ".git" not in p.parts
+    and ".vs" not in p.parts
+)
 
-        numbers = [int(name[:4]) for name in records]
-        duplicates = sorted({n for n in numbers if numbers.count(n) > 1})
-        for number in duplicates:
-            adr_problems.append(f"two records share the number {number:04d}")
+bare_checked = 0
 
-    print(f"Checked {adr_count} architecture decision record(s) against the index.")
+for source in commenting_files:
+    text = source.read_text(encoding="utf-8", errors="replace")
+    rel_source = source.relative_to(REPO).as_posix()
+
+    for match in BARE_DOC_PATH.finditer(text):
+        cited = TRAILING.sub("", match.group(0))
+
+        bare_checked += 1
+
+        if not (REPO / cited).exists():
+            missing.append(f"{rel_source}: {cited}")
+
+print(
+    f"Scanned {len(commenting_files)} commented file(s); "
+    f"checked {bare_checked} bare docs/ reference(s)."
+)
 
 print()
 
-problems = sorted(set(missing)) + adr_problems
+problems = sorted(set(missing))
 
 if problems:
     print(f"PROBLEMS ({len(problems)}):")
@@ -139,4 +136,4 @@ if problems:
         print(f"  ! {entry}")
     sys.exit(1)
 
-print("Every cited path exists, and the ADR index matches the records on disk.")
+print("Every cited path exists.")

@@ -205,8 +205,8 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
     }
 
     /// <summary>
-    /// A username carrying markup never reaches the email composer, because the identity store's
-    /// allowed-character set refuses it first. The composer's HTML-encoding is only the second line of
+    /// A username carrying markup never reaches the email emailFactory, because the identity store's
+    /// allowed-character set refuses it first. The emailFactory's HTML-encoding is only the second line of
     /// defence: without both, a user could put an anchor pointing anywhere into their own username and
     /// have it delivered inside a mail from this domain.
     /// </summary>

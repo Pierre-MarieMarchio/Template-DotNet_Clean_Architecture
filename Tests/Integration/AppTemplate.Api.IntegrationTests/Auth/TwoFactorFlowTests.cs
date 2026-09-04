@@ -11,7 +11,7 @@ namespace AppTemplate.Api.IntegrationTests.Auth;
 
 /// <summary>
 /// The two-factor lifecycle end to end, against the real endpoints and the real database — the proof
-/// the unit tests around <c>ITwoFactorEnrollment</c> and <c>ITwoFactorChallenge</c> cannot give on
+/// the unit tests around <c>ITwoFactorEnrollmentService</c> and <c>ITwoFactorChallengeService</c> cannot give on
 /// their own, because each of those tests the adapter against a substituted store, never the whole
 /// pipeline a caller actually walks through.
 /// <para>

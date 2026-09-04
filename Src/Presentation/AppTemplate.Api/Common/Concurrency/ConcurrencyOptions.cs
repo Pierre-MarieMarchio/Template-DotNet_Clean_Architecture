@@ -16,7 +16,8 @@ public sealed class ConcurrencyOptions
     /// <summary>
     /// <see cref="IfMatchRequirement.Optional"/> by default: turning it on rejects every deployed
     /// client that predates <c>If-Match</c> support, and only the team deploying this knows whether
-    /// it has any. See <c>docs/adr/0013-if-match-is-optional-by-default.md</c>.
+    /// it has any. <c>Optional</c> is the default so an already-deployed client that sends no
+    /// <c>If-Match</c> keeps working; <c>Required</c> is a coordinated deployment.
     /// </summary>
     public IfMatchRequirement IfMatch { get; set; } = IfMatchRequirement.Optional;
 }

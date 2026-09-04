@@ -202,7 +202,8 @@ Content-Type: application/json
 ###
 # 15. Complete the item. 200 with the completed item and the list's new ETag. No If-Match:
 #     Concurrency:IfMatch defaults to Optional, so an unconditional write is still accepted — see
-#     docs/adr/0013. Raises a domain event, published after the commit succeeds.
+#     SECURITY.md's "If-Match is optional by default". Raises a domain event, published after the
+#     commit succeeds.
 POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/complete
 Authorization: Bearer {{accessToken}}
 
@@ -218,7 +219,8 @@ Authorization: Bearer {{accessToken}}
 
 ###
 # 16c. Replace the item's title and description. A PUT carrying the whole representation of the
-#      operation, never a PATCH — see docs/adr/0018. A field left out is a field cleared.
+#      operation, never a PATCH — see CONTRIBUTING.md's "Writes are named operations", held by
+#      NoEndpoint_AcceptsPatch. A field left out is a field cleared.
 PUT {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json

@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Options;
+namespace AppTemplate.Infrastructure.Identity.RefreshTokens;
 
 /// <summary>Lifetime of the opaque refresh token. Its size and hashing are not configurable.</summary>
 public sealed class RefreshTokenOptions

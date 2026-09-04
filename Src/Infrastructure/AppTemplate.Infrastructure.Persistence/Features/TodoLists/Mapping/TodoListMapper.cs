@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Infrastructure.Persistence.Common.Mapping;
+using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;

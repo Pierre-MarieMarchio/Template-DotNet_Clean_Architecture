@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
-using AppTemplate.Infrastructure.Identity.Users;
+using AppTemplate.Infrastructure.Identity.Accounts;
+using AppTemplate.Infrastructure.Identity.EmailChange;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,15 +9,15 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.EmailChange;
 
 /// <summary>
-/// <see cref="EmailChangeTokens"/> over a real <see cref="UserManager{TUser}"/>, standing in for the
+/// <see cref="EmailChangeTokensService"/> over a real <see cref="UserManager{TUser}"/>, standing in for the
 /// named <c>ChangeEmail</c> token provider with the trivial <see cref="StubTokenProvider"/>: what is
 /// under test is the adapter's translation of ASP.NET Identity's outcomes, not the token provider
 /// itself.
 /// </summary>
-public sealed class EmailChangeTokensTests
+public sealed class EmailChangeTokensServiceTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
     private const string _currentPassword = "correct horse battery";
@@ -140,7 +141,7 @@ public sealed class EmailChangeTokensTests
 
     private void GivenTheAccountExists()
     {
-        // EmailChangeTokens reads AppUser.PasswordHash directly rather than through the store — see
+        // EmailChangeTokensService reads AppUser.PasswordHash directly rather than through the store — see
         // its comment on why, so the store is never asked for it here.
         var user = new AppUser { Id = _userId, UserName = "someone", PasswordHash = _storedHash };
         _directory.FindByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(user);
@@ -153,9 +154,9 @@ public sealed class EmailChangeTokensTests
     private void GivenTheStoreAcceptsAnUpdate() =>
         _store.UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>()).Returns(IdentityResult.Success);
 
-    private EmailChangeTokens CreateTokens(bool rejectNewEmail = false) => CreateTokens(out _, rejectNewEmail);
+    private EmailChangeTokensService CreateTokens(bool rejectNewEmail = false) => CreateTokens(out _, rejectNewEmail);
 
-    private EmailChangeTokens CreateTokens(out UserManager<AppUser> userManager, bool rejectNewEmail = false)
+    private EmailChangeTokensService CreateTokens(out UserManager<AppUser> userManager, bool rejectNewEmail = false)
     {
         var options = new OptionsWrapper<IdentityOptions>(new IdentityOptions());
 
@@ -174,7 +175,7 @@ public sealed class EmailChangeTokensTests
         // "Default" name IdentityOptions.Tokens.ChangeEmailTokenProvider defaults to.
         userManager.RegisterTokenProvider("Default", new StubTokenProvider());
 
-        return new EmailChangeTokens(userManager, _directory);
+        return new EmailChangeTokensService(userManager, _directory);
     }
 
     private sealed class StubTokenProvider : IUserTwoFactorTokenProvider<AppUser>

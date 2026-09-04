@@ -9,7 +9,7 @@ namespace AppTemplate.Application.UnitTests.Features.Auth.UseCases.Commands.Conf
 
 public sealed class ConfirmEmailUseCaseTests
 {
-    private readonly IEmailConfirmationTokens _confirmationTokens = Substitute.For<IEmailConfirmationTokens>();
+    private readonly IEmailConfirmationTokensService _confirmationTokens = Substitute.For<IEmailConfirmationTokensService>();
     private readonly ConfirmEmailUseCase _useCase;
 
     public ConfirmEmailUseCaseTests() =>

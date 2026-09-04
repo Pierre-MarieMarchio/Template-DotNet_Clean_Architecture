@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
-using AppTemplate.Infrastructure.Identity.Users;
+using AppTemplate.Infrastructure.Identity.EmailConfirmation;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,15 +8,15 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.EmailConfirmation;
 
 /// <summary>
-/// <see cref="EmailConfirmationTokens"/> over a real <see cref="UserManager{TUser}"/>, standing in
+/// <see cref="EmailConfirmationTokensService"/> over a real <see cref="UserManager{TUser}"/>, standing in
 /// for the "Default" provider with a fake that mimics the one property of
 /// <c>DataProtectorTokenProvider</c> this suite cares about: a token embeds the security stamp at
 /// generation time and is rejected once the stamp no longer matches.
 /// </summary>
-public sealed class EmailConfirmationTokensTests
+public sealed class EmailConfirmationTokensServiceTests
 {
     private const string _knownEmail = "someone@example.test";
 
@@ -108,7 +108,7 @@ public sealed class EmailConfirmationTokensTests
         return (store, user);
     }
 
-    private static EmailConfirmationTokens CreateTokens(
+    private static EmailConfirmationTokensService CreateTokens(
         IUserEmailStore<AppUser> store,
         out UserManager<AppUser> userManager)
     {
@@ -130,7 +130,7 @@ public sealed class EmailConfirmationTokensTests
         // good as the security stamp it was minted against.
         userManager.RegisterTokenProvider("Default", new StampBoundTokenProvider());
 
-        return new EmailConfirmationTokens(userManager);
+        return new EmailConfirmationTokensService(userManager);
     }
 
     /// <summary>

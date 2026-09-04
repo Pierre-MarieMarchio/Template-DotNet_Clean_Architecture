@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Identity.Configurations;
 
-/// <summary>Mapping for the account table.</summary>
 internal sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
 {
     public void Configure(EntityTypeBuilder<AppUser> builder)

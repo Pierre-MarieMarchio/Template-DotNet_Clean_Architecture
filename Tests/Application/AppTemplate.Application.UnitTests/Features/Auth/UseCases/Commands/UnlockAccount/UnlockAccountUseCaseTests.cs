@@ -12,7 +12,7 @@ public sealed class UnlockAccountUseCaseTests
 {
     private static readonly Guid _targetId = Guid.CreateVersion7();
 
-    private readonly IAccountLockouts _lockouts = Substitute.For<IAccountLockouts>();
+    private readonly IAccountLockoutsService _lockouts = Substitute.For<IAccountLockoutsService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

@@ -3,7 +3,7 @@ using System.Security.Claims;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace AppTemplate.Infrastructure.Identity.Users;
+namespace AppTemplate.Infrastructure.Identity.Accounts;
 
 internal sealed class AppUserDirectory(
     UserManager<AppUser> userManager,

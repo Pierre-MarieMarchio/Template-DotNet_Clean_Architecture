@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Features.Auth.Ports.AccountDeletion;
-using AppTemplate.Infrastructure.Identity.Users;
+using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,14 +8,14 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.Accounts;
 
 /// <summary>
-/// <see cref="AccountDeletion"/> over a real <see cref="UserManager{TUser}"/>. Unlike
-/// <see cref="AccountLockoutsTests"/> and <see cref="RoleAssignmentsTests"/>, there is no security
-/// stamp to assert on: see <see cref="AccountDeletion"/> for why deleting the row needs none.
+/// <see cref="AccountDeletionService"/> over a real <see cref="UserManager{TUser}"/>. Unlike
+/// <see cref="AccountLockoutsServiceTests"/> and <see cref="RoleAssignmentsServiceTests"/>, there is no security
+/// stamp to assert on: see <see cref="AccountDeletionService"/> for why deleting the row needs none.
 /// </summary>
-public sealed class AccountDeletionTests
+public sealed class AccountDeletionServiceTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
 
@@ -67,7 +67,7 @@ public sealed class AccountDeletionTests
         return user;
     }
 
-    private AccountDeletion CreateAccountDeletion()
+    private AccountDeletionService CreateAccountDeletion()
     {
         var userManager = new UserManager<AppUser>(
             _store,
@@ -80,6 +80,6 @@ public sealed class AccountDeletionTests
             Substitute.For<IServiceProvider>(),
             NullLogger<UserManager<AppUser>>.Instance);
 
-        return new AccountDeletion(userManager, _directory);
+        return new AccountDeletionService(userManager, _directory);
     }
 }

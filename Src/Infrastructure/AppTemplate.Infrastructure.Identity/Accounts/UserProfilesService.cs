@@ -3,13 +3,13 @@ using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace AppTemplate.Infrastructure.Identity.Users;
+namespace AppTemplate.Infrastructure.Identity.Accounts;
 
 /// <summary>
-/// <see cref="IUserProfiles"/> over <see cref="UserManager{TUser}"/>. Every field is read from the
-/// store at call time — see <see cref="IUserProfiles"/> for why a claims-based shortcut is refused.
+/// <see cref="IUserProfilesService"/> over <see cref="UserManager{TUser}"/>. Every field is read from the
+/// store at call time — see <see cref="IUserProfilesService"/> for why a claims-based shortcut is refused.
 /// </summary>
-internal sealed class UserProfiles(UserManager<AppUser> userManager) : IUserProfiles
+internal sealed class UserProfilesService(UserManager<AppUser> userManager) : IUserProfilesService
 {
     public async Task<UserProfile?> FindByIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {

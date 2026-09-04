@@ -11,8 +11,8 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.LockAccount;
 
 public sealed class LockAccountUseCase(
-    IAccountLockouts lockouts,
-    IRefreshTokenGrants refreshTokens,
+    IAccountLockoutsService lockouts,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<LockAccountCommand> validator) : ILockAccountUseCase
@@ -35,7 +35,7 @@ public sealed class LockAccountUseCase(
             return callerId;
         }
 
-        var guard = SelfAdministrationGuard.EnsureNotSelf(
+        var guard = SelfAdministrationPolicy.EnsureNotSelf(
             callerId.Value,
             request.UserId,
             AuthErrors.CannotLockOwnAccount);
@@ -52,7 +52,7 @@ public sealed class LockAccountUseCase(
             return Result.Failure(ToError(outcome));
         }
 
-        await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
         securityEventLog.Record(SecurityEvent.AccountLockedByAdministrator(request.UserId));
 
         return Result.Success();

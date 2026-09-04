@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
@@ -21,9 +21,9 @@ public sealed class RegisterUseCaseTests
 {
     private const string _token = "confirmation-token";
 
-    private readonly IUserAccounts _accounts = Substitute.For<IUserAccounts>();
-    private readonly IEmailConfirmationTokens _confirmationTokens = Substitute.For<IEmailConfirmationTokens>();
-    private readonly IConfirmationEmailComposer _composer = Substitute.For<IConfirmationEmailComposer>();
+    private readonly IUserAccountsService _accounts = Substitute.For<IUserAccountsService>();
+    private readonly IEmailConfirmationTokensService _confirmationTokens = Substitute.For<IEmailConfirmationTokensService>();
+    private readonly IConfirmationEmailFactory _emailFactory = Substitute.For<IConfirmationEmailFactory>();
     private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly RegisterUseCase _useCase;
@@ -32,7 +32,7 @@ public sealed class RegisterUseCaseTests
         _useCase = new RegisterUseCase(
             _accounts,
             _confirmationTokens,
-            _composer,
+            _emailFactory,
             _emailSender,
             _securityEventLog,
             new RegisterCommandValidator(),
@@ -274,7 +274,7 @@ public sealed class RegisterUseCaseTests
         GivenTheAccountIsCreated();
         GivenTheConfirmationTokenIsIssued();
 
-        _composer.ComposeAsync(
+        _emailFactory.CreateAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -336,7 +336,7 @@ public sealed class RegisterUseCaseTests
 
             _confirmationTokens.IssueAsync("someone@example.com", Arg.Any<CancellationToken>());
 
-            _composer.ComposeAsync(
+            _emailFactory.CreateAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -362,7 +362,7 @@ public sealed class RegisterUseCaseTests
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
-        await _composer.Received(1).ComposeAsync(
+        await _emailFactory.Received(1).CreateAsync(
             "someone",
             "someone@example.com",
             _token,
@@ -391,7 +391,7 @@ public sealed class RegisterUseCaseTests
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ConfirmationEmailSent.ShouldBeFalse();
-        _composer.ReceivedCalls().ShouldBeEmpty();
+        _emailFactory.ReceivedCalls().ShouldBeEmpty();
         _emailSender.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -443,7 +443,7 @@ public sealed class RegisterUseCaseTests
         _confirmationTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new PendingConfirmation("someone", _token));
 
-        _composer.ComposeAsync(
+        _emailFactory.CreateAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),

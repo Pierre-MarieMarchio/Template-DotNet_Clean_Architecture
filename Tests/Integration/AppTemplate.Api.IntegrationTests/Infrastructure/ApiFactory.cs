@@ -3,7 +3,7 @@ using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Application;
 using AppTemplate.Domain.Features.TodoLists.Events;
-using AppTemplate.Infrastructure.Email.Options;
+using AppTemplate.Infrastructure.Email.Common.Smtp;
 using AppTemplate.Infrastructure.Identity.AccessTokens;
 using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Identity.EmailChange;

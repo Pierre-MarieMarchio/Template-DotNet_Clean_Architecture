@@ -6,7 +6,7 @@ using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.LogoutEverywhere;
 
 public sealed class LogoutEverywhereUseCase(
-    IRefreshTokenGrants refreshTokens,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser) : ILogoutEverywhereUseCase
 {

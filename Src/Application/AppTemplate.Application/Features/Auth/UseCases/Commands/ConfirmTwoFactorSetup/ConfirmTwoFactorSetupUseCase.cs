@@ -11,8 +11,8 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup;
 
 public sealed class ConfirmTwoFactorSetupUseCase(
-    ITwoFactorEnrollment enrollment,
-    IRefreshTokenGrants refreshTokens,
+    ITwoFactorEnrollmentService enrollment,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<ConfirmTwoFactorSetupCommand> validator) : IConfirmTwoFactorSetupUseCase
@@ -54,7 +54,7 @@ public sealed class ConfirmTwoFactorSetupUseCase(
 
         // Arming two-factor sign-in is a security-posture change every other session must
         // re-authenticate under.
-        await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
 
         return Result.Success(new ConfirmTwoFactorSetupOutcome(confirmation.RecoveryCodes!));
     }

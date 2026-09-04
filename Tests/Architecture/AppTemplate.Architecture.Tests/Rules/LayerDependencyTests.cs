@@ -49,6 +49,11 @@ public sealed class LayerDependencyTests
         "Microsoft.AspNetCore",
         "Npgsql",
         "MailKit",
+
+        // Not a layering violation: a refusal. A controller here names the use case it calls and F12
+        // reaches the implementation, which a dispatcher would replace with a runtime lookup and a
+        // pipeline nobody reads. Listed so the day someone adds the package the build says no.
+        "MediatR",
     ];
 
     [Fact]

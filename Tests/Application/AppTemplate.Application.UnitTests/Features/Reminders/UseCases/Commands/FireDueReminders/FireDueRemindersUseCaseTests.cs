@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
-using AppTemplate.Application.Features.Reminders.Ports.ReminderTargets;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Features.Reminders.Entities;
@@ -26,7 +26,7 @@ public sealed class FireDueRemindersUseCaseTests
     private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
 
     private readonly IReminderRepository _repository = Substitute.For<IReminderRepository>();
-    private readonly IReminderTargets _targets = Substitute.For<IReminderTargets>();
+    private readonly IReminderTargetQueries _targets = Substitute.For<IReminderTargetQueries>();
     private readonly IReminderNotifier _notifier = Substitute.For<IReminderNotifier>();
     private readonly IReminderDiagnostics _diagnostics = Substitute.For<IReminderDiagnostics>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();

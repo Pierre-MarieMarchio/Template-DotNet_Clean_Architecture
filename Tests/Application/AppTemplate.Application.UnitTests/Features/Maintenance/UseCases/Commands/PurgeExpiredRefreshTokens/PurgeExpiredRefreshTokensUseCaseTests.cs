@@ -9,7 +9,7 @@ namespace AppTemplate.Application.UnitTests.Features.Maintenance.UseCases.Comman
 
 public sealed class PurgeExpiredRefreshTokensUseCaseTests
 {
-    private readonly IRefreshTokenMaintenance _maintenance = Substitute.For<IRefreshTokenMaintenance>();
+    private readonly IRefreshTokenMaintenanceService _maintenance = Substitute.For<IRefreshTokenMaintenanceService>();
     private readonly StubDateTimeProvider _clock = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

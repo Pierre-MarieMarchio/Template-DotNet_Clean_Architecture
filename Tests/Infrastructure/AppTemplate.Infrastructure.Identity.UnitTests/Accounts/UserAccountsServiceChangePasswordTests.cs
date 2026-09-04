@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
-using AppTemplate.Infrastructure.Identity.Users;
+using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -12,13 +12,13 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.Accounts;
 
 /// <summary>
-/// <see cref="UserAccounts.ChangePasswordAsync"/> over a real <see cref="UserManager{TUser}"/>: which
+/// <see cref="UserAccountsService.ChangePasswordAsync"/> over a real <see cref="UserManager{TUser}"/>: which
 /// of ASP.NET Identity's refusals is reported as what.
 /// </summary>
-public sealed class UserAccountsChangePasswordTests
+public sealed class UserAccountsServiceChangePasswordTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
     private const string _currentPassword = "correct horse battery";
@@ -87,7 +87,7 @@ public sealed class UserAccountsChangePasswordTests
         _store.UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>()).Returns(IdentityResult.Success);
     }
 
-    private UserAccounts CreateAccounts()
+    private UserAccountsService CreateAccounts()
     {
         var options = new OptionsWrapper<IdentityOptions>(new IdentityOptions());
 
@@ -111,7 +111,7 @@ public sealed class UserAccountsChangePasswordTests
             Substitute.For<IAuthenticationSchemeProvider>(),
             Substitute.For<IUserConfirmation<AppUser>>());
 
-        return new UserAccounts(userManager, signInManager, _directory, Substitute.For<IDateTimeProvider>(), Substitute.For<ISecurityEventLog>());
+        return new UserAccountsService(userManager, signInManager, _directory, Substitute.For<IDateTimeProvider>(), Substitute.For<ISecurityEventLog>());
     }
 
     /// <summary>A hasher whose verification result the test controls, unlike the fixed decoy in <c>RecordingPasswordHasher</c>.</summary>

@@ -44,7 +44,7 @@ be filled from user secrets or environment variables.
 >
 > | Section | Bound by | Declared in |
 > |---|---|---|
-> | `Jwt`, `Identity`, `RefreshToken`, `EmailConfirmation` | `AddIdentityModule` | `AppTemplate.Infrastructure.Identity/Options/` |
+> | `Jwt`, `Identity`, `RefreshToken`, `EmailConfirmation` | `AddIdentityModule` | beside the service each configures, under `AppTemplate.Infrastructure.Identity/<Subject>/` |
 > | `IdentitySeed` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Features/Identity/Seeding/` |
 > | `Email` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Options/` |
 > | `Database` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/PersistenceModule.cs` |
@@ -77,10 +77,40 @@ on `HostOptions.ShutdownTimeout`'s framework default — nothing here raises it 
 
 **Why the worker validates `Jwt`, `Identity`, `RefreshToken`, `EmailConfirmation`, `PasswordReset`
 and `EmailChange` at startup even though it never authenticates anybody.**
-`IRefreshTokenMaintenance`'s only adapter lives in `AppTemplate.Infrastructure.Identity`, and
-composing that module also composes ASP.NET Identity, bearer validation and its own configuration
-surface as a whole — there is no narrower call that gets only the maintenance adapter. This is a
-real coupling cost of the current module boundary, not an oversight: the worker's `appsettings.json`
+Two reasons, and for a long time this document named only the smaller of them.
+
+The smaller: `IRefreshTokenMaintenanceService`'s only adapter lives in
+`AppTemplate.Infrastructure.Identity`. Read alone, that invites an obvious conclusion — move that
+one adapter into the persistence project, where the `IRefreshTokenTable` it drives already lives,
+and the worker sheds six configuration sections. **That conclusion is wrong**, which is worth
+saying plainly because it is the first thing anyone reading this reaches for.
+
+The one that decides it: `EmailReminderNotifier` resolves `IUserProfilesService` — an identity
+port — to find the address a due reminder is rung at. That is the reminder loop, which is this
+host's own feature and its main reason to exist. So the worker needs the identity module whatever
+happens to the maintenance adapter.
+
+And above both: `AddApplicationLayer` registers *every* use case in the assembly, and
+`Host.CreateApplicationBuilder` turns on `ValidateOnBuild` in Development. Every port the
+application layer declares therefore has to be resolvable in every host — not only the ports that
+host's own loops reach. A worker composed without the identity module fails to build its container
+naming twenty-odd unresolvable use cases, not one.
+`TheWorkerContainer_NeedsIdentityForItsReminderLoop_NotOnlyForThePurgeAdapter` holds all of this,
+so the paragraph cannot drift back to the convenient version.
+
+Composing that module also composes ASP.NET Identity, bearer validation and its own configuration
+surface as a whole — there is no narrower call that gets only one adapter. This is a
+real coupling cost of the current module boundary, not an oversight.
+
+**One consequence is worth separating from the rest: the worker needs the `Jwt` section, not the
+`Jwt:Key` value.** `AccessTokenIssuer` is the only thing that signs with it, no loop in this host
+resolves it, and bearer validation needs an inbound request this process does not have — so
+`docker-compose.yml` and `deploy/kubernetes/configmap-worker.yaml` give it a fixed, self-describing
+placeholder, and only the API's Deployment references the real key. `Jwt:Issuer` and `Jwt:Audience`
+are kept identical between the two, because those are what the hosts have to agree about. See
+`SECURITY.md`.
+
+The worker's `appsettings.json`
 therefore carries the same required `Jwt:Key`, `Jwt:Issuer`, `Jwt:Audience`,
 `EmailConfirmation:ConfirmEmailUrl`, `PasswordReset:ResetPasswordUrl` and
 `EmailChange:ConfirmEmailChangeUrl` as the API, and its generic host reads `DOTNET_ENVIRONMENT`
@@ -319,7 +349,8 @@ a JSON body.
 
 **Both hosts validate all three of `EmailConfirmation`, `PasswordReset` and `EmailChange` at
 startup.** All three are bound by `AddIdentityModule`, not by anything HTTP-specific, so
-`AppTemplate.Worker` — which composes that module for `IRefreshTokenMaintenance`'s adapter, see
+`AppTemplate.Worker` — which composes that module for its reminder loop's `IUserProfilesService`
+and for `IRefreshTokenMaintenanceService`'s adapter, see
 [above](#two-hosts-one-configuration-schema) — requires all three URLs too, even though it never
 serves any of these three requests itself.
 
@@ -414,7 +445,7 @@ Two details that are easy to undo by accident:
   path prefix, and the API policy above is not weakened to accommodate it. Scalar's inline
   module script runs on a per-request nonce rather than `'unsafe-inline'`.
 
-**The application sends no `Strict-Transport-Security` header** — see `docs/adr/0012`. An ingress
+**The application sends no `Strict-Transport-Security` header.** An ingress
 terminating TLS is required to send it.
 
 ### `OpenTelemetry`
@@ -456,7 +487,7 @@ version at all.
 
 - **Left at `Optional`, the template behaves exactly as it did before conditional requests
   existed**: an unconditional write still succeeds, guarded only by the `xmin` check inside the
-  use case. This is deliberate — see `docs/adr/0013` — so that adding `If-Match` support does not
+  use case. This is deliberate, so that adding `If-Match` support does not
   silently start rejecting every client that predates it.
 - **Set to `Required` only once every client of this deployment reads before it writes** and
   echoes back the `ETag` it read; otherwise every mutation starts answering `428`.
@@ -507,7 +538,7 @@ What each setting does when it is wrong:
 |---|---|---|---|
 | `MaxRequestBodyBytes` | long | `65536` | Must be between 1024 and 31457280 (30 MB). |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Http/RequestLimitsExtensions.cs`. It replaces
+Read by `Src/Presentation/AppTemplate.Api/Common/Hosting/RequestLimitsExtensions.cs`. It replaces
 Kestrel's 30 MB default, which is a free denial-of-service against an API whose largest legitimate
 body is a few kilobytes.
 
@@ -526,7 +557,7 @@ body is a few kilobytes.
 |---|---|---|---|
 | `Timeout` | timespan | `00:00:30` | Must be greater than zero and at most 10 minutes. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Lifecycle/HostLifecycleExtensions.cs`, which applies it to
+Read by `Src/Presentation/AppTemplate.Api/Common/Hosting/HostLifecycleExtensions.cs`, which applies it to
 the framework's own `HostOptions.ShutdownTimeout` — how long the host waits for in-flight requests
 to drain once it starts stopping. 30 seconds matches the grace period Kubernetes gives a pod
 (`terminationGracePeriodSeconds`) before sending SIGKILL, so this host is not still draining when
@@ -550,7 +581,7 @@ crash would. **Set outside its range**, the host fails `ValidateOnStart()` and d
 | `Default` | timespan | `00:05:00` | Applied to every endpoint that names no other policy. Must be 1 second – 1 hour. |
 | `Extended` | timespan | `00:10:00` | Reachable only through the `long` named policy. Must be 1 second – 1 hour, and greater than `Default`. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Lifecycle/HostLifecycleExtensions.cs`, which installs
+Read by `Src/Presentation/AppTemplate.Api/Common/Hosting/HostLifecycleExtensions.cs`, which installs
 `AddRequestTimeouts`/`UseRequestTimeouts` with these two policies. A response still not started when
 the deadline hits gets a `504` `ProblemDetails` with `code: "request.timeout"`; a response already
 under way (headers or a first body chunk already sent) cannot be rewritten, so the connection is cut
@@ -620,7 +651,7 @@ purge some other way is not forced into both.
 | `Cache-Control` on reads | `private, no-cache` | `Src/Presentation/AppTemplate.Api/Common/Caching/CacheHeaderExtensions.cs` |
 
 `Cache-Control` has no setting because there is only one defensible value for a per-user
-authenticated response — see `docs/adr/0019`. An endpoint whose response is identical for every
+authenticated response: caching here is revalidation, not storage. An endpoint whose response is identical for every
 caller may set its own header; the middleware never overwrites one already present.
 
 **Both rate limits are per instance, so the limit a caller actually meets is multiplied by your

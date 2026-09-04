@@ -1,5 +1,6 @@
-# TLS termination and HSTS both belong here, not in the application — docs/adr/0012 is the
-# record of why. The annotations below are the nginx ingress controller's own vocabulary
+# TLS termination and HSTS both belong here, not in the application — docs/DEPLOYMENT.md's "HSTS
+# is the Ingress's responsibility" is the record of why, and SECURITY.md makes sending it a
+# deployment obligation. The annotations below are the nginx ingress controller's own vocabulary
 # (nginx.ingress.kubernetes.io/*); if you deploy behind a different controller, translate the
 # intent (redirect to HTTPS, send Strict-Transport-Security) into that controller's own
 # annotations or CRDs rather than copying these verbatim — they will be silently ignored by a
@@ -16,7 +17,7 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    # docs/adr/0012's own recommendation: start with a short max-age, confirm every host under
+    # docs/DEPLOYMENT.md's own recommendation: start with a short max-age, confirm every host under
     # the name serves TLS, then raise it. Do not copy a one-year max-age from another project
     # into this file — that promise is being made about THIS domain, and it cannot be shortened
     # retroactively.

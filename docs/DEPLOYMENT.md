@@ -10,7 +10,7 @@ through a values file for values nobody has picked yet.
 
 ## The shutdown chain: three numbers that have to agree
 
-`Src/Presentation/AppTemplate.Api/Common/Lifecycle/ShutdownHealthCheck.cs` turns
+`Src/Presentation/AppTemplate.Api/Common/Hosting/ShutdownHealthCheck.cs` turns
 `/health/ready` unhealthy the instant graceful shutdown begins (`ApplicationStopping`), while
 `/health` — liveness — stays healthy for as long as the process is exiting cleanly. Read that
 file's own comment; it is the half of this mechanism that lives in code. The other half lives in
@@ -104,10 +104,10 @@ orchestrator's own plain-HTTP probe with a `307` instead of a health status.
 
 ## HSTS is the Ingress's responsibility
 
-`docs/adr/0012` is the full record; the short version is that `max-age`, `includeSubDomains` and
+The application deliberately sends no HSTS header: `max-age`, `includeSubDomains` and
 `preload` are commitments about a whole domain that a process serving one path prefix cannot
 make on its own, and the container does not even see the TLS connection the header is about.
-`ingress.yaml` carries the header instead, with the ADR's own recommended starting point (a
+`ingress.yaml` carries the header instead, with the recommended starting point (a
 short `max-age`, no subdomains, no preload) — raise it only after confirming every host under the
 domain actually serves TLS.
 
@@ -162,9 +162,19 @@ keys it composes and nothing else. `AppTemplate.Worker` **does** receive `Email_
 `Email__Password`: it composes `AppTemplate.Infrastructure.Email` too, for `IReminderNotifier`'s
 adapter — see below and `AppTemplate.Worker.csproj`.
 
+It **does not** receive `Jwt__Key`, and that is the one asymmetry between the two Deployments.
+The worker needs the `Jwt` *section* to exist, because it composes the identity module and
+`JwtOptionsValidator` runs at startup; it never uses the *key*, because nothing in it signs or
+verifies a token. `configmap-worker.yaml` supplies a self-describing placeholder instead, so a
+compromise of the host that sends reminder mail does not hand over the ability to mint an access
+token for any user. `Jwt__Issuer` and `Jwt__Audience` stay identical across both hosts — those two
+are what the hosts genuinely have to agree about.
+
 **`PasswordReset:ResetPasswordUrl`, `EmailChange:ConfirmEmailChangeUrl` and `Email:Host` are all
 required by both hosts, not just the API.** `AppTemplate.Worker` composes
-`AppTemplate.Infrastructure.Identity` for `IRefreshTokenMaintenance`'s sole adapter, and that
+`AppTemplate.Infrastructure.Identity` for its reminder loop's `IUserProfilesService` as much as for
+`IRefreshTokenMaintenanceService`'s adapter — see `docs/CONFIGURATION.md` for why moving the latter
+would free this host of nothing — and that
 module validates `PasswordReset`, `EmailConfirmation` and `EmailChange` at startup regardless of
 which host loaded it — leave any of those three URLs unset on the worker and it refuses to start,
 the same as the API would. It separately composes `AppTemplate.Infrastructure.Email` for
@@ -183,7 +193,7 @@ into one object would put every pod one credential away from being able to alter
 
 ## Applying migrations
 
-`docs/adr/0009` decided migrations run as an explicit step, never inside the serving process, and
+Migrations run as an explicit step, never inside the serving process, and
 names a Kubernetes `Job` as exactly the right shape for that step. `migration-job.yaml` is that
 Job: it runs the self-contained `efbundle` executable `.github/workflows/release.yml`'s
 `migration-bundle` job already produces, against the DDL-capable principal above. Two things this
@@ -198,7 +208,7 @@ manifest assumes but does not itself provide:
   the Deployments — see [`deploy/kubernetes/README.md`](../deploy/kubernetes/README.md) for the
   exact sequence. Skipping that ordering is silent until the day a pod starts against a schema
   its code does not expect; wiring `/health/ready`'s database check into an actual alert is the
-  cheapest place to catch it after the fact, per the ADR's own consequence.
+  cheapest place to catch it after the fact.
 
 ## The worker is its own Deployment, on purpose
 

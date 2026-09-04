@@ -73,7 +73,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # The migration bundle. This is what a deployment runs against the database;
-  # the API applies migrations at startup in Development only (docs/adr/0009).
+  # the API applies migrations at startup in Development only.
   #
   # Built here rather than in a deploy job so that the artifact is produced from
   # the same commit as the image, and so applying migrations never needs the SDK

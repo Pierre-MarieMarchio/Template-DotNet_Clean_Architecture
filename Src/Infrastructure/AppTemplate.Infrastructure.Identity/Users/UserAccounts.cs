@@ -1,0 +1,117 @@
+﻿using System.Security.Cryptography;
+using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.Auth.Ports;
+using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
+using Microsoft.AspNetCore.Identity;
+
+namespace AppTemplate.Infrastructure.Identity.Users;
+
+/// <summary>
+/// <see cref="IUserAccounts"/> over <see cref="UserManager{TUser}"/> and
+/// <see cref="SignInManager{TUser}"/>. It translates and nothing more: every decision about what a
+/// refusal means to a caller belongs to the use case.
+/// </summary>
+internal sealed class UserAccounts(
+    UserManager<AppUser> userManager,
+    SignInManager<AppUser> signInManager,
+    IAppUserDirectory directory,
+    IDateTimeProvider dateTimeProvider) : IUserAccounts
+{
+    private static string? _absentUserPasswordHash;
+
+    /// <summary>
+    /// A real hash of a random string, verified when the email is unknown, so that the "no such
+    /// user" path does the same key derivation the real one does and the response time does not tell
+    /// an attacker which addresses are registered.
+    /// <para>
+    /// Produced by the <em>configured</em> hasher, so the decoy and the real verification derive a key
+    /// the same number of times. Building it from a fresh <see cref="PasswordHasher{TUser}"/> would
+    /// take that hasher's default iteration count and compatibility mode, and the two paths would stop
+    /// costing the same as soon as either was configured away from the default. Computed once per
+    /// process, since a key derivation per request is exactly the latency this is meant to hide.
+    /// </para>
+    /// </summary>
+    private string AbsentUserPasswordHash => LazyInitializer.EnsureInitialized(
+        ref _absentUserPasswordHash,
+        () => userManager.PasswordHasher.HashPassword(
+            new AppUser(),
+            Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))));
+
+    public async Task<AccountCreation> CreateAsync(
+        string userName,
+        string email,
+        string password,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = new AppUser
+        {
+            UserName = userName,
+            Email = email,
+            CreatedAt = dateTimeProvider.UtcNow,
+        };
+
+        var result = await userManager.CreateAsync(user, password);
+
+        if (result.Succeeded)
+        {
+            return AccountCreation.Created(user.Id);
+        }
+
+        bool isConflict = result.Errors.Any(error =>
+            error.Code.Contains("Duplicate", StringComparison.OrdinalIgnoreCase));
+
+        return isConflict
+            ? AccountCreation.Conflict
+            : AccountCreation.Rejected(string.Join(" ", result.Errors.Select(error => error.Description)));
+    }
+
+    public async Task<CredentialCheck> VerifyCredentialAsync(
+        string email,
+        string password,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(email);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await userManager.FindByEmailAsync(email);
+
+        if (user is null)
+        {
+            // Burn the same amount of CPU the real path would.
+            userManager.PasswordHasher.VerifyHashedPassword(new AppUser(), AbsentUserPasswordHash, password);
+
+            return CredentialCheck.Refused(CredentialCheckOutcome.NoSuchAccount);
+        }
+
+        // lockoutOnFailure is what bounds brute force: without it AccessFailedCount never moves and
+        // password guessing is unlimited.
+        var result = await signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
+
+        if (result.Succeeded)
+        {
+            return CredentialCheck.Verified(
+                new AccountIdentity(user.Id, user.UserName ?? string.Empty, user.Email ?? string.Empty));
+        }
+
+        return CredentialCheck.Refused(result switch
+        {
+            { IsLockedOut: true } => CredentialCheckOutcome.LockedOut,
+            { IsNotAllowed: true } => CredentialCheckOutcome.EmailNotConfirmed,
+            _ => CredentialCheckOutcome.IncorrectPassword,
+        });
+    }
+
+    public async Task<bool> CanSignInAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await directory.FindByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return false;
+        }
+
+        return !await userManager.IsLockedOutAsync(user) && await signInManager.CanSignInAsync(user);
+    }
+}

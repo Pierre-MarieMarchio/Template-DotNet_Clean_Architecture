@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Authentication policy: who a caller is, how that is proved, how long the proof lasts.
+
+       It owns no database. The store moved to AppTemplate.Infrastructure.Persistence, which is why there is
+       no Npgsql provider and no Microsoft.EntityFrameworkCore.Design reference here any more — this
+       project has no migrations to scaffold and no design-time factory to be instantiated.
+       Microsoft.AspNetCore.Identity.EntityFrameworkCore stays, because AddEntityFrameworkStores is
+       what points ASP.NET Identity at the shared context.
+
+       Sending mail is not part of it either: it composes AppTemplate.Application's IEmailSender port, and the
+       host decides which module implements it. That is why there is no MailKit reference. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
+  </ItemGroup>
+
+  <!-- Embedded rather than copied to the output directory: a deployment cannot then lose the
+       template and turn every registration into a FileNotFoundException. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Templates\RegisterEmailTemplate.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
+  </ItemGroup>
+
+  <!-- Everything in this module except IdentityModule itself is internal, deliberately: the only
+       things another assembly may name are the capability ports in AppTemplate.Application, never the classes
+       behind them. What is worth testing — single-use rotation, the constant-cost credential check,
+       the email encoding, the options validators — therefore lives behind that boundary, and a test
+       restricted to the public surface could reach none of it. Shared with exactly one assembly. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Infrastructure.Identity.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+
+    <!-- The runtime-generated assembly NSubstitute proxies into. Substituting an internal interface
+         is impossible without it, and the alternative — a hand-written double per port — would be
+         code whose behaviour a test could quietly disagree with. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>DynamicProxyGenAssembly2</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

@@ -1,30 +1,102 @@
-**/.classpath
-**/.dockerignore
+# The Dockerfile does `COPY . .`, so anything NOT excluded here ends up in an
+# image layer and stays extractable with `docker history` / `docker save` even if
+# a later layer deletes it. Treat this file as a security control, not as a
+# build-speed optimisation.
+#
+# Order matters: a later pattern overrides an earlier one. The negations that the
+# Visual Studio scaffold put at the bottom of this file (re-including .git/config,
+# which routinely holds a remote URL with an embedded PAT) have been removed.
+
+# ---------------------------------------------------------------------------
+# Secrets and local configuration — MUST come first and MUST NOT be re-included.
+# ---------------------------------------------------------------------------
+# Secrets are supplied at runtime through environment variables
+# (ConnectionStrings__Default, Jwt__Key, ...) — never baked in.
+#
+# Every appsettings file is excluded first, then exactly ONE is re-included:
+# Src/Presentation/AppTemplate.Api/appsettings.json. That file is tracked in git precisely because it
+# documents the configuration schema and holds no secret (secret-shaped keys are
+# empty strings), and shipping it keeps the image's Logging / Identity / Jwt
+# defaults intact. Everything else stays out — in particular
+# appsettings.Development.json, which legitimately holds a real local password,
+# and any appsettings.Production.json a developer drops in locally.
+**/appsettings*.json
+!Src/Presentation/AppTemplate.Api/appsettings.json
+
+**/*.pfx
+**/*.p12
+**/*.pem
+**/*.key
+**/*.crt
+**/*.cer
+**/*.jks
+**/*.keystore
+**/secrets.json
+**/secrets.dev.yaml
+**/values.dev.yaml
 **/.env
+**/.env.*
+!**/.env.example
+ex.env
+
+# ---------------------------------------------------------------------------
+# Version control and CI — never needed to compile, and .git carries credentials
+# in .git/config plus the entire history of every file ever committed.
+# ---------------------------------------------------------------------------
 **/.git
 **/.gitignore
+**/.gitattributes
+.github/
+
+# ---------------------------------------------------------------------------
+# Build output. Copying host bin/obj into the image poisons the container build
+# with artifacts from a different SDK/RID and defeats layer caching.
+# ---------------------------------------------------------------------------
+**/bin
+**/obj
+**/out
+**/TestResults
+**/coverage*
+**/*.user
+**/*.*proj.user
+**/*.suo
+**/*.dbmdl
+**/*.jfm
+
+# ---------------------------------------------------------------------------
+# Tests. The runtime image publishes only AppTemplate.Api; test projects (and the
+# Testcontainers fixtures they carry) are built in CI, not in this image.
+# ---------------------------------------------------------------------------
+Tests/
+
+# ---------------------------------------------------------------------------
+# Docs and repository furniture.
+# ---------------------------------------------------------------------------
+docs/
+README.md
+LICENSE
+CHANGELOG.md
+**/*.md
+
+# ---------------------------------------------------------------------------
+# Editor / IDE / tooling.
+# ---------------------------------------------------------------------------
+**/.vs
+**/.vscode
+**/.idea
+**/.classpath
 **/.project
 **/.settings
 **/.toolstarget
-**/.vs
-**/.vscode
-**/*.*proj.user
-**/*.dbmdl
-**/*.jfm
-**/azds.yaml
-**/bin
-**/charts
-**/docker-compose*
-**/Dockerfile*
 **/node_modules
 **/npm-debug.log
-**/obj
-**/secrets.dev.yaml
-**/values.dev.yaml
-LICENSE
-README.md
-!**/.gitignore
-!.git/HEAD
-!.git/config
-!.git/packed-refs
-!.git/refs/heads/**
+
+# ---------------------------------------------------------------------------
+# Container and orchestration definitions. Excluding these means editing
+# docker-compose.yml does not invalidate the build cache.
+# ---------------------------------------------------------------------------
+**/docker-compose*
+**/Dockerfile*
+**/.dockerignore
+**/azds.yaml
+**/charts

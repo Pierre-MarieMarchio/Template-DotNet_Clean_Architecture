@@ -1,0 +1,14 @@
+﻿using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
+using AppTemplate.Domain.Features.TodoLists.ValueObjects;
+using FluentValidation;
+
+namespace AppTemplate.Application.Features.TodoLists.Validators;
+
+public sealed class CreateTodoListCommandValidator : AbstractValidator<CreateTodoListCommand>
+{
+    public CreateTodoListCommandValidator() =>
+        RuleFor(command => command.Name)
+            .NotEmpty().WithMessage("A list name is required.")
+            .MaximumLength(TodoListName.MaxLength)
+            .WithMessage($"A list name cannot exceed {TodoListName.MaxLength} characters.");
+}

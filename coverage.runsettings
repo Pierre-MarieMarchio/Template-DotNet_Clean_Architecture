@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Coverage settings for `dotnet test /collect:"XPlat Code Coverage"` (coverlet.collector).
+
+  Passed explicitly with the `settings` switch, by CI and by tasks.ps1 alike, so the number the
+  gate enforces is the same number a developer sees locally. Without this file coverlet also
+  instruments the test assemblies themselves and the generated EF migrations, which moves the
+  percentage for reasons that have nothing to do with the code under test.
+
+  Note for editors: an XML comment may not contain a double hyphen, so command-line switches are
+  written here without their leading dashes. `dotnet test` rejects the whole file if that rule is
+  broken — and, as of SDK 10.0.300, still exits 0 while running no tests at all.
+-->
+<RunSettings>
+
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+
+          <!-- Cobertura only. The gate and the job summary both parse this shape. -->
+          <Format>cobertura</Format>
+
+          <!-- Test assemblies are not the subject of the measurement.
+
+               A wildcard rather than one entry per project, because the enumerated form went
+               stale: a test project added later was simply not in the list, and nothing said so.
+               Every test assembly in this repository ends in "Tests", so this pattern cannot be
+               outgrown by adding one.
+
+               Stated precisely, because the previous wording overclaimed: coverlet already
+               declines to instrument the assembly under test, so this filter is not what keeps
+               test code out of the total today. It is the guard for the case coverlet does not
+               cover on its own — a test assembly pulled in as a reference by another test
+               project, which would otherwise be measured as if it were product code. -->
+          <Exclude>[*Tests]*</Exclude>
+
+          <!-- EF Core writes these files; they are asserted on by being applied, not by line
+               coverage, and their size would otherwise dominate the total. -->
+          <ExcludeByFile>**/Migrations/*.cs</ExcludeByFile>
+
+          <!-- Compiler-synthesised members: record Equals/GetHashCode/ToString/Deconstruct,
+               iterator and async state machines. Not code anybody wrote or can test directly. -->
+          <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+
+          <!-- Trivial `{ get; set; }` accessors. Counting them rewards DTOs and dilutes the
+               signal from the branches that hold real decisions. -->
+          <SkipAutoProps>true</SkipAutoProps>
+
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+
+</RunSettings>

@@ -1,26 +1,177 @@
-services:
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    environment:
-      SA_PASSWORD: ${SA_PASSWORD}
-      ACCEPT_EULA: "Y"
-    ports:
-      - "1433:1433"
-    volumes:
-      - sqlserverdata:/var/opt/mssql
+# Local development stack: PostgreSQL + a mail catcher + the API.
+#
+#     cp .env.example .env
+#     docker compose up --build
+#
+# Every value comes from ./.env, which Compose loads automatically for `${...}`
+# substitution. `${VAR:?message}` makes Compose fail loudly with that message
+# instead of substituting an empty value — which is exactly how the previous
+# SQL Server service ended up with an empty SA_PASSWORD and refused to start.
+#
+# There is deliberately no `env_file:` on the services. Mapping each variable
+# explicitly under `environment:` means a container holds only the keys it needs;
+# `env_file: .env` would additionally push POSTGRES_PASSWORD, JWT_KEY and every
+# other raw variable into the API process, readable from /proc/self/environ and
+# from any crash dump, for no benefit.
+#
+# Environment-variable names use the double-underscore form that ASP.NET Core
+# maps onto configuration sections: Jwt__Key -> "Jwt": { "Key": ... }.
 
-  webapi:
-    image: capresentationwebapi:dev
-    build:
-      context: .
-      dockerfile: Src/Presentation/CA.Presentation.WebApi/Dockerfile
-    ports:
-      - "8080:8080"
-      - "8081:8081"
+name: app-template
+
+services:
+  db:
+    # Pinned to a patch version, including the Alpine base. `postgres:18` floats,
+    # and an unattended minor upgrade of a stateful service is how data
+    # directories get orphaned. ~110 MB against ~1.5 GB for the mssql image this
+    # replaces, with no EULA and no SA account.
+    image: postgres:18.4-alpine3.23
+    restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # Deterministic initdb; otherwise collation depends on the host.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      # Loopback only. The API reaches the database over the compose network and
+      # does not need this mapping; it exists so psql or a GUI client on the host
+      # can connect. Delete this block entirely for any non-local use.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      # NOTE the path. PostgreSQL 18's image moved PGDATA to
+      # /var/lib/postgresql/18/docker and declares /var/lib/postgresql as its
+      # VOLUME. Mounting the pre-18 /var/lib/postgresql/data here would appear to
+      # work and then silently lose the database on `docker compose down`.
+      # Verified against the published config of postgres:18.4-alpine3.23.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      # PostgreSQL's entrypoint starts the server once to run initdb scripts and
+      # then restarts it, so an open TCP port does not mean "ready". pg_isready
+      # against the real database and user is the only reliable gate.
+      test: ["CMD-SHELL", "pg_isready -q -d $$POSTGRES_DB -U $$POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks: [backend]
+
+  mailpit:
+    # The register -> confirm-email flow is a core feature of this template, and
+    # Email:Host is a required setting the app validates at startup. A catcher
+    # makes that flow work end to end offline instead of failing on send.
+    # Web UI: http://localhost:8025
+    image: axllent/mailpit:v1.30.6
+    restart: unless-stopped
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+      MP_MAX_MESSAGES: "500"
+    ports:
+      # Web UI.
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+      # SMTP, published on loopback as well. The API in this stack reaches mailpit
+      # over the compose network and does not need this mapping; it exists so that
+      # the "run on the host" path in README.md — `docker compose up -d db mailpit`
+      # plus `dotnet run` — can actually deliver mail. Without it,
+      # appsettings.Development.json's Email:Host=localhost:1025 has nothing
+      # listening and registration returns confirmationEmailSent=false.
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+    networks: [backend]
+
+  api:
+    image: app-template-api:dev
+    build:
+      # Context is the repository root; see the header of Src/Presentation/AppTemplate.Api/Dockerfile.
+      context: .
+      dockerfile: Src/Presentation/AppTemplate.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      # HTTP only. TLS terminates upstream — see the Dockerfile for the rationale.
+      ASPNETCORE_HTTP_PORTS: "8080"
+
+      # --- The single connection string. `db` is the compose service name. ----
+      # Its absence is what made the previous compose file unable to reach its
+      # own database.
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true"
+
+      # --- Jwt ---------------------------------------------------------------
+      Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env (min 32 bytes; openssl rand -base64 48)}
+      Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
+      Jwt__Audience: ${JWT_AUDIENCE:?set JWT_AUDIENCE in .env}
+      Jwt__RequireHttpsMetadata: ${JWT_REQUIRE_HTTPS_METADATA:-false}
+      Jwt__AccessTokenLifetimeInMinutes: ${JWT_ACCESS_TOKEN_LIFETIME_MINUTES:-60}
+
+      # --- RefreshToken ------------------------------------------------------
+      RefreshToken__LifetimeInDays: ${REFRESH_TOKEN_LIFETIME_DAYS:-7}
+
+      # --- Identity (password / lockout / sign-in policy) --------------------
+      Identity__PasswordRequiredLength: ${IDENTITY_PASSWORD_LENGTH:-8}
+      Identity__PasswordRequiredUniqueChars: ${IDENTITY_PASSWORD_UNIQUE_CHARS:-1}
+      Identity__PasswordRequireDigit: ${IDENTITY_PASSWORD_REQUIRE_DIGIT:-false}
+      Identity__PasswordRequireLowercase: ${IDENTITY_PASSWORD_REQUIRE_LOWERCASE:-false}
+      Identity__PasswordRequireUppercase: ${IDENTITY_PASSWORD_REQUIRE_UPPERCASE:-false}
+      Identity__PasswordRequireNonAlphanumeric: ${IDENTITY_PASSWORD_REQUIRE_NONALPHANUMERIC:-false}
+      Identity__LockoutEnabled: ${IDENTITY_LOCKOUT_ENABLED:-true}
+      Identity__LockoutMaxFailedAccessAttempts: ${IDENTITY_LOCKOUT_MAX_ATTEMPTS:-10}
+      Identity__LockoutDurationInMinutes: ${IDENTITY_LOCKOUT_DURATION_MINUTES:-1}
+      Identity__RequireConfirmedEmail: ${IDENTITY_REQUIRE_CONFIRMED_EMAIL:-true}
+      Identity__RequireUniqueEmail: ${IDENTITY_REQUIRE_UNIQUE_EMAIL:-true}
+
+      # --- Email (SMTP) ------------------------------------------------------
+      Email__Host: ${EMAIL_HOST:-mailpit}
+      Email__Port: ${EMAIL_PORT:-1025}
+      # mailpit speaks no TLS, and its container hostname is not loopback. Say so outright
+      # rather than reaching for a permissive Security mode: 'None' + an explicit opt-in is
+      # auditable, whereas 'Auto' silently resolves to opportunistic TLS and slips past the
+      # very validation that is meant to catch a plaintext relay in production.
+      Email__Security: ${EMAIL_SECURITY:-None}
+      Email__AllowInsecureTransport: ${EMAIL_ALLOW_INSECURE_TRANSPORT:-true}
+      Email__UserName: ${EMAIL_USERNAME:-}
+      Email__Password: ${EMAIL_PASSWORD:-}
+      Email__FromAddress: ${EMAIL_FROM_ADDRESS:-no-reply@localhost}
+      Email__FromName: ${EMAIL_FROM_NAME:-AppTemplate (dev)}
+
+      # --- EmailConfirmation -------------------------------------------------
+      EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
+      EmailConfirmation__Subject: ${CONFIRM_EMAIL_SUBJECT:-Confirm your email address}
+
+      # --- IdentitySeed — DEVELOPMENT ONLY -----------------------------------
+      # Off by default, and no default password: enabling it without
+      # SEED_ADMIN_PASSWORD fails startup validation rather than creating a
+      # guessable administrator, which is what the old hard-coded admin/admin did.
+      IdentitySeed__Enabled: ${SEED_ENABLED:-false}
+      IdentitySeed__AdminUserName: ${SEED_ADMIN_USERNAME:-administrator}
+      IdentitySeed__AdminEmail: ${SEED_ADMIN_EMAIL:-}
+      IdentitySeed__AdminPassword: ${SEED_ADMIN_PASSWORD:-}
+
+      # --- Cors. Arrays bind by index with the __N suffix. -------------------
+      Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN_0:-http://localhost:4200}
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
     depends_on:
-      - sqlserver
+      db:
+        # The defect this fixes: PostgreSQL accepts TCP connections seconds before
+        # it can serve queries. Without `condition: service_healthy` the API's
+        # migrate-on-startup raced initdb and crashed on a cold `compose up`.
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      # Generous: the first start runs EF migrations against an empty database.
+      start_period: 60s
+    networks: [backend]
 
 volumes:
-  sqlserverdata:
+  db-data:
+
+networks:
+  # Declared explicitly rather than relying on the implicit default network, so
+  # that another stack on this host cannot end up sharing it.
+  backend:
+    driver: bridge

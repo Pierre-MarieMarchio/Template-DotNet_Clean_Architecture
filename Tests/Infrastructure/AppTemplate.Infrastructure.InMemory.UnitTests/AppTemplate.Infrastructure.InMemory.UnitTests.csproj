@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the test doubles themselves, which sounds circular and is not: every
+       integration test reads its assertions out of these two objects, so a defect in them does not
+       fail here — it makes an assertion elsewhere pass for the wrong reason. A mailbox that returned
+       the first match instead of the most recent one would hand a stale confirmation token to a test
+       that then, correctly, confirms an account with it.
+
+       Three things are pinned. The clock does not move on its own, which is the entire point of a
+       fixed clock and is the one property a test written against the wall clock would also satisfy.
+       The mailbox answers with the latest message for an address, case-insensitively, because that
+       is how the identity store normalises addresses. And composing the module genuinely displaces
+       what the real modules registered, rather than winning by being registered last.
+
+       It needs no internals. The sender and the mailbox are reached the way the host reaches them —
+       resolved from a composed container behind IEmailSender — so these tests exercise the
+       registration and the behaviour in one pass, and the doubles' internal surface stays internal.
+       The real modules are stood in for by substitutes: what is under test is that a prior
+       registration is removed, and any prior registration will do. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.InMemory\AppTemplate.Infrastructure.InMemory.csproj" />
+  </ItemGroup>
+
+</Project>

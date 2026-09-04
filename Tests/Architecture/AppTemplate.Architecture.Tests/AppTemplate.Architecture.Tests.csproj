@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Architecture-fitness and composition tests. Two kinds of guarantee live here.
+
+       The first is the dependency direction between layers and modules, encoded as
+       executable assertions over the compiled assemblies (NetArchTest) and over the
+       ProjectReference graph, so the structure cannot rot silently.
+
+       The second is that the container the host builds can actually satisfy every
+       registration in it. That is the highest-value test in the repository: the code this
+       template replaced registered services by reflection on type-name shape and swallowed
+       a failed match, so a rename broke dependency injection at runtime with a green build.
+
+       Every product project is referenced, because a rule about an assembly that is not
+       loaded is a rule that passes for the wrong reason. AppTemplate.Api is deliberately NOT
+       referenced: it is composed here module by module, exactly as Program.cs does, and its
+       one host-supplied adapter (ICurrentUser) is stubbed. There is no reference to
+       AppTemplate.Infrastructure.TodoLists any more: all persistence lives in one project. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <!-- The identity module composes ASP.NET Core Identity and JWT bearer authentication, so the
+       container test needs the same shared framework the host runs on. Declared rather than
+       inherited transitively, because a rule about the host's container should not depend on which
+       package happens to drag the framework in. It also supplies the configuration, logging,
+       options and hosting abstractions this project uses, which is why there is no PackageReference
+       for any of them — NuGet rejects one as redundant (NU1510). -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NetArchTest.Rules" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\..\Src\Domain\AppTemplate.Domain\AppTemplate.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />
+    <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Identity\AppTemplate.Infrastructure.Identity.csproj" />
+    <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.InMemory\AppTemplate.Infrastructure.InMemory.csproj" />
+    <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

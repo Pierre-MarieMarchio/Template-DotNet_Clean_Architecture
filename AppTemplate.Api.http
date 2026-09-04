@@ -1,0 +1,273 @@
+﻿####################################################################################################
+# End-to-end walkthrough of the API, in dependency order.
+#
+# Prerequisites
+#   docker compose up -d db mailpit
+#   dotnet run --project Src/Presentation/AppTemplate.Api
+#
+# Run the requests top to bottom. Every value a later request needs is captured from an earlier
+# response, except the email confirmation token: it arrives by mail, and this file format has no way
+# to pull a substring out of a message body. Request 4 fetches the mail so you can read the token;
+# paste it into @confirmationToken and carry on. That step is marked MANUAL below.
+#
+# Works in the VS Code REST Client extension and in Visual Studio's .http editor. Both resolve
+# {{requestName.response.body.$.field}} against a named earlier response.
+####################################################################################################
+
+@host = http://localhost:5187
+@api = {{host}}/api/v1
+@mailpit = http://localhost:8025
+
+# Password satisfies appsettings.Development.json: >= 8 chars, upper, lower, digit, non-alphanumeric.
+@userName = ada
+@email = ada@localhost
+@password = Str0ng!Passw0rd
+@newPassword = {{password}}-2
+@resetPassword = {{password}}-3
+
+###
+# 1. Register. The account is committed before the mail is handed to the relay, so
+#    confirmationEmailSent=false means "use the resend endpoint", not "sign-up failed".
+# @name register
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{
+  "userName": "{{userName}}",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+# 2. Registering the same address again is a 409 with a stable machine-readable `code`,
+#    not a 500. Expected to fail — it is here to show the shape of a ProblemDetails body.
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{
+  "userName": "{{userName}}",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+# 3. Logging in before confirmation is refused: Identity:RequireConfirmedEmail is true.
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+# 4. MANUAL STEP. Read the confirmation mail out of mailpit and copy the `token` query
+#    parameter of the confirm-email link into @confirmationToken below.
+#    The browser UI at http://localhost:8025 shows the same message.
+# @name confirmationMail
+GET {{mailpit}}/api/v1/message/latest
+Accept: application/json
+
+###
+# Paste the token from request 4 here.
+@confirmationToken = paste-the-token-from-request-4
+
+###
+# 5. Confirm the address. POST with a JSON body, deliberately not GET with a query string:
+#    a single-use token must not land in access logs, browser history or a Referer header.
+POST {{api}}/auth/confirm-email
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "token": "{{confirmationToken}}"
+}
+
+###
+# 6. Resend the confirmation mail. Answers 204 even for an address that does not exist,
+#    so the endpoint cannot be used to enumerate accounts.
+POST {{api}}/auth/resend-confirmation-email
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+###
+# 7. Log in. Captures the access token and the refresh token for everything below.
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+@accessToken = {{login.response.body.$.accessToken}}
+@refreshToken = {{login.response.body.$.refreshToken}}
+
+###
+# 8. Without a token: 401. The application's fallback policy requires an authenticated user,
+#    so an endpoint is protected unless it opts out.
+GET {{api}}/todo-lists
+
+###
+# 9. Create a list. 201 with a Location header pointing at request 11.
+# @name createList
+POST {{api}}/todo-lists
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Groceries"
+}
+
+###
+@todoListId = {{createList.response.body.$.id}}
+
+###
+# 10. Add an item, with tags.
+# @name addItem
+POST {{api}}/todo-lists/{{todoListId}}/items
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Buy milk",
+  "description": "Semi-skimmed, two litres",
+  "tags": ["errand", "dairy"]
+}
+
+###
+@todoItemId = {{addItem.response.body.$.id}}
+
+###
+# 11. Read the list back. The item added above is present, with its audit stamps. The response
+#     carries a strong, quoted ETag: the version this list is at, opaque to the caller.
+# @name readList
+GET {{api}}/todo-lists/{{todoListId}}
+Authorization: Bearer {{accessToken}}
+
+###
+@todoListETag = {{readList.response.headers.ETag}}
+
+###
+# 12. Read the single item. Its ETag is the list's — the list is the aggregate, so there is no
+#     separate version for one item inside it.
+GET {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 13. Rename the list conditionally, naming the version read in request 11. Applied because
+#     nothing has changed it since: 204.
+PUT {{api}}/todo-lists/{{todoListId}}
+Authorization: Bearer {{accessToken}}
+If-Match: {{todoListETag}}
+Content-Type: application/json
+
+{
+  "name": "Groceries (this week)"
+}
+
+###
+# 14. Replay request 13 with the same If-Match. The rename above already moved the list past that
+#     version, so this one is refused: 412 with a ProblemDetails body carrying
+#     "code": "precondition.failed". Read the list again to retry with the current ETag.
+PUT {{api}}/todo-lists/{{todoListId}}
+Authorization: Bearer {{accessToken}}
+If-Match: {{todoListETag}}
+Content-Type: application/json
+
+{
+  "name": "Too late"
+}
+
+###
+# 15. Complete the item. No If-Match: Concurrency:IfMatch defaults to Optional, so an
+#     unconditional write is still accepted — see docs/adr/0013. Raises a domain event, published
+#     after the commit succeeds.
+POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/complete
+Authorization: Bearer {{accessToken}}
+
+###
+# 16. Completing it twice is refused by the aggregate's invariant, surfaced as a 409.
+POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/complete
+Authorization: Bearer {{accessToken}}
+
+###
+# 17. First page of the caller's lists. Only lists the caller owns are visible: ownership is a
+#     filter inside the read query, so somebody else's list is 404, never 403.
+GET {{api}}/todo-lists?page=1&pageSize=10
+Authorization: Bearer {{accessToken}}
+
+###
+# 18. An out-of-range page size is a 400 with a ProblemDetails body, not a silent clamp.
+GET {{api}}/todo-lists?page=1&pageSize=10000
+Authorization: Bearer {{accessToken}}
+
+###
+# 19. Remove the item.
+DELETE {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 20. Rotate the token pair. The presented refresh token is always revoked; replaying one that was
+#     already used revokes the whole family for that user.
+# @name refresh
+POST {{api}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+@rotatedRefreshToken = {{refresh.response.body.$.refreshToken}}
+
+###
+# 21. Replay the token consumed by request 20: 401, and every refresh token in that family is now
+#     revoked. Run request 20 again afterwards to see the rotated one rejected too.
+POST {{api}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+# 22. Delete the list. Cascades to its items. No If-Match, accepted for the same reason as request 15.
+DELETE {{api}}/todo-lists/{{todoListId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 23. Log out, revoking the refresh token from request 20.
+POST {{api}}/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{rotatedRefreshToken}}"
+}
+
+###
+# 24. Liveness. No dependency is checked, so an orchestrator does not restart the API because the
+#     database blinked. Anonymous by design.
+GET {{host}}/health
+
+###
+# 25. Readiness. Checks the database, and is what a load balancer should poll.
+GET {{host}}/health/ready
+
+###
+# 26. Rate limiting. The auth policy allows 10 requests per minute per client address; run this
+#     block repeatedly to get a 429 carrying Retry-After and a ProblemDetails body.
+#     Behind a proxy this partitions correctly only when ReverseProxy:Enabled is configured —
+#     otherwise every caller shares the proxy's single window. See SECURITY.md.
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "nobody@localhost",
+  "password": "wrong-password"
+}

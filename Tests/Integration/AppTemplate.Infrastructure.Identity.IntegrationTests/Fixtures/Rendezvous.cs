@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.Infrastructure.Identity.UnitTests.Fixtures;
+﻿namespace AppTemplate.Infrastructure.Identity.IntegrationTests.Fixtures;
 
 /// <summary>
 /// Holds a fixed number of callers until all of them have arrived, then releases them together.

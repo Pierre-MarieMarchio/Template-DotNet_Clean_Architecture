@@ -153,6 +153,10 @@ services:
       PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
       PasswordReset__Subject: ${RESET_PASSWORD_SUBJECT:-Reset your password}
 
+      # --- EmailChange ---------------------------------------------------------
+      EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:8080/confirm-email-change}
+      EmailChange__Subject: ${CONFIRM_EMAIL_CHANGE_SUBJECT:-Confirm your new email address}
+
       # --- IdentitySeed — DEVELOPMENT ONLY -----------------------------------
       # Off by default, and no default password: enabling it without
       # SEED_ADMIN_PASSWORD fails startup validation rather than creating a
@@ -212,7 +216,7 @@ services:
       MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: ${MAINTENANCE_WORKER_PURGE_IDEMPOTENCY_KEYS:-true}
       MaintenanceWorker__PurgeExpiredRefreshTokensEnabled: ${MAINTENANCE_WORKER_PURGE_REFRESH_TOKENS:-true}
 
-      # --- Jwt, RefreshToken, EmailConfirmation --------------------------------
+      # --- Jwt, RefreshToken, EmailConfirmation, PasswordReset, EmailChange ----
       # Composed only because IRefreshTokenMaintenance's sole adapter lives in
       # AppTemplate.Infrastructure.Identity, which validates its own configuration surface at
       # startup regardless of whether this host ever authenticates anybody. Same variables and
@@ -221,10 +225,11 @@ services:
       Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
       Jwt__Audience: ${JWT_AUDIENCE:?set JWT_AUDIENCE in .env}
       RefreshToken__LifetimeInDays: ${REFRESH_TOKEN_LIFETIME_DAYS:-7}
-      # Both are validated at start-up by the Identity module this host composes,
-      # even though a background loop sends neither mail.
+      # All three URLs are validated at start-up by the Identity module this host composes,
+      # even though a background loop sends none of that mail.
       EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
       PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
+      EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:8080/confirm-email-change}
     depends_on:
       db:
         condition: service_healthy

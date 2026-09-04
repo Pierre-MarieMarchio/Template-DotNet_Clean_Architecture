@@ -41,6 +41,15 @@ against your production system.
   and a bad token. Resend-confirmation answers identically whether or not the address exists.
 - **Email confirmation is a POST with a JSON body**, not a GET with a query string, to keep a
   single-use token out of access logs, browser history and the `Referer` header.
+- **Two-factor sign-in via an authenticator app (TOTP)**, built entirely on ASP.NET Core Identity's
+  own primitives — no hand-rolled RFC 6238. A confirmed second factor mints ten single-use recovery
+  codes, shown once. A password that matches a two-factor account still does not sign in on its own:
+  `/login` answers with a short-lived, single-use challenge token instead of a token pair, and a
+  second call exchanges that token plus a code — from the authenticator app or a recovery code — for
+  the pair. The challenge is never a bearer credential by itself and is stored server-side, keyed by
+  account, so it is redeemable by any replica behind the load balancer and survives a redeploy.
+  Enabling or disabling the second factor rotates the security stamp and revokes every refresh token
+  for the account, exactly like a password change.
 
 ### Transport and headers
 - `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, and a
@@ -140,6 +149,17 @@ against your production system.
 
 Stated here rather than left to be discovered. None of these is a hypothetical.
 
+- **Deleting an account leaves its business data behind.** `DELETE /api/v1/auth/me` removes the
+  account row and everything ASP.NET Identity owns with it — grants, claims, logins, tokens — and
+  nothing else. A user's to-do lists and reminders carry an `OwnerId` that is a plain `Guid` with no
+  foreign key to the account, by the same rule that keeps aggregates from referencing each other
+  across features, so nothing cascades to them. They become unreachable, because every read filters
+  by owner, and they stay in the database indefinitely.
+  That is storage growth and, where the data is personal, an erasure obligation the template does
+  not discharge. Closing it is a deployment's decision about *what deletion means* — refuse while
+  data remains, reassign it, or remove it — and the shape to copy is the scheduled purge the
+  maintenance endpoints already use, not a foreign key added across a feature boundary.
+
 - **`If-Match` is optional by default.** Every read publishes a strong `ETag` and every write
   honours `If-Match`, refusing a stale or unrecognised version with `412`, but a request that sends
   no `If-Match` at all is still accepted unless `Concurrency:IfMatch` is set to `Required` — see
@@ -174,5 +194,3 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   deliberately: `docs/adr/0021` records why a table this application can `UPDATE` and `DELETE`
   through the same connection as business data would look like an audit trail without being one, and
   what closing it properly requires.
-- **No multi-factor authentication.** ASP.NET Core Identity supports it; this template does not wire
-  it up.

@@ -25,6 +25,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Templates\RegisterEmailTemplate.html" />
     <EmbeddedResource Include="Templates\PasswordResetEmailTemplate.html" />
+    <EmbeddedResource Include="Templates\EmailChangeEmailTemplate.html" />
   </ItemGroup>
 
   <ItemGroup>
@@ -36,10 +37,16 @@
        things another assembly may name are the capability ports in AppTemplate.Application, never the classes
        behind them. What is worth testing — single-use rotation, the constant-cost credential check,
        the email encoding, the options validators — therefore lives behind that boundary, and a test
-       restricted to the public surface could reach none of it. Shared with exactly one assembly. -->
+       restricted to the public surface could reach none of it. Shared with the module's own two test
+       assemblies and nothing else: the second exists because single-use rotation is a guarantee the
+       database makes, so it is asserted against a real one. -->
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>AppTemplate.Infrastructure.Identity.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Infrastructure.Identity.IntegrationTests</_Parameter1>
     </AssemblyAttribute>
 
     <!-- The runtime-generated assembly NSubstitute proxies into. Substituting an internal interface

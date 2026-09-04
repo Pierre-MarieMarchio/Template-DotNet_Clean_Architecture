@@ -104,6 +104,7 @@ public sealed class IdempotencyStoreReplayTests
         Location = "/api/v1/todo-lists/list",
         ETag = eTag,
         CreatedAt = DateTimeOffset.UnixEpoch,
+        ClaimedUntil = DateTimeOffset.UnixEpoch.AddMinutes(15),
         ExpiresAt = DateTimeOffset.UnixEpoch.AddDays(1),
     };
 }

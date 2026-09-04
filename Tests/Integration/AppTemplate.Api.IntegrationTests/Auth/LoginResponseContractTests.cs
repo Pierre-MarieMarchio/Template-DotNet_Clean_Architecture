@@ -33,4 +33,30 @@ public sealed class LoginResponseContractTests(ApiFixture fixture) : Integration
 
         document.RootElement.GetProperty("status").GetString().ShouldBe("authenticated");
     }
+
+    /// <summary>
+    /// The other branch of the same discriminant, for an account with two-factor sign-in armed:
+    /// <c>twoFactorRequired</c> with a <c>challengeToken</c>, not <c>authenticated</c> with a token
+    /// pair — read as raw JSON for the same reason as the test above.
+    /// </summary>
+    [Fact]
+    public async Task Login_OnATwoFactorAccount_PublishesTheTwoFactorRequiredBranchOnTheWire()
+    {
+        var (client, user, session) = await SignInAsync();
+        await TwoFactorTestSupport.EnableTwoFactorAsync(client, session, TestToken);
+
+        var loginClient = CreateClient();
+
+        using var response = await loginClient.PostAsJsonAsync(
+            $"{AuthRoute}/login",
+            new LoginRequest(user.Email, user.Password),
+            TestToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestToken));
+
+        document.RootElement.GetProperty("status").GetString().ShouldBe("twoFactorRequired");
+        document.RootElement.GetProperty("challengeToken").GetString().ShouldNotBeNullOrEmpty();
+    }
 }

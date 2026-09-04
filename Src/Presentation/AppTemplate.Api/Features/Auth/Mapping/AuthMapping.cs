@@ -1,9 +1,11 @@
 ﻿using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Application.Common;
+using ApplicationConfirmTwoFactorSetupResponse = AppTemplate.Application.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup.ConfirmTwoFactorSetupResponse;
 using ApplicationCurrentUserResponse = AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser.CurrentUserResponse;
 using ApplicationLoginOutcome = AppTemplate.Application.Features.Auth.UseCases.Commands.Login.LoginOutcome;
 using ApplicationRefreshAccessTokenResponse = AppTemplate.Application.Features.Auth.UseCases.Commands.RefreshAccessToken.RefreshAccessTokenResponse;
 using ApplicationRegisterResponse = AppTemplate.Application.Features.Auth.UseCases.Commands.Register.RegisterResponse;
+using ApplicationSetUpTwoFactorResponse = AppTemplate.Application.Features.Auth.UseCases.Commands.SetUpTwoFactor.SetUpTwoFactorResponse;
 
 namespace AppTemplate.Api.Features.Auth.Mapping;
 
@@ -70,6 +72,32 @@ internal static class AuthMapping
             result.Value.AccessTokenExpiresAt,
             result.Value.RefreshToken,
             result.Value.RefreshTokenExpiresAt);
+    }
+
+    public static Result<SetUpTwoFactorResponse> ToSetUpTwoFactorResponse(
+        Result<ApplicationSetUpTwoFactorResponse> result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (result.IsFailure)
+        {
+            return result.To<SetUpTwoFactorResponse>();
+        }
+
+        return new SetUpTwoFactorResponse(result.Value.SharedKey, result.Value.AuthenticatorUri);
+    }
+
+    public static Result<ConfirmTwoFactorSetupResponse> ToConfirmTwoFactorSetupResponse(
+        Result<ApplicationConfirmTwoFactorSetupResponse> result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (result.IsFailure)
+        {
+            return result.To<ConfirmTwoFactorSetupResponse>();
+        }
+
+        return new ConfirmTwoFactorSetupResponse(result.Value.RecoveryCodes);
     }
 
     public static Result<CurrentUserResponse> ToCurrentUserResponse(

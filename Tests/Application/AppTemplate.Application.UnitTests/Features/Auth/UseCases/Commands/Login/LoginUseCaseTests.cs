@@ -2,6 +2,7 @@
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.Login;
 using NSubstitute;
@@ -23,6 +24,7 @@ public sealed class LoginUseCaseTests
     private readonly IUserAccounts _accounts = Substitute.For<IUserAccounts>();
     private readonly IAccessTokenIssuer _accessTokens = Substitute.For<IAccessTokenIssuer>();
     private readonly IRefreshTokenGrants _refreshTokens = Substitute.For<IRefreshTokenGrants>();
+    private readonly ITwoFactorChallenge _twoFactorChallenge = Substitute.For<ITwoFactorChallenge>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly LoginUseCase _useCase;
 
@@ -31,6 +33,7 @@ public sealed class LoginUseCaseTests
             _accounts,
             _accessTokens,
             _refreshTokens,
+            _twoFactorChallenge,
             _securityEventLog,
             new LoginCommandValidator());
 
@@ -175,7 +178,7 @@ public sealed class LoginUseCaseTests
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new CredentialCheck(
                 CredentialCheckOutcome.LockedOut,
-                new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com")));
+                new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", TwoFactorEnabled: false)));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -249,11 +252,53 @@ public sealed class LoginUseCaseTests
 
     #endregion
 
+    #region A two-factor account
+
+    /// <summary>
+    /// A verified password is only half a login for a two-factor account: a challenge comes back
+    /// instead of a token pair, and neither token issuer is touched.
+    /// </summary>
+    [Fact]
+    public async Task AVerifiedCredentialOnATwoFactorAccount_IsAnsweredWithAChallengeInstead()
+    {
+        var account = GivenTheCredentialIsVerified(twoFactorEnabled: true);
+
+        _twoFactorChallenge.IssueAsync(account.UserId, Arg.Any<CancellationToken>())
+            .Returns(new IssuedTwoFactorChallenge("a-challenge-token", DateTimeOffset.UnixEpoch.AddMinutes(5)));
+
+        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var challenge = result.Value.ShouldBeOfType<LoginOutcome.TwoFactorRequired>();
+        challenge.ChallengeToken.ShouldBe("a-challenge-token");
+        _accessTokens.ReceivedCalls().ShouldBeEmpty();
+        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// Not recorded as a login yet: only half of it happened. <c>VerifyTwoFactorUseCase</c> records
+    /// <see cref="SecurityEvent.LoginSucceeded"/> once the second step actually completes.
+    /// </summary>
+    [Fact]
+    public async Task AVerifiedCredentialOnATwoFactorAccount_IsNotYetRecordedAsALoginSuccess()
+    {
+        var account = GivenTheCredentialIsVerified(twoFactorEnabled: true);
+
+        _twoFactorChallenge.IssueAsync(account.UserId, Arg.Any<CancellationToken>())
+            .Returns(new IssuedTwoFactorChallenge("a-challenge-token", DateTimeOffset.UnixEpoch.AddMinutes(5)));
+
+        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        _securityEventLog.DidNotReceive().Record(SecurityEvent.LoginSucceeded(account.UserId));
+    }
+
+    #endregion
+
     private static LoginCommand AValidRequest() => new("someone@example.com", "correct horse battery");
 
-    private AccountIdentity GivenTheCredentialIsVerified()
+    private AccountIdentity GivenTheCredentialIsVerified(bool twoFactorEnabled = false)
     {
-        var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com");
+        var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", twoFactorEnabled);
 
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(CredentialCheck.Verified(account));

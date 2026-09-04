@@ -33,4 +33,40 @@ public enum SecurityEventKind
     /// <see cref="AppTemplate.Application.Features.Auth.Policies.CredentialInvalidation"/>.
     /// </summary>
     SecurityStampRotated,
+
+    /// <summary>An administrator locked an account out, indefinitely, outside the automatic threshold above.</summary>
+    AccountLockedByAdministrator,
+
+    /// <summary>An administrator lifted an administrative lockout.</summary>
+    AccountUnlockedByAdministrator,
+
+    /// <summary>An administrator granted a role.</summary>
+    RoleGranted,
+
+    /// <summary>An administrator revoked a role.</summary>
+    RoleRevoked,
+
+    /// <summary>An administrator deleted an account.</summary>
+    AccountDeleted,
+
+    /// <summary>
+    /// Two-factor sign-in was armed: a first code was verified and the account now requires one at
+    /// every login.
+    /// </summary>
+    TwoFactorEnabled,
+
+    /// <summary>Two-factor sign-in was turned off, after the current password was proven again.</summary>
+    TwoFactorDisabled,
+
+    /// <summary>
+    /// A login's second step presented a challenge that was still live but a code that did not match
+    /// it — the six-digit equivalent of <see cref="AuthenticationFailed"/> for the first step.
+    /// </summary>
+    TwoFactorChallengeFailed,
+
+    /// <summary>
+    /// A login's second step was completed with a recovery code instead of the authenticator app —
+    /// worth its own fact, since it is also the signal that one of the ten one-time codes is now gone.
+    /// </summary>
+    RecoveryCodeRedeemed,
 }

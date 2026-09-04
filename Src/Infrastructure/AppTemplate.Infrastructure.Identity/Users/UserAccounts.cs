@@ -90,7 +90,11 @@ internal sealed class UserAccounts(
         // lockoutOnFailure is what bounds brute force: without it AccessFailedCount never moves and
         // password guessing is unlimited.
         var result = await signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
-        var identity = new AccountIdentity(user.Id, user.UserName ?? string.Empty, user.Email ?? string.Empty);
+        var identity = new AccountIdentity(
+            user.Id,
+            user.UserName ?? string.Empty,
+            user.Email ?? string.Empty,
+            user.TwoFactorEnabled);
 
         if (result.Succeeded)
         {

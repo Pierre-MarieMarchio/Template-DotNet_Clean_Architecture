@@ -2,13 +2,20 @@
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Idempotency;
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
+using AppTemplate.Application.Features.Auth.Ports.AccountDeletion;
+using AppTemplate.Application.Features.Auth.Ports.AccountLockouts;
 using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailComposer;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetTokens;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenMaintenance;
+using AppTemplate.Application.Features.Auth.Ports.RoleAssignments;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
+using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.ChangePassword;
@@ -54,10 +61,10 @@ namespace AppTemplate.Application.UnitTests;
 public sealed class ServiceRegistrationTests
 {
     /// <summary>
-    /// Fifteen to-do list operations, eleven authentication ones, two maintenance operations, and
-    /// five reminder ones.
+    /// Fifteen to-do list operations, twenty-two authentication ones, two maintenance operations,
+    /// and five reminder ones.
     /// </summary>
-    private const int _knownUseCaseCount = 33;
+    private const int _knownUseCaseCount = 44;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
@@ -249,6 +256,13 @@ public sealed class ServiceRegistrationTests
         services.AddScoped(_ => Substitute.For<IIdempotencyStore>());
         services.AddScoped(_ => Substitute.For<IRefreshTokenMaintenance>());
         services.AddScoped(_ => Substitute.For<ISecurityEventLog>());
+        services.AddScoped(_ => Substitute.For<IEmailChangeTokens>());
+        services.AddScoped(_ => Substitute.For<IEmailChangeEmailComposer>());
+        services.AddScoped(_ => Substitute.For<IAccountLockouts>());
+        services.AddScoped(_ => Substitute.For<IRoleAssignments>());
+        services.AddScoped(_ => Substitute.For<IAccountDeletion>());
+        services.AddScoped(_ => Substitute.For<ITwoFactorEnrollment>());
+        services.AddScoped(_ => Substitute.For<ITwoFactorChallenge>());
 
         // The layer's domain-event consumer takes an ILogger, which every real host supplies.
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));

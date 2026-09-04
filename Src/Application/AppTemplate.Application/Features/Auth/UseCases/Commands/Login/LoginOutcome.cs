@@ -3,10 +3,8 @@
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.Login;
 
 /// <summary>
-/// What logging in produces: either a token pair, or — once two-factor sign-in exists — a challenge
-/// to complete first. Only <see cref="Authenticated"/> is ever produced today; the second branch is
-/// added now so that shipping the second factor later does not change the shape every existing
-/// client already parses.
+/// What logging in produces: either a token pair, or — for an account with two-factor sign-in armed
+/// — a challenge to complete first with <c>VerifyTwoFactorUseCase</c>.
 /// <para>
 /// A closed hierarchy with a JSON type discriminator, rather than one record with nullable
 /// branch-specific fields: a caller switches on the concrete type instead of guessing which fields
@@ -32,9 +30,6 @@ public abstract record LoginOutcome
         string RefreshToken,
         DateTimeOffset RefreshTokenExpiresAt) : LoginOutcome;
 
-    /// <summary>
-    /// Not produced by anything today: no use case has a second factor to challenge yet.
-    /// </summary>
-    /// <param name="ChallengeToken">Identifies the pending sign-in for whichever step completes it.</param>
+    /// <param name="ChallengeToken">Identifies the pending sign-in for <c>VerifyTwoFactorUseCase</c>.</param>
     public sealed record TwoFactorRequired(string ChallengeToken) : LoginOutcome;
 }

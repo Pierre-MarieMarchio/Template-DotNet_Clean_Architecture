@@ -419,7 +419,8 @@ version at all.
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `Enabled` | bool | `true` | `false` makes the filter inert; a client sending `Idempotency-Key` is then simply not protected. |
-| `Retention` | timespan | `24:00:00` | Sets each row's `ExpiresAt`. Must be > 0 and ≤ 30 days. See the note below on what actually enforces it. |
+| `Retention` | timespan | `24:00:00` | Sets each row's `ExpiresAt` — how long a *completed* response stays replayable. Must be > 0 and ≤ 30 days. See the note below on what actually enforces it. |
+| `ClaimLease` | timespan | `00:15:00` | How long an *unfinished* claim blocks a retry before it is treated as abandoned and made reclaimable. Must be > 0 and ≤ `Retention`. |
 | `MaxKeyLength` | int | `128` | Must be 1…512. A longer key is `400` `idempotency.keyInvalid`. |
 | `MaxStoredResponseBytes` | int | `8192` | Must be ≥ 1. A larger response is stored without its body, and a replay then answers `409` `idempotency.notReplayable` rather than a truncated body. |
 
@@ -437,8 +438,19 @@ What each setting does when it is wrong:
   template's worked example of policy-based authorisation.
 - **`Retention` too short** (with purging in place) — a client retrying after a network stall past
   the window creates a second resource, which is the exact failure the feature exists to prevent.
-- **`Retention` ≤ 0 or > 30 days**, **`MaxKeyLength` outside 1…512**, or
-  **`MaxStoredResponseBytes` < 1** — the host fails `ValidateOnStart()` and does not boot.
+- **`ClaimLease` is unrelated to `Retention`.** `Retention` governs how long a *completed* response
+  stays replayable; `ClaimLease` only ever matters while a claim is still unfinished — it is what lets
+  a retry take a key back from a claimant whose process died (a killed pod, an OOM) between claiming
+  it and calling `CompleteAsync` or `ReleaseAsync`. Without it that key would answer `409`
+  `idempotency.inProgress` for the rest of its 24-hour retention instead of minutes.
+- **`ClaimLease` too short** — a lease shorter than the platform's own `RequestTimeouts:Extended`
+  ceiling (10 minutes by default) can expire while a slow-but-legitimate write is still in flight,
+  handing the same key to a second, concurrent retry: the exact double write this mechanism exists to
+  prevent. The shipped default (15 minutes) is that ceiling plus headroom for clock drift and the
+  little work left after the action returns; shrink `RequestTimeouts:Extended` before shrinking this.
+- **`Retention` ≤ 0 or > 30 days**, **`ClaimLease` ≤ 0 or greater than `Retention`**,
+  **`MaxKeyLength` outside 1…512**, or **`MaxStoredResponseBytes` < 1** — the host fails
+  `ValidateOnStart()` and does not boot.
 
 ### `RequestLimits`
 

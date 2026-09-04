@@ -79,6 +79,13 @@ builder.Services.AddApiVersioning(options =>
     {
         options.DefaultApiVersion = new ApiVersion(1, 0);
 
+        // Every route template here is 'api/v{version:apiVersion}', so the version arrives in the
+        // path and nowhere else. Naming the reader that reads it is not a preference: the default
+        // is a composite that also inspects a 'api-version' query string and an 'x-ms-version'
+        // header, and it builds that candidate set on every request for two sources this API never
+        // populates. AV0015 is the analyzer that says so.
+        options.ApiVersionReader = new UrlSegmentApiVersionReader();
+
         // Not AssumeDefaultVersionWhenUnspecified: the route template below is
         // 'api/v{version:apiVersion}', which makes the segment mandatory. A request naming no
         // version never reaches routing at all, so the option had nothing to apply to — it was

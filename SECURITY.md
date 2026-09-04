@@ -262,8 +262,10 @@ says otherwise.
 ### Supply chain and configuration
 - `NuGetAudit` at the `low` level with `NuGetAuditMode=all`, so **a known advisory in a direct or
   transitive package fails the build**, not just a report. CI checks it again independently.
-- `Microsoft.OpenApi` is pinned to 2.7.6 because `Microsoft.AspNetCore.OpenApi` resolves 2.0.0,
-  which carries GHSA-v5pm-xwqc-g5wc. Removing the pin fails `dotnet restore` outright.
+- An advisory reaching the tree through a package nothing references directly is answered with a
+  **transitive pin** in `Directory.Packages.props` under a `Security pins` label, which
+  `CentralPackageTransitivePinningEnabled` makes bind. Removing a load-bearing pin fails
+  `dotnet restore` outright rather than passing quietly.
 - Every GitHub Action is pinned to a commit SHA, not a mutable tag.
 - Dependabot watches NuGet, Actions, the Dockerfile and `docker-compose.yml`. Note that neither
   Docker ecosystem supports Dependabot *security* updates — for container images, the weekly version

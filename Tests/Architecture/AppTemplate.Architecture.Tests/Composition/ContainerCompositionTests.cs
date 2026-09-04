@@ -2,10 +2,14 @@
 using AppTemplate.Application;
 using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.Auth.Ports;
-using AppTemplate.Application.Features.TodoLists.Ports;
+using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
+using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
+using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Architecture.Tests.Fixtures;
-using AppTemplate.Domain.Features.TodoLists.Stores;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Shouldly;

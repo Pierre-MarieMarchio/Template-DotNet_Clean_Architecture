@@ -7,12 +7,6 @@ deliberately does **not** do.
 One decision per file, with its alternatives, lives in [adr/](adr/README.md). This
 page is the map; the ADRs are the argument.
 
-> **Read this first.** The infrastructure layer was being split into one project per
-> capability while this document was written, so the project names in the diagram
-> below are the target, not something observed on disk. Everything about *layers*,
-> *ports*, *aggregates*, *`Result`* and *transactions* was verified against the code.
-> Anything marked **unverified** was not.
-
 ## The four layers and the dependency rule
 
 Source dependencies point inward, always. Nothing in an inner layer knows an outer
@@ -23,15 +17,16 @@ one exists.
 | Domain | `AppTemplate.Domain` | aggregates, value objects, domain events, invariants | **nothing** |
 | Application | `AppTemplate.Application` | use cases, ports, `Result`/`Error`, DTOs, validators | Domain |
 | Infrastructure | `AppTemplate.Infrastructure.*` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | Application (→ Domain) |
-| Presentation | `AppTemplate.Api` | controllers, composition root, HTTP concerns | Application + every module |
+| Presentation | `AppTemplate.Api`, `AppTemplate.Worker` | controllers or a background service, composition root, host concerns | Application + the modules that host needs |
 
 ```mermaid
 graph RL
     Api[AppTemplate.Api<br/>controllers, composition root]
+    Worker[AppTemplate.Worker<br/>one BackgroundService, composition root]
     Ident[AppTemplate.Infrastructure.Identity<br/>ASP.NET Identity policy, JWT, refresh tokens]
     Mail[AppTemplate.Infrastructure.Email<br/>MailKit SMTP]
     Mem[AppTemplate.Infrastructure.InMemory<br/>in-memory ports]
-    Pers[AppTemplate.Infrastructure.Persistence<br/>the one DbContext, interceptors, unit of work,<br/>per-feature models, mappers, repositories, queries]
+    Pers[AppTemplate.Infrastructure.Persistence<br/>the one DbContext, interceptors, unit of work,<br/>per-feature models, mapping, repositories, queries]
     App[AppTemplate.Application<br/>use cases, ports, Result]
     Dom[AppTemplate.Domain<br/>aggregates, value objects, events]
 
@@ -45,7 +40,9 @@ graph RL
     Api --> Pers
     Api --> Ident
     Api --> Mail
-    Api --> Pers
+    Worker --> App
+    Worker --> Pers
+    Worker --> Ident
 ```
 
 `AppTemplate.Domain` having **no packages at all** is the load-bearing constraint. It is what
@@ -88,7 +85,7 @@ point of the seam is that the application layer can be read, and tested, without
 knowing that EF Core, MailKit or ASP.NET Identity exist. A port named after its
 implementation has already given that away.
 
-The authentication ports are the interesting ones. There are five of them rather than
+The authentication ports are the interesting ones. There are ten of them rather than
 one `IAuthService`, and the split is what keeps the *sequencing* in Application:
 `RegisterUseCase` creates the account, then mints a confirmation token, then composes
 and sends the mail through `IEmailSender`, and decides that a delivery failure is a
@@ -113,8 +110,9 @@ storage — one DbContext in one schema:
 
 **Persistence is the one module that holds more than one capability**, and that is
 deliberate. It is partitioned internally as `Common/` (the mechanisms) plus
-`Features/<Feature>/` (models, configurations, mappers, repositories, queries, stores),
-and an architecture test asserts that nothing under `Common/` names a feature —
+`Features/<Feature>/` (models, configurations, mapping, tracking, repositories, queries,
+and — for a technical port rather than an aggregate, such as `IRefreshTokenStore` —
+stores), and an architecture test asserts that nothing under `Common/` names a feature —
 `AppDbContext` excepted, because it applies every feature's configuration and is
 therefore the model's composition root. See
 [ADR 0010](adr/0010-one-persistence-project-one-dbcontext.md) for why the contexts were
@@ -142,14 +140,36 @@ If a second database engine ever genuinely arrives, the split is mechanical then
 the real second implementation in hand to shape it. Doing it speculatively means
 guessing at that shape. See [ADR 0007](adr/0007-module-per-capability-infrastructure.md).
 
+## A second host: `AppTemplate.Worker`
+
+`AppTemplate.Worker` runs one `BackgroundService` that purges expired idempotency keys
+and expired refresh-token grants on a timer, through the exact same
+`IPurgeExpiredIdempotencyKeysUseCase` and `IPurgeExpiredRefreshTokensUseCase` that
+`AppTemplate.Api`'s `MaintenanceController` exposes over HTTP.
+
+The Worker proves that the Application layer is composable by a non-HTTP host — it
+references neither `AppTemplate.Api` nor `AppTemplate.Domain` (verified in
+`Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj`), and it calls real use
+cases without shortcutting to infrastructure
+(`Common/Maintenance/MaintenanceBackgroundService.cs`). It shows, in the same stroke,
+what that costs: a host has to satisfy, on its own, the ports that describe its calling
+context. Its `ICurrentUser` (`Common/Security/BackgroundCurrentUser.cs`) **throws** on
+`UserId`, because it has no caller to name — there is no HTTP request and no principal
+behind it, so returning `null` as if it were merely an anonymous caller would let a use
+case that needs an owner proceed as though one existed.
+
+A future rich client is not exempt from that cost either: it would still have to write
+a real `ICurrentUser` naming an actual caller, which is a port implementation, not
+just module composition.
+
 ## No MediatR, no CQRS ceremony
 
 A use case is a plain class with a constructor and one method, registered in DI and
 injected into a controller:
 
 ```
-Src/Application/AppTemplate.Application/Features/TodoLists/UseCases/Commands/CreateTodoListUseCase.cs
-Src/Application/AppTemplate.Application/Features/TodoLists/UseCases/Commands/AddTodoItemUseCase.cs
+Src/Application/AppTemplate.Application/Features/TodoLists/UseCases/Commands/CreateTodoList/CreateTodoListUseCase.cs
+Src/Application/AppTemplate.Application/Features/TodoLists/UseCases/Commands/AddTodoItem/AddTodoItemUseCase.cs
 ```
 
 MediatR would add a `Command` type, a `Handler` type, an `IRequest<>` marker and a

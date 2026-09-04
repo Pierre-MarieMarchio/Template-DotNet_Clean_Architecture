@@ -3,7 +3,6 @@ using AppTemplate.Api.Common.Errors;
 using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Concurrency;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Common.Controllers;

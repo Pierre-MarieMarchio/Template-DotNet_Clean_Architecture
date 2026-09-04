@@ -14,7 +14,7 @@ public sealed class CommonErrorsTests
     }
 
     /// <summary>
-    /// <paramref name="message"/> is authored by the domain, and is returned verbatim: this is
+    /// The domain authors the message, and it is returned verbatim: this is
     /// what lets a caller learn which invariant it tripped.
     /// </summary>
     [Fact]

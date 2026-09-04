@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 using System.Net;
-using AppTemplate.Application.Features.Auth.Ports;
+using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
 using AppTemplate.Infrastructure.Identity.Options;
 using Microsoft.Extensions.Options;
 

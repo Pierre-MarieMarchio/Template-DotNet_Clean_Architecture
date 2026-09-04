@@ -1,6 +1,6 @@
 ﻿using System.Security.Claims;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.Auth.Ports;
+using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
 using AppTemplate.Infrastructure.Identity.Options;
 using AppTemplate.Infrastructure.Identity.Users;
 using Microsoft.Extensions.Options;

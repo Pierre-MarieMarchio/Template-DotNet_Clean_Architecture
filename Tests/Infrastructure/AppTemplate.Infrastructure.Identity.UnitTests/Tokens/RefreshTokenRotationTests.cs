@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.Auth.Ports;
+using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Infrastructure.Identity.Options;
 using AppTemplate.Infrastructure.Identity.Tokens;
 using AppTemplate.Infrastructure.Identity.UnitTests.Fixtures;

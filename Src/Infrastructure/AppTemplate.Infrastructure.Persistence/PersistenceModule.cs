@@ -1,9 +1,7 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Idempotency;
-using AppTemplate.Application.Features.TodoLists.Ports;
-using AppTemplate.Domain.Common.Events;
-using AppTemplate.Domain.Features.TodoLists.Events;
-using AppTemplate.Domain.Features.TodoLists.Stores;
+using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
 using AppTemplate.Infrastructure.Persistence.Common.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.DomainEvents;
@@ -13,7 +11,7 @@ using AppTemplate.Infrastructure.Persistence.Common.Time;
 using AppTemplate.Infrastructure.Persistence.Common.UnitOfWork;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Stores;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mappers;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Repositories;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;
@@ -27,61 +25,11 @@ using Npgsql;
 namespace AppTemplate.Infrastructure.Persistence;
 
 /// <summary>
-/// Connection pooling and command-timeout policy for <see cref="Common.Contexts.AppDbContext"/>.
-/// <para>
-/// <b>Why this exists.</b> Npgsql defaults <c>Maximum Pool Size</c> to 100 per process, and
-/// PostgreSQL's own <c>max_connections</c> defaults to 100 for the whole server. Two replicas at
-/// the driver default are already enough to exhaust it, and <c>AddDbContextFactory</c> makes the
-/// arithmetic worse: <see cref="Common.Idempotency.IdempotencyStore"/> opens its own connection
-/// per call, separate from the ambient request context, so one idempotent write can hold up to
-/// three connections at once instead of one. See docs/CONFIGURATION.md for how to size
-/// <c>MaxPoolSize</c> against replica count and PostgreSQL's <c>max_connections</c>.
-/// </para>
-/// </summary>
-public sealed class DatabaseOptions
-{
-    public const string SectionName = "Database";
-
-    /// <summary>
-    /// Passed through as Npgsql's <c>Maximum Pool Size</c>. Deliberately well under the driver's own
-    /// default of 100, so that running several replicas of this process (API and/or worker) against
-    /// one PostgreSQL server does not, by itself, approach <c>max_connections</c>.
-    /// </summary>
-    public int MaxPoolSize { get; set; } = 20;
-
-    /// <summary>Npgsql's per-command timeout. The driver's own default is also 30 seconds.</summary>
-    public int CommandTimeoutSeconds { get; set; } = 30;
-}
-
-internal sealed class DatabaseOptionsValidator : IValidateOptions<DatabaseOptions>
-{
-    public ValidateOptionsResult Validate(string? name, DatabaseOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(options);
-
-        var failures = new List<string>();
-
-        if (options.MaxPoolSize is < 1 or > 500)
-        {
-            failures.Add($"'{DatabaseOptions.SectionName}:MaxPoolSize' must be between 1 and 500.");
-        }
-
-        if (options.CommandTimeoutSeconds is < 1 or > 300)
-        {
-            failures.Add($"'{DatabaseOptions.SectionName}:CommandTimeoutSeconds' must be between 1 and 300.");
-        }
-
-        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
-    }
-}
-
-/// <summary>
 /// Composes all persistence: the one context, the interceptor pipeline, the clock, the unit of work, and
 /// each feature's mapper, tracker, repository, queries and stores.
 /// <para>
-/// Every registration is explicit and named. What this replaces enumerated two assemblies and paired
-/// interfaces with implementations by matching type names, so a rename produced a container that started
-/// fine and threw on first use.
+/// Every registration is explicit and named, each interface paired by hand with its implementation, so a
+/// rename fails the build instead of producing a container that starts fine and throws on first use.
 /// </para>
 /// </summary>
 public static class PersistenceModule

@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.Metrics;
-using AppTemplate.Application.Common;
-using AppTemplate.Application.Features.Maintenance.UseCases.Commands;
+using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
+using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredRefreshTokens;
 using AppTemplate.Worker.Common.Maintenance;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -11,7 +11,7 @@ using Xunit;
 namespace AppTemplate.Worker.UnitTests.Common.Maintenance;
 
 /// <summary>
-/// Proves the metric the maintenance loop now emits actually carries the case that used to be
+/// Proves the metric the maintenance loop emits carries the case that would otherwise stay
 /// invisible: a task that purged nothing. The log line in <c>MaintenanceBackgroundService</c> is
 /// unconditional for the same reason, but is not asserted here — <see cref="MaintenanceDiagnostics"/>
 /// is the signal an alert would actually watch.

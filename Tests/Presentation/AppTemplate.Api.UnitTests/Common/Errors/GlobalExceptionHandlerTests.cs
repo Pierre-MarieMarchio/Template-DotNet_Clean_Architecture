@@ -14,7 +14,8 @@ public sealed class GlobalExceptionHandlerTests
 {
     /// <summary>
     /// ExceptionHandlerMiddleware always puts 500 on the response before invoking a registered
-    /// <see cref="IExceptionHandler"/> — that is the value this test guards. A regression that
+    /// <see cref="Microsoft.AspNetCore.Diagnostics.IExceptionHandler"/> — that is the value this test
+    /// guards. A regression that
     /// returns early without writing 499 would pass every other assertion in this suite while
     /// silently reporting a client hangup as a server error to both the request log and the
     /// request-duration metric.

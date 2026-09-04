@@ -1,5 +1,4 @@
-﻿using AppTemplate.Infrastructure.Persistence;
-using Shouldly;
+﻿using Shouldly;
 using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests;

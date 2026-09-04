@@ -1,4 +1,4 @@
-using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+﻿using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;

@@ -23,8 +23,13 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// </summary>
 public sealed class PortConventionTests
 {
-    /// <summary><c>AppTemplate.Application.Features.&lt;Vertical&gt;.Ports</c>.</summary>
-    private const string _featurePortNamespacePattern = @"^AppTemplate\.Application\.Features\.([^.]+)\.Ports$";
+    /// <summary>
+    /// <c>AppTemplate.Application.Features.&lt;Vertical&gt;.Ports.&lt;Port&gt;</c>. Each port owns a folder
+    /// holding its interface and the messages it exchanges, so the pattern has to reach past
+    /// <c>Ports</c> rather than stop at it.
+    /// </summary>
+    private const string _featurePortNamespacePattern =
+        @"^AppTemplate\.Application\.Features\.([^.]+)\.Ports(\.[^.]+)*$";
 
     private const string _crossCuttingPortNamespace = "AppTemplate.Application.Common.Abstractions";
 

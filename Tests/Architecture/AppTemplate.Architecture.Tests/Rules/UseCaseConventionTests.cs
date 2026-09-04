@@ -27,6 +27,13 @@ public sealed class UseCaseConventionTests
         @"^AppTemplate\.Application\.Features\.[^.]+\.UseCases(\.[^.]+)*$";
 
     /// <summary>
+    /// One operation's own folder:
+    /// <c>AppTemplate.Application.Features.&lt;Vertical&gt;.UseCases.Commands|Queries.&lt;Operation&gt;</c>.
+    /// </summary>
+    private const string _useCaseFolderNamespacePattern =
+        @"^AppTemplate\.Application\.Features\.[^.]+\.UseCases\.(Commands|Queries)\.[^.]+$";
+
+    /// <summary>
     /// What a use case's input is called. The record is declared in the same file as the operation
     /// that consumes it, which is the only other thing a UseCases folder may hold.
     /// </summary>
@@ -43,9 +50,10 @@ public sealed class UseCaseConventionTests
 
         var matched = RuleAssertions.RequireTypes(useCases, "a class whose name ends with 'UseCase'");
         matched.Count.ShouldBeGreaterThanOrEqualTo(
-            14,
-            "The application layer has eight TodoList use cases and six Auth use cases. Finding " +
-            "fewer means the discovery in this rule has stopped matching them.");
+            28,
+            "The application layer has fifteen to-do list use cases, eleven authentication ones and " +
+            "two maintenance ones. Finding fewer means the discovery in this rule has stopped " +
+            "matching them.");
 
         useCases.Should()
             .ResideInNamespaceMatching(_useCaseNamespacePattern)
@@ -95,13 +103,16 @@ public sealed class UseCaseConventionTests
     }
 
     /// <summary>
-    /// The converse rule, and the one that actually catches a rename: something sitting in a
-    /// <c>UseCases</c> folder that is no longer named <c>…UseCase</c> escapes every rule above.
+    /// The converse rule, and the one that actually catches a rename. Each use case owns a folder
+    /// holding the operation, the interface a caller resolves it by, the input it accepts and
+    /// whatever else serves that one operation — so "everything here is a use case or its input" is
+    /// not the shape to assert. What holds instead, and holds harder: the folder is named for
+    /// the operation, and it contains exactly one.
     /// <para>
-    /// A use case file holds two things — the operation and its input contract, declared beside it as
-    /// a record (<c>CreateTodoListCommand</c> next to <c>CreateTodoListUseCase</c>). Both are allowed
-    /// here; nothing else is. A service, a helper or a mapper in this folder would be invisible to
-    /// every naming rule above.
+    /// That is what makes the layout an index. A second use case sharing a folder is one a reader
+    /// looking for it by name will not find; a folder whose name has drifted from the operation
+    /// inside it sends that reader somewhere else entirely. Both are invisible to every naming rule
+    /// above, which only ever looks at a type in isolation.
     /// </para>
     /// <para>
     /// Written with reflection rather than NetArchTest because the namespace of a compiler-generated
@@ -111,50 +122,74 @@ public sealed class UseCaseConventionTests
     /// </para>
     /// </summary>
     [Fact]
-    public void EverythingInAUseCasesFolder_IsAUseCaseOrItsInputContract()
+    public void EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt()
     {
-        var inUseCaseNamespaces = ArchitectureAssemblies.Application
+        var folders = ArchitectureAssemblies.Application
             .GetTypes()
-            .Where(type => type is { IsClass: true, IsNested: false })
+            .Where(type => type is { IsNested: false })
             .Where(type => !Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute)))
             .Where(type => type.Namespace is not null
-                && Regex.IsMatch(type.Namespace, _useCaseNamespacePattern, RegexOptions.None, TimeSpan.FromSeconds(5)))
+                && Regex.IsMatch(type.Namespace, _useCaseFolderNamespacePattern, RegexOptions.None, TimeSpan.FromSeconds(5)))
+            .GroupBy(type => type.Namespace!, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
             .ToList();
 
-        inUseCaseNamespaces.ShouldNotBeEmpty(
-            "No types were found in a Features/<Vertical>/UseCases namespace, so this rule is no " +
-            "longer describing the application layer.");
+        folders.Count.ShouldBeGreaterThanOrEqualTo(
+            28,
+            "The application layer has eleven authentication use cases, fifteen to-do list ones and " +
+            "two maintenance ones, each in a folder of its own. Finding fewer folders means the " +
+            "discovery in this rule has stopped reading the layout.");
 
-        var useCases = inUseCaseNamespaces
-            .Where(type => !TypeFacts.IsRecord(type))
-            .ToList();
+        var failures = new List<string>();
 
-        var inputContracts = inUseCaseNamespaces
-            .Where(TypeFacts.IsRecord)
-            .ToList();
+        foreach (var folder in folders)
+        {
+            string operation = folder.Key[(folder.Key.LastIndexOf('.') + 1)..];
 
-        useCases.ShouldNotBeEmpty("No use case classes were found alongside their input contracts.");
-        inputContracts.ShouldNotBeEmpty(
-            "No input-contract records were found in the UseCases folders, so the second half of " +
-            "this rule is guarding nothing.");
+            var useCases = folder
+                .Where(type => type is { IsClass: true, IsAbstract: false })
+                .Where(type => type.Name.EndsWith(_useCaseSuffix, StringComparison.Ordinal))
+                .ToList();
 
-        useCases
-            .Where(type => !type.Name.EndsWith(_useCaseSuffix, StringComparison.Ordinal))
-            .Select(type => type.FullName ?? type.Name)
-            .Order(StringComparer.Ordinal)
-            .ShouldBeEmpty(
-                "A class in a UseCases folder is a use case and is named for it. Anything else here " +
-                "is covered by none of the rules above, and a use case renamed away from the suffix " +
-                "stops being covered by any of them.");
+            if (useCases.Count != 1)
+            {
+                failures.Add(
+                    $"{folder.Key} holds {useCases.Count} use cases " +
+                    $"({string.Join(", ", useCases.Select(type => type.Name).Order(StringComparer.Ordinal))}), " +
+                    "expected exactly one.");
 
-        inputContracts
-            .Where(type => !_inputContractSuffixes.Any(
-                suffix => type.Name.EndsWith(suffix, StringComparison.Ordinal)))
-            .Select(type => type.FullName ?? type.Name)
-            .Order(StringComparer.Ordinal)
-            .ShouldBeEmpty(
-                "A record in a UseCases folder is the input a use case takes, named for what it is: " +
-                $"{string.Join(" or ", _inputContractSuffixes)}. A DTO belongs in the vertical's Dtos " +
-                "folder, where the rest of its shape lives.");
+                continue;
+            }
+
+            if (!string.Equals(useCases[0].Name, operation + _useCaseSuffix, StringComparison.Ordinal))
+            {
+                failures.Add(
+                    $"{folder.Key} is named '{operation}' but holds '{useCases[0].Name}'. A folder " +
+                    $"named for an operation must hold '{operation}{_useCaseSuffix}'.");
+            }
+
+            if (!folder.Any(type => type.IsInterface
+                && string.Equals(type.Name, "I" + operation + _useCaseSuffix, StringComparison.Ordinal)))
+            {
+                failures.Add(
+                    $"{folder.Key} declares no 'I{operation}{_useCaseSuffix}'. Callers resolve a use " +
+                    "case by its named interface, so one that has none cannot be reached.");
+            }
+
+            failures.AddRange(folder
+                .Where(TypeFacts.IsRecord)
+                .Where(type => _inputContractSuffixes.Any(
+                    suffix => type.Name.EndsWith(suffix, StringComparison.Ordinal)))
+                .Where(type => !_inputContractSuffixes.Any(
+                    suffix => string.Equals(type.Name, operation + suffix, StringComparison.Ordinal)))
+                .Select(type =>
+                    $"{folder.Key} holds input contract '{type.Name}', which names an operation other " +
+                    $"than '{operation}'. The input a use case accepts is named for that use case."));
+        }
+
+        failures.Order(StringComparer.Ordinal).ShouldBeEmpty(
+            "The folder layout is the only index of what the application can do, because registration " +
+            "is explicit rather than scanned. A folder that does not say what is in it, or holds more " +
+            "than one operation, breaks that index.");
     }
 }

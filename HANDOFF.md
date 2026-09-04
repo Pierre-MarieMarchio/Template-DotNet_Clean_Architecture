@@ -50,7 +50,7 @@ il faut activer l'intégration WSL dans les réglages de Docker Desktop, sans qu
 ```
 Tests/Application/AppTemplate.Application.UnitTests             726
 Tests/Domain/AppTemplate.Domain.UnitTests                       238
-Tests/Architecture/AppTemplate.Architecture.Tests                50
+Tests/Architecture/AppTemplate.Architecture.Tests                51
 Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests   103
 Tests/Infrastructure/AppTemplate.Infrastructure.Identity.UnitTests       29   ← 3 exigent Docker
 Tests/Infrastructure/AppTemplate.Infrastructure.Email.UnitTests          50
@@ -58,7 +58,7 @@ Tests/Infrastructure/AppTemplate.Infrastructure.InMemory.UnitTests       30
 Tests/Presentation/AppTemplate.Api.UnitTests                    137
 Tests/Presentation/AppTemplate.Worker.UnitTests                  21
 Tests/Integration/AppTemplate.Api.IntegrationTests              265   ← exige Docker
-                                                         total 1649
+                                                         total 1650
 ```
 
 `TreatWarningsAsErrors` est actif : un avertissement est une erreur.
@@ -191,6 +191,21 @@ sur cinq.
   `ARCHITECTURE.md` sur les « deux DbContext », `adr/0005` sur le job de purge « laissé au lecteur »
   qui existe depuis la vague 2.
 
+- **Vague 6 — refonte d'arborescence** (commit `b644e12`). Vocabulaire de dossiers fermé et
+  identique par couche, un dossier seulement s'il a du contenu, un type public de premier niveau par
+  fichier. Un dossier par cas d'usage (28 dossiers) et un dossier par port (les 28 fichiers plats
+  d'`Auth/Ports` deviennent 10 dossiers). `Dtos/` d'Auth vidé — ses quatre types n'avaient chacun
+  qu'un consommateur. `Collections/` et `Access/` supprimés. `Domain/…/Stores/` → `Repositories/`,
+  et `Persistence/…/Mappers/` → `Mapping/`, le mot des trois couches.
+  Trois règles de convention refondues pour qu'elles cessent de dépendre du rangement :
+  `PortConventionTests` (son motif était ancré par `$` et n'aurait plus rien matché — un test vert
+  qui ne teste rien), `CollectionContractTests` (découverte par le namespace `.Collections`,
+  remplacée par « tout record déclarant une fabrique qui renvoie `Result<lui-même>` n'a pas de
+  constructeur public », critère qui voyage avec le type), et surtout
+  `EverythingInAUseCasesFolder_IsAUseCaseOrItsInputContract` qui **interdisait l'arborescence
+  cible** : remplacé par `EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt`, plus mordant, dont la
+  sensibilité a été prouvée en y glissant un second use case.
+
 **Non fait** — voir §6 et §11.
 
 ---
@@ -245,7 +260,22 @@ sur cinq.
     (`RateLimiterWindow`) et que l'hôte de test l'élargit. Sans ça, un test qui dépense N permis puis
     en attend un refus échoue quand la frontière de fenêtre tombe au milieu — un intermittent de la
     forme exacte de celui qui a demandé cinq passages pour être compris.
-11. **`TestDatabase.PrepareAsync` tronque toutes les tables des schémas modules.**
+11. **Un `using` orphelin ne casse PAS le build.** `.editorconfig:47-51` documente le choix :
+    `IDE0005` n'est pas levé au build parce que cela exigerait `GenerateDocumentationFile=true`,
+    donc CS1591 sur chaque membre public. Le filet est `dotnet format --verify-no-changes`, que le
+    CI rejoue. Conséquence : **un build vert ne prouve pas que les `using` sont propres**, et tout
+    éclatement de fichier en produit. En revanche CS1574 — un `<see cref="…"/>` non résoluble après
+    un déplacement — casse bien le build.
+12. **`[*.cs] charset = utf-8-bom` (`.editorconfig:18-19`).** Un fichier créé sans BOM fait échouer
+    le gate de formatage. Et le test naïf `head -c3 "$f" | grep -q $'\xef\xbb\xbf'` **ne marche
+    pas** : `grep` ne matche pas fiablement des octets binaires, si bien qu'un script fondé dessus
+    ajoute un *second* BOM aux fichiers conformes. Normaliser en Python, en retirant les BOM
+    répétés avant d'en garantir un.
+13. **Ne jamais donner à un dossier le nom du type qu'il contient.** `Services/TodoListAccess/`
+    contenant la classe `TodoListAccess` crée un namespace homonyme du type : la résolution de nom
+    remonte les namespaces englobants et rend CS0118 possible chez les consommateurs. `Services/`
+    reste donc à plat. Même raison pour `CredentialInvalidation`, rangé dans `Policies/`.
+14. **`TestDatabase.PrepareAsync` tronque toutes les tables des schémas modules.**
     `identity.DataProtectionKeys` en est désormais exclu : l'y laisser était inoffensif avec un hôte
     unique, et deviendrait une bombe au premier test multi-instances (un jeton émis par un hôte
     illisible par l'autre, qu'on prendrait pour un défaut de partage d'état).

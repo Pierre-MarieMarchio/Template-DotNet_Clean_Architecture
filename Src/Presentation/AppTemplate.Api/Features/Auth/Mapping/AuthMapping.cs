@@ -1,6 +1,9 @@
 ﻿using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Application.Common;
-using ApplicationDtos = AppTemplate.Application.Features.Auth.Dtos;
+using ApplicationCurrentUserResponse = AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser.CurrentUserResponse;
+using ApplicationLoginOutcome = AppTemplate.Application.Features.Auth.UseCases.Commands.Login.LoginOutcome;
+using ApplicationRefreshAccessTokenResponse = AppTemplate.Application.Features.Auth.UseCases.Commands.RefreshAccessToken.RefreshAccessTokenResponse;
+using ApplicationRegisterResponse = AppTemplate.Application.Features.Auth.UseCases.Commands.Register.RegisterResponse;
 
 namespace AppTemplate.Api.Features.Auth.Mapping;
 
@@ -14,7 +17,7 @@ namespace AppTemplate.Api.Features.Auth.Mapping;
 /// </remarks>
 internal static class AuthMapping
 {
-    public static Result<RegisterResponse> ToRegisterResponse(Result<ApplicationDtos.RegisterResponse> result)
+    public static Result<RegisterResponse> ToRegisterResponse(Result<ApplicationRegisterResponse> result)
     {
         ArgumentNullException.ThrowIfNull(result);
 
@@ -26,7 +29,7 @@ internal static class AuthMapping
         return new RegisterResponse(result.Value.UserName, result.Value.Email, result.Value.ConfirmationEmailSent);
     }
 
-    public static Result<LoginResponse> ToLoginResponse(Result<ApplicationDtos.LoginOutcome> result)
+    public static Result<LoginResponse> ToLoginResponse(Result<ApplicationLoginOutcome> result)
     {
         ArgumentNullException.ThrowIfNull(result);
 
@@ -37,13 +40,13 @@ internal static class AuthMapping
 
         return result.Value switch
         {
-            ApplicationDtos.LoginOutcome.Authenticated authenticated => new LoginResponse.Authenticated(
+            ApplicationLoginOutcome.Authenticated authenticated => new LoginResponse.Authenticated(
                 new TokenResponse(
                     authenticated.AccessToken,
                     authenticated.AccessTokenExpiresAt,
                     authenticated.RefreshToken,
                     authenticated.RefreshTokenExpiresAt)),
-            ApplicationDtos.LoginOutcome.TwoFactorRequired twoFactor =>
+            ApplicationLoginOutcome.TwoFactorRequired twoFactor =>
                 new LoginResponse.TwoFactorRequired(twoFactor.ChallengeToken),
 
             // A branch added to the hierarchy without one here would otherwise be served as a
@@ -53,7 +56,7 @@ internal static class AuthMapping
         };
     }
 
-    public static Result<TokenResponse> ToTokenResponse(Result<ApplicationDtos.RefreshAccessTokenResponse> result)
+    public static Result<TokenResponse> ToTokenResponse(Result<ApplicationRefreshAccessTokenResponse> result)
     {
         ArgumentNullException.ThrowIfNull(result);
 
@@ -70,7 +73,7 @@ internal static class AuthMapping
     }
 
     public static Result<CurrentUserResponse> ToCurrentUserResponse(
-        Result<ApplicationDtos.CurrentUserResponse> result)
+        Result<ApplicationCurrentUserResponse> result)
     {
         ArgumentNullException.ThrowIfNull(result);
 

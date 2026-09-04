@@ -1,8 +1,8 @@
 ﻿using System.Reflection;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.TodoLists.Access;
-using AppTemplate.Application.Features.TodoLists.Consumers;
-using AppTemplate.Application.Features.TodoLists.Validators;
+using AppTemplate.Application.Features.TodoLists.Consumers.TodoItemCompleted;
+using AppTemplate.Application.Features.TodoLists.Services;
+using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CreateTodoList;
 using AppTemplate.Domain.Common.Events;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using FluentValidation;

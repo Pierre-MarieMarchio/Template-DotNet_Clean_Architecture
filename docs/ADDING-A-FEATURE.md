@@ -1,7 +1,7 @@
 # Adding a feature
 
 A worked walkthrough of the vertical `CONTRIBUTING.md`'s "Adding a feature" section
-summarises: aggregate → EF model → mapper → tracker → store → use case (with its
+summarises: aggregate → EF model → mapper → tracker → repository → use case (with its
 named interface) → controller → tests → migration. `TodoLists` is the real example
 running through every step below — open the file next to the paragraph describing
 it.
@@ -16,10 +16,10 @@ this at build time, so a shortcut here is a failing test, not a silent drift.
 `Src/Domain/AppTemplate.Domain/Features/<Feature>/`
 
 ```
-Entities/<Aggregate>.cs        the aggregate root
-ValueObjects/<Name>.cs         validated primitives (record types)
-Events/<Thing>DomainEvent.cs   what the aggregate raised
-Stores/I<Aggregate>Repository.cs   the store contract, in domain types only
+Entities/<Aggregate>.cs         the aggregate root
+ValueObjects/<Name>.cs          validated primitives (record types)
+Events/<Thing>DomainEvent.cs    what the aggregate raised
+Repositories/I<Aggregate>Repository.cs   the repository contract, in domain types only
 ```
 
 `TodoList` (`Entities/TodoList.cs`) is the reference: a private list of items, a
@@ -29,8 +29,8 @@ the database can never produce an aggregate that breaks its own rules. Put every
 invariant in the constructor, the factory, *and* `Rehydrate`; missing one of the
 three is exactly the bug `TodoListRehydrationTests` exists to catch.
 
-The store contract lives in `Stores/`, not `Application`, because it is stated
-entirely in domain types:
+The repository contract lives in `Repositories/`, not `Application`, because it is
+stated entirely in domain types:
 
 ```csharp
 public interface ITodoListRepository
@@ -41,21 +41,37 @@ public interface ITodoListRepository
 }
 ```
 
-`AdapterVisibilityTests` recognises a store by a namespace ending in `.Stores` —
-that is the whole rule, so follow the folder name exactly.
+`AdapterVisibilityTests` recognises a repository contract by a namespace ending in
+`.Repositories` — that is the whole rule, so follow the folder name exactly.
 
 ## 2. Application — the use case and its port
 
 `Src/Application/AppTemplate.Application/Features/<Feature>/`
 
 ```
-UseCases/Commands|Queries/<Verb><Aggregate>UseCase.cs   command/query record, named
-                                                          interface, and the use case
-Dtos/<Name>Dto.cs             read models returned to the API
-Ports/I<Thing>.cs             any port that is not a store (e.g. read-side queries)
-Validators/<Verb><Aggregate>CommandValidator.cs   FluentValidation, one file each
-Errors/<Feature>Errors.cs     the feature's Error catalogue
+UseCases/Commands|Queries/<Operation>/         one folder per operation:
+  <Operation>Command.cs                        the command or query record
+  I<Operation>UseCase.cs                       the named interface
+  <Operation>UseCase.cs                        the use case
+  <Operation>CommandValidator.cs               FluentValidation, scoped to this operation
+  <types used only by this one operation>      e.g. a response record no other operation returns
+Ports/<Port>/                  a port interface, together with the messages that cross it
+Consumers/<Event>/             domain-event consumers, if the feature has any
+Services/                      internal collaborators shared by more than one use case
+Policies/                      the collection whitelist, and anything else the feature declares
+Extensions/                    small helpers scoped to this feature
+Mapping/                       aggregate -> DTO projections
+Dtos/<Name>Dto.cs              read models more than one operation shares
+Errors/<Feature>Errors.cs      the feature's Error catalogue
 ```
+
+A folder is only present when it has content — a feature with no domain-event consumer
+has no `Consumers/`. `Dtos/` holds only shapes more than one operation returns; a
+response type only one operation produces stays in that operation's own folder instead.
+A type that appears in a port's signature never moves into a use case's folder, however
+many use cases call that port — otherwise `Ports/` would depend on `UseCases/`.
+`TodoListPageRequest` is the real example: it is `ITodoListQueries`'s parameter, so it
+lives in `Ports/TodoListQueries/`, not inside any one query's own folder.
 
 One class per use case, plus **exactly one named interface** deriving from
 `IUseCase<TRequest, TResponse>` (or `IUseCase<TResponse>`):
@@ -63,7 +79,8 @@ One class per use case, plus **exactly one named interface** deriving from
 ```csharp
 public sealed record CreateTodoListCommand(string Name);
 
-public interface ICreateTodoListUseCase : IUseCase<CreateTodoListCommand, Result<Guid>>;
+public interface ICreateTodoListUseCase
+    : IUseCase<CreateTodoListCommand, Result<Versioned<TodoListDetailDto>>>;
 
 public sealed class CreateTodoListUseCase(
     ITodoListRepository repository,
@@ -72,11 +89,12 @@ public sealed class CreateTodoListUseCase(
     IDateTimeProvider dateTimeProvider,
     IValidator<CreateTodoListCommand> validator) : ICreateTodoListUseCase
 {
-    public async Task<Result<Guid>> ExecuteAsync(
+    public async Task<Result<Versioned<TodoListDetailDto>>> ExecuteAsync(
         CreateTodoListCommand command,
         CancellationToken cancellationToken = default)
     {
-        // validate -> load/build the aggregate -> stage it -> SaveChangesAsync -> return Result
+        // require the caller -> validate -> build the aggregate -> stage it ->
+        // SaveChangesAsync -> project the written aggregate back to a DTO
     }
 }
 ```
@@ -96,16 +114,21 @@ use case disagreed about what is allowed, which is a bug, not a client error.
 
 Sorting, filtering and paging are already built, once, in
 `Common/Collections/`. A feature does not implement them — it **declares what it
-allows**, in `Features/<Feature>/Collections/`:
+allows**:
 
 ```
-Collections/<Feature>CollectionPolicy.cs   the sortable whitelist and the bounds
-Collections/<Feature>Filter.cs             the typed filter surface + its validation
-Collections/<Feature>PageRequest.cs        the one validated type the port accepts
+Policies/<Feature>CollectionPolicy.cs            the sortable whitelist and the bounds
+Ports/<Feature>Queries/<Feature>Filter.cs        the typed filter surface + its validation
+Ports/<Feature>Queries/<Feature>PageRequest.cs   the one validated type the port accepts
 ```
 
-The policy is the whitelist, and it lives here rather than in `Common/` because
-only the feature knows which of its columns are cheap to order by:
+The filter and the page request travel with the read-side port they are the parameter
+of — `TodoListFilter` and `TodoListPageRequest` live in `Ports/TodoListQueries/`, next to
+`ITodoListQueries` itself — because they are that port's signature, not one use case's
+private concern.
+
+The policy is the whitelist, and it lives in its own `Policies/` folder rather than in
+`Common/` because only the feature knows which of its columns are cheap to order by:
 
 ```csharp
 public sealed class TodoListCollectionPolicy : ICollectionPolicy
@@ -143,8 +166,8 @@ Four rules, and they are the whole reason this is safe:
    `SortableField.OffsetOnly`, and asking for it with `paging=cursor` is a `400`.
 3. **`DefaultSort` is written in the caller's own syntax** and parsed by the same
    `SortOrder.Parse` that parses caller input — so a typo in a feature's default
-   fails a test instead of shipping. `CollectionPolicyRules` in
-   `Tests/Architecture/AppTemplate.Architecture.Tests` asserts exactly that, for
+   fails a test instead of shipping. `CollectionContractTests.EveryCollectionPolicy_IsInternallyConsistent`
+   in `Tests/Architecture/AppTemplate.Architecture.Tests` asserts exactly that, for
    every policy, automatically.
 4. **The filter is typed, never a string that becomes a predicate.** Each filter
    is a named parameter with a CLR type and a validating factory returning
@@ -177,9 +200,9 @@ checked mechanically.
 ```
 Models/<Aggregate>Record.cs                  the EF row — no behaviour, no invariants
 Configurations/<Aggregate>RecordConfiguration.cs   IEntityTypeConfiguration<T>
-Mappers/I<Aggregate>Mapper.cs / <Aggregate>Mapper.cs
+Mapping/I<Aggregate>Mapper.cs / <Aggregate>Mapper.cs
 Tracking/I<Aggregate>Tracker.cs / <Aggregate>Tracker.cs
-Repositories/<Aggregate>Repository.cs        implements the domain's store contract
+Repositories/<Aggregate>Repository.cs        implements the domain's repository contract
 Queries/<Aggregate>Queries.cs                read-side projections, if the feature has any
 ```
 
@@ -194,7 +217,7 @@ because they exist specifically to keep the split intact:
 2. **Configuration** (`Configurations/`) — `ToTable`, keys, indexes, string lengths
    read from the domain's own constants (e.g. `TodoListName.MaxLength`) so the
    column and the invariant cannot drift apart.
-3. **Mapper** (`Mappers/`) — the one place that knows both shapes: `ToAggregate`
+3. **Mapper** (`Mapping/`) — the one place that knows both shapes: `ToAggregate`
    (row → domain, total), `ToNewRecord` (domain → row, total, exercised by a
    round-trip fidelity test), and `WriteTo` (domain → row, deliberately *partial* —
    it never touches the columns the store owns: audit stamps, the concurrency
@@ -239,7 +262,9 @@ positive.
 
 ```
 Controllers/<Feature>Controller.cs
-Contracts/<Verb><Aggregate>Request.cs   request records the controller binds
+Contracts/Requests/<Verb><Aggregate>Request.cs    request records the controller binds
+Contracts/Responses/<Verb><Aggregate>Response.cs  response records the controller returns
+Mapping/<Feature>Mapping.cs                       request/response <-> application DTO
 ```
 
 The controller depends on named use-case interfaces only, maps requests to
@@ -259,6 +284,8 @@ explicit `[AllowAnonymous]`, not the absence of an attribute.
 - Application: one test class per use case, plus the validators.
 - Persistence: a round-trip fidelity test for the mapper (`ToNewRecord` composed
   with `ToAggregate` must reproduce every property), and a tracker test.
+- Presentation (`Tests/Presentation/AppTemplate.Api.UnitTests/Features/<Feature>/`): the
+  controller and the request/response mapping, against test doubles.
 - Integration (`Tests/Integration/AppTemplate.Api.IntegrationTests/<Feature>/`): the
   HTTP surface end to end, against a real PostgreSQL via Testcontainers.
 
@@ -297,7 +324,7 @@ than not shipping one.
 
 If you want it gone, delete, in this order, and let the compiler and the
 architecture tests find what is left: `Src/**/Features/TodoLists/`,
-`Tests/{Domain,Application,Infrastructure}/**/Features/TodoLists/`,
+`Tests/{Domain,Application,Infrastructure,Presentation}/**/Features/TodoLists/`,
 `Tests/Integration/AppTemplate.Api.IntegrationTests/TodoLists/`, the
 `AddTodoListsFeature` call in `PersistenceModule`, the `TodoItemCompletedDomainEvent`
 consumer registration in `ServiceRegistration`, and the `TodoLists` table migration

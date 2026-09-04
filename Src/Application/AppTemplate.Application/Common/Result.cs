@@ -61,7 +61,7 @@ public sealed class Result<TValue> : Result
     /// <summary>
     /// A success must carry a value. Absence is a failure with an <see cref="Error"/>, not a
     /// success holding <c>null</c> — without this guard an adapter returning null under a
-    /// non-nullable declaration produced <see cref="IsSuccess"/> with a null
+    /// non-nullable declaration produced <see cref="Result.IsSuccess"/> with a null
     /// <see cref="Value"/>, which a controller serves as a 200 with an empty body.
     /// </summary>
     public static Result<TValue> Success(TValue value)

@@ -12,17 +12,17 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 /// persistence twin because it has invariants worth protecting from the schema; an account row does not.
 /// </para>
 /// <para>
-/// Public because the identity module — which owns authentication policy but no longer owns the store —
+/// Public because the identity module — which owns authentication policy but not the store —
 /// has to name it in order to compose <c>UserManager&lt;AppUser&gt;</c>. Nothing else should.
 /// </para>
 /// </summary>
 public sealed class AppUser : IdentityUser<Guid>
 {
     /// <summary>
-    /// Set once, from <c>IDateTimeProvider</c>, when the account is created. The former
-    /// <c>UpdatedAt</c> and <c>IsDeleted</c> columns were never written after insert and never
-    /// filtered — a "soft-deleted" user still authenticated — so they are gone rather than left
-    /// half-implemented.
+    /// Set once, from <c>IDateTimeProvider</c>, when the account is created. There is no
+    /// <c>UpdatedAt</c> or <c>IsDeleted</c> column: a timestamp nothing writes after insert, and a
+    /// flag nothing filters on, are worse than absent — an unenforced soft-delete flag would let a
+    /// "deleted" user still authenticate.
     /// </summary>
     public DateTimeOffset CreatedAt { get; set; }
 

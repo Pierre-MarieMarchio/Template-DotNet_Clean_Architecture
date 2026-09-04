@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Shouldly;
 using Xunit;

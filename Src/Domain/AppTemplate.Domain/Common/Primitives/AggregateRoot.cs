@@ -3,17 +3,6 @@
 namespace AppTemplate.Domain.Common.Primitives;
 
 /// <summary>
-/// Non-generic marker so the persistence layer can collect domain events from any root
-/// without knowing its id type.
-/// </summary>
-public interface IAggregateRoot
-{
-    IReadOnlyCollection<IDomainEvent> DomainEvents { get; }
-
-    void ClearDomainEvents();
-}
-
-/// <summary>
 /// The consistency and transactional boundary: only aggregate roots get a repository, and
 /// entities inside an aggregate are reached through their root.
 /// </summary>

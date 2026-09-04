@@ -44,11 +44,11 @@ csharp_style_prefer_pattern_matching = true:suggestion
 csharp_style_null_propagation = true:warning
 dotnet_style_coalesce_expression = true:warning
 
-# Unused code must not accumulate silently.
-# IDE0005 (unnecessary using) is deliberately NOT raised here: reporting it during a
-# build requires GenerateDocumentationFile=true, which in turn demands an XML comment on
-# every public member (CS1591) — a documentation policy we do not want. Unused usings are
-# instead enforced by `dotnet format --verify-no-changes` in CI, which needs no doc file.
+# Unused code must not accumulate silently. Reporting an unused using during a build needs
+# GenerateDocumentationFile, which Directory.Build.props turns on for the sake of checking
+# cref targets; suppressing CS1591 and CS1573 there keeps documentation optional, so the
+# rule below costs nothing it should not.
+dotnet_diagnostic.IDE0005.severity = warning
 dotnet_diagnostic.CS8618.severity = error      # non-nullable not initialised
 dotnet_diagnostic.CS8602.severity = error      # dereference of possibly null
 dotnet_diagnostic.CA2007.severity = none       # ConfigureAwait: not needed in ASP.NET Core

@@ -1,9 +1,8 @@
 ﻿using System.Linq.Expressions;
 using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Collections;
-using AppTemplate.Application.Features.TodoLists.Collections;
 using AppTemplate.Application.Features.TodoLists.Dtos;
-using AppTemplate.Application.Features.TodoLists.Ports;
+using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 using Microsoft.EntityFrameworkCore;

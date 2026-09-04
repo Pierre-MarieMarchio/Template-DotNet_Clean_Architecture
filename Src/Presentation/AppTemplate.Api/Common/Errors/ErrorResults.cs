@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Common;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Common.Errors;

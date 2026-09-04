@@ -1,8 +1,12 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.Auth.Ports;
-using AppTemplate.Application.Features.TodoLists.Ports;
+using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
+using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
+using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Architecture.Tests.Fixtures;
-using AppTemplate.Domain.Features.TodoLists.Stores;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
 using NetArchTest.Rules;
 using Shouldly;
 using Xunit;
@@ -149,27 +153,29 @@ public sealed class AdapterVisibilityTests
             port.IsInterface.ShouldBeTrue($"{port.FullName} is listed as a port but is not an interface.");
             port.IsPublic.ShouldBeTrue($"{port.FullName} is a port and must be public.");
 
-            // A store contract speaks only in aggregate types, so it belongs beside the aggregate it
-            // loads; every other port speaks in DTOs or platform concerns and belongs in Application.
-            // Either way it is declared inward of the module that satisfies it, which is the point.
-            var expected = IsStoreContract(port)
+            // A repository contract speaks only in aggregate types, so it belongs beside the aggregate
+            // it loads; every other port speaks in DTOs or platform concerns and belongs in
+            // Application. Either way it is declared inward of the module that satisfies it, which is
+            // the point.
+            var expected = IsRepositoryContract(port)
                 ? ArchitectureAssemblies.Domain
                 : ArchitectureAssemblies.Application;
 
             port.Assembly.ShouldBe(
                 expected,
                 $"{port.FullName} must be declared in '{expected.GetName().Name}': a contract is owned " +
-                "inward of the module that satisfies it, never by the adapter itself. Store contracts " +
-                "live in AppTemplate.Domain under Features/<Feature>/Stores; all other ports live in AppTemplate.Application.");
+                "inward of the module that satisfies it, never by the adapter itself. Repository " +
+                "contracts live in AppTemplate.Domain under Features/<Feature>/Repositories; every " +
+                "other port lives in AppTemplate.Application.");
         }
     }
 
     /// <summary>
-    /// A store contract is recognised by the folder it is declared in, so the rule follows the
+    /// A repository contract is recognised by the folder it is declared in, so the rule follows the
     /// convention rather than a hand-kept list.
     /// </summary>
-    private static bool IsStoreContract(Type port) =>
-        port.Namespace?.EndsWith(".Stores", StringComparison.Ordinal) is true;
+    private static bool IsRepositoryContract(Type port) =>
+        port.Namespace?.EndsWith(".Repositories", StringComparison.Ordinal) is true;
 
     /// <summary>
     /// Guards the assumption the whole file rests on: that reflection over these assemblies can see

@@ -14,6 +14,6 @@ public interface IIdentitySeeder
     /// Creates whatever is missing, and does nothing at all when seeding is switched off.
     /// </summary>
     /// <exception cref="InvalidOperationException">Seeding is enabled outside Development, or a create
-    /// operation was refused. A rejected password used to look like a clean start-up.</exception>
+    /// operation was refused — thrown so a rejected password cannot pass for a clean start-up.</exception>
     Task SeedAsync(CancellationToken cancellationToken = default);
 }

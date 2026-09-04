@@ -74,7 +74,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     /// <summary>
     /// The to-do list aggregate's root table. This is a <em>persistence model</em>, not the domain
     /// aggregate: the domain type is mapped onto it by
-    /// <see cref="Features.TodoLists.Mappers.ITodoListMapper"/> and is never tracked by EF. Internal,
+    /// <see cref="Features.TodoLists.Mapping.ITodoListMapper"/> and is never tracked by EF. Internal,
     /// because nothing outside this assembly has any business naming a storage shape.
     /// </summary>
     internal DbSet<TodoListRecord> TodoLists => Set<TodoListRecord>();

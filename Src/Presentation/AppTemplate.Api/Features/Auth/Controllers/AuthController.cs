@@ -307,7 +307,11 @@ public sealed class AuthController(
 
     /// <summary>
     /// Confirms enrollment with a first code and turns two-factor sign-in on. Returns ten recovery
-    /// codes, shown once: losing them along with the authenticator app is losing the account.
+    /// codes, shown once: losing them along with the authenticator app is losing the account. The
+    /// current password is presented again, for the reason <see cref="DisableTwoFactor"/> gives: a
+    /// stolen session alone must not be able to arm the account's second factor any more than it can
+    /// strip one — confirming revokes every other session exactly as disabling does, so proving the
+    /// password matters just as much here.
     /// </summary>
     [HttpPost("two-factor/confirm")]
     [Authorize]
@@ -322,7 +326,7 @@ public sealed class AuthController(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var command = new ConfirmTwoFactorSetupCommand(request.Code);
+        var command = new ConfirmTwoFactorSetupCommand(request.CurrentPassword, request.Code);
 
         return OkOrProblem(
             AuthMapping.ToConfirmTwoFactorSetupResponse(await confirmTwoFactorSetup.ExecuteAsync(command, cancellationToken)));

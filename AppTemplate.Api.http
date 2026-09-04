@@ -615,13 +615,17 @@ Content-Type: application/json
 # 33o. MANUAL STEP. Confirm with the six-digit code your authenticator app now shows for the shared
 #      key from 33n. This is what actually arms two-factor sign-in — 33n alone arms nothing, so a
 #      key that was never scanned successfully cannot lock the account out. Returns ten recovery
-#      codes; write them down, they are shown once and never retrievable again.
+#      codes; write them down, they are shown once and never retrievable again. The current password
+#      is presented again, for the reason 33r gives for disabling: a stolen session alone must not be
+#      able to arm the account's second factor any more than it can strip one — confirming revokes
+#      every other session exactly as disabling does.
 @twoFactorCode = paste-the-six-digit-code-from-your-authenticator-app
 POST {{api}}/auth/two-factor/confirm
 Authorization: Bearer {{postSetupAccessToken}}
 Content-Type: application/json
 
 {
+  "currentPassword": "{{resetPassword}}",
   "code": "{{twoFactorCode}}"
 }
 
@@ -669,6 +673,16 @@ Content-Type: application/json
 {
   "currentPassword": "{{resetPassword}}"
 }
+
+###
+# 33s. Administration: the escape hatch for the case 33r cannot cover — an account that has lost the
+#      authenticator app AND the ten recovery codes from 33o, and so can prove neither a password nor
+#      a code any more. Administrator-only, like 33i-33m, and no password at all: the caller's own
+#      administrator session is what this is gated on instead. Even a real administrator gets a 403
+#      against their own account here, for the same reason a stolen administrator session must not be
+#      able to strip its own second factor without ever proving that account's password.
+DELETE {{api}}/auth/accounts/{{myUserId}}/two-factor
+Authorization: Bearer {{freshAccessToken}}
 
 ###
 # 34. Liveness. No dependency is checked, so an orchestrator does not restart the API because the

@@ -204,8 +204,6 @@ internal sealed class ArchitectureTestCurrentUser : ICurrentUser
     private static readonly Guid _userId = new("11111111-1111-1111-1111-111111111111");
 
     public Guid? UserId => _userId;
-
-    public bool IsAuthenticated => true;
 }
 
 /// <summary>

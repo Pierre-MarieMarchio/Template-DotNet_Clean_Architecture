@@ -69,4 +69,11 @@ public enum SecurityEventKind
     /// worth its own fact, since it is also the signal that one of the ten one-time codes is now gone.
     /// </summary>
     RecoveryCodeRedeemed,
+
+    /// <summary>
+    /// An administrator disabled two-factor sign-in on someone else's account through
+    /// <see cref="AppTemplate.Application.Features.Auth.Ports.TwoFactorAdministration.ITwoFactorAdministration"/>,
+    /// rather than the account itself proving its password through <see cref="TwoFactorDisabled"/>'s route.
+    /// </summary>
+    TwoFactorDisabledByAdministrator,
 }

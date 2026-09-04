@@ -2,6 +2,7 @@
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.AddRole;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.DeleteAccount;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.DisableAccountTwoFactor;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.LockAccount;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.RemoveRole;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.UnlockAccount;
@@ -31,7 +32,8 @@ public sealed class AccountAdministrationController(
     IUnlockAccountUseCase unlockAccount,
     IAddRoleUseCase addRole,
     IRemoveRoleUseCase removeRole,
-    IDeleteAccountUseCase deleteAccount) : ApiControllerBase
+    IDeleteAccountUseCase deleteAccount,
+    IDisableAccountTwoFactorUseCase disableAccountTwoFactor) : ApiControllerBase
 {
     /// <summary>
     /// Locks the account out indefinitely. Rotates its security stamp, so an access token it already
@@ -84,4 +86,26 @@ public sealed class AccountAdministrationController(
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> Delete(Guid userId, CancellationToken cancellationToken) =>
         NoContentOrProblem(await deleteAccount.ExecuteAsync(new DeleteAccountCommand(userId), cancellationToken));
+
+    /// <summary>
+    /// Strips the account's second factor without its password or a code — the escape hatch for
+    /// somebody who has lost the authenticator app <em>and</em> the recovery codes, and so can prove
+    /// neither. Without this, the only recourse was <see cref="Delete"/>, which throws the account
+    /// away along with everything it owns rather than the one thing actually stuck.
+    /// <para>
+    /// Refused with a 403 when <paramref name="userId"/> names the caller — not <see cref="Lock"/>'s
+    /// reason, since disabling two-factor sign-in on the caller's own account locks nothing and
+    /// leaves it fully reachable afterward. It is refused because letting this route reach the
+    /// caller's own account would let a stolen administrator session strip that account's second
+    /// factor without ever presenting the password the self-service route demands — see
+    /// <c>DisableAccountTwoFactorUseCase</c>.
+    /// </para>
+    /// </summary>
+    [HttpDelete("{userId:guid}/two-factor")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
+    public async Task<ActionResult> DisableTwoFactor(Guid userId, CancellationToken cancellationToken) =>
+        NoContentOrProblem(
+            await disableAccountTwoFactor.ExecuteAsync(new DisableAccountTwoFactorCommand(userId), cancellationToken));
 }

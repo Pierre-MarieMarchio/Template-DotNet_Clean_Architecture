@@ -65,4 +65,7 @@ public sealed record SecurityEvent(
 
     public static SecurityEvent RecoveryCodeRedeemed(Guid userId) =>
         new(SecurityEventKind.RecoveryCodeRedeemed, userId);
+
+    public static SecurityEvent TwoFactorDisabledByAdministrator(Guid userId) =>
+        new(SecurityEventKind.TwoFactorDisabledByAdministrator, userId);
 }

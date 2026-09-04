@@ -33,12 +33,13 @@ internal static class TwoFactorTestSupport
 
     public static async Task<ConfirmTwoFactorSetupResponse> ConfirmTwoFactorSetupAsync(
         HttpClient client,
+        string currentPassword,
         string code,
         CancellationToken cancellationToken)
     {
         using var response = await client.PostAsJsonAsync(
             $"{_authRoute}/two-factor/confirm",
-            new ConfirmTwoFactorSetupRequest(code),
+            new ConfirmTwoFactorSetupRequest(currentPassword, code),
             cancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -75,12 +76,14 @@ internal static class TwoFactorTestSupport
     /// </summary>
     public static async Task<(string SharedKey, IReadOnlyList<string> RecoveryCodes)> EnableTwoFactorAsync(
         HttpClient client,
+        TestUser user,
         TestSession session,
         CancellationToken cancellationToken)
     {
         var setup = await BeginTwoFactorSetupAsync(client, cancellationToken);
         await RefreshAuthorizationAsync(client, session.Tokens.RefreshToken, cancellationToken);
-        var confirmed = await ConfirmTwoFactorSetupAsync(client, AuthenticatorCodes.CurrentCodeFor(setup.SharedKey), cancellationToken);
+        var confirmed = await ConfirmTwoFactorSetupAsync(
+            client, user.Password, AuthenticatorCodes.CurrentCodeFor(setup.SharedKey), cancellationToken);
 
         return (setup.SharedKey, confirmed.RecoveryCodes);
     }

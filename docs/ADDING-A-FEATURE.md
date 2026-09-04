@@ -106,9 +106,12 @@ same moment a missing DI registration would otherwise surface as a 500 on first
 request. Controllers depend on the named interface, never on the concrete class.
 
 Return `Result`/`Result<T>` carrying an `Error` with a stable `code` for every
-expected failure (not found, not owner, validation). Reserve `DomainException` for
-a violated invariant and let it become a 500 — that path means the domain and the
-use case disagreed about what is allowed, which is a bug, not a client error.
+expected failure (not found, not owner, validation). Reserve `DomainException` for a
+violated invariant, and either let it become a 400 through `GlobalExceptionHandler`
+(a bare net, not a path any use case is meant to rely on), or run the call through
+`DomainGuard` to turn it into a 409 `Result` when the use case *expects* the invariant
+to sometimes refuse — never a 500: that status is for a bug nothing anticipated, not
+for a caller driving an aggregate into a state the model forbids.
 
 ### If the feature has a collection endpoint
 

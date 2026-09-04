@@ -20,6 +20,4 @@ internal sealed class CurrentUser(IHttpContextAccessor httpContextAccessor) : IC
         }
     }
 
-    public bool IsAuthenticated =>
-        httpContextAccessor.HttpContext?.User.Identity?.IsAuthenticated ?? false;
 }

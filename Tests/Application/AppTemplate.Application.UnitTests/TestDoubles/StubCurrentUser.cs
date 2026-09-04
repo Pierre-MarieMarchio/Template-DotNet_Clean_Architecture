@@ -10,6 +10,4 @@ internal sealed class StubCurrentUser(Guid? userId) : ICurrentUser
     public static StubCurrentUser WithId(Guid userId) => new(userId);
 
     public Guid? UserId => userId;
-
-    public bool IsAuthenticated => userId is not null;
 }

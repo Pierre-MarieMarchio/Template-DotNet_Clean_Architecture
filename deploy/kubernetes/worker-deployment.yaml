@@ -70,6 +70,18 @@ spec:
                 secretKeyRef:
                   name: app-template-secrets
                   key: Jwt__Key
+            # This host composes AppTemplate.Infrastructure.Email too (see configmap-worker.yaml
+            # and AppTemplate.Worker.csproj), so it needs the same SMTP credentials as the API.
+            - name: Email__UserName
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Email__UserName
+            - name: Email__Password
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Email__Password
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

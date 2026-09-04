@@ -4,8 +4,10 @@
 # Src/Presentation/AppTemplate.Worker/Program.cs, which registers no such option and therefore
 # runs on the .NET Generic Host's own default shutdown timeout, not the 30 s this template tunes
 # for the API). It still composes AppTemplate.Infrastructure.Identity — for
-# IRefreshTokenMaintenance's sole adapter — and therefore still validates Jwt, EmailConfirmation
-# and PasswordReset at startup, exactly as if it served requests.
+# IRefreshTokenMaintenance's sole adapter — and therefore still validates Jwt, EmailConfirmation,
+# PasswordReset and EmailChange at startup, exactly as if it served requests. It also composes
+# AppTemplate.Infrastructure.Email — for IReminderNotifier's mail adapter, a due reminder is rung
+# by mail — and therefore validates Email (SMTP) at startup too. See docs/CONFIGURATION.md.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -25,11 +27,23 @@ data:
   Jwt__Issuer: "https://api.example.com"
   Jwt__Audience: "app-template-clients"
 
-  # Same two required URLs as configmap-api.yaml, same reasoning: this host does not send either
-  # mail, but AppTemplate.Infrastructure.Identity validates both sections regardless of which
-  # host composes it.
+  # Same three required URLs as configmap-api.yaml, same reasoning: this host does not send any of
+  # this mail, but AppTemplate.Infrastructure.Identity validates all three sections regardless of
+  # which host composes it.
   EmailConfirmation__ConfirmEmailUrl: "https://app.example.com/confirm-email"
   PasswordReset__ResetPasswordUrl: "https://app.example.com/reset-password"
+  EmailChange__ConfirmEmailChangeUrl: "https://app.example.com/confirm-email-change"
+
+  # --- Email (SMTP) — required, no default. Unlike EmailConfirmation/PasswordReset/EmailChange -
+  # above, this section is NOT a coupling cost of AppTemplate.Infrastructure.Identity: this host
+  # composes AppTemplate.Infrastructure.Email in its own right, for IReminderNotifier's adapter (a
+  # reminder that comes due is rung by mail — see Program.cs and AppTemplate.Worker.csproj). Kept
+  # identical to configmap-api.yaml's values, same reasoning as the three URLs above.
+  Email__Host: "smtp.example.com"
+  Email__Port: "587"
+  Email__Security: "StartTls"
+  Email__FromAddress: "no-reply@example.com"
+  Email__FromName: "AppTemplate"
 
   # This replica's own pool against the SAME PostgreSQL server the API's replicas draw from — see
   # docs/DEPLOYMENT.md and docs/CONFIGURATION.md ("the worker is a replica of the same budget, not

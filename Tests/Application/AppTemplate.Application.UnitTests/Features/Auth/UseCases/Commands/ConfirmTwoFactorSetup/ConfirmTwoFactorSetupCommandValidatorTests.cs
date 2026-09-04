@@ -10,14 +10,25 @@ public sealed class ConfirmTwoFactorSetupCommandValidatorTests
 
     [Fact]
     public void AWellFormedRequest_IsAccepted() =>
-        _validator.Validate(new ConfirmTwoFactorSetupCommand("123456")).IsValid.ShouldBeTrue();
+        _validator.Validate(new ConfirmTwoFactorSetupCommand("correct horse battery", "123456")).IsValid.ShouldBeTrue();
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ABlankCurrentPassword_IsRejected(string currentPassword)
+    {
+        var result = _validator.Validate(new ConfirmTwoFactorSetupCommand(currentPassword, "123456"));
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(failure => failure.PropertyName == "CurrentPassword");
+    }
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
     public void ABlankCode_IsRejected(string code)
     {
-        var result = _validator.Validate(new ConfirmTwoFactorSetupCommand(code));
+        var result = _validator.Validate(new ConfirmTwoFactorSetupCommand("correct horse battery", code));
 
         result.IsValid.ShouldBeFalse();
         result.Errors.ShouldContain(failure => failure.PropertyName == "Code");

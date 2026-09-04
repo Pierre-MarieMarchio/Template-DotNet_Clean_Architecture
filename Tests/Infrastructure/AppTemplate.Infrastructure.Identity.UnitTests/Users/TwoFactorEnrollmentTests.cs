@@ -99,13 +99,15 @@ public sealed class TwoFactorEnrollmentTests
     }
 
     [Fact]
-    public async Task ConfirmAsync_ARightCode_EnablesTwoFactor()
+    public async Task ConfirmAsync_ARightPasswordAndCode_EnablesTwoFactor()
     {
         var user = GivenTheAccountExists();
         string sharedKey = await GivenAPendingKeyAsync();
+        _passwordHasher.NextVerification = PasswordVerificationResult.Success;
 
         var confirmation = await CreateEnrollment().ConfirmAsync(
             _userId,
+            "correct horse battery",
             AuthenticatorCodes.CurrentCodeFor(sharedKey),
             TestToken);
 
@@ -114,13 +116,15 @@ public sealed class TwoFactorEnrollmentTests
     }
 
     [Fact]
-    public async Task ConfirmAsync_ARightCode_MintsTheConfiguredNumberOfRecoveryCodes()
+    public async Task ConfirmAsync_ARightPasswordAndCode_MintsTheConfiguredNumberOfRecoveryCodes()
     {
         GivenTheAccountExists();
         string sharedKey = await GivenAPendingKeyAsync();
+        _passwordHasher.NextVerification = PasswordVerificationResult.Success;
 
         var confirmation = await CreateEnrollment(recoveryCodeCount: 6).ConfirmAsync(
             _userId,
+            "correct horse battery",
             AuthenticatorCodes.CurrentCodeFor(sharedKey),
             TestToken);
 
@@ -134,27 +138,79 @@ public sealed class TwoFactorEnrollmentTests
     /// why that second rotation is the one this feature actually relies on.
     /// </summary>
     [Fact]
-    public async Task ConfirmAsync_ARightCode_RotatesTheSecurityStampAgain()
+    public async Task ConfirmAsync_ARightPasswordAndCode_RotatesTheSecurityStampAgain()
     {
         var user = GivenTheAccountExists();
         string sharedKey = await GivenAPendingKeyAsync();
         string stampAfterBegin = user.SecurityStamp!;
+        _passwordHasher.NextVerification = PasswordVerificationResult.Success;
 
-        await CreateEnrollment().ConfirmAsync(_userId, AuthenticatorCodes.CurrentCodeFor(sharedKey), TestToken);
+        await CreateEnrollment().ConfirmAsync(
+            _userId, "correct horse battery", AuthenticatorCodes.CurrentCodeFor(sharedKey), TestToken);
 
         user.SecurityStamp.ShouldNotBe(stampAfterBegin);
     }
 
     [Fact]
-    public async Task ConfirmAsync_AWrongCode_IsRefusedAndEnablesNothing()
+    public async Task ConfirmAsync_ARightPasswordButAWrongCode_IsRefusedAndEnablesNothing()
     {
         var user = GivenTheAccountExists();
         await GivenAPendingKeyAsync();
+        _passwordHasher.NextVerification = PasswordVerificationResult.Success;
 
-        var confirmation = await CreateEnrollment().ConfirmAsync(_userId, "000000", TestToken);
+        var confirmation = await CreateEnrollment().ConfirmAsync(_userId, "correct horse battery", "000000", TestToken);
 
         confirmation.Outcome.ShouldBe(TwoFactorConfirmationOutcome.InvalidCode);
         user.TwoFactorEnabled.ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// The gap this repository was asked to close: a caller holding nothing but a stolen access token
+    /// must not be able to arm two-factor sign-in — and revoke every other session on the account —
+    /// without proving the password, exactly as it already could not disarm one. See
+    /// <see cref="DisableAsync_AWrongPassword_LeavesTwoFactorOn"/> for the mirror case.
+    /// </summary>
+    [Fact]
+    public async Task ConfirmAsync_AWrongPassword_IsRefusedAndEnablesNothingRegardlessOfTheCode()
+    {
+        var user = GivenTheAccountExists();
+        string sharedKey = await GivenAPendingKeyAsync();
+        _passwordHasher.NextVerification = PasswordVerificationResult.Failed;
+
+        var confirmation = await CreateEnrollment().ConfirmAsync(
+            _userId, "wrong password", AuthenticatorCodes.CurrentCodeFor(sharedKey), TestToken);
+
+        confirmation.Outcome.ShouldBe(TwoFactorConfirmationOutcome.IncorrectPassword);
+        user.TwoFactorEnabled.ShouldBeFalse();
+    }
+
+    /// <summary>A wrong password never even reaches the code check — see <c>ConfirmAsync</c>.</summary>
+    [Fact]
+    public async Task ConfirmAsync_AWrongPassword_DoesNotRotateTheSecurityStamp()
+    {
+        var user = GivenTheAccountExists();
+        string sharedKey = await GivenAPendingKeyAsync();
+        string stampAfterBegin = user.SecurityStamp!;
+        _passwordHasher.NextVerification = PasswordVerificationResult.Failed;
+
+        await CreateEnrollment().ConfirmAsync(
+            _userId, "wrong password", AuthenticatorCodes.CurrentCodeFor(sharedKey), TestToken);
+
+        user.SecurityStamp.ShouldBe(stampAfterBegin);
+    }
+
+    /// <summary>The caller already authenticated as this id — see <c>UserAccounts.ChangePasswordAsync</c>.</summary>
+    [Fact]
+    public async Task ConfirmAsync_AnAccountWithNoPasswordHash_IsReportedAsAnIncorrectPassword()
+    {
+        var user = GivenTheAccountExists();
+        user.PasswordHash = null;
+        string sharedKey = await GivenAPendingKeyAsync();
+
+        var confirmation = await CreateEnrollment().ConfirmAsync(
+            _userId, "correct horse battery", AuthenticatorCodes.CurrentCodeFor(sharedKey), TestToken);
+
+        confirmation.Outcome.ShouldBe(TwoFactorConfirmationOutcome.IncorrectPassword);
     }
 
     [Fact]

@@ -158,15 +158,20 @@ Every secret-shaped value the template validates at startup — `ConnectionStrin
 let alone serve traffic. `deploy/kubernetes/secret.example.yaml` shows the **shape** these
 secrets take as Kubernetes objects — placeholder values only, referenced by both Deployments
 through individual `secretKeyRef` entries rather than `envFrom`, so a container gets exactly the
-keys it composes and nothing else (`AppTemplate.Worker` never receives `Email__Password`, because
-it never composes `AppTemplate.Infrastructure.Email`).
+keys it composes and nothing else. `AppTemplate.Worker` **does** receive `Email__UserName` /
+`Email__Password`: it composes `AppTemplate.Infrastructure.Email` too, for `IReminderNotifier`'s
+adapter — see below and `AppTemplate.Worker.csproj`.
 
-**`PasswordReset:ResetPasswordUrl` is required by both hosts, not just the API.**
-`AppTemplate.Worker` composes `AppTemplate.Infrastructure.Identity` for
-`IRefreshTokenMaintenance`'s sole adapter, and that module validates the same
-`PasswordReset` and `EmailConfirmation` sections at startup regardless of which host loaded it —
-leave either URL unset on the worker and it refuses to start, the same as the API would.
-`configmap-worker.yaml` carries both for exactly this reason.
+**`PasswordReset:ResetPasswordUrl`, `EmailChange:ConfirmEmailChangeUrl` and `Email:Host` are all
+required by both hosts, not just the API.** `AppTemplate.Worker` composes
+`AppTemplate.Infrastructure.Identity` for `IRefreshTokenMaintenance`'s sole adapter, and that
+module validates `PasswordReset`, `EmailConfirmation` and `EmailChange` at startup regardless of
+which host loaded it — leave any of those three URLs unset on the worker and it refuses to start,
+the same as the API would. It separately composes `AppTemplate.Infrastructure.Email` for
+`IReminderNotifier`'s adapter (a due reminder is rung by mail), which validates `Email` (SMTP) the
+same way — a deployment that never uses reminders still has to point this host at a working relay
+for it to boot. `configmap-worker.yaml` carries all four sections for exactly this reason; see
+docs/CONFIGURATION.md for the full accounting of what each host validates and why.
 
 **A separate secret, and a separate database principal, for the migration Job.** SECURITY.md is
 explicit that the application's runtime credentials should hold DML rights only, and that DDL

@@ -14,6 +14,7 @@ using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenMaintenance;
 using AppTemplate.Application.Features.Auth.Ports.RoleAssignments;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Features.Auth.Ports.TwoFactorAdministration;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
@@ -61,10 +62,10 @@ namespace AppTemplate.Application.UnitTests;
 public sealed class ServiceRegistrationTests
 {
     /// <summary>
-    /// Fifteen to-do list operations, twenty-two authentication ones, two maintenance operations,
+    /// Fifteen to-do list operations, twenty-three authentication ones, two maintenance operations,
     /// and five reminder ones.
     /// </summary>
-    private const int _knownUseCaseCount = 44;
+    private const int _knownUseCaseCount = 45;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
@@ -263,6 +264,7 @@ public sealed class ServiceRegistrationTests
         services.AddScoped(_ => Substitute.For<IAccountDeletion>());
         services.AddScoped(_ => Substitute.For<ITwoFactorEnrollment>());
         services.AddScoped(_ => Substitute.For<ITwoFactorChallenge>());
+        services.AddScoped(_ => Substitute.For<ITwoFactorAdministration>());
 
         // The layer's domain-event consumer takes an ILogger, which every real host supplies.
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));

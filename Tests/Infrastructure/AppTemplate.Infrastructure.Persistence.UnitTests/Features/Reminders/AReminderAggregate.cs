@@ -92,15 +92,17 @@ internal static class AReminderAggregate
     internal static readonly Guid OtherLastModifiedBy = new("77777777-8888-9999-aaaa-bbbbbbbbbbbc");
 
     internal static readonly DateTimeOffset OtherDueAt = new(2025, 7, 8, 9, 10, 11, TimeSpan.Zero);
-    internal static readonly DateTimeOffset OtherClaimedAt = new(2025, 7, 8, 9, 5, 11, TimeSpan.Zero);
     internal static readonly DateTimeOffset OtherCreatedAt = new(2025, 7, 8, 9, 10, 11, TimeSpan.Zero);
     internal static readonly DateTimeOffset OtherLastModifiedAt = new(2025, 7, 9, 12, 13, 14, TimeSpan.Zero);
 
     internal const uint OtherVersion = 123_456u;
 
-    // Cancelled rather than Fired, so it differs from FullyPopulated's State. Rehydrate ties
-    // NotifiedAt to a Fired state, so a state that is not Fired must carry no notification instant.
+    // Cancelled rather than Fired, so it differs from FullyPopulated's State. Rehydrate ties both
+    // instants to that state — only a fired reminder carries a notification instant, and a cancelled
+    // one carries no claim — so this sample differs from the other by holding neither.
     internal const ReminderState OtherState = ReminderState.Cancelled;
 
     internal static DateTimeOffset? OtherNotifiedAt => null;
+
+    internal static DateTimeOffset? OtherClaimedAt => null;
 }

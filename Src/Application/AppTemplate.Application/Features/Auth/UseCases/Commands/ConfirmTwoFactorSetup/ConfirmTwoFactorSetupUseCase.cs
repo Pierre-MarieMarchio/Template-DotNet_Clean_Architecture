@@ -37,7 +37,13 @@ public sealed class ConfirmTwoFactorSetupUseCase(
             return userId.To<ConfirmTwoFactorSetupResponse>();
         }
 
-        var confirmation = await enrollment.ConfirmAsync(userId.Value, request.Code, cancellationToken);
+        var confirmation = await enrollment.ConfirmAsync(
+            userId.Value, request.CurrentPassword, request.Code, cancellationToken);
+
+        if (confirmation.Outcome is TwoFactorConfirmationOutcome.IncorrectPassword)
+        {
+            return Result.Failure<ConfirmTwoFactorSetupResponse>(AuthErrors.IncorrectCurrentPassword);
+        }
 
         if (confirmation.Outcome is TwoFactorConfirmationOutcome.InvalidCode)
         {

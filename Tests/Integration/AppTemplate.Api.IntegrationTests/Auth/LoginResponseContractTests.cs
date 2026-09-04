@@ -43,7 +43,7 @@ public sealed class LoginResponseContractTests(ApiFixture fixture) : Integration
     public async Task Login_OnATwoFactorAccount_PublishesTheTwoFactorRequiredBranchOnTheWire()
     {
         var (client, user, session) = await SignInAsync();
-        await TwoFactorTestSupport.EnableTwoFactorAsync(client, session, TestToken);
+        await TwoFactorTestSupport.EnableTwoFactorAsync(client, user, session, TestToken);
 
         var loginClient = CreateClient();
 

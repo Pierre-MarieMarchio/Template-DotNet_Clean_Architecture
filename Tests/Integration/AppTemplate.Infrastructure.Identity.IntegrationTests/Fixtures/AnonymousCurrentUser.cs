@@ -9,6 +9,4 @@ namespace AppTemplate.Infrastructure.Identity.IntegrationTests.Fixtures;
 internal sealed class AnonymousCurrentUser : ICurrentUser
 {
     public Guid? UserId => null;
-
-    public bool IsAuthenticated => false;
 }

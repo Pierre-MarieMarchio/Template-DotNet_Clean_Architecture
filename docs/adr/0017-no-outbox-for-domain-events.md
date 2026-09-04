@@ -12,15 +12,15 @@ a consumer cannot observe a change that then rolls back. `DomainEventDispatcher`
 (`DomainEventDispatcher.cs` in the same folder) resolves each event's consumers from the
 container and awaits them in a loop.
 
-Consumer isolation is being narrowed alongside this record: today, one consumer throwing
-stops the remaining consumers *of that same event* from running at all; the change under
-way makes each consumer's failure independent of its siblings, so the rest still run. That
-closes one gap and leaves the next one exactly where it was — the side effect of the
-consumer that threw is still lost, logged and not retried, and a process that dies between
-commit and dispatch loses every consumer for that save, because nothing durable recorded
-that the event was ever raised. An outbox — a table written in the same transaction as the
-aggregate, plus a separate dispatcher that reads and retries it — is what closes that
-remaining gap. It is refused here.
+Consumer isolation was narrowed alongside this record: each consumer's failure is now
+independent of its siblings — one consumer throwing no longer stops the remaining
+consumers *of that same event* from running. That closed one gap and left the next one
+exactly where it was — the side effect of the consumer that threw is still lost, logged
+and not retried, and a process that dies between commit and dispatch loses every
+consumer for that save, because nothing durable recorded that the event was ever raised.
+An outbox — a table written in the same transaction as the aggregate, plus a separate
+dispatcher that reads and retries it — is what would close that remaining gap. It is
+refused here.
 
 ## Decision
 

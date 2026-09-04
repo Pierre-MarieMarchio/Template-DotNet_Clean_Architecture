@@ -157,4 +157,21 @@ public static class AuthErrors
     public static Error InvalidTwoFactorChallenge { get; } = Error.Unauthorized(
         "auth.login.invalidTwoFactorChallenge",
         "The two-factor challenge is invalid or has expired.");
+
+    /// <summary>
+    /// An administrator stripping their own second factor through <c>ITwoFactorAdministration</c>
+    /// would bypass the very password proof <c>ITwoFactorEnrollment.DisableAsync</c> requires of
+    /// everyone else disarming their own account — a stolen admin session could otherwise do to its
+    /// own account exactly what this whole feature exists to prevent a stolen session doing.
+    /// <c>ITwoFactorEnrollment.DisableAsync</c>'s self-service route is what an administrator uses on
+    /// their own account instead.
+    /// </summary>
+    public static Error CannotDisableOwnTwoFactor { get; } = Error.Forbidden(
+        "auth.twoFactor.cannotTargetSelf",
+        "An administrator cannot disable two-factor sign-in on their own account this way.");
+
+    /// <summary>The account was found but the store refused the change itself. See <see cref="AccountDeletionRejected"/> for why no message is carried.</summary>
+    public static Error TwoFactorAdministrativeDisableRejected { get; } = Error.Validation(
+        "auth.twoFactor.administrativeDisableRejected",
+        "Two-factor sign-in could not be disabled on this account.");
 }

@@ -61,24 +61,43 @@ be filled from user secrets or environment variables.
 `AppTemplate.Worker` (`Src/Presentation/AppTemplate.Worker`) is a second entry point that calls
 `IPurgeExpiredIdempotencyKeysUseCase` and `IPurgeExpiredRefreshTokensUseCase` — the exact same
 application-layer use cases `MaintenanceController` exposes over HTTP — on a timer instead of a
-request. It composes `AddApplicationLayer`, `AddPersistenceModule` and `AddIdentityModule`, so it
-reads `ConnectionStrings`, `Database`, `IdempotencyPurge`, `Jwt`, `RefreshToken` and
-`EmailConfirmation` exactly like the API, plus its own `MaintenanceWorker` section below. It does
-**not** read `Email`, `IdentitySeed`, `Cors`, `ReverseProxy`, `SecurityHeaders`, `OpenTelemetry`,
-`Concurrency`, `Idempotency`, `RequestLimits`, `Shutdown` or `RequestTimeouts` — those are the API's
-transport-layer concerns, and the worker has no transport layer. The worker still waits for its own
-in-flight iteration to finish on shutdown, on `HostOptions.ShutdownTimeout`'s framework default —
-nothing here raises it for that host.
+request, and rings a due reminder by mail through the exact same `IReminderNotifier` port the API
+would use if it ever called it. It composes `AddApplicationLayer`, `AddPersistenceModule`,
+`AddIdentityModule` **and** `AddEmailModule`, so it reads `ConnectionStrings`, `Database`,
+`IdempotencyPurge`, `Jwt`, `RefreshToken`, `EmailConfirmation`, `PasswordReset`, `EmailChange` and
+`Email` exactly like the API, plus its own `MaintenanceWorker` section below. `IdentitySeed` is
+bound and validated too — `AddPersistenceModule` does that unconditionally — but every one of its
+members has a safe default (`Enabled: false`), so an absent section validates cleanly; the worker
+never *exercises* seeding either way, since `IIdentitySeeder`/`MigrateAndSeedForDevelopmentAsync`
+are only ever called from `AppTemplate.Api/Program.cs`. The worker does **not** read `Cors`,
+`ReverseProxy`, `SecurityHeaders`, `OpenTelemetry`, `Concurrency`, `Idempotency`, `RequestLimits`,
+`Shutdown` or `RequestTimeouts` — those are the API's transport-layer concerns, and the worker has
+no transport layer. The worker still waits for its own in-flight iteration to finish on shutdown,
+on `HostOptions.ShutdownTimeout`'s framework default — nothing here raises it for that host.
 
-**Why the worker validates `Jwt`, `Identity`, `RefreshToken` and `EmailConfirmation` at startup
-even though it never authenticates anybody.** `IRefreshTokenMaintenance`'s only adapter lives in
-`AppTemplate.Infrastructure.Identity`, and composing that module also composes ASP.NET Identity,
-bearer validation and its own configuration surface as a whole — there is no narrower call that
-gets only the maintenance adapter. This is a real coupling cost of the current module boundary,
-not an oversight: the worker's `appsettings.json` therefore carries the same required `Jwt:Key`,
-`Jwt:Issuer`, `Jwt:Audience` and `EmailConfirmation:ConfirmEmailUrl` as the API, and its host
-generic-host reads `DOTNET_ENVIRONMENT` (not `ASPNETCORE_ENVIRONMENT` — there is no ASP.NET Core
-host here) to select `appsettings.Development.json`.
+**Why the worker validates `Jwt`, `Identity`, `RefreshToken`, `EmailConfirmation`, `PasswordReset`
+and `EmailChange` at startup even though it never authenticates anybody.**
+`IRefreshTokenMaintenance`'s only adapter lives in `AppTemplate.Infrastructure.Identity`, and
+composing that module also composes ASP.NET Identity, bearer validation and its own configuration
+surface as a whole — there is no narrower call that gets only the maintenance adapter. This is a
+real coupling cost of the current module boundary, not an oversight: the worker's `appsettings.json`
+therefore carries the same required `Jwt:Key`, `Jwt:Issuer`, `Jwt:Audience`,
+`EmailConfirmation:ConfirmEmailUrl`, `PasswordReset:ResetPasswordUrl` and
+`EmailChange:ConfirmEmailChangeUrl` as the API, and its generic host reads `DOTNET_ENVIRONMENT`
+(not `ASPNETCORE_ENVIRONMENT` — there is no ASP.NET Core host here) to select
+`appsettings.Development.json`.
+
+**Why the worker also validates `Email` (SMTP) at startup, even though it renders no confirmation
+mail of its own.** Same shape of cost, one module over: `IReminderNotifier`'s only adapter lives
+in `AppTemplate.Infrastructure.Email`, and there is no way to compose that adapter without also
+composing `EmailOptions` and its validator — `AddEmailModule` does not offer a narrower call
+either. This is real, not incidental: a deployment that never enables reminders still has to point
+this host at a working SMTP relay (`Email:Host`, `Email:FromAddress`, …) for the process to start
+at all. See `AppTemplate.Worker.csproj` for the same note next to the `AddEmailModule` reference.
+No mechanism in this template lets a host opt out of an options section a composed module always
+validates; if that stops being acceptable, the fix is a narrower module boundary — a package that
+exposes only `IReminderNotifier`'s adapter without the rest of `AppTemplate.Infrastructure.Email`'s
+surface — not a per-host configuration override.
 
 **`ICurrentUser` outside a request.** The API's `CurrentUser` reads `IHttpContextAccessor`, which
 the worker cannot depend on and would be `null` for every call anyway — silently producing a
@@ -273,6 +292,36 @@ browsers never transmit — so the token stays out of server access logs, `Refer
 headers and intermediary request history. The page reads the fragment and **POSTs** it
 to `/api/v1/auth/confirm-email` as a JSON body. Confirmation is not a GET with a query
 string, for the same reason.
+
+### `PasswordReset`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `ResetPasswordUrl` | URI | — | **Required.** Absolute `http`/`https` URL of the page that completes the reset, with **no fragment**. Must be browser-reachable, not a container name. |
+| `Subject` | string | `Reset your password` | Must not be blank. |
+| `TokenLifespan` | timespan | `01:00:00` | Must be between **5 minutes and 1 day**. Its own value, deliberately not shared with `EmailConfirmation`'s token lifespan — see the XML doc on `PasswordResetOptions` for why one shared lifespan across every token provider would be wrong here. |
+
+Same fragment-then-POST shape as `EmailConfirmation`, and for the same reason: the email
+and single-use token are appended as a URL fragment, and the page **POSTs** them to
+`/api/v1/auth/reset-password` as a JSON body.
+
+### `EmailChange`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `ConfirmEmailChangeUrl` | URI | — | **Required.** Absolute `http`/`https` URL of the page that completes the change, with **no fragment**. Must be browser-reachable, not a container name. |
+| `Subject` | string | `Confirm your new email address` | Must not be blank. |
+| `TokenLifespan` | timespan | `01:00:00` | Must be between **5 minutes and 1 day**. Its own named token provider, same reasoning as `PasswordReset:TokenLifespan` above. |
+
+Same fragment-then-POST shape again: the new address and single-use token are appended
+as a URL fragment, and the page **POSTs** them to `/api/v1/auth/confirm-email-change` as
+a JSON body.
+
+**Both hosts validate all three of `EmailConfirmation`, `PasswordReset` and `EmailChange` at
+startup.** All three are bound by `AddIdentityModule`, not by anything HTTP-specific, so
+`AppTemplate.Worker` — which composes that module for `IRefreshTokenMaintenance`'s adapter, see
+[above](#two-hosts-one-configuration-schema) — requires all three URLs too, even though it never
+serves any of these three requests itself.
 
 ### `IdentitySeed` — development only
 

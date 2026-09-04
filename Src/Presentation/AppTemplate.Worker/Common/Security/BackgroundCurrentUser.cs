@@ -18,5 +18,4 @@ internal sealed class BackgroundCurrentUser : ICurrentUser
         $"A use case that reads {nameof(ICurrentUser)}.{nameof(UserId)} cannot run unmodified " +
         "from this host.");
 
-    public bool IsAuthenticated => false;
 }

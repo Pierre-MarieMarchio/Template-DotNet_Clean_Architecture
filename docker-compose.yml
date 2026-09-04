@@ -108,6 +108,12 @@ services:
       # --- IdempotencyPurge ----------------------------------------------------
       IdempotencyPurge__BatchSize: ${IDEMPOTENCY_PURGE_BATCH_SIZE:-1000}
 
+      # --- Localization ------------------------------------------------------
+      # The language a mail is written in when the reader has not said which one they read. There is
+      # no list of supported languages: what a mail can be written in is which templates the
+      # infrastructure modules embed. See docs/CONFIGURATION.md.
+      Localization__DefaultCulture: ${LOCALIZATION_DEFAULT_CULTURE:-en}
+
       # --- Jwt ---------------------------------------------------------------
       Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env (min 32 bytes; openssl rand -base64 48)}
       Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
@@ -165,15 +171,12 @@ services:
 
       # --- EmailConfirmation -------------------------------------------------
       EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
-      EmailConfirmation__Subject: ${CONFIRM_EMAIL_SUBJECT:-Confirm your email address}
 
       # --- PasswordReset -----------------------------------------------------
       PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
-      PasswordReset__Subject: ${RESET_PASSWORD_SUBJECT:-Reset your password}
 
       # --- EmailChange ---------------------------------------------------------
       EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:8080/confirm-email-change}
-      EmailChange__Subject: ${CONFIRM_EMAIL_CHANGE_SUBJECT:-Confirm your new email address}
 
       # --- IdentitySeed — DEVELOPMENT ONLY -----------------------------------
       # Off by default, and no default password: enabling it without
@@ -196,6 +199,11 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+      # This host signs URLs against the bucket, so the bucket has to exist. Readiness does not
+      # probe storage — it answers for the database — so without this the stack reports itself
+      # healthy while the first file registration still has nowhere to go.
+      minio-bucket:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
       interval: 15s
@@ -229,6 +237,11 @@ services:
 
       IdempotencyPurge__BatchSize: ${IDEMPOTENCY_PURGE_BATCH_SIZE:-1000}
 
+      # --- Localization ------------------------------------------------------
+      # This host serves no request, so every mail its loops send is written in this language. Same
+      # value as the api service: one deployment, one voice.
+      Localization__DefaultCulture: ${LOCALIZATION_DEFAULT_CULTURE:-en}
+
       # --- MaintenanceWorker ---------------------------------------------------
       MaintenanceWorker__Interval: ${MAINTENANCE_WORKER_INTERVAL:-01:00:00}
       MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: ${MAINTENANCE_WORKER_PURGE_IDEMPOTENCY_KEYS:-true}
@@ -242,11 +255,15 @@ services:
       ReminderWorker__Enabled: ${REMINDER_WORKER_ENABLED:-true}
 
       # --- FileWorker ----------------------------------------------------------
-      # Two sweeps for the Files feature. The reclamation one is the correctness guarantee of the
-      # whole feature — with no soft delete, bytes are only reclaimed because it re-derives "an
-      # object no row references is garbage" — so turning it off leaks storage silently. The purge
-      # of abandoned registrations is what retires a client that asked for an upload grant and
-      # never used it. See docs/CONFIGURATION.md.
+      # THREE passes for the Files feature, not two. The inspection pass is the one a user waits on:
+      # it is the only thing that moves a file from deposited to available, so with it off or slow no
+      # upload ever becomes readable. The reclamation sweep is the correctness guarantee of the whole
+      # feature — with no soft delete, bytes are only reclaimed because it re-derives "an object no
+      # row references is garbage" — so turning it off leaks storage silently. The purge of abandoned
+      # registrations retires a client that asked for an upload grant and never used it.
+      # See docs/CONFIGURATION.md.
+      FileWorker__InspectDepositedFilesInterval: ${FILE_WORKER_INSPECT_INTERVAL:-00:01:00}
+      FileWorker__InspectDepositedFilesEnabled: ${FILE_WORKER_INSPECT_ENABLED:-true}
       FileWorker__PurgeAbandonedRegistrationsInterval: ${FILE_WORKER_PURGE_INTERVAL:-01:00:00}
       FileWorker__PurgeAbandonedRegistrationsEnabled: ${FILE_WORKER_PURGE_ENABLED:-true}
       FileWorker__ReclaimOrphanedContentInterval: ${FILE_WORKER_RECLAIM_INTERVAL:-12:00:00}
@@ -275,13 +292,6 @@ services:
       PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
       EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:8080/confirm-email-change}
 
-      # --- Email (SMTP) --------------------------------------------------------
-      # Unlike the Jwt/Identity sections above, this one is not a side effect of composing
-      # AppTemplate.Infrastructure.Identity: this service composes AppTemplate.Infrastructure.Email
-      # in its own right, for IReminderNotifier's adapter — a reminder that comes due is rung by
-      # mail, see AppTemplate.Worker.csproj. Same variables and same values as the api service, so
-      # both hosts reach the same mailpit sink.
-
       # --- Storage (object store for the Files feature) -----------------------
       # The endpoint is the compose service, but the SIGNED URLs this host mints have to be
       # reachable by whoever follows them — a browser on the host, not a container on this
@@ -299,6 +309,13 @@ services:
       Storage__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
       Storage__AccessKeyId: ${MINIO_ROOT_USER:-minioadmin}
       Storage__SecretAccessKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
+
+      # --- Email (SMTP) --------------------------------------------------------
+      # Unlike the Jwt/Identity sections above, this one is not a side effect of composing
+      # AppTemplate.Infrastructure.Identity: this service composes AppTemplate.Infrastructure.Email
+      # in its own right, for IReminderNotifier's adapter — a reminder that comes due is rung by
+      # mail, see AppTemplate.Worker.csproj. Same variables and same values as the api service, so
+      # both hosts reach the same mailpit sink.
       Email__Host: ${EMAIL_HOST:-mailpit}
       Email__Port: ${EMAIL_PORT:-1025}
       Email__Security: ${EMAIL_SECURITY:-None}
@@ -312,6 +329,17 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+      # The reclamation and inspection passes both talk to the object store.
+      minio-bucket:
+        condition: service_completed_successfully
+      # A COMPOSE ordering, not a runtime dependency: this host never calls the api service, and in a
+      # real deployment the two scale apart. But in this stack the api is what applies the
+      # migrations, and its healthcheck only passes once it has — so without this, every cold `up`
+      # ran this host's first passes against an empty schema and logged two errors about a relation
+      # that did not exist yet. They recovered on the next interval; they were still the first thing
+      # a newcomer saw. Where a migration job runs separately, depend on that instead.
+      api:
+        condition: service_healthy
     networks: [backend]
 
   # The object store the Files feature writes to. In production this is S3 (or R2, or Azure Blob

@@ -1,4 +1,4 @@
-# Contributing
+﻿# Contributing
 
 This file is the working agreement for the repository. It is short on etiquette and long on the
 things that will fail your build, because those are what cost time.
@@ -39,8 +39,10 @@ repository can also judge it, straight after a clone.
 
 Prerequisites: the .NET SDK version pinned in `global.json` (nothing else — `rollForward` is
 `latestFeature`, so a newer patch of the same feature band is fine), and Docker for the integration
-tests. `dotnet run Tools/Tasks.cs compose-up` starts PostgreSQL and mailpit for running the app by
-hand.
+tests. `dotnet run Tools/Tasks.cs compose-up` starts the whole stack — PostgreSQL, mailpit, MinIO
+and its bucket, the API and the Worker — and waits until each one is healthy. For the "run the app
+by hand" path you only need the backing services: `docker compose up -d db mailpit minio
+minio-bucket`.
 
 ## The gate
 

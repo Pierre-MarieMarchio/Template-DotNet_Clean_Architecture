@@ -12,6 +12,16 @@ namespace AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminde
 /// <see cref="IReminderRepository.GetForTodoItemAsync"/> is not itself scoped to an owner — it
 /// answers "every reminder on this item," the way a consumer cancelling on completion needs it
 /// to — so filtering to the caller's own is this use case's job, not the repository's.
+/// <para>
+/// <b>It deliberately does not check that the item still exists</b>, which is why this route answers
+/// <c>200</c> with an empty list where every other route into an item answers <c>404</c>. A reminder
+/// is its own aggregate root and outlives the item it is about: removing an item cancels its
+/// reminders, it does not delete them, and this is the only route that can show one — a
+/// <c>404</c> here would make a cancelled reminder of a removed item unreachable, which is a worse
+/// answer than an empty list for an id that was never real. Nothing leaks either way: the owner
+/// filter below means a stranger sees an empty list whether the item is theirs, somebody else's or
+/// nobody's.
+/// </para>
 /// </summary>
 public sealed class GetRemindersUseCase(
     IReminderRepository repository,

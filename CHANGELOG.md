@@ -21,6 +21,34 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **Mail is written in the reader's language.** Every mail ships one template per language — English
+  and French — and the subject is that template's `<title>`, so a subject and a body can no longer
+  end up in different languages. `AppTemplate.Api` takes the language from `Accept-Language`;
+  `AppTemplate.Worker`, which has no request to read one from, uses `Localization:DefaultCulture`.
+  A language with no template falls back to English, and `fr-CA` reaches the `fr` template first.
+  Adding a language is adding `<Mail>EmailTemplate.<tag>.html` to two folders and nothing else:
+  there is no list of supported languages, because a list can name a language no template backs.
+  Two things a reader should know before touching this. The repository builds with
+  `InvariantGlobalization=true` — the API's runtime image ships no ICU — so there is no `CultureInfo`
+  to carry a language in and `CurrentLanguage` carries a BCP-47 tag instead. And an
+  `EmbeddedResource` named `*.fr.html` needs `WithCulture="false"`, or MSBuild reads the second-to-
+  last extension as a culture and compiles the template into a satellite assembly, leaving the build
+  green and every mail throwing at the first send.
+- **`Localization:DefaultCulture`**, bound by both hosts from twin options classes, so one deployment
+  cannot answer in two languages.
+- **`FileWorker:InspectDepositedFilesInterval` and `…Enabled` are reachable from `.env`**, along with
+  the six `FILE_WORKER_*` and `REMINDER_WORKER_*` variables `docker-compose.yml` already read and
+  `.env.example` never mentioned. The inspection interval is the one a user waits on, and it was the
+  only `FileWorker` key an operator could not turn.
+- **Five rules over the mail templates** (`EmailTemplateCoverageTests`): the two modules ship the
+  same languages, every mail ships the fallback one, every template carries a non-empty subject, and
+  no two languages of one mail share a subject — which is what a file copied and translated in the
+  body only looks like.
+- **A unit test for `AuditingSaveChangesInterceptor`**, which had none: it was covered only through
+  the API, where the current user always resolves.
+- **`CollectionOrderTests`**, which did not exist, for the one class that sees the paging mode and
+  the sort order together.
+
 - **`Storage:PublicEndpoint`, because a presigned URL covers the host it was signed for.** Measured:
   sign for `127.0.0.1:19000`, follow the URL as `localhost:19000` — same machine, same port, same
   server — and the store answers `403 SignatureDoesNotMatch`. Nothing downstream can rewrite the
@@ -242,6 +270,38 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Fixed
 
+- **`AppTemplate.Worker` could not commit anything, so two features were dead.**
+  `AuditingSaveChangesInterceptor` read `ICurrentUser.UserId` unconditionally on every save, and that
+  host's `BackgroundCurrentUser` throws by design — so every loop that had real work threw at the
+  commit. No deposited file ever became readable, and a due reminder mailed its owner and then rolled
+  back, mailing them again on every pass, for ever. The stamp now asks `IAuditActor`, a separate
+  abstraction answering "whom do we record" rather than "who is calling": the API answers with the
+  caller, the worker answers nobody, and both are true. `ICurrentUser` still throws in the worker,
+  which is the guarantee that was worth keeping. Verified end to end: a file reaches `available` and
+  its bytes round-trip, and a due reminder produces exactly one mail and is marked `fired`.
+  Why no test saw it: the one architecture check that composes the worker substituted a benign
+  `ICurrentUser` for the throwing one. It now stands in for both adapters as the host registers them.
+- **Cursor paging over an offset-only field answered `500`.** `?paging=cursor&sort=lastModifiedAt:asc`
+  on to-do lists, and `sort=availableAt` on files, cleared every check and then asked the read side to
+  mint a cursor for a column it has no key for, whose only recourse is to throw. It is a `400`
+  `cursor.invalid` now, refused where the multi-term rule already was — before a page is served
+  rather than when the next one's cursor is minted. It only fired when a next page existed, which is
+  why no test met it.
+- **`dotnet run Tools/Tasks.cs compose-up` failed on a healthy stack.** `--wait` counts a container
+  that exited as a failure, and `minio-bucket` exits 0 by design. It is now named as a
+  `service_completed_successfully` dependency of the two services that need the bucket, which is
+  both the honest ordering and what stops `--wait` counting it.
+- **The worker logged two errors on every cold start**, running its first passes against a schema the
+  API had not migrated yet. It now waits for the API's healthcheck — a compose ordering, not a
+  runtime dependency, and commented as such.
+- **`AppTemplate.Api.http` could not run its own Files section.** Request 39 sent `mediaType` where
+  the contract is `declaredMediaType`, so it answered `400` and every request after it depended on
+  its id. Its declared size did not match its checksum either, and its upload command omitted the
+  `requiredHeaders` the store insists on. The confirmation-token step called the token a query
+  parameter, two lines above the comment explaining why it is a fragment.
+- **`api` and `worker` did not depend on the object store**, so `--wait` could report the stack ready
+  before the bucket existed.
+
 - **The coverage gate was scoring the identity module's 187 unit tests as zero.**
   `coverage.runsettings` named `GeneratedCodeAttribute` in `ExcludeByAttribute`, and coverlet 10.0.1
   does not exclude a source-generated class with that — it drops the whole assembly holding one from
@@ -351,6 +411,31 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   assembly. Coverage now excludes that project, and every test still runs exactly once.
 
 ### Changed
+
+- **A mail's subject is no longer configured.** `EmailConfirmation:Subject`, `PasswordReset:Subject`
+  and `EmailChange:Subject` are gone; the subject is the template's `<title>`. They were a second
+  statement of the same fact and had already drifted from it — the registration mail was being
+  delivered with an English subject over a French body.
+- **The README's error-code table now covers all 49 codes**, in three tables. It documented 14, while
+  telling clients to branch on `code`; `auth.forbidden`, which every refused administration call
+  carries, was not among them.
+- **The README described two of the four file states.** `status` reads `pending`, `deposited`,
+  `available` or `quarantined`, and `confirm` answers `deposited` — the value a client is most likely
+  to read, and the one the document did not mention.
+- **`request.malformed` is not what a wrong-typed query value returns.** The README and two request
+  records promised one vocabulary for a shape error and another for a broken rule; the response
+  factory has stamped `request.validationFailed` on both since it was introduced, deliberately and
+  under test. The documentation now says what the code does.
+- **`GET …/items/{id}/reminders` answers `200` with an empty list for an item that is not there**,
+  which is now written down as the deliberate exception it is: a reminder outlives the item it is
+  about, and this is the only route that can show a cancelled one.
+- **`NoResponse_CarriesALinkHeader` watched for the two spellings this repository never uses.** It
+  now also watches `Headers.Link`, which is the house idiom — every response header here is written
+  through the strongly-typed property — and each needle set has a test proving it detects what it
+  names and leaves ordinary code alone.
+- **`coverage.minimum` and `coverage.runsettings` pointed at `tasks.ps1`**, deleted when the tooling
+  moved to C#, and told the reader to run it.
+- **`CONTRIBUTING.md` said `compose-up` starts PostgreSQL and mailpit.** It starts the whole stack.
 
 - **Every infrastructure module now has the same shape: `Common/<Responsibility>/` plus
   `Features/<Feature>/<Responsibility>/`.** `AppTemplate.Infrastructure.Identity` had forty files in

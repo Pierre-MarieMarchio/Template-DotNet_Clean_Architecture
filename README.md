@@ -1,4 +1,4 @@
-# Clean Architecture .NET Template
+﻿# Clean Architecture .NET Template
 
 A production-shaped starting point for a .NET 10 HTTP API: Clean Architecture
 layering, PostgreSQL via EF Core, ASP.NET Identity with JWT access tokens and
@@ -261,7 +261,7 @@ at a credential.
 | POST | `/api/v1/auth/logout-all` | 204 | Authenticated. Revokes every refresh token grant the caller holds. |
 | GET | `/api/v1/auth/me` | 200 | Authenticated. The caller's own profile; takes no input. |
 | POST | `/api/v1/auth/change-password` | 204 | Authenticated. The current password is presented again as proof the session is not a stolen token. |
-| POST | `/api/v1/auth/two-factor/setup` | 200 | Authenticated. Provisions a shared key; arms nothing on its own. |
+| POST | `/api/v1/auth/two-factor/setup` | 200 | Authenticated. Provisions a shared key; arms nothing on its own. **It rotates the security stamp, so the access token that called it stops working** — sign in again before calling `two-factor/confirm`. |
 | POST | `/api/v1/auth/two-factor/confirm` | 200 | Authenticated, and requires the current password: arming a second factor is the irreversible direction, so a stolen session alone must not do it. Confirms enrollment, arms two-factor sign-in, and returns ten recovery codes shown once. |
 | POST | `/api/v1/auth/two-factor/disable` | 204 | Authenticated. Requires the current password. |
 | POST | `/api/v1/auth/change-email` | 204 | Authenticated. Requires the current password; mails a token to the new address. |
@@ -312,7 +312,7 @@ go through the item, rescheduling and cancelling go through the reminder's own i
 
 | Method | Route | Success |
 |---|---|---|
-| GET | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/reminders` | 200 — every reminder scheduled for that item |
+| GET | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/reminders` | 200 — every reminder of the caller's scheduled for that item. **200 with an empty list, not 404, for an item that does not exist or is somebody else's** — the one route into an item that does not answer 404, because a reminder outlives the item it is about and this is the only route that can show a cancelled one. Nothing leaks: a stranger sees the same empty list either way |
 | POST | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/reminders` | 201 + `Location` — points at the collection above; there is no single-reminder `GET` |
 | PUT | `/api/v1/reminders/{reminderId}` | 200 — reschedule |
 | DELETE | `/api/v1/reminders/{reminderId}` | 204 — cancel |
@@ -344,7 +344,7 @@ file is two requests and reading one back is a redirect.
    length and the checksum, so a deposit that does not match what was declared is refused
    by the store, with nothing written.
 3. `POST /api/v1/files/{fileId}/confirm`, which asks the store what it actually holds and
-   moves the file out of `pending` only if that agrees with the declaration.
+   moves the file from `pending` to `deposited` only if that agrees with the declaration.
 
 Splitting it across two API calls is forced rather than chosen:
 `RequestLimits:MaxRequestBodyBytes` caps an inbound body at 64 KiB, and the idempotency
@@ -352,12 +352,22 @@ filter buffers and SHA-256s the whole body of every `POST` before a handler sees
 body on this controller is metadata — a name, a media type, a length, a digest — a few
 hundred characters whatever the file weighs, which is why no action here raises the limit.
 
-**Confirming does not make the file readable.** It leaves the file `pending` until the
-Worker's inspection pass has looked at the content — `FileWorker:InspectDepositedFilesInterval`,
-one minute by default, is a latency a user feels. `status` reads `pending` or `available`,
-and `availableAt` is `null` until then. Asking for content before that is `409`
-`storedFile.notAvailable`; content that was examined and refused is `409`
-`storedFile.quarantined`, which never becomes available however long the caller waits.
+**Confirming does not make the file readable.** It leaves the file `deposited` — the bytes
+arrived and are the ones declared, but nothing has looked at them — until the Worker's
+inspection pass has, and `FileWorker:InspectDepositedFilesInterval`, one minute by default,
+is a latency a user feels. `availableAt` is `null` until then.
+
+`status` has **four** values, and a client that branches on it must handle all of them:
+
+| `status` | What it means |
+|---|---|
+| `pending` | Registered, an object key reserved, nothing deposited against it yet. The abandonment sweep eventually removes one that stays here. |
+| `deposited` | **What `confirm` answers.** The bytes are present and match the declaration; no verdict has been reached on what they are. Not servable. |
+| `available` | Inspected and cleared. The only state whose content can be fetched. |
+| `quarantined` | Inspected and refused. Terminal — it never becomes available, however long the caller waits. |
+
+Asking for content before a verdict is `409` `storedFile.notAvailable`; asking for content
+that was examined and refused is `409` `storedFile.quarantined`.
 
 **Reading is a redirect.** `GET /api/v1/files/{fileId}/content` answers `302` with a signed
 URL, so an `<img>`, a download manager or `curl -L` follows it with no client code. That
@@ -386,14 +396,19 @@ this layer cannot restate — a reserved device name, a wildcard media type, a c
 the right length that is not hexadecimal.
 
 Sorting is `name`, `registeredAt` and `availableAt`; `availableAt` is offset-only because
-its column is nullable. `search` matches the file name, `state` narrows to `pending` or
-`available`. Everything else in
+its column is nullable — asking for it with `paging=cursor` is a `400` `cursor.invalid`.
+`search` matches the file name, `state` narrows to any one of the four values above.
+Everything else in
 [Collection queries](#collection-queries--sorting-filtering-paging) applies unchanged.
 
 A file that belongs to somebody else answers exactly as an absent one does — `404`
 `storedFile.notFound` — because a `403` next to a `404` is how an id becomes a probe.
 
 ### Account administration — `api/v1/auth/accounts/*`
+
+`{role}` is a **role name**, and one role ships: `Admin`. `Administrator` is the name of the
+*policy* these endpoints require, not of the role that satisfies it, and sending it answers
+`400` `Role 'Administrator' does not exist.` The names live in `IdentityRoles`.
 
 Requires the `Administrator` policy on the whole controller — an authenticated
 non-admin gets `403`. Acting on somebody else's account: every action below refuses
@@ -403,8 +418,8 @@ with `403` when the target id names the caller.
 |---|---|---|
 | POST | `/api/v1/auth/accounts/{userId}/lockout` | 204 — locks the account out indefinitely and rotates its security stamp |
 | DELETE | `/api/v1/auth/accounts/{userId}/lockout` | 204 — lifts the lockout; a no-op on an account that was not locked |
-| PUT | `/api/v1/auth/accounts/{userId}/roles/{role}` | 204 — grants a role |
-| DELETE | `/api/v1/auth/accounts/{userId}/roles/{role}` | 204 — revokes a role |
+| PUT | `/api/v1/auth/accounts/{userId}/roles/{role}` | 204 — grants a role; 400 if the role does not exist, or if the account already has it |
+| DELETE | `/api/v1/auth/accounts/{userId}/roles/{role}` | 204 — revokes a role; 400 if the role does not exist, or if the account does not have it |
 | DELETE | `/api/v1/auth/accounts/{userId}/two-factor` | 204 — disarms the account's second factor and rotates its security stamp; the way back for a lost phone and lost recovery codes |
 | DELETE | `/api/v1/auth/accounts/{userId}` | 204 — deletes the account outright |
 
@@ -508,8 +523,11 @@ One statement of "is there a next page", in the body every client already parses
 
 Every bound above is a `400` carrying its own code — `paging.invalid`, `sort.invalid`,
 `filter.invalid`, `cursor.invalid` — so a client can tell which rule it broke. A value
-of the wrong *type* (`page=abc`) is instead the framework's `request.malformed`: one
-vocabulary for a malformed request, one for a broken rule.
+of the wrong *type* (`page=abc`) never reaches the application layer: model binding
+refuses it with `request.validationFailed` and names the field in `errors`. That is the
+same code a failed body validation carries, deliberately — one vocabulary for "this
+request was rejected on its way in", and a specific code for each rule that has a
+different remedy.
 
 To give a new feature this contract, it declares an `ICollectionPolicy` — see
 `docs/ADDING-A-FEATURE.md`. Why the filter surface is typed rather than an expression
@@ -573,6 +591,41 @@ endpoint matched, an **unknown route returns 401 to an anonymous caller, not 404
 That is not a bug, but it will surprise a client developer, so say so in your API
 docs.
 
+### Mail is written in the reader's language
+
+Every mail this template sends — the three account mails and the reminder — ships one
+template per language, and the **subject is that template's `<title>`**, so a subject and
+a body can never end up in different languages. English and French ship.
+
+| Where the language comes from | |
+|---|---|
+| `AppTemplate.Api` | The request's `Accept-Language`. The first well-formed tag wins; `q` values are not weighed, because a mail is written in one language. |
+| A request that names none | `Localization:DefaultCulture`. |
+| `AppTemplate.Worker` | `Localization:DefaultCulture`, always — a background pass has no request to read a preference from. |
+| A language with no template | English, which every mail must ship. `fr-CA` reaches the `fr` template before falling back. |
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/auth/register \
+  -H 'Content-Type: application/json' -H 'Accept-Language: fr' \
+  -d '{"userName":"alice","email":"alice@example.com","password":"Passw0rd!x"}'
+# the confirmation mail in mailpit now reads "Confirmez votre adresse e-mail"
+```
+
+**Adding a language is adding files.** Drop `<Mail>EmailTemplate.<tag>.html` beside the ones
+in `Src/Infrastructure/AppTemplate.Infrastructure.Identity/Features/Auth/Templates/` and
+`Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/`, and that language
+is available — there is no list to update, because a list could name a language no template
+backs. `EmailTemplateCoverageTests` refuses a language added to one folder and not the other,
+and refuses two languages of one mail sharing a subject.
+
+**Two things to know before changing this.** The repository builds with
+`InvariantGlobalization=true`, so there is no `CultureInfo` to carry a language in and
+`AppTemplate.Application.Common.Localization.CurrentLanguage` carries a BCP-47 tag instead.
+And an `EmbeddedResource` named `*.fr.html` needs `WithCulture="false"` in the `.csproj`, or
+MSBuild compiles it into a satellite assembly and every mail throws at the first send.
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md#localization) has the rest, including where a
+stored per-account preference would plug in.
+
 ### Errors are RFC 7807, and clients branch on `code`
 
 Every failure is a `ProblemDetails` body with a stable, dotted `code` extension
@@ -589,22 +642,57 @@ of the contract.
 }
 ```
 
+**Authentication and authorisation**
+
 | `code` | Status |
 |---|---|
-| `auth.required` | 401 |
+| `auth.required` | 401 — no token, an expired one, or a route that matched nothing |
+| `auth.forbidden` | 403 — authenticated, but the endpoint's policy is not satisfied, or the action refuses to target the caller's own account |
 | `auth.login.invalidCredentials` | 401 — one answer for unknown address, wrong password, unconfirmed email and lockout alike |
+| `auth.login.invalidTwoFactorChallenge` | 401 — the challenge token is unknown, spent or expired |
 | `auth.refreshToken.invalid` | 401 — unknown, expired, revoked or replayed |
-| `auth.confirmEmail.invalid` | 400 |
+| `auth.externalSignIn.refused` | 401 — one answer for an unknown provider and a token that did not verify |
 | `auth.register.unavailable` | 409 |
-| `todoList.notFound` / `todoItem.notFound` / `storedFile.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated |
-| `storedFile.notAvailable` / `storedFile.quarantined` | 409 — the content is not cleared for download yet, or was examined and refused. The second never becomes available |
+| `auth.confirmEmail.invalid` / `auth.resetPassword.invalid` / `auth.changeEmail.invalid` | 400 — the token is unknown, spent or expired |
+| `auth.twoFactor.alreadyEnabled` | 409 |
+| `auth.account.notFound` | 404 — an administration action naming an account that does not exist |
+| `auth.account.cannotDeleteSelf` / `auth.lockout.cannotTargetSelf` / `auth.roles.cannotTargetSelf` / `auth.twoFactor.cannotTargetSelf` | 403 — an administrator may not aim these at their own account |
+| `auth.account.deletionRejected` / `auth.lockout.rejected` / `auth.twoFactor.administrativeDisableRejected` | 409 — the store refused the change |
+
+**Resources**
+
+| `code` | Status |
+|---|---|
+| `todoList.notFound` / `todoItem.notFound` / `storedFile.notFound` / `reminder.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated |
+| `reminder.targetNotFound` | 404 — the item a reminder is about does not exist or is not the caller's |
+| `storedFile.notAvailable` / `storedFile.quarantined` | 409 — the content has no verdict yet, or was examined and refused. The second never becomes available |
+| `storedFile.depositMissing` | 409 — `confirm` found nothing deposited against the registration |
 | `storedFile.quotaExceeded` | 409 — the caller's own pending, file-count or byte allowance |
 | `domain.invariantViolated` | 409 via `DomainGuard`; 400 if a use case's own catch is missing and `DomainException` reaches `GlobalExceptionHandler` |
-| `request.validationFailed` / `paging.invalid` | 400 |
+
+**The request itself**
+
+| `code` | Status |
+|---|---|
+| `request.validationFailed` | 400 — a body or query value the API refused on the way in, with the offending fields in `errors`. Model binding and body validation share this code deliberately |
+| `paging.invalid` / `sort.invalid` / `filter.invalid` / `cursor.invalid` | 400 — one bound of the collection contract, named so a client knows which rule it broke |
 | `precondition.failed` | 412 — the `If-Match` a write named is stale, unrecognised, or `*` against a missing/foreign resource |
 | `precondition.required` | 428 — only when `Concurrency:IfMatch` is `Required`; the write named no version at all |
 | `precondition.malformed` | 400 — `If-Match` is present but is neither `*` nor a comma-separated list of quoted entity tags |
+| `idempotency.keyInvalid` | 400 — the `Idempotency-Key` header is blank or over 128 characters |
+| `idempotency.keyReused` | 409 — the same key with a different body |
+| `idempotency.inProgress` | 409 — the first request under this key has not finished |
+| `idempotency.notReplayable` | 409 — the stored response cannot be replayed |
 | `rateLimit.exceeded` | 429, with a `Retry-After` header |
+| `request.malformed` | 400 — a rejection from the framework or middleware that carries no more specific code |
+| `request.failed` | The fallback, for a status none of the above names. Seeing it means a producer answered a status this table has no entry for |
+| `request.methodNotAllowed` | 405 |
+| `request.notAcceptable` | 406 |
+| `request.tooLarge` | 413 — over `RequestLimits:MaxRequestBodyBytes`, refused before the body is buffered |
+| `request.unsupportedMediaType` | 415 |
+| `request.timeout` / `request.cancelled` | 408 / 499 |
+| `route.notFound` | 404 — an authenticated caller on a route that matched nothing; an anonymous one gets `auth.required` instead |
+| `server.unexpected` | 500 |
 
 A 500 carries no exception text — only a sanitised message and a `traceId` that
 correlates with the full stack trace in the logs.

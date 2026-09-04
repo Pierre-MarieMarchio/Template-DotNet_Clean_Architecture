@@ -2,6 +2,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
+using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Features.Auth.Ports.RoleAssignments;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
@@ -237,6 +238,114 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
             new Uri($"{_accountsRoute}/{Guid.NewGuid()}", UriKind.Relative), TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task AnOrdinaryAuthenticatedUser_CannotDisableTwoFactorOnAnotherAccount()
+    {
+        var (client, _, _) = await SignInAsync();
+        var (_, _, target) = await SignInAsync();
+
+        using var response = await client.DeleteAsync(
+            new Uri($"{_accountsRoute}/{target.UserId}/two-factor", UriKind.Relative), TestToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    /// <summary>
+    /// Not the self-lockout reason <see cref="AnAdministrator_CannotLockTheirOwnAccount"/> gives —
+    /// this account is fully reachable afterward either way. It is refused because letting this route
+    /// reach the caller's own account would let a stolen administrator session strip that account's
+    /// own second factor without ever presenting the password the self-service
+    /// <c>/two-factor/disable</c> route demands — see <c>DisableAccountTwoFactorUseCase</c>.
+    /// </summary>
+    [Fact]
+    public async Task AnAdministrator_CannotDisableTwoFactorOnTheirOwnAccount()
+    {
+        var (adminClient, _, admin) = await SignInAsAdministratorAsync();
+
+        using var response = await adminClient.DeleteAsync(
+            new Uri($"{_accountsRoute}/{admin.UserId}/two-factor", UriKind.Relative), TestToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task DisablingTwoFactorOnAnUnknownAccount_Is404()
+    {
+        var (adminClient, _, _) = await SignInAsAdministratorAsync();
+
+        using var response = await adminClient.DeleteAsync(
+            new Uri($"{_accountsRoute}/{Guid.NewGuid()}/two-factor", UriKind.Relative), TestToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    /// <summary>
+    /// The gap this endpoint exists to close: a caller who has lost the authenticator app <em>and</em>
+    /// the recovery codes can prove neither a code nor — once the second factor is armed — a
+    /// completed login at all, and had no recourse before this route existed short of deleting the
+    /// account outright. No password, no code: an administrator's own session is what this
+    /// capability is gated on instead.
+    /// </summary>
+    [Fact]
+    public async Task AnAdministrator_CanDisableTwoFactorOnAnAccountThatLostItsSecondFactor()
+    {
+        var (adminClient, _, _) = await SignInAsAdministratorAsync();
+        var (targetClient, targetUser, targetSession) = await SignInAsync();
+        await TwoFactorTestSupport.EnableTwoFactorAsync(targetClient, targetUser, targetSession, TestToken);
+
+        using var disabled = await adminClient.DeleteAsync(
+            new Uri($"{_accountsRoute}/{targetSession.UserId}/two-factor", UriKind.Relative), TestToken);
+        disabled.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        // The escape hatch actually worked: the account signs in in one step again, with no
+        // authenticator app and no recovery code in sight.
+        using var loginAfterDisable = await CreateClient().PostAsJsonAsync(
+            $"{AuthRoute}/login", new LoginRequest(targetUser.Email, targetUser.Password), TestToken);
+        loginAfterDisable.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ApiJson.ReadAsync<LoginResponse>(loginAfterDisable, TestToken))
+            .ShouldBeOfType<LoginResponse.Authenticated>();
+    }
+
+    /// <summary>
+    /// The gap this endpoint exists to close, mirroring
+    /// <see cref="LockingAnAccount_InvalidatesTheAccessTokenAlreadyInCirculation"/>: without the
+    /// rotation inside <c>TwoFactorAdministration.DisableAsync</c>, a token issued while the second
+    /// factor was still armed would keep validating for as long as it has left to live.
+    /// </summary>
+    [Fact]
+    public async Task DisablingTwoFactorAsAdministrator_InvalidatesTheAccessTokenAlreadyInCirculation()
+    {
+        var (adminClient, _, _) = await SignInAsAdministratorAsync();
+        var (targetClient, targetUser, targetSession) = await SignInAsync();
+        var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(targetClient, targetUser, targetSession, TestToken);
+
+        // Confirming revoked every refresh token; sign back in the long way to hold a token this
+        // admin action then has to invalidate.
+        var loginClient = CreateClient();
+        var challenge = await TwoFactorTestSupport.LoginExpectingChallengeAsync(loginClient, targetUser, TestToken);
+
+        using var verifyResponse = await loginClient.PostAsJsonAsync(
+            $"{AuthRoute}/login/two-factor",
+            new VerifyTwoFactorRequest(challenge.ChallengeToken, AuthenticatorCodes.CurrentCodeFor(sharedKey)),
+            TestToken);
+        var tokens = (await ApiJson.ReadAsync<LoginResponse>(verifyResponse, TestToken))
+            .ShouldBeOfType<LoginResponse.Authenticated>().Tokens;
+        loginClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
+
+        using var before = await loginClient.GetAsync(new Uri($"{AuthRoute}/me", UriKind.Relative), TestToken);
+        before.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var disabled = await adminClient.DeleteAsync(
+            new Uri($"{_accountsRoute}/{targetSession.UserId}/two-factor", UriKind.Relative), TestToken);
+        disabled.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        // The exact same token, already issued, replayed unchanged.
+        using var after = await loginClient.GetAsync(new Uri($"{AuthRoute}/me", UriKind.Relative), TestToken);
+        after.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        after.Headers.GetValues(ApiFactory.AuthFailureHeader)
+            .ShouldContain("This token's security stamp is no longer valid.");
     }
 
     /// <summary>A confirmed account, signed in, then promoted to <c>Administrator</c> and signed in again

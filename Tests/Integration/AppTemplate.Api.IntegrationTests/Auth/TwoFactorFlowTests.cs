@@ -31,7 +31,7 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
     public async Task TheFullTwoStepLoginFlow_WorksEndToEndWithAnAuthenticatorCode()
     {
         var (client, user, session) = await SignInAsync();
-        var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, session, TestToken);
+        var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, user, session, TestToken);
 
         // Confirming rotated the stamp again and revoked every refresh token for the account: nothing
         // captured above still works, and login for this address now stops at a challenge.
@@ -58,7 +58,7 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
     public async Task AWrongCode_IsRefusedButTheChallengeSurvivesForARetry()
     {
         var (client, user, session) = await SignInAsync();
-        var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, session, TestToken);
+        var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, user, session, TestToken);
 
         var loginClient = CreateClient();
         var challenge = await TwoFactorTestSupport.LoginExpectingChallengeAsync(loginClient, user, TestToken);
@@ -87,7 +87,7 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
     public async Task ARecoveryCode_CompletesLoginOnceAndIsThenSpent()
     {
         var (client, user, session) = await SignInAsync();
-        var (_, recoveryCodes) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, session, TestToken);
+        var (_, recoveryCodes) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, user, session, TestToken);
         string recoveryCode = recoveryCodes[0];
 
         var firstLoginClient = CreateClient();
@@ -124,7 +124,7 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
     public async Task DisablingTwoFactor_RestoresAOneStepLogin()
     {
         var (client, user, session) = await SignInAsync();
-        var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, session, TestToken);
+        var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, user, session, TestToken);
 
         // Confirming revoked every refresh token; sign back in the long way before disabling.
         var loginClient = CreateClient();
@@ -164,7 +164,7 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
     public async Task DisablingWithTheWrongPassword_LeavesTwoFactorArmed()
     {
         var (client, user, session) = await SignInAsync();
-        var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, session, TestToken);
+        var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, user, session, TestToken);
 
         var loginClient = CreateClient();
         var challenge = await TwoFactorTestSupport.LoginExpectingChallengeAsync(loginClient, user, TestToken);
@@ -192,5 +192,46 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
 
         (await ApiJson.ReadAsync<LoginResponse>(laterLoginResponse, TestToken))
             .ShouldBeOfType<LoginResponse.TwoFactorRequired>();
+    }
+
+    /// <summary>
+    /// The gap this repository was asked to close. Arming the second factor revokes every other
+    /// session on the account exactly as disarming it does — see
+    /// <see cref="DisablingTwoFactor_RestoresAOneStepLogin"/> — so a caller holding nothing but a
+    /// stolen access token must not be able to do it on a code it produced itself, without ever
+    /// proving the account's password.
+    /// </summary>
+    [Fact]
+    public async Task ConfirmingWithTheWrongPassword_ArmsNothing()
+    {
+        var (client, user, session) = await SignInAsync();
+        var setup = await TwoFactorTestSupport.BeginTwoFactorSetupAsync(client, TestToken);
+        await TwoFactorTestSupport.RefreshAuthorizationAsync(client, session.Tokens.RefreshToken, TestToken);
+
+        using var wrongPasswordResponse = await client.PostAsJsonAsync(
+            $"{AuthRoute}/two-factor/confirm",
+            new ConfirmTwoFactorSetupRequest("the wrong password", AuthenticatorCodes.CurrentCodeFor(setup.SharedKey)),
+            TestToken);
+        wrongPasswordResponse.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        // Nothing was consumed by the refusal above: a login for this address still completes in one
+        // step, exactly as it would have if enrollment had never been confirmed at all.
+        using var loginResponse = await CreateClient().PostAsJsonAsync(
+            $"{AuthRoute}/login",
+            new LoginRequest(user.Email, user.Password),
+            TestToken);
+        loginResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ApiJson.ReadAsync<LoginResponse>(loginResponse, TestToken))
+            .ShouldBeOfType<LoginResponse.Authenticated>();
+
+        // The same pending secret, the right password and the right code now confirm it — proving
+        // the refusal above cost nothing a legitimate retry would need.
+        using var rightPasswordResponse = await client.PostAsJsonAsync(
+            $"{AuthRoute}/two-factor/confirm",
+            new ConfirmTwoFactorSetupRequest(user.Password, AuthenticatorCodes.CurrentCodeFor(setup.SharedKey)),
+            TestToken);
+        rightPasswordResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ApiJson.ReadAsync<ConfirmTwoFactorSetupResponse>(rightPasswordResponse, TestToken))
+            .RecoveryCodes.ShouldNotBeEmpty();
     }
 }

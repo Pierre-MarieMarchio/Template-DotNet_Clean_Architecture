@@ -230,9 +230,26 @@ services:
       EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
       PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
       EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:8080/confirm-email-change}
+
+      # --- Email (SMTP) --------------------------------------------------------
+      # Unlike the Jwt/Identity sections above, this one is not a side effect of composing
+      # AppTemplate.Infrastructure.Identity: this service composes AppTemplate.Infrastructure.Email
+      # in its own right, for IReminderNotifier's adapter — a reminder that comes due is rung by
+      # mail, see AppTemplate.Worker.csproj. Same variables and same values as the api service, so
+      # both hosts reach the same mailpit sink.
+      Email__Host: ${EMAIL_HOST:-mailpit}
+      Email__Port: ${EMAIL_PORT:-1025}
+      Email__Security: ${EMAIL_SECURITY:-None}
+      Email__AllowInsecureTransport: ${EMAIL_ALLOW_INSECURE_TRANSPORT:-true}
+      Email__UserName: ${EMAIL_USERNAME:-}
+      Email__Password: ${EMAIL_PASSWORD:-}
+      Email__FromAddress: ${EMAIL_FROM_ADDRESS:-no-reply@localhost}
+      Email__FromName: ${EMAIL_FROM_NAME:-AppTemplate (dev)}
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     networks: [backend]
 
 volumes:

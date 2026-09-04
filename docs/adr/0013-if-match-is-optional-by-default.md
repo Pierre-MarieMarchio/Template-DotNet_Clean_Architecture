@@ -83,9 +83,10 @@ deployment picks one answer for its whole client population.
   per-client state this API has no reason to keep, and a client that sometimes forgets
   would sometimes be protected and sometimes not — a guarantee that only sometimes holds
   is not one.
-- **Gate `Required` per route or per aggregate instead of globally.** `TodoList` is the
-  only versioned aggregate this template ships, so there is nothing yet to differentiate;
-  a per-route switch would be speculative surface with one call site exercising it.
+- **Gate `Required` per route or per aggregate instead of globally.** `TodoList` was the
+  only versioned aggregate this template shipped when this record was written, so there
+  was nothing yet to differentiate; a per-route switch would have been speculative
+  surface with one call site exercising it.
 
 ## Revisit when
 
@@ -93,3 +94,10 @@ A second versioned aggregate ships with different client-migration timing than
 `TodoList` — at that point a single global switch stops describing the deployment
 accurately, and the setting needs to move from `Concurrency:IfMatch` to something keyed
 per aggregate.
+
+**Half met.** `Reminder` (`RemindersController.cs`'s reschedule and cancel actions) is now
+a second versioned aggregate behind the same `Concurrency:IfMatch` switch. The other half
+of the condition — different client-migration timing than `TodoList` — is a judgement
+call, not yet made: both aggregates are still new enough that no client has had time to
+migrate at a different pace, so the global switch continues to describe the deployment
+accurately for now.

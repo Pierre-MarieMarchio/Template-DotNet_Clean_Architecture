@@ -11,6 +11,9 @@ public sealed record TwoFactorConfirmation(
 {
     public static TwoFactorConfirmation InvalidCode { get; } = new(TwoFactorConfirmationOutcome.InvalidCode);
 
+    public static TwoFactorConfirmation IncorrectPassword { get; } =
+        new(TwoFactorConfirmationOutcome.IncorrectPassword);
+
     public static TwoFactorConfirmation Confirmed(IReadOnlyList<string> recoveryCodes) =>
         new(TwoFactorConfirmationOutcome.Confirmed, recoveryCodes);
 }

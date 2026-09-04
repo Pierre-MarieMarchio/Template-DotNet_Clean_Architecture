@@ -181,8 +181,8 @@ coming back.
 
 **A test that buys a guarantee must be able to fail.** For anything about security or correctness:
 break the production code, *watch the test go red*, restore it, and check the failure named what you
-thought it named. A green test you never saw fail is not evidence. Two rules follow from experience
-in this repository:
+thought it named. A green test you never saw fail is not evidence. Rules follow from experience in
+this repository:
 
 - An architecture rule can pass **vacuously** on an empty candidate set. Assert the set is non-empty
   *before* asserting the condition. `AggregateRoots_AreSealed` once matched zero types and passed.

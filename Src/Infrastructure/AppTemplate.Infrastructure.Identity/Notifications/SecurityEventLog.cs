@@ -86,6 +86,10 @@ internal sealed partial class SecurityEventLog(ILogger<SecurityEventLog> logger)
                 LogRecoveryCodeRedeemed(logger, securityEvent.UserId);
                 break;
 
+            case SecurityEventKind.TwoFactorDisabledByAdministrator:
+                LogTwoFactorDisabledByAdministrator(logger, securityEvent.UserId);
+                break;
+
             default:
                 throw new ArgumentOutOfRangeException(
                     nameof(securityEvent),
@@ -153,4 +157,7 @@ internal sealed partial class SecurityEventLog(ILogger<SecurityEventLog> logger)
 
     [LoggerMessage(Level = LogLevel.Information, Message = "A recovery code was redeemed for user {UserId}.")]
     private static partial void LogRecoveryCodeRedeemed(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "An administrator disabled two-factor sign-in for user {UserId}.")]
+    private static partial void LogTwoFactorDisabledByAdministrator(ILogger logger, Guid? userId);
 }

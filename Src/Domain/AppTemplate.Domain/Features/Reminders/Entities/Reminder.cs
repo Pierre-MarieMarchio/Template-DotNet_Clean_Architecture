@@ -130,6 +130,24 @@ public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
             throw new DomainException("A stored reminder must have an id.");
         }
 
+        if (ownerId == Guid.Empty)
+        {
+            throw new DomainException("A stored reminder must have an owner.");
+        }
+
+        if (todoListId == Guid.Empty || todoItemId == Guid.Empty)
+        {
+            throw new DomainException("A stored reminder must name the to-do item it is about.");
+        }
+
+        // A fired reminder keeps the claim it was notified under — MarkNotified requires one and
+        // does not clear it. Cancel does clear it, so a cancelled row still holding one is a row no
+        // sequence of operations could have written.
+        if (state == ReminderState.Cancelled && claimedAt is not null)
+        {
+            throw new DomainException("A cancelled reminder cannot still hold a claim.");
+        }
+
         if (state == ReminderState.Fired && notifiedAt is null)
         {
             throw new DomainException("A fired reminder must record when it was notified.");

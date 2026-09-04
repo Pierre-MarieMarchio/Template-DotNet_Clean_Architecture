@@ -22,7 +22,7 @@ one exists.
 ```mermaid
 graph RL
     Api[AppTemplate.Api<br/>controllers, composition root]
-    Worker[AppTemplate.Worker<br/>one BackgroundService, composition root]
+    Worker[AppTemplate.Worker<br/>two BackgroundServices, composition root]
     Ident[AppTemplate.Infrastructure.Identity<br/>ASP.NET Identity policy, JWT, refresh tokens]
     Mail[AppTemplate.Infrastructure.Email<br/>MailKit SMTP]
     Mem[AppTemplate.Infrastructure.InMemory<br/>in-memory ports]
@@ -63,35 +63,44 @@ casual `using` cannot quietly invert it.
 
 ## Ports are named for business intent, not for technology
 
-A port is an interface **declared in Application** and **implemented in
-Infrastructure**. Its name says what the application needs, not what supplies it:
+A port is an interface **implemented in Infrastructure**, and its name says what the
+caller needs, not what supplies it — but the two families of port are not declared in
+the same layer. A **repository** — an aggregate loaded, mutated through its own
+behaviour, and staged for a commit someone else owns — is declared in
+**`AppTemplate.Domain`**, under `Features/<Feature>/Repositories/`, because its
+signature names only domain types. **Every other port** — a read projected to DTOs, or
+a platform capability with no aggregate behind it — is declared in
+**`AppTemplate.Application`**, under `Features/<Feature>/Ports/<Port>/`. See
+[ADR 0024](adr/0024-repository-in-domain-query-ports-in-application.md) for why the
+split runs there rather than putting every port in one layer:
 
-| Port (Application) | Implementation (Infrastructure) |
-|---|---|
-| `ITodoListRepository`, `IReminderRepository` | EF Core repositories over `AppDbContext` |
-| `ITodoListQueries`, `IReminderTargets` | EF Core projections to DTOs |
-| `IUnitOfWork` | one `SaveChangesAsync` on `AppDbContext` |
-| `IEmailSender` | `MailKitEmailSender` |
-| `ICurrentUser` | `CurrentUser`, reading `HttpContext` claims |
-| `IDateTimeProvider` | `SystemDateTimeProvider` |
-| `IUserAccounts` | `UserManager` / `SignInManager` wrapper |
-| `IEmailConfirmationTokens` | ASP.NET Identity's default token provider |
-| `IAccessTokenIssuer` | signed JWT over the account's current claims |
-| `IRefreshTokenGrants` | opaque rotating grants over `IRefreshTokenStore` |
-| `IConfirmationEmailComposer` | HTML template plus the confirmation URL |
+| Port | Declared in | Implementation (Infrastructure) |
+|---|---|---|
+| `ITodoListRepository`, `IReminderRepository` | `AppTemplate.Domain` | EF Core repositories over `AppDbContext` |
+| `ITodoListQueries`, `IReminderTargets` | `AppTemplate.Application` | EF Core projections to DTOs |
+| `IUnitOfWork` | `AppTemplate.Application` | one `SaveChangesAsync` on `AppDbContext` |
+| `IEmailSender` | `AppTemplate.Application` | `MailKitEmailSender` |
+| `ICurrentUser` | `AppTemplate.Application` | `CurrentUser`, reading `HttpContext` claims |
+| `IDateTimeProvider` | `AppTemplate.Application` | `SystemDateTimeProvider` |
+| `IUserAccounts` | `AppTemplate.Application` | `UserManager` / `SignInManager` wrapper |
+| `IEmailConfirmationTokens` | `AppTemplate.Application` | ASP.NET Identity's default token provider |
+| `IAccessTokenIssuer` | `AppTemplate.Application` | signed JWT over the account's current claims |
+| `IRefreshTokenGrants` | `AppTemplate.Application` | opaque rotating grants over `IRefreshTokenStore` |
+| `IConfirmationEmailComposer` | `AppTemplate.Application` | HTML template plus the confirmation URL |
 
 There is no `IEfCoreRepository`, no `ISmtpClient`, no `IHttpContextWrapper`. The
 point of the seam is that the application layer can be read, and tested, without
 knowing that EF Core, MailKit or ASP.NET Identity exist. A port named after its
 implementation has already given that away.
 
-The authentication ports are the interesting ones. There are ten of them rather than
-one `IAuthService`, and the split is what keeps the *sequencing* in Application:
-`RegisterUseCase` creates the account, then mints a confirmation token, then composes
-and sends the mail through `IEmailSender`, and decides that a delivery failure is a
-success carrying `confirmationEmailSent: false`. `RefreshAccessTokenUseCase` rotates
-the presented grant, then revalidates the account, then revokes the whole family if it
-may no longer sign in. Each port is one capability an adapter can satisfy on its own,
+The authentication ports are the interesting ones. There are many of them, one per
+capability, rather than one `IAuthService`, and the split is what keeps the
+*sequencing* in Application: `RegisterUseCase` creates the account, then mints a
+confirmation token, then composes and sends the mail through `IEmailSender`, and
+decides that a delivery failure is a success carrying `confirmationEmailSent: false`.
+`RefreshAccessTokenUseCase` rotates the presented grant, then revalidates the
+account, then revokes the whole family if it may no longer sign in. Each port is one
+capability an adapter can satisfy on its own,
 and the ASP.NET Identity types (`AppUser`, `UserManager<>`) never appear in
 Application. An architecture test asserts that no port grows wide enough to take the
 sequencing back.
@@ -112,9 +121,13 @@ storage — one DbContext in one schema:
 deliberate. It is partitioned internally as `Common/` (the mechanisms) plus
 `Features/<Feature>/` (models, configurations, mapping, tracking, repositories, queries,
 and — for a technical port rather than an aggregate, such as `IRefreshTokenStore` —
-stores), and an architecture test asserts that nothing under `Common/` names a feature —
-`AppDbContext` excepted, because it applies every feature's configuration and is
-therefore the model's composition root. See
+stores), and an architecture test asserts that nothing under `Common/` depends on a
+feature's domain or persistence types. `AppDbContext` is excepted, because it applies
+every feature's configuration and is therefore the model's composition root;
+`Common/Observability/ReminderDiagnostics.cs` — the adapter for `IReminderDiagnostics`,
+a port that exists to observe `Reminders` — is a second exception the test does not
+need to name, since it checks dependencies rather than identifiers and this file has
+none on a forbidden namespace. See
 [ADR 0010](adr/0010-one-persistence-project-one-dbcontext.md) for why the contexts were
 merged and [ADR 0011](adr/0011-persistence-models-separate-from-the-domain.md) for why EF
 maps rows rather than aggregates.
@@ -142,21 +155,27 @@ guessing at that shape. See [ADR 0007](adr/0007-module-per-capability-infrastruc
 
 ## A second host: `AppTemplate.Worker`
 
-`AppTemplate.Worker` runs one `BackgroundService` that purges expired idempotency keys
-and expired refresh-token grants on a timer, through the exact same
-`IPurgeExpiredIdempotencyKeysUseCase` and `IPurgeExpiredRefreshTokensUseCase` that
-`AppTemplate.Api`'s `MaintenanceController` exposes over HTTP.
+`AppTemplate.Worker` runs two `BackgroundService`s. `MaintenanceBackgroundService`
+purges expired idempotency keys and expired refresh-token grants on a timer, through
+the exact same `IPurgeExpiredIdempotencyKeysUseCase` and
+`IPurgeExpiredRefreshTokensUseCase` that `AppTemplate.Api`'s `MaintenanceController`
+exposes over HTTP. `ReminderBackgroundService` runs `IFireDueRemindersUseCase` on its
+own timer — the only caller that use case ever has, since firing a reminder must never
+run behind a request.
 
 The Worker proves that the Application layer is composable by a non-HTTP host — it
 references neither `AppTemplate.Api` nor `AppTemplate.Domain` (verified in
 `Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj`), and it calls real use
 cases without shortcutting to infrastructure
-(`Common/Maintenance/MaintenanceBackgroundService.cs`). It shows, in the same stroke,
-what that costs: a host has to satisfy, on its own, the ports that describe its calling
+(`Common/Maintenance/MaintenanceBackgroundService.cs`,
+`Common/Reminders/ReminderBackgroundService.cs`). It shows, in the same stroke, what
+that costs: a host has to satisfy, on its own, the ports that describe its calling
 context. Its `ICurrentUser` (`Common/Security/BackgroundCurrentUser.cs`) **throws** on
 `UserId`, because it has no caller to name — there is no HTTP request and no principal
 behind it, so returning `null` as if it were merely an anonymous caller would let a use
-case that needs an owner proceed as though one existed.
+case that needs an owner proceed as though one existed. `IFireDueRemindersUseCase`
+takes that constraint furthest: it must not read `ICurrentUser` at all, since it acts
+on every user's due reminders in one pass rather than one caller's.
 
 A future rich client is not exempt from that cost either: it would still have to write
 a real `ICurrentUser` naming an actual caller, which is a port implementation, not
@@ -222,9 +241,9 @@ Repository methods now only *stage* work. See
 
 `AggregateRoot<TId>` is the consistency and transactional boundary. **Only aggregate
 roots get a repository**; entities inside an aggregate are reached through their root.
-`AppDbContext` exposes a single `DbSet<TodoList>` for that reason — a
-`DbSet<TodoItem>` would hand every caller a way around the invariants the root
-enforces. The HTTP surface mirrors it exactly: `/api/v1/todo-lists/{id}/items/{itemId}`
+`AppDbContext` exposes an `internal DbSet<TodoListRecord>` for that reason — an
+exposed `DbSet<TodoItemRecord>` would hand every caller a way around the invariants
+the root enforces. The HTTP surface mirrors it exactly: `/api/v1/todo-lists/{id}/items/{itemId}`
 means there is no route that can reach an item without naming its list.
 
 `ITodoListRepository.GetAsync` loads the *complete* aggregate — list, items, tags.
@@ -276,16 +295,17 @@ HTTP 500.
 render it. `ErrorResults` is the single place where that becomes an HTTP status and a
 ProblemDetails body, so a given situation always produces the same status on every
 endpoint. Codes are grouped in one file per vertical — `TodoListErrors`, `AuthErrors` —
-which is what stops the same situation from acquiring two codes.
+which is what stops the same situation from acquiring two codes; a code no single
+vertical owns, such as the invariant one below, lives in `CommonErrors` instead.
 
 `DomainException` is genuinely exceptional: it means a caller drove an aggregate into
 a state the model forbids. `GlobalExceptionHandler` maps it to 400 with a fixed
 message and never echoes the invariant text; anything else becomes a 500 with a
-`traceId` and no exception detail at all. One nuance: `TodoListErrors.InvariantViolated`
-exists so a use case that *expects* an invariant to refuse can catch `DomainException`
-and turn it into a 409 `Result` — the domain message is written by us, in terms of the
-user's own data, so there is no second copy of the rule in Application that could
-drift from the first.
+`traceId` and no exception detail at all. One nuance: `CommonErrors.InvariantViolated`
+exists so a use case that *expects* an invariant to refuse can run the call through
+`DomainGuard`, which catches `DomainException` for it and turns it into a 409
+`Result` — the domain message is written by us, in terms of the user's own data, so
+there is no second copy of the rule in Application that could drift from the first.
 
 Costs, honestly: every use case signature carries `Result`, callers must check
 `IsSuccess`, and `Result` is a class, so there is an allocation per call. Both are
@@ -325,12 +345,14 @@ answers that as `409` with the stable code `concurrency.conflict` in an
 `application/problem+json` body. Nothing is retried: re-applying a decision made against
 state that no longer exists is the lost update the token exists to prevent.
 
-## One DbContext, one database, two schemas
+## One DbContext, one database, four schemas
 
 | Schema | Tables | Migrations history |
 |---|---|---|
 | `todo` | `TodoLists`, `TodoItems`, `TodoItemTags` | `public.__EFMigrationsHistory` |
-| `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens` | `public.__EFMigrationsHistory` |
+| `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `DataProtectionKeys` | `public.__EFMigrationsHistory` |
+| `reminders` | `Reminders` | `public.__EFMigrationsHistory` |
+| `platform` | `IdempotencyKeys` | `public.__EFMigrationsHistory` |
 
 There is one `AppDbContext`, deriving from `IdentityDbContext<AppUser, AppRole, Guid>`
 and also mapping the to-do list feature's rows. Every table names its own schema in its
@@ -376,9 +398,10 @@ supersedes [ADR 0006](adr/0006-two-dbcontexts-one-database.md).
   error shapes.
 - **Authorisation is default-deny.** `Program.cs` installs an authorization fallback
   policy requiring an authenticated user, so an endpoint is protected unless it opts
-  out. Only `AuthController` and the two health endpoints do. One consequence: because
+  out. Nine of `AuthController`'s seventeen actions and the two health endpoints do —
+  and, in Development only, so do the two OpenAPI endpoints. One consequence: because
   the fallback policy also applies when no endpoint matched, an unknown route answers
-  401 to an anonymous caller rather than 404. Verified.
+  401 to an anonymous caller rather than 404.
 - **No HTTPS redirection.** TLS terminates upstream and the container listens on plain
   8080; redirection would 307 the orchestrator's health probe.
 - **Liveness has no dependency check**; readiness checks the database and whether the host

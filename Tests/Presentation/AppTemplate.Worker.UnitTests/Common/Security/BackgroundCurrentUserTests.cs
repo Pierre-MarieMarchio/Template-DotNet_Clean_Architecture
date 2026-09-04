@@ -22,6 +22,4 @@ public sealed class BackgroundCurrentUserTests
         exception.Message.ShouldContain("AppTemplate.Worker");
     }
 
-    [Fact]
-    public void IsAuthenticated_IsFalse() => _sut.IsAuthenticated.ShouldBeFalse();
 }

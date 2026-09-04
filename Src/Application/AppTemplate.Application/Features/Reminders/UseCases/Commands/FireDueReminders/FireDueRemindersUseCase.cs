@@ -4,7 +4,6 @@ using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderTargets;
 using AppTemplate.Domain.Features.Reminders.Repositories;
-using AppTemplate.Domain.Features.Reminders.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
@@ -81,14 +80,13 @@ public sealed class FireDueRemindersUseCase(
 
             if (targetExists && isCompleted)
             {
-                // Still Pending here means the completion event that should have cancelled this
-                // reminder never reached the consumer that watches for it — this count is exactly
-                // that loss.
-                if (reminder.State == ReminderState.Pending)
-                {
-                    diagnostics.RecordMissedCancellation();
-                }
-
+                // Everything GetDueAsync returns is Pending by contract, so an item already
+                // complete here is always a cancellation that never arrived: the completion event
+                // did not reach the consumer that watches for it, and this count is exactly that
+                // loss. Cancel() would throw on anything already fired, which is the same
+                // assumption stated twice — guarding one and not the other would only hide a
+                // broken contract behind a wrong number.
+                diagnostics.RecordMissedCancellation();
                 reminder.Cancel();
 
                 continue;

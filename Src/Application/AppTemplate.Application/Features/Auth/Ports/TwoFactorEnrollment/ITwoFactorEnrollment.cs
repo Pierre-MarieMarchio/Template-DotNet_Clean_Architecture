@@ -25,13 +25,18 @@ public interface ITwoFactorEnrollment
     Task<TwoFactorSetup> BeginAsync(Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Verifies the first code against the pending secret and, on a match, turns two-factor sign-in
-    /// on and mints a fresh set of recovery codes. Two-factor sign-in is never armed by
-    /// <see cref="BeginAsync"/> alone — only a confirmed code proves the caller can actually produce
-    /// one, without which they would be locked out of their own account the moment it turned on.
+    /// Verifies the current password and the first code against the pending secret and, on a match
+    /// against both, turns two-factor sign-in on and mints a fresh set of recovery codes. Two-factor
+    /// sign-in is never armed by <see cref="BeginAsync"/> alone — only a confirmed code proves the
+    /// caller can actually produce one, without which they would be locked out of their own account
+    /// the moment it turned on. The password is required for the same reason <see cref="DisableAsync"/>
+    /// gives: arming the second factor revokes every refresh token for the account exactly as
+    /// disarming it does, so a caller who could not disable it with a stolen session alone must not be
+    /// able to arm it with one either.
     /// </summary>
     Task<TwoFactorConfirmation> ConfirmAsync(
         Guid userId,
+        string currentPassword,
         string code,
         CancellationToken cancellationToken = default);
 

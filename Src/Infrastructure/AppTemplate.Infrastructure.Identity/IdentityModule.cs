@@ -12,6 +12,7 @@ using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenMaintenance;
 using AppTemplate.Application.Features.Auth.Ports.RoleAssignments;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Features.Auth.Ports.TwoFactorAdministration;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
@@ -120,6 +121,7 @@ public static class IdentityModule
         services.AddScoped<IRefreshTokenMaintenance, RefreshTokenMaintenance>();
         services.AddScoped<ITwoFactorEnrollment, TwoFactorEnrollment>();
         services.AddScoped<ITwoFactorChallenge, TwoFactorChallenge>();
+        services.AddScoped<ITwoFactorAdministration, TwoFactorAdministration>();
         services.AddScoped<IConfirmationEmailComposer, ConfirmationEmailComposer>();
         services.AddScoped<IPasswordResetEmailComposer, PasswordResetEmailComposer>();
         services.AddScoped<IEmailChangeEmailComposer, EmailChangeEmailComposer>();

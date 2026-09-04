@@ -64,7 +64,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   row the caller was served and the read query filters by owner regardless. `PagedResult<T>` gained
   `nextCursor`, and `page`/`totalCount`/`totalPages` are now nullable, being absent in cursor mode.
 - **Composite indexes** `(OwnerId, <sortable field>, Id)` for each whitelisted sort field, so both
-  the order and the keyset comparison are index-ordered. Migration `AddTodoListSortIndexes`.
+  the order and the keyset comparison are index-ordered. Migration `AddExampleFeatures`.
 - **Idempotency keys on POST.** An action marked `[Idempotent]` — `POST /api/v1/todo-lists` and
   `POST /api/v1/todo-lists/{id}/items` — honours an `Idempotency-Key` header, so a client retrying
   through a flaky network cannot create twice. A replay returns the original status, body and
@@ -72,7 +72,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `idempotency.keyReused`; a still-running duplicate is `409` `idempotency.inProgress`; a failed
   request releases its claim so a corrected retry succeeds. Keys are scoped **per user**, so two
   callers may use the same key string. New `Idempotency` configuration section and a `platform`
-  schema; migration `AddIdempotencyKeys`. Auth endpoints are deliberately **not** marked: replaying
+  schema; migration `InitialCreate`. Auth endpoints are deliberately **not** marked: replaying
   a login would store a bearer token in the database.
 - **Policy-based authorisation, with a real operation behind it.**
   `DELETE /api/v1/maintenance/idempotency-keys/expired` requires the `Administrator` policy and
@@ -111,8 +111,8 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 - `TodoItem.MaxTags`, enforced by the aggregate and surfaced as a 400 by the validator, bounding
   per-item tag growth.
 - `IDomainEventSource.Restore`, so events survive a failed save and a retry publishes them.
-- `Tests/Infrastructure/AppTemplate.Infrastructure.Identity.UnitTests`, including a real two-context race
-  against PostgreSQL proving refresh-token rotation is single-use.
+- `Tests/Integration/AppTemplate.Infrastructure.Identity.IntegrationTests`, including a real
+  two-context race against PostgreSQL proving refresh-token rotation is single-use.
 - A coverage floor in `coverage.minimum`, read by CI and `tasks.ps1` from the same file. Set from
   measurement (86.53% of lines over 974 tests), not invented, and the file records the measurements
   it was derived from.
@@ -130,8 +130,8 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   integration test leans on).
 - CI and `tasks.ps1` discover test projects from disk instead of naming them: a hard-coded list went
   stale once and a project's tests silently did not run. The only exclusion is the architecture
-  suite, for the Coverlet reason recorded in the workflow; `Identity.UnitTests` stays out of
-  `test -NoIntegration` because its rotation race needs a real database.
+  suite, for the Coverlet reason recorded in the workflow; `Identity.IntegrationTests` stays out
+  of `test -NoIntegration` because its rotation race needs a real database.
 - Two repository-hygiene gates, in CI and in `./tasks.ps1 hygiene`:
   `.github/scripts/check-doc-paths.py` asserts every repository path cited in the documentation
   exists, and `.github/scripts/check-workflows.py` catches a dangling `needs:`, an action pinned to
@@ -274,8 +274,8 @@ repeat the investigation. A template's value is as much in what it refuses as in
 | An outbox for domain events | [0017](docs/adr/0017-no-outbox-for-domain-events.md), [0026](docs/adr/0026-correctness-does-not-depend-on-event-delivery.md) | At-least-once is a contract on every consumer; the effect re-derives its own precondition instead, and the divergence is counted. |
 | A security-stamp cache | [0023](docs/adr/0023-no-security-stamp-cache.md) | Invalidating at the rotation points does not propagate between instances, so the observable promise stays "within at most the TTL" and the invalidation buys nothing. |
 | Rate limiting partitioned by identity | — | The limiter runs before authentication, so the principal is always anonymous where the partition key is computed. Moving authentication earlier would make every request the limiter is about to reject pay for a bearer validation first. |
-| A paginated user search | — | Every other endpoint in the authentication vertical spends its effort not revealing whether an address exists; one listing them all would contradict the other nine. |
-| A caller id on `ICurrentUser` | — | Nothing would populate it until machine-to-machine authentication exists, and a member that is never set makes eight consuming use cases imply a capability the template does not have. |
+| A paginated user search | — | Every other endpoint in the authentication vertical spends its effort not revealing whether an address exists; listing them all in one call would contradict that effort. |
+| A caller id on `ICurrentUser` | — | Nothing would populate it until machine-to-machine authentication exists, and a member that is never set makes every consuming use case imply a capability the template does not have. |
 | Listing and revoking active sessions | — | Rotation inserts a new row per refresh, so the id a client read would be dead within the access token's lifetime and `DELETE` would fail silently against a live session. It needs a session id stable across rotation first — a column, not an endpoint. |
 | `PATCH` (JSON Patch or Merge Patch) | [0018](docs/adr/0018-no-patch.md) | Patching a representation lets a caller assemble a state change no aggregate operation authorises. |
 | Output caching | [0019](docs/adr/0019-caching-is-revalidation-not-storage.md) | Every response is per-user, so it either serves the wrong data or has no hit rate. |

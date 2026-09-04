@@ -251,19 +251,22 @@ following has a substitute anywhere else in the template once both example featu
   `SharedInstanceRegistrationTests.EveryAggregateTracker_ResolvesAsOneInstanceUnderEveryContractItServes`
   finds zero, not fewer.
 - **Optimistic concurrency over HTTP** — `Versioned<T>`, the strong `ETag`, `If-Match`/`If-None-Match`,
-  `412`/`428`. `TodoLists`' detail endpoint was the only endpoint in the whole API that ever
-  returned a `Versioned<T>`; `Reminders`' create endpoint returns one too but nothing reads it back
-  with a conditional GET or writes against it with `If-Match`. Once both are gone, nothing in the API
-  publishes an `ETag`, and the 304-revalidation round trip in `Caching/CacheHeaderTests.cs` has
-  nothing left to exercise.
+  `412`/`428`. `TodoLists` is not the only demonstration of this: `Reminders`' reschedule (`PUT`)
+  and cancel (`DELETE`) endpoints also read `If-Match` and answer `412`/`428` through the same
+  `ApiControllerBase.ReadPrecondition`. Removing `TodoLists` alone still leaves the conditional-GET
+  round trip (`Caching/CacheHeaderTests.cs`) with nothing to exercise, since only `TodoLists`' detail
+  endpoint publishes an `ETag` a client can revalidate against — but removing `Reminders` too is what
+  empties this demonstration out completely, taking the `If-Match` writes with it.
 - **The default-deny fallback authorisation policy.** `Program.cs` sets a `FallbackPolicy` requiring
   an authenticated user precisely so an action that forgets `[Authorize]` is still denied. Checking
-  that path over HTTP needs a controller that relies on it — and `TodoListsController` was the only
-  one that did: every action on it declared neither `[Authorize]` nor `[AllowAnonymous]`.
-  `AuthController` decorates every action explicitly, and `MaintenanceController` declares its own
-  policy at the controller level; neither ever reaches the fallback. The rule that once enumerated
-  every verb on `TodoListsController` to prove the fallback actually denies
-  (`DefaultDenyAuthorizationTests`) has no controller left to enumerate.
+  that path over HTTP needs a controller that relies on it — and `TodoListsController` is not the
+  only one: every action on it and on `RemindersController` declares neither `[Authorize]` nor
+  `[AllowAnonymous]`, so both rely entirely on the fallback. `AuthController` decorates every action
+  explicitly, and `MaintenanceController`/`AccountAdministrationController` each declare their own
+  policy at the controller level; none of the three ever reaches the fallback. The rule that
+  enumerates every verb on `TodoListsController` to prove the fallback actually denies
+  (`DefaultDenyAuthorizationTests`) has no controller left to enumerate once both `TodoLists` and
+  `Reminders` are gone.
 - **Domain events, at all.** Once both features are gone, `AppTemplate.Domain` declares no
   aggregate, no entity, no value object and no domain event — `Features/` is empty, `Common/` holds
   only the primitives a real feature would build on. Five rules in `DomainModelTests` exist to prove
@@ -272,7 +275,7 @@ following has a substitute anywhere else in the template once both example featu
   consumers reacting to one event, one of them registered by a different feature entirely — has no
   live example either.
 - **`ICollectionPolicy` / the sortable, filterable, paginated collection endpoint.** `TodoLists`' list
-  endpoint was the only one that ever declared a collection policy. Three rules in
+  endpoint was the only one that ever declared a collection policy. Two rules in
   `CollectionContractTests` exist to check that policy's internal consistency and its exemption from
   the constructor rule; with none registered, both are vacuous.
 - **Ownership isolation for a resource addressed by id.** 404-not-403 for another user's resource —

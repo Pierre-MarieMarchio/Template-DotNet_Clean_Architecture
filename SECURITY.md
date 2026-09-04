@@ -32,9 +32,12 @@ against your production system.
   so two simultaneous presentations cannot both succeed. See `docs/adr/0005`.
 - **Account lockout** and a configurable password policy with a floor that configuration cannot
   lower. Email confirmation is required to sign in.
-- **JWT validation** with issuer and audience always checked, a pinned algorithm list, zero clock
-  skew, and security-stamp revalidation on every token — so a password change or a lockout takes
-  effect before the access token would have expired.
+- **JWT validation** with issuer and audience always checked, a pinned algorithm list, thirty
+  seconds of clock skew, and security-stamp revalidation on every token — so a password change or a
+  lockout takes effect before the access token would have expired. The skew is small and
+  deliberately not zero: the issuer stamps the token from the injected clock while validation reads
+  the machine's, so at zero tolerance one backward step — an NTP correction, a resumed VM — refuses
+  every token in circulation at once. It is far below the framework's five-minute default.
 - **Resistance to account enumeration.** Login does not distinguish an unknown user from a wrong
   password, *including in timing* — there is a deliberate decoy-hash path built from the configured
   hasher so both branches cost the same. Confirm-email answers identically for an unknown address
@@ -49,7 +52,16 @@ against your production system.
   the pair. The challenge is never a bearer credential by itself and is stored server-side, keyed by
   account, so it is redeemable by any replica behind the load balancer and survives a redeploy.
   Enabling or disabling the second factor rotates the security stamp and revokes every refresh token
-  for the account, exactly like a password change.
+  for the account, exactly like a password change — **and requires the current password on both
+  sides of that symmetry**: arming the second factor is a security-posture change that costs every
+  other session exactly as disarming it does, so a stolen access token alone can do neither.
+- **An administrative escape hatch for a second factor nobody can prove possession of any more**: an
+  account that has lost the authenticator app *and* its recovery codes cannot complete `/login` at
+  all, and had no recourse short of deleting the account outright. An administrator can strip that
+  account's second factor directly, on the strength of the `Administrator` policy rather than that
+  account's own credential — and is refused with a 403 against their own account, so a stolen
+  administrator session cannot use this route to do to itself what the symmetry above exists to
+  prevent a stolen session doing.
 
 ### Transport and headers
 - `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, and a

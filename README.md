@@ -19,7 +19,7 @@ policy, without becoming an application you have to delete.
 
 - **.NET 10** (`net10.0`), SDK pinned by `global.json`
 - **PostgreSQL** through `Npgsql.EntityFrameworkCore.PostgreSQL`, one connection
-  string, one `DbContext`, one migrations history, two schemas
+  string, one `DbContext`, one migrations history, four schemas
 - **ASP.NET Identity** + JWT bearer, opaque refresh tokens that rotate on every
   use, email confirmation by POST, logout that actually revokes
 - **Default-deny authorisation** — a fallback policy requires an authenticated
@@ -262,17 +262,32 @@ response, and the version segment substitutes into the route
 
 ### Authentication — `api/v1/auth/*`
 
-Every action is explicitly `[AllowAnonymous]` and rate-limited to **10 requests per
-minute per client IP**.
+Nine of the controller's seventeen actions are explicitly `[AllowAnonymous]`; the
+other eight require `[Authorize]` (`logout-all`, `me`, `change-password`, the three
+`two-factor/*` actions, `change-email`, `confirm-email-change`). Fifteen of the
+seventeen are rate-limited to **10 requests per minute per client IP**; `logout-all`
+and `me` deliberately fall to the global limiter instead, since neither is an attempt
+at a credential.
 
 | Method | Route | Success | Notes |
 |---|---|---|---|
 | POST | `/api/v1/auth/register` | 200 | Body carries `confirmationEmailSent`; the account is committed before the mail is sent, so a delivery failure is recoverable, not fatal. |
-| POST | `/api/v1/auth/login` | 200 | Returns `accessToken`, `accessTokenExpiresAt`, `refreshToken`, `refreshTokenExpiresAt`. |
+| POST | `/api/v1/auth/login` | 200 | Returns `accessToken`, `accessTokenExpiresAt`, `refreshToken`, `refreshTokenExpiresAt` — or, when the account has two-factor sign-in armed, a challenge token instead. |
+| POST | `/api/v1/auth/login/two-factor` | 200 | Exchanges the challenge token and a code for the same response shape as `login`. |
 | POST | `/api/v1/auth/refresh` | 200 | Consumes the presented refresh token and returns a new pair. |
 | POST | `/api/v1/auth/confirm-email` | 204 | **POST with a JSON body**, not a GET with a query string. |
 | POST | `/api/v1/auth/resend-confirmation-email` | 204 | Always 204, whether or not the address exists. |
 | POST | `/api/v1/auth/logout` | 204 | Revokes the presented refresh token. Idempotent. |
+| POST | `/api/v1/auth/logout-all` | 204 | Authenticated. Revokes every refresh token grant the caller holds. |
+| GET | `/api/v1/auth/me` | 200 | Authenticated. The caller's own profile; takes no input. |
+| POST | `/api/v1/auth/change-password` | 204 | Authenticated. The current password is presented again as proof the session is not a stolen token. |
+| POST | `/api/v1/auth/two-factor/setup` | 200 | Authenticated. Provisions a shared key; arms nothing on its own. |
+| POST | `/api/v1/auth/two-factor/confirm` | 200 | Authenticated, and requires the current password: arming a second factor is the irreversible direction, so a stolen session alone must not do it. Confirms enrollment, arms two-factor sign-in, and returns ten recovery codes shown once. |
+| POST | `/api/v1/auth/two-factor/disable` | 204 | Authenticated. Requires the current password. |
+| POST | `/api/v1/auth/change-email` | 204 | Authenticated. Requires the current password; mails a token to the new address. |
+| POST | `/api/v1/auth/confirm-email-change` | 204 | Authenticated. Confirms the pending change from the token mailed to the new address. |
+| POST | `/api/v1/auth/forgot-password` | 204 | Always 204, whether or not the address exists. |
+| POST | `/api/v1/auth/reset-password` | 204 | **POST with a JSON body**, not a GET with a query string. |
 
 **The refresh token is in the response body, not a cookie.** It is an opaque
 32-byte CSPRNG value, base64url-encoded — not a JWT — and only its SHA-256 hash is
@@ -285,39 +300,81 @@ token it had been rotated into stops working too.
 
 Authentication required (no opt-out). One controller for one aggregate root; items
 are addressed **through their list**, because that is what the aggregate boundary
-means — there is no route that reaches an item without naming its list.
+means — there is no route that reaches an item without naming its list. Every write
+below answers `200` with the changed representation and its new `ETag`, except
+creating a list or an item (`201`) and deleting a list (`204`).
 
 | Method | Route | Success |
 |---|---|---|
 | GET | `/api/v1/todo-lists?page=1&pageSize=20&sort=createdAt:desc` | 200 — paged summaries of the caller's own lists |
 | GET | `/api/v1/todo-lists/{todoListId}` | 200 — the list with its items and tags |
+| GET | `/api/v1/todo-lists/{todoListId}/items` | 200 — every item of the list |
+| GET | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}` | 200 |
 | POST | `/api/v1/todo-lists` | 201 + `Location` |
-| PUT | `/api/v1/todo-lists/{todoListId}` | 204 — rename; the id comes from the route, never the body |
+| PUT | `/api/v1/todo-lists/{todoListId}` | 200 — rename; the id comes from the route, never the body |
 | DELETE | `/api/v1/todo-lists/{todoListId}` | 204 |
-| POST | `/api/v1/todo-lists/{todoListId}/items` | 201 |
-| POST | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/complete` | 204 |
-| DELETE | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}` | 204 |
+| POST | `/api/v1/todo-lists/{todoListId}/items` | 201 + `Location` |
+| PUT | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}` | 200 — replaces title and description |
+| POST | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/complete` | 200 |
+| POST | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/reopen` | 200 |
+| DELETE | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}` | 200 — answers with the list: the item this route named no longer exists to have its own representation |
+| POST | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/tags` | 200 |
+| PUT | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/tags` | 200 — replaces the whole tag set |
+| DELETE | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/tags/{tag}` | 200 |
 
 The old `api/ListTodos`, `api/TodoItem` and `api/TodoTag` controllers are gone.
+
+### Reminders — `api/v1/.../reminders` and `api/v1/reminders/*`
+
+Authentication required (no opt-out) — like `TodoListsController`, `RemindersController`
+declares neither `[Authorize]` nor `[AllowAnonymous]` and relies entirely on the
+default-deny fallback policy. A reminder is its own aggregate root, addressed
+independently of the list or item it is about once scheduled — scheduling and listing
+go through the item, rescheduling and cancelling go through the reminder's own id.
+
+| Method | Route | Success |
+|---|---|---|
+| GET | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/reminders` | 200 — every reminder scheduled for that item |
+| POST | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/reminders` | 201 + `Location` — points at the collection above; there is no single-reminder `GET` |
+| PUT | `/api/v1/reminders/{reminderId}` | 200 — reschedule |
+| DELETE | `/api/v1/reminders/{reminderId}` | 204 — cancel |
+
+### Account administration — `api/v1/auth/accounts/*`
+
+Requires the `Administrator` policy on the whole controller — an authenticated
+non-admin gets `403`. Acting on somebody else's account: every action below refuses
+with `403` when the target id names the caller.
+
+| Method | Route | Success |
+|---|---|---|
+| POST | `/api/v1/auth/accounts/{userId}/lockout` | 204 — locks the account out indefinitely and rotates its security stamp |
+| DELETE | `/api/v1/auth/accounts/{userId}/lockout` | 204 — lifts the lockout; a no-op on an account that was not locked |
+| PUT | `/api/v1/auth/accounts/{userId}/roles/{role}` | 204 — grants a role |
+| DELETE | `/api/v1/auth/accounts/{userId}/roles/{role}` | 204 — revokes a role |
+| DELETE | `/api/v1/auth/accounts/{userId}/two-factor` | 204 — disarms the account's second factor and rotates its security stamp; the way back for a lost phone and lost recovery codes |
+| DELETE | `/api/v1/auth/accounts/{userId}` | 204 — deletes the account outright |
 
 ### Maintenance — `api/v1/maintenance/*`
 
 | Method | Route | Success |
 |---|---|---|
 | DELETE | `/api/v1/maintenance/idempotency-keys/expired` | 200 — the number of rows removed |
+| DELETE | `/api/v1/maintenance/refresh-tokens/expired` | 200 — the number of rows removed |
 
-Requires the `Administrator` policy — an authenticated non-admin gets `403`. This is the
-one endpoint whose authority is more than "authenticated plus ownership", and it exists
-because the idempotency store grows until something prunes it. Schedule it.
+Requires the `Administrator` policy — an authenticated non-admin gets `403`. Together
+with the five `api/v1/auth/accounts/*` actions above, these are the seven endpoints
+whose authority is more than "authenticated plus ownership"; the two here exist
+because the idempotency store and the refresh-token table each grow until something
+prunes them. Schedule both.
 
 **Conditional requests.** Every read of a single list or item publishes the list's
-version as a strong, opaque `ETag`; every write of one honours `If-Match`, so a stale
-edit — decided against a version somebody else has since changed — is refused with
-`412` instead of silently overwriting it. `If-Match: *` asserts that the resource
-exists, so a missing or someone-else's list also answers `412`, not `404`. Sending no
-`If-Match` at all is accepted unless `Concurrency:IfMatch` is set to `Required`, in
-which case it is refused with `428` — see `docs/adr/0013`. `AppTemplate.Api.http` walks through
-the whole round trip.
+version as a strong, opaque `ETag`; every write of one, and a reminder's reschedule
+and cancel, honour `If-Match`, so a stale edit — decided against a version somebody
+else has since changed — is refused with `412` instead of silently overwriting it.
+`If-Match: *` asserts that the resource exists, so a missing or someone-else's
+resource also answers `412`, not `404`. Sending no `If-Match` at all is accepted
+unless `Concurrency:IfMatch` is set to `Required`, in which case it is refused with
+`428` — see `docs/adr/0013`. `AppTemplate.Api.http` walks through the whole round trip.
 
 ### Collection queries — sorting, filtering, paging
 
@@ -447,7 +504,9 @@ healthchecks both target `/health`.
 
 `Program.cs` installs an authorization fallback policy requiring an authenticated
 user. An endpoint is protected **unless it explicitly opts out** with
-`[AllowAnonymous]`; only the auth controller and the two health endpoints do.
+`[AllowAnonymous]`; nine of `AuthController`'s seventeen actions and the two health
+endpoints do — and, in Development only, so do the two OpenAPI endpoints (see
+"Quick start — Docker" above).
 
 One consequence to know about: because the fallback policy also applies when no
 endpoint matched, an **unknown route returns 401 to an anonymous caller, not 404**.
@@ -477,10 +536,9 @@ of the contract.
 | `auth.refreshToken.invalid` | 401 — unknown, expired, revoked or replayed |
 | `auth.confirmEmail.invalid` | 400 |
 | `auth.register.unavailable` | 409 |
-| `auth.register.rejected` | 400 |
 | `todoList.notFound` / `todoItem.notFound` | 404 — a list owned by somebody else is also 404, so ids cannot be enumerated |
-| `todoList.invariantViolated` | 409 |
-| `todoList.validationFailed` / `paging.invalid` | 400 |
+| `domain.invariantViolated` | 409 via `DomainGuard`; 400 if a use case's own catch is missing and `DomainException` reaches `GlobalExceptionHandler` |
+| `request.validationFailed` / `paging.invalid` | 400 |
 | `precondition.failed` | 412 — the `If-Match` a write named is stale, unrecognised, or `*` against a missing/foreign resource |
 | `precondition.required` | 428 — only when `Concurrency:IfMatch` is `Required`; the write named no version at all |
 | `precondition.malformed` | 400 — `If-Match` is present but is neither `*` nor a comma-separated list of quoted entity tags |
@@ -681,7 +739,7 @@ Src/
   Presentation/
     AppTemplate.Api/                           controllers, composition root, Dockerfile
                                       -> Application + every module
-    AppTemplate.Worker/                        one BackgroundService running maintenance use cases
+    AppTemplate.Worker/                        two BackgroundServices: maintenance use cases, and firing due reminders
                                       -> Application + Persistence + Identity
 
 Tests/
@@ -696,6 +754,8 @@ Tests/
   Presentation/AppTemplate.Worker.UnitTests/     the maintenance loop and its resilience
   Architecture/AppTemplate.Architecture.Tests/   layer/module rules + container composition
   Integration/AppTemplate.Api.IntegrationTests/  the real host over HTTP, real PostgreSQL
+  Integration/AppTemplate.Infrastructure.Identity.IntegrationTests/
+                                        the refresh-token rotation race, two contexts against real PostgreSQL
 
 docs/                          ARCHITECTURE.md, CONFIGURATION.md, DEPLOYMENT.md, adr/
 
@@ -751,8 +811,8 @@ AppTemplate.Application/
       Ports/<Port>/             UserAccounts, EmailConfirmationTokens, AccessTokenIssuer,
                                 RefreshTokenGrants, RefreshTokenMaintenance, ConfirmationEmailComposer,
                                 PasswordResetTokens, PasswordResetEmailComposer, SecurityEventLog,
-                                UserProfiles — ten ports, one capability each, in place of one
-                                IAuthService
+                                UserProfiles, and others — one port per capability, in place of
+                                one IAuthService
       UseCases/Commands/<Operation>/   Register, Login, Logout, LogoutEverywhere,
                                 RefreshAccessToken, ConfirmEmail, ResendConfirmationEmail,
                                 ChangePassword, RequestPasswordReset, ResetPassword
@@ -817,9 +877,13 @@ persistence mechanism, but deciding what happens next is application behaviour, 
 `LogTodoItemCompletedConsumer` lives in `AppTemplate.Application/Features/TodoLists/Consumers/`
 instead, registered from `ServiceRegistration`, not `PersistenceModule`.
 
-An architecture test asserts the rule that layout encodes: nothing under `Common/` may name a
-feature, with `AppDbContext` as the single documented exception — it applies every feature's
-configuration, which is what makes it the model's composition root.
+An architecture test asserts the rule that layout encodes: nothing under `Common/` may
+depend on a feature's domain or persistence types. `AppDbContext` is the first documented
+exception — it applies every feature's configuration, which is what makes it the model's
+composition root. `Common/Observability/ReminderDiagnostics.cs` is the second: it adapts
+`IReminderDiagnostics`, a port whose one job is to observe the `Reminders` feature, so its
+name is what it is for — but because the test checks type dependencies, not identifiers, a
+file named after a feature does not trip it on its own.
 
 The word "Module" is kept for exactly one thing: dependency-injection registration classes
 (`PersistenceModule`, `IdentityModule`, `EmailModule`). That is a composition concept, not a
@@ -927,8 +991,8 @@ turn warnings back into warnings: `TreatWarningsAsErrors=true` lives in
 
 Coverage is collected over every test project **except** `AppTemplate.Architecture.Tests`, and that split is
 deliberate: NetArchTest resolves each type through `Type.GetType(name, throwOnError: true)`, which
-fails against a Coverlet-instrumented assembly. Under the collector 7 of its 40 rules throw; without
-it all 40 pass. Every test still runs exactly once. Do not merge those two steps back together.
+fails against a Coverlet-instrumented assembly. Under the collector 7 of its 58 rules throw; without
+it all 58 pass. Every test still runs exactly once. Do not merge those two steps back together.
 
 `.github/workflows/release.yml` runs on a `v*.*.*` tag: it re-runs the gate, publishes a multi-arch
 image to GHCR with an SBOM and a signed provenance attestation, and uploads a self-contained

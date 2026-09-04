@@ -60,18 +60,20 @@ data:
   # budget.
   Database__MaxPoolSize: "20"
 
-  # --- Email (SMTP) — required, no default. AppTemplate.Worker does not compose this module -----
-  # (it sends no confirmation mail), so it has no equivalent in configmap-worker.yaml.
+  # --- Email (SMTP) — required, no default. AppTemplate.Worker composes this module too, for -----
+  # IReminderNotifier's mail adapter (a due reminder is rung by mail), so it has its own identical
+  # block in configmap-worker.yaml — see that file and docs/CONFIGURATION.md for why.
   Email__Host: "smtp.example.com"
   Email__Port: "587"
   Email__Security: "StartTls"
   Email__FromAddress: "no-reply@example.com"
   Email__FromName: "AppTemplate"
 
-  # --- EmailConfirmation / PasswordReset: required, no default, and used by BOTH hosts --------
-  # (AppTemplate.Worker composes AppTemplate.Infrastructure.Identity too, so it validates these
-  # same two sections at startup even though it sends neither mail itself over HTTP — see
-  # configmap-worker.yaml). Kept identical across both ConfigMaps deliberately: two copies of one
-  # fact, not two facts that could drift.
+  # --- EmailConfirmation / PasswordReset / EmailChange: required, no default, and used by BOTH ---
+  # hosts (AppTemplate.Worker composes AppTemplate.Infrastructure.Identity too, so it validates
+  # these same three sections at startup even though it sends none of that mail itself over HTTP —
+  # see configmap-worker.yaml). Kept identical across both ConfigMaps deliberately: two copies of
+  # one fact, not two facts that could drift.
   EmailConfirmation__ConfirmEmailUrl: "https://app.example.com/confirm-email"
   PasswordReset__ResetPasswordUrl: "https://app.example.com/reset-password"
+  EmailChange__ConfirmEmailChangeUrl: "https://app.example.com/confirm-email-change"

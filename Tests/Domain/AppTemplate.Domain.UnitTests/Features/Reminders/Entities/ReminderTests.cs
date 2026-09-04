@@ -458,17 +458,57 @@ public sealed class ReminderTests
     }
 
     /// <summary>
-    /// Built through <c>Rehydrate</c> because <c>Cancel</c> itself always clears the claim: reaching a
-    /// cancelled-but-still-claimed row requires the load path, which — unlike the live aggregate — does
-    /// not check that the two agree with each other.
+    /// A cancelled reminder never holds a claim — <c>Cancel</c> clears it, and the load path refuses
+    /// a row where the two disagree — so releasing one is a no-op with nothing to release. Asserted
+    /// because a caller cannot know a reminder's state before asking.
     /// </summary>
     [Fact]
     public void ReleaseClaim_IsANoOp_OnACancelledReminder()
     {
-        var claimedAt = _now.AddMinutes(-1);
-        var reminder = ARehydratedReminder(state: ReminderState.Cancelled, claimedAt: claimedAt);
+        var reminder = ARehydratedReminder(state: ReminderState.Cancelled);
 
         reminder.ReleaseClaim();
+
+        reminder.State.ShouldBe(ReminderState.Cancelled);
+        reminder.ClaimedAt.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// The load path refuses what the aggregate cannot produce: cancelling clears the claim, so a
+    /// cancelled row still holding one is a row no sequence of operations could have written.
+    /// </summary>
+    [Fact]
+    public void Rehydrate_Rejects_AClaimHeldByACancelledReminder() =>
+        Should.Throw<DomainException>(
+            () => Reminder.Rehydrate(
+                Guid.CreateVersion7(),
+                _ownerId,
+                _todoListId,
+                _todoItemId,
+                _now.AddDays(-1),
+                ReminderState.Cancelled,
+                _now.AddMinutes(-1),
+                null));
+
+    /// <summary>
+    /// The converse, and the reason the rule above names only one state: notifying requires a claim
+    /// and does not clear it, so a fired reminder keeps the one it fired under.
+    /// </summary>
+    [Fact]
+    public void Rehydrate_Accepts_AClaimHeldByAFiredReminder()
+    {
+        var claimedAt = _now.AddMinutes(-2);
+
+        var reminder = Should.NotThrow(
+            () => Reminder.Rehydrate(
+                Guid.CreateVersion7(),
+                _ownerId,
+                _todoListId,
+                _todoItemId,
+                _now.AddDays(-1),
+                ReminderState.Fired,
+                claimedAt,
+                _now.AddMinutes(-1)));
 
         reminder.ClaimedAt.ShouldBe(claimedAt);
     }

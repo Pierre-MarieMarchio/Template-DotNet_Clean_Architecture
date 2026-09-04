@@ -47,14 +47,27 @@ internal sealed class TwoFactorEnrollment(
 
     public async Task<TwoFactorConfirmation> ConfirmAsync(
         Guid userId,
+        string currentPassword,
         string code,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(currentPassword);
         ArgumentNullException.ThrowIfNull(code);
         cancellationToken.ThrowIfCancellationRequested();
 
         var user = await directory.FindByIdAsync(userId, cancellationToken)
             ?? throw new InvalidOperationException($"No account with id '{userId}' exists.");
+
+        // Not userManager.CheckPasswordAsync: see EmailChangeTokens.IssueAsync for why. A
+        // rehash-needed result would rotate the security stamp on its own, before the code below even
+        // gets a say — which would arm nothing yet still cost the caller every session it holds, on a
+        // password that was actually correct. VerifyHashedPassword alone has no such side effect.
+        if (user.PasswordHash is not { } hash ||
+            userManager.PasswordHasher.VerifyHashedPassword(user, hash, currentPassword)
+                is PasswordVerificationResult.Failed)
+        {
+            return TwoFactorConfirmation.IncorrectPassword;
+        }
 
         bool verified = await userManager.VerifyTwoFactorTokenAsync(
             user,
@@ -95,7 +108,13 @@ internal sealed class TwoFactorEnrollment(
         // The caller already authenticated as this id, so there is no address to protect from
         // enumeration here — see IUserAccounts.ChangePasswordAsync for the same reasoning. An absent
         // account only means it was deleted after the token was issued.
-        if (user is null || !await userManager.CheckPasswordAsync(user, currentPassword))
+        //
+        // Verified through the hasher for the same reason ConfirmAsync above does it:
+        // CheckPasswordAsync rewrites the stored hash on a rehash-needed result, which rotates the
+        // security stamp — signing every device out on the way to *refusing* the request.
+        if (user is null
+            || userManager.PasswordHasher.VerifyHashedPassword(
+                user, user.PasswordHash ?? string.Empty, currentPassword) == PasswordVerificationResult.Failed)
         {
             return TwoFactorDisable.IncorrectPassword;
         }

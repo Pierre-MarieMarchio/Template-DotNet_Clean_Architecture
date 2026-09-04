@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+﻿using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
@@ -99,17 +98,17 @@ public sealed class PersistenceModuleInterceptorOrderTests
 
         var services = new ServiceCollection();
 
-        // The two dependencies the interceptors take from outside this module: the caller the audit
-        // columns are stamped with, and a logger for the dispatcher. The host supplies both.
+        // The two dependencies the interceptors take from outside this module: whoever the audit
+        // columns name, and a logger for the dispatcher. The host supplies both.
         services.AddLogging();
-        services.AddSingleton<ICurrentUser, NobodyInParticular>();
+        services.AddSingleton<IAuditActor, NobodyInParticular>();
 
         return services
             .AddPersistenceModule(configuration)
             .BuildServiceProvider(validateScopes: true);
     }
 
-    private sealed class NobodyInParticular : ICurrentUser
+    private sealed class NobodyInParticular : IAuditActor
     {
         public Guid? UserId => null;
     }

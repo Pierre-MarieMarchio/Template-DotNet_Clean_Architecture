@@ -1,9 +1,12 @@
 ﻿using AppTemplate.Application;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Localization;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.Persistence;
+using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Storage;
+using AppTemplate.Worker.Common.Localization;
 using AppTemplate.Worker.Common.Observability;
 using AppTemplate.Worker.Common.Outbound;
 using AppTemplate.Worker.Common.Security;
@@ -50,6 +53,10 @@ builder.Services.AddStorageModule(builder.Configuration);
 // of CurrentUser, even though this implementation carries no per-request state.
 builder.Services.AddScoped<ICurrentUser, BackgroundCurrentUser>();
 
+// The audit stamp is a separate question, and this host can answer it: nobody. Without this the
+// interceptor would ask BackgroundCurrentUser and every commit from every loop would throw.
+builder.Services.AddScoped<IAuditActor, BackgroundAuditActor>();
+
 builder.Services.AddOptions<MaintenanceWorkerOptions>()
     .Bind(builder.Configuration.GetSection(MaintenanceWorkerOptions.SectionName))
     .ValidateOnStart();
@@ -71,10 +78,22 @@ builder.Services.AddSingleton<IValidateOptions<FileWorkerOptions>, FileWorkerOpt
 // ReminderBackgroundService — so it needs no such note here.
 builder.Services.AddWorkerObservability(builder.Configuration);
 
+builder.Services.AddOptions<LocalizationOptions>()
+    .Bind(builder.Configuration.GetSection(LocalizationOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<LocalizationOptions>, LocalizationOptionsValidator>();
+
 builder.Services.AddHostedService<MaintenanceBackgroundService>();
 builder.Services.AddHostedService<ReminderBackgroundService>();
 builder.Services.AddHostedService<FileBackgroundService>();
 
 var host = builder.Build();
+
+// Set once, for the process. This host serves no request, so there is no per-reader language to
+// resolve: every mail its loops send is written in the deployment's default. An account that
+// carried a stored language preference would be read here instead — docs/CONFIGURATION.md says so
+// under `Localization`, and it is the one change that would make a reminder follow its reader.
+CurrentLanguage.Default =
+    host.Services.GetRequiredService<IOptions<LocalizationOptions>>().Value.DefaultCulture;
 
 await host.RunAsync();

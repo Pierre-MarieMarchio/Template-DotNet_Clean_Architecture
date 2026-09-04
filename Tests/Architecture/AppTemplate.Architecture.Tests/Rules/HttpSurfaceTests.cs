@@ -43,6 +43,24 @@ public sealed class HttpSurfaceTests
     /// </summary>
     private const int _fluentlyAnonymousEndpoints = 4;
 
+    /// <summary>
+    /// Every spelling that would add a <c>PATCH</c>. The attribute is the obvious one; the other two
+    /// are the ways a route can take a verb without naming an attribute for it.
+    /// </summary>
+    private static readonly string[] _patchNeedles = ["[HttpPatch", "AcceptVerbs", "MapMethods"];
+
+    /// <summary>
+    /// <c>Headers.Link</c> is the one that matters. <c>IHeaderDictionary</c> carries a generated
+    /// property per known header, and this repository writes every response header through it —
+    /// <c>Response.Headers.ETag</c>, <c>.RetryAfter</c>, <c>.CacheControl</c>, <c>.Vary</c>. A rule
+    /// that watched only for the quoted name and <c>HeaderNames</c> therefore forbade the two
+    /// spellings nobody here uses and allowed the house idiom.
+    /// </summary>
+    private static readonly string[] _linkNeedles = ["\"Link\"", "HeaderNames.Link", "Headers.Link"];
+
+    private static readonly string[] _scheduleNeedles =
+        ["\"Deprecation\"", "\"Sunset\"", "Headers.Deprecation", "HeaderNames.Sunset"];
+
     private static readonly Regex _anonymousAction = new(
         @"\[AllowAnonymous\][^{};]*?\b(?:public|internal)\s[^(]*?\b(\w+)\s*\(",
         RegexOptions.Singleline,
@@ -57,7 +75,7 @@ public sealed class HttpSurfaceTests
     [Fact]
     public void NoEndpoint_AcceptsPatch()
     {
-        Offenders("[HttpPatch").ShouldBeEmpty(
+        Offenders(_patchNeedles).ShouldBeEmpty(
             "A PATCH would make an omitted field ambiguous between 'absent' and 'unchanged', which " +
             "is not a distinction an aggregate's invariants can be validated against.");
     }
@@ -70,7 +88,7 @@ public sealed class HttpSurfaceTests
     [Fact]
     public void NoResponse_CarriesALinkHeader()
     {
-        Offenders("\"Link\"", "HeaderNames.Link").ShouldBeEmpty(
+        Offenders(_linkNeedles).ShouldBeEmpty(
             "Pagination is stated in the body. A second statement in a header is a second thing to " +
             "keep true.");
     }
@@ -82,7 +100,7 @@ public sealed class HttpSurfaceTests
     [Fact]
     public void NoResponse_AnnouncesItsOwnDeprecation()
     {
-        Offenders("\"Deprecation\"", "\"Sunset\"").ShouldBeEmpty(
+        Offenders(_scheduleNeedles).ShouldBeEmpty(
             "A Deprecation or Sunset header announces a schedule. There is one version and no " +
             "schedule.");
     }
@@ -120,13 +138,56 @@ public sealed class HttpSurfaceTests
             "see it and only this count stands between one more and nobody noticing.");
     }
 
+    /// <summary>
+    /// Proves each needle set detects every spelling it names, on text rather than on the tree. The
+    /// rules above are satisfied by an empty result, so nothing about them says the needles would
+    /// find anything: this is what stands between a mistyped needle and three rules that pass on
+    /// every input.
+    /// </summary>
+    [Theory]
+    [InlineData("[HttpPatch(\"x\")]")]
+    [InlineData("[AcceptVerbs(\"PATCH\")]")]
+    [InlineData("app.MapMethods(\"/x\", [\"PATCH\"], handler);")]
+    public void ThePatchNeedles_DetectEverySpellingTheyName(string source) =>
+        Mentions(source, _patchNeedles).ShouldBeTrue();
+
+    [Theory]
+    [InlineData("Response.Headers.Link = value;")]
+    [InlineData("context.Response.Headers[HeaderNames.Link] = value;")]
+    [InlineData("Response.Headers[\"Link\"] = value;")]
+    public void TheLinkNeedles_DetectEverySpellingTheyName(string source) =>
+        Mentions(source, _linkNeedles).ShouldBeTrue();
+
+    [Theory]
+    [InlineData("Response.Headers[\"Sunset\"] = value;")]
+    [InlineData("Response.Headers.Deprecation = value;")]
+    public void TheScheduleNeedles_DetectEverySpellingTheyName(string source) =>
+        Mentions(source, _scheduleNeedles).ShouldBeTrue();
+
+    /// <summary>
+    /// The complement: ordinary code must not match, or the rules would be unsatisfiable and the
+    /// tests above would prove only that the needles match everything.
+    /// </summary>
+    [Theory]
+    [InlineData("Response.Headers.ETag = tag;")]
+    [InlineData("[HttpPut(\"{id:guid}\")]")]
+    [InlineData("// A PUT carrying the complete representation, not a PATCH.")]
+    public void TheNeedles_LeaveOrdinaryCodeAlone(string source)
+    {
+        Mentions(source, _patchNeedles).ShouldBeFalse();
+        Mentions(source, _linkNeedles).ShouldBeFalse();
+        Mentions(source, _scheduleNeedles).ShouldBeFalse();
+    }
+
+    private static bool Mentions(string content, string[] needles) =>
+        needles.Any(needle => content.Contains(needle, StringComparison.Ordinal));
+
     private static IReadOnlyList<string> Offenders(params string[] needles)
     {
         return
         [
             .. ApiSourceFiles()
-                .Where(file => needles.Any(needle =>
-                    File.ReadAllText(file).Contains(needle, StringComparison.Ordinal)))
+                .Where(file => Mentions(File.ReadAllText(file), needles))
                 .Select(file => Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file))
                 .Order(StringComparer.Ordinal)
         ];

@@ -1,4 +1,6 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using System.Globalization;
+using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Localization;
 using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using Microsoft.Extensions.Logging;
@@ -9,6 +11,13 @@ namespace AppTemplate.Infrastructure.Email.Features.Reminders;
 /// Rings a reminder by email. Resolving the owner's address belongs here rather than in the use
 /// case: what "notify" means is an adapter's decision, and a use case that carried an address
 /// would have picked email on the caller's behalf.
+/// <para>
+/// The subject and the body both come from <see cref="ReminderEmailTemplate"/>, in
+/// <see cref="CurrentLanguage.Current"/> — which in <c>AppTemplate.Worker</c> is the language
+/// <c>Localization:DefaultCulture</c> names, set once at start-up. A background pass has no request
+/// to read a reader's own language from, so this mail is written in the deployment's default until
+/// an account carries a stored preference; <c>docs/CONFIGURATION.md</c> says where that plugs in.
+/// </para>
 /// </summary>
 internal sealed class EmailReminderNotifier(
     IUserProfilesService profiles,
@@ -34,11 +43,17 @@ internal sealed class EmailReminderNotifier(
             return;
         }
 
-        await emailSender.SendAsync(
-            profile.Email,
-            "Reminder",
-            $"<p>A to-do item you asked to be reminded about was due at "
-            + $"{notification.DueAt:u}.</p>",
-            cancellationToken);
+        var mail = ReminderEmailTemplate.Create(
+            CurrentLanguage.Current,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["UserName"] = profile.UserName,
+                // Round-trip, not a culture-specific long date: this process builds with
+                // InvariantGlobalization, so there is no French date format to reach for. A reader
+                // gets an unambiguous instant rather than one formatted as if for somebody else.
+                ["DueAt"] = notification.DueAt.ToString("u", CultureInfo.InvariantCulture),
+            });
+
+        await emailSender.SendAsync(profile.Email, mail.Subject, mail.Body, cancellationToken);
     }
 }

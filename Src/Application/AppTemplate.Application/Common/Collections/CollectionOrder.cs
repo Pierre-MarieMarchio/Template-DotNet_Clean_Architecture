@@ -64,6 +64,28 @@ public sealed record CollectionOrder
                 CollectionErrors.InvalidCursor("Cursor paging supports a single sort field."));
         }
 
+        // The same reasoning, for the field rather than the count. Cursor.Decode already refuses a
+        // cursor minted over an offset-only field, but the first cursor page carries no cursor to
+        // refuse: without this, a caller ordering by a nullable column is served page 1 and the mint
+        // of nextCursor then asks the read side for a key that field has no translation for, whose
+        // only recourse is to throw. That is a 500 for what is a rule the caller broke, so it is
+        // refused here with the code every other broken rule in this contract carries.
+        if (mode == PagingMode.Cursor)
+        {
+            var field = policy.SortableFields.First(
+                candidate => string.Equals(candidate.Name, order.Terms[0].Field, StringComparison.Ordinal));
+
+            if (!field.SupportsKeyset)
+            {
+                string keysetFields = string.Join(
+                    ", ",
+                    policy.SortableFields.Where(candidate => candidate.SupportsKeyset).Select(candidate => candidate.Name));
+
+                return Result.Failure<CollectionOrder>(CollectionErrors.InvalidCursor(
+                    $"'{field.Name}' cannot be used with paging=cursor. Fields that can: {keysetFields}."));
+            }
+        }
+
         return Result.Success(new CollectionOrder(mode, order, policy));
     }
 

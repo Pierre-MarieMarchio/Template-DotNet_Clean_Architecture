@@ -50,7 +50,7 @@ public sealed class EmailChangeEmailFactoryTests
     }
 
     [Fact]
-    public async Task ComposeAsync_CarriesTheConfiguredSubject()
+    public async Task ComposeAsync_TakesItsSubjectFromTheTemplate()
     {
         var message = await CreateFactory().CreateAsync(
             "someone",
@@ -65,6 +65,5 @@ public sealed class EmailChangeEmailFactoryTests
         new(new OptionsWrapper<EmailChangeOptions>(new EmailChangeOptions
         {
             ConfirmEmailChangeUrl = new Uri(_confirmPage, UriKind.Absolute),
-            Subject = "Confirm your new email address",
         }));
 }

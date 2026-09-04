@@ -5,6 +5,7 @@ using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.InMemory;
 using AppTemplate.Infrastructure.Persistence;
+using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,14 +86,16 @@ internal static class HostComposition
             // Off, which is what IdentitySeedOptionsValidator requires when no password is supplied.
             ["IdentitySeed:Enabled"] = "false",
 
+            // A culture the runtime knows, and the one every template family must ship — see
+            // EmailTemplateCoverageTests. A subject is deliberately not configured: it is the
+            // <title> of the template that renders the body.
+            ["Localization:DefaultCulture"] = "en",
+
             // Absolute, http(s), and carrying no fragment — the confirmation parameters become one.
             ["EmailConfirmation:ConfirmEmailUrl"] = "https://localhost:5001/confirm-email",
-            ["EmailConfirmation:Subject"] = "Confirm your email address",
 
             ["EmailChange:ConfirmEmailChangeUrl"] = "https://localhost:5001/confirm-email-change",
-            ["EmailChange:Subject"] = "Confirm your new email address",
             ["PasswordReset:ResetPasswordUrl"] = "https://localhost:5001/reset-password",
-            ["PasswordReset:Subject"] = "Reset your password",
 
             ["Email:Host"] = "smtp.example.invalid",
             ["Email:Port"] = "587",
@@ -154,9 +157,10 @@ internal static class HostComposition
     /// thing in the rule set that notices.
     /// <para>
     /// The worker registers <c>BackgroundCurrentUser</c> for <see cref="ICurrentUser"/>, a class
-    /// that throws rather than invent a principal. This composition stands in for it the same way
-    /// <see cref="ComposeApi"/> stands in for the API's <c>CurrentUser</c>: what is under test is
-    /// whether the graph resolves, not what the adapter returns. Nothing here references
+    /// that throws rather than invent a principal, and <c>BackgroundAuditActor</c> for
+    /// <see cref="IAuditActor"/>, which answers <c>null</c>. The stand-ins below have those same two
+    /// behaviours, deliberately: a benign <see cref="ICurrentUser"/> here is what let a host that
+    /// could commit nothing pass every rule in this project. Nothing here references
     /// <c>AppTemplate.Worker</c> — its own hosted services, options and telemetry stay outside this
     /// check, and <c>AppTemplate.Worker.UnitTests</c> covers them.
     /// </para>
@@ -173,7 +177,7 @@ internal static class HostComposition
         services.AddEmailModule(configuration);
         services.AddStorageModule(configuration);
 
-        services.AddScoped<ICurrentUser, ArchitectureTestCurrentUser>();
+        AddWorkerSuppliedAdapters(services);
 
         return services;
     }
@@ -213,7 +217,7 @@ internal static class HostComposition
         services.AddEmailModule(configuration);
         services.AddStorageModule(configuration);
 
-        services.AddScoped<ICurrentUser, ArchitectureTestCurrentUser>();
+        AddWorkerSuppliedAdapters(services);
 
         return services;
     }
@@ -259,6 +263,18 @@ internal static class HostComposition
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, ArchitectureTestCurrentUser>();
+        services.AddScoped<IAuditActor, ArchitectureTestAuditActor>();
+    }
+
+    /// <summary>
+    /// The adapters <c>AppTemplate.Worker</c> owns, with the behaviour that host gives them: an
+    /// <see cref="ICurrentUser"/> that refuses to answer and an <see cref="IAuditActor"/> that
+    /// answers nobody.
+    /// </summary>
+    private static void AddWorkerSuppliedAdapters(IServiceCollection services)
+    {
+        services.AddScoped<ICurrentUser, ArchitectureTestBackgroundCurrentUser>();
+        services.AddScoped<IAuditActor, ArchitectureTestBackgroundAuditActor>();
     }
 }
 
@@ -268,6 +284,32 @@ internal sealed class ArchitectureTestCurrentUser : ICurrentUser
     private static readonly Guid _userId = new("11111111-1111-1111-1111-111111111111");
 
     public Guid? UserId => _userId;
+}
+
+/// <summary>Stands in for <c>AppTemplate.Api.Common.Security.CurrentUserAuditActor</c>.</summary>
+internal sealed class ArchitectureTestAuditActor : IAuditActor
+{
+    private static readonly Guid _userId = new("11111111-1111-1111-1111-111111111111");
+
+    public Guid? UserId => _userId;
+}
+
+/// <summary>
+/// Stands in for <c>AppTemplate.Worker.Common.Security.BackgroundCurrentUser</c>, throw included.
+/// The container tests resolve it and never read the getter; a stand-in that answered a user id is
+/// what hid the composition mistake this one exists to expose.
+/// </summary>
+internal sealed class ArchitectureTestBackgroundCurrentUser : ICurrentUser
+{
+    public Guid? UserId => throw new NotSupportedException(
+        "The worker has no current user. A use case that reads ICurrentUser.UserId cannot run " +
+        "unmodified from that host.");
+}
+
+/// <summary>Stands in for <c>AppTemplate.Worker.Common.Security.BackgroundAuditActor</c>.</summary>
+internal sealed class ArchitectureTestBackgroundAuditActor : IAuditActor
+{
+    public Guid? UserId => null;
 }
 
 /// <summary>

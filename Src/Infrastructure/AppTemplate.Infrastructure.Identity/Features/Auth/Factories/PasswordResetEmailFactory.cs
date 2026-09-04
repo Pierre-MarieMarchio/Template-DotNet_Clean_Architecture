@@ -12,7 +12,7 @@ namespace AppTemplate.Infrastructure.Identity.Features.Auth.Factories;
 internal sealed class PasswordResetEmailFactory(IOptions<PasswordResetOptions> options)
     : IPasswordResetEmailFactory
 {
-    private static readonly EmailBodyFactory _body = new("Templates.PasswordResetEmailTemplate.html");
+    private static readonly EmailBodyFactory _body = new("PasswordResetEmailTemplate");
 
     public async Task<PasswordResetEmail> CreateAsync(
         string userName,
@@ -29,13 +29,13 @@ internal sealed class PasswordResetEmailFactory(IOptions<PasswordResetOptions> o
             ?? throw new InvalidOperationException(
                 $"'{PasswordResetOptions.SectionName}:ResetPasswordUrl' is not configured.");
 
-        string body = await _body.CreateAsync(
+        var rendered = await _body.CreateAsync(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["UserName"] = userName,
                 ["ResetLink"] = EmailBodyFactory.LinkTo(resetPasswordUrl, email, token),
             });
 
-        return new PasswordResetEmail(settings.Subject, body);
+        return new PasswordResetEmail(rendered.Subject, rendered.Body);
     }
 }

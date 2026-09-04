@@ -23,8 +23,6 @@ public sealed class PasswordResetOptions
     /// </summary>
     public Uri? ResetPasswordUrl { get; set; }
 
-    public string Subject { get; set; } = "Reset your password";
-
     /// <summary>An hour: long enough to receive and act on the mail, short enough to limit a leaked link's reach.</summary>
     public TimeSpan TokenLifespan { get; set; } = TimeSpan.FromHours(1);
 }
@@ -61,11 +59,6 @@ internal sealed class PasswordResetOptionsValidator : IValidateOptions<PasswordR
                     $"'{PasswordResetOptions.SectionName}:ResetPasswordUrl' must not carry a fragment; the " +
                     "reset parameters are appended as one.");
             }
-        }
-
-        if (string.IsNullOrWhiteSpace(options.Subject))
-        {
-            failures.Add($"'{PasswordResetOptions.SectionName}:Subject' must not be blank.");
         }
 
         if (options.TokenLifespan < _minimumLifespan || options.TokenLifespan > _maximumLifespan)

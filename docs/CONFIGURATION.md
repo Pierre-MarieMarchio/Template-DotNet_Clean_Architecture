@@ -592,7 +592,6 @@ reaching for a permissive `Security` mode is not.
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `ConfirmEmailUrl` | URI | — | **Required.** Absolute `http`/`https` URL of the page that completes confirmation, with **no fragment**. Must be browser-reachable, not a container name. |
-| `Subject` | string | `Confirm your email address` | Must not be blank. |
 
 The email address and single-use token are appended as a URL **fragment**, which
 browsers never transmit — so the token stays out of server access logs, `Referer`
@@ -622,7 +621,6 @@ not evidence that this one was meant to match them.
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `ResetPasswordUrl` | URI | — | **Required.** Absolute `http`/`https` URL of the page that completes the reset, with **no fragment**. Must be browser-reachable, not a container name. |
-| `Subject` | string | `Reset your password` | Must not be blank. |
 | `TokenLifespan` | timespan | `01:00:00` | Must be between **5 minutes and 1 day**. Its own value, deliberately not shared with `EmailConfirmation`'s token lifespan — see the XML doc on `PasswordResetOptions` for why one shared lifespan across every token provider would be wrong here. |
 
 Same fragment-then-POST shape as `EmailConfirmation`, and for the same reason: the email
@@ -634,12 +632,16 @@ and single-use token are appended as a URL fragment, and the page **POSTs** them
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `ConfirmEmailChangeUrl` | URI | — | **Required.** Absolute `http`/`https` URL of the page that completes the change, with **no fragment**. Must be browser-reachable, not a container name. |
-| `Subject` | string | `Confirm your new email address` | Must not be blank. |
 | `TokenLifespan` | timespan | `01:00:00` | Must be between **5 minutes and 1 day**. Its own named token provider, same reasoning as `PasswordReset:TokenLifespan` above. |
 
 Same fragment-then-POST shape again: the new address and single-use token are appended
 as a URL fragment, and the page **POSTs** them to `/api/v1/auth/confirm-email-change` as
 a JSON body.
+
+**A mail's subject is not configured.** It is the `<title>` of the template that renders its
+body, so the two are one file and cannot end up in different languages — which is exactly what
+happened while the subject lived here: an English `Subject` was delivered above a French body for
+as long as nobody opened the mail. See [`Localization`](#localization).
 
 **Both hosts validate all three of `EmailConfirmation`, `PasswordReset` and `EmailChange` at
 startup.** All three are bound by `AddIdentityModule`, not by anything HTTP-specific, so
@@ -647,6 +649,39 @@ startup.** All three are bound by `AddIdentityModule`, not by anything HTTP-spec
 and for `IRefreshTokenMaintenanceService`'s adapter, see
 [above](#two-hosts-one-configuration-schema) — requires all three URLs too, even though it never
 serves any of these three requests itself.
+
+### `Localization`
+
+The language a mail is written in. Bound by **both hosts**, from twin options classes — the API's
+`Common/Localization/LocalizationOptions.cs` and the worker's — so a deployment cannot write a
+password reset in one language and a reminder in another.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `DefaultCulture` | string | `en` | A culture name the runtime knows — `en`, `fr`, `fr-CA`. Startup fails on one it does not, rather than falling back silently for the life of the deployment. |
+
+**There is deliberately no list of supported languages.** What a mail can be written in is which
+templates are embedded, and a list here would be a second statement of that — free to name a
+language no template backs. Adding a language is adding
+`<Mail>.<culture>.html` next to the ones that ship, in
+`AppTemplate.Infrastructure.Identity/Features/Auth/Templates/` (the three account mails) and
+`AppTemplate.Infrastructure.Email/Features/Reminders/Templates/` (the reminder), and nothing else.
+`EmailTemplateCoverageTests` refuses a language added to one of those folders and not the other.
+
+**How a reader's language is chosen.**
+
+- In `AppTemplate.Api`, from the request's `Accept-Language`, by `UseRequestLanguage`. Only
+  `CurrentUICulture` is set, never `CurrentCulture`: the first decides which text is chosen, the
+  second decides how values parse, and letting a header change parsing would make one body mean
+  different things to different callers.
+- A request that names no language, and every mail `AppTemplate.Worker` sends, uses
+  `DefaultCulture`. The worker serves no request, so it has no reader to ask.
+- A language with no template falls back to English, which every template family must ship.
+
+**To follow a stored per-account preference instead**, add the column to `AppUser`, carry it on
+`UserProfile`, and set `CultureInfo.CurrentUICulture` from it — in `EmailReminderNotifier` for the
+worker's mail, and ahead of the use case for the API's. That is the one change that would make a
+reminder follow its reader rather than the deployment; nothing else here would move.
 
 ### `IdentitySeed` — development only
 

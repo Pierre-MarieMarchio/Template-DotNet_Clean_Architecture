@@ -17,8 +17,6 @@ public sealed class EmailConfirmationOptions
     /// intermediary's request history. That page reads the fragment and POSTs it to the API.
     /// </summary>
     public Uri? ConfirmEmailUrl { get; set; }
-
-    public string Subject { get; set; } = "Confirm your email address";
 }
 
 internal sealed class EmailConfirmationOptionsValidator : IValidateOptions<EmailConfirmationOptions>
@@ -50,11 +48,6 @@ internal sealed class EmailConfirmationOptionsValidator : IValidateOptions<Email
                     $"'{EmailConfirmationOptions.SectionName}:ConfirmEmailUrl' must not carry a fragment; the " +
                     "confirmation parameters are appended as one.");
             }
-        }
-
-        if (string.IsNullOrWhiteSpace(options.Subject))
-        {
-            failures.Add($"'{EmailConfirmationOptions.SectionName}:Subject' must not be blank.");
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

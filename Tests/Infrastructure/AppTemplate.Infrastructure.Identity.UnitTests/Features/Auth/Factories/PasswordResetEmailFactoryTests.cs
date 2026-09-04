@@ -50,7 +50,7 @@ public sealed class PasswordResetEmailFactoryTests
     }
 
     [Fact]
-    public async Task ComposeAsync_CarriesTheConfiguredSubject()
+    public async Task ComposeAsync_TakesItsSubjectFromTheTemplate()
     {
         var message = await CreateFactory().CreateAsync(
             "someone",
@@ -65,6 +65,5 @@ public sealed class PasswordResetEmailFactoryTests
         new(new OptionsWrapper<PasswordResetOptions>(new PasswordResetOptions
         {
             ResetPasswordUrl = new Uri(_resetPage, UriKind.Absolute),
-            Subject = "Reset your password",
         }));
 }

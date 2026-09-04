@@ -9,26 +9,26 @@
   </PropertyGroup>
 
   <ItemGroup Label="Runtime — all Microsoft.* on the same 10.0.x band">
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.11" />
     <!-- IHttpClientFactory and AddHttpClient. Referenced by the one infrastructure module that
          registers a typed client without also referencing ASP.NET Core: the identity module gets
          the same assembly from the Microsoft.AspNetCore.App framework reference its Identity
          package brings, but the email module is composed by the worker too, and a framework
          reference there would make a non-web host require the ASP.NET Core runtime. -->
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
   </ItemGroup>
 
   <!-- Identity model: the modern JsonWebTokenHandler only. The legacy
@@ -37,7 +37,7 @@
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
   </ItemGroup>
 
-  <!-- Outbound HTTP resilience. Ships from dotnet/extensions on its own 10.8.x band rather than
+  <!-- Outbound HTTP resilience. Ships from dotnet/extensions on its own 10.9.x band rather than
        the 10.0.x band above — same owner, different release train — so it gets its own group
        instead of silently breaking the "all Microsoft.* on one band" rule that group states.
        It brings Polly transitively, and the policy does name two Polly types — DelayBackoffType and
@@ -46,27 +46,7 @@
        deliberately no PackageVersion for Polly itself, so the version stays the one this package
        chose. -->
   <ItemGroup Label="Outbound HTTP">
-    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.8.0" />
-  </ItemGroup>
-
-  <!-- Transitive security pin (CentralPackageTransitivePinningEnabled makes this bind).
-       Microsoft.AspNetCore.OpenApi 10.0.10 resolves Microsoft.OpenApi 2.0.0, which carries
-       the high-severity GHSA-v5pm-xwqc-g5wc; NuGetAuditLevel=low turns that into a restore
-       error. 2.7.6 is the newest patched 2.x — deliberately NOT 3.x, which is a different
-       major than the one Microsoft.AspNetCore.OpenApi was compiled against.
-       Remove this pin once the ASP.NET Core package ships a patched dependency itself. -->
-  <ItemGroup Label="Security pins">
-    <PackageVersion Include="Microsoft.OpenApi" Version="2.7.6" />
-  </ItemGroup>
-
-  <!-- Transitive security pin, same mechanism as the one above. Testcontainers 4.13.0 resolves
-       SSH.NET 2025.1.0 — it reaches a daemon over SSH, which nothing here does — and that version
-       carries the high-severity GHSA-q939-rpr3-3284, so NuGetAuditLevel=low fails the restore of
-       both integration test projects. The audit runs at restore, so an incremental build over a
-       cache taken before the advisory still reports success; a fresh clone does not.
-       Remove this pin once Testcontainers ships a patched dependency itself. -->
-  <ItemGroup Label="Security pins (test-only)">
-    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.9.0" />
   </ItemGroup>
 
   <!-- OpenTelemetry: the SDK, the three instrumentations the host installs, and the OTLP exporter,
@@ -94,7 +74,7 @@
        AppTemplate.Infrastructure.Storage/Buckets/BucketBudget.cs for what that costs and what is
        done about it. -->
   <ItemGroup Label="Object storage">
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.102" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.102.4" />
   </ItemGroup>
 
   <ItemGroup Label="Third-party runtime">
@@ -104,22 +84,22 @@
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageVersion Include="MailKit" Version="4.17.0" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-    <PackageVersion Include="Scalar.AspNetCore" Version="2.16.17" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.17.2" />
   </ItemGroup>
 
   <ItemGroup Label="Test">
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
-    <PackageVersion Include="NSubstitute" Version="6.0.0" />
+    <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
-    <!-- Same 4.13.0 as Testcontainers.PostgreSql, and it has to be: both are thin modules over the
+    <!-- Same 4.14.0 as Testcontainers.PostgreSql, and it has to be: both are thin modules over the
          same Testcontainers core package, which each one pins to its own version. Two different
          bands would resolve one core for both and leave one module compiled against a different
          one. -->
-    <PackageVersion Include="Testcontainers.Minio" Version="4.13.0" />
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <PackageVersion Include="Testcontainers.Minio" Version="4.14.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
   </ItemGroup>

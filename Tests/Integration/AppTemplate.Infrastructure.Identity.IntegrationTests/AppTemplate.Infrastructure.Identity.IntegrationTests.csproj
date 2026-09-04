@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Single-use refresh-token rotation, against a real PostgreSQL in a container.
+
+       It lives in Tests/Integration rather than beside the identity module's unit tests because
+       what it asserts is a property of the database: a conditional UPDATE that exactly one of two
+       simultaneous presentations may win. Asserting that against a fake store would only assert
+       that the fake had been written to agree.
+
+       It is also kept out of AppTemplate.Api.IntegrationTests, whose classes share one host and one
+       container through a collection fixture. The guarantee here is a rendezvous between two
+       participants racing the same row, and a shared, serialised context is precisely what would
+       stop the race from happening.
+
+       The identity module's types are internal apart from IdentityModule, so this project holds
+       InternalsVisibleTo from it. It needs none from AppTemplate.Infrastructure.Persistence: the
+       grant store is reached through the public IRefreshTokenStore, exactly as the module reaches
+       it, and rows are inspected over the context's own connection. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <!-- The module composes ASP.NET Core Identity, so the tests need the same shared framework the
+       host runs on. It also supplies the configuration, options, logging and DI abstractions used
+       here, which is why there is no PackageReference for any of them — NuGet rejects one as
+       redundant (NU1510). -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Identity\AppTemplate.Infrastructure.Identity.csproj" />
+  </ItemGroup>
+
+</Project>

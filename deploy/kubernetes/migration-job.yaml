@@ -1,0 +1,69 @@
+# The "explicit step" CONTRIBUTING.md's Migrations section requires instead of migrating at
+# application startup, and a Kubernetes Job running `database update` is its shape here. Apply
+# this and wait for it to complete BEFORE api-deployment.yaml or worker-deployment.yaml rolls;
+# see deploy/kubernetes/README.md for why `kubectl apply -f deploy/kubernetes/` alone does not
+# give you that ordering.
+#
+# The image is NOT one of the two this repository's Dockerfiles build. .github/workflows/release.yml
+# already builds the artifact this Job needs to run — the `migration-bundle` job produces a
+# self-contained `efbundle` executable (dotnet ef migrations bundle --self-contained) and uploads
+# it as a workflow artifact — but that workflow stops at the artifact; it does not package it into
+# a container image. Packaging `efbundle` into a minimal image (COPY it into a base image with a
+# non-root user, ENTRYPOINT ["/app/efbundle"]) is a release-pipeline change this manifest assumes
+# but does not itself make.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: app-template-migration
+  labels:
+    app.kubernetes.io/name: app-template-migration
+    app.kubernetes.io/part-of: app-template
+    app.kubernetes.io/component: migration
+spec:
+  # A migration that fails halfway must be looked at, not retried blindly against a schema that
+  # is now in an unknown state.
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  # Cleans itself up once done so a `kubectl apply -f deploy/kubernetes/` on the next release does
+  # not collide with this Job's immutable pod template — a Job's spec cannot be updated in place,
+  # only replaced, so the previous one has to be gone by the time the next one is applied.
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app-template-migration
+        app.kubernetes.io/part-of: app-template
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: ghcr.io/OWNER/REPO/migration-bundle:1.0.0
+          # The bundle is self-contained (embeds its own .NET runtime) and takes the connection
+          # string as a CLI argument, not through the application's configuration system — it is
+          # not the application, it has no appsettings.json and reads none of the ConfigMaps in
+          # this directory.
+          args: ["--connection", "$(CONNECTION_STRING)"]
+          env:
+            - name: CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-migration-db-credentials
+                  key: ConnectionString
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

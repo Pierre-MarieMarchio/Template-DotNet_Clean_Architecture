@@ -118,11 +118,9 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
     /// verbatim.
     /// </summary>
     /// <remarks>
-    /// <b>Every header, and no others.</b> There used to be a parameter here for headers the grant did
-    /// not ask for, which existed for one caller: a deposit that supplied its own digest, because the
-    /// grant asked only for an algorithm's name and the store therefore recorded nothing. The grant now
-    /// carries the digest itself, so that caller is gone — and a deposit that added the header a second
-    /// time would be refused, since the signature covers it.
+    /// <b>Every header the grant names, and no others.</b> The grant carries the digest itself, so a
+    /// deposit has nothing of its own to add — and a header sent a second time is refused, since the
+    /// signature covers it.
     /// </remarks>
     /// <param name="hostHeader">
     /// As on <see cref="FetchAsync"/>: the name to present the deposit under when it is not the one

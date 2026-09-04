@@ -17,10 +17,8 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Leases;
 /// expire on a timer nobody is holding.
 /// </summary>
 /// <remarks>
-/// Named for the module and not simply <c>LeaderLease</c>, which is what this repository's rule
-/// would otherwise give: leadership here is a property of the store it is taken from, and an
-/// in-memory lease for a test host or another module's would satisfy the same port beside it — the
-/// same reason <c>MailKitEmailSender</c> and <c>InMemoryEmailSender</c> both carry a prefix.
+/// Named for the store the lock is taken from, so that a lease held anywhere else — an in-memory
+/// one for a test host, another module's — can satisfy the same port beside it.
 /// <para>
 /// Holds no state between calls and must be registered as a singleton: the background services that
 /// use it are singletons, and a scoped dependency captured by one is exactly what the container's

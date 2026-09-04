@@ -5,17 +5,10 @@
 /// function to the value.
 /// </summary>
 /// <remarks>
-/// This exists because the Api layer was writing it out by hand thirteen times, in all four of its
-/// verticals — a null check, an <see cref="Result.IsFailure"/> guard returning
-/// <see cref="Result.To{TOther}"/>, and one line of real work. That is the shape a mapping method
-/// has when the only thing it adds is the projection, and the count is what makes it worth naming:
-/// four independent features arriving at the same seven lines is a demonstration, not a
-/// resemblance.
-/// <para>
-/// The guard cannot be folded into a subpattern, and the reason is worth stating once here rather
-/// than in a comment at every call site: <see cref="Result{TValue}.Value"/> throws on a failure, so
-/// the failure has to be answered before anything reads the value.
-/// </para>
+/// The failure guard cannot be folded into a property subpattern, and the reason is worth stating
+/// once here rather than at every call site: <see cref="Result{TValue}.Value"/> throws on a failure,
+/// so <c>is { IsSuccess: true, Value: var x }</c> throws instead of failing to match. The failure
+/// has to be answered before anything reads the value.
 /// </remarks>
 public static class ResultExtensions
 {

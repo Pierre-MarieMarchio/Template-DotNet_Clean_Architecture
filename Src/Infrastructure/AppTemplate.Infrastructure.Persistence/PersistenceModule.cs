@@ -10,6 +10,7 @@ using AppTemplate.Domain.Features.TodoLists.Repositories;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
+using AppTemplate.Infrastructure.Persistence.Common.Options;
 using AppTemplate.Infrastructure.Persistence.Common.Saving;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
@@ -218,10 +219,9 @@ public static class PersistenceModule
 
             options
                 .UseNpgsql(WithMaxPoolSize(connectionString, database.MaxPoolSize), npgsql => npgsql
-                    // Transient connection failures are the driver's problem to solve. The previous
-                    // version hand-rolled a retry loop around startup with an empty catch block, which
-                    // swallowed configuration errors as if they were network blips and then failed much
-                    // later, somewhere unrelated.
+                    // Transient connection failures are the driver's problem to solve. A retry loop
+                    // hand-rolled around startup instead swallows configuration errors as if they were
+                    // network blips, and then fails much later, somewhere unrelated.
                     .EnableRetryOnFailure(
                         maxRetryCount: 5,
                         maxRetryDelay: TimeSpan.FromSeconds(10),
@@ -260,23 +260,18 @@ public static class PersistenceModule
     /// alone: a fresh instance — its own change tracker, its own connection, its own commit — rather
     /// than the ambient request-scoped one <c>IUnitOfWork</c> owns.
     /// <para>
-    /// <b>Why this registers no options of its own.</b> <c>AddDbContextFactory</c> adds
-    /// <c>DbContextOptions&lt;AppDbContext&gt;</c> with <c>TryAdd</c>, and <see cref="AddContext"/>
-    /// has already registered one, scoped, with the flush/audit/dispatch interceptors attached. The
-    /// options action below is therefore never invoked — it exists only so the call reads as
-    /// intentional rather than accidentally relying on that ordering. What actually matters is the
-    /// factory's own lifetime: requesting the default (<c>Singleton</c>) here would make it depend on
-    /// that scoped options object, which <c>BuildServiceProvider(validateScopes: true)</c> refuses
-    /// outright — the exact conflict the task that added this file called out. Registering the
-    /// factory <c>Scoped</c> instead makes it consume the same scoped options safely, which also
-    /// means every context it creates carries the same interceptor pipeline as the ambient one; that
-    /// is harmless here, since none of those interceptors recognise <c>IdempotencyRecord</c> as an
-    /// aggregate root or an auditable entity, and it is one fewer configuration to keep in sync with
-    /// <see cref="AddContext"/>. It is also why <see cref="DatabaseOptions.MaxPoolSize"/> and
-    /// <see cref="DatabaseOptions.CommandTimeoutSeconds"/> need no wiring here: every context this
-    /// factory creates carries <see cref="AddContext"/>'s options, pool limit included, so
-    /// <see cref="IdempotencyStore"/>'s extra connections count against the same bound as the
-    /// ambient one rather than a second pool with a bound of its own.
+    /// <b>It registers no options of its own, and the lifetime below is load-bearing.</b>
+    /// <c>AddDbContextFactory</c> adds <c>DbContextOptions&lt;AppDbContext&gt;</c> with
+    /// <c>TryAdd</c>, and <see cref="AddContext"/> has already registered one, scoped, with the
+    /// flush/audit/dispatch interceptors attached, so the options action below is never invoked and
+    /// exists only so the call reads as intentional. The default lifetime (<c>Singleton</c>) would
+    /// make the factory depend on that scoped options object, which
+    /// <c>BuildServiceProvider(validateScopes: true)</c> refuses outright; <c>Scoped</c> consumes it
+    /// safely. Every context the factory then creates carries <see cref="AddContext"/>'s options —
+    /// the interceptor pipeline, which is harmless because none of those interceptors recognise
+    /// <c>IdempotencyRecord</c> as an aggregate root or an auditable entity, and the pool limit, so
+    /// <see cref="IdempotencyStore"/>'s extra connections count against
+    /// <see cref="DatabaseOptions.MaxPoolSize"/> rather than a second pool with a bound of its own.
     /// </para>
     /// </summary>
     private static void AddContextFactory(IServiceCollection services, string connectionString)

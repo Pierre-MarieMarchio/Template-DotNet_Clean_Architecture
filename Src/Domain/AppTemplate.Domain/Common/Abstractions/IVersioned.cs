@@ -10,11 +10,10 @@
 /// that reads like any other.
 /// </para>
 /// <para>
-/// The domain carries the token — rather than leaving it entirely inside the persistence model —
-/// because the token is part of the aggregate's identity in time: "the version of this list I made
-/// my decision against". A repository that maps an aggregate onto a separate persistence record
-/// must be able to put that value back into the <c>WHERE</c> clause of the next write, and it can
-/// only do that if the aggregate it was handed remembers it.
+/// The domain carries the token because it is part of the aggregate's identity in time: "the
+/// version of this list I made my decision against". A repository that maps an aggregate onto a
+/// separate persistence record must put that value back into the <c>WHERE</c> clause of the next
+/// write, and it can only do that if the aggregate it was handed remembers it.
 /// </para>
 /// </summary>
 public interface IVersioned

@@ -24,10 +24,8 @@ namespace AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 /// bytes for longer than it needed to.
 /// </para>
 /// <para>
-/// It commits nothing. Unlike <c>CancelRemindersOnTodoItemCompletedConsumer</c>, which writes rows
-/// and therefore owns a <see cref="IUnitOfWork"/> call of its own, this one touches only the object
-/// store — and the row whose deletion triggered it has already been committed by the time this
-/// runs.
+/// It commits nothing, and needs no <see cref="IUnitOfWork"/>: it touches only the object store,
+/// and the row whose deletion triggered it was committed before this ran.
 /// </para>
 /// </summary>
 internal sealed class ReclaimContentOnStoredFileDeletedConsumer(

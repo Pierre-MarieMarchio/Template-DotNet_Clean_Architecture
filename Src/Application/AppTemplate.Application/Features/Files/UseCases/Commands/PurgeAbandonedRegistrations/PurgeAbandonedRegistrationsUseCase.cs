@@ -10,18 +10,14 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandone
 /// and never used it leaves a pending row for ever otherwise, holding a slot against its owner's
 /// quota that nothing would ever give back.
 /// <para>
-/// <b>Runs on a schedule, from <c>AppTemplate.Worker</c> — never from a request — which is why it
-/// must not read <see cref="ICurrentUser"/>.</b> The worker registers <c>BackgroundCurrentUser</c>,
-/// whose <c>UserId</c> throws rather than pretend an anonymous caller, so a use case that reached
-/// for the caller here would fail on its first iteration. The files it removes belong to every
-/// owner and to no caller, which is exactly why there is nobody to ask.
+/// <b>Runs from <c>AppTemplate.Worker</c>, so it must not read <see cref="ICurrentUser"/>:</b> that
+/// host's implementation throws rather than invent an anonymous caller, and the registrations swept
+/// here belong to every owner and to none of them.
 /// </para>
 /// <para>
-/// <b>No leader lease, deliberately.</b> <see cref="ILeaderLease"/>'s own documentation draws the
-/// line: a pass that only issues idempotent deletes over a range already covered costs a second
-/// replica a connection and nothing else — unlike the reminder pass, which sends mail. Two hosts
-/// running this at once remove the same rows, one of them loses on <c>xmin</c>, and the result is
-/// the same set of rows gone.
+/// <b>No leader lease</b>, on the line <see cref="ILeaderLease"/>'s own documentation draws: this
+/// pass only issues idempotent deletes over a range already covered, so two hosts running it at
+/// once remove the same rows, one loses on <c>xmin</c>, and the same set of rows ends up gone.
 /// </para>
 /// <para>
 /// The query is the coarse filter and <see cref="StoredFile.IsAbandoned"/> is the decision, checked

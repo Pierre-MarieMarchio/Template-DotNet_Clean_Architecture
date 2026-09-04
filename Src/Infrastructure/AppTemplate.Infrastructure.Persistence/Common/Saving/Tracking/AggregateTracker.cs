@@ -12,12 +12,10 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 /// to depend on nothing but <typeparamref name="TAggregate"/>'s id, its version and its audit stamps.
 /// <para>
 /// <b>What stays out, on purpose.</b> <see cref="FlushTo"/> is declared here and implemented nowhere:
-/// mapping an aggregate onto its tracked row is exactly where the two features diverge today — one has
-/// child rows to reconcile and a root to touch when only a child changed, the other does not — and
-/// folding that divergence into one shared method behind a flag would hide the one part of the tracker
-/// that is actually worth reading feature by feature. Below is the measurement that
-/// drew this line, and for what happens the day a third tracker's <c>FlushTo</c> turns out to match one
-/// of the first two exactly.
+/// mapping an aggregate onto its tracked row is exactly where the features diverge — one has child
+/// rows to reconcile and a root to touch when only a child changed, the other does not — and folding
+/// that divergence into one shared method behind a flag would hide the one part of a tracker that is
+/// worth reading feature by feature.
 /// </para>
 /// </summary>
 /// <typeparam name="TAggregate">

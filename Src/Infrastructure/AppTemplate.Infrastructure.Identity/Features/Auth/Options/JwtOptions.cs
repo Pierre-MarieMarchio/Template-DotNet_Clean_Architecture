@@ -5,10 +5,9 @@ using Microsoft.IdentityModel.Tokens;
 namespace AppTemplate.Infrastructure.Identity.Features.Auth.Options;
 
 /// <summary>
-/// Access-token signing and validation settings. Bound and validated at startup: the previous
-/// <c>JwtSettings</c> was a concrete singleton with non-nullable strings behind a blanket
-/// <c>#pragma warning disable</c>, so a missing key surfaced only as <c>IDX10653</c> the first time
-/// somebody tried to log in.
+/// Access-token signing and validation settings. Bound and validated at startup, so a missing or
+/// too-short key fails the host rather than surfacing as <c>IDX10653</c> the first time somebody
+/// tries to log in.
 /// </summary>
 public sealed class JwtOptions
 {

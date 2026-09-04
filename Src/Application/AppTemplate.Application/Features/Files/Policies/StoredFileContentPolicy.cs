@@ -8,17 +8,9 @@ namespace AppTemplate.Application.Features.Files.Policies;
 /// it is here rather than behind the port so that it can be read, argued with and tested without a
 /// scanner, a bucket or a socket.
 /// <para>
-/// <b>It closes the gap <c>SECURITY.md</c> names: "the declared media type is a claim, not a
-/// fact".</b> The claim is now checked against the content, and a file whose bytes contradict it is
-/// refused rather than served under a type it is not.
-/// </para>
-/// <para>
 /// <b>The type check needs nothing configured and always runs</b>; the malware verdict is a
-/// capability a deployment adds. That asymmetry is deliberate and it is what a template can honestly
-/// promise: a signature table ships with the code and works in every deployment, and an antivirus
-/// daemon is an operational dependency that some deployments will not have. A file in a deployment
-/// with no scanner is still refused for being an SVG dressed as a PNG; it is not refused for
-/// carrying a virus, because nothing looked.
+/// capability a deployment adds. A file in a deployment with no scanner is still refused for being
+/// an SVG dressed as a PNG; it is not refused for carrying a virus, because nothing looked.
 /// </para>
 /// </summary>
 public static class StoredFileContentPolicy

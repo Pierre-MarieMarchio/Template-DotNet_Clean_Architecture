@@ -18,11 +18,10 @@ namespace AppTemplate.Infrastructure.Identity.Features.Auth.Services;
 /// store — the same <c>AspNetUserTokens</c> table ASP.NET Identity already uses for the authenticator
 /// key and recovery codes, under a login provider name of this module's own so the two never collide.
 /// <para>
-/// <b>Why not a JWT or a data-protected token.</b> An access token proves a completed sign-in; this
-/// proves only that a password was verified a moment ago and has to be checked against server-held
-/// state to be revoked on use — a bearer token that decrypts itself would have neither property. A
-/// row in the shared database also survives a redeploy and is visible to every replica, unlike an
-/// in-memory cache would be.
+/// <b>The challenge is server-held state, and has to stay that way.</b> It proves only that a
+/// password was verified a moment ago, and it is checked against the stored row so that it can be
+/// revoked on use; a self-describing bearer token would have neither property. The row also
+/// survives a redeploy and is visible to every replica, which an in-memory cache would not be.
 /// </para>
 /// <para>
 /// <b>Format.</b> The token handed to the caller is <c>{userId}.{secret}</c>: a login is anonymous,

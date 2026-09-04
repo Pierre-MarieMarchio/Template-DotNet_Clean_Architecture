@@ -15,9 +15,8 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 /// <para>
 /// The two halves must not be collapsed into "rebuild the row from the aggregate". Assigning every
 /// column from a freshly mapped, detached record makes every write a full-row <c>UPDATE</c> and
-/// overwrites the audit columns the interceptor owns — precisely the defect this template was
-/// rescued from. An implementation therefore mutates the <em>tracked</em> rows in place and lets EF
-/// decide what actually changed.
+/// overwrites the audit columns the interceptor owns. An implementation therefore mutates the
+/// <em>tracked</em> rows in place and lets EF decide what actually changed.
 /// </para>
 /// </summary>
 internal interface IAggregateFlusher

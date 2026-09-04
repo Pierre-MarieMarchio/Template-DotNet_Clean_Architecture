@@ -10,7 +10,7 @@ namespace AppTemplate.Application.UnitTests;
 internal static class UseCaseDiscovery
 {
     internal static IReadOnlyList<Type> Implementations { get; } =
-        [.. typeof(ServiceRegistration).Assembly
+        [.. typeof(ApplicationModule).Assembly
             .GetTypes()
             .Where(type => type is { IsClass: true, IsAbstract: false }
                 && typeof(IUseCase).IsAssignableFrom(type))

@@ -201,7 +201,7 @@ public sealed class ConfirmFileUploadUseCaseTests
     }
 
     /// <summary>
-    /// <b>The guarantee this endpoint no longer gives.</b> A matching deposit is not a readable file:
+    /// <b>The guarantee this endpoint does not give.</b> A matching deposit is not a readable file:
     /// nothing has read the content, so the file is not servable and carries no availability instant.
     /// Making this endpoint release the file again — because it is the convenient place, and because
     /// a client is already waiting there — would serve every byte anyone uploads without one of them

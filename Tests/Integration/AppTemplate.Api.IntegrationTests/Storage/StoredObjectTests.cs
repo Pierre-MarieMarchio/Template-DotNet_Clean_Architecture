@@ -32,13 +32,11 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
     /// confirmation needs, and what it could not do.
     /// </summary>
     /// <remarks>
-    /// <b>This is the opposite of the test that used to stand here.</b> The grant signed
-    /// <c>x-amz-sdk-checksum-algorithm: SHA256</c>, which names an algorithm and supplies nothing to
-    /// check against: MinIO accepted the deposit, recorded no digest, and this call threw for want of
-    /// one — so every file deposited through the two-step upload was left unconfirmable, and the
-    /// feature could not complete against a real store at all. The old test characterised that and
-    /// said in its own remarks to replace it with this one rather than delete it, so that the defect
-    /// could not outlive its description in silence.
+    /// The grant signs the digest itself rather than only naming an algorithm. An
+    /// <c>x-amz-sdk-checksum-algorithm</c> header alone supplies nothing to check against: MinIO
+    /// accepts the deposit, records no digest, and this call has none to return — which leaves every
+    /// file deposited through the two-step upload unconfirmable, and the feature unable to complete
+    /// against a real store at all.
     /// </remarks>
     [Fact]
     public async Task Describing_AnObjectDepositedUnderTheGrantThisModuleMints_ReportsItsRealDigest()

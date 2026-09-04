@@ -6,14 +6,12 @@
 /// writes one transaction: the first three below each name a moment when the two are known to
 /// disagree about something, and the fourth names the one file that will never agree.
 /// <para>
-/// <b>There is still no deleted state, and there is still not meant to be one.</b> A deleted file is
-/// a removed row — see <c>CONTRIBUTING.md</c>: a row is either there or it is not, and a state
-/// meaning "gone" would put a predicate in every query, where the one that forgets it serves a file
-/// that was meant to be unreachable. <see cref="Quarantined"/> is not that state and does not cost
-/// that predicate: the only thing in this feature that hands out a file's bytes asks for
+/// <b>No member here may mean "deleted".</b> A deleted file is a removed row — see
+/// <c>CONTRIBUTING.md</c> — and a state meaning "gone" would put a predicate in every query, where
+/// the one that forgets it serves a file that was meant to be unreachable. <see cref="Quarantined"/>
+/// costs no such predicate: the only thing in this feature that hands out a file's bytes asks for
 /// <see cref="Available"/> by name, so a state added here is refused by default rather than served
-/// by default. That asymmetry is the whole reason a third and a fourth member are affordable and a
-/// deleted flag is not.
+/// by default.
 /// </para>
 /// <para>
 /// <b>The numbers are the column and the order is the life, and they disagree on purpose.</b> The

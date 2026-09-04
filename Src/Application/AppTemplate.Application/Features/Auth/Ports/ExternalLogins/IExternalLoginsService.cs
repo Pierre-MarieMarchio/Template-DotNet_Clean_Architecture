@@ -3,14 +3,12 @@
 namespace AppTemplate.Application.Features.Auth.Ports.ExternalLogins;
 
 /// <summary>
-/// The link between a provider's account and a local one: the <c>UserLogins</c> table ASP.NET
-/// Identity already maps and that nothing in this template has used until now.
+/// The link between a provider's account and a local one, over the <c>UserLogins</c> table ASP.NET
+/// Identity already maps.
 /// <para>
-/// Separate from <see cref="IUserAccountsService"/>, which is about a password: verifying one,
-/// changing one, and creating an account that has one. Not one of those four operations is useful
-/// here, and none of these four is useful there — an account reached through a provider has no
-/// password at all. The two are also each exactly at the four-operation ceiling, so this is a
-/// capability that could not have been added to that port whatever the reading.
+/// Separate from <see cref="IUserAccountsService"/>, which is about a password: an account reached
+/// through a provider has none, so not one of that port's operations is useful here. Both ports sit
+/// at the four-operation ceiling <c>PortConventionTests</c> imposes.
 /// </para>
 /// <para>
 /// It deliberately does <b>not</b> decide anything. Reading, linking and provisioning are four

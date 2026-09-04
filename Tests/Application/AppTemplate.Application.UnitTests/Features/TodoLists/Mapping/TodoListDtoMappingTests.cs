@@ -32,7 +32,7 @@ public sealed class TodoListDtoMappingTests
     }
 
     /// <summary>
-    /// The pinning test the spec calls for: the aggregate keeps items in insertion order, but
+    /// The pinning test for presentation order: the aggregate keeps items in insertion order, but
     /// both the projection and <c>TodoListQueries.GetDetailAsync</c> must present them ordered
     /// by title — otherwise the same resource reads differently depending on whether it came
     /// back from a write or from a query. This test can't reach the EF query directly (no

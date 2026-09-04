@@ -16,12 +16,12 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The defect this guards: the bearer handler answered <c>{"message":"You are not authenticated."}</c> as
-/// <c>application/json</c> on a challenge, and the same shape on a forbidden, while every other failure in
-/// the API was <c>application/problem+json</c> with a stable machine-readable <c>code</c>. A client
-/// therefore had to special-case the response it would see most often, and had nothing but English prose
-/// to branch on — so "session expired, refresh and retry" was indistinguishable from anything else
-/// without string matching.
+/// The defect this guards: a bearer handler left to its own devices answers a challenge and a forbidden
+/// in a shape of its own — <c>application/json</c>, an English <c>message</c>, no <c>code</c> — while
+/// every other failure in the API is <c>application/problem+json</c> with a stable machine-readable
+/// <c>code</c>. A client then has to special-case the two responses it sees most often, with nothing but
+/// prose to branch on, so "session expired, refresh and retry" becomes indistinguishable from anything
+/// else without string matching.
 /// </para>
 /// <para>
 /// The 403 is asserted by invoking the configured handler directly. That is not a shortcut: this API's

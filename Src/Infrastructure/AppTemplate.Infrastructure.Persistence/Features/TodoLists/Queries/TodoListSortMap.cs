@@ -149,7 +149,7 @@ internal static class TodoListSortMap
         SortDirection direction,
         Cursor cursor)
     {
-        // TodoListCursorKeys validates that a "createdAt" cursor's key parses as a date before the
+        // CursorKeys validates that a "createdAt" cursor's key parses as a date before the
         // use case ever calls this port, so an unparseable key here means that check was bypassed —
         // a defect in this template, not in the request, and it must stay loud rather than silently
         // ordering by nothing.
@@ -160,7 +160,7 @@ internal static class TodoListSortMap
             out DateTimeOffset key))
         {
             throw new InvalidOperationException(
-                "The cursor's key is not a valid date/time: TodoListCursorKeys should have rejected it "
+                "The cursor's key is not a valid date/time: CursorKeys should have rejected it "
                 + "before this was ever reached.");
         }
 

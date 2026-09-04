@@ -5,8 +5,7 @@ namespace AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 /// <summary>
 /// What the object store holds, enumerated. A separate port from
 /// <see cref="FileContentStore.IFileContentStore"/> because it is a separate capability:
-/// reconciliation, rather than one object's life. The four-operation ceiling on the other port had
-/// already been reached, which is the signal to split rather than to widen.
+/// reconciliation, rather than one object's life.
 /// <para>
 /// This is what the orphan sweep reads. Reclaiming storage cannot depend on a message being
 /// delivered — see <c>CONTRIBUTING.md</c>'s "Correctness does not depend on event delivery" — so it
@@ -27,11 +26,9 @@ public interface IFileContentInventory
     /// Opaque, and the store's own — this application never parses one.
     /// </param>
     /// <returns>
-    /// The keys, and a continuation token when more remain. <see cref="PagedResult{TItem}"/> is
-    /// reused rather than a shape of this port's own: its keyset half is exactly "items plus an
-    /// opaque token for the next page", which is what an object store's listing is. The offset
-    /// half — page number, total count — is <c>null</c> here, because no store will count its own
-    /// contents to answer a listing.
+    /// The keys, and a continuation token when more remain. Only the keyset half of
+    /// <see cref="PagedResult{TItem}"/> is populated: the offset half — page number, total count —
+    /// is <c>null</c>, because no store will count its own contents to answer a listing.
     /// </returns>
     Task<PagedResult<string>> ListKeysAsync(
         string prefix,

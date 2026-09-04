@@ -4,9 +4,9 @@
 /// The audit trail for authentication itself: who signed in, who failed to, whose account locked,
 /// and every point a credential was revoked or found already spent.
 /// <para>
-/// One operation, not one per event, so this stays one capability: recording an event. The typed
-/// events below are the "jeu d'événements typés" — a closed set of facts, each with only the data
-/// that fact carries — rather than a widening interface.
+/// One operation, not one per event, so this stays one capability: recording an event. What varies
+/// is the closed set of typed events below, each carrying only the data its own fact carries,
+/// rather than the width of this interface.
 /// </para>
 /// <para>
 /// <b>Never given an email address.</b> Several call sites along this vertical — resending a

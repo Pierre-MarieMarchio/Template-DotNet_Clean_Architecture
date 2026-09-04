@@ -13,15 +13,19 @@
 # Secrets are supplied at runtime through environment variables
 # (ConnectionStrings__Default, Jwt__Key, ...) — never baked in.
 #
-# Every appsettings file is excluded first, then exactly ONE is re-included:
-# Src/Presentation/AppTemplate.Api/appsettings.json. That file is tracked in git precisely because it
-# documents the configuration schema and holds no secret (secret-shaped keys are
-# empty strings), and shipping it keeps the image's Logging / Identity / Jwt
-# defaults intact. Everything else stays out — in particular
+# Every appsettings file is excluded first, then exactly TWO are re-included: each
+# host's own Src/Presentation/<host>/appsettings.json. Both are tracked in git
+# precisely because they document the configuration schema and hold no secret
+# (secret-shaped keys are empty strings), and shipping them keeps each image's
+# Logging / Identity / Jwt defaults intact. The worker's is not optional: it is the
+# only place Microsoft.EntityFrameworkCore.Database.Command is pinned to Warning,
+# and without it that image logs every SQL statement — parameters included — at
+# Information. Everything else stays out — in particular
 # appsettings.Development.json, which legitimately holds a real local password,
 # and any appsettings.Production.json a developer drops in locally.
 **/appsettings*.json
 !Src/Presentation/AppTemplate.Api/appsettings.json
+!Src/Presentation/AppTemplate.Worker/appsettings.json
 
 **/*.pfx
 **/*.p12
@@ -64,8 +68,9 @@ ex.env
 **/*.jfm
 
 # ---------------------------------------------------------------------------
-# Tests. The runtime image publishes only AppTemplate.Api; test projects (and the
-# Testcontainers fixtures they carry) are built in CI, not in this image.
+# Tests. The runtime images publish AppTemplate.Api and AppTemplate.Worker; test
+# projects (and the Testcontainers fixtures they carry) are built in CI, not in
+# these images.
 # ---------------------------------------------------------------------------
 Tests/
 

@@ -10,10 +10,9 @@ namespace AppTemplate.Infrastructure.Storage.Features.Files.Options;
 /// With no host set, the inspection still reads every deposited file and still refuses content that
 /// contradicts what was declared — that check is a table of constants in the application layer and
 /// needs nothing configured. What is missing is the antivirus verdict, and it is missing visibly:
-/// the adapter says so once at start-up, and <c>SECURITY.md</c> says so in writing. The alternative,
-/// refusing to boot without a scanner, would make the template unusable for the deployments that
-/// have no daemon to point at, and would be a stronger demand than the one made of the object store
-/// itself, whose credentials are also allowed to be absent.
+/// the adapter says so once at start-up, and <c>SECURITY.md</c> says so in writing. Validation here
+/// is lenient for that reason: a rule that demanded a scanner would fail the boot of every
+/// deployment that has no daemon to point at.
 /// </para>
 /// <para>
 /// Public because it is bound from configuration and its section name is part of the template's

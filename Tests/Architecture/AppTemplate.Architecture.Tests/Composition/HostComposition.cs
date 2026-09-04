@@ -149,9 +149,9 @@ internal static class HostComposition
     /// <summary>
     /// The worker's composition: the same five modules, and deliberately <em>without</em>
     /// <c>AddHttpContextAccessor</c>, because that is the one difference between the two hosts that
-    /// can break a graph. A module gaining a dependency on <c>IHttpContextAccessor</c> would leave
-    /// the API's container green and stop the worker at start-up; nothing used to notice, because
-    /// the word "Worker" did not appear anywhere in this project.
+    /// can break a graph. A module gaining a dependency on <c>IHttpContextAccessor</c> leaves the
+    /// API's container green and stops the worker at start-up, and this composition is the only
+    /// thing in the rule set that notices.
     /// <para>
     /// The worker registers <c>BackgroundCurrentUser</c> for <see cref="ICurrentUser"/>, a class
     /// that throws rather than invent a principal. This composition stands in for it the same way

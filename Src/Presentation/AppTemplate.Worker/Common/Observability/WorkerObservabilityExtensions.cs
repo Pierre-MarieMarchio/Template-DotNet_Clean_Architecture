@@ -52,14 +52,20 @@ public static class WorkerObservabilityExtensions
                 serviceVersion: ServiceVersion,
                 serviceInstanceId: Environment.MachineName))
             .WithTracing(tracing => tracing
+                // TraceIdRatioBasedSampler decides once, at the root, so a trace is never kept for
+                // some of its spans and dropped for the rest. A ratio of 1 (the default) behaves
+                // exactly like the SDK's own AlwaysOn sampler. Same construction as the Api host's:
+                // both bind the same "OpenTelemetry" section, so a ratio set for a deployment has to
+                // mean the same thing in both of its processes.
+                .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(telemetry.TracesSamplingRatio)))
                 // Each loop's own span per task, plus the Npgsql span for the statements it issues —
                 // the same pairing AppTemplate.Api gets for a request and its query. One AddSource
                 // per host-owned ActivitySource, and
                 // ObservabilityRegistrationTests.EveryDiagnosticsNameAHostDeclares_IsRegisteredByThatHost
                 // fails the build for one that is missing.
-                .AddSource(FileDiagnostics.Name)
-                .AddSource(MaintenanceDiagnostics.Name)
-                .AddSource(ReminderDiagnostics.Name)
+                .AddSource(FileInstruments.Name)
+                .AddSource(MaintenanceInstruments.Name)
+                .AddSource(ReminderInstruments.Name)
                 .AddNpgsql()
                 .AddHttpClientInstrumentation()
                 .AddOtlpExporter(exporter =>
@@ -70,10 +76,12 @@ public static class WorkerObservabilityExtensions
             .WithMetrics(metrics => metrics
                 // The three loops' iteration counters and volume counters. All three are the
                 // heartbeat an alert watches, and a meter this host declares but does not name here
-                // is measured and thrown away — which is what happened to the Files loop.
-                .AddMeter(FileDiagnostics.Name)
-                .AddMeter(MaintenanceDiagnostics.Name)
-                .AddMeter(ReminderDiagnostics.Name)
+                // is measured and thrown away at no lower cost than working — which is why
+                // ObservabilityRegistrationTests fails the build for one that is missing rather
+                // than leaving it to review.
+                .AddMeter(FileInstruments.Name)
+                .AddMeter(MaintenanceInstruments.Name)
+                .AddMeter(ReminderInstruments.Name)
                 .AddHttpClientInstrumentation()
                 // "AppTemplate.Reminders": AppTemplate.Infrastructure.Persistence.Features
                 // .Reminders.Observability.ReminderDiagnostics's own missed-cancellation counter. A

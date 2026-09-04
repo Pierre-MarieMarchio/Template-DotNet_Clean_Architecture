@@ -14,42 +14,31 @@ namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueRe
 /// <c>UserId</c> rather than pretend an anonymous caller, and a use case that reads it would fail
 /// on its very first iteration.
 /// <para>
-/// <b>One host at a time.</b> The whole pass runs under <see cref="ILeaderLease"/>, and that guard
-/// belongs to this operation rather than to the timer that happens to start it: the per-reminder
-/// claim below has never defended against a concurrent pass. <c>Reminder.TryClaim</c> mutates
-/// in memory and the batch commits at the end, so two replicas ticking in the same second both read
-/// the claim as free, both send the mail, and only afterwards does one of them lose on <c>xmin</c> —
-/// once the duplicate is already delivered. Finding the lease taken is not a failure: another host
-/// is doing the work, so the pass returns zero notified and says so in the log, because zero on its
-/// own would be indistinguishable from a pass that had nothing due.
+/// <b>One host at a time.</b> The whole pass runs under <see cref="ILeaderLease"/>, and that lease
+/// is the only thing keeping two replicas from delivering the same reminder twice: the per-reminder
+/// claim does not, because <c>Reminder.TryClaim</c> mutates in memory and the batch commits at the
+/// end, so both passes read the claim as free and both send the mail before one of them loses on
+/// <c>xmin</c>. Finding the lease taken returns zero notified and says so in the log, because zero
+/// on its own would be indistinguishable from a pass that had nothing due.
 /// </para>
 /// <para>
-/// <b>Delivery is at-least-once, on purpose.</b> A crash between <see cref="IReminderNotifier.NotifyAsync"/>
+/// <b>Delivery is at-least-once.</b> A crash between <see cref="IReminderNotifier.NotifyAsync"/>
 /// succeeding and this use case's own commit lands the reminder back in the next pass's batch,
-/// still <c>Pending</c>, and it fires again. For a reminder a duplicate is harmless and a silent
-/// drop is not, so the trade is made deliberately in that direction rather than paid for an
-/// exactly-once guarantee this mechanism does not need. The lease narrows the duplication to that
-/// window and to a leadership handover mid-run; it does not remove it, and nothing here relies on
-/// it having done so.
+/// still <c>Pending</c>, and it fires again. The lease narrows that window; it does not remove it.
 /// </para>
 /// <para>
 /// <b>Completion is re-checked here, not trusted from the event that should have cancelled the
 /// reminder already.</b> <c>CancelRemindersOnTodoItemCompletedConsumer</c> runs outside the
-/// transaction that completed the item (see
-/// <c>DomainEventDispatchSaveChangesInterceptor</c>) and is not retried if it is missed, so this
-/// is what makes firing correct independently of whether that delivery happened. That consumer is
-/// a fast path, not the correctness guarantee: it retires a reminder as soon as its item is
-/// completed instead of waiting for the reminder to come due, but nothing here depends on it
-/// having run.
+/// transaction that completed the item and is not retried if it is missed, so this check is what
+/// makes firing correct independently of whether that delivery happened. Removing it makes that
+/// consumer load-bearing.
 /// </para>
 /// <para>
-/// <b>A deleted item needs no domain event to be handled correctly, for the same reason.</b>
-/// Removing a to-do item or deleting its list raises nothing (see the domain — only creation,
-/// completion and reopening do), and none is needed: an id absent from
-/// <see cref="IReminderTargetQueries.GetCompletionStatesAsync"/>'s result is cancelled here exactly
-/// like a completed one, the next time this reminder comes up for firing. An orphaned reminder is
-/// self-healing on its own schedule; that is also why it is not counted as a missed cancellation —
-/// see <see cref="IReminderDiagnostics"/>.
+/// <b>An id absent from <see cref="IReminderTargetQueries.GetCompletionStatesAsync"/>'s result is
+/// cancelled here exactly like a completed one.</b> Removing a to-do item or deleting its list
+/// raises no domain event, and none is needed: the orphaned reminder is retired the next time it
+/// comes up for firing, which is also why it is not counted as a missed cancellation — see
+/// <see cref="IReminderDiagnostics"/>.
 /// </para>
 /// </summary>
 public sealed class FireDueRemindersUseCase(

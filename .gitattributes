@@ -13,7 +13,6 @@
 *.md        text eol=lf
 *.sh        text eol=lf
 Dockerfile  text eol=lf
-*.ps1       text eol=crlf
 
 *.png binary
 *.jpg binary

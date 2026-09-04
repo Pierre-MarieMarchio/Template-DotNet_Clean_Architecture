@@ -10,12 +10,12 @@ namespace AppTemplate.Worker.Features.Files;
 /// a loop that died weeks ago — only "the pass happened" can.
 /// <para>
 /// The two volume counters are separate rather than one counter tagged by task, unlike
-/// <c>MaintenanceDiagnostics.Purged</c>, because they do not measure the same thing: one counts rows
+/// <c>MaintenanceInstruments.Purged</c>, because they do not measure the same thing: one counts rows
 /// in a table and the other counts objects in a store. A single series would invite a dashboard to
 /// add them up, and the sum would mean nothing.
 /// </para>
 /// </summary>
-internal static class FileDiagnostics
+internal static class FileInstruments
 {
     /// <summary>Shared by the <see cref="ActivitySource"/> and the <see cref="Meter"/> below, and by
     /// <c>WorkerObservabilityExtensions</c>'s own <c>AddSource</c>/<c>AddMeter</c> calls — one name,
@@ -26,11 +26,13 @@ internal static class FileDiagnostics
 
     private static readonly Meter _meter = new(Name);
 
-    /// <summary>One per sweep per pass, tagged by task and outcome — never gated on the count.</summary>
+    /// <summary>One per sweep per pass, tagged by task and outcome — never gated on the count. A pass
+    /// a configuration flag turned off counts as <c>disabled</c> rather than not counting at all, so
+    /// an alert written on "this loop stopped" has to read <c>outcome != "disabled"</c>.</summary>
     public static readonly Counter<long> Iterations = _meter.CreateCounter<long>(
         "apptemplate.worker.files.iterations",
         unit: "{iteration}",
-        description: "File sweeps that ran, tagged by task and outcome (success, failure, exception).");
+        description: "File sweeps that ran, tagged by task and outcome (success, failure, exception, disabled).");
 
     /// <summary>Registrations removed because their deposit never arrived. Zero is a valid, and common, measurement.</summary>
     public static readonly Counter<long> RegistrationsPurged = _meter.CreateCounter<long>(

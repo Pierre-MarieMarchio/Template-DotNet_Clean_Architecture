@@ -15,21 +15,32 @@ Or, equivalently, through the task wrappers — they print the real command befo
 script is also the documentation:
 
 ```bash
-./tasks.ps1 restore
-./tasks.ps1 build
-./tasks.ps1 test                 # everything
-./tasks.ps1 test -NoIntegration  # skips the Testcontainers suite
-./tasks.ps1 hygiene              # doc paths and workflow structure; no SDK needed
-./tasks.ps1 verify               # the whole gate, in CI's order
+dotnet run Tools/Tasks.cs restore
+dotnet run Tools/Tasks.cs build
+dotnet run Tools/Tasks.cs test                   # everything
+dotnet run Tools/Tasks.cs test --no-integration  # skips the Testcontainers suite
+dotnet run Tools/Tasks.cs hygiene                # doc paths, workflow structure, comment tense
+dotnet run Tools/Tasks.cs verify                 # the whole gate, in CI's order
 ```
 
-`tasks.ps1` targets Windows PowerShell 5.1 — what a stock Windows box ships — and runs unchanged on
-PowerShell 7+ on any OS. Do not introduce 7-only syntax into it; requiring 7.0 means the script does
-not start on the machine it exists to help.
+Everything under `Tools/` is a file-based C# app, which is the whole reason the prerequisite list
+below has one entry. `dotnet run Tools/Tasks.cs <task>` is the same line on Windows, Linux and
+macOS, in whichever shell you use, and it needs nothing installed that building the solution does
+not already need. There is no interpreter to locate, no line-ending rule to preserve, and no
+package to fetch before a gate will start.
+
+The first run of a given file compiles it — a second or two on a warm machine, a few on a cold one
+— and every run after that is served from the build cache in about a third of a second. A first
+invocation that pauses is the compiler, not a hang.
+
+`hygiene` costs the SDK, like every other task here. That is the deliberate trade: it asks for no
+second language runtime and no package-manager step ahead of it, so the machine that can build this
+repository can also judge it, straight after a clone.
 
 Prerequisites: the .NET SDK version pinned in `global.json` (nothing else — `rollForward` is
 `latestFeature`, so a newer patch of the same feature band is fine), and Docker for the integration
-tests. `./tasks.ps1 compose-up` starts PostgreSQL and mailpit for running the app by hand.
+tests. `dotnet run Tools/Tasks.cs compose-up` starts PostgreSQL and mailpit for running the app by
+hand.
 
 ## The gate
 
@@ -43,18 +54,41 @@ dotnet ef migrations has-pending-model-changes \
   --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
   --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
 dotnet list package --vulnerable --include-transitive   # reports nothing
-./tasks.ps1 coverage                      # line coverage >= coverage.minimum
-./tasks.ps1 hygiene                       # doc paths resolve, workflows are sound
+dotnet run Tools/Tasks.cs coverage         # line coverage >= coverage.minimum
+dotnet run Tools/Tasks.cs hygiene          # doc paths resolve, workflows are sound
 ```
 
 The last one exists because two classes of defect are invisible to the compiler and to the tests:
-a documented path that no longer resolves, and a workflow that would fail the first time it ran.
-`.github/scripts/check-doc-paths.py` checks every repository path cited in a Markdown code span
-against the filesystem. `.github/scripts/check-workflows.py` checks what a YAML parse does not — a
-dangling `needs:`, an action pinned to a mutable tag instead of a SHA, a missing `permissions:`, a
-`$VAR` defined in no `env:` block, a script named in a `run:` but absent from disk. Both were
-developed against deliberately faulted inputs, because a validator whose clean result has never been
-contrasted with a dirty one is not evidence of anything.
+a documented path that resolves to nothing, and a workflow that would fail the first time it ran.
+`Tools/CheckDocPaths.cs` checks every repository path cited in a Markdown code span against the
+filesystem. `Tools/CheckWorkflows.cs` checks what a YAML parse does not — a dangling `needs:`, an
+action pinned to a mutable tag instead of a SHA, a missing `permissions:`, a `$VAR` defined in no
+`env:` block, a script named in a `run:` but absent from disk. `Tools/CoverageGate.cs` reads the
+Cobertura reports against the floor in `coverage.minimum`, and `Tools/CheckNarrativeComments.cs`
+holds the comment rule below.
+
+### A gate proves it can go red before it judges anything
+
+Each of the four takes a `--self-test` flag, and running it is a step in its own right rather than
+a nicety:
+
+```bash
+dotnet run Tools/CheckDocPaths.cs --self-test
+dotnet run Tools/CheckWorkflows.cs --self-test
+dotnet run Tools/CoverageGate.cs --self-test
+dotnet run Tools/CheckNarrativeComments.cs --self-test
+```
+
+Each carries two sets of fixtures, built in a temporary tree and thrown away. The faulted ones —
+each labelled with the defect it stands for — **must** make the gate fire, and the sound ones
+**must** leave it silent, which is the half that catches a rule grown eager enough to flag a
+legitimate line. A gate whose green has never been contrasted with a red says nothing about the
+repository; it says only that it ran.
+
+`hygiene` and `verify` run every self-test before letting the corresponding gate look at the tree,
+and `.github/workflows/ci.yml` does the same, one step per self-test so a fixture failure is
+legible on its own rather than buried in the gate that follows it. Adding a rule to a gate means
+adding the fixture that fails without it.
 
 ### `TreatWarningsAsErrors` is not negotiable
 
@@ -77,7 +111,7 @@ at its new home.
 After creating or moving any file:
 
 ```bash
-./tasks.ps1 format-fix     # i.e. dotnet format AppTemplate.sln
+dotnet run Tools/Tasks.cs format-fix     # i.e. dotnet format AppTemplate.sln
 ```
 
 ## Layout
@@ -98,7 +132,7 @@ AppTemplate.Application/    Common/{Abstractions,Validation,Idempotency,Collecti
                    Features/<F>/{UseCases/{Commands,Queries}/<Operation>,Ports/<Port>,
                                  Consumers,Services,Policies,Extensions,Mapping,Dtos,Errors}
 AppTemplate.Infrastructure.Persistence/
-                   Common/{Contexts,Idempotency,Leases,Saving/{Auditing,DomainEvents,Tracking},Time}
+                   Common/{Contexts,Idempotency,Leases,Options,Saving/{Auditing,DomainEvents,Tracking},Time}
                    Features/<F>/{Models,Configurations,Mapping,Tracking,Repositories,Queries,
                                  Observability,Seeding,Tables}
                    Migrations/
@@ -111,7 +145,7 @@ AppTemplate.Infrastructure.Email/       Common/{Http,Smtp}       Features/<F>/
 AppTemplate.Infrastructure.InMemory/    Common/{Email,Time}      Features/<F>/
 AppTemplate.Infrastructure.Identity/    Common/{Directories,Options}
                    Features/Auth/{Directories,Factories,Issuers,Logs,Options,Providers,
-                                  Services,Verifiers}
+                                  Services,Templates,Verifiers}
 AppTemplate.Infrastructure.Storage/     Common/{Budgets,Factories,Options}
                    Features/Files/{Inspectors,Inventories,Options,Scanners,Stores}
 Tests/             a 1:1 mirror of Src/
@@ -134,8 +168,9 @@ argued for in the pull request that adds it, and written into this file, rather 
 quietly.
 
 Neither of those two rules can catch a project nobody listed, because a project absent from the
-dictionary is absent from the loop — which is how two modules drifted for a month while the rules
-passed. `EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn` reads the modules off the disk and
+dictionary is absent from the loop, and a rule that iterates a list it does not own passes by
+saying nothing about what the list omits.
+`EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn` reads the modules off the disk and
 requires an entry in both lists, so **a new infrastructure module fails the build until its layout
 is described here and there.**
 
@@ -229,9 +264,12 @@ Two rules follow from having been broken:
   the two is wrong — find which and rename it, do not document the ambiguity.
 - **The port carries the nature word, and the adapter is the port without its `I`.**
   `IUserAccountsService` is implemented by `UserAccountsService`; `ISecurityEventLog` by
-  `SecurityEventLog`, because `Log` already says what it is. The one exception is a port several
-  modules implement, where a qualifying prefix tells them apart: `MailKitEmailSender` and
-  `InMemoryEmailSender` both satisfy `IEmailSender`.
+  `SecurityEventLog`, because `Log` already says what it is. A qualifying prefix is right in two
+  cases. The first is a port several modules implement, where the prefix tells them apart:
+  `MailKitEmailSender` and `InMemoryEmailSender` both satisfy `IEmailSender`. The second is a
+  single adapter whose technology is visible at the call site — `EfUnitOfWork`, because saving is
+  the one place the choice of Entity Framework shows, and `PostgresLeaderLease`, because which
+  store the lock is taken in is a property a caller has to reason about.
   A port's *folder* keeps the capability name — `Ports/UserAccounts/IUserAccountsService.cs` — and
   that is not cosmetic: a folder named for the interface would put a namespace and a class of the
   same name in scope of each other, which is CS0118 at every consumer.
@@ -246,9 +284,18 @@ missing, not a folder.
 Minimal, short, and about *why*. The test is: **if I delete this comment, can someone introduce a
 bug?** If not, it goes.
 
+<!-- narrative-ok: stating this rule requires quoting the phrases it bans -->
 Specifically banned: comments that paraphrase the code, and comments that narrate the repository's
 own history ("this used to…", "the old implementation…", "fixed the bug where…"). Git holds that.
 XML doc only when it says something the signature does not.
+
+`Tools/CheckNarrativeComments.cs` executes the second half of that rule over every
+`.cs` and `.md` file, `CHANGELOG.md` excepted — narrating history is what a changelog is for. Its
+pattern list is deliberately narrow, because the same words are legitimate or banned depending on
+the tense they carry: "a v2 added later would show up inside the v1" is design rationale, and no
+regular expression separates it from a sentence about this repository's past. A line that cannot
+avoid the construction carries a `narrative-ok: <reason>` marker, and the marker count is printed
+so exemptions cannot spread unnoticed.
 
 ## Tests
 
@@ -294,8 +341,9 @@ ten-second responses), never a slow one, and a `429` counts as a pass, because t
 doing its job under load is the correct outcome and a test that punished it would push someone to
 loosen the limit to get a green.
 
-It exists because every timeout, pool size and rate limit in this template was chosen by reasoning,
-and nothing had ever observed the result under concurrency. Run it against a stack of your own:
+It exists because every timeout, pool size and rate limit in this template is chosen by reasoning,
+and no other test in the suite observes the result under concurrency. Run it against a stack of
+your own:
 
 ```bash
 docker compose up -d --build
@@ -308,7 +356,7 @@ NetArchTest resolves each type through `Type.GetType(name, throwOnError: true)`,
 against a Coverlet-instrumented assembly. Running `AppTemplate.Architecture.Tests` under
 `--collect:"XPlat Code Coverage"` makes its NetArchTest-based rules throw; without the collector the
 project passes whole. So coverage is collected over every project **except** that one, in CI and in
-`./tasks.ps1 coverage` alike. Do not merge those runs back together.
+`dotnet run Tools/Tasks.cs coverage` alike. Do not merge those runs back together.
 
 ### Sharp edges worth knowing before they cost you an afternoon
 
@@ -348,37 +396,53 @@ The vertical, from the inside out. `TodoLists` is the worked example — read it
 with no child entities, so what a to-do list needs only because it owns items is visible by what
 a reminder does without.
 [docs/ADDING-A-FEATURE.md](docs/ADDING-A-FEATURE.md) walks the same vertical with the actual
-signatures at each step, if this checklist is not enough on its own.
+signatures at each step, if this checklist is not enough on its own;
+[docs/REMOVING-THE-EXAMPLE-FEATURES.md](docs/REMOVING-THE-EXAMPLE-FEATURES.md) is the reverse
+operation, and the only description of it worth following.
 
-1. **Domain** — `AppTemplate.Domain/Features/<F>/`: the aggregate root in `Entities/`, value objects in
-   `ValueObjects/`, events in `Events/`, and the repository contract in `Repositories/`. Invariants
-   belong in the constructor, the factory, and `Rehydrate` — all three, or a stored row can produce
-   an aggregate that breaks its own rules.
+Folders under `Features/` carry the feature name in the plural (`TodoLists`); file and type names
+carry the aggregate in the singular (`TodoList`). Every step below is enforced by tests rather than
+by the compiler, so run `dotnet test Tests/Architecture` before pushing.
+
+1. **Domain** — `AppTemplate.Domain/Features/<F>/`: the aggregate root in `Entities/`, sealed, value
+   objects in `ValueObjects/`, events in `Events/`, and the repository contract in `Repositories/`.
+   Invariants belong in the constructor, the factory, and `Rehydrate` — all three, or a stored row
+   can produce an aggregate that breaks its own rules. An event no consumer handles has to be named
+   in `DomainEventTests._deliberatelyUnconsumed` with its reason, or that rule fails.
 2. **Application** — `AppTemplate.Application/Features/<F>/`: one folder per operation under
    `UseCases/{Commands,Queries}/<Operation>/`, holding the command or query record, its named
    interface, the use case, and its FluentValidation validator together. Any port that is not the
-   repository goes in `Ports/<Port>/`, next to the messages that cross it. Read models more than one
-   operation shares go in `Dtos/`; the feature's failure vocabulary goes in `Errors/`. Validate
-   against the *trimmed* value if the domain normalises.
+   repository goes in `Ports/<Port>/`, next to the messages that cross it, and declares at most four
+   operations. Read models more than one operation shares go in `Dtos/`; the feature's failure
+   vocabulary goes in `Errors/`. Validate against the *trimmed* value if the domain normalises.
+   Use cases are discovered; **a domain-event consumer and anything under `Services/` are not** —
+   bind each one by hand in `ApplicationModule.AddApplicationLayer`, or it compiles and never runs.
 3. **Persistence** — `AppTemplate.Infrastructure.Persistence/Features/<F>/`: the `*Record` in `Models/`, its
    `IEntityTypeConfiguration` in `Configurations/`, the mapper in `Mapping/`, the tracker in
    `Tracking/`, the repository implementation in `Repositories/`, read-side projections in `Queries/`.
-   Register them in `PersistenceModule`. **A tracker must resolve as one instance under every
-   contract it serves** — three independent registrations give three instances, and every write then
-   persists nothing, silently. `SharedInstanceRegistrationTests` is the guard.
+   Register them in `PersistenceModule` — the read-side port included — and then in `AppDbContext`:
+   its schema constant, its `DbSet`, and its `builder.ApplyConfiguration(new …())` call.
+   **`PersistenceModule` applies no configuration**; `OnModelCreating` names each one by hand, and a
+   configuration nobody names is inert while every gate stays green.
+   `PersistenceModelTests.EveryEntityTypeConfiguration_IsAppliedByTheContext` is the guard.
+   **A tracker must resolve as one instance under every contract it serves** — three independent
+   registrations give three instances, and every write then persists nothing, silently.
+   `SharedInstanceRegistrationTests` is the guard.
 4. **API** — `AppTemplate.Api/Features/<F>/`: the controller in `Controllers/`, request records in
    `Contracts/Requests/`, response records in `Contracts/Responses/`, and the mapping between them
-   and the application's DTOs in `Mapping/`. Endpoints are authenticated by default; opting out needs
-   an explicit `[AllowAnonymous]`.
-5. **Tests** — mirror each of the above.
-6. **Migration** — `./tasks.ps1 migration-add <Name>`, then confirm
-   `has-pending-model-changes` reports nothing.
+   and the application's DTOs in `Mapping/`. No endpoint accepts `PATCH`. Endpoints are
+   authenticated by default; opting out needs an explicit `[AllowAnonymous]` **and** the action's
+   name in `HttpSurfaceTests._anonymousActions`.
+5. **Tests** — mirror each of the above, down to `Features/<F>/`.
+6. **Migration** — `dotnet run Tools/Tasks.cs migration-add <Name>`, then confirm
+   `has-pending-model-changes` reports nothing. An empty migration means step 3's `AppDbContext`
+   edits are missing, not that there was nothing to do.
 
 ## Migrations
 
-Generate with `./tasks.ps1 migration-add <Name>`. The application applies migrations at startup
-**only in Development**; a deployment applies them as a separate step from a bundle
-(`./tasks.ps1 migration-bundle`). Applying them at startup in production would give the
+Generate with `dotnet run Tools/Tasks.cs migration-add <Name>`. The application applies migrations
+at startup **only in Development**; a deployment applies them as a separate step from a bundle
+(`dotnet run Tools/Tasks.cs migration-bundle`). Applying them at startup in production would give the
 application's own runtime credentials the right to alter the schema, and would race every replica
 against every other on a rolling deploy; `SECURITY.md` says what a deployment still owes.
 

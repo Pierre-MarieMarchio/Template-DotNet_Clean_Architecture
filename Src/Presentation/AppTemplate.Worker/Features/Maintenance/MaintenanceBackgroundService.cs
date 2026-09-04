@@ -99,7 +99,7 @@ internal sealed class MaintenanceBackgroundService(
     private async Task RunTaskAsync<TUseCase>(IServiceProvider services, string label, CancellationToken stoppingToken)
         where TUseCase : IUseCase<Result<int>>
     {
-        using Activity? activity = MaintenanceDiagnostics.ActivitySource.StartActivity("maintenance.purge");
+        using Activity? activity = MaintenanceInstruments.ActivitySource.StartActivity("maintenance.purge");
         activity?.SetTag("maintenance.task", label);
 
         try
@@ -111,8 +111,8 @@ internal sealed class MaintenanceBackgroundService(
 
             if (result.IsSuccess)
             {
-                MaintenanceDiagnostics.Iterations.Add(1, taskTag, new("outcome", "success"));
-                MaintenanceDiagnostics.Purged.Add(result.Value, taskTag);
+                MaintenanceInstruments.Iterations.Add(1, taskTag, new("outcome", "success"));
+                MaintenanceInstruments.Purged.Add(result.Value, taskTag);
                 activity?.SetTag("maintenance.purged", result.Value);
 
                 // Unconditional on purpose: without it, a purge that removes nothing for weeks
@@ -127,7 +127,7 @@ internal sealed class MaintenanceBackgroundService(
             else
             {
                 Error error = result.Error!;
-                MaintenanceDiagnostics.Iterations.Add(1, taskTag, new("outcome", "failure"));
+                MaintenanceInstruments.Iterations.Add(1, taskTag, new("outcome", "failure"));
                 activity?.SetStatus(ActivityStatusCode.Error, error.Code);
                 logger.LogWarning(
                     "Purging {Label} reported a failure: {ErrorCode} — {ErrorMessage}.",
@@ -144,7 +144,7 @@ internal sealed class MaintenanceBackgroundService(
         }
         catch (Exception exception)
         {
-            MaintenanceDiagnostics.Iterations.Add(1, new("task", label), new("outcome", "exception"));
+            MaintenanceInstruments.Iterations.Add(1, new("task", label), new("outcome", "exception"));
             activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
             logger.LogError(exception, "Purging {Label} failed unexpectedly; will retry at the next interval.", label);
         }

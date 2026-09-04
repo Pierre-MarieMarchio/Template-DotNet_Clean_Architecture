@@ -8,20 +8,18 @@ namespace AppTemplate.Api.Common.Hosting;
 /// Development-only schema bootstrap.
 /// </summary>
 /// <remarks>
-/// The version this replaces ran on every start in every environment, before Kestrel began
-/// listening: two sequential retry loops of up to twenty seconds each, with no try/catch, so a bad
-/// connection string produced a forty-second silent hang and then an unhandled exception. It also
-/// seeded an <c>admin</c>/<c>admin</c> account outside its own environment guard.
+/// Runs after the app is built and only under Development, so a deployment never migrates from the
+/// process that serves requests: that needs DDL rights at runtime and races between replicas on
+/// <c>__EFMigrationsHistory</c>. Failures are logged with context before rethrowing.
 /// <para>
-/// Here it runs after the app is built but only under Development, failures are logged with context
-/// before rethrowing, and seeding is delegated to <see cref="IIdentitySeeder"/>, which is itself
-/// opt-in and refuses to run outside Development. Npgsql's <c>EnableRetryOnFailure</c> handles
-/// transient unavailability, so no hand-rolled retry loop is needed.
+/// One migration history, against the single <see cref="AppDbContext"/>: a second context would
+/// mean a window in which one module's schema exists and the other's does not, and a lasting one
+/// if the second call failed.
 /// </para>
 /// <para>
-/// It applies <em>one</em> migration history, against the single <see cref="AppDbContext"/>. The
-/// previous version migrated two contexts in sequence, which meant a window — and, if the second
-/// call failed, a lasting state — in which one module's schema existed and the other's did not.
+/// No hand-rolled retry loop: Npgsql's <c>EnableRetryOnFailure</c> handles transient unavailability.
+/// Seeding is delegated to <see cref="IIdentitySeeder"/>, which is opt-in and refuses to run outside
+/// Development.
 /// </para>
 /// </remarks>
 internal static class DevelopmentDatabaseExtensions

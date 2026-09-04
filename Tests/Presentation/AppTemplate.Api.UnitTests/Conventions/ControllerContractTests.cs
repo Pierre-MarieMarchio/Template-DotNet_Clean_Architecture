@@ -30,7 +30,7 @@ namespace AppTemplate.Api.UnitTests.Conventions;
 public sealed class ControllerContractTests
 {
     private static readonly Assembly _api = typeof(ApiControllerBase).Assembly;
-    private static readonly Assembly _application = typeof(ServiceRegistration).Assembly;
+    private static readonly Assembly _application = typeof(ApplicationModule).Assembly;
 
     [Fact]
     public void Discovery_FindsTheControllers()

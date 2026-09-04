@@ -32,8 +32,12 @@ public static class ModelStateProblemExtensions
             .ToDictionary(
                 entry => NormalizeKey(entry.Key),
                 entry => entry.Value!.Errors
+                    // An entry MVC produced from a deserialisation failure carries the exception
+                    // and no text. Its message names internal types, byte offsets and paths, so the
+                    // fixed sentence stands in for it: what a caller can act on is the field, which
+                    // is the dictionary key, not the reason the parser gave up.
                     .Select(error => string.IsNullOrEmpty(error.ErrorMessage)
-                        ? error.Exception?.Message ?? "The value is invalid."
+                        ? "The value is invalid."
                         : error.ErrorMessage)
                     .ToArray(),
                 StringComparer.Ordinal);

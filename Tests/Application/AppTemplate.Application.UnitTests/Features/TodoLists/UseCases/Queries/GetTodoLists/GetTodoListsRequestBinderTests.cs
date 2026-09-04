@@ -8,7 +8,7 @@ using SortDirection = AppTemplate.Application.Common.Collections.SortDirection;
 namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Queries.GetTodoLists;
 
 /// <summary>
-/// The query-string translation lifted out of <c>GetTodoListsUseCase</c>: paging bounds,
+/// The query-string translation <c>GetTodoListsUseCase</c> delegates: paging bounds,
 /// sort parsing and the cursor/sort coherence rules, tested against
 /// <see cref="GetTodoListsRequestBinder.Bind"/> directly rather than through a use case and a
 /// mocked port.

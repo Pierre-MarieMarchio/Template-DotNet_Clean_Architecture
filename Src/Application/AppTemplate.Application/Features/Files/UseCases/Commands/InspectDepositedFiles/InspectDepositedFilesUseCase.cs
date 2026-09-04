@@ -17,17 +17,14 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.InspectDeposi
 /// file.</b> Examining content means reading all of it: up to <c>FileSize.MaxBytes</c> out of the
 /// object store and, where a scanner is configured, through it. Inside
 /// <c>ConfirmFileUploadUseCase</c> that would put minutes of transfer and unbounded scanner time
-/// inside an HTTP request whose body is a few hundred bytes of metadata — the same objection this
-/// repository already sustained against resizing an image on the way out, and it does not become
-/// weaker because the work is I/O instead of CPU. <c>CONTRIBUTING.md</c> settles the shape by name:
-/// derivative work over a deposited file is "a sweep for available files without a derivative", with
-/// an event only ever making it prompt.
+/// inside an HTTP request whose body is a few hundred bytes of metadata. See <c>SECURITY.md</c>.
 /// </para>
 /// <para>
-/// <b>There is no event making it prompt, deliberately.</b> The fast path its siblings have would be
-/// a consumer of a confirmation event — and consumers here are dispatched in-process after commit,
-/// which is inside the very request the pass exists to keep this work out of. So the interval is the
-/// whole of the latency, and it is set short for that reason rather than tuned against a cost.
+/// <b>Nothing makes it prompt, and nothing may.</b> The fast path its siblings have would be a
+/// consumer of a confirmation event — and consumers here are dispatched in-process after commit,
+/// which is inside the very request the pass exists to keep this work out of. So the interval is
+/// the whole of the latency a user waits, and it is set short for that reason rather than tuned
+/// against a cost.
 /// </para>
 /// <para>
 /// <b>It re-derives its own precondition</b>, which is what the missing outbox requires of anything

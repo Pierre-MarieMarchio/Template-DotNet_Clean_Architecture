@@ -6,12 +6,8 @@ namespace AppTemplate.Api.Common.Outbound;
 /// The one outbound HTTP policy, applied to every client this host's
 /// <c>IHttpClientFactory</c> hands out, whichever module registered it.
 /// <para>
-/// It goes on the factory's defaults rather than into a method each module calls, because a method
-/// is something a module can forget: only <c>AppTemplate.Infrastructure.Persistence</c> may be
-/// shared between infrastructure modules, so a shared HTTP project is not available, and putting
-/// <c>HttpClient</c> behind an application port is the abstraction <c>docs/ARCHITECTURE.md</c>
-/// refuses by name. Defaults need no cooperation from the module and cannot be opted out of by
-/// accident.
+/// It goes on the factory's defaults rather than into a method each module calls, because a default
+/// needs no cooperation from the module and cannot be opted out of by accident.
 /// </para>
 /// <para>
 /// <c>Src/Presentation/AppTemplate.Worker/Common/Outbound/OutboundHttpExtensions.cs</c> is this

@@ -14,24 +14,9 @@ namespace AppTemplate.Infrastructure.Storage.Features.Files.Inspectors;
 /// <summary>
 /// <see cref="IFileContentInspector"/> over an S3-compatible object store and, where one is
 /// configured, a <c>clamd</c> daemon.
-/// <para>
-/// <b>The prefix names where the bytes come from, not what examines them.</b> Two modules implement
-/// this port — this one and <c>InMemoryFileContentInspector</c> — so each says which it is, exactly
-/// as the two content stores do. The scanner is a collaborator this adapter may or may not have, and
-/// naming the class after it would promise a dependency that half of the deployments using this
-/// template will not configure.
-/// </para>
-/// <para>
-/// <b>It lives in this module because reading the store is what it does.</b> An inspection cannot be
-/// performed without opening the object, and opening the object means the bucket, the credentials,
-/// the endpoint and the retry budget that <see cref="StorageOptions"/> and
-/// <see cref="BucketBudget"/> already hold. A separate module would need its own copy of all of it —
-/// and could not borrow this one's, because only the persistence project may be shared between
-/// infrastructure modules, and a port in the application layer declared so that one adapter could
-/// call another would be a port no use case consumes, which the architecture rules refuse by name.
-/// So the module's reason to change is unchanged and stated more precisely than before: it is how
-/// this application reaches a file's bytes. Examining them is reaching them.
-/// </para>
+/// The <c>S3</c> prefix names where the bytes come from, not what examines them: the scanner is a
+/// collaborator this adapter may or may not have, and the other implementation of the port is
+/// <c>InMemoryFileContentInspector</c>.
 /// <para>
 /// <b>This module escapes the hosts' outbound HTTP policy twice over</b>: the AWS SDK builds its own
 /// <c>HttpClient</c>, and <c>clamd</c> does not speak HTTP at all. <see cref="BucketBudget"/> and

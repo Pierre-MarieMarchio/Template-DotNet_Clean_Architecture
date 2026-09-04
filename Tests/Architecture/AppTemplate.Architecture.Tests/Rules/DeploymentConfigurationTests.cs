@@ -12,12 +12,12 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// <summary>
 /// The manifests in <c>deploy/kubernetes/</c> against the options both hosts validate at start-up.
 /// <para>
-/// <b>Nothing compiles a manifest, and for a while nothing checked one either.</b> As shipped, no
-/// manifest in that directory set a single <c>Storage__*</c> variable, while
-/// <c>StorageOptionsValidator</c> requires <c>Storage:BucketName</c>, the tracked
-/// <c>appsettings.json</c> leaves it blank, and both hosts compose <c>AddStorageModule</c> with
-/// <c>ValidateOnStart</c>. Applying that directory produced two pods that never finished starting —
-/// the exact failure <c>configmap-api.yaml</c>'s own header promises the file prevents.
+/// <b>Nothing compiles a manifest, so nothing but this rule holds one to the validators.</b> A
+/// ConfigMap that omits a variable a validator requires — <c>Storage__BucketName</c>, say, which
+/// <c>StorageOptionsValidator</c> demands, the tracked <c>appsettings.json</c> leaves blank, and
+/// both hosts validate through <c>AddStorageModule</c> with <c>ValidateOnStart</c> — yields a pod
+/// that never finishes starting, which is the exact failure <c>configmap-api.yaml</c>'s own header
+/// promises the file prevents.
 /// </para>
 /// <para>
 /// This is a rule rather than a script because the question is not "does the YAML parse" but "does

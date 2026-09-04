@@ -1,21 +1,42 @@
 # Removing the example features
 
-This template ships two worked examples: `TodoLists` and `Reminders`. They exist to teach —
-an aggregate with real invariants, domain events, optimistic concurrency, a paginated
-collection endpoint, a background worker calling the same use cases as the API — and a
-derived project is expected to delete them once it has read what they show. `docs/ADDING-A-FEATURE.md`
-promises this can be done "cleanly"; this document is that promise, walked and verified rather
-than asserted. Every path below was confirmed to exist, every edit was actually made, and the
-result was built and tested — twice: once with both examples removed, once checking what removing
-only one of them would cost.
+This template ships three worked examples: `TodoLists`, `Reminders` and `Files`. They exist to teach
+— an aggregate with real invariants and child entities, a flat aggregate reached from a background
+loop, an aggregate whose two halves live in two different stores, and, across all three, domain
+events, optimistic concurrency over HTTP, a paginated collection endpoint and a worker calling the
+same use cases as the API. A derived project deletes what it has read and keeps what it needs.
 
-**The short version:** it compiles and the test suite can be made green again, but not by deleting
-files alone. A determined but non-obvious set of cross-cutting mechanisms — optimistic concurrency,
-the aggregate tracker / identity map, the default-deny fallback authorisation policy, the
-domain-event dispatcher, `IUnitOfWork` itself — turn out to have been demonstrated **only** by these
-two features. Removing both does not break them; it leaves them with nothing left in the repository
-to exercise them. That is the part worth reading before you start, not after: see
-[What has no replacement](#what-has-no-replacement) below.
+`Files` is the one where "delete it" is not the only sensible answer. Structurally it sits at
+exactly the same rank as the other two — its own aggregate, its own use cases, its own controller,
+its own worker loop, its own migration — so everything below gives it a column. But unlike the other
+two it is also a working capability: a project that stores files re-points it at its own bucket and
+its own metadata instead of deleting it. `README.md` says the same thing from the other side. So
+read the `Files` column as *what it costs to remove*, not as *what you are expected to do*.
+
+`docs/ADDING-A-FEATURE.md` says a clean removal means rewriting the tests that use an example as
+their subject, rather than only deleting files. This document is that rewrite, written as a
+procedure.
+
+## What this document promises
+
+The `Reminders`-only removal below was carried out in full in a disposable copy of this repository
+and measured: three rounds of `dotnet build` (5 errors, then 1, then none), then the ten unit and
+architecture test projects, all green — 2618 passing, 0 failing, 0 skipped, including
+`PendingModelChangesTests`, which is what proves the migration edit. Every file named in [What to
+edit](#what-to-edit) is a file that removal actually required.
+
+Three things are **not** measured here and you should treat them as such:
+
+- **The integration suites.** `AppTemplate.Api.IntegrationTests` and
+  `AppTemplate.Infrastructure.Identity.IntegrationTests` need Docker. Everything this document says
+  about them comes from reading them, not from running them. Run them yourself before you call a
+  removal done.
+- **The Docker image builds.** The `Dockerfile` warning below is a real property of `dotnet restore`
+  and the `COPY` lines are real, but no image was built to confirm the failure mode.
+- **The `TodoLists`+`Reminders` and `Files` removals end to end.** Their file lists are derived from
+  the tree and are exact; the compile-and-fix loop for them is not measured. Expect more rounds than
+  three, and expect the test list in [What else fails](#what-else-fails) to be a floor rather than a
+  ceiling.
 
 ## The dependency you need to know about first
 
@@ -29,394 +50,526 @@ that shows up as real code, not just a shared theme:
 - `ReminderTargetQueries` (the persistence adapter behind `IReminderTargetQueries`) queries
   `context.TodoLists.SelectMany(list => list.Items)` to read completion state.
 
-**Consequence:** you can remove `Reminders` on its own — nothing in `TodoLists` references it back
-except a doc-comment cross-reference in `TodoListTracker.cs`, which is prose, not code. You
-**cannot** remove `TodoLists` on its own; `Reminders` will not compile without it. Removing
-`TodoLists` alone means removing `Reminders` too, whether or not you wanted to keep it.
+`Files` depends on neither, and neither depends on `Files`. The only arrow between them is a doc
+comment, and it points from `Files` to `TodoLists`.
 
-Read the two removals as one procedure with an optional second half: everything in
-[What to delete](#what-to-delete) and [What to edit](#what-to-edit) marked **(Reminders only)** is
-skippable if you are keeping `Reminders`; nothing marked **(TodoLists)** is.
+**Consequence:** `Reminders` and `Files` each come out on their own. `TodoLists` does not —
+`Reminders` will not compile without it — so removing `TodoLists` means removing `Reminders` too,
+whether or not you wanted to keep it.
+
+**Three `<see cref>` doc comments cross features, and a cref is code here.**
+`GenerateDocumentationFile` plus `TreatWarningsAsErrors` make a cref that no longer resolves a
+`CS1574` error, not a warning. They are:
+
+| The comment | Names | Breaks when you remove |
+|---|---|---|
+| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
+| `Src/Presentation/AppTemplate.Api/Features/TodoLists/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
+| `Src/Presentation/AppTemplate.Api/Features/Files/Mapping/StoredFileResponseMapping.cs` | `TodoListResponseMapping` | `TodoLists` |
+
+Each makes a point that survives its example: reword the sentence, do not just delete the tag. The
+first contrasts an aggregate with child rows against one without; the second and third cite a
+mapping that answers with a string status rather than an enum, and any surviving mapper that does
+the same will do.
 
 ## What to delete
 
 By layer, mirroring `Src/`'s own structure. Each of these is a whole feature folder; delete the
 directory, not file-by-file.
 
-| Layer | TodoLists | Reminders |
-|---|---|---|
-| Domain | `Src/Domain/AppTemplate.Domain/Features/TodoLists/` | `Src/Domain/AppTemplate.Domain/Features/Reminders/` |
-| Application | `Src/Application/AppTemplate.Application/Features/TodoLists/` | `Src/Application/AppTemplate.Application/Features/Reminders/` |
-| Persistence | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/` |
-| API | `Src/Presentation/AppTemplate.Api/Features/TodoLists/` | `Src/Presentation/AppTemplate.Api/Features/Reminders/` |
-| In-memory test doubles | — | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Features/Reminders/` |
-| Worker | — | `Src/Presentation/AppTemplate.Worker/Features/Reminders/` |
-| Email adapter | — | `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/EmailReminderNotifier.cs` (one file, not a folder) |
+| Layer | TodoLists | Reminders | Files |
+|---|---|---|---|
+| Domain | `Src/Domain/AppTemplate.Domain/Features/TodoLists/` | `Src/Domain/AppTemplate.Domain/Features/Reminders/` | `Src/Domain/AppTemplate.Domain/Features/Files/` |
+| Application | `Src/Application/AppTemplate.Application/Features/TodoLists/` | `Src/Application/AppTemplate.Application/Features/Reminders/` | `Src/Application/AppTemplate.Application/Features/Files/` |
+| Persistence | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/` |
+| API | `Src/Presentation/AppTemplate.Api/Features/TodoLists/` | `Src/Presentation/AppTemplate.Api/Features/Reminders/` | `Src/Presentation/AppTemplate.Api/Features/Files/` |
+| Worker | — | `Src/Presentation/AppTemplate.Worker/Features/Reminders/` | `Src/Presentation/AppTemplate.Worker/Features/Files/` |
+| In-memory doubles | — | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Features/Reminders/` | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Features/Files/` |
+| Its own module | — | `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/` | `Src/Infrastructure/AppTemplate.Infrastructure.Storage/` |
+
+Two entries in that last row deserve a word. `Reminders`' half of the email module is one file,
+`EmailReminderNotifier.cs`, and it is the module's only feature — so its whole `Features/` directory
+goes, and the module stays for `IEmailSender`. `Files`' half is a whole project,
+`AppTemplate.Infrastructure.Storage`: the port shape is base and the `StoredFile` aggregate is
+example, so a project that keeps any file storage at all keeps this project and re-points it.
 
 And their test mirrors — same shape, under `Tests/` instead of `Src/`:
 
-- `Tests/Domain/AppTemplate.Domain.UnitTests/Features/{TodoLists,Reminders}/`
-- `Tests/Application/AppTemplate.Application.UnitTests/Features/{TodoLists,Reminders}/`
-- `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/{TodoLists,Reminders}/`
-- `Tests/Presentation/AppTemplate.Api.UnitTests/Features/{TodoLists,Reminders}/`
-- `Tests/Integration/AppTemplate.Api.IntegrationTests/{TodoLists,Reminders}/`
-- `Tests/Presentation/AppTemplate.Worker.UnitTests/Features/Reminders/` (Reminders only)
+| Project | TodoLists | Reminders | Files |
+|---|---|---|---|
+| `Tests/Domain/AppTemplate.Domain.UnitTests/Features/` | yes | yes | yes |
+| `Tests/Application/AppTemplate.Application.UnitTests/Features/` | yes | yes | yes |
+| `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/` | yes | yes | yes |
+| `Tests/Presentation/AppTemplate.Api.UnitTests/Features/` | yes | yes | yes |
+| `Tests/Presentation/AppTemplate.Worker.UnitTests/Features/` | — | yes | yes |
+| `Tests/Infrastructure/AppTemplate.Infrastructure.InMemory.UnitTests/Features/` | — | — | yes |
+| `Tests/Integration/AppTemplate.Api.IntegrationTests/` | `TodoLists/` | `Reminders/` | `Files/` and `Storage/` |
 
-One more file that is easy to miss because it sits in the persistence layer without touching the
-database — it is the adapter behind `IReminderDiagnostics`, an OpenTelemetry counter filed under
-`Observability/` rather than among the feature's mappers and repositories:
+Plus, outside a `Features/` folder:
 
-- `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/Observability/ReminderDiagnostics.cs` (Reminders only)
+- `Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/ATodoList.cs` (TodoLists) and
+  `Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/AReminder.cs` (Reminders) — test
+  doubles that build a real aggregate, so nothing is left for them to build.
+- `Tests/Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests/` — the whole project, with
+  `Files`.
 
-After deleting a feature's directories, **delete the parent directory too if it is now empty.**
-Removing both examples empties `Src/Domain/AppTemplate.Domain/Features/`,
-`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/Observability/`, and the mirror
-`Features` directories under the domain and persistence unit-test projects. An architecture test —
-`LayoutConventionTests.NoFolderInTheSourceTree_IsEmpty` — exists specifically to catch a folder left
-behind after everything inside it is gone, so it will name any that were missed.
+One source file is easy to miss because it sits in the persistence layer without touching the
+database: `ReminderDiagnostics`, the adapter behind `IReminderDiagnostics`, an OpenTelemetry counter
+filed under
+`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/Observability/`. It
+goes with the rest of that folder.
+
+After deleting a feature's directories, **delete the parent directory too if it is now empty.** The
+one directory that empties is `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/`, and
+it empties on the `Reminders` removal alone. `Features/` under the domain, the application,
+persistence, the API and their test mirrors still holds whatever you kept.
+`LayoutConventionTests.NoFolderInTheSourceTree_IsEmpty` names any that were missed.
 
 **Two things the compiler reports in ways that are easy to misread.** An unused `using` is
 `IDE0005`, which `TreatWarningsAsErrors` turns into an error — expect them in
 `PersistenceModule.cs`, `AppDbContext.cs`, `EmailModule.cs`, `InMemoryModule.cs`, `ApiFactory.cs`
-and `IntegrationTestBase.cs`, not only in `ServiceRegistration.cs`. Remove them one at a time and
+and `IntegrationTestBase.cs`, not only in `ApplicationModule.cs`. Remove them one at a time and
 rebuild: `…Persistence.Common.Tracking` looks like it belongs to the deleted mappers but also holds
-`StoredStamps`, which stays. And a `<see cref="…"/>` naming a deleted type
-is a build error too — `InMemoryModule.cs`'s class summary names `IReminderNotifier`, so its
-comment has to change along with its code.
+`StoredStamps`, which stays. And a `<see cref>` naming a deleted type is a build error too, as the
+table above says — `InMemoryModule.cs`'s class summary names `IReminderNotifier`, so its comment has
+to change along with its code.
 
 ## What to edit
 
-These are the files outside a feature folder that name `TodoLists` or `Reminders` directly. Each
-entry names the exact change, not just the file.
+These are the files outside a feature folder that name an example directly, in the order the build
+reaches them. Each entry names the exact change. `(R)`, `(T)` and `(F)` mark which removal an entry
+belongs to.
 
-**`Src/Application/AppTemplate.Application/ServiceRegistration.cs`**
-Remove the `AddScoped<ITodoListAccess, TodoListAccess>()` and
-`AddScoped<IReminderAccess, ReminderAccess>()` lines, and the two
-`AddDomainEventConsumer<TodoItemCompletedDomainEvent, …>()` calls (`LogTodoItemCompletedConsumer`
-and `CancelRemindersOnTodoItemCompletedConsumer`) — both event and both consumers live inside the
-features you just deleted. `AddValidatorsFromAssemblyContaining<CreateTodoListCommandValidator>()`
-needs a different anchor type from the same assembly; any validator that survives works, for
-example `LoginCommandValidator`. Prune the now-unused `using` directives; the compiler will tell you
-which ones.
+**`Src/Application/AppTemplate.Application/ApplicationModule.cs`**
+Remove `AddScoped<ITodoListAccess, TodoListAccess>()` **(T)**, `AddScoped<IReminderAccess,
+ReminderAccess>()` **(R)** and `AddScoped<IStoredFileAccess, StoredFileAccess>()` **(F)**. Remove
+the domain-event consumer registrations that go with each: both
+`AddDomainEventConsumer<TodoItemCompletedDomainEvent, …>()` calls with `TodoLists` **(T)**, the
+`CancelRemindersOnTodoItemCompletedConsumer` one on its own with `Reminders` **(R)**, and the
+`StoredFileDeletedDomainEvent` one with `Files` **(F)**.
+`AddValidatorsFromAssemblyContaining<CreateTodoListCommandValidator>()` **(T)** needs a different
+anchor type from the same assembly; any validator that survives works, `LoginCommandValidator` for
+instance. Prune the now-unused `using` directives.
 
 **`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/PersistenceModule.cs`**
-Delete the `AddTodoListsFeature` and `AddRemindersFeature` private methods in full, and their two
-calls inside `AddPersistenceModule`. Nothing else in this file names either feature.
+Delete the `AddTodoListsFeature` **(T)**, `AddRemindersFeature` **(R)** and `AddFilesFeature`
+**(F)** private methods in full, and their calls inside `AddPersistenceModule`. Two comments in this
+file refer across those methods and stop describing anything once their neighbour goes:
+`AddFilesFeature`'s opens by pointing back at the features above it, and `AddRemindersFeature`'s
+points at `AddTodoListsFeature` by name. Whichever survives, reword its comment to stand alone — *a
+factory over one scoped instance rather than three registrations, so the repository, the flush
+interceptor and the dispatch interceptor all resolve the same tracker.*
 
 **`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs`**
-Remove the `TodoLists` and `Reminders` `DbSet<…>` properties, the `TodoSchema` and `RemindersSchema`
-constants, and the four `builder.ApplyConfiguration(…)` calls in `OnModelCreating` for
-`TodoListRecordConfiguration`, `TodoItemRecordConfiguration`, `TodoItemTagRecordConfiguration` and
-`ReminderRecordConfiguration`. The `PlatformSchema` constant's doc comment cross-references
-`TodoSchema` in a `<see cref>` — fix or drop that reference too, or the build fails on a broken XML
-doc comment (this project treats that as an error, not a warning).
+Remove the `DbSet<…>` property, the schema constant and the `builder.ApplyConfiguration(…)` calls
+for each feature you removed: `TodoLists`/`TodoSchema`/three configurations **(T)**,
+`Reminders`/`RemindersSchema`/one **(R)**, `StoredFiles`/`FilesSchema`/one **(F)**. The
+`PlatformSchema` constant's doc comment cross-references `TodoSchema` in a `<see cref>` — fix or
+drop that reference too **(T)**, or the build fails on a broken XML doc comment.
 
-**`Src/Infrastructure/AppTemplate.Infrastructure.Email/EmailModule.cs`**
-Remove the `AddScoped<IReminderNotifier, EmailReminderNotifier>()` line and its `using`. Leave
-`AddScoped<IEmailSender, MailKitEmailSender>()` — Auth's registration, password-reset and
-email-change flows depend on it, so this module stays composed by every host regardless of which
-example features survive.
+**`Src/Infrastructure/AppTemplate.Infrastructure.Email/EmailModule.cs`** **(R)**
+Remove the `AddScoped<IReminderNotifier, EmailReminderNotifier>()` line and its two `using`
+directives. Leave `AddScoped<IEmailSender, MailKitEmailSender>()`: `Auth`'s registration,
+password-reset, email-change and resend-confirmation use cases all take `IEmailSender`, so this
+module stays composed by every host.
 
 **`Src/Infrastructure/AppTemplate.Infrastructure.InMemory/InMemoryModule.cs`**
-Remove the `AddInMemoryReminderNotifications` method and the call to it inside `AddInMemoryModule`,
-plus the `RemoveAll<IReminderNotifier>()`/`AddScoped<IReminderNotifier, …>()` pair. Leave the clock
-and email-sender substitution alone.
+Remove `AddInMemoryReminderNotifications` and its call inside `AddInMemoryModule` **(R)**, and
+`AddInMemoryFileContent` and its call **(F)**. The class summary for `AddInMemoryModule` enumerates
+the doubles it installs and names `IReminderNotifier` in a `<see cref>`; rewrite the sentence around
+whatever is left. Leave the clock and email-sender substitutions alone.
 
-**`Src/Presentation/AppTemplate.Api/Program.cs`**
-Nothing to change here beyond what cascades automatically through `AddApplicationLayer` and
-`AddPersistenceModule`. The file names no feature directly.
+**`Src/Presentation/AppTemplate.Api/Program.cs`** **(F)**
+Remove `AddStorageModule(builder.Configuration)` and its `using
+AppTemplate.Infrastructure.Storage;`. Nothing else in this file names a feature: `TodoLists` and
+`Reminders` cascade automatically through `AddApplicationLayer` and `AddPersistenceModule`.
 
-**`Src/Presentation/AppTemplate.Worker/Program.cs`** (Reminders only, but only relevant once you
-have already decided to remove it)
-Remove the `AddOptions<ReminderWorkerOptions>()` block, the
-`AddSingleton<IValidateOptions<ReminderWorkerOptions>, …>()` line, and
-`AddHostedService<ReminderBackgroundService>()`. Remove the `AddEmailModule(builder.Configuration)`
-call and its `using AppTemplate.Infrastructure.Email;` — **this is the one that is easy to miss**,
-because it looks unrelated to Reminders at a glance. It is not: the Worker composes the email
-module for exactly one reason, stated in its own comment — `IReminderNotifier`'s adapter lives
-there, and a reminder that comes due is rung by mail. With `Reminders` gone the Worker calls
-`IEmailSender` from nowhere, and the module has nothing left to do in that process.
+**`Src/Presentation/AppTemplate.Worker/Program.cs`**
+Remove the `AddOptions<ReminderWorkerOptions>()` block, its
+`AddSingleton<IValidateOptions<ReminderWorkerOptions>, …>()` line and
+`AddHostedService<ReminderBackgroundService>()` **(R)**; the same three for `FileWorkerOptions` and
+`FileBackgroundService`, plus `AddStorageModule` **(F)**. **Do not remove `AddEmailModule` with
+`Reminders`.** `AddApplicationLayer` registers every `Auth` use case in this host too, four of them
+take `IEmailSender`, and `ValidateOnBuild` requires every port the layer declares to resolve in
+every host — so dropping the module leaves a build that is perfectly green and a Worker that will
+not start. The two composition comments at the top of the file argue from the reminder loop; rewrite
+them around the `Auth` use cases, which is the reason that survives.
 
 **`Src/Presentation/AppTemplate.Worker/Common/Observability/WorkerObservabilityExtensions.cs`**
-Remove the `.AddMeter("AppTemplate.Reminders")` call (and its comment) from the metrics pipeline —
-that string names `ReminderDiagnostics`'s meter, in a different project, by a literal rather than a
-shared constant (the class is internal), so nothing else will tell you it is now naming a meter that
-no longer exists.
+This is four separate edits, not one, and three of them are compile errors. With `Reminders`
+**(R)**: drop `using AppTemplate.Worker.Features.Reminders;`, the
+`.AddSource(ReminderInstruments.Name)` line and the `.AddMeter(ReminderInstruments.Name)` line — all
+three name the Worker's own `ReminderInstruments`, which went with `Features/Reminders/`. Then drop
+`.AddMeter("AppTemplate.Reminders")` and its comment: that string names the *persistence* project's
+`ReminderDiagnostics` meter by a literal rather than a shared constant, so nothing tells you it now
+names a meter that does not exist. With `Files` **(F)**: the same first three, for
+`FileInstruments`. Update the comment above each group, which counts the loops.
 
-**`Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj`**
-Remove the `<ProjectReference>` to `AppTemplate.Infrastructure.Email.csproj`. Follows directly from
-removing `AddEmailModule` above — a `ProjectReference` nobody uses any more is still a declared,
-inward-pointing arrow, and `AppTemplate.Architecture.Tests` (`ModuleDependencyTests`) checks the
-project file graph, not just what the code calls.
+**`Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj`** and
+**`Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj`** **(F)**
+Remove the `<ProjectReference>` to `AppTemplate.Infrastructure.Storage.csproj` from both. The Worker
+keeps its reference to `AppTemplate.Infrastructure.Email.csproj` for the reason above; its comment
+block explains both the email and the identity references in terms of the reminder loop, so it needs
+rewriting around `IEmailSender` and `IRefreshTokenMaintenance` **(R)**. `ModuleDependencyTests`
+reads the project-file graph, not just what the code calls, so a reference nobody uses is still a
+declared arrow.
 
-**`Src/Presentation/AppTemplate.Worker/Dockerfile`**
-Remove the `COPY` line for `AppTemplate.Infrastructure.Email.csproj` that mirrors the project
-reference above. **This is the one a build can hide from you.** `dotnet restore` does not fail when
-a project file it expected is missing from the build context — it logs "Skipping project … because
-it was not found" and the failure surfaces later, at `dotnet publish`, on a missing assets file. If
-you remove the `ProjectReference` but forget this line, `dotnet build` and even a plain `dotnet
-restore` on the csproj will look fine; only the Docker image build breaks, and it breaks on the
-publish step, several minutes in.
+**`Src/Presentation/AppTemplate.Worker/Dockerfile`** and
+**`Src/Presentation/AppTemplate.Api/Dockerfile`** **(F)**
+Remove the `COPY` line for `AppTemplate.Infrastructure.Storage.csproj` in each, mirroring the
+project reference above. **This is the one a build can hide from you.** `dotnet restore` does not
+fail when a project file it expected is missing from the build context — it logs "Skipping project …
+because it was not found" and the failure surfaces later, at `dotnet publish`, on a missing assets
+file. Remove a `ProjectReference` and forget the `COPY`, and `dotnet build` and even a plain `dotnet
+restore` look fine; only the image build breaks, several minutes in, on the publish step.
+
+**`AppTemplate.sln`** **(F)**
+Remove the `AppTemplate.Infrastructure.Storage` and `AppTemplate.Infrastructure.Storage.UnitTests`
+project entries and their configuration blocks. `.template.config/template.json` lists no projects —
+its `sources` key is an exclusion list — so there is nothing to change there for any removal.
+
+**Test projects that reference what you removed** **(F)**
+`Tests/Integration/AppTemplate.Api.IntegrationTests/AppTemplate.Api.IntegrationTests.csproj` and
+`Tests/Architecture/AppTemplate.Architecture.Tests/AppTemplate.Architecture.Tests.csproj` both
+reference `AppTemplate.Infrastructure.Storage`; the architecture project also anchors on
+`StorageModule` in
+`Tests/Architecture/AppTemplate.Architecture.Tests/Fixtures/ArchitectureAssemblies.cs` and composes
+it in `Tests/Architecture/AppTemplate.Architecture.Tests/Composition/HostComposition.cs`.
+
+## The migrations
+
+The template ships **three** migrations, and which ones you touch depends on what you removed:
+
+| Migration | Creates |
+|---|---|
+| `20260809002532_InitialCreate` | `identity` and `platform` — the schema every derived project keeps |
+| `20260809002559_AddExampleFeatures` | `todo` **and** `reminders`, in one migration |
+| `20260809211043_AddFiles` | `files` |
+
+Nothing outside the examples references any of the three example schemas, so on a project that has
+not yet applied a migration to a real database this is not a matter of generating a migration to
+undo them. It is a matter of editing the files that create them, and then bringing
+`AppDbContextModelSnapshot.cs` back into agreement with the code.
+
+**Removing all three examples.** Delete both `*_AddExampleFeatures.*` and both `*_AddFiles.*` file
+pairs. What survives is exactly `InitialCreate`, so — and only in this case — copying the
+`BuildTargetModel` body of `20260809002532_InitialCreate.Designer.cs` over
+`AppDbContextModelSnapshot.cs`'s `BuildModel` body is correct: that designer describes `identity`
+and `platform` and nothing else. The two files differ only in the wrapping — the snapshot's class
+extends `ModelSnapshot` and carries no `[Migration(...)]` attribute — so the method name is the only
+edit the copy needs.
+
+**Removing some but not all.** Do **not** copy an earlier designer over the snapshot. Subtract from
+the current one instead. Every model description is a list of `modelBuilder.Entity("…")` blocks;
+take out the blocks for the entities you removed, in all three passes of the file — the entity
+definitions, the relationship blocks and the navigation blocks — and leave everything else alone.
+The blocks are named by their persistence model's full type name, so
+`…Features.TodoLists.Models.TodoListRecord` and its two siblings go with `TodoLists`,
+`…Features.Reminders.Models.ReminderRecord` with `Reminders`, and
+`…Features.Files.Models.StoredFileRecord` with `Files`. Make the same subtraction in the designer
+file of every migration *later* than the one that created the entity, so the chain stays coherent:
+`20260809211043_AddFiles.Designer.cs` describes the to-do list and reminder entities too, because it
+was generated when they existed.
+
+Copying `InitialCreate`'s designer over the snapshot in this case removes `StoredFiles` from the
+model while the `AddFiles` migration and all the `Files` code are still there, and the next `dotnet
+ef migrations add` then emits a duplicate `CreateTable` on `files`.
+
+**Removing `Reminders` alone** additionally means editing `20260809002559_AddExampleFeatures.cs`
+itself, since one migration creates both example schemas: drop the `EnsureSchema(name: "reminders")`
+call, the `CreateTable` for `Reminders`, its two `CreateIndex` calls and the matching `DropTable` in
+`Down`. Removing `TodoLists` means removing `Reminders` too, so in that direction the whole file
+goes.
+
+**Removing `Files` alone** is the cleanest of the three: `AddFiles` is the last migration, so
+deleting both its files and subtracting `StoredFileRecord` from the snapshot is the whole edit. No
+earlier designer mentions it.
+
+`Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Migrations/PendingModelChangesTests.cs`
+is what proves the edit is complete. It calls `Database.HasPendingModelChanges()`, needs no
+database, and fails the moment the snapshot, the remaining migrations and the code's model disagree.
+Run it before trusting this step done — it is the only thing here that will catch a subtraction that
+took one block too many or too few.
+
+**If a database has already had a migration applied to it**, deleting the file does not drop those
+schemas there; it only stops a fresh database from ever creating them. Dropping them from a database
+that already has them needs a real migration, generated against the edited project and reviewed for
+exactly the `DropTable`/`DropSchema` groups you expect and nothing touched on a surviving table.
+Give it a name no existing migration already carries — `dotnet ef` refuses a duplicate — so
+`DropExampleFeatures` rather than `InitialCreate`. The tool is pinned by
+`.config/dotnet-tools.json`.
+
+## Configuration, deployment and the sample requests
+
+None of this breaks a build, and all of it goes stale silently.
+
+- **`Src/Presentation/AppTemplate.Worker/appsettings.json`** and
+  **`Src/Presentation/AppTemplate.Worker/appsettings.Development.json`**: the `ReminderWorker`
+  section **(R)** and the `FileWorker` section **(F)**.
+- **`Src/Presentation/AppTemplate.Api/appsettings.json`** and
+  **`Src/Presentation/AppTemplate.Worker/appsettings.json`**: the `Storage` and `ContentInspection`
+  sections **(F)**, in both hosts.
+- **`docker-compose.yml`** **(F)**: the two `Storage__*` environment blocks — one per host — the
+  `minio` and `minio-bucket` services, and the `minio-data` volume.
+- **`deploy/kubernetes/configmap-worker.yaml`**: the `ReminderWorker__Interval` and
+  `ReminderWorker__Enabled` keys and the comment block above them **(R)**; the `FileWorker__*` keys,
+  the `Storage__*` keys and the `ContentInspection__*` keys **(F)**.
+  **`deploy/kubernetes/configmap-api.yaml`**: the `Storage__*` and `ContentInspection__*` keys
+  **(F)**. **`deploy/kubernetes/api-deployment.yaml`**: the two `Storage__*` `secretKeyRef` entries
+  **(F)**. **`deploy/kubernetes/secret.example.yaml`**: `Storage__AccessKeyId` and
+  `Storage__SecretAccessKey` **(F)**, and the comment naming `IReminderNotifier` **(R)**.
+  **`deploy/kubernetes/worker-deployment.yaml`**: its header comment counts the loops and names
+  `ReminderBackgroundService`, and its replica note argues from `Reminder.TryClaim` **(R)**.
+- **`AppTemplate.Api.http`**: the numbered request blocks for the feature you removed. They are the
+  file's whole point, so they are worth replacing with your own rather than only deleting.
+- **`Tests/Architecture/AppTemplate.Architecture.Tests/Rules/ConfigurationSurfaceTests.cs`** names
+  `ReminderWorker` twice in its own documentation as the example of a section **(R)**; point it at
+  another section that still exists.
 
 ## Does the Worker still have a reason to exist?
 
-Yes — `MaintenanceBackgroundService` runs two purges (`PurgeExpiredIdempotencyKeys`,
-`PurgeExpiredRefreshTokens`) on a timer, and neither depends on either example feature. Once
-`Reminders` is gone the Worker composes `AppTemplate.Application`, `AppTemplate.Infrastructure.Persistence`
-and `AppTemplate.Infrastructure.Identity` — and nothing else. Removing `Reminders` does take away
-one of the two reasons the last of those is there, since `EmailReminderNotifier` and its
-`IUserProfilesService` dependency leave with the feature; it does not take away the module, because
-`AddApplicationLayer` still registers every `Auth` use case and `ValidateOnBuild` still requires
-each of their ports to resolve. It still proves the template's actual claim: the same
-application layer, answering an HTTP request in one host and a background loop in another, with no
-use case and no domain type touched to make it work in either.
+Yes, and by more than a margin. It hosts three `BackgroundService`s — maintenance, reminders and
+files — so removing any one example leaves two. `MaintenanceBackgroundService` runs two purges
+(`PurgeExpiredIdempotencyKeys`, `PurgeExpiredRefreshTokens`) on a timer and depends on no example
+feature at all, so even removing all three leaves the host doing real work.
 
-## The migration
+What it composes does not shrink as much as it looks like it should. `AddApplicationLayer` registers
+every use case in the assembly, and `ValidateOnBuild` then requires every port those use cases
+declare to resolve *in this host too* — not only the ports its own loops reach. That is why
+`AppTemplate.Infrastructure.Identity` and `AppTemplate.Infrastructure.Email` both stay composed
+after `Reminders` goes: `Auth`'s use cases take `IUserProfilesService` and `IEmailSender`, and they
+are registered here whether or not anything in this process calls them.
+`AppTemplate.Infrastructure.Storage` is the one module that genuinely leaves, and only with `Files`.
 
-The template ships its schema as exactly two migrations, and the split exists for this moment.
-`InitialCreate` is the schema every derived project keeps — `identity` and `platform` — and
-`AddExampleFeatures` is `todo` and `reminders`, and nothing else. Neither the baseline nor any
-surviving code references either example schema, so removing them from a project that has not yet
-applied any migration to a real database is not a matter of generating a migration to undo them —
-it is a matter of deleting the file that created them:
+Either way the host still proves the template's actual claim: the same application layer, answering
+an HTTP request in one process and a background loop in another, with no use case and no domain type
+touched to make it work in either.
 
-```bash
-rm Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/*_AddExampleFeatures.cs \
-   Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/*_AddExampleFeatures.Designer.cs
-```
+## What stops being demonstrated
 
-That leaves `AppDbContextModelSnapshot.cs` describing a model — `TodoListRecord`, `TodoItemRecord`,
-`TodoItemTagRecord`, `ReminderRecord`, their relationships and navigations — that no longer matches
-either the one remaining migration or the code once the persistence models above are deleted too
-(see [What to delete](#what-to-delete)). There is no new migration for `dotnet ef` to fold the
-snapshot into here, so the snapshot has to be hand-edited back to describing exactly the migration
-that is left: copy the `BuildTargetModel` body of the `InitialCreate` migration's designer file over
-`AppDbContextModelSnapshot.cs`'s `BuildModel` body verbatim — same entities, described the same way —
-and drop the four example entities' blocks along with the relationship/navigation blocks that name
-them. The two files differ only in the wrapping: the snapshot's class extends `ModelSnapshot` and
-carries no `[Migration(...)]` attribute, where the migration's carries one and no base class override
-signature change beyond the method name (`BuildModel` vs. `BuildTargetModel`).
-`Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Migrations/PendingModelChangesTests.cs`
-(`Database.HasPendingModelChanges()`, no database required) is what proves the edit is complete — it
-fails the moment the snapshot, the remaining migration and the code's model disagree with each
-other, so run it before trusting this step done.
+This is the part worth budgeting time for, and it has two answers rather than one, because `Files`
+carries most of what the other two carry. Every item below compiles fine and fails a test loudly, by
+design — these rules refuse to pass over an empty set rather than pass silently — but "fails loudly"
+is not the same as "still demonstrated somewhere."
 
-Once both examples are gone, `AppDbContext.TodoSchema` and `.RemindersSchema` go with them — grep for
-either constant after editing `AppDbContext.cs`, because `TestDatabase.cs` and
-`HealthEndpointTests.cs` in the integration suite both name `AppDbContext.TodoSchema` directly, for
-the per-test truncation statement and for a "did both schemas get migrated" health check
-respectively. Update the first to truncate `AppDbContext.IdentitySchema` and `.PlatformSchema` only
-(the two schemas left); the second to assert on the same pair rather than on `TodoSchema`.
+### With `TodoLists` and `Reminders` gone, `Files` kept
 
-**If a database has already had `AddExampleFeatures` applied to it**, deleting the file does not drop
-`todo`/`reminders` there — it only stops a fresh database from ever creating them. Dropping the
-schemas from a database that already has them still needs a real migration generated the way
-`docs/ADDING-A-FEATURE.md` documents (`dotnet ef migrations add DropExampleFeatures`, reviewed for
-exactly two `DropTable`/`DropSchema`-equivalent groups and nothing else touched on a surviving
-table). The tool that would generate it is pinned by `.config/dotnet-tools.json` (`dotnet-ef`
-`10.0.10`) but that exact package version failed to restore in this environment with an unrelated
-packaging error (`Settings file 'DotnetToolSettings.xml' was not found in the package`); a globally
-installed `dotnet-ef 9.0.2` worked without incident, after warning that it was older than the
-project's runtime.
+Four things lose their only example, and one of them is measured.
 
-## What remains, and why
-
-Everything not named above stays, and every one of these was exercised, unmodified, by a full test
-run after the removal:
-
-- **`Auth`** (registration, login, refresh, logout, password reset, email confirmation, email
-  change) — built on ASP.NET Identity, and touches neither example feature anywhere.
-- **`Maintenance`** — the two purge use cases and the endpoint/worker that call them.
-- **Idempotency** (`Api/Common/Idempotency/`, `Application/Common/Idempotency/`,
-  `Infrastructure.Persistence/Common/Idempotency/`) — the claim/complete/release mechanism itself is
-  generic. What disappears is the *demonstration* of it; see below.
-- **Health checks, observability, rate limiting, security headers, request logging redaction,
-  default-deny authorisation as a fallback policy, RFC 7807 problem details** — all cross-cutting,
-  all still wired, all still tested — again, through Auth and Maintenance instead.
-
-## What has no replacement
-
-This is the part worth budgeting time for. Every item below compiles fine and fails a test loudly,
-by design — these architecture tests were written to refuse to pass over an empty set rather than
-pass silently — but "fails loudly" is not the same as "still demonstrated somewhere." None of the
-following has a substitute anywhere else in the template once both example features are gone:
-
-- **`IUnitOfWork`.** The port a use case calls to commit its work. `Auth`'s use cases commit through
-  ASP.NET Identity's own `UserManager`, and `Maintenance`'s purges commit through
-  `IIdempotencyStore` / `IRefreshTokenMaintenanceService` — neither ever calls `IUnitOfWork` directly. It
-  was consumed **only** by the to-do list and reminder use cases and their domain-event consumers.
-  `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` catches exactly this:
-  with both examples gone, this fundamental cross-cutting abstraction has zero callers in the
-  application layer.
-- **`Files` is an example feature, and the biggest one to weigh before deleting.** The aggregate,
-  its use cases, its persistence and its migration go the same way `TodoLists` and `Reminders` do.
-  What is worth keeping even if the feature goes is the *shape*: it is the only slice here whose
-  halves live in two different stores — an aggregate in PostgreSQL and bytes in an object store —
-  and `AppTemplate.Infrastructure.Storage` is what a second such feature would copy rather than
-  reinvent. Delete it if your project stores no files; keep the module and re-point it if it does.
-  Removing it means the `Storage` configuration section, the `minio`/`minio-bucket` services in
-  `docker-compose.yml`, and the two projects in `AppTemplate.sln`, `.template.config/template.json`
-  and both `Dockerfile`s go too.
-- **The outbound HTTP policy is base, and removing the examples does not touch it.** Both
-  `Common/Outbound/OutboundHttpExtensions.cs` files, the `Microsoft.Extensions.Http.Resilience`
-  reference in both hosts, and `OutboundHttpTests` stay. It has no consumer to lose because it has
-  none today: it is installed on `IHttpClientFactory`'s defaults so that the first adapter your
-  project adds inherits it. Keep both copies identical — a budget enforced in one host only is
-  worse than none.
 - **`ILeaderLease`, and with it the only reason the worker can run at more than one replica.** The
-  port and its `PostgresLeaderLease` adapter are **base**, not example — keep both. Its only caller
-  is `FireDueRemindersUseCase`, which is example, so the same rule that catches `IUnitOfWork` above
-  catches this one: with `Reminders` gone the port has zero consumers in the application layer and
-  `EveryApplicationPort_HasAConsumerInTheApplicationLayer` fails. Two honest ways out, and the
-  choice is about your project rather than about the template. Either put the first operation of
-  yours that must not run twice at once under the lease — which is what it is for, and the reason
-  to keep it — or, if you genuinely have no such operation, delete the port, the adapter, its
-  integration tests and the `Common/Leases/` entry in `LayoutConventionTests`, and remember that
-  `worker-deployment.yaml` may then no longer be raised above `replicas: 1`.
-- **The aggregate tracker / identity-map pattern** (`TodoListTracker`, `ReminderTracker`, and the
-  three-contract registration trick documented on `PersistenceModule`). With both gone there is no
-  tracker in the composed container at all —
-  `SharedInstanceRegistrationTests.EveryAggregateTracker_ResolvesAsOneInstanceUnderEveryContractItServes`
-  finds zero, not fewer.
-- **Optimistic concurrency over HTTP** — `Versioned<T>`, the strong `ETag`, `If-Match`/`If-None-Match`,
-  `412`/`428`. `TodoLists` is not the only demonstration of this: `Reminders`' reschedule (`PUT`)
-  and cancel (`DELETE`) endpoints also read `If-Match` and answer `412`/`428` through the same
-  `ApiControllerBase.ReadPrecondition`. Removing `TodoLists` alone still leaves the conditional-GET
-  round trip (`Caching/CacheHeaderTests.cs`) with nothing to exercise, since only `TodoLists`' detail
-  endpoint publishes an `ETag` a client can revalidate against — but removing `Reminders` too is what
-  empties this demonstration out completely, taking the `If-Match` writes with it.
-- **The default-deny fallback authorisation policy.** `Program.cs` sets a `FallbackPolicy` requiring
-  an authenticated user precisely so an action that forgets `[Authorize]` is still denied. Checking
-  that path over HTTP needs a controller that relies on it — and `TodoListsController` is not the
-  only one: every action on it and on `RemindersController` declares neither `[Authorize]` nor
-  `[AllowAnonymous]`, so both rely entirely on the fallback. `AuthController` decorates every action
-  explicitly, and `MaintenanceController`/`AccountAdministrationController` each declare their own
-  policy at the controller level; none of the three ever reaches the fallback. The rule that
-  enumerates every verb on `TodoListsController` to prove the fallback actually denies
-  (`DefaultDenyAuthorizationTests`) has no controller left to enumerate once both `TodoLists` and
-  `Reminders` are gone.
-- **Domain events, at all.** Once both features are gone, `AppTemplate.Domain` declares no
-  aggregate, no entity, no value object and no domain event — `Features/` is empty, `Common/` holds
-  only the primitives a real feature would build on. Five rules in `DomainModelTests` exist to prove
-  properties of a concrete domain model; none of them has one to check. Neither does `Auth`: it never
-  raises a domain event, so the cross-feature dispatch this template demonstrates — two independent
-  consumers reacting to one event, one of them registered by a different feature entirely — has no
-  live example either.
-- **`ICollectionPolicy` / the sortable, filterable, paginated collection endpoint.** `TodoLists`' list
-  endpoint was the only one that ever declared a collection policy. Two rules in
-  `CollectionContractTests` exist to check that policy's internal consistency and its exemption from
-  the constructor rule; with none registered, both are vacuous.
-- **Ownership isolation for a resource addressed by id.** 404-not-403 for another user's resource —
-  the deliberate choice that a 403 would leak that the id exists — has no surviving example: no
-  action anywhere in the remaining API is addressed by an `{id}` route segment at all. Every
-  authentication action addresses either nobody (a fixed path) or the caller identified by their own
-  token; every maintenance action addresses everybody.
-- **The `[Idempotent]` demonstration.** All three `[Idempotent]` actions this template ever shipped —
-  `TodoListsController.Create`, `.AddItem`, `RemindersController.Schedule` — lived in one of the two
-  example features. The mechanism (`IdempotencyFilter`, `IIdempotencyStore`, the claim/complete/release
-  state machine) is untouched and still unit-tested directly, but the integration suite that drove it
-  end-to-end over real HTTP (`Idempotency/IdempotencyTests.cs`) has nothing left to call and was
-  deleted rather than adapted.
+  port and its `PostgresLeaderLease` adapter are base, not example — but its only consumer is
+  `FireDueRemindersUseCase`. The two file loops document at length why they take *no* lease, so they
+  are not a substitute. Removing `Reminders` alone is enough:
+  `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` reports
+  `ILeaderLease` as the one unconsumed port, and
+  `BackgroundWorkTests.TheLeaderLease_IsTakenByAUseCase` finds no use case taking it. Both were
+  observed. Two honest ways out, and the choice is about your project rather than about the
+  template. Either put the first operation of yours that must not run twice at once under the lease
+  — which is what it is for — or, if you genuinely have no such operation, delete the port, its
+  adapter, its integration tests, the `Leases` entry in `LayoutConventionTests`'s `Common/`
+  vocabulary and `BackgroundWorkTests` itself, and remember that
+  `deploy/kubernetes/worker-deployment.yaml` may then no longer be raised above `replicas: 1`.
+  Measured, that deletion costs four more compile errors: three `<see cref="ILeaderLease"/>`
+  comments in the surviving `Files` code and one substitute registration in
+  `ApplicationModuleTests`.
+- **One event reaching two independent consumers.** `TodoItemCompletedDomainEvent` is consumed by
+  `LogTodoItemCompletedConsumer` and by `CancelRemindersOnTodoItemCompletedConsumer`, registered by
+  a different feature and unaware of each other. `Files` raises three domain events and has one
+  consumer, for one of them — so domain events survive, and the cross-feature fan-out does not.
+- **The conditional-GET round trip.** `TodoLists`' detail endpoint is the only one that publishes an
+  `ETag` a client revalidates with `If-None-Match` for a `304`, which is what
+  `Tests/Integration/AppTemplate.Api.IntegrationTests/Caching/CacheHeaderTests.cs` exercises. The
+  `If-Match` write side survives: `FilesController` reads preconditions on two actions through the
+  same `ApiControllerBase.ReadPrecondition`, and `Versioned<StoredFileDto>` crosses
+  `ConfirmFileUploadUseCase`, so `412`/`428` and `Versioned<T>` stay demonstrated.
+- **An aggregate with child entities.** `TodoList` owns `TodoItem`, which owns `Tag`, and the
+  tracker's flush enrols a root whose own columns did not move so the root's `xmin` arbitrates the
+  whole aggregate. `Reminder` and `StoredFile` are both flat, so what remains proves the simpler
+  half only.
 
-None of this is a defect in the removal. It is what "the examples were teaching the architecture, not
-decorating it" actually costs once you take the lesson away: several of the tests written to prove
-these mechanisms work were written against the only place they were ever exercised. The honest fix
-in every case above was the same one, applied by hand to each test file: skip the ones that assert a
-property of a domain model or a registration that no longer exists, with a comment naming exactly
-what would bring it back (a real feature's first aggregate, its first collection endpoint, its first
-version-conditioned mutation); retarget the ones that only ever needed "some authenticated endpoint"
-at `GET /api/v1/auth/me` or another `Auth` action; delete the ones — `Idempotency/IdempotencyTests.cs`,
-`Security/OwnershipIsolationTests.cs` — that had no substitute at all. Every one of those decisions is
-in the diff, with the same reasoning repeated as a comment at the point it applies.
+Everything else keeps a live example, because `Files` is one:
 
-## Expected test fallout, and how it was resolved here
+| Mechanism | Where it stays demonstrated |
+|---|---|
+| `IUnitOfWork` | six files under `Src/Application/AppTemplate.Application/Features/Files/` |
+| The aggregate tracker / identity map, registered under three contracts | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Tracking/StoredFileTracker.cs` |
+| The default-deny fallback authorisation policy | `Src/Presentation/AppTemplate.Api/Features/Files/Controllers/FilesController.cs` carries no `[Authorize]` and no `[AllowAnonymous]`, on the class or on any action |
+| Domain events at all | three under `Src/Domain/AppTemplate.Domain/Features/Files/Events/`, one with a consumer |
+| `ICollectionPolicy` | `Src/Application/AppTemplate.Application/Features/Files/Policies/StoredFileCollectionPolicy.cs` |
+| Ownership isolation for a resource addressed by id | five `{fileId:guid}` routes on `FilesController` |
+| `[Idempotent]` | `FilesController`'s registration action; the count drops from four to three |
 
-Beyond what is listed above, the removal breaks a long tail of smaller things, entirely by count or
-by name rather than by missing mechanism. In the order they were hit:
+Three of those need their test repointed rather than kept as is.
+`Tests/Integration/AppTemplate.Api.IntegrationTests/Security/DefaultDenyAuthorizationTests.cs`
+enumerates every verb on `TodoListsController` by hand and asserts the enumeration is complete;
+repoint it at `FilesController`, which relies on the fallback the same way.
+`Tests/Integration/AppTemplate.Api.IntegrationTests/Security/OwnershipIsolationTests.cs` and
+`Tests/Integration/AppTemplate.Api.IntegrationTests/Idempotency/IdempotencyTests.cs` both drive
+`TodoLists` over real HTTP; both have a `Files` equivalent to be rewritten against.
 
-- **Use-case and validator counts.** `ServiceRegistrationTests._knownUseCaseCount` (44 → 24 —
-  read the current value rather than trusting this one; the authentication vertical has grown twice
-  since it was written),
-  `PortConventionTests`, `UseCaseConventionTests` and `LayoutConventionTests` all state a number
-  either in an assertion or in the comment beside it. Every one of them needed its number and its
-  comment updated together — the number alone, without the comment explaining what it now counts,
-  is exactly the kind of assertion this template's own conventions warn against.
-- **`ServiceRegistrationTests.TodoListAccess_IsRegisteredAsScoped`** and its `BuildProvider` fixture's
-  `ITodoListRepository`/`IReminderRepository`/`IReminderNotifier`/`IReminderTargetQueries`/`IReminderDiagnostics`
-  substitutes — deleted outright; there is no vertical left for the first to assert about, and the
-  fixture no longer needs to satisfy ports that no use case takes.
-- **`ContainerCompositionTests`, `AdapterVisibilityTests`** — drop `ITodoListRepository` and
-  `ITodoListQueries` from the hand-kept port lists; lower `AdapterVisibilityTests`'s non-vacuity
-  floor from 10 adapters to 8 (a unit of work, a clock, an email sender, and the five authentication
-  adapters — the repository and the query service are gone).
-- **Test doubles that build real aggregates** — `Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/{ATodoList,AReminder}.cs`
-  — deleted; nothing left references either.
-- **`VersionPreconditionTests`** kept its first half (the precondition object's own logic, which
-  needs no aggregate) and dropped its second (a theory over the five to-do-list mutating use cases,
-  proving each one actually applies the precondition it is handed) — there is no mutating,
-  version-conditioned use case left anywhere to run that theory against. See
-  [What has no replacement](#what-has-no-replacement).
-- **`AuditableTests`** exercised `IAuditable` through `TodoList`, the template's one concrete
-  aggregate. Rewritten against a private nested test-only aggregate implementing `IAuditable` the
-  same way every real one did (public getters, explicit interface setters) — the interface itself
-  needed no feature to stay covered.
-- **`DomainEventDispatcherTests`, `DomainEventDispatchSaveChangesInterceptorTests`** — both raised a
-  real `TodoListCreatedDomainEvent`/`TodoItemCompletedDomainEvent` through a real `TodoList` and a
-  real `TodoListTracker`. Rewritten against a private in-file `IDomainEvent` record and a minimal
-  `IDomainEventSource` implementation the test raises events into directly — the dispatcher and the
-  interceptor are both generic over the interface and neither needed a feature to prove.
-- **`ControllerContractTests`**'s deliberately-leaking test controller returned `TodoItemDto`;
-  repointed at `LoginOutcome`, an application type from a vertical that survives.
-- **Everything under `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/`, `Caching/`, `Http/`** that used
-  `TodoListsRoute` purely as "some authenticated endpoint" — repointed at `GET /api/v1/auth/me`
-  (reads) or `POST /api/v1/auth/logout-all` (writes with no body). `RequestBodySizeLimitTests`
-  repoints at the anonymous `POST /api/v1/auth/register` instead, which needs no session set up
-  first. `FrameworkProblemDetailsTests`'s "an authored error keeps its code" case moved from a 404
-  (`todoList.notFound`) to a 409 (`auth.register.unavailable`, raised by registering the same address
-  twice) — same property, different status, because no authored 404 exists anywhere outside the
-  removed features.
-- **`IntegrationTestBase`** loses its `TodoListsRoute` constant and its "Todo lists"/"Conditional
-  requests" regions (`CreateTodoListAsync`, `AddTodoItemAsync`, `LoadTodoListAsync`, `ReadETagAsync`,
-  `RenameAsync`) outright — there is no generic replacement to leave in a shared base class for
-  helpers that specifically create, version and conditionally mutate one aggregate.
-- **`ApiFactory`/`ApiFixture`/`RecordedDomainEvents`** — the test host registered a *second* consumer
-  of `TodoItemCompletedDomainEvent` purely to prove the dispatcher reaches every consumer of an
-  event, not just the first. `RecordedDomainEvents.cs` is deleted along with the registration; the
-  mechanism it proved is still covered at the unit level by `DomainEventDispatcherTests`.
-- **`RegistrationFlowTests`** had a redundant assertion — "the token works" against `TodoListsRoute`,
-  immediately followed by the same proof against `/auth/me` for a different reason (reading the
-  profile). Removing the first left the second doing both jobs; nothing was lost.
+### With `Files` removed as well
 
-## If you are keeping one and removing the other
+Everything in that table loses its last example. The rules that catch it, each of which fails rather
+than passing over nothing:
 
-**Removing `Reminders`, keeping `TodoLists`:** exactly the Reminders-only rows and edits above,
-nothing from the TodoLists column. `TodoLists` never references `Reminders`. Every generic mechanism
-above — `IUnitOfWork`, the tracker pattern, `ETag`/`If-Match`, the default-deny fallback, domain
-events, `ICollectionPolicy`, ownership isolation, `[Idempotent]` on `Create`/`AddItem` — stays
-demonstrated through `TodoLists` alone; only the `[Idempotent]` count and a handful of "N reminder
-use cases" comments need updating.
+- `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` — `IUnitOfWork` joins
+  `ILeaderLease` with zero callers in the application layer.
+- `SharedInstanceRegistrationTests.EveryAggregateTracker_ResolvesAsOneInstanceUnderEveryContractItServes`
+  — its floor is two trackers; the composed container has none.
+- `DefaultDenyAuthorizationTests` — no controller left that relies on the fallback policy.
+  `AuthController` decorates every action explicitly, and `MaintenanceController` and
+  `AccountAdministrationController` each declare their own policy at the controller level.
+- `DomainModelTests` — `AppTemplate.Domain` declares no aggregate, no entity, no value object and no
+  domain event; `Features/` is empty and `Common/` holds only the primitives a real feature builds
+  on. Five rules there exist to prove properties of a concrete domain model and have none to check.
+  `Auth` never raises a domain event.
+- `CollectionContractTests` — no collection policy registered anywhere, so its two rules about a
+  policy's internal consistency are vacuous.
+- `IdempotentActionsAreAlwaysPostTests` — no `[Idempotent]` action anywhere. The mechanism
+  (`IdempotencyFilter`, `IIdempotencyStore`, the claim/complete/release state machine) is untouched
+  and still unit-tested directly; what goes is the end-to-end proof.
+- 404-not-403 for another user's resource — the deliberate choice that a 403 would leak that the id
+  exists — has no example left, because no action in the remaining API is addressed by an `{id}`
+  route segment at all. Every authentication action addresses either nobody or the caller identified
+  by their own token; every maintenance action addresses everybody.
+- `LayoutConventionTests.EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn` — its floor is five
+  infrastructure modules and four remain, so the floor and the `Storage` entries in both
+  vocabularies come out together.
+- `StorageVocabularyTests` — four rules whose whole subject is the two-store shape.
 
-**Removing `TodoLists`, keeping `Reminders`:** not a smaller version of the full removal — it does
-not compile. `Reminders` calls `ITodoListQueries` and consumes `TodoItemCompletedDomainEvent`
-directly, and `ReminderTargetQueries` queries `context.TodoLists`. Either bring `TodoLists` back, or accept
-that removing it means removing `Reminders` too and rewrite `Reminders`' three touch points
-(`ScheduleReminderUseCase`, `CancelRemindersOnTodoItemCompletedConsumer`, `ReminderTargetQueries`) against
-whatever replaces the to-do item as the thing a reminder is scheduled against — which is no longer
-"removing the example", it is redesigning the second one.
+None of this is a defect in the removal. It is what "the examples teach the architecture rather than
+decorate it" costs once the lesson is taken away. For each affected test, do one of three things:
+**skip** the ones asserting a property of a domain model or a registration that no longer exists,
+with a comment naming exactly what brings it back — a real feature's first aggregate, its first
+collection endpoint, its first version-conditioned mutation; **retarget** the ones that only ever
+needed "some authenticated endpoint" at `GET /api/v1/auth/me` (reads) or `POST
+/api/v1/auth/logout-all` (writes with no body); **delete** the ones with no substitute at all.
+
+## What else fails
+
+Beyond the mechanisms above, a removal breaks a tail of smaller things, by count or by name rather
+than by missing mechanism. The `Reminders`-only list is measured — these are the nine tests that go
+red, and the edit each one needs:
+
+| Test | Why | The edit |
+|---|---|---|
+| `PendingModelChangesTests.TheModel_IsFullyCoveredByTheMigrations` | snapshot and model disagree | the migration section above |
+| `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` | `ILeaderLease` unconsumed | the choice described above |
+| `BackgroundWorkTests.TheLeaderLease_IsTakenByAUseCase` | same | same |
+| `BackgroundWorkTests.NoBackgroundService_TakesTheLeaderLease` | its floor is three background services, two remain | lower the floor |
+| `ObservabilityRegistrationTests.EveryDiagnosticsNameAHostDeclares_IsRegisteredByThatHost` | its floor is six instruments, four remain | lower the floor |
+| `PersistenceModelTests.EveryEntityTypeConfiguration_IsAppliedByTheContext` and `…EveryConfigurationTheContextApplies_IsDeclaredInTheModule` | nothing, as long as the configuration file and its `ApplyConfiguration` call go together | delete both, or neither |
+| `LayoutConventionTests.EveryFeatureFolder_IsNamedFromItsLayersVocabulary` | it requires every listed project to have a `Features/` folder, and the email module's is gone | see below |
+| `DomainEventTests.NoEventIsListedAsUnconsumed_WhileSomethingConsumesIt` | `ReminderFiredDomainEvent` is still listed as deliberately unconsumed | drop the entry |
+
+The layout one is worth a paragraph, because the obvious fix trades one red test for another.
+`LayoutConventionTests` holds two hand-maintained vocabularies and asserts `checkedLayers` equals
+`_vocabulary.Count` — every listed project must have a `Features/` folder — while
+`EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn` asserts the converse, that every module on
+disk is listed in both. Deleting the email module's entry satisfies the first and breaks the second.
+Keep the entry and turn the identity assertion into a floor instead, naming the module that is
+listed without a `Features/` folder and why. That was measured: both rules then pass.
+
+Two more counts sit outside the architecture project and are not assertions you can lower blindly —
+read the current value, recompute it after the removal, and update the comment beside it with the
+number:
+
+- `Tests/Application/AppTemplate.Application.UnitTests/ApplicationModuleTests.cs` holds
+  `_knownUseCaseCount`, and a doc comment that breaks the total down per vertical. Removing
+  `Reminders` takes it from 55 to 50; the comment has to lose the same clause. The number alone,
+  without the comment saying what it now counts, is exactly the kind of assertion this repository's
+  conventions warn against.
+- `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/IdempotentActionsAreAlwaysPostTests.cs`
+  holds both a controller list and a count of `[Idempotent]` actions, which is four today.
+- `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/AdapterVisibilityTests.cs` holds a
+  non-vacuity floor of ten adapters and a message enumerating them. Removing `Reminders` alone
+  leaves it satisfied, so it needs no edit there; a wider removal does. Re-derive the enumeration
+  from what survives — including the `Storage` adapters, if `Files` stays — rather than subtracting
+  from the sentence.
+
+And the fixture and helper code, which the compiler finds for you:
+
+- `Tests/Application/AppTemplate.Application.UnitTests/ApplicationModuleTests.cs`'s provider fixture
+  registers a substitute for every port a use case takes; drop the ones whose port is gone.
+- `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/TestDatabase.cs` names every
+  schema `AppDbContext` declares, in the list it truncates between tests. Remove only the schemas
+  you actually removed — a schema missing from that list is never reset, and its rows leak from one
+  test into the next as an order-dependent intermittent, which is the worst category to diagnose.
+  `Tests/Integration/AppTemplate.Api.IntegrationTests/Health/HealthEndpointTests.cs` asserts on two
+  of the same constants for its "did the schemas migrate" check.
+- `Tests/Application/AppTemplate.Application.UnitTests/Common/Concurrency/VersionPreconditionTests.cs`
+  keeps its first half — the precondition object's own logic needs no aggregate — and loses the
+  theory over the to-do list's mutating use cases **(T)**.
+- `Tests/Domain/AppTemplate.Domain.UnitTests/Common/Abstractions/AuditableTests.cs` exercises
+  `IAuditable` through `TodoList` **(T)**; rewrite it against a private nested test-only aggregate
+  implementing the interface the same way every real one does — public getters, explicit interface
+  setters.
+- `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Common/Saving/DomainEvents/DomainEventDispatcherTests.cs`
+  and its `DomainEventDispatchSaveChangesInterceptorTests.cs` sibling raise real `TodoLists` events
+  through a real tracker **(T)**; both the dispatcher and the interceptor are generic over
+  `IDomainEvent`, so a private in-file event record and a minimal `IDomainEventSource` cover them
+  with no feature at all.
+- `Tests/Presentation/AppTemplate.Api.UnitTests/Conventions/ControllerContractTests.cs`'s
+  deliberately-leaking test controller returns `TodoItemDto` **(T)**; repoint it at any application
+  type from a vertical that survives.
+- `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/IntegrationTestBase.cs` holds a
+  `TodoLists` route constant and its create/version/mutate helpers **(T)**. There is no generic
+  replacement to leave behind in a shared base class for helpers that specifically create, version
+  and conditionally mutate one aggregate.
+- `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/ApiFactory.cs` registers a
+  *second* consumer of `TodoItemCompletedDomainEvent` purely to prove the dispatcher reaches every
+  consumer of an event rather than only the first;
+  `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/RecordedDomainEvents.cs` is
+  what it records into **(T)**. The property they prove stays covered at the unit level.
+- Everything under `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/`,
+  `Tests/Integration/AppTemplate.Api.IntegrationTests/Caching/` and
+  `Tests/Integration/AppTemplate.Api.IntegrationTests/Http/` that uses the to-do list route purely
+  as "some authenticated endpoint" **(T)** takes the retarget above.
+  `Tests/Integration/AppTemplate.Api.IntegrationTests/Http/RequestBodySizeLimitTests.cs` wants the
+  anonymous `POST /api/v1/auth/register` instead, which needs no session set up first.
+  `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/FrameworkProblemDetailsTests.cs`'s
+  "an authored error keeps its code" case needs a different status: no authored 404 exists outside
+  the example features, so a 409 from registering the same address twice proves the same property.
+
+## If you are keeping some and removing others
+
+**Removing `Files`, keeping the rest.** Independent in both directions, and the only one whose
+removal takes a whole infrastructure project, two `Dockerfile` lines, two solution entries and the
+`minio` half of `docker-compose.yml` with it. Nothing outside `Files` names a `Files` type. Weigh it
+against what the [table above](#with-todolists-and-reminders-gone-files-kept) says it is carrying:
+if your project stores anything at all in an object store, re-pointing `StoredFile` at your own
+metadata is less work than removing it and adding a second store back later.
+
+**Removing `Reminders`, keeping `TodoLists` and `Files`.** The measured path, and the smallest one:
+three rounds of `dotnet build` and nine failing tests, each with a one-line fix above. `TodoLists`
+never references `Reminders` outside two doc comments. What actually leaves is `ILeaderLease`'s only
+consumer, the second consumer of `TodoItemCompletedDomainEvent`, and one `[Idempotent]` action.
+
+**Removing `TodoLists`, keeping `Reminders`.** Not a smaller version of the full removal — it does
+not compile. `Reminders` calls `ITodoListQueries`, consumes `TodoItemCompletedDomainEvent` and
+queries `context.TodoLists`. Either keep `TodoLists`, or accept that removing it means removing
+`Reminders` too and rewrite `Reminders`' three touch points — `ScheduleReminderUseCase`,
+`CancelRemindersOnTodoItemCompletedConsumer` and `ReminderTargetQueries` — against whatever replaces
+the to-do item as the thing a reminder is scheduled against. That is no longer removing an example;
+it is redesigning one.
 
 ## Verification
 
-Everything above was checked in a disposable copy of the repository, never in this one:
+Run these yourself; they are the gates, in the order that fails fastest:
 
-- `dotnet build AppTemplate.sln` — 0 warnings, 0 errors, both with only `Reminders` removed and with
-  both examples removed.
-- `dotnet test AppTemplate.sln` on every project — every unit and architecture test project passes
-  or explicitly skips (with a reason naming this document); the integration suite, run against a
-  real PostgreSQL container via Testcontainers, passed 91 of 92 tests unmodified, the one failure
-  being unrelated to either example feature.
-- `dotnet ef migrations has-pending-model-changes` (the check `PendingModelChangesTests` also runs)
-  clean after the generated migration.
+1. `dotnet build AppTemplate.sln` — 0 warnings, 0 errors. `TreatWarningsAsErrors` means an unused
+   `using` and an unresolvable `<see cref>` both stop the build, so most of a removal's remaining
+   work is visible here.
+2. `dotnet test` on the ten unit and architecture test projects — no Docker needed. This is where a
+   count, a non-vacuity floor or a hand-maintained list that no longer matches the tree turns red.
+3. `PendingModelChangesTests` in particular, which also needs no database and is the only check on
+   the migration edit.
+4. `dotnet test` on `AppTemplate.Api.IntegrationTests` and
+   `AppTemplate.Infrastructure.Identity.IntegrationTests`, which need Docker for their
+   Testcontainers PostgreSQL. Nothing in this document has been confirmed against a running instance
+   of either.
+5. `docker build` on both `Dockerfile`s, for the `COPY` failure mode that `dotnet restore` hides.
 
-If your own removal produces a different diff than the one described here, the discovery-based
-architecture tests (`RequireTypes`, the various `ShouldNotBeEmpty` non-vacuity guards) are what will
-tell you first, and loudly — that is what they are for.
+If your removal produces something this document does not describe, the discovery-based architecture
+tests — `RequireTypes`, the various `ShouldNotBeEmpty` and floor guards — are what will tell you
+first, and loudly. That is what they are for.

@@ -75,10 +75,15 @@ public sealed class ContainerCompositionTests
     /// <summary>
     /// Every use case the application assembly declares, discovered rather than listed: a list would
     /// only ever guard what somebody remembered to add to it, which is the weakness the discovery in
-    /// <c>ServiceRegistration</c> exists to remove.
+    /// <c>ApplicationModule</c> exists to remove.
     /// <para>
     /// Each one is resolved through its own named interface and must come back as the concrete class
     /// that declares it, so a contract bound to the wrong implementation fails here too.
+    /// </para>
+    /// <para>
+    /// The name promises <em>every</em>, so the population is measured rather than floored. A number
+    /// written here could not be wrong, only stale — and while it was stale this test would resolve
+    /// a handful of use cases and report that all of them were fine.
     /// </para>
     /// </summary>
     [Fact]
@@ -86,10 +91,23 @@ public sealed class ContainerCompositionTests
     {
         var implementations = UseCaseTypes.InApplicationAssembly;
 
-        implementations.Count.ShouldBeGreaterThanOrEqualTo(
-            14,
-            "The application layer has nine to-do list use cases and six authentication ones. " +
-            "Finding fewer means this discovery has stopped matching them and is guarding nothing.");
+        SourceDeclarations.WalkComplaints.ShouldBeEmpty(
+            "The source-tree walk this test measures its expectation with did not read the tree it " +
+            $"describes, so the comparison below would hold by comparing nothing.{Environment.NewLine}  " +
+            string.Join($"{Environment.NewLine}  ", SourceDeclarations.WalkComplaints));
+
+        var divergence = SourceDeclarations.Divergence(
+            SourceDeclarations.UseCaseFullNames,
+            implementations.Select(SourceDeclarations.WithoutArity),
+            "found by the IUseCase discovery this test resolves through the container");
+
+        divergence.ShouldBeEmpty(
+            "This test promises to resolve every use case, so the population it walks has to be the " +
+            "population the source tree declares. The two were measured independently — " +
+            $"{SourceDeclarations.UseCaseFullNames.Count} declared in the application project, " +
+            $"{implementations.Count} found by reflection — and they no longer agree, so one of the " +
+            $"two has stopped matching:{Environment.NewLine}  " +
+            string.Join($"{Environment.NewLine}  ", divergence));
 
         var services = HostComposition.ComposeApi(HostComposition.Configuration());
 
@@ -136,16 +154,41 @@ public sealed class ContainerCompositionTests
     [Fact]
     public void ThePortDiscovery_FindsEveryPortTheRepositoryHas()
     {
-        ApplicationPorts.DomainRepositories.Count.ShouldBe(
-            3,
-            "One repository contract per aggregate, in the Domain: ITodoListRepository, " +
-            "IReminderRepository and IStoredFileRepository.");
+        SourceDeclarations.WalkComplaints.ShouldBeEmpty(
+            "The source-tree walk both comparisons below are measured against did not read the tree " +
+            $"it describes.{Environment.NewLine}  " +
+            string.Join($"{Environment.NewLine}  ", SourceDeclarations.WalkComplaints));
 
-        ApplicationPorts.Declared.Count.ShouldBeGreaterThanOrEqualTo(
-            25,
-            "The application layer declares far more ports than this — eighteen for Auth alone, " +
-            "three for Reminders, one for TodoLists, and five cross-cutting. Finding fewer means " +
-            "the namespace match has stopped following the convention.");
+        var repositories = SourceDeclarations.Divergence(
+            SourceDeclarations.DomainRepositoryFullNames,
+            ApplicationPorts.DomainRepositories.Select(SourceDeclarations.WithoutArity),
+            "found by the repository discovery");
+
+        repositories.ShouldBeEmpty(
+            "One repository contract per aggregate, and the discovery has to find the same set the " +
+            "Domain's Repositories folders declare — measured, not listed, so a new aggregate needs " +
+            $"no edit here:{Environment.NewLine}  " +
+            string.Join($"{Environment.NewLine}  ", repositories));
+
+        // Declared is the port namespaces minus the markers, so the markers go back in to compare
+        // like with like: what the walk reads off disk is every public interface declared there.
+        var declaredAndExcluded = ApplicationPorts.Declared
+            .Concat(ApplicationPorts.NotPorts)
+            .Select(SourceDeclarations.WithoutArity);
+
+        var ports = SourceDeclarations.Divergence(
+            SourceDeclarations.PortFullNames,
+            declaredAndExcluded,
+            "seen by the port discovery");
+
+        ports.ShouldBeEmpty(
+            "Every public interface under a vertical's Ports folder or under Common is either a port " +
+            "this discovery declares or one it names as a marker. A third outcome means the " +
+            "namespace match has stopped following the convention, and every rule reading it is " +
+            $"inspecting less than it says. ({SourceDeclarations.PortFullNames.Count} declared on " +
+            $"disk, {ApplicationPorts.Declared.Count} ports plus " +
+            $"{ApplicationPorts.NotPorts.Count} markers discovered.){Environment.NewLine}  " +
+            string.Join($"{Environment.NewLine}  ", ports));
     }
 
     [Fact]

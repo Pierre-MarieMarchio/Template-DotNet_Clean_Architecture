@@ -31,7 +31,7 @@ public sealed record TestSession(Guid UserId, TokenResponse Tokens);
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>State reset.</b> Before each test every table in both module schemas is truncated, the
+/// <b>State reset.</b> Before each test every table in the five module schemas is truncated, the
 /// recorded mailbox and captured log are emptied, and the clock is placed at a fixed instant. The
 /// host itself is not recycled — rebuilding it per test would cost more than the whole suite.
 /// </para>

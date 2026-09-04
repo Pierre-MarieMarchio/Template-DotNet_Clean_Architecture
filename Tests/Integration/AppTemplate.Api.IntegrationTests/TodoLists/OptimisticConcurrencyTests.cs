@@ -26,11 +26,6 @@ namespace AppTemplate.Api.IntegrationTests.TodoLists;
 /// <see cref="ITodoListRepository"/> and <see cref="IUnitOfWork"/> — the exact path a use case takes —
 /// rather than through a <c>DbSet</c>, so nothing about the mapping is bypassed.
 /// </para>
-/// <para>
-/// The races are made deterministic rather than raced. Firing two requests at once exercises the same
-/// code path but only <em>sometimes</em> interleaves, and a concurrency test that passes when the two
-/// writes happen to be sequential is not a test.
-/// </para>
 /// </remarks>
 public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
@@ -89,28 +84,6 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
     }
 
     /// <summary>
-    /// The outcome a client can actually see: <b>409</b>, <c>application/problem+json</c>, and the stable
-    /// code <c>concurrency.conflict</c> — not a 500, and not a silently accepted overwrite.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// This is the assertion that proves the whole chain rather than one link of it: <c>xmin</c> in the
-    /// <c>WHERE</c> clause, zero rows affected, <c>DbUpdateConcurrencyException</c> from EF,
-    /// <see cref="ConcurrencyConflictException"/> from the unit of work, and the global exception
-    /// handler's problem document. Every step is production code; the endpoint is the ordinary rename
-    /// endpoint, with no test-only route and no injected failure.
-    /// </para>
-    /// <para>
-    /// <b>How the interleaving is forced.</b> A transaction of this test's own updates the row and stays
-    /// open. Under <c>READ COMMITTED</c> the API's handler then reads the row at its previous version —
-    /// uncommitted changes are invisible — and its own <c>UPDATE</c> blocks on the row lock. The test
-    /// waits until PostgreSQL reports a session waiting on a lock, which is proof that the handler has
-    /// already done its read, and only then commits. PostgreSQL re-evaluates the blocked statement's
-    /// <c>WHERE</c> against the new row version, <c>xmin</c> no longer matches, and zero rows are
-    /// affected. No sleeps, and nothing that passes when the two writes happen to be sequential.
-    /// </para>
-    /// </remarks>
-    /// <summary>
     /// The outcome a client can actually see when two writers race: <b>409</b>,
     /// <c>application/problem+json</c>, and the stable code <c>concurrency.conflict</c> — never a 500, and
     /// never a success that quietly discarded somebody's change.
@@ -124,17 +97,11 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
     /// test-only route, no injected failure.
     /// </para>
     /// <para>
-    /// <b>Why a burst rather than a contrived interleaving.</b> Several writers are fired at the same list
-    /// at once and <em>every</em> response is checked, not just the interesting one. That makes the test
-    /// meaningful whichever way the requests happen to interleave: a run in which they serialised produces
-    /// eight 200s and is retried, and a run in which any of them raced must produce a well-formed 409.
-    /// The failure this guards — a lost update reported as success, or as a 500 — would show up in the
-    /// per-response assertions on the very first burst.
-    /// </para>
-    /// <para>
-    /// The retry exists because interleaving is the operating system's decision, not the test's. It is
-    /// bounded, and exhausting it fails: "no two writers ever raced" would mean this test had silently
-    /// stopped exercising concurrency at all, which is exactly the vacuous pass worth failing on.
+    /// <b>Why a burst rather than a contrived interleaving.</b> Interleaving is the operating system's
+    /// decision, not the test's, so several writers are fired at the same list at once and <em>every</em>
+    /// response is checked, not just the interesting one. That makes the run meaningful whichever way the
+    /// requests fall: writers that serialised produce eight 200s and are retried, writers that raced must
+    /// produce a well-formed 409.
     /// </para>
     /// </remarks>
     [Fact]

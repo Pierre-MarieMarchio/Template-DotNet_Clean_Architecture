@@ -42,8 +42,8 @@ public abstract class ApiControllerBase : ControllerBase
     /// <c>Ok(value)</c> leaves <see cref="ObjectResult.DeclaredType"/> null, and the output formatter
     /// then serialises the runtime type. For a closed hierarchy that is silently wrong: a
     /// <c>[JsonPolymorphic]</c> discriminator is written only when serialisation starts at the
-    /// polymorphic base, so the derived branch went out with no <c>status</c> on it at all and no
-    /// client could tell the branches apart. Naming the declared type here is what puts it back.
+    /// polymorphic base, so the derived branch goes out with no <c>status</c> on it at all and no
+    /// client can tell the branches apart. Naming the declared type here is what puts it back.
     /// </remarks>
     private static OkObjectResult Serialised<TValue>(TValue value) => new(value) { DeclaredType = typeof(TValue) };
 

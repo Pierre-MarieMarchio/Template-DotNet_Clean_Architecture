@@ -12,6 +12,9 @@ public sealed class AddTodoItemCommandValidator : AbstractValidator<AddTodoItemC
             .NotEmpty().WithMessage("A list id is required.");
 
         RuleFor(command => command.Title)
+            // Every Must below dereferences the value, and FluentValidation runs the remaining rules
+            // for a property even after NotEmpty has failed.
+            .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("An item title is required.")
             // Measured after trimming, like the domain measures it.
             .Must(title => title.Trim().Length <= TodoItemTitle.MaxLength)
@@ -28,6 +31,7 @@ public sealed class AddTodoItemCommandValidator : AbstractValidator<AddTodoItemC
             .WithMessage($"An item cannot carry more than {TodoItem.MaxTags} tags.");
 
         RuleForEach(command => command.Tags)
+            .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("A tag cannot be blank.")
             .Must(tag => tag.Trim().Length <= Tag.MaxLength)
             .WithMessage($"A tag cannot exceed {Tag.MaxLength} characters.");

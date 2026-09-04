@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.Infrastructure.Persistence.Features.Identity;
+﻿namespace AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
 
 /// <summary>
 /// The role names this application seeds and authorises against.

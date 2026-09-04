@@ -7,11 +7,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Configurations;
 
 /// <summary>
-/// Mapping for the to-do list root row. The previous model had no configuration classes at all, so
-/// every string column was <c>text</c> with no length, nothing was indexed except the primary keys,
-/// and there was no concurrency control.
+/// Mapping for the to-do list root row: column lengths, indexes and the concurrency token.
 /// <para>
-/// It still reads the domain's constants for lengths — <see cref="TodoListName.MaxLength"/> — so the
+/// It reads the domain's constants for lengths — <see cref="TodoListName.MaxLength"/> — so the
 /// column and the invariant cannot drift apart. That is the one direction in which a schema should
 /// depend on a domain: the rule is stated once, in the model, and the database enforces the same
 /// number rather than a copy of it.

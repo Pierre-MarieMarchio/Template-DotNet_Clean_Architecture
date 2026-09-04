@@ -4,9 +4,10 @@ namespace AppTemplate.Infrastructure.Identity.Common.Options;
 
 /// <summary>
 /// Password, lockout and sign-in policy. Every member has a safe default, so a section that is
-/// absent or only partly filled in tightens nothing and loosens nothing — the previous plain
-/// auto-properties defaulted four booleans to <c>false</c> and the required length to <c>0</c>,
-/// and then overwrote ASP.NET Identity's secure defaults with them.
+/// absent or only partly filled in tightens nothing and loosens nothing. That is load-bearing:
+/// whatever is bound here overwrites ASP.NET Identity's own secure defaults, so a member left to
+/// <c>false</c> or <c>0</c> by omission would silently loosen the policy rather than leave it
+/// alone.
 /// </summary>
 public sealed class IdentityPolicyOptions
 {

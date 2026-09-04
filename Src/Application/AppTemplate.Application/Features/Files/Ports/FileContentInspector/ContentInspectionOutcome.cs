@@ -12,16 +12,8 @@
 /// <see cref="ContentInspectionStatus.Unavailable"/>, because then nothing was read.
 /// <para>
 /// <b>This is the one place a file's content crosses into the application layer, and the bound is
-/// the contract rather than an implementation's discretion.</b> The whole feature is arranged so
-/// that no byte of an upload passes through this process — a 64 KiB inbound cap, a signed URL the
-/// client writes to directly, a redirect on the way out. What arrives here is a fixed, tiny prefix,
-/// and it arrives because deciding what a file <em>is</em> from its leading bytes is a table of
-/// constants, and a table of constants belongs where it can be read and tested without a bucket, a
-/// scanner or a socket. An adapter that decided instead of reporting would be deciding what a
-/// failure means on the far side of the port.
-/// </para>
-/// <para>
-/// The rest of the object never comes here. It goes from the store to the scanner, inside the
+/// the contract rather than an implementation's discretion.</b> No other byte of an upload passes
+/// through this process. The rest of the object goes from the store to the scanner inside the
 /// adapter, and this layer never sees it.
 /// </para>
 /// </param>

@@ -38,27 +38,16 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// class would silently defeat the <c>[Authorize]</c> on <see cref="GetCurrentUser"/> and
 /// <see cref="ChangePassword"/> and serve the caller's own profile to anyone.
 /// <para>
-/// The refresh token is returned in the response body rather than an <c>HttpOnly</c> cookie. That
+/// The refresh token is returned in the response body rather than an <c>HttpOnly</c> cookie, which
 /// suits every client type and carries no CSRF surface. For a browser-only SPA an
 /// <c>HttpOnly; Secure; SameSite</c> cookie is the stronger choice against XSS: set it here and
 /// drop the field from the response instead of serialising both.
 /// </para>
 /// <para>
-/// Statuses are declared action by action. 409 belongs to sign-up and to
-/// <see cref="SetUpTwoFactor"/>, where a taken email/user name and an already-armed second factor are
-/// the real conflicting-state outcomes; no other action here has one. 401 belongs to the token
-/// endpoints — <see cref="Login"/>, <see cref="LoginWithTwoFactor"/>, <see cref="Refresh"/> — where
-/// bad credentials, an invalid challenge or a spent refresh token are the expected refusal, and to
-/// every <c>[Authorize]</c> action, where it means the caller's token is missing or no longer valid.
-/// <see cref="LoginWithExternalProvider"/> is a token endpoint too, and its 401 covers every way an
-/// external sign-in can be refused, indistinguishably.
-/// </para>
-/// <para>
 /// The tight <see cref="RateLimitingExtensions.Authentication"/> budget is declared on each action that
 /// handles a credential — a password, a TOTP code, a recovery code — and on none that does not.
 /// <see cref="GetCurrentUser"/> and <see cref="LogoutEverywhere"/> are the exceptions and stay on the
-/// global limiter: reading one's own profile, or clearing one's own sessions, is not an attempt at a
-/// credential, and putting either on the credential budget would let a client that polls its profile
+/// global limiter: putting either on the credential budget would let a client that polls its profile
 /// or cleans up its sessions spend the allowance that exists to slow brute force down.
 /// </para>
 /// <para>

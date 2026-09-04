@@ -13,8 +13,8 @@ namespace AppTemplate.Application.UnitTests.Features.TodoLists.Conventions;
 
 /// <summary>
 /// These commands and queries carry only ids and a precondition: the only thing to validate is
-/// that <c>Guid.Empty</c> does not reach the repository. One class because every case is the
-/// same shape, repeated across the validators the spec says were missing entirely.
+/// that <c>Guid.Empty</c> does not reach the repository. One class because every case is the same
+/// shape, repeated across every validator that carries nothing else.
 /// </summary>
 public sealed class IdRequiredValidatorsTests
 {

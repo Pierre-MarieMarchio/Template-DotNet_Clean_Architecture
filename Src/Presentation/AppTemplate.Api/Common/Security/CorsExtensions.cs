@@ -28,8 +28,14 @@ public static class CorsExtensions
             policy.WithOrigins(allowedOrigins)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
-                // Without this a browser cannot read Retry-After off a cross-origin 429.
-                .WithExposedHeaders("Retry-After")
+                // A browser hands script only the CORS-safelisted response headers unless the
+                // server names the rest, so every header this API expects a client to act on has
+                // to be listed here or it reads as absent. Retry-After for a 429; ETag because
+                // If-Match is how every conditional write in this template is made, and a client
+                // that cannot read one cannot send one back; Location for the 201s; and
+                // Idempotency-Replayed so a caller retrying a POST can tell a stored answer from
+                // a fresh one, which is the whole point of having sent the key.
+                .WithExposedHeaders("Retry-After", "ETag", "Location", "Idempotency-Replayed")
                 .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
 
             // AllowCredentials is deliberately not set: tokens travel in the Authorization header,

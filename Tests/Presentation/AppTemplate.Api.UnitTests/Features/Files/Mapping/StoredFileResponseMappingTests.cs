@@ -115,9 +115,9 @@ public sealed class StoredFileResponseMappingTests
     /// would do.
     /// <para>
     /// Asserted on the parsed document rather than on the JSON text: Shouldly's string
-    /// <c>ShouldContain</c> compares case-insensitively, so the first version of this test passed
-    /// against the camel-cased output it was written to reject. The second half below is what
-    /// proves this one does not.
+    /// <c>ShouldContain</c> compares case-insensitively, so a text assertion here would pass against
+    /// exactly the camel-cased output it is written to reject. The second half below is what proves
+    /// this one does not.
     /// </para>
     /// </remarks>
     [Fact]

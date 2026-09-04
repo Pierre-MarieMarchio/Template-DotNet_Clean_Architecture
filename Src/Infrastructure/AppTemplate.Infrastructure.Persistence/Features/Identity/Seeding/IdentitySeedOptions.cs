@@ -4,8 +4,9 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
 
 /// <summary>
 /// Development-only seeding of an administrator account. Off unless switched on explicitly, and the
-/// password has no default: the previous seeder created <c>admin</c> / <c>admin</c> with a confirmed
-/// <c>admin@admin</c> address in every environment and swallowed the failure if it could not.
+/// password has no default: <see cref="IdentitySeedOptionsValidator"/> requires it once seeding is
+/// enabled, so a deployment cannot end up with a known, guessable administrator credential by
+/// omission.
 /// <para>
 /// It lives beside the seeder rather than with the identity module's other options, because it configures
 /// seeding — which is a persistence concern — and not authentication policy. The section name is

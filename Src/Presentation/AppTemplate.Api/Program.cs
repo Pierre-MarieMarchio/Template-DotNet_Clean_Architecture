@@ -59,6 +59,15 @@ builder.Services.AddScoped<AppTemplate.Application.Common.Abstractions.ICurrentU
 // registering it once here is safe and is one fewer thing every controller has to remember.
 builder.Services.AddControllers(options => options.Filters.Add<IdempotencyFilter>());
 
+// The other half of "no exception message reaches a client". Left on, the JSON input formatter
+// copies a JsonException's text into the model error, and that text names the CLR type it was
+// binding and the byte offset it stopped at. Turned off, the entry carries the exception without
+// a message, and ModelStateProblemExtensions answers with its own sentence.
+// Qualified: Microsoft.AspNetCore.Http.Json carries a JsonOptions of its own, and the one that
+// governs a controller's input formatter is MVC's.
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(
+    options => options.AllowInputFormatterExceptionMessages = false);
+
 // Model binding must answer the same ProblemDetails shape as an application validation failure, so
 // this is wired right beside AddControllers, before anything else has a chance to bind a request.
 builder.Services.AddApiModelStateProblemDetails();
@@ -155,12 +164,13 @@ app.UseApiSecurityHeaders();
 // UseExceptionHandler can clear the response, so an error response states Cache-Control too.
 app.UseApiCacheHeaders();
 
-// Before anything reads the body, and before the request is logged, so an oversized request is
-// rejected — and that rejection is logged — the same as any other response.
-app.UseApiRequestLimits();
-
-// Outside the exception handler, so the entry reports the status the caller received.
+// Outside the exception handler, so the entry reports the status the caller received, and ahead
+// of the size limit below: that middleware answers 413 without calling the next one, so anything
+// registered after it never runs on the path it rejects.
 app.UseApiRequestLogging();
+
+// Before anything reads the body, so an oversized request is refused rather than buffered.
+app.UseApiRequestLimits();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();

@@ -17,7 +17,7 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUp
 /// The second half of an upload: the client says it has finished, this asks the store what is
 /// actually there, and the aggregate decides whether that is what was promised.
 /// <para>
-/// <b>It no longer makes the file readable, and the name says only what it does.</b> Confirming a
+/// <b>It does not make the file readable, and the name says only what it does.</b> Confirming a
 /// deposit establishes that the bytes arrived and are the ones that were declared; it establishes
 /// nothing about what they <em>are</em>. The file comes out of here
 /// <see cref="StoredFileState.Deposited"/>, and <c>InspectDepositedFilesUseCase</c> — which reads

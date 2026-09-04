@@ -174,9 +174,8 @@ public sealed class StoredFileTests
     }
 
     /// <summary>
-    /// The step that used to make a file readable and no longer does. Confirming says the bytes
-    /// arrived; nothing has read them, so nothing may be served yet, and the instant that means
-    /// "servable since" must stay unset.
+    /// Confirming is not releasing. It says the bytes arrived; nothing has read them, so nothing may
+    /// be served yet, and the instant that means "servable since" must stay unset.
     /// </summary>
     [Fact]
     public void ConfirmDeposit_DoesNotMakeTheFileAvailable()

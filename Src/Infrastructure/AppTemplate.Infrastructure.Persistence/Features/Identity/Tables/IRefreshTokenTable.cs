@@ -10,13 +10,9 @@
 /// assembly, so nothing outside it can write a grant that skipped those decisions.
 /// </para>
 /// <para>
-/// A <em>table</em> rather than a repository, and that word is the whole distinction. A repository
-/// loads an aggregate and belongs in <c>AppTemplate.Domain</c> beside it; a refresh token has no
-/// domain presence at all — it is a credential the authentication adapter mints and consumes — so
-/// there is no aggregate to sit beside, and the contract is declared here, in the assembly that
-/// owns the rows, because the one module that reaches it is a sibling rather than a use case.
-/// Not a <em>store</em> either: that word is reserved for an application port such as
-/// <c>IIdempotencyStore</c>, and this contract is not one — no use case names it.
+/// A <em>table</em> rather than a repository or a store. <c>CONTRIBUTING.md</c> sets out what each
+/// of those four storage words names and why this contract is a table;
+/// <c>StorageVocabularyTests</c> holds the distinction.
 /// </para>
 /// <para>
 /// Public because it crosses an assembly boundary. Every method stages and <c>IUnitOfWork</c>

@@ -9,12 +9,10 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// The configuration guide against the options classes it describes, in both directions.
 /// <para>
 /// <c>docs/CONFIGURATION.md</c> opens by promising that "every setting the application reads is
-/// listed here". Nothing checked it, and by the time this rule was written the promise was false
-/// eleven times over: five whole sections had no table at all — <c>IdentityTokens</c>,
-/// <c>TwoFactor</c>, <c>ProblemTypes</c>, <c>ReminderWorker</c> — and the <c>Postmark</c> table
-/// documented a <c>BaseAddress</c> key that no options class has ever had while omitting the two it
-/// does. One of the absentees, <c>TwoFactor</c>, is the section <c>SECURITY.md</c> describes in prose
-/// as though its values were constants.
+/// listed here". Nothing but this rule holds it to that: a section with no table, or a table naming
+/// a key no options class binds, is invisible to the compiler and to every other gate, and drifts
+/// silently. <c>SECURITY.md</c> leans on the same promise, describing the <c>TwoFactor</c> values
+/// in prose as though they were constants.
 /// </para>
 /// <para>
 /// <b>Read from the source tree rather than from metadata</b>, for the reason

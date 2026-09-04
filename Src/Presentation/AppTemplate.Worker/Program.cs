@@ -67,7 +67,7 @@ builder.Services.AddSingleton<IValidateOptions<FileWorkerOptions>, FileWorkerOpt
 
 // The JSON log alone is not enough: the maintenance loop only logs when a purge removes something,
 // so a purge broken for weeks would otherwise be invisible. See WorkerObservabilityExtensions and
-// MaintenanceDiagnostics. The reminder loop logs every pass unconditionally instead — see
+// MaintenanceInstruments. The reminder loop logs every pass unconditionally instead — see
 // ReminderBackgroundService — so it needs no such note here.
 builder.Services.AddWorkerObservability(builder.Configuration);
 

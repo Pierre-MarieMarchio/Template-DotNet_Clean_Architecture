@@ -32,13 +32,11 @@ namespace AppTemplate.Api.Features.TodoLists.Controllers;
 /// authenticated user, so every endpoint is protected unless it opts out with
 /// <c>[AllowAnonymous]</c>.
 /// <para>
-/// Response statuses are declared action by action rather than once for the controller. 409 is
-/// reachable only from a write — a violated aggregate invariant, or a row another request changed
-/// between the read and the commit — and 404 only where an aggregate has to be found first;
-/// declaring either on a read would put a status in the OpenAPI document that the endpoint cannot
-/// produce. 400 is declared wherever a body, a query string or an <c>If-Match</c> header is read.
-/// 401 sits on the controller because every action here requires authentication; 413, 415, 429 and
-/// 500 come from <see cref="ApiControllerBase"/>.
+/// Response statuses are declared action by action, because
+/// <c>ProducesResponseType</c> only ever adds: 409 goes on the writes that can violate an invariant
+/// or lose a race, 404 where an aggregate has to be found first, 400 wherever a body, a query string
+/// or an <c>If-Match</c> header is read. 401 sits on the controller because every action here
+/// requires authentication; 413, 415, 429 and 500 come from <see cref="ApiControllerBase"/>.
 /// </para>
 /// <para>
 /// <b>Conditional requests.</b> Every read that names one aggregate publishes its version as a

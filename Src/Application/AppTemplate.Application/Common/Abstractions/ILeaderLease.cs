@@ -4,22 +4,17 @@
 /// Runs work on one host at a time, so that a loop which is only correct at a single replica can be
 /// deployed at several.
 /// <para>
-/// Not every scheduled job needs this. The two purges are idempotent deletes over a range that is
-/// already covered, so a second replica wastes a connection and nothing else. The reminder pass is
-/// the opposite: it claims each reminder in memory, notifies, and commits the whole batch at the
-/// end, so two hosts ticking in the same second both take the claim and both send the mail — one of
-/// them only loses on <c>xmin</c> afterwards, once the duplicate is already delivered. The claim
-/// defends against a host that died mid-attempt, which is what it was written for, and not against
-/// a concurrent pass.
+/// Not every scheduled job needs this. An idempotent delete over a range already covered costs a
+/// second replica a connection and nothing else. A pass that claims work in memory and commits the
+/// batch at the end does need it: two hosts both take the claim and both act, and only afterwards
+/// does one of them lose on <c>xmin</c>. A claim of that kind defends against a host that died
+/// mid-attempt, not against a concurrent pass.
 /// </para>
 /// </summary>
 /// <remarks>
-/// <b>Why the work is a delegate rather than a handle the caller disposes.</b> What this port sells
-/// is that the exclusion lasts exactly as long as the work, and only an implementation owning both
-/// ends can promise that: a handle handed back is released when the caller gets round to it, and
-/// never if the caller forgets. Taking the work in also keeps this a single public interface — a
-/// handle type would be a second one, produced by a factory and registered in no container, which
-/// is a hole nothing in the build can see.
+/// The work is a delegate rather than a handle the caller disposes, so that the exclusion lasts
+/// exactly as long as the work: a handle handed back is released when the caller gets round to it,
+/// and never if the caller forgets.
 /// <para>
 /// <b>This is not a fencing token.</b> Leadership can be lost mid-run — the mechanism behind it can
 /// drop without the work being told — so the work still has to be safe if a second host begins it.

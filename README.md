@@ -5,20 +5,21 @@ layering, PostgreSQL via EF Core, ASP.NET Identity with JWT access tokens and
 opaque rotating refresh tokens, default-deny authorisation, RFC 7807 errors, and
 configuration that fails fast when it is wrong.
 
-The sample domain is a to-do list — enough to show an aggregate with real
-invariants, domain events, a read/write port split and a `Result`-based error
-policy, without becoming an application you have to delete.
+The sample domain is three features — a to-do list with real invariants and domain
+events, a flat reminders aggregate, and a file store whose two halves live in
+different stores — enough to show an aggregate, a read/write port split and a
+`Result`-based error policy, without becoming an application you have to delete.
 
 > - Layer boundaries and the reasoning behind them: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 > - Every configuration key: [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
 > - Running it on Kubernetes: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
-> - Deleting the `TodoLists`/`Reminders` examples once you have read them: [docs/REMOVING-THE-EXAMPLE-FEATURES.md](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
+> - Deleting the `TodoLists`, `Reminders` and `Files` examples once you have read them: [docs/REMOVING-THE-EXAMPLE-FEATURES.md](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
 
 ## What is in the box
 
 - **.NET 10** (`net10.0`), SDK pinned by `global.json`
 - **PostgreSQL** through `Npgsql.EntityFrameworkCore.PostgreSQL`, one connection
-  string, one `DbContext`, one migrations history, four schemas
+  string, one `DbContext`, one migrations history, five schemas
 - **ASP.NET Identity** + JWT bearer, opaque refresh tokens that rotate on every
   use, email confirmation by POST, logout that actually revokes
 - **Default-deny authorisation** — a fallback policy requires an authenticated
@@ -67,7 +68,7 @@ dotnet new install <path-to-this-repository>
 dotnet new cleanarch-webapi -n Acme.OrderManagement
 cd Acme.OrderManagement
 
-./tasks.ps1 bootstrap        # required once — see the first note below
+dotnet run Tools/Tasks.cs bootstrap   # required once — see the first note below
 ```
 
 Generate **outside** the template repository. `dotnet new` reads the template from the
@@ -83,14 +84,14 @@ generated projects never collide if opened side by side.
 
 A few things worth knowing before you commit the result:
 
-- **`./tasks.ps1 bootstrap` is not optional, and it is the first thing to run.** Sorted
-  `using` directives are ordered alphabetically, so where a project's own namespace falls
-  relative to `FluentValidation`, `Microsoft.*` and the rest depends on the name you chose.
-  `AppTemplate` sorts one way, `Acme.OrderManagement` another. Until you run it once,
-  `dotnet format --verify-no-changes` fails — and since that is the *first* step of the
-  CI workflow you inherit, your first push fails with it. One run fixes it permanently.
-  It cannot be fixed in the template itself: no single committed ordering is correct for
-  every possible name.
+- **`dotnet run Tools/Tasks.cs bootstrap` is not optional, and it is the first thing to
+  run.** Sorted `using` directives are ordered alphabetically, so where a project's own
+  namespace falls relative to `FluentValidation`, `Microsoft.*` and the rest depends on
+  the name you chose. `AppTemplate` sorts one way, `Acme.OrderManagement` another. Until
+  you run it once, `dotnet format --verify-no-changes` fails — and since that is the
+  *first* step of the CI workflow you inherit, your first push fails with it. One run
+  fixes it permanently. It cannot be fixed in the template itself: no single committed
+  ordering is correct for every possible name.
 - **The `TodoLists`, `Reminders` and `Files` features ship by default** as the worked
   examples for [docs/ADDING-A-FEATURE.md](docs/ADDING-A-FEATURE.md): one aggregate
   with child entities, one flat, and one whose two halves live in different stores —
@@ -106,11 +107,11 @@ CI gate, not just a manual step.
 
 ## Quick start — Docker
 
-Brings up PostgreSQL, a mail catcher and the API. Nothing is installed on the host
-beyond Docker.
+Brings up PostgreSQL, a mail catcher, an S3-compatible object store, the API and the
+Worker. Nothing is installed on the host beyond Docker.
 
 ```bash
-git clone <your-fork-url> && cd Template-DotNet_Clean_Architecture
+git clone <your-fork-url> && cd <the-directory-it-created>
 
 cp .env.example .env          # working localhost defaults; edit if you like
 docker compose up --build
@@ -126,8 +127,10 @@ Then:
 | OpenAPI document (dev only) | <http://localhost:8080/openapi/v1.json> |
 | OpenAPI UI — Scalar (dev only) | <http://localhost:8080/scalar/v1> |
 | Mailpit — confirmation emails land here | <http://localhost:8025> |
+| MinIO console — uploaded files land here | <http://localhost:9001> |
 | PostgreSQL | `127.0.0.1:5432` |
 | Mailpit SMTP | `127.0.0.1:1025` |
+| MinIO S3 API | `127.0.0.1:9000` |
 
 > The two OpenAPI endpoints are mapped with `.AllowAnonymous()`, inside the
 > `IsDevelopment()` branch — so they are reachable without a token in development and do
@@ -191,10 +194,10 @@ curl -s -X POST http://localhost:5187/api/v1/auth/confirm-email \
   -H 'Content-Type: application/json' \
   -d '{"email":"alice@example.com","token":"<token from the link fragment>"}'      # 204
 
-# 3. log in
+# 3. log in — the body is tagged {"status":"authenticated","tokens":{…}}, so the pair is nested
 TOKEN=$(curl -s -X POST http://localhost:5187/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"alice@example.com","password":"Passw0rd!x"}' | jq -r .accessToken)
+  -d '{"email":"alice@example.com","password":"Passw0rd!x"}' | jq -r .tokens.accessToken)
 
 # 4. use the API
 curl -s -X POST http://localhost:5187/api/v1/todo-lists \
@@ -211,48 +214,24 @@ deliberately indistinguishable from a wrong password.
 
 ### Configuring it yourself
 
-```bash
-cd Src/Presentation/AppTemplate.Api
+To run locally against your own database, two values are all you have to supply:
+`ConnectionStrings:Default` and `Jwt:Key`. They go in `dotnet user-secrets` —
+`AppTemplate.Api.csproj` already carries a `UserSecretsId`, so the store exists and
+overrides both appsettings files. A deployed environment supplies them, and every other
+blank in `appsettings.json`, as environment variables instead, with `__` as the section
+separator (`ConnectionStrings__Default`, `Jwt__Key`, `Cors__AllowedOrigins__0`).
 
-dotnet user-secrets set "ConnectionStrings:Default" \
-  "Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=<yours>"
+**Never put a secret in `appsettings.json` or `appsettings.Development.json` — both are
+tracked in git.** The commands, the full key list and what each value is validated against
+are in
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md#secrets-use-dotnet-user-secrets).
 
-# HS256 signing key — minimum 32 bytes, enforced at startup
-dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)"
-
-dotnet user-secrets list
-```
-
-`AppTemplate.Api.csproj` already carries a `UserSecretsId`, so the store exists. Secrets live
-outside the repository and override both appsettings files. **Never put a secret in
-`appsettings.json` or `appsettings.Development.json` — both are tracked in git.**
-
-In a deployed environment, use environment variables instead. Nest sections with a
-double underscore: `ConnectionStrings__Default`, `Jwt__Key`,
-`Identity__PasswordRequiredLength`, `Cors__AllowedOrigins__0`.
-
-### Development seeding is off by default
-
-> **Warning.** `IdentitySeed` creates an **administrator** account with the `Admin`
-> role and a pre-confirmed email address.
->
-> - It is **disabled** unless `IdentitySeed:Enabled=true`.
-> - `IdentitySeeder` **throws** if it is enabled outside the Development
->   environment, rather than quietly shipping a known superuser to production.
-> - `IdentitySeed:AdminPassword` has **no default**. Enabling seeding without
->   explicitly configuring a password **fails startup validation** instead of
->   creating a guessable admin.
->
-> Never enable it anywhere reachable from the internet.
-
-To enable it locally:
-
-```bash
-cd Src/Presentation/AppTemplate.Api
-dotnet user-secrets set "IdentitySeed:Enabled" "true"
-dotnet user-secrets set "IdentitySeed:AdminEmail" "you@localhost"
-dotnet user-secrets set "IdentitySeed:AdminPassword" "<a real password you choose>"
-```
+> **Development seeding creates an administrator, and it is off by default.**
+> `IdentitySeed:Enabled` is `false`, `IdentitySeeder` throws if it is turned on outside the
+> Development environment, and `IdentitySeed:AdminPassword` has no default so enabling
+> seeding without one fails startup instead of creating a guessable admin. Never enable it
+> anywhere reachable from the internet. The four keys and how to set them locally:
+> [docs/CONFIGURATION.md](docs/CONFIGURATION.md#identityseed--development-only).
 
 ## The API surface
 
@@ -262,18 +241,19 @@ response, and the version segment substitutes into the route
 
 ### Authentication — `api/v1/auth/*`
 
-Nine of the controller's seventeen actions are explicitly `[AllowAnonymous]`; the
+Ten of the controller's eighteen actions are explicitly `[AllowAnonymous]`; the
 other eight require `[Authorize]` (`logout-all`, `me`, `change-password`, the three
-`two-factor/*` actions, `change-email`, `confirm-email-change`). Fifteen of the
-seventeen are rate-limited to **10 requests per minute per client IP**; `logout-all`
+`two-factor/*` actions, `change-email`, `confirm-email-change`). Sixteen of the
+eighteen are rate-limited to **10 requests per minute per client IP**; `logout-all`
 and `me` deliberately fall to the global limiter instead, since neither is an attempt
 at a credential.
 
 | Method | Route | Success | Notes |
 |---|---|---|---|
 | POST | `/api/v1/auth/register` | 200 | Body carries `confirmationEmailSent`; the account is committed before the mail is sent, so a delivery failure is recoverable, not fatal. |
-| POST | `/api/v1/auth/login` | 200 | Returns `accessToken`, `accessTokenExpiresAt`, `refreshToken`, `refreshTokenExpiresAt` — or, when the account has two-factor sign-in armed, a challenge token instead. |
+| POST | `/api/v1/auth/login` | 200 | Tagged by a `status` field a client reads rather than guessing from which fields are present: `authenticated` nests the four token fields under `tokens`, `twoFactorRequired` carries a `challengeToken` instead. |
 | POST | `/api/v1/auth/login/two-factor` | 200 | Exchanges the challenge token and a code for the same response shape as `login`. |
+| POST | `/api/v1/auth/login/external` | 200 | The client runs the provider's OAuth/PKCE flow itself and posts `provider` and the `idToken`; the API verifies it against that provider's JWKS and mints its own pair. Same `status` tag as `login`, plus `accountCreated`. |
 | POST | `/api/v1/auth/refresh` | 200 | Consumes the presented refresh token and returns a new pair. |
 | POST | `/api/v1/auth/confirm-email` | 204 | **POST with a JSON body**, not a GET with a query string. |
 | POST | `/api/v1/auth/resend-confirmation-email` | 204 | Always 204, whether or not the address exists. |
@@ -322,8 +302,6 @@ creating a list or an item (`201`) and deleting a list (`204`).
 | PUT | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/tags` | 200 — replaces the whole tag set |
 | DELETE | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/tags/{tag}` | 200 |
 
-The old `api/ListTodos`, `api/TodoItem` and `api/TodoTag` controllers are gone.
-
 ### Reminders — `api/v1/.../reminders` and `api/v1/reminders/*`
 
 Authentication required (no opt-out) — like `TodoListsController`, `RemindersController`
@@ -338,6 +316,82 @@ go through the item, rescheduling and cancelling go through the reminder's own i
 | POST | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/reminders` | 201 + `Location` — points at the collection above; there is no single-reminder `GET` |
 | PUT | `/api/v1/reminders/{reminderId}` | 200 — reschedule |
 | DELETE | `/api/v1/reminders/{reminderId}` | 204 — cancel |
+
+### Files — `api/v1/files/*`
+
+Authentication required (no opt-out). **No byte of any file passes through this API, in
+either direction** — that is the one thing to understand before calling anything here.
+The API signs URLs and the client talks to the object store directly, so depositing a
+file is two requests and reading one back is a redirect.
+
+| Method | Route | Success |
+|---|---|---|
+| GET | `/api/v1/files?page=1&pageSize=20&sort=registeredAt:desc` | 200 — paged summaries of the caller's own files |
+| GET, HEAD | `/api/v1/files/{fileId}` | 200 — the file's metadata, and the `ETag` the two writes below are conditioned on; 304 to a matching `If-None-Match` |
+| GET | `/api/v1/files/{fileId}/content` | **302** + `Location` — a short-lived signed URL, and no body |
+| POST | `/api/v1/files` | 201 + `Location` — reserves a place and returns the upload grant |
+| POST | `/api/v1/files/{fileId}/confirm` | 200 — the file's metadata, with its new version |
+| DELETE | `/api/v1/files/{fileId}` | 204 |
+
+**Depositing, in order.**
+
+1. `POST /api/v1/files` with metadata only — `name`, `declaredMediaType`, `sizeInBytes`
+   and `checksum` (SHA-256, 64 hexadecimal characters). The answer is the file's `id` and
+   an `upload` grant: a signed `url`, the `method` the signature covers, the
+   `requiredHeaders` the deposit must send back verbatim, and an `expiresAt`.
+2. Send the bytes straight at that URL, with the grant's `method` (`PUT` in both shipped
+   adapters) and its `requiredHeaders` unchanged. The signature covers the media type, the
+   length and the checksum, so a deposit that does not match what was declared is refused
+   by the store, with nothing written.
+3. `POST /api/v1/files/{fileId}/confirm`, which asks the store what it actually holds and
+   moves the file out of `pending` only if that agrees with the declaration.
+
+Splitting it across two API calls is forced rather than chosen:
+`RequestLimits:MaxRequestBodyBytes` caps an inbound body at 64 KiB, and the idempotency
+filter buffers and SHA-256s the whole body of every `POST` before a handler sees it. Every
+body on this controller is metadata — a name, a media type, a length, a digest — a few
+hundred characters whatever the file weighs, which is why no action here raises the limit.
+
+**Confirming does not make the file readable.** It leaves the file `pending` until the
+Worker's inspection pass has looked at the content — `FileWorker:InspectDepositedFilesInterval`,
+one minute by default, is a latency a user feels. `status` reads `pending` or `available`,
+and `availableAt` is `null` until then. Asking for content before that is `409`
+`storedFile.notAvailable`; content that was examined and refused is `409`
+`storedFile.quarantined`, which never becomes available however long the caller waits.
+
+**Reading is a redirect.** `GET /api/v1/files/{fileId}/content` answers `302` with a signed
+URL, so an `<img>`, a download manager or `curl -L` follows it with no client code. That
+`Location` is a bearer credential — whoever holds it reads the file, with no identity
+attached — so the response is `Cache-Control: no-store` and the URL must not be logged,
+stored or shared. `POST /api/v1/files` carries a signed *write* URL and is `no-store` for
+the same reason.
+
+**Registration is the endpoint `Idempotency-Key` exists for.** It is unaddressed creation:
+a retry that is not recognised mints a second file, a second object key and a second grant.
+`confirm` deliberately takes no key — it names the file it acts on, and the transition is
+one-way, so a second call meets a file that is no longer pending and gets `409`.
+
+**Conditional requests.** `GET`/`HEAD` on one file publishes its version as a strong `ETag`;
+`confirm` and `DELETE` honour `If-Match` and answer `412` when it is stale, `428` when
+`Concurrency:IfMatch` is `Required` and none was sent. `If-Match: *` is the useful form
+here: a registration nothing was ever deposited against is removed by the abandonment
+sweep, so a client resuming after a long upload gets `412` rather than a `404` it might
+read as "wrong id". Registration takes no precondition — there is no resource yet to have
+a version.
+
+**What refuses a registration.** `409` `storedFile.quotaExceeded` covers the three bounds
+one owner has: 20 uploads outstanding at once, 1 000 files, and 10 GiB of committed bytes
+(a single file may not exceed 5 GiB). `409` also carries a value the domain refuses that
+this layer cannot restate — a reserved device name, a wildcard media type, a checksum of
+the right length that is not hexadecimal.
+
+Sorting is `name`, `registeredAt` and `availableAt`; `availableAt` is offset-only because
+its column is nullable. `search` matches the file name, `state` narrows to `pending` or
+`available`. Everything else in
+[Collection queries](#collection-queries--sorting-filtering-paging) applies unchanged.
+
+A file that belongs to somebody else answers exactly as an absent one does — `404`
+`storedFile.notFound` — because a `403` next to a `404` is how an id becomes a probe.
 
 ### Account administration — `api/v1/auth/accounts/*`
 
@@ -362,19 +416,21 @@ with `403` when the target id names the caller.
 | DELETE | `/api/v1/maintenance/refresh-tokens/expired` | 200 — the number of rows removed |
 
 Requires the `Administrator` policy — an authenticated non-admin gets `403`. Together
-with the five `api/v1/auth/accounts/*` actions above, these are the seven endpoints
+with the six `api/v1/auth/accounts/*` actions above, these are the eight endpoints
 whose authority is more than "authenticated plus ownership"; the two here exist
 because the idempotency store and the refresh-token table each grow until something
 prunes them. Schedule both.
 
-**Conditional requests.** Every read of a single list or item publishes the list's
-version as a strong, opaque `ETag`; every write of one, and a reminder's reschedule
-and cancel, honour `If-Match`, so a stale edit — decided against a version somebody
-else has since changed — is refused with `412` instead of silently overwriting it.
-`If-Match: *` asserts that the resource exists, so a missing or someone-else's
-resource also answers `412`, not `404`. Sending no `If-Match` at all is accepted
-unless `Concurrency:IfMatch` is set to `Required`, in which case it is refused with
-`428`. `AppTemplate.Api.http` walks through the whole round trip.
+**Conditional requests.** Every read of a single list, item or file publishes that
+resource's version as a strong, opaque `ETag`; every write of one — a reminder's
+reschedule and cancel, a file's confirm and delete included — honours `If-Match`, so a
+stale edit, decided against a version somebody else has since changed, is refused with
+`412` instead of silently overwriting it. `If-Match: *` asserts that the resource
+exists, so a missing or someone-else's resource also answers `412`, not `404`. Sending
+no `If-Match` at all is accepted unless `Concurrency:IfMatch` is set to `Required`, in
+which case it is refused with `428` — see
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md#concurrency). `AppTemplate.Api.http` walks
+through the whole round trip.
 
 ### Collection queries — sorting, filtering, paging
 
@@ -463,7 +519,9 @@ language is that a grammar the client composes is a query planner you then own.
 
 A client that retries a create through a flaky network must not create twice. Send an
 `Idempotency-Key` header (any opaque string up to 128 characters — a UUID is the obvious
-choice) on `POST /api/v1/todo-lists` or `POST /api/v1/todo-lists/{id}/items`:
+choice) on any of the four creates that carry `[Idempotent]`: `POST /api/v1/todo-lists`,
+`POST /api/v1/todo-lists/{id}/items`, `POST /api/v1/todo-lists/{id}/items/{id}/reminders`
+and `POST /api/v1/files`.
 
 ```bash
 curl -X POST "$API/todo-lists" -H "Authorization: Bearer $TOKEN" \
@@ -484,27 +542,29 @@ Keys are scoped **per user**, so two callers may use the same key string without
 Only actions marked `[Idempotent]` participate — the auth endpoints deliberately do not,
 because replaying a login would mean storing a bearer token in the database.
 
-Keys are remembered for `Idempotency:Retention` (24 hours by default), but **nothing prunes
-them for you**: schedule `DELETE /api/v1/maintenance/idempotency-keys/expired`, which requires
-the `Administrator` policy and is also this template's worked example of policy-based
-authorisation.
+A completed key stays replayable for `Idempotency:Retention`, but **nothing prunes the
+table for you**: schedule `DELETE /api/v1/maintenance/idempotency-keys/expired`. That
+window, the claim lease behind `idempotency.inProgress` and the rest of the section are in
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md#idempotency).
 
 ### Health
 
 | Route | Checks | Anonymous |
 |---|---|---|
 | `/health` | nothing — answers "is the process up" | yes |
-| `/health/ready` | the database, through `AppDbContext` (`ready` tag) | yes |
+| `/health/ready` | the database and the shutdown state, both tagged `ready` | yes |
 
 Liveness deliberately touches no dependency, so an orchestrator does not restart a
 healthy API because the database was briefly unreachable. The Compose and Dockerfile
-healthchecks both target `/health`.
+healthchecks both target `/health`. What each probe should be wired to, and why readiness
+fails the instant shutdown starts, is in
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ### Authorisation is default-deny
 
 `Program.cs` installs an authorization fallback policy requiring an authenticated
 user. An endpoint is protected **unless it explicitly opts out** with
-`[AllowAnonymous]`; nine of `AuthController`'s seventeen actions and the two health
+`[AllowAnonymous]`; ten of `AuthController`'s eighteen actions and the two health
 endpoints do — and, in Development only, so do the two OpenAPI endpoints (see
 "Quick start — Docker" above).
 
@@ -536,7 +596,9 @@ of the contract.
 | `auth.refreshToken.invalid` | 401 — unknown, expired, revoked or replayed |
 | `auth.confirmEmail.invalid` | 400 |
 | `auth.register.unavailable` | 409 |
-| `todoList.notFound` / `todoItem.notFound` | 404 — a list owned by somebody else is also 404, so ids cannot be enumerated |
+| `todoList.notFound` / `todoItem.notFound` / `storedFile.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated |
+| `storedFile.notAvailable` / `storedFile.quarantined` | 409 — the content is not cleared for download yet, or was examined and refused. The second never becomes available |
+| `storedFile.quotaExceeded` | 409 — the caller's own pending, file-count or byte allowance |
 | `domain.invariantViolated` | 409 via `DomainGuard`; 400 if a use case's own catch is missing and `DomainException` reaches `GlobalExceptionHandler` |
 | `request.validationFailed` / `paging.invalid` | 400 |
 | `precondition.failed` | 412 — the `If-Match` a write named is stale, unrecognised, or `*` against a missing/foreign resource |
@@ -556,54 +618,39 @@ Every error response is served as `application/problem+json`.
 | `api/v1/auth/*` | 10 requests/minute per IP | 429 + `Retry-After: 60` + `code: rateLimit.exceeded` |
 | Everything else | 300 requests/minute per IP | same |
 
-Fixed windows, partitioned by `RemoteIpAddress`. **Behind a reverse proxy this needs
-`ForwardedHeaders` configured**, otherwise every request appears to come from the
-proxy and the whole world shares one partition. Not configured in this template — it
-depends on your topology.
+Fixed windows, partitioned by `RemoteIpAddress`. **Behind a reverse proxy this needs the
+`ReverseProxy` section turned on**, otherwise every request appears to come from the proxy
+and the whole world shares one partition. It is off by default because the trust list
+depends on your topology — and the validator refuses to start with `Enabled: true` and both
+lists empty, which would accept a forged `X-Forwarded-For` from anybody. The counters are
+also in-process, so the limit a caller meets is the number above times your replica count.
+Both points are argued in full in
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md#reverseproxy).
 
 ## Configuration
 
-Full reference: **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)**.
+**Every key, its type, its default, its validated range and what happens when it is wrong:
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md).** That document is the single statement of
+each of them; nothing here repeats a value it can point at.
 
-| Section | Purpose |
-|---|---|
-| `ConnectionStrings:Default` | the single PostgreSQL connection string |
-| `Jwt` | signing key, issuer, audience, access-token lifetime |
-| `RefreshToken` | refresh-token lifetime |
-| `Identity` | password, lockout and sign-in policy |
-| `Email` | SMTP transport, including `AllowInsecureTransport` |
-| `EmailConfirmation` | confirmation link target and subject |
-| `IdentitySeed` | development-only admin seeding |
-| `Cors` | allowed browser origins |
-
-Each binds to an options class with a validator registered via `.ValidateOnStart()`.
-A missing or out-of-range value fails the host at startup with a message naming the
-exact key — verified: blanking `EmailConfirmation:ConfirmEmailUrl` and shortening
-`Jwt:Key` produces
+Configuration is layered `appsettings.json` → `appsettings.Development.json` → user secrets
+→ environment variables, and every section but `Cors` binds to an options class whose
+validator is registered with `.ValidateOnStart()`. A missing or out-of-range value fails
+the host at startup, in one pass, with a message naming the exact key — blanking
+`EmailConfirmation:ConfirmEmailUrl` and shortening `Jwt:Key` produces
 `'Jwt:Key' must be at least 32 bytes long to sign HS256 tokens.` and
-`'EmailConfirmation:ConfirmEmailUrl' is required.` before Kestrel binds.
+`'EmailConfirmation:ConfirmEmailUrl' is required.` before Kestrel binds a port.
 
-`appsettings.json` is tracked and holds **no secrets** — every secret-shaped value in
-it is an empty string, which is why that file alone will not boot the app.
+`appsettings.json` is tracked and holds **no secrets** — every secret-shaped value in it is
+an empty string, which is why that file alone will not boot the app. The blanks are filled
+from user secrets locally and from environment variables in a deployment.
 
-### One trap worth knowing: `Email:Security`
-
-Startup validation rejects **every** SMTP mode that can end up sending in the clear
-— `None`, `StartTlsWhenAvailable` **and `Auto`** — for a host that is not loopback.
-`Auto` is on that list because MailKit resolves it to `StartTlsWhenAvailable` on any
-port but 465, so permitting it would reopen the same silent downgrade under a
-friendlier name.
-
-A containerised relay such as mailpit is not loopback and speaks no TLS at all, so
-plaintext against it must be **stated outright**:
-
-```
-Email__Security=None
-Email__AllowInsecureTransport=true
-```
-
-`docker-compose.yml` and `.env.example` do exactly that. For a real relay use
-`StartTls` or `SslOnConnect` and leave `AllowInsecureTransport` at `false`.
+One consequence is worth knowing before you point this at a mail relay: startup validation
+rejects every SMTP mode that can end up sending in the clear against a non-loopback host,
+`Auto` included, unless `Email:AllowInsecureTransport` says so outright. A containerised
+sink such as mailpit needs both switches, and `docker-compose.yml` and `.env.example`
+already set them — see
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md#email) for the three valid shapes.
 
 ## Tests
 
@@ -689,10 +736,10 @@ dotnet ef database update   --project Src/Infrastructure/AppTemplate.Infrastruct
 dotnet ef migrations remove --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
 ```
 
-The features still separate themselves by **schema** — `identity` for ASP.NET Identity's
-tables, `todo` for the to-do list feature's — declared table by table in each feature's
-`IEntityTypeConfiguration`. The single `__EFMigrationsHistory` sits in `public`, because it
-belongs to neither.
+The features still separate themselves by **schema** — `identity`, `todo`, `reminders`,
+`files`, and `platform` for the tables that belong to no feature — declared table by table
+in each feature's `IEntityTypeConfiguration`. The single `__EFMigrationsHistory` sits in
+`public`, because it belongs to none of them.
 
 `AppDbContextFactory` is a design-time factory reading `ConnectionStrings__Default` from the
 environment, with a localhost fallback, so the check that the model and the migrations still
@@ -714,7 +761,7 @@ global.json                    SDK pin
 Directory.Build.props          shared TFM, nullable, warnings-as-errors
 Directory.Packages.props       Central Package Management — all versions
 .config/dotnet-tools.json      pinned local tools (dotnet-ef)
-docker-compose.yml             db + mailpit + api
+docker-compose.yml             db + mailpit + minio + api + worker
 .env.example                   template for .env  (cp .env.example .env)
 
 Src/
@@ -754,13 +801,15 @@ Tests/
   Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests/   the S3 adapters, without a network
   Infrastructure/AppTemplate.Infrastructure.InMemory.UnitTests/  the test/demo doubles themselves
   Presentation/AppTemplate.Api.UnitTests/        controllers and request/response mapping
-  Presentation/AppTemplate.Worker.UnitTests/     the maintenance loop and its resilience
+  Presentation/AppTemplate.Worker.UnitTests/     the three loops, their options and their resilience
   Architecture/AppTemplate.Architecture.Tests/   layer/module rules + container composition
   Integration/AppTemplate.Api.IntegrationTests/  the real host over HTTP, real PostgreSQL
   Integration/AppTemplate.Infrastructure.Identity.IntegrationTests/
-                                        the refresh-token rotation race, two contexts against real PostgreSQL
+                                        the refresh-token rotation race, two concurrent
+                                        AppDbContext instances against real PostgreSQL
 
-docs/                          ARCHITECTURE.md, CONFIGURATION.md, DEPLOYMENT.md
+docs/                          ADDING-A-FEATURE.md, ARCHITECTURE.md, CONFIGURATION.md,
+                               DEPLOYMENT.md, REMOVING-THE-EXAMPLE-FEATURES.md
 
 deploy/
   kubernetes/                  Deployment, Service, Ingress, migration Job — see docs/DEPLOYMENT.md
@@ -800,8 +849,8 @@ AppTemplate.Application/
                                 than one operation returns
     Reminders/                  the second worked example: a flat aggregate, no child entities
       Errors/                   ReminderErrors.cs
-      Ports/<Port>/             ReminderNotifier, ReminderTargets (is the target still outstanding?),
-                                ReminderDiagnostics (the missed-cancellation counter)
+      Ports/<Port>/             ReminderNotifier, ReminderTargetQueries (is the target still
+                                outstanding?), ReminderDiagnostics (the missed-cancellation counter)
       Services/                 IReminderAccess — identity, ownership and precondition in one gate
       Mapping/                  ReminderDtoMapping
       Consumers/TodoItemCompleted/  cancels an item's reminders — a fast path, not the guarantee
@@ -823,6 +872,27 @@ AppTemplate.Application/
                                 RefreshAccessToken, ConfirmEmail, ResendConfirmationEmail,
                                 ChangePassword, RequestPasswordReset, ResetPassword
       UseCases/Queries/GetCurrentUser/
+    Files/                      the third worked example: one aggregate whose two halves live
+                                in different stores — metadata in PostgreSQL, bytes behind a port
+      Errors/                   StoredFileErrors.cs
+      Policies/                 StoredFileCollectionPolicy (the sortable whitelist),
+                                StoredFileQuotaPolicy (what one owner may hold),
+                                StoredFileContentPolicy + MediaTypeSignatures (what the leading
+                                bytes are allowed to say)
+      Ports/<Port>/             StoredFileQueries, FileContentStore (signed grants),
+                                FileContentInventory (what the bucket holds),
+                                FileContentInspector — four ports where TodoLists has one,
+                                because the bytes are somebody else's store
+      Services/                 IStoredFileAccess — the one gate every command loads through
+      Mapping/                  StoredFileDtoMapping
+      Consumers/StoredFileDeleted/  reclaims the object promptly; the sweep is the guarantee
+      UseCases/Commands/<Operation>/   RegisterFile, ConfirmFileUpload, DeleteStoredFile, and the
+                                three the worker runs: InspectDepositedFiles,
+                                PurgeAbandonedRegistrations, ReclaimOrphanedContent
+      UseCases/Queries/<Operation>/    GetStoredFiles, GetStoredFile, IssueFileDownload
+      Dtos/                     StoredFileDto
+    Maintenance/                no aggregate and no domain of its own: two commands over rows
+      UseCases/Commands/<Operation>/   PurgeExpiredIdempotencyKeys, PurgeExpiredRefreshTokens
 ```
 
 A command or query record lives **in the same folder as the one use case that accepts
@@ -835,21 +905,20 @@ call it.
 
 In `AppTemplate.Domain`, `AppTemplate.Application` and `AppTemplate.Api` there is deliberately **no `Services/`,
 `Interfaces/`, `DTOs/`, `Helpers/`, `Managers/` or `Factories/` folder at the project
-root.** Grouping by technical type at the top level is what this template was rescued from:
-it put the six files that implement one feature in six different directories, so no change
-was ever local and no folder ever told you what the application does. A responsibility
-folder is legitimate only *inside* a feature, where it partitions something that is already
-cohesive.
+root.** Grouping by technical type at the top level puts the six files that implement one
+feature in six different directories: no change is ever local, and no folder tells you what
+the application does. A responsibility folder is legitimate only *inside* a feature, where
+it partitions something that is already cohesive.
 
-An infrastructure module is partitioned by whether it has both kinds of adapter. `Email` and
-`InMemory` do — a transverse `IEmailSender` and a feature-scoped `IReminderNotifier` — so
-they take `Common/` and `Features/` like the inner layers, and the tree says which of their
-files leave with the reminders example. `Identity` does not: every one of its adapters
-serves the one `Auth` feature, so `Features/Auth/` would hold the whole project and
-`Common/` would be empty. Its folders name subjects instead — `Accounts/`, `AccessTokens/`,
-`RefreshTokens/`, `EmailConfirmation/`, `EmailChange/`, `PasswordReset/`, `TwoFactor/`,
-`SecurityEvents/` — each holding a service, the options that configure it, and whatever else
-belongs to that subject alone.
+**Every infrastructure module is partitioned `Common/` plus `Features/<Feature>/`**, whether
+or not it serves more than one feature — a reader who has learned one module does not learn
+a second filing system for the next. `Email` and `InMemory` carry both kinds of adapter, a
+transverse `IEmailSender` and a feature-scoped `IReminderNotifier`, so their tree says which
+of their files leave with the reminders example. `Identity` and `Storage` each serve one
+feature and keep the same shape anyway: `Identity` is `Common/{Directories,Options}` plus
+`Features/Auth/{Directories,Factories,Issuers,Logs,Options,Providers,Services,Templates,Verifiers}`,
+`Storage` is `Common/{Budgets,Factories,Options}` plus `Features/Files/`. Inside a feature
+the folders name responsibilities, exactly as they do in the inner layers.
 
 `AppTemplate.Infrastructure.Persistence` holds more than one capability, so it is partitioned the same
 way the inner layers are — feature first:
@@ -865,7 +934,11 @@ AppTemplate.Infrastructure.Persistence/
       DomainEvents/             dispatcher, dispatch interceptor, consumer + source contracts
       Tracking/                 the shared tracker core, IAggregateFlusher, the flush
                                 interceptor and the stored audit stamps
-    Idempotency/                the idempotency-key record, its store and its EF configuration
+    Idempotency/                the idempotency-key record, its store, its EF configuration
+                                and IdempotencyPurgeOptions
+    Leases/                     PostgresLeaderLease — the advisory lock that makes the worker
+                                replicable
+    Options/                    DatabaseOptions and its validator
     Time/                       the system clock
   Features/
     TodoLists/
@@ -875,6 +948,12 @@ AppTemplate.Infrastructure.Persistence/
       Tracking/                 the per-request identity map, flusher and event source
       Repositories/             TodoListRepository : ITodoListRepository
       Queries/                  TodoListQueries : ITodoListQueries (rows -> DTOs, in SQL)
+    Reminders/                  the same six, plus
+      Observability/            ReminderDiagnostics — the only feature-local Observability/,
+                                and the reason is below
+    Files/                      Models, Configurations, Mapping, Tracking, Repositories,
+                                Queries — an aggregate half of whose data is in another store,
+                                so the queries answer about rows and never about bytes
     Identity/
       Models/                   AppUser, AppRole, RefreshToken
       Configurations/           table and index mapping, one schema per feature
@@ -887,19 +966,19 @@ AppTemplate.Infrastructure.Persistence/
 The `TodoLists` feature's own domain-event consumer is not here: publishing an event is a
 persistence mechanism, but deciding what happens next is application behaviour, so
 `LogTodoItemCompletedConsumer` lives in `AppTemplate.Application/Features/TodoLists/Consumers/`
-instead, registered from `ServiceRegistration`, not `PersistenceModule`.
+instead, registered from `ApplicationModule`, not `PersistenceModule`.
 
-An architecture test asserts the rule that layout encodes: nothing under `Common/` may
-depend on a feature's domain or persistence types. `AppDbContext` is the first documented
-exception — it applies every feature's configuration, which is what makes it the model's
-composition root. `Common/Observability/ReminderDiagnostics.cs` is the second: it adapts
-`IReminderDiagnostics`, a port whose one job is to observe the `Reminders` feature, so its
-name is what it is for — but because the test checks type dependencies, not identifiers, a
-file named after a feature does not trip it on its own.
+An architecture test asserts the rule that layout encodes: nothing under this project's
+`Common/` may depend on a feature's domain or persistence types. `AppDbContext` is the one
+documented exception — it applies every feature's configuration, which is what makes it the
+model's composition root. The rule checks type dependencies rather than identifiers, so a
+file merely *named* after a feature would not trip it; `ReminderDiagnostics` sits in
+`Features/Reminders/Observability/` because that is where layout puts it, not because the
+test forced it there.
 
 The word "Module" is kept for exactly one thing: dependency-injection registration classes
-(`PersistenceModule`, `IdentityModule`, `EmailModule`). That is a composition concept, not a
-business partition.
+— `ApplicationModule`, `PersistenceModule`, `IdentityModule`, `EmailModule`, `StorageModule`
+and `InMemoryModule`. That is a composition concept, not a business partition.
 
 **The dependency rule: source dependencies point inward, always.** `AppTemplate.Domain`
 references nothing — not even a NuGet package. `AppTemplate.Application` references only
@@ -923,9 +1002,8 @@ HTTPS redirection is **not** installed in the pipeline, on purpose. The containe
 listens on plain 8080, so `UseHttpsRedirection` would 307 the orchestrator's health
 probe and every internal call. Enforce HTTPS at the ingress instead.
 
-The previous Dockerfile declared `EXPOSE 8081` for HTTPS and Compose published it,
-but no certificate was ever provisioned, `ASPNETCORE_HTTPS_PORTS` was never set and
-nothing bound the port: a published port that could not answer. Half-configured TLS
+An `EXPOSE 8081` with no certificate provisioned, no `ASPNETCORE_HTTPS_PORTS` set and
+nothing bound to the port is a published port that cannot answer. Half-configured TLS
 is worse than none, because it reads as present.
 
 If you need TLS inside the container, mount a certificate and set
@@ -1003,8 +1081,8 @@ turn warnings back into warnings: `TreatWarningsAsErrors=true` lives in
 
 Coverage is collected over every test project **except** `AppTemplate.Architecture.Tests`, and that split is
 deliberate: NetArchTest resolves each type through `Type.GetType(name, throwOnError: true)`, which
-fails against a Coverlet-instrumented assembly. Under the collector 7 of its 58 rules throw; without
-it all 58 pass. Every test still runs exactly once. Do not merge those two steps back together.
+fails against a Coverlet-instrumented assembly. Under the collector some of its rules throw; without
+it they all pass. Every test still runs exactly once. Do not merge those two steps back together.
 
 `.github/workflows/release.yml` runs on a `v*.*.*` tag: it re-runs the gate, publishes a multi-arch
 image to GHCR with an SBOM and a signed provenance attestation, and uploads a self-contained
@@ -1022,10 +1100,32 @@ migration bundle built from the same commit. It needs no secret beyond the autom
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | every configuration key, its default, and what happens when it is wrong |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | running it on Kubernetes: the raw manifests in `deploy/kubernetes/`, and why their numbers are what they are |
 | [AppTemplate.Api.http](AppTemplate.Api.http) | the whole API walkthrough, executable |
-| [tasks.ps1](tasks.ps1) | thin wrappers over the real `dotnet` commands — it prints each one before running it |
+| [Tools/](Tools/) | the six single-file C# apps this repository runs on itself — detailed below |
 
 If you read only one of them before deploying, read `SECURITY.md`: its second section is longer than
 its first, and that is the honest shape of the thing.
+
+### `Tools/`
+
+Six single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond
+the SDK `global.json` pins — no interpreter to find, no package to install, and the same line
+typed on Windows, Linux and macOS.
+
+| File | What it is |
+|---|---|
+| [Tools/Tasks.cs](Tools/Tasks.cs) | the task launcher: thin wrappers over the real `dotnet` and `docker` commands |
+| [Tools/CheckDocPaths.cs](Tools/CheckDocPaths.cs) | every repository path cited in a Markdown code span resolves on disk |
+| [Tools/CheckWorkflows.cs](Tools/CheckWorkflows.cs) | what a YAML parse does not catch: a dangling `needs:`, an action on a mutable tag, a missing `permissions:`, a `$VAR` in no `env:`, a script named in a `run:` and absent from disk |
+| [Tools/CoverageGate.cs](Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |
+| [Tools/CheckNarrativeComments.cs](Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
+| [Tools/TestSummary.cs](Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
+
+The four gates each take a `--self-test` flag that runs them against faulted and sound
+fixtures, so a green is contrasted with a red before any of them judges the repository.
+
+`Tools/Tasks.cs` prints each command before running it, which is what keeps the launcher
+honest: copy the printed line and you get the same result without it. No task hides a flag
+that changes the meaning of a build — in particular none relaxes `TreatWarningsAsErrors`.
 
 ## Licence
 

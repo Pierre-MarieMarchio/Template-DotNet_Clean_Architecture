@@ -252,11 +252,11 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   assembly identical line counts, to the digit, and not to lose the module. Worth eight points of
   total coverage on tests that were already written and already passing. **The floor stays at 85.**
 - **The Files loop's metrics and spans were produced and thrown away, and its own documentation said
-  otherwise.** `FileDiagnostics` declared a `Meter` and an `ActivitySource`, and
+  otherwise.** `FileInstruments` declared a `Meter` and an `ActivitySource`, and
   `WorkerObservabilityExtensions` named neither — so
   `apptemplate.worker.files.{iterations,registrations_purged,objects_reclaimed,deposits_inspected}`
   and every span of that source reached no collector, at full recording cost. Nothing caught it:
-  `FileDiagnosticsTests` listens with an in-process `MeterListener`, which sees a measurement whether
+  `FileInstrumentsTests` listens with an in-process `MeterListener`, which sees a measurement whether
   or not anything exports it. This is the loop that decides whether a deposited file ever becomes
   readable.
   The reminder loop, meanwhile, had no diagnostics class at all — its own comments argued in prose

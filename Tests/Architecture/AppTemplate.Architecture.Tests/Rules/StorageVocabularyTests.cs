@@ -18,11 +18,10 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// reached only by a sibling infrastructure module — a refresh-token grant.</item>
 /// </list>
 /// <para>
-/// <c>Store</c> named the last two of those at once until the word was split, which nothing
-/// noticed for a month because the distinction lived in prose. The rules below are what stops it
-/// happening again, in both directions: a <c>Store</c> that starts naming an aggregate has become
-/// a <c>Repository</c>, and a <c>Table</c> that a use case starts depending on has become a port
-/// and needs declaring where ports are declared.
+/// The last two are one word apart and nothing but a rule keeps them apart, since the distinction
+/// between them lives in prose. The rules below hold it in both directions: a <c>Store</c> that
+/// starts naming an aggregate has become a <c>Repository</c>, and a <c>Table</c> that a use case
+/// starts depending on has become a port and needs declaring where ports are declared.
 /// </para>
 /// </summary>
 public sealed class StorageVocabularyTests

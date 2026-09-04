@@ -17,7 +17,7 @@ namespace AppTemplate.Worker.UnitTests.Features.Reminders;
 /// off. Both read as silence on any counter gated on volume, and the loop's own documentation says
 /// they must not.
 /// </summary>
-public sealed class ReminderDiagnosticsTests
+public sealed class ReminderInstrumentsTests
 {
     private static readonly TimeSpan _tinyInterval = TimeSpan.FromMilliseconds(20);
 
@@ -78,7 +78,7 @@ public sealed class ReminderDiagnosticsTests
         {
             InstrumentPublished = (instrument, l) =>
             {
-                if (instrument.Meter.Name == ReminderDiagnostics.Name)
+                if (instrument.Meter.Name == ReminderInstruments.Name)
                 {
                     l.EnableMeasurementEvents(instrument);
                 }

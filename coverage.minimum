@@ -11,11 +11,14 @@
 #   2026-08-05   86.53%  (2750/3178)  974 tests
 #   2026-08-05   87.84%  (3562/4055)  1187 tests
 #   2026-08-10   85.34%  (9186/10764) 3089 tests
+#   2026-09-04   90.46%  (7874/8704)  3259 tests
 #
-# The weakest assemblies are AppTemplate.Worker at 56.20% and AppTemplate.Infrastructure.Identity at
-# 68.22%; AppTemplate.Api, which this note used to name as the weakest at 78.51%, is now 84.99%. The
+# The weakest assembly is AppTemplate.Infrastructure.Email at 64.52%; then
+# AppTemplate.Infrastructure.Storage at 81.89% and AppTemplate.Worker at 82.26%. Every other one is
+# above the floor, AppTemplate.Infrastructure.Identity highest among the adapters at 93.69%. The
 # total is what the gate enforces, so a large new project with no tests can pull it down even while
-# every other one improves — which is what the two loops and the identity adapters did.
+# every other one improves. Read this list as of the last dated measurement above and no later: it
+# is written by hand, and nothing makes it fall out of step loudly.
 #
 # THE 68.22% ABOVE WAS MEASURED WITHOUT A SINGLE IDENTITY UNIT TEST IN IT. coverage.runsettings named
 # GeneratedCodeAttribute in ExcludeByAttribute, and coverlet 10.0.1 drops a whole assembly from the

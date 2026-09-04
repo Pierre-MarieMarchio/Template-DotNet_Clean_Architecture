@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the worker host's own logic: the maintenance loop's resilience and its
+       respect for the stopping token, the options validator, and the no-user adapter. Nothing
+       here touches a database — IPurgeExpiredIdempotencyKeysUseCase and
+       IPurgeExpiredRefreshTokensUseCase are exercised through hand-written fakes registered in a
+       real, minimal ServiceCollection, so the tests prove the host's own orchestration rather than
+       re-testing either use case or its adapters. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Presentation\AppTemplate.Worker\AppTemplate.Worker.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -3,10 +3,15 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
-# Environement
+# Environment / secrets
+#
+# appsettings.json and appsettings.Development.json ARE tracked on purpose: they
+# document the configuration schema and must contain no secrets. Real secrets go
+# to `dotnet user-secrets` (local) or environment variables (deployed).
+# Only machine-local overrides are ignored.
 .env
-appsettings.json
-appsettings.Development.json
+**/appsettings.*.local.json
+**/appsettings.local.json
 
 # User-specific files
 *.rsuser
@@ -37,6 +42,14 @@ bld/
 [Oo]ut/
 [Ll]og/
 [Ll]ogs/
+
+# Those two patterns match at any depth, so they also erase a source folder called Logs.
+# The identity module keeps its security event log in one, and CONTRIBUTING lists Logs in
+# that module's vocabulary, so the folder is required rather than incidental. Re-included
+# here: without this, a file added there compiles locally, is never committed, and breaks
+# the build for everyone else.
+![Ss]rc/**/[Ll]ogs/
+![Tt]ests/**/[Ll]ogs/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

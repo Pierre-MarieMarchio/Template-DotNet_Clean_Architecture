@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the API layer's own logic: ProblemDetails normalisation, ETag encoding,
+       If-Match parsing, and the ApiControllerBase primitives — all pure or near-pure decisions that
+       run in microseconds and do not need a live HTTP pipeline to verify. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Not Sdk="Microsoft.NET.Sdk.Web": this project asserts on types, not on a running server, so
+         it only needs the ASP.NET Core types themselves, not the hosting model. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\..\Src\Presentation\AppTemplate.Api\AppTemplate.Api.csproj" />
+  </ItemGroup>
+
+</Project>

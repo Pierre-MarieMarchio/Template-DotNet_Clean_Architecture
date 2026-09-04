@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Two transports, one project. There is deliberately no AppTemplate.Infrastructure.Email.Core /
+       AppTemplate.Infrastructure.Email.MailKit pair: the port already lives in AppTemplate.Application, so a
+       second abstraction here would have exactly one implementation on each side of it — and the
+       second transport is the demonstration, not the counter-example, since it arrived as one folder
+       beside the first rather than as a project split.
+
+       The HTTP transport adds no package. It is a POST of JSON with one header, which HttpClient and
+       System.Text.Json already do; a provider needing an SDK to be reached would be an argument
+       against that provider. MimeKit, already here for SMTP, is what formats and parses the
+       addresses for both — an address is an address whichever transport carries it. -->
+  <ItemGroup>
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <!-- Brings Microsoft.Extensions.Options, its configuration binding, and ValidateOnStart. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <!-- AddHttpClient, and with it the typed client that inherits each host's outbound budget.
+         Referenced explicitly rather than taken from Microsoft.AspNetCore.App: this module is
+         composed by AppTemplate.Worker, which is a generic host and must not be made to require the
+         ASP.NET Core runtime by one of its modules. -->
+    <PackageReference Include="Microsoft.Extensions.Http" />
+  </ItemGroup>
+
+  <!-- The reminder mail's templates, one per language, embedded for the reason
+       AppTemplate.Infrastructure.Identity embeds its three: a deployment cannot lose one.
+       WithCulture="false" is load-bearing — see that project's comment for what MSBuild does with a
+       .fr.html without it. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Features/Reminders/*.html" WithCulture="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+  </ItemGroup>
+
+  <!-- The options validator decides whether this process is allowed to send mail over a transport
+       that can fall back to plaintext. It is internal, like everything here except the options type
+       and the module, and its rule is a single expression over an enum — so its tests have to name
+       it directly rather than infer its verdict from a start-up exception message. Shared with
+       exactly one assembly. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Infrastructure.Email.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

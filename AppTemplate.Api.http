@@ -1,0 +1,812 @@
+﻿####################################################################################################
+# End-to-end walkthrough of the API, in dependency order.
+#
+# Prerequisites
+#   docker compose up -d db mailpit minio minio-bucket
+#   dotnet run --project Src/Presentation/AppTemplate.Api
+#
+# minio and minio-bucket are only needed from request 39 onwards: the Files feature signs URLs the
+# client sends bytes to, so there has to be an object store to send them to, with its bucket made.
+#
+# Run the requests top to bottom. Every value a later request needs is captured from an earlier
+# response, except the email confirmation token: it arrives by mail, and this file format has no way
+# to pull a substring out of a message body. Request 4 fetches the mail so you can read the token;
+# paste it into @confirmationToken and carry on. That step is marked MANUAL below.
+#
+# Works in the VS Code REST Client extension and in Visual Studio's .http editor. Both resolve
+# {{requestName.response.body.$.field}} against a named earlier response.
+####################################################################################################
+
+@host = http://localhost:5187
+@api = {{host}}/api/v1
+@mailpit = http://localhost:8025
+
+# Password satisfies appsettings.Development.json: >= 8 chars, upper, lower, digit, non-alphanumeric.
+@userName = ada
+@email = ada@localhost
+# The three passwords this walkthrough uses, in the order it changes them: the one it registers
+# with, the one 33b changes to, and the one the reset in 33d lands on. The last two are derived from
+# the first rather than written out, and every body references them as {{...}}: a password literal
+# is what a secret scanner reads as a leaked credential, wherever it sits and in every commit that
+# carries it. One literal is one too many to repeat.
+@password = Str0ng!Passw0rd
+@newPassword = {{password}}-2
+@resetPassword = {{password}}-3
+@newEmail = ada.new@localhost
+
+###
+# 1. Register. The account is committed before the mail is handed to the relay, so
+#    confirmationEmailSent=false means "use the resend endpoint", not "sign-up failed".
+# @name register
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{
+  "userName": "{{userName}}",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+# 2. Registering the same address again is a 409 with a stable machine-readable `code`,
+#    not a 500. Expected to fail — it is here to show the shape of a ProblemDetails body.
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{
+  "userName": "{{userName}}",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+# 3. Logging in before confirmation is refused: Identity:RequireConfirmedEmail is true.
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+# 4. MANUAL STEP. Read the confirmation mail out of mailpit and copy the `token` fragment
+#    parameter of the confirm-email link into @confirmationToken below.
+#    The browser UI at http://localhost:8025 shows the same message.
+# @name confirmationMail
+GET {{mailpit}}/api/v1/message/latest
+Accept: application/json
+
+###
+# Paste the token from request 4 here.
+@confirmationToken = paste-the-token-from-request-4
+
+###
+# 5. Confirm the address. POST with a JSON body, deliberately not GET with a query string:
+#    a single-use token must not land in access logs, browser history or a Referer header.
+POST {{api}}/auth/confirm-email
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "token": "{{confirmationToken}}"
+}
+
+###
+# 6. Resend the confirmation mail. Answers 204 even for an address that does not exist,
+#    so the endpoint cannot be used to enumerate accounts.
+POST {{api}}/auth/resend-confirmation-email
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+###
+# 7. Log in. Captures the access token and the refresh token for everything below.
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+# The body is a discriminated union: `status` says which outcome it is, and the pair lives under
+# `tokens` so that /auth/refresh can answer with the same object.
+@accessToken = {{login.response.body.$.tokens.accessToken}}
+@refreshToken = {{login.response.body.$.tokens.refreshToken}}
+
+###
+# 7b. The caller's own profile. The only endpoint that publishes an account: neither register nor
+#     login returns one, so a client reads it here once it holds a token. Captured for the
+#     administration walkthrough at 33i onward, which needs an id to act on.
+# @name myProfile
+GET {{api}}/auth/me
+Authorization: Bearer {{accessToken}}
+
+###
+@myUserId = {{myProfile.response.body.$.userId}}
+
+###
+# 8. Without a token: 401. The application's fallback policy requires an authenticated user,
+#    so an endpoint is protected unless it opts out.
+GET {{api}}/todo-lists
+
+###
+# 9. Create a list. 201 with the created list as the body, its ETag, and a Location header pointing
+#    at request 11 — so a client can go straight on to a conditional write without reading first.
+# @name createList
+POST {{api}}/todo-lists
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Groceries"
+}
+
+###
+@todoListId = {{createList.response.body.$.id}}
+
+###
+# 10. Add an item, with tags.
+# @name addItem
+POST {{api}}/todo-lists/{{todoListId}}/items
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Buy milk",
+  "description": "Semi-skimmed, two litres",
+  "tags": ["errand", "dairy"]
+}
+
+###
+@todoItemId = {{addItem.response.body.$.id}}
+
+###
+# 11. Read the list back. The item added above is present, with its audit stamps. The response
+#     carries a strong, quoted ETag: the version this list is at, opaque to the caller.
+# @name readList
+GET {{api}}/todo-lists/{{todoListId}}
+Authorization: Bearer {{accessToken}}
+
+###
+@todoListETag = {{readList.response.headers.ETag}}
+
+###
+# 12. Read the single item. Its ETag is the list's — the list is the aggregate, so there is no
+#     separate version for one item inside it.
+GET {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 13. Rename the list conditionally, naming the version read in request 11. Applied because
+#     nothing has changed it since: 200, with the renamed list and the ETag it is now at.
+PUT {{api}}/todo-lists/{{todoListId}}
+Authorization: Bearer {{accessToken}}
+If-Match: {{todoListETag}}
+Content-Type: application/json
+
+{
+  "name": "Groceries (this week)"
+}
+
+###
+# 14. Replay request 13 with the same If-Match. The rename above already moved the list past that
+#     version, so this one is refused: 412 with a ProblemDetails body carrying
+#     "code": "precondition.failed". Read the list again to retry with the current ETag.
+PUT {{api}}/todo-lists/{{todoListId}}
+Authorization: Bearer {{accessToken}}
+If-Match: {{todoListETag}}
+Content-Type: application/json
+
+{
+  "name": "Too late"
+}
+
+###
+# 15. Complete the item. 200 with the completed item and the list's new ETag. No If-Match:
+#     Concurrency:IfMatch defaults to Optional, so an unconditional write is still accepted — see
+#     SECURITY.md's "If-Match is optional by default". Raises a domain event, published after the
+#     commit succeeds.
+POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/complete
+Authorization: Bearer {{accessToken}}
+
+###
+# 16. Completing it twice is refused by the aggregate's invariant, surfaced as a 409.
+POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/complete
+Authorization: Bearer {{accessToken}}
+
+###
+# 16b. Reopen the item completed by request 15. 200 with the item and the list's new ETag.
+POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/reopen
+Authorization: Bearer {{accessToken}}
+
+###
+# 16c. Replace the item's title and description. A PUT carrying the whole representation of the
+#      operation, never a PATCH — see CONTRIBUTING.md's "Writes are named operations", held by
+#      NoEndpoint_AcceptsPatch. A field left out is a field cleared.
+PUT {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Buy oat milk",
+  "description": "One litre is enough"
+}
+
+###
+# 16d. Every item of the list, wrapped in an object rather than returned as a bare array so the
+#      shape can gain a field later. Not paginated: the aggregate is bounded by TodoList.MaxItems.
+#      The ETag is the list's — the list is the aggregate.
+GET {{api}}/todo-lists/{{todoListId}}/items
+Authorization: Bearer {{accessToken}}
+
+###
+# 16e. Add one tag. 200, not 201: adding a tag the item already carries is a no-op in the domain,
+#      and there is no GET on a single tag for a Location to name. Send it twice to see that.
+POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/tags
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "tag": "Urgent"
+}
+
+###
+# 16f. Replace the whole tag set. Total replacement, not a merge: what is absent is removed. An
+#      empty array clears the tags.
+PUT {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/tags
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "tags": ["errand", "dairy", "urgent"]
+}
+
+###
+# 16g. Remove one tag, named in the route and percent-encoded. Removing an absent tag is a no-op,
+#      for the same reason as adding a present one. A tag containing a / cannot be addressed this
+#      way — %2F is decoded before routing — so remove that one with request 16f instead.
+DELETE {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/tags/urgent
+Authorization: Bearer {{accessToken}}
+
+###
+# 16h. Schedule a reminder for the item. 201, with the reminder and its own ETag — a reminder is
+#      versioned independently of the list. Location has no reminder id to name: there is no
+#      single-reminder GET, only the per-item list below, so it points there instead.
+# @name scheduleReminder
+POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/reminders
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "dueAt": "2026-12-31T09:00:00Z"
+}
+
+###
+@reminderId = {{scheduleReminder.response.body.$.id}}
+@reminderETag = {{scheduleReminder.response.headers.ETag}}
+
+###
+# 16i. Every reminder scheduled for the item, wrapped in an object for the same reason the item
+#      list above is. No ETag here: the underlying query answers a plain list with no per-reminder
+#      version attached.
+GET {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/reminders
+Authorization: Bearer {{accessToken}}
+
+###
+# 16j. Reschedule it conditionally, naming the version from request 16h. 200, with the rescheduled
+#      reminder and the ETag it is now at. Addressed by the reminder's own id, not by list/item —
+#      a reminder is its own aggregate root.
+PUT {{api}}/reminders/{{reminderId}}
+Authorization: Bearer {{accessToken}}
+If-Match: {{reminderETag}}
+Content-Type: application/json
+
+{
+  "dueAt": "2027-01-15T09:00:00Z"
+}
+
+###
+# 16k. Cancel it. 204: DELETE, not POST .../cancel — cancelling is a one-way terminal transition,
+#      the same shape as deleting a resource, and needs no request body.
+DELETE {{api}}/reminders/{{reminderId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 17. First page of the caller's lists. Only lists the caller owns are visible: ownership is a
+#     filter inside the read query, so somebody else's list is 404, never 403.
+GET {{api}}/todo-lists?page=1&pageSize=10
+Authorization: Bearer {{accessToken}}
+
+###
+# 18. An out-of-range page size is a 400 with a ProblemDetails body, not a silent clamp.
+GET {{api}}/todo-lists?page=1&pageSize=10000
+Authorization: Bearer {{accessToken}}
+
+###
+# 19. Sorting. Multi-field, direction per field, over a per-feature whitelist: only `name`,
+#     `createdAt` and `lastModifiedAt` are sortable, and `Id` is appended to every ORDER BY as a
+#     tiebreaker so two lists created in the same instant cannot swap places between pages.
+GET {{api}}/todo-lists?sort=name:asc,createdAt:desc&pageSize=5
+Authorization: Bearer {{accessToken}}
+
+###
+# 20. A field that is not on the whitelist is refused before a query is built: 400 with
+#     "code": "sort.invalid", and the message lists the fields that are allowed. No caller string
+#     ever reaches a LINQ expression.
+GET {{api}}/todo-lists?sort=ownerId:asc
+Authorization: Bearer {{accessToken}}
+
+###
+# 21. Filtering. `search` is a case-insensitive contains on the list name, done in the database with
+#     ILIKE and with %, _ and \ escaped — so this matches names containing "grocer", not everything.
+#     `createdAfter`/`createdBefore` narrow by creation date and are inclusive.
+GET {{api}}/todo-lists?search=grocer&createdAfter=2020-01-01T00:00:00Z
+Authorization: Bearer {{accessToken}}
+
+###
+# 22. Keyset paging, first page. No `page`, and the response carries no `totalCount`: counting the
+#     whole match set is a second scan of it, which is the cost this mode exists to avoid.
+#     Cursor mode allows one sort term, over a field that is keyset-capable — `lastModifiedAt` is
+#     not, because it is nullable.
+# @name firstKeysetPage
+GET {{api}}/todo-lists?paging=cursor&pageSize=2&sort=createdAt:desc
+Authorization: Bearer {{accessToken}}
+
+###
+@nextCursor = {{firstKeysetPage.response.body.$.nextCursor}}
+
+###
+# 23. Follow `nextCursor` for the next page. Send the SAME `sort` the cursor was minted under: a
+#     cursor names the order it came from, and resuming it under a different one is refused with
+#     "code": "cursor.invalid" rather than silently serving an incoherent page.
+#     When `nextCursor` is null there are no more pages.
+GET {{api}}/todo-lists?paging=cursor&pageSize=2&sort=createdAt:desc&cursor={{nextCursor}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 24. A cursor is only meaningful with paging=cursor. Sending one with offset paging is a 400
+#     ("code": "paging.invalid"), never silently ignored.
+GET {{api}}/todo-lists?page=1&cursor={{nextCursor}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 25. Idempotency. POST with an Idempotency-Key; note the id that comes back.
+# @name firstCreate
+POST {{api}}/todo-lists
+Authorization: Bearer {{accessToken}}
+Idempotency-Key: 9f1c7e2a-0c1b-4f0a-9a3e-2b6d5c4a8e10
+Content-Type: application/json
+
+{
+  "name": "Paid once"
+}
+
+###
+# 26. Replay request 25 byte for byte — the retry a flaky network causes. Same status, same body,
+#     same Location, plus "Idempotency-Replayed: true", and NO second list is created.
+POST {{api}}/todo-lists
+Authorization: Bearer {{accessToken}}
+Idempotency-Key: 9f1c7e2a-0c1b-4f0a-9a3e-2b6d5c4a8e10
+Content-Type: application/json
+
+{
+  "name": "Paid once"
+}
+
+###
+# 27. The same key with a DIFFERENT body is a 409 ("code": "idempotency.keyReused"). A key stands
+#     for one request, not for one caller — reusing it for something else is a client bug worth
+#     reporting rather than quietly honouring.
+POST {{api}}/todo-lists
+Authorization: Bearer {{accessToken}}
+Idempotency-Key: 9f1c7e2a-0c1b-4f0a-9a3e-2b6d5c4a8e10
+Content-Type: application/json
+
+{
+  "name": "Something else entirely"
+}
+
+###
+# 28. Clean up the list created by request 25.
+DELETE {{api}}/todo-lists/{{firstCreate.response.body.$.id}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 29. Remove the item. 200 with the LIST, not the item: the item this route addresses no longer
+#     exists, so the list is the only representation left — and the only ETag left to write against.
+DELETE {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 30. Rotate the token pair. The presented refresh token is always revoked; replaying one that was
+#     already used revokes the whole family for that user.
+# @name refresh
+POST {{api}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+@rotatedRefreshToken = {{refresh.response.body.$.refreshToken}}
+
+###
+# 31. Replay the token consumed by request 30: 401, and every refresh token in that family is now
+#     revoked. Run request 30 again afterwards to see the rotated one rejected too.
+POST {{api}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+# 32. Delete the list. Cascades to its items. No If-Match, accepted for the same reason as request 15.
+DELETE {{api}}/todo-lists/{{todoListId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 33. Log out, revoking the refresh token from request 30.
+POST {{api}}/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{rotatedRefreshToken}}"
+}
+
+###
+# 33a. Log out everywhere: revokes every refresh token grant for the account, not just one. 204,
+#      and no count in the body — it would tell the caller about other live sessions with nothing
+#      it can do about them. The access token used here keeps working: only refresh tokens are
+#      revoked, so the session that made this call is not the one it signs out.
+POST {{api}}/auth/logout-all
+Authorization: Bearer {{accessToken}}
+
+###
+# 33b. Change the password. Authenticated, and the current password is presented again as proof the
+#      session is not a stolen token. Every refresh token for the account is revoked, so the tokens
+#      captured above stop working — sign in again before running anything below that needs one.
+POST {{api}}/auth/change-password
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "{{password}}",
+  "newPassword": "{{newPassword}}"
+}
+
+###
+# 33c. Start a password reset. 204 for every well-formed address, registered or not: the response
+#      must not tell a caller which addresses exist. The token arrives by mail — read it out of
+#      mailpit the same way as request 4.
+POST {{api}}/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+###
+# Paste the token from the reset mail here.
+@resetToken = paste-the-token-from-request-33c
+
+###
+# 33d. Finish the reset. POST with a JSON body for the same reason as confirm-email: a single-use
+#      token must not land in access logs, browser history or a Referer header.
+POST {{api}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "token": "{{resetToken}}",
+  "newPassword": "{{resetPassword}}"
+}
+
+###
+# 33e. Sign in again with the password reset above: 33b's change-password already revoked every
+#      refresh token this file captured earlier, so nothing below has a working access token yet.
+# @name reLogin
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{resetPassword}}"
+}
+
+###
+@freshAccessToken = {{reLogin.response.body.$.tokens.accessToken}}
+
+###
+# 33f. Start an email change. Authenticated, and the current password is presented again for the
+#      same reason as 33b. 204 whether or not the new address is already registered: the response
+#      must not say which addresses exist. The token is mailed to the new address, not the old one.
+POST {{api}}/auth/change-email
+Authorization: Bearer {{freshAccessToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "{{resetPassword}}",
+  "newEmail": "{{newEmail}}"
+}
+
+###
+# 33g. MANUAL STEP. Read the email-change mail out of mailpit — sent to {{newEmail}}, not
+#      {{email}} — and copy its token into @emailChangeToken below.
+# @name emailChangeMail
+GET {{mailpit}}/api/v1/message/latest
+Accept: application/json
+
+###
+# Paste the token from request 33g here.
+@emailChangeToken = paste-the-token-from-request-33g
+
+###
+# 33h. Confirm the change. Authenticated by the same access token as 33f: the new address is not on
+#      file yet, so there is nothing to look it up by until this call succeeds. Rotates the security
+#      stamp, so that access token stops working immediately after — sign in again with
+#      {{newEmail}} before running anything below that needs one.
+POST {{api}}/auth/confirm-email-change
+Authorization: Bearer {{freshAccessToken}}
+Content-Type: application/json
+
+{
+  "newEmail": "{{newEmail}}",
+  "token": "{{emailChangeToken}}"
+}
+
+###
+# 33i. Administration: lock an account out. Administrator-only, like every request below — this
+#      walkthrough account holds no such role, so all of these are expected to 403 unless it has
+#      been granted one directly against the database (registration never grants it). Read as
+#      documentation of that 403, the same way requests 37/38 already are.
+#      {{myUserId}} names the caller itself here only because no second account exists in this
+#      walkthrough to target; against a real second account this would 204 for an administrator.
+POST {{api}}/auth/accounts/{{myUserId}}/lockout
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33j. Lift the lockout. A no-op, not a 404, on an account that was never locked.
+DELETE {{api}}/auth/accounts/{{myUserId}}/lockout
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33k. Grant a role. PUT, not POST: asking twice for the same role is idempotent in effect.
+PUT {{api}}/auth/accounts/{{myUserId}}/roles/Admin
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33l. Revoke a role. Even a real administrator gets a 403 removing a role from their own account —
+#      not just from lacking the policy, but from RemoveRoleUseCase's own guard against acting on
+#      oneself. Against a real administrator this would still 403, for that second reason instead.
+DELETE {{api}}/auth/accounts/{{myUserId}}/roles/Admin
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33m. Delete the account outright. Same self-guard as 33l. 204 against someone else's account
+#      deletes exactly the identity row and what ASP.NET Identity owns alongside it — any to-do list
+#      or reminder that account owns is left in place, owned by an id nothing can sign in as any
+#      longer. See IAccountDeletion for why this call does not reach for either feature, and where
+#      the cleanup for their rows belongs instead.
+DELETE {{api}}/auth/accounts/{{myUserId}}
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33n. Two-factor sign-in: begin enrollment. Returns a shared key and an otpauth:// URI — scan the
+#      URI as a QR code with an authenticator app, or type the shared key in by hand. Provisioning
+#      rotates the security stamp (see TwoFactorOptions and SetUpTwoFactorUseCase), which invalidates
+#      {{freshAccessToken}} on its very next use — sign in again before the next request, the same
+#      way 33b already does after a password change.
+# @name twoFactorSetup
+POST {{api}}/auth/two-factor/setup
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# @name reLoginAfterTwoFactorSetup
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{resetPassword}}"
+}
+
+###
+@postSetupAccessToken = {{reLoginAfterTwoFactorSetup.response.body.$.tokens.accessToken}}
+
+###
+# 33o. MANUAL STEP. Confirm with the six-digit code your authenticator app now shows for the shared
+#      key from 33n. This is what actually arms two-factor sign-in — 33n alone arms nothing, so a
+#      key that was never scanned successfully cannot lock the account out. Returns ten recovery
+#      codes; write them down, they are shown once and never retrievable again. The current password
+#      is presented again, for the reason 33r gives for disabling: a stolen session alone must not be
+#      able to arm the account's second factor any more than it can strip one — confirming revokes
+#      every other session exactly as disabling does.
+@twoFactorCode = paste-the-six-digit-code-from-your-authenticator-app
+POST {{api}}/auth/two-factor/confirm
+Authorization: Bearer {{postSetupAccessToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "{{resetPassword}}",
+  "code": "{{twoFactorCode}}"
+}
+
+###
+# 33p. Sign in again. A correct password on a two-factor account no longer answers with a token pair
+#      by itself — 33o's confirmation also revoked every refresh token, so this is required either
+#      way, but the shape of the answer is the point: `status` is now `twoFactorRequired`, carrying a
+#      challenge token instead of `tokens`.
+# @name twoFactorLogin
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{resetPassword}}"
+}
+
+###
+@twoFactorChallengeToken = {{twoFactorLogin.response.body.$.challengeToken}}
+
+###
+# 33q. MANUAL STEP. Complete the second step with the authenticator app's current code — a fresh one,
+#      not the one pasted into 33o, since a TOTP code is only valid for a 30-second window. A
+#      recovery code from 33o works here too, once each.
+@secondTwoFactorCode = paste-the-current-six-digit-code
+# @name twoFactorVerify
+POST {{api}}/auth/login/two-factor
+Content-Type: application/json
+
+{
+  "challengeToken": "{{twoFactorChallengeToken}}",
+  "code": "{{secondTwoFactorCode}}"
+}
+
+###
+@twoFactorAccessToken = {{twoFactorVerify.response.body.$.tokens.accessToken}}
+
+###
+# 33r. Turn two-factor sign-in back off. The current password is presented again, for the reason 33b
+#      gives: a stolen session alone must not be able to strip the account's second factor.
+POST {{api}}/auth/two-factor/disable
+Authorization: Bearer {{twoFactorAccessToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "{{resetPassword}}"
+}
+
+###
+# 33s. Administration: the escape hatch for the case 33r cannot cover — an account that has lost the
+#      authenticator app AND the ten recovery codes from 33o, and so can prove neither a password nor
+#      a code any more. Administrator-only, like 33i-33m, and no password at all: the caller's own
+#      administrator session is what this is gated on instead. Even a real administrator gets a 403
+#      against their own account here, for the same reason a stolen administrator session must not be
+#      able to strip its own second factor without ever proving that account's password.
+DELETE {{api}}/auth/accounts/{{myUserId}}/two-factor
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 34. Liveness. No dependency is checked, so an orchestrator does not restart the API because the
+#     database blinked. Anonymous by design.
+GET {{host}}/health
+
+###
+# 35. Readiness. Checks the database, and is what a load balancer should poll.
+GET {{host}}/health/ready
+
+###
+# 36. Rate limiting. The auth policy allows 10 requests per minute per client address; run this
+#     block repeatedly to get a 429 carrying Retry-After and a ProblemDetails body.
+#     Behind a proxy this partitions correctly only when ReverseProxy:Enabled is configured —
+#     otherwise every caller shares the proxy's single window. See SECURITY.md.
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "nobody@localhost",
+  "password": "wrong-password"
+}
+
+###
+# 37. Maintenance. Both purges answer 200 with {"deleted": n} — an object rather than a bare number,
+#     so a second field can be added without breaking callers. A scheduled job (a Kubernetes CronJob,
+#     a cloud scheduler) is expected to call these; the cadence is a deployment concern.
+#
+#     Expected to fail with the walkthrough account: these require the Administrator role, and
+#     registration does not grant it. Grant it in the database, or read this as documentation of the
+#     403 that default-deny produces.
+DELETE {{api}}/maintenance/idempotency-keys/expired
+Authorization: Bearer {{accessToken}}
+
+###
+# 38. The same, for refresh-token grants. The table only grows — one row per rotation — until an
+#     operator prunes it, which is why the endpoint exists at all.
+DELETE {{api}}/maintenance/refresh-tokens/expired
+Authorization: Bearer {{accessToken}}
+
+###
+# 39. Register a file. This does NOT carry the bytes: it declares the metadata and answers 201 with
+#      the file id and a SIGNED UPLOAD GRANT — a URL, a method, the headers the store will insist on,
+#      and an expiry. That shape is forced rather than chosen: RequestLimits:MaxRequestBodyBytes is
+#      65 536, and IdempotencyFilter buffers and SHA-256s the whole body of every POST, so routing a
+#      200 MiB upload through this process was never possible. [Idempotent] is safe here precisely
+#      because the body is metadata rather than bytes.
+# @name registerFile
+POST {{api}}/files
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "name": "hello.txt",
+  "declaredMediaType": "text/plain",
+  "sizeInBytes": 12,
+  "checksum": "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447"
+}
+
+###
+@storedFileId = {{registerFile.response.body.$.id}}
+@uploadUrl = {{registerFile.response.body.$.upload.url}}
+
+# 40. Step two happens OUTSIDE this file and outside the API: the client PUTs the bytes straight at
+#      {{uploadUrl}}. Against the docker-compose stack that is MinIO on http://localhost:9000, and
+#      the API never sees a byte of it.
+#
+#      Send `upload.requiredHeaders` back verbatim. They are covered by the signature, so a deposit
+#      missing any of them is refused by the store with AccessDenied "There were headers present in
+#      the request which were not signed" — nothing is written and the file stays Pending:
+#
+#        printf 'hello world\n' | curl -X PUT --data-binary @- "<the upload url>" \
+#          -H 'Content-Type: text/plain' \
+#          -H 'Content-Length: 12' \
+#          -H 'x-amz-checksum-sha256: qUiQTy8PR5uPgZdpSzAYSw0u0cHNKh7A+4XSmaGSpEc='
+#
+#      The checksum header is the same digest as `checksum` above, base64 of the raw bytes rather
+#      than hex. Read all three out of request 39's response rather than copying them from here.
+
+###
+# 41. Confirm the upload. The store is asked what it actually holds, and the aggregate refuses the
+#      confirmation if the size or checksum disagrees with what was declared — leaving the file
+#      Pending, which the worker's abandonment sweep retires on its own. Deliberately NOT
+#      [Idempotent]: this POST names the file it acts on, so a replay is already well defined.
+POST {{api}}/files/{{storedFileId}}/confirm
+Authorization: Bearer {{accessToken}}
+
+###
+# 42. Read the metadata. Never the bytes. `status` reads `deposited` at this point, not `available`:
+#      confirming says the bytes arrived intact, not what they are. The worker's inspection pass is
+#      what reaches a verdict, on FileWorker:InspectDepositedFilesInterval — one minute by default.
+GET {{api}}/files/{{storedFileId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 43. The owner's files, paged. Same pagination contract as to-do lists: the metadata is in the body.
+GET {{api}}/files?pageSize=20
+Authorization: Bearer {{accessToken}}
+
+###
+# 44. Download. Answers 409 storedFile.notAvailable until the inspection pass has run — wait out
+#      FileWorker:InspectDepositedFilesInterval and send it again, or shorten that interval with
+#      FILE_WORKER_INSPECT_INTERVAL in .env.
+#      Then answers 302 to a short-lived signed URL rather than streaming the object: serving
+#      bytes is not this API's job, issuing the right to read them is. Note that the signed URL is a
+#      BEARER right — anyone holding it can read the object until it expires — which is why
+#      Storage:MaxGrantLifetime is short and why the redirect must not be cached beyond it.
+GET {{api}}/files/{{storedFileId}}/content
+Authorization: Bearer {{accessToken}}
+
+###
+# 45. Delete. The row goes; the bytes are reclaimed by the worker's sweep, which deletes every object
+#      no row references. There is no soft delete and no tombstone — the sweep re-derives its own
+#      precondition, which is what lets the row simply disappear.
+DELETE {{api}}/files/{{storedFileId}}
+Authorization: Bearer {{accessToken}}

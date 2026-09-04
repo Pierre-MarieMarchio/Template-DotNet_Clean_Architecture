@@ -1,26 +1,397 @@
-services:
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    environment:
-      SA_PASSWORD: ${SA_PASSWORD}
-      ACCEPT_EULA: "Y"
-    ports:
-      - "1433:1433"
-    volumes:
-      - sqlserverdata:/var/opt/mssql
+# Local development stack: PostgreSQL + a mail catcher + the API.
+#
+#     cp .env.example .env
+#     docker compose up --build
+#
+# Every value comes from ./.env, which Compose loads automatically for `${...}`
+# substitution. `${VAR:?message}` makes Compose fail loudly with that message
+# instead of substituting an empty value — which is exactly how the previous
+# SQL Server service ended up with an empty SA_PASSWORD and refused to start.
+#
+# There is deliberately no `env_file:` on the services. Mapping each variable
+# explicitly under `environment:` means a container holds only the keys it needs;
+# `env_file: .env` would additionally push POSTGRES_PASSWORD, JWT_KEY and every
+# other raw variable into the API process, readable from /proc/self/environ and
+# from any crash dump, for no benefit.
+#
+# Environment-variable names use the double-underscore form that ASP.NET Core
+# maps onto configuration sections: Jwt__Key -> "Jwt": { "Key": ... }.
 
-  webapi:
-    image: capresentationwebapi:dev
+name: app-template
+
+services:
+  db:
+    # Pinned to a patch version, including the Alpine base. `postgres:18` floats,
+    # and an unattended minor upgrade of a stateful service is how data
+    # directories get orphaned. ~110 MB against ~1.5 GB for the mssql image this
+    # replaces, with no EULA and no SA account.
+    image: postgres:18.4-alpine3.23
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # Deterministic initdb; otherwise collation depends on the host.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      # Loopback only. The API reaches the database over the compose network and
+      # does not need this mapping; it exists so psql or a GUI client on the host
+      # can connect. Delete this block entirely for any non-local use.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      # NOTE the path. PostgreSQL 18's image moved PGDATA to
+      # /var/lib/postgresql/18/docker and declares /var/lib/postgresql as its
+      # VOLUME. Mounting the pre-18 /var/lib/postgresql/data here would appear to
+      # work and then silently lose the database on `docker compose down`.
+      # Verified against the published config of postgres:18.4-alpine3.23.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      # PostgreSQL's entrypoint starts the server once to run initdb scripts and
+      # then restarts it, so an open TCP port does not mean "ready". pg_isready
+      # against the real database and user is the only reliable gate.
+      test: ["CMD-SHELL", "pg_isready -q -d $$POSTGRES_DB -U $$POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks: [backend]
+
+  mailpit:
+    # The register -> confirm-email flow is a core feature of this template, and
+    # Email:Host is a required setting the app validates at startup. A catcher
+    # makes that flow work end to end offline instead of failing on send.
+    # Web UI: http://localhost:8025
+    image: axllent/mailpit:v1.30.6
+    restart: unless-stopped
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+      MP_MAX_MESSAGES: "500"
+    ports:
+      # Web UI.
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+      # SMTP, published on loopback as well. The API in this stack reaches mailpit
+      # over the compose network and does not need this mapping; it exists so that
+      # the "run on the host" path in README.md — `docker compose up -d db mailpit`
+      # plus `dotnet run` — can actually deliver mail. Without it,
+      # appsettings.Development.json's Email:Host=localhost:1025 has nothing
+      # listening and registration returns confirmationEmailSent=false.
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+    networks: [backend]
+
+  api:
+    image: app-template-api:dev
+    build:
+      # Context is the repository root; see the header of Src/Presentation/AppTemplate.Api/Dockerfile.
+      context: .
+      dockerfile: Src/Presentation/AppTemplate.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      # HTTP only. TLS terminates upstream — see the Dockerfile for the rationale.
+      ASPNETCORE_HTTP_PORTS: "8080"
+
+      # --- The single connection string. `db` is the compose service name. ----
+      # Its absence is what made the previous compose file unable to reach its
+      # own database.
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true"
+
+      # --- Database: connection-pool bound and command timeout. See -----------
+      # docs/CONFIGURATION.md for how DATABASE_MAX_POOL_SIZE must be sized
+      # against replica count (api + worker, and every replica of each) and
+      # PostgreSQL's own max_connections. The worker service below reads the
+      # same two variables, so raising replica count and lowering the
+      # per-instance pool stays a one-place change.
+      Database__MaxPoolSize: ${DATABASE_MAX_POOL_SIZE:-20}
+      Database__CommandTimeoutSeconds: ${DATABASE_COMMAND_TIMEOUT_SECONDS:-30}
+
+      # --- IdempotencyPurge ----------------------------------------------------
+      IdempotencyPurge__BatchSize: ${IDEMPOTENCY_PURGE_BATCH_SIZE:-1000}
+
+      # --- Localization ------------------------------------------------------
+      # The language a mail is written in when the reader has not said which one they read. There is
+      # no list of supported languages: what a mail can be written in is which templates the
+      # infrastructure modules embed. See docs/CONFIGURATION.md.
+      Localization__DefaultCulture: ${LOCALIZATION_DEFAULT_CULTURE:-en}
+
+      # --- Jwt ---------------------------------------------------------------
+      Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env (min 32 bytes; openssl rand -base64 48)}
+      Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
+      Jwt__Audience: ${JWT_AUDIENCE:?set JWT_AUDIENCE in .env}
+      Jwt__RequireHttpsMetadata: ${JWT_REQUIRE_HTTPS_METADATA:-false}
+      Jwt__AccessTokenLifetimeInMinutes: ${JWT_ACCESS_TOKEN_LIFETIME_MINUTES:-60}
+
+      # --- RefreshToken ------------------------------------------------------
+      RefreshToken__LifetimeInDays: ${REFRESH_TOKEN_LIFETIME_DAYS:-7}
+
+      # --- Identity (password / lockout / sign-in policy) --------------------
+      Identity__PasswordRequiredLength: ${IDENTITY_PASSWORD_LENGTH:-8}
+      Identity__PasswordRequiredUniqueChars: ${IDENTITY_PASSWORD_UNIQUE_CHARS:-1}
+      Identity__PasswordRequireDigit: ${IDENTITY_PASSWORD_REQUIRE_DIGIT:-false}
+      Identity__PasswordRequireLowercase: ${IDENTITY_PASSWORD_REQUIRE_LOWERCASE:-false}
+      Identity__PasswordRequireUppercase: ${IDENTITY_PASSWORD_REQUIRE_UPPERCASE:-false}
+      Identity__PasswordRequireNonAlphanumeric: ${IDENTITY_PASSWORD_REQUIRE_NONALPHANUMERIC:-false}
+      Identity__LockoutEnabled: ${IDENTITY_LOCKOUT_ENABLED:-true}
+      Identity__LockoutMaxFailedAccessAttempts: ${IDENTITY_LOCKOUT_MAX_ATTEMPTS:-10}
+      Identity__LockoutDurationInMinutes: ${IDENTITY_LOCKOUT_DURATION_MINUTES:-1}
+      Identity__RequireConfirmedEmail: ${IDENTITY_REQUIRE_CONFIRMED_EMAIL:-true}
+      Identity__RequireUniqueEmail: ${IDENTITY_REQUIRE_UNIQUE_EMAIL:-true}
+
+
+      # --- Storage (object store for the Files feature) -----------------------
+      # The endpoint is the compose service, but the SIGNED URLs this host mints have to be
+      # reachable by whoever follows them — a browser on the host, not a container on this
+      # network. STORAGE_PUBLIC_ENDPOINT is what a client sees; leave it at localhost:9000 for
+      # the stack as shipped. ForcePathStyle is required for MinIO: virtual-host addressing
+      # would resolve <bucket>.minio, which nothing here serves.
+      Storage__BucketName: ${STORAGE_BUCKET_NAME:-app-files}
+      Storage__Endpoint: ${STORAGE_ENDPOINT:-http://minio:9000}
+      # The name a client OUTSIDE the Docker network resolves. The API reaches MinIO at
+      # minio:9000 here, and a presigned URL covers the host it was signed for — so nothing
+      # downstream can rewrite it, and left unset this stack would mint URLs only a container
+      # could follow. See docs/CONFIGURATION.md.
+      Storage__PublicEndpoint: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
+      Storage__ForcePathStyle: ${STORAGE_FORCE_PATH_STYLE:-true}
+      Storage__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
+      Storage__AccessKeyId: ${MINIO_ROOT_USER:-minioadmin}
+      Storage__SecretAccessKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      # --- Email (SMTP) ------------------------------------------------------
+      Email__Host: ${EMAIL_HOST:-mailpit}
+      Email__Port: ${EMAIL_PORT:-1025}
+      # mailpit speaks no TLS, and its container hostname is not loopback. Say so outright
+      # rather than reaching for a permissive Security mode: 'None' + an explicit opt-in is
+      # auditable, whereas 'Auto' silently resolves to opportunistic TLS and slips past the
+      # very validation that is meant to catch a plaintext relay in production.
+      Email__Security: ${EMAIL_SECURITY:-None}
+      Email__AllowInsecureTransport: ${EMAIL_ALLOW_INSECURE_TRANSPORT:-true}
+      Email__UserName: ${EMAIL_USERNAME:-}
+      Email__Password: ${EMAIL_PASSWORD:-}
+      Email__FromAddress: ${EMAIL_FROM_ADDRESS:-no-reply@localhost}
+      Email__FromName: ${EMAIL_FROM_NAME:-AppTemplate (dev)}
+
+      # --- EmailConfirmation -------------------------------------------------
+      EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
+
+      # --- PasswordReset -----------------------------------------------------
+      PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
+
+      # --- EmailChange ---------------------------------------------------------
+      EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:8080/confirm-email-change}
+
+      # --- IdentitySeed — DEVELOPMENT ONLY -----------------------------------
+      # Off by default, and no default password: enabling it without
+      # SEED_ADMIN_PASSWORD fails startup validation rather than creating a
+      # guessable administrator, which is what the old hard-coded admin/admin did.
+      IdentitySeed__Enabled: ${SEED_ENABLED:-false}
+      IdentitySeed__AdminUserName: ${SEED_ADMIN_USERNAME:-administrator}
+      IdentitySeed__AdminEmail: ${SEED_ADMIN_EMAIL:-}
+      IdentitySeed__AdminPassword: ${SEED_ADMIN_PASSWORD:-}
+
+      # --- Cors. Arrays bind by index with the __N suffix. -------------------
+      Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN_0:-http://localhost:4200}
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
+    depends_on:
+      db:
+        # The defect this fixes: PostgreSQL accepts TCP connections seconds before
+        # it can serve queries. Without `condition: service_healthy` the API's
+        # migrate-on-startup raced initdb and crashed on a cold `compose up`.
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      # This host signs URLs against the bucket, so the bucket has to exist. Readiness does not
+      # probe storage — it answers for the database — so without this the stack reports itself
+      # healthy while the first file registration still has nowhere to go.
+      minio-bucket:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      # Generous: the first start runs EF migrations against an empty database.
+      start_period: 60s
+    networks: [backend]
+
+  worker:
+    # The template's proof that Clean Architecture pays for itself: this process calls the exact
+    # same IPurgeExpiredIdempotencyKeysUseCase and IPurgeExpiredRefreshTokensUseCase as the api
+    # service's MaintenanceController, through the same application layer, with no use case and
+    # no domain type touched to run it here instead of over HTTP. See
+    # Src/Presentation/AppTemplate.Worker.
+    image: app-template-worker:dev
     build:
       context: .
-      dockerfile: Src/Presentation/CA.Presentation.WebApi/Dockerfile
-    ports:
-      - "8080:8080"
-      - "8081:8081"
+      dockerfile: Src/Presentation/AppTemplate.Worker/Dockerfile
+    restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true"
+
+      # Same two variables as the api service — this process holds its own pool against the same
+      # server, and MaxPoolSize must be sized with the api's replicas in mind, not just its own.
+      # See docs/CONFIGURATION.md.
+      Database__MaxPoolSize: ${DATABASE_MAX_POOL_SIZE:-20}
+      Database__CommandTimeoutSeconds: ${DATABASE_COMMAND_TIMEOUT_SECONDS:-30}
+
+      IdempotencyPurge__BatchSize: ${IDEMPOTENCY_PURGE_BATCH_SIZE:-1000}
+
+      # --- Localization ------------------------------------------------------
+      # This host serves no request, so every mail its loops send is written in this language. Same
+      # value as the api service: one deployment, one voice.
+      Localization__DefaultCulture: ${LOCALIZATION_DEFAULT_CULTURE:-en}
+
+      # --- MaintenanceWorker ---------------------------------------------------
+      MaintenanceWorker__Interval: ${MAINTENANCE_WORKER_INTERVAL:-01:00:00}
+      MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: ${MAINTENANCE_WORKER_PURGE_IDEMPOTENCY_KEYS:-true}
+      MaintenanceWorker__PurgeExpiredRefreshTokensEnabled: ${MAINTENANCE_WORKER_PURGE_REFRESH_TOKENS:-true}
+
+      # --- ReminderWorker ------------------------------------------------------
+      # The host's second loop, on its own timer. Enabled is the off switch for a stack that wants
+      # the maintenance purges running without any reminder mail leaving the box — the loop stops,
+      # the rest of the process keeps going. See docs/CONFIGURATION.md.
+      ReminderWorker__Interval: ${REMINDER_WORKER_INTERVAL:-00:01:00}
+      ReminderWorker__Enabled: ${REMINDER_WORKER_ENABLED:-true}
+
+      # --- FileWorker ----------------------------------------------------------
+      # THREE passes for the Files feature, not two. The inspection pass is the one a user waits on:
+      # it is the only thing that moves a file from deposited to available, so with it off or slow no
+      # upload ever becomes readable. The reclamation sweep is the correctness guarantee of the whole
+      # feature — with no soft delete, bytes are only reclaimed because it re-derives "an object no
+      # row references is garbage" — so turning it off leaks storage silently. The purge of abandoned
+      # registrations retires a client that asked for an upload grant and never used it.
+      # See docs/CONFIGURATION.md.
+      FileWorker__InspectDepositedFilesInterval: ${FILE_WORKER_INSPECT_INTERVAL:-00:01:00}
+      FileWorker__InspectDepositedFilesEnabled: ${FILE_WORKER_INSPECT_ENABLED:-true}
+      FileWorker__PurgeAbandonedRegistrationsInterval: ${FILE_WORKER_PURGE_INTERVAL:-01:00:00}
+      FileWorker__PurgeAbandonedRegistrationsEnabled: ${FILE_WORKER_PURGE_ENABLED:-true}
+      FileWorker__ReclaimOrphanedContentInterval: ${FILE_WORKER_RECLAIM_INTERVAL:-12:00:00}
+      FileWorker__ReclaimOrphanedContentEnabled: ${FILE_WORKER_RECLAIM_ENABLED:-true}
+
+      # --- Jwt, RefreshToken, EmailConfirmation, PasswordReset, EmailChange ----
+      # AppTemplate.Infrastructure.Identity is composed for two things, and the smaller one used to
+      # be the only one written down: IRefreshTokenMaintenance's sole adapter. The one that decides
+      # it is IUserProfilesService, which EmailReminderNotifier resolves to find the address a due
+      # reminder is rung at — so the reminder loop needs this module whatever happens to the
+      # maintenance adapter. It validates its whole configuration surface at startup regardless of
+      # whether this host ever authenticates anybody. Same variables and same required values as
+      # the api service — see docs/CONFIGURATION.md.
+      # Not ${JWT_KEY}, on purpose: this host never signs or checks a token, so the api service's
+      # signing key has no business in this container's environment. JwtOptionsValidator only
+      # requires 32 non-blank bytes, and this value names itself in any stack trace it reaches.
+      # Issuer and audience DO match the api service — those two are what the two hosts have to
+      # agree about. See SECURITY.md.
+      Jwt__Key: "this-host-neither-signs-nor-verifies-a-token"
+      Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
+      Jwt__Audience: ${JWT_AUDIENCE:?set JWT_AUDIENCE in .env}
+      RefreshToken__LifetimeInDays: ${REFRESH_TOKEN_LIFETIME_DAYS:-7}
+      # All three URLs are validated at start-up by the Identity module this host composes,
+      # even though a background loop sends none of that mail.
+      EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
+      PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
+      EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:8080/confirm-email-change}
+
+      # --- Storage (object store for the Files feature) -----------------------
+      # The endpoint is the compose service, but the SIGNED URLs this host mints have to be
+      # reachable by whoever follows them — a browser on the host, not a container on this
+      # network. STORAGE_PUBLIC_ENDPOINT is what a client sees; leave it at localhost:9000 for
+      # the stack as shipped. ForcePathStyle is required for MinIO: virtual-host addressing
+      # would resolve <bucket>.minio, which nothing here serves.
+      Storage__BucketName: ${STORAGE_BUCKET_NAME:-app-files}
+      Storage__Endpoint: ${STORAGE_ENDPOINT:-http://minio:9000}
+      # The name a client OUTSIDE the Docker network resolves. The API reaches MinIO at
+      # minio:9000 here, and a presigned URL covers the host it was signed for — so nothing
+      # downstream can rewrite it, and left unset this stack would mint URLs only a container
+      # could follow. See docs/CONFIGURATION.md.
+      Storage__PublicEndpoint: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
+      Storage__ForcePathStyle: ${STORAGE_FORCE_PATH_STYLE:-true}
+      Storage__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
+      Storage__AccessKeyId: ${MINIO_ROOT_USER:-minioadmin}
+      Storage__SecretAccessKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
+
+      # --- Email (SMTP) --------------------------------------------------------
+      # Unlike the Jwt/Identity sections above, this one is not a side effect of composing
+      # AppTemplate.Infrastructure.Identity: this service composes AppTemplate.Infrastructure.Email
+      # in its own right, for IReminderNotifier's adapter — a reminder that comes due is rung by
+      # mail, see AppTemplate.Worker.csproj. Same variables and same values as the api service, so
+      # both hosts reach the same mailpit sink.
+      Email__Host: ${EMAIL_HOST:-mailpit}
+      Email__Port: ${EMAIL_PORT:-1025}
+      Email__Security: ${EMAIL_SECURITY:-None}
+      Email__AllowInsecureTransport: ${EMAIL_ALLOW_INSECURE_TRANSPORT:-true}
+      Email__UserName: ${EMAIL_USERNAME:-}
+      Email__Password: ${EMAIL_PASSWORD:-}
+      Email__FromAddress: ${EMAIL_FROM_ADDRESS:-no-reply@localhost}
+      Email__FromName: ${EMAIL_FROM_NAME:-AppTemplate (dev)}
     depends_on:
-      - sqlserver
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      # The reclamation and inspection passes both talk to the object store.
+      minio-bucket:
+        condition: service_completed_successfully
+      # A COMPOSE ordering, not a runtime dependency: this host never calls the api service, and in a
+      # real deployment the two scale apart. But in this stack the api is what applies the
+      # migrations, and its healthcheck only passes once it has — so without this, every cold `up`
+      # ran this host's first passes against an empty schema and logged two errors about a relation
+      # that did not exist yet. They recovered on the next interval; they were still the first thing
+      # a newcomer saw. Where a migration job runs separately, depend on that instead.
+      api:
+        condition: service_healthy
+    networks: [backend]
+
+  # The object store the Files feature writes to. In production this is S3 (or R2, or Azure Blob
+  # behind an S3 gateway); here it is MinIO, addressed through Storage__Endpoint. The API never
+  # carries a byte either way: it signs a URL and the client talks to this service directly, which
+  # is exactly why an endpoint the browser can reach has to be published on the host. Loopback all
+  # the same, like every other port here: the browser that follows the signed URL runs on this
+  # machine — Storage__PublicEndpoint says so, it is localhost:9000 — so 127.0.0.1 costs that
+  # browser nothing, and the alternative is MINIO_ROOT_USER's minioadmin/minioadmin default offered
+  # to the local network.
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "127.0.0.1:9000:9000"   # the S3 API — what Storage__Endpoint points at
+      - "127.0.0.1:9001:9001"   # the web console, for looking at what landed
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  # Creates the bucket once and exits. A throwaway container rather than an entrypoint script:
+  # `mc mb --ignore-existing` is idempotent, so a repeated `compose up` is harmless.
+  minio-bucket:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    # `anonymous set none` is deliberate and is the whole point: a publicly readable bucket would
+    # make every signed URL in this template decoration. The download grant is the only way in.
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin} &&
+      mc mb --ignore-existing local/${STORAGE_BUCKET_NAME:-app-files} &&
+      mc anonymous set none local/${STORAGE_BUCKET_NAME:-app-files}
+      "
+    networks: [backend]
 
 volumes:
-  sqlserverdata:
+  db-data:
+  minio-data:
+
+networks:
+  # Declared explicitly rather than relying on the implicit default network, so
+  # that another stack on this host cannot end up sharing it.
+  backend:
+    driver: bridge

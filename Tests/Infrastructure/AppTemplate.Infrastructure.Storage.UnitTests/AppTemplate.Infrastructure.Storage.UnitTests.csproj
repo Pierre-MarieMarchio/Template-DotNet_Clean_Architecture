@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the storage module's own decisions, which are three: what a bucket
+       configuration is allowed to be, what budget the SDK client is built with, and what exactly a
+       grant authorises.
+
+       The third is the reason this project exists, and it is testable without a store because
+       presigning is arithmetic: the signature is computed locally from the request, so a real client
+       built with fabricated credentials mints a real URL that a real store would accept, and the
+       assertions read the URL. That is what pins the two properties nothing else would notice —
+       that the headers the grant tells a client to send are exactly the headers the signature
+       covers, and that the URL's scheme follows the endpoint's rather than the SDK's default of
+       HTTPS, which would hand a development client an address its store does not answer on.
+
+       No network is opened and none is simulated. Everything past the signature — whether the store
+       records a SHA-256 at deposit time, whether a listing resumes where the token said — is a
+       claim about a real S3-compatible store, and a stub answering it would only prove that the stub
+       agrees with this repository. That belongs in an integration suite against MinIO, which is
+       deliberately not here.
+
+       Internals are shared from AppTemplate.Infrastructure.Storage for the validator and the client
+       factory. Both are internal, as every non-contract type there is, and the alternative seam —
+       binding configuration and resolving IOptions so ValidateOnStart throws — turns each case into
+       a dictionary of strings and an exception message, which obscures the one thing under test. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
+  </ItemGroup>
+
+</Project>

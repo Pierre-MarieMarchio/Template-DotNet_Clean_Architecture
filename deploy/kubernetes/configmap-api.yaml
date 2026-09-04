@@ -1,0 +1,113 @@
+# Non-secret configuration for AppTemplate.Api. Every key here maps to a section documented in
+# docs/CONFIGURATION.md; the double-underscore form is what ASP.NET Core's configuration binder
+# expects from an environment variable (Jwt:Issuer -> Jwt__Issuer).
+#
+# Every value below is either REQUIRED (blank in the tracked appsettings.json, validated at
+# startup — the pod will not become Ready, in fact will not even finish starting, without it) or
+# a deployment-topology fact that the tracked defaults cannot know (a real hostname, whether an
+# ingress sits in front). Anything not listed here keeps the default already baked into the
+# image's appsettings.json — do not restate a value here just because it exists as a key; restate
+# it only when this deployment needs something other than the shipped default.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-template-api-config
+  labels:
+    app.kubernetes.io/name: app-template-api
+    app.kubernetes.io/part-of: app-template
+    app.kubernetes.io/component: api
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+
+  # Narrowed from the tracked "*" (SECURITY.md, "Strongly recommended"). Replace with the real
+  # hostname(s) this Service is reached under.
+  AllowedHosts: "api.example.com"
+
+  # Required, no default. Issuer/Audience are compared on every token validation; they do not
+  # have to be resolvable URLs, only stable strings both this API and whatever issues/consumes its
+  # tokens agree on.
+  Jwt__Issuer: "https://api.example.com"
+  Jwt__Audience: "app-template-clients"
+
+  # Required, no default (docs/CONFIGURATION.md#cors). An absent array allows nothing; this is
+  # the real origin of the SPA/native client that calls this API, not a wildcard.
+  Cors__AllowedOrigins__0: "https://app.example.com"
+
+  # --- ReverseProxy: required reading before touching this file. ---------------------------
+  # An Ingress sits in front of this Service (see ingress.yaml), so ReverseProxy must be enabled
+  # or every caller's X-Forwarded-For is ignored and the rate limiter partitions on the ingress
+  # controller's own address — every client on earth then shares that one 10-request window
+  # (SECURITY.md). KnownNetworks below is the Pod CIDR the ingress controller's own pods run in:
+  # this is the one value in this file that is NOT a placeholder domain, it is a real fact about
+  # your cluster's networking and WILL be wrong for most clusters as shipped. Find your cluster's
+  # actual Pod CIDR (or the ingress controller's specific Pod IP/CIDR if it runs isolated) before
+  # deploying; ForwardLimit=1 assumes the ingress controller is the only hop between the caller
+  # and this Service — raise it if something else (a CDN, an external load balancer that itself
+  # appends to X-Forwarded-For) sits in front of the ingress controller too.
+  ReverseProxy__Enabled: "true"
+  ReverseProxy__KnownNetworks__0: "10.244.0.0/16"
+  ReverseProxy__ForwardLimit: "1"
+
+  # Matches ShutdownOptions' own default (30 s) explicitly rather than relying on it silently —
+  # see docs/DEPLOYMENT.md for why this number and api-deployment.yaml's
+  # terminationGracePeriodSeconds have to be read together, not chosen independently.
+  Shutdown__Timeout: "00:00:30"
+
+  # --- Database: restated so the replica math in docs/DEPLOYMENT.md is visible next to the ------
+  # number it is about, not just in docs/CONFIGURATION.md. Still the shipped default (20); change
+  # it together with api-deployment.yaml's replica count and worker-deployment.yaml's own
+  # Database__MaxPoolSize, never alone — all three, plus PostgreSQL's max_connections, are one
+  # budget.
+  Database__MaxPoolSize: "20"
+
+  # --- Email (SMTP) — required, no default. AppTemplate.Worker composes this module too, for -----
+  # IReminderNotifier's mail adapter (a due reminder is rung by mail), so it has its own identical
+  # block in configmap-worker.yaml — see that file and docs/CONFIGURATION.md for why.
+  Email__Host: "smtp.example.com"
+  Email__Port: "587"
+  Email__Security: "StartTls"
+  Email__FromAddress: "no-reply@example.com"
+  Email__FromName: "AppTemplate"
+
+  # --- EmailConfirmation / PasswordReset / EmailChange: required, no default, and used by BOTH ---
+  # hosts (AppTemplate.Worker composes AppTemplate.Infrastructure.Identity too, so it validates
+  # these same three sections at startup even though it sends none of that mail itself over HTTP —
+  # see configmap-worker.yaml). Kept identical across both ConfigMaps deliberately: two copies of
+  # one fact, not two facts that could drift.
+  EmailConfirmation__ConfirmEmailUrl: "https://app.example.com/confirm-email"
+  PasswordReset__ResetPasswordUrl: "https://app.example.com/reset-password"
+  EmailChange__ConfirmEmailChangeUrl: "https://app.example.com/confirm-email-change"
+
+  # --- Storage: the object store the Files feature keeps file content in. REQUIRED, and the -------
+  # reason this block exists at all: BucketName is blank in the tracked appsettings.json and
+  # StorageOptionsValidator refuses a blank one, so a deployment without it does not start. Both
+  # hosts compose AddStorageModule (see each Program.cs), so both ConfigMaps carry this block —
+  # the worker reaches the store to reclaim orphaned objects and to read the bytes it inspects.
+  #
+  # Endpoint is the one key that is legitimately blank: absent means Amazon S3 itself. Set it only
+  # for an S3-compatible store (MinIO, Ceph, R2), and then set ForcePathStyle too — virtual-host
+  # addressing would resolve <bucket>.<host>, which such a store rarely serves.
+  Storage__BucketName: "app-template-files"
+  Storage__Region: "eu-west-3"
+  Storage__Endpoint: ""
+  Storage__ForcePathStyle: "false"
+
+  # The name a CLIENT resolves, which is not always the one this pod uses. A presigned URL covers
+  # the host it was signed for, so a deployment reaching the store under an in-cluster Service name
+  # while browsers reach it under a public one MUST set this to the public one or every grant it
+  # mints answers 403 SignatureDoesNotMatch. Blank means "sign for Endpoint", which is correct
+  # whenever the two names are the same — as they are against Amazon S3.
+  Storage__PublicEndpoint: ""
+
+  # --- ContentInspection: blank ScannerHost is a DECISION, and it is the shipped one. -------------
+  # With no host, the file's leading bytes are still read and the media-type check still runs — a
+  # PNG whose bytes are an SVG is refused in every deployment — but nothing looks for malware, and
+  # SECURITY.md is where that is written down for whoever inherits this cluster. Point it at a
+  # clamd Service to close that gap.
+  #
+  # Do NOT set a host you are not sure is reachable: an unreachable scanner is reported as "no
+  # verdict", which is deliberately not a pass, so every upload stays unreadable until it answers.
+  # That is the correct behaviour and it is also an outage.
+  ContentInspection__ScannerHost: ""
+  ContentInspection__ScannerPort: "3310"
+  ContentInspection__MaxScannableBytes: "26214400"

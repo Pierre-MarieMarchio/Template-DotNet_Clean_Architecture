@@ -92,6 +92,17 @@ updates:
           - Npgsql.*
           - Scalar.*
 
+      # The OpenTelemetry 1.x band: the OTLP exporter, the hosting extensions and the two
+      # instrumentations, which the SIG releases on one date under one version. Without this
+      # group each is a pull request of its own, and a single band move arrives as four PRs that
+      # only mean anything read together. Npgsql.OpenTelemetry is not one of them and must not
+      # be: the glob is anchored, so `Npgsql.*` above claims it, which is where it belongs — it
+      # tracks the EF provider's ActivitySource, not the SIG's release train.
+      observability:
+        applies-to: version-updates
+        patterns:
+          - OpenTelemetry.*
+
   # ---------------------------------------------------------------------------
   # GitHub Actions. Every `uses:` in this repository is pinned to a commit SHA with the
   # human-readable tag in a trailing comment; Dependabot rewrites both, which is the only

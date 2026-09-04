@@ -11,9 +11,11 @@ namespace AppTemplate.Application.UnitTests.Features.Auth.UseCases.Commands;
 public sealed class LogoutUseCaseTests
 {
     private readonly IRefreshTokenGrants _refreshTokens = Substitute.For<IRefreshTokenGrants>();
+    private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly LogoutUseCase _useCase;
 
-    public LogoutUseCaseTests() => _useCase = new LogoutUseCase(_refreshTokens, new LogoutRequestValidator());
+    public LogoutUseCaseTests() =>
+        _useCase = new LogoutUseCase(_refreshTokens, _securityEventLog, new LogoutCommandValidator());
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -27,21 +29,43 @@ public sealed class LogoutUseCaseTests
     [InlineData("   ")]
     public async Task ABlankRefreshToken_NeverReachesTheGrants(string refreshToken)
     {
-        var result = await _useCase.ExecuteAsync(new LogoutRequest(refreshToken), TestToken);
+        var result = await _useCase.ExecuteAsync(new LogoutCommand(refreshToken), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("auth.validation");
+        result.Error.Code.ShouldBe("request.validationFailed");
         _refreshTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task APresentedToken_IsRevoked()
     {
-        var result = await _useCase.ExecuteAsync(new LogoutRequest("an-opaque-secret"), TestToken);
+        var result = await _useCase.ExecuteAsync(new LogoutCommand("an-opaque-secret"), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         await _refreshTokens.Received(1).RevokeAsync("an-opaque-secret", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ARevokedToken_IsRecordedAsALogout()
+    {
+        var userId = Guid.CreateVersion7();
+        _refreshTokens.RevokeAsync("an-opaque-secret", Arg.Any<CancellationToken>()).Returns(userId);
+
+        await _useCase.ExecuteAsync(new LogoutCommand("an-opaque-secret"), TestToken);
+
+        _securityEventLog.Received(1).Record(SecurityEvent.LoggedOut(userId));
+    }
+
+    /// <summary>Nothing to attribute a log entry to when the token named no grant at all.</summary>
+    [Fact]
+    public async Task ATokenNobodyWasIssued_RecordsNothing()
+    {
+        _refreshTokens.RevokeAsync("never-issued", Arg.Any<CancellationToken>()).Returns((Guid?)null);
+
+        await _useCase.ExecuteAsync(new LogoutCommand("never-issued"), TestToken);
+
+        _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
     /// <summary>
@@ -51,8 +75,8 @@ public sealed class LogoutUseCaseTests
     [Fact]
     public async Task ATokenNobodyWasIssued_IsAnsweredTheSameWay()
     {
-        var forKnown = await _useCase.ExecuteAsync(new LogoutRequest("an-opaque-secret"), TestToken);
-        var forUnknown = await _useCase.ExecuteAsync(new LogoutRequest("never-issued"), TestToken);
+        var forKnown = await _useCase.ExecuteAsync(new LogoutCommand("an-opaque-secret"), TestToken);
+        var forUnknown = await _useCase.ExecuteAsync(new LogoutCommand("never-issued"), TestToken);
 
         forUnknown.IsSuccess.ShouldBe(forKnown.IsSuccess);
         forUnknown.Error.ShouldBe(forKnown.Error);
@@ -62,7 +86,7 @@ public sealed class LogoutUseCaseTests
     [Fact]
     public async Task TheWholeFamily_IsNotRevoked()
     {
-        await _useCase.ExecuteAsync(new LogoutRequest("an-opaque-secret"), TestToken);
+        await _useCase.ExecuteAsync(new LogoutCommand("an-opaque-secret"), TestToken);
 
         await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
     }
@@ -72,7 +96,7 @@ public sealed class LogoutUseCaseTests
     {
         using var cancellation = new CancellationTokenSource();
 
-        await _useCase.ExecuteAsync(new LogoutRequest("an-opaque-secret"), cancellation.Token);
+        await _useCase.ExecuteAsync(new LogoutCommand("an-opaque-secret"), cancellation.Token);
 
         await _refreshTokens.Received(1).RevokeAsync("an-opaque-secret", cancellation.Token);
     }

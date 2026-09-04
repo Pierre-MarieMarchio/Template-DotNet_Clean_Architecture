@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <!-- The template's proof that Clean Architecture pays for itself: a second entry point that
+       calls the same application-layer use cases as AppTemplate.Api, through the same
+       infrastructure modules, with no use case and no domain type changed. It hosts one
+       BackgroundService and nothing business-shaped lives here. -->
+
+  <PropertyGroup>
+    <UserSecretsId>74620b17-71c0-43e0-a45a-69dae1e68a32</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>..\..\..</DockerfileContext>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <!-- Not pulled in transitively: unlike AppTemplate.Api, this host does not reference the
+         ASP.NET Core shared framework, so the console logging provider needs its own reference. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+
+  <!-- The same two modules AppTemplate.Api composes for these two use cases, and nothing else:
+       no Email module (neither maintenance task sends mail) and no reference to AppTemplate.Api
+       itself — the whole point is that this host needs none of it. AppTemplate.Infrastructure.Identity
+       is here only because IRefreshTokenMaintenance's sole adapter lives there; composing it also
+       pulls in JWT and ASP.NET Identity's own configuration surface, which is why this project's
+       appsettings.json carries the same Jwt/Identity/RefreshToken/EmailConfirmation sections as
+       the API even though this host never authenticates anybody. See docs/CONFIGURATION.md. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Identity\AppTemplate.Infrastructure.Identity.csproj" />
+  </ItemGroup>
+
+  <!-- The loop's resilience and its use of the stopping token are the whole point of this
+       project; testing them from outside would mean testing Program.cs's composition instead
+       of the behaviour itself. Shared with exactly one assembly, same as the persistence
+       project's InternalsVisibleTo. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Worker.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.Development.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <DependentUpon>appsettings.json</DependentUpon>
+    </None>
+  </ItemGroup>
+
+</Project>

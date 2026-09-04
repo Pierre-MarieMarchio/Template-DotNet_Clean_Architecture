@@ -29,7 +29,8 @@ public interface IRefreshTokenGrants
     /// Revokes the presented token if it is still active. Silent when the token is unknown, so
     /// logging out cannot be used to probe for valid tokens.
     /// </summary>
-    Task RevokeAsync(string presentedToken, CancellationToken cancellationToken = default);
+    /// <returns>The id of the user the token belonged to, or <c>null</c> when the token was unknown.</returns>
+    Task<Guid?> RevokeAsync(string presentedToken, CancellationToken cancellationToken = default);
 
     /// <summary>Kills every live grant for a user: theft response, and the hook for "sign out everywhere".</summary>
     Task RevokeAllForUserAsync(Guid userId, CancellationToken cancellationToken = default);

@@ -14,7 +14,7 @@ public sealed class ConfirmEmailUseCaseTests
     private readonly ConfirmEmailUseCase _useCase;
 
     public ConfirmEmailUseCaseTests() =>
-        _useCase = new ConfirmEmailUseCase(_confirmationTokens, new ConfirmEmailRequestValidator());
+        _useCase = new ConfirmEmailUseCase(_confirmationTokens, new ConfirmEmailCommandValidator());
 
     /// <summary>
     /// Every way redeeming can fail. Read off the enum, so a new outcome cannot be added without a
@@ -37,11 +37,11 @@ public sealed class ConfirmEmailUseCaseTests
     [InlineData("someone@example.com", "   ")]
     public async Task AnIncompleteRequest_NeverRedeemsAnything(string email, string token)
     {
-        var result = await _useCase.ExecuteAsync(new ConfirmEmailRequest(email, token), TestToken);
+        var result = await _useCase.ExecuteAsync(new ConfirmEmailCommand(email, token), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("auth.validation");
+        result.Error.Code.ShouldBe("request.validationFailed");
         _confirmationTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -115,7 +115,7 @@ public sealed class ConfirmEmailUseCaseTests
             cancellation.Token);
     }
 
-    private static ConfirmEmailRequest AValidRequest() => new("someone@example.com", "a-token");
+    private static ConfirmEmailCommand AValidRequest() => new("someone@example.com", "a-token");
 
     private void GivenTheOutcomeIs(EmailConfirmationOutcome outcome) =>
         _confirmationTokens.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())

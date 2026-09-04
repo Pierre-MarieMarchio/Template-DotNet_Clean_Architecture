@@ -44,17 +44,17 @@ public sealed class AuthController(
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<RegisterResponse>> Register(
-        [FromBody] RegisterRequest request,
+        [FromBody] RegisterCommand request,
         CancellationToken cancellationToken) =>
         OkOrProblem(await register.ExecuteAsync(request, cancellationToken));
 
     /// <summary>Exchanges credentials for an access token and a refresh token.</summary>
     [HttpPost("login")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(LoginResponse))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(LoginOutcome))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
-    public async Task<ActionResult<LoginResponse>> Login(
-        [FromBody] LoginRequest request,
+    public async Task<ActionResult<LoginOutcome>> Login(
+        [FromBody] LoginCommand request,
         CancellationToken cancellationToken) =>
         OkOrProblem(await login.ExecuteAsync(request, cancellationToken));
 
@@ -67,7 +67,7 @@ public sealed class AuthController(
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<RefreshAccessTokenResponse>> Refresh(
-        [FromBody] RefreshAccessTokenRequest request,
+        [FromBody] RefreshAccessTokenCommand request,
         CancellationToken cancellationToken) =>
         OkOrProblem(await refreshAccessToken.ExecuteAsync(request, cancellationToken));
 
@@ -79,7 +79,7 @@ public sealed class AuthController(
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> ConfirmEmail(
-        [FromBody] ConfirmEmailRequest request,
+        [FromBody] ConfirmEmailCommand request,
         CancellationToken cancellationToken) =>
         NoContentOrProblem(await confirmEmail.ExecuteAsync(request, cancellationToken));
 
@@ -89,7 +89,7 @@ public sealed class AuthController(
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> ResendConfirmationEmail(
-        [FromBody] ResendConfirmationEmailRequest request,
+        [FromBody] ResendConfirmationEmailCommand request,
         CancellationToken cancellationToken) =>
         NoContentOrProblem(await resendConfirmationEmail.ExecuteAsync(request, cancellationToken));
 
@@ -98,7 +98,7 @@ public sealed class AuthController(
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> Logout(
-        [FromBody] LogoutRequest request,
+        [FromBody] LogoutCommand request,
         CancellationToken cancellationToken) =>
         NoContentOrProblem(await logout.ExecuteAsync(request, cancellationToken));
 }

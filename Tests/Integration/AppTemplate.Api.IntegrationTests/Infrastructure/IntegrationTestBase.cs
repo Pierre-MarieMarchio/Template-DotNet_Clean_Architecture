@@ -129,7 +129,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/confirm-email",
-            new ConfirmEmailRequest(email, token),
+            new ConfirmEmailCommand(email, token),
             TestToken);
 
         if (response.StatusCode != HttpStatusCode.NoContent)
@@ -148,7 +148,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         string suffix = Guid.CreateVersion7().ToString("N")[..12];
         string userName = $"{label ?? "user"}-{suffix}";
-        var request = new RegisterRequest(userName, $"{userName}@integration.test", ValidPassword);
+        var request = new RegisterCommand(userName, $"{userName}@integration.test", ValidPassword);
 
         using var response = await client.PostAsJsonAsync($"{AuthRoute}/register", request, TestToken);
 
@@ -164,14 +164,18 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return new TestUser(registered.UserId, registered.UserName, registered.Email, ValidPassword);
     }
 
-    protected static async Task<LoginResponse> LoginAsync(HttpClient client, TestUser user)
+    /// <summary>
+    /// Fails loudly on any other outcome: a helper that every test builds on must not quietly hand
+    /// back a session that was never established.
+    /// </summary>
+    protected static async Task<LoginOutcome.Authenticated> LoginAsync(HttpClient client, TestUser user)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(user);
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",
-            new LoginRequest(user.Email, user.Password),
+            new LoginCommand(user.Email, user.Password),
             TestToken);
 
         if (response.StatusCode != HttpStatusCode.OK)
@@ -181,11 +185,13 @@ public abstract class IntegrationTestBase : IAsyncLifetime
                 await response.Content.ReadAsStringAsync(TestToken));
         }
 
-        return await ApiJson.ReadAsync<LoginResponse>(response, TestToken);
+        return await ApiJson.ReadAsync<LoginOutcome>(response, TestToken) as LoginOutcome.Authenticated
+            ?? throw new InvalidOperationException($"Logging {user.Email} in did not produce a token pair.");
     }
 
     /// <summary>A confirmed account plus a client already carrying its access token.</summary>
-    protected async Task<(HttpClient Client, TestUser User, LoginResponse Session)> SignInAsync(string? label = null)
+    protected async Task<(HttpClient Client, TestUser User, LoginOutcome.Authenticated Session)> SignInAsync(
+        string? label = null)
     {
         var client = CreateClient();
         var user = await RegisterConfirmedUserAsync(client, label);

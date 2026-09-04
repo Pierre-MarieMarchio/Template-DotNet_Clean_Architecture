@@ -9,6 +9,8 @@ public sealed class CreateTodoListCommandValidator : AbstractValidator<CreateTod
     public CreateTodoListCommandValidator() =>
         RuleFor(command => command.Name)
             .NotEmpty().WithMessage("A list name is required.")
-            .MaximumLength(TodoListName.MaxLength)
+            // Measured after trimming, like the domain measures it: a 200-character name
+            // followed by a space is one the domain accepts, so the validator must too.
+            .Must(name => name.Trim().Length <= TodoListName.MaxLength)
             .WithMessage($"A list name cannot exceed {TodoListName.MaxLength} characters.");
 }

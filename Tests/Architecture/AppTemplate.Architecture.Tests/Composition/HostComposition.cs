@@ -87,6 +87,9 @@ internal static class HostComposition
             ["EmailConfirmation:ConfirmEmailUrl"] = "https://localhost:5001/confirm-email",
             ["EmailConfirmation:Subject"] = "Confirm your email address",
 
+            ["PasswordReset:ResetPasswordUrl"] = "https://localhost:5001/reset-password",
+            ["PasswordReset:Subject"] = "Reset your password",
+
             ["Email:Host"] = "smtp.example.invalid",
             ["Email:Port"] = "587",
             ["Email:FromAddress"] = "no-reply@example.invalid",

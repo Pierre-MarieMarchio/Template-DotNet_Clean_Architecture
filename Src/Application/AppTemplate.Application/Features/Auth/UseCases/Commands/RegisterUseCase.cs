@@ -1,37 +1,38 @@
-﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Dtos;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports;
-using AppTemplate.Application.Features.Auth.Validators;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands;
 
-public sealed record RegisterRequest(string UserName, string Email, string Password);
+public sealed record RegisterCommand(string UserName, string Email, string Password);
 
-public interface IRegisterUseCase : IUseCase<RegisterRequest, Result<RegisterResponse>>;
+public interface IRegisterUseCase : IUseCase<RegisterCommand, Result<RegisterResponse>>;
 
 public sealed class RegisterUseCase(
     IUserAccounts accounts,
     IEmailConfirmationTokens confirmationTokens,
     IConfirmationEmailComposer composer,
     IEmailSender emailSender,
-    IValidator<RegisterRequest> validator,
+    ISecurityEventLog securityEventLog,
+    IValidator<RegisterCommand> validator,
     ILogger<RegisterUseCase> logger) : IRegisterUseCase
 {
     public async Task<Result<RegisterResponse>> ExecuteAsync(
-        RegisterRequest request,
+        RegisterCommand request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var validation = await validator.ValidateAsync(request, cancellationToken);
+        var validation = await validator.EnsureValidAsync(request, cancellationToken);
 
-        if (!validation.IsValid)
+        if (validation.IsFailure)
         {
-            return Result.Failure<RegisterResponse>(validation.ToError());
+            return validation.To<RegisterResponse>();
         }
 
         var creation = await accounts.CreateAsync(
@@ -44,6 +45,8 @@ public sealed class RegisterUseCase(
         {
             return Result.Failure<RegisterResponse>(ToError(creation));
         }
+
+        securityEventLog.Record(SecurityEvent.Registered(creation.UserId));
 
         // The account is committed before anything is delivered. Letting an unreachable relay fail
         // the call would leave an unconfirmable account behind with its address taken and no way to
@@ -64,7 +67,8 @@ public sealed class RegisterUseCase(
     private static Error ToError(AccountCreation creation) =>
         creation.Outcome is AccountCreationOutcome.Conflict
             ? AuthErrors.RegistrationConflict
-            : AuthErrors.RegistrationRejected(creation.RejectionMessage ?? string.Empty);
+            : AuthErrors.RegistrationRejected(
+                creation.RejectionMessage ?? "The submitted password does not meet the required policy.");
 
     private async Task<bool> TrySendConfirmationEmailAsync(
         Guid userId,

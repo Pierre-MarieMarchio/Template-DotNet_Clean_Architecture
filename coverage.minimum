@@ -9,7 +9,8 @@
 # Measured history — `./tasks.ps1 coverage` prints the current value:
 #   2026-08-05   83.80%  (2261/2698)  715 tests
 #   2026-08-05   86.53%  (2750/3178)  974 tests
+#   2026-08-05   87.84%  (3562/4055)  1187 tests
 #
-# The weakest assembly is AppTemplate.Api at 76.55%; the total is what the gate enforces, so a large new
+# The weakest assembly is AppTemplate.Api at 78.51%; the total is what the gate enforces, so a large new
 # controller with no tests can pull the total down even while every other project improves.
-84
+85

@@ -23,6 +23,14 @@ with a new numbered record rather than editing history.
 | [0012](0012-hsts-is-owned-by-the-ingress.md) | HSTS is owned by the ingress, not by the application | Accepted |
 | [0013](0013-if-match-is-optional-by-default.md) | `If-Match` is required by configuration, not by default | Accepted |
 | [0014](0014-packaging-as-a-dotnet-new-template.md) | Packaging as a `dotnet new` template | Accepted |
+| [0015](0015-typed-filters-not-a-filter-expression-language.md) | A typed filter surface, not a filter expression language | Accepted |
+| [0016](0016-pagination-metadata-in-the-body.md) | Pagination metadata lives in the body, not in `Link` headers | Accepted |
+| [0017](0017-no-outbox-for-domain-events.md) | No outbox for domain events | Accepted |
+| [0018](0018-no-patch.md) | No `PATCH`: writes are named operations | Accepted |
+| [0019](0019-caching-is-revalidation-not-storage.md) | Caching is revalidation, not storage | Accepted |
+| [0020](0020-no-deprecation-or-sunset-headers.md) | No `Deprecation`/`Sunset` headers while one version ships | Accepted |
+| [0021](0021-no-queryable-audit-trail.md) | No queryable audit trail in the application database | Accepted |
+| [0022](0022-no-soft-delete.md) | No soft delete | Accepted |
 
 ## Format
 

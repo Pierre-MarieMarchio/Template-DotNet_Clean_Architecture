@@ -1,35 +1,36 @@
-﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Dtos;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports;
-using AppTemplate.Application.Features.Auth.Validators;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands;
 
 /// <summary>The presented token is always consumed, success or failure.</summary>
-public sealed record RefreshAccessTokenRequest(string RefreshToken);
+public sealed record RefreshAccessTokenCommand(string RefreshToken);
 
-public interface IRefreshAccessTokenUseCase : IUseCase<RefreshAccessTokenRequest, Result<RefreshAccessTokenResponse>>;
+public interface IRefreshAccessTokenUseCase : IUseCase<RefreshAccessTokenCommand, Result<RefreshAccessTokenResponse>>;
 
 public sealed class RefreshAccessTokenUseCase(
     IUserAccounts accounts,
     IAccessTokenIssuer accessTokens,
     IRefreshTokenGrants refreshTokens,
-    IValidator<RefreshAccessTokenRequest> validator) : IRefreshAccessTokenUseCase
+    ISecurityEventLog securityEventLog,
+    IValidator<RefreshAccessTokenCommand> validator) : IRefreshAccessTokenUseCase
 {
     public async Task<Result<RefreshAccessTokenResponse>> ExecuteAsync(
-        RefreshAccessTokenRequest request,
+        RefreshAccessTokenCommand request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var validation = await validator.ValidateAsync(request, cancellationToken);
+        var validation = await validator.EnsureValidAsync(request, cancellationToken);
 
-        if (!validation.IsValid)
+        if (validation.IsFailure)
         {
-            return Result.Failure<RefreshAccessTokenResponse>(validation.ToError());
+            return validation.To<RefreshAccessTokenResponse>();
         }
 
         // Rotation comes first and is single-use, so a replayed token is refused here rather than
@@ -46,6 +47,7 @@ public sealed class RefreshAccessTokenUseCase(
         if (!await accounts.CanSignInAsync(userId, cancellationToken))
         {
             await refreshTokens.RevokeAllForUserAsync(userId, cancellationToken);
+            securityEventLog.Record(SecurityEvent.RefreshTokenRevoked(userId));
 
             return Result.Failure<RefreshAccessTokenResponse>(AuthErrors.InvalidRefreshToken);
         }

@@ -22,7 +22,7 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// The reset strategy is <b>truncate, not transaction-rollback</b>. Each test drives several HTTP
 /// requests, each of which gets its own scope, its own context and — for identity writes — its own
 /// commit, so there is no single ambient transaction a test could roll back. Truncating every table
-/// in both feature schemas between tests is the only reset that matches how the system actually
+/// in every module schema between tests is the only reset that matches how the system actually
 /// commits, and it also clears rows written by <c>SaveChanges</c> calls the test never saw.
 /// </para>
 /// </remarks>
@@ -32,11 +32,11 @@ public sealed class TestDatabase(IServiceProvider rootServices)
 
     /// <summary>
     /// Builds the reset statement once, from <c>information_schema</c>. Discovered rather than
-    /// hard-coded, so a table added to either feature in future is truncated too instead of leaking
-    /// silently from one test into the next.
+    /// hard-coded, so a table added to any of these schemas in future is truncated too instead of
+    /// leaking silently from one test into the next.
     /// <para>
-    /// The migrations history table is excluded by being outside both feature schemas: it lives in the
-    /// connection's default schema because it belongs to neither feature. Truncating it would make the
+    /// The migrations history table is excluded by being outside every module schema: it lives in the
+    /// connection's default schema because it belongs to none of them. Truncating it would make the
     /// next test run re-apply every migration.
     /// </para>
     /// </summary>
@@ -46,7 +46,8 @@ public sealed class TestDatabase(IServiceProvider rootServices)
             $"""
             SELECT '"' || table_schema || '"."' || table_name || '"'
             FROM information_schema.tables
-            WHERE table_schema IN ('{AppDbContext.IdentitySchema}', '{AppDbContext.TodoSchema}')
+            WHERE table_schema IN (
+                '{AppDbContext.IdentitySchema}', '{AppDbContext.TodoSchema}', '{AppDbContext.PlatformSchema}')
               AND table_type = 'BASE TABLE'
               AND table_name <> '{AppDbContext.MigrationsHistoryTableName}'
             ORDER BY table_schema, table_name

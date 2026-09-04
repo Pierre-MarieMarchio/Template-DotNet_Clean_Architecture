@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.TodoLists.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 

@@ -1,10 +1,9 @@
-﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.TodoLists.Concurrency;
-using AppTemplate.Application.Features.TodoLists.Errors;
-using AppTemplate.Application.Features.TodoLists.Ports;
-using AppTemplate.Domain.Common.Exceptions;
-using AppTemplate.Domain.Features.TodoLists.Stores;
+using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Validation;
+using AppTemplate.Application.Features.TodoLists.Access;
+using AppTemplate.Application.Features.TodoLists.Dtos;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands;
@@ -21,65 +20,57 @@ public sealed record AddTodoItemCommand(
     IReadOnlyList<string>? Tags,
     VersionPrecondition? Precondition = null);
 
-public interface IAddTodoItemUseCase : IUseCase<AddTodoItemCommand, Result<Guid>>;
+public interface IAddTodoItemUseCase : IUseCase<AddTodoItemCommand, Result<Versioned<TodoItemDto>>>;
 
 public sealed class AddTodoItemUseCase(
-    ITodoListRepository repository,
+    ITodoListAccess lists,
     IUnitOfWork unitOfWork,
-    ICurrentUser currentUser,
     IValidator<AddTodoItemCommand> validator) : IAddTodoItemUseCase
 {
-    /// <returns>The id of the new item.</returns>
-    public async Task<Result<Guid>> ExecuteAsync(
+    public async Task<Result<Versioned<TodoItemDto>>> ExecuteAsync(
         AddTodoItemCommand command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        if (currentUser.UserId is not { } ownerId)
+        var validation = await validator.EnsureValidAsync(command, cancellationToken);
+
+        if (validation.IsFailure)
         {
-            return Result.Failure<Guid>(TodoListErrors.NotAuthenticated);
+            return validation.To<Versioned<TodoItemDto>>();
         }
 
-        var validation = await validator.ValidateAsync(command, cancellationToken);
+        var access = await lists.LoadOwnedAsync(command.TodoListId, command.Precondition, cancellationToken);
 
-        if (!validation.IsValid)
+        if (access.IsFailure)
         {
-            return Result.Failure<Guid>(TodoListErrors.Invalid(validation));
+            return access.To<Versioned<TodoItemDto>>();
         }
 
-        var todoList = await repository.GetAsync(command.TodoListId, cancellationToken);
+        var todoList = access.Value;
 
-        if (todoList is null || todoList.OwnerId != ownerId)
+        // Caught: a duplicate title or a full list depends on the aggregate's current contents,
+        // so the caller could not have avoided it by sending better input. A malformed tag is not
+        // caught here any more — the validator above already rejects it as a 400.
+        var itemId = DomainGuard.Try(() =>
         {
-            return Result.Failure<Guid>(TodoListErrors.ListNotFound(command.TodoListId));
-        }
-
-        if (command.Precondition is { } precondition && !precondition.IsSatisfiedBy(todoList.Version))
-        {
-            return Result.Failure<Guid>(TodoListErrors.PreconditionFailed);
-        }
-
-        Guid itemId;
-
-        try
-        {
-            // Caught: a duplicate title or a full list depends on the aggregate's current
-            // contents, so the caller could not have avoided it by sending better input.
-            itemId = todoList.AddItem(command.Title, command.Description);
+            var id = todoList.AddItem(command.Title, command.Description);
 
             foreach (string tag in command.Tags ?? [])
             {
-                todoList.AddTagToItem(itemId, tag);
+                todoList.AddTagToItem(id, tag);
             }
-        }
-        catch (DomainException exception)
+
+            return id;
+        });
+
+        if (itemId.IsFailure)
         {
-            return Result.Failure<Guid>(TodoListErrors.InvariantViolated(exception.Message));
+            return itemId.To<Versioned<TodoItemDto>>();
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return itemId;
+        return TodoListProjection.Item(todoList, itemId.Value);
     }
 }

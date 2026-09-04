@@ -1,9 +1,10 @@
-﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.TodoLists.Concurrency;
-using AppTemplate.Application.Features.TodoLists.Errors;
-using AppTemplate.Application.Features.TodoLists.Ports;
-using AppTemplate.Domain.Features.TodoLists.Stores;
+using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Validation;
+using AppTemplate.Application.Features.TodoLists.Access;
+using AppTemplate.Application.Features.TodoLists.Dtos;
+using FluentValidation;
 
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 
@@ -15,39 +16,40 @@ public sealed record RemoveTodoItemCommand(
     Guid TodoItemId,
     VersionPrecondition? Precondition = null);
 
-public interface IRemoveTodoItemUseCase : IUseCase<RemoveTodoItemCommand, Result>;
+public interface IRemoveTodoItemUseCase : IUseCase<RemoveTodoItemCommand, Result<Versioned<TodoListDetailDto>>>;
 
 public sealed class RemoveTodoItemUseCase(
-    ITodoListRepository repository,
+    ITodoListAccess lists,
     IUnitOfWork unitOfWork,
-    ICurrentUser currentUser) : IRemoveTodoItemUseCase
+    IValidator<RemoveTodoItemCommand> validator) : IRemoveTodoItemUseCase
 {
-    public async Task<Result> ExecuteAsync(
+    public async Task<Result<Versioned<TodoListDetailDto>>> ExecuteAsync(
         RemoveTodoItemCommand command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        if (currentUser.UserId is not { } ownerId)
+        var validation = await validator.EnsureValidAsync(command, cancellationToken);
+
+        if (validation.IsFailure)
         {
-            return Result.Failure(TodoListErrors.NotAuthenticated);
+            return validation.To<Versioned<TodoListDetailDto>>();
         }
 
-        var todoList = await repository.GetAsync(command.TodoListId, cancellationToken);
+        var access = await lists.LoadOwnedAsync(command.TodoListId, command.Precondition, cancellationToken);
 
-        if (todoList is null || todoList.OwnerId != ownerId)
+        if (access.IsFailure)
         {
-            return Result.Failure(TodoListErrors.ListNotFound(command.TodoListId));
+            return access.To<Versioned<TodoListDetailDto>>();
         }
 
-        if (!todoList.Items.Any(item => item.Id == command.TodoItemId))
-        {
-            return Result.Failure(TodoListErrors.ItemNotFound(command.TodoItemId));
-        }
+        var todoList = access.Value;
 
-        if (command.Precondition is { } precondition && !precondition.IsSatisfiedBy(todoList.Version))
+        var found = todoList.RequireItem(command.TodoItemId);
+
+        if (found.IsFailure)
         {
-            return Result.Failure(TodoListErrors.PreconditionFailed);
+            return found.To<Versioned<TodoListDetailDto>>();
         }
 
         // No try/catch: existence is the only thing RemoveItem rejects, and it is checked above.
@@ -55,6 +57,7 @@ public sealed class RemoveTodoItemUseCase(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success();
+        // The item is gone; the list is what is left to describe, under its new version.
+        return TodoListProjection.Detail(todoList);
     }
 }

@@ -3,7 +3,7 @@
 /// <summary>The outcome of a use case: expected failures are values here, not exceptions.</summary>
 public class Result
 {
-    protected Result(bool isSuccess, Error? error)
+    private protected Result(bool isSuccess, Error? error)
     {
         if (isSuccess && error is not null)
         {
@@ -33,6 +33,11 @@ public class Result
     public static Result<TValue> Success<TValue>(TValue value) => Result<TValue>.Success(value);
 
     public static Result<TValue> Failure<TValue>(Error error) => Result<TValue>.Failure(error);
+
+    /// <summary>Reports the same failure under another value type. Only valid on a failure.</summary>
+    public Result<TOther> To<TOther>() => IsFailure
+        ? Result<TOther>.Failure(Error!)
+        : throw new InvalidOperationException("A success cannot be converted: it carries no error.");
 }
 
 public sealed class Result<TValue> : Result
@@ -41,7 +46,14 @@ public sealed class Result<TValue> : Result
 
     private Result(TValue? value, bool isSuccess, Error? error) : base(isSuccess, error) => _value = value;
 
-    /// <summary>Throws when the result is a failure.</summary>
+    /// <summary>
+    /// Throws when the result is a failure. Property subpatterns short-circuit in the order they are
+    /// written, so <c>is { Value: var x, IsSuccess: true }</c> reads this getter before
+    /// <see cref="Result.IsSuccess"/> is checked and throws on a failure instead of failing to
+    /// match — the reverse order is safe, but that is an easy detail to get backwards, so prefer
+    /// checking <see cref="Result.IsFailure"/> on its own line instead of naming <see cref="Value"/>
+    /// in a property pattern at all.
+    /// </summary>
     public TValue Value => IsSuccess
         ? _value!
         : throw new InvalidOperationException("Cannot read the value of a failed result.");

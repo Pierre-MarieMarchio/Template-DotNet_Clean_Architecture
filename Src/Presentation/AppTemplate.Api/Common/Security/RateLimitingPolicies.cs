@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Threading.RateLimiting;
+using AppTemplate.Api.Common.Errors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -56,10 +57,10 @@ public static class RateLimitingPolicies
                     Status = StatusCodes.Status429TooManyRequests,
                     Title = "Too many requests",
                     Detail = "Rate limit exceeded. Retry later.",
-                    Type = $"https://httpstatuses.io/{StatusCodes.Status429TooManyRequests}",
                 };
 
                 problem.Extensions["code"] = "rateLimit.exceeded";
+                ProblemDetailsDefaults.Normalise(problem, context.HttpContext);
 
                 await context.HttpContext.Response.WriteAsJsonAsync(
                     problem,

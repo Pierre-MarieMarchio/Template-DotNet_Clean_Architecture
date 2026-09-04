@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.TodoLists.Access;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
@@ -168,7 +169,7 @@ public sealed class DeleteTodoListUseCaseTests
     #endregion
 
     private DeleteTodoListUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_repository, _unitOfWork, currentUser);
+        new(new TodoListAccess(_repository, currentUser), _repository, _unitOfWork, new DeleteTodoListCommandValidator());
 
     private DeleteTodoListUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 

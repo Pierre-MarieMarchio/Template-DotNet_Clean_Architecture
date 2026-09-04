@@ -12,6 +12,9 @@
        host decides which module implements it. That is why there is no MailKit reference. -->
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <!-- PersistKeysToDbContext, so token-provider keys survive a restart and are shared across
+         replicas instead of living in one process's ephemeral key ring. -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
@@ -21,6 +24,7 @@
        template and turn every registration into a FileNotFoundException. -->
   <ItemGroup>
     <EmbeddedResource Include="Templates\RegisterEmailTemplate.html" />
+    <EmbeddedResource Include="Templates\PasswordResetEmailTemplate.html" />
   </ItemGroup>
 
   <ItemGroup>

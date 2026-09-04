@@ -70,4 +70,11 @@ public interface IRefreshTokenStore
     /// "sign out everywhere".
     /// </summary>
     Task RevokeAllForUserAsync(Guid userId, DateTimeOffset revokedAt, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes every grant that expired at or before <paramref name="cutoff"/>, committing on its
+    /// own rather than through <c>IUnitOfWork</c> — like <see cref="TryRotateAsync"/>, a housekeeping
+    /// sweep has no request to share a transaction with.
+    /// </summary>
+    Task<int> PurgeExpiredAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default);
 }

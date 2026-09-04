@@ -101,7 +101,7 @@ public sealed class AccountLockoutTests(ApiFixture fixture) : IntegrationTestBas
     }
 
     private static Task<HttpResponseMessage> AttemptAsync(HttpClient client, string email, string password) =>
-        client.PostAsJsonAsync($"{AuthRoute}/login", new LoginRequest(email, password), TestToken);
+        client.PostAsJsonAsync($"{AuthRoute}/login", new LoginCommand(email, password), TestToken);
 
     private async Task<AppUser> ReadUserAsync(string email)
     {

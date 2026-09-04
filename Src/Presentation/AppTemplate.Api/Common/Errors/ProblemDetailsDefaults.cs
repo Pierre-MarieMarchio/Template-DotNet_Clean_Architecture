@@ -1,17 +1,21 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Common.Errors;
 
 /// <summary>
-/// Gives a <c>code</c> to the failures the application never decides on.
+/// The single normaliser every <c>ProblemDetails</c> producer in this API funnels through, so a 400
+/// from model binding, one from <see cref="ErrorResults"/> and one from
+/// <see cref="GlobalExceptionHandler"/> end up with the same three members filled in: <c>code</c>,
+/// <c>traceId</c> and <c>type</c>.
 /// <para>
-/// <see cref="ErrorResults"/> puts a stable <c>code</c> on every error the application authors, and
-/// the API's contract is that a client branches on that field rather than on prose. But the
-/// framework answers some requests before any of our code runs — a body that is not JSON, a missing
-/// required property, a route segment that fails its <c>:guid</c> constraint, an unknown verb, a
-/// media type nothing accepts. Those arrive as a bare <c>ProblemDetails</c>, so a client that always
-/// reads <c>code</c> breaks on exactly the inputs most likely to be malformed by accident. This
-/// fills the field in for them, and only for them: a <c>code</c> already present is never replaced.
+/// The framework answers some requests before any of our code runs — a body that is not JSON, a
+/// missing required property, a route segment that fails its <c>:guid</c> constraint, an unknown
+/// verb, a media type nothing accepts. Those arrive as a bare <c>ProblemDetails</c>, so a client that
+/// always reads <c>code</c> breaks on exactly the inputs most likely to be malformed by accident.
+/// This fills the fields in for them too, and never replaces a value a producer already set.
 /// </para>
 /// </summary>
 public static class ProblemDetailsDefaults
@@ -23,20 +27,45 @@ public static class ProblemDetailsDefaults
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
-        {
-            // Anything routed through ErrorResults or the exception handler already carries its own
-            // code, which is more specific than anything derivable from a status alone.
-            if (context.ProblemDetails.Extensions.ContainsKey("code"))
-            {
-                return;
-            }
+        services.AddOptions<ProblemTypeOptions>()
+            .BindConfiguration(ProblemTypeOptions.SectionName)
+            .ValidateOnStart();
 
-            int status = context.ProblemDetails.Status ?? context.HttpContext.Response.StatusCode;
-            context.ProblemDetails.Extensions["code"] = CodeFor(status);
-        });
+        services.AddSingleton<IValidateOptions<ProblemTypeOptions>, ProblemTypeOptionsValidator>();
+
+        services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+            Normalise(context.ProblemDetails, context.HttpContext));
 
         return services;
+    }
+
+    /// <summary>
+    /// Fills in <c>code</c>, <c>traceId</c> and <c>type</c> on <paramref name="problem"/>, never
+    /// overwriting a value already present — a producer that knows a more specific <c>code</c> than
+    /// the status alone implies has already won by the time this runs.
+    /// </summary>
+    internal static void Normalise(ProblemDetails problem, HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(problem);
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (!problem.Extensions.TryGetValue("code", out object? codeValue))
+        {
+            int status = problem.Status ?? context.Response.StatusCode;
+            codeValue = CodeFor(status);
+            problem.Extensions["code"] = codeValue;
+        }
+
+        problem.Extensions.TryAdd("traceId", context.TraceIdentifier);
+
+        if (string.IsNullOrEmpty(problem.Type))
+        {
+            string baseUri = context.RequestServices
+                .GetRequiredService<IOptions<ProblemTypeOptions>>()
+                .Value.BaseUri;
+
+            problem.Type = ProblemTypes.For((string)codeValue!, baseUri);
+        }
     }
 
     internal static string CodeFor(int status) => status switch

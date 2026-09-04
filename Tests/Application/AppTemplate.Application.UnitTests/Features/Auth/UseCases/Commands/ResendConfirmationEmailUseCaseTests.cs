@@ -27,7 +27,7 @@ public sealed class ResendConfirmationEmailUseCaseTests
             _confirmationTokens,
             _composer,
             _emailSender,
-            new ResendConfirmationEmailRequestValidator(),
+            new ResendConfirmationEmailCommandValidator(),
             NullLogger<ResendConfirmationEmailUseCase>.Instance);
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -42,12 +42,12 @@ public sealed class ResendConfirmationEmailUseCaseTests
     [InlineData("   ")]
     public async Task ABlankEmail_IsRefusedBeforeAnythingIsMinted(string email)
     {
-        var result = await _useCase.ExecuteAsync(new ResendConfirmationEmailRequest(email), TestToken);
+        var result = await _useCase.ExecuteAsync(new ResendConfirmationEmailCommand(email), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("auth.validation");
-        result.Error.Message.ShouldContain("Email is required.");
+        result.Error.Code.ShouldBe("request.validationFailed");
+        result.Error.Details!["email"].ShouldContain("Email is required.");
         _confirmationTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -103,7 +103,7 @@ public sealed class ResendConfirmationEmailUseCaseTests
         _confirmationTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((PendingConfirmation?)null);
         var forUnknown = await _useCase.ExecuteAsync(
-            new ResendConfirmationEmailRequest("nobody@example.com"),
+            new ResendConfirmationEmailCommand("nobody@example.com"),
             TestToken);
 
         forPending.IsSuccess.ShouldBeTrue();
@@ -168,7 +168,7 @@ public sealed class ResendConfirmationEmailUseCaseTests
             cancellation.Token);
     }
 
-    private static ResendConfirmationEmailRequest ARequest() => new("someone@example.com");
+    private static ResendConfirmationEmailCommand ARequest() => new("someone@example.com");
 
     private void GivenAnAccountIsAwaitingConfirmation()
     {

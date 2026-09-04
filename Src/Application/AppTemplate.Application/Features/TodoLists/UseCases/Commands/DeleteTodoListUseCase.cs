@@ -1,9 +1,10 @@
-﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.TodoLists.Concurrency;
-using AppTemplate.Application.Features.TodoLists.Errors;
-using AppTemplate.Application.Features.TodoLists.Ports;
+using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Validation;
+using AppTemplate.Application.Features.TodoLists.Access;
 using AppTemplate.Domain.Features.TodoLists.Stores;
+using FluentValidation;
 
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 
@@ -16,34 +17,31 @@ public sealed record DeleteTodoListCommand(Guid TodoListId, VersionPrecondition?
 public interface IDeleteTodoListUseCase : IUseCase<DeleteTodoListCommand, Result>;
 
 public sealed class DeleteTodoListUseCase(
+    ITodoListAccess lists,
     ITodoListRepository repository,
     IUnitOfWork unitOfWork,
-    ICurrentUser currentUser) : IDeleteTodoListUseCase
+    IValidator<DeleteTodoListCommand> validator) : IDeleteTodoListUseCase
 {
-    public async Task<Result> ExecuteAsync(
-        DeleteTodoListCommand command,
-        CancellationToken cancellationToken = default)
+    public async Task<Result> ExecuteAsync(DeleteTodoListCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        if (currentUser.UserId is not { } ownerId)
+        var validation = await validator.EnsureValidAsync(command, cancellationToken);
+
+        if (validation.IsFailure)
         {
-            return Result.Failure(TodoListErrors.NotAuthenticated);
+            return validation;
         }
 
-        var todoList = await repository.GetAsync(command.TodoListId, cancellationToken);
+        var access = await lists.LoadOwnedAsync(command.TodoListId, command.Precondition, cancellationToken);
 
-        if (todoList is null || todoList.OwnerId != ownerId)
+        if (access.IsFailure)
         {
-            return Result.Failure(TodoListErrors.ListNotFound(command.TodoListId));
+            return access;
         }
 
-        if (command.Precondition is { } precondition && !precondition.IsSatisfiedBy(todoList.Version))
-        {
-            return Result.Failure(TodoListErrors.PreconditionFailed);
-        }
-
-        repository.Remove(todoList);
+        // No projection to return: the resource is gone, so there is nothing left to describe.
+        repository.Remove(access.Value);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

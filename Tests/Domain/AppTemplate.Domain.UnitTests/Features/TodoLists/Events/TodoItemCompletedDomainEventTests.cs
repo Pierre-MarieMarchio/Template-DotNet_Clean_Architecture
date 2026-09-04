@@ -94,7 +94,7 @@ public sealed class TodoItemCompletedDomainEventTests
         list.ClearDomainEvents();
 
         list.CompleteItem(itemId, _now);
-        list.ReopenItem(itemId);
+        list.ReopenItem(itemId, _now);
         list.CompleteItem(itemId, _now.AddDays(1));
 
         list.DomainEvents.OfType<TodoItemCompletedDomainEvent>().Count().ShouldBe(2);

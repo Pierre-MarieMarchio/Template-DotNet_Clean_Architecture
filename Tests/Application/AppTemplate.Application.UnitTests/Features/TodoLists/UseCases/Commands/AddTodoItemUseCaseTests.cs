@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.TodoLists.Access;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
@@ -60,7 +61,7 @@ public sealed class AddTodoItemUseCaseTests
         var result = await UseCase().ExecuteAsync(ACommandFor(list.Id, title), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("todoList.validationFailed");
+        result.Error.Code.ShouldBe("request.validationFailed");
         list.Items.ShouldBeEmpty();
     }
 
@@ -96,7 +97,8 @@ public sealed class AddTodoItemUseCaseTests
         var result = await UseCase().ExecuteAsync(ACommandFor(Guid.Empty), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Message.ShouldContain("list id");
+        result.Error.Details!["todoListId"].Any(message => message.Contains("list id", StringComparison.Ordinal))
+            .ShouldBeTrue();
     }
 
     /// <summary>
@@ -217,7 +219,7 @@ public sealed class AddTodoItemUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Conflict);
-        result.Error.Code.ShouldBe("todoList.invariantViolated");
+        result.Error.Code.ShouldBe("domain.invariantViolated");
         list.Items.Count.ShouldBe(1);
     }
 
@@ -271,9 +273,12 @@ public sealed class AddTodoItemUseCaseTests
 
         result.IsSuccess.ShouldBeTrue();
         var item = list.Items.ShouldHaveSingleItem();
-        item.Id.ShouldBe(result.Value);
+        item.Id.ShouldBe(result.Value.Value.Id);
         item.Title.Value.ShouldBe("Buy milk");
         item.Description.ShouldBe("Semi-skimmed");
+        result.Value.Value.Title.ShouldBe("Buy milk");
+        result.Value.Value.Description.ShouldBe("Semi-skimmed");
+        result.Value.Version.ShouldBe(list.Version);
     }
 
     [Fact]
@@ -367,7 +372,7 @@ public sealed class AddTodoItemUseCaseTests
         new(todoListId, title, null, null);
 
     private AddTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_repository, _unitOfWork, currentUser, _validator);
+        new(new TodoListAccess(_repository, currentUser), _unitOfWork, _validator);
 
     private AddTodoItemUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 

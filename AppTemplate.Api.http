@@ -208,12 +208,101 @@ GET {{api}}/todo-lists?page=1&pageSize=10000
 Authorization: Bearer {{accessToken}}
 
 ###
-# 19. Remove the item.
+# 19. Sorting. Multi-field, direction per field, over a per-feature whitelist: only `name`,
+#     `createdAt` and `lastModifiedAt` are sortable, and `Id` is appended to every ORDER BY as a
+#     tiebreaker so two lists created in the same instant cannot swap places between pages.
+GET {{api}}/todo-lists?sort=name:asc,createdAt:desc&pageSize=5
+Authorization: Bearer {{accessToken}}
+
+###
+# 20. A field that is not on the whitelist is refused before a query is built: 400 with
+#     "code": "sort.invalid", and the message lists the fields that are allowed. No caller string
+#     ever reaches a LINQ expression.
+GET {{api}}/todo-lists?sort=ownerId:asc
+Authorization: Bearer {{accessToken}}
+
+###
+# 21. Filtering. `search` is a case-insensitive contains on the list name, done in the database with
+#     ILIKE and with %, _ and \ escaped — so this matches names containing "grocer", not everything.
+#     `createdAfter`/`createdBefore` narrow by creation date and are inclusive.
+GET {{api}}/todo-lists?search=grocer&createdAfter=2020-01-01T00:00:00Z
+Authorization: Bearer {{accessToken}}
+
+###
+# 22. Keyset paging, first page. No `page`, and the response carries no `totalCount`: counting the
+#     whole match set is a second scan of it, which is the cost this mode exists to avoid.
+#     Cursor mode allows one sort term, over a field that is keyset-capable — `lastModifiedAt` is
+#     not, because it is nullable.
+# @name firstKeysetPage
+GET {{api}}/todo-lists?paging=cursor&pageSize=2&sort=createdAt:desc
+Authorization: Bearer {{accessToken}}
+
+###
+@nextCursor = {{firstKeysetPage.response.body.$.nextCursor}}
+
+###
+# 23. Follow `nextCursor` for the next page. Send the SAME `sort` the cursor was minted under: a
+#     cursor names the order it came from, and resuming it under a different one is refused with
+#     "code": "cursor.invalid" rather than silently serving an incoherent page.
+#     When `nextCursor` is null there are no more pages.
+GET {{api}}/todo-lists?paging=cursor&pageSize=2&sort=createdAt:desc&cursor={{nextCursor}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 24. A cursor is only meaningful with paging=cursor. Sending one with offset paging is a 400
+#     ("code": "paging.invalid"), never silently ignored.
+GET {{api}}/todo-lists?page=1&cursor={{nextCursor}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 25. Idempotency. POST with an Idempotency-Key; note the id that comes back.
+# @name firstCreate
+POST {{api}}/todo-lists
+Authorization: Bearer {{accessToken}}
+Idempotency-Key: 9f1c7e2a-0c1b-4f0a-9a3e-2b6d5c4a8e10
+Content-Type: application/json
+
+{
+  "name": "Paid once"
+}
+
+###
+# 26. Replay request 25 byte for byte — the retry a flaky network causes. Same status, same body,
+#     same Location, plus "Idempotency-Replayed: true", and NO second list is created.
+POST {{api}}/todo-lists
+Authorization: Bearer {{accessToken}}
+Idempotency-Key: 9f1c7e2a-0c1b-4f0a-9a3e-2b6d5c4a8e10
+Content-Type: application/json
+
+{
+  "name": "Paid once"
+}
+
+###
+# 27. The same key with a DIFFERENT body is a 409 ("code": "idempotency.keyReused"). A key stands
+#     for one request, not for one caller — reusing it for something else is a client bug worth
+#     reporting rather than quietly honouring.
+POST {{api}}/todo-lists
+Authorization: Bearer {{accessToken}}
+Idempotency-Key: 9f1c7e2a-0c1b-4f0a-9a3e-2b6d5c4a8e10
+Content-Type: application/json
+
+{
+  "name": "Something else entirely"
+}
+
+###
+# 28. Clean up the list created by request 25.
+DELETE {{api}}/todo-lists/{{firstCreate.response.body.$.id}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 29. Remove the item.
 DELETE {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
 Authorization: Bearer {{accessToken}}
 
 ###
-# 20. Rotate the token pair. The presented refresh token is always revoked; replaying one that was
+# 30. Rotate the token pair. The presented refresh token is always revoked; replaying one that was
 #     already used revokes the whole family for that user.
 # @name refresh
 POST {{api}}/auth/refresh
@@ -227,8 +316,8 @@ Content-Type: application/json
 @rotatedRefreshToken = {{refresh.response.body.$.refreshToken}}
 
 ###
-# 21. Replay the token consumed by request 20: 401, and every refresh token in that family is now
-#     revoked. Run request 20 again afterwards to see the rotated one rejected too.
+# 31. Replay the token consumed by request 30: 401, and every refresh token in that family is now
+#     revoked. Run request 30 again afterwards to see the rotated one rejected too.
 POST {{api}}/auth/refresh
 Content-Type: application/json
 
@@ -237,12 +326,12 @@ Content-Type: application/json
 }
 
 ###
-# 22. Delete the list. Cascades to its items. No If-Match, accepted for the same reason as request 15.
+# 32. Delete the list. Cascades to its items. No If-Match, accepted for the same reason as request 15.
 DELETE {{api}}/todo-lists/{{todoListId}}
 Authorization: Bearer {{accessToken}}
 
 ###
-# 23. Log out, revoking the refresh token from request 20.
+# 33. Log out, revoking the refresh token from request 30.
 POST {{api}}/auth/logout
 Content-Type: application/json
 
@@ -251,16 +340,16 @@ Content-Type: application/json
 }
 
 ###
-# 24. Liveness. No dependency is checked, so an orchestrator does not restart the API because the
+# 34. Liveness. No dependency is checked, so an orchestrator does not restart the API because the
 #     database blinked. Anonymous by design.
 GET {{host}}/health
 
 ###
-# 25. Readiness. Checks the database, and is what a load balancer should poll.
+# 35. Readiness. Checks the database, and is what a load balancer should poll.
 GET {{host}}/health/ready
 
 ###
-# 26. Rate limiting. The auth policy allows 10 requests per minute per client address; run this
+# 36. Rate limiting. The auth policy allows 10 requests per minute per client address; run this
 #     block repeatedly to get a 429 carrying Retry-After and a ProblemDetails body.
 #     Behind a proxy this partitions correctly only when ReverseProxy:Enabled is configured —
 #     otherwise every caller shares the proxy's single window. See SECURITY.md.

@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Features.Auth.Dtos;
 using AppTemplate.Application.Features.Auth.Ports;
 using AppTemplate.Application.Features.Auth.UseCases.Commands;
 using AppTemplate.Application.Features.Auth.Validators;
@@ -21,10 +22,16 @@ public sealed class LoginUseCaseTests
     private readonly IUserAccounts _accounts = Substitute.For<IUserAccounts>();
     private readonly IAccessTokenIssuer _accessTokens = Substitute.For<IAccessTokenIssuer>();
     private readonly IRefreshTokenGrants _refreshTokens = Substitute.For<IRefreshTokenGrants>();
+    private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly LoginUseCase _useCase;
 
     public LoginUseCaseTests() =>
-        _useCase = new LoginUseCase(_accounts, _accessTokens, _refreshTokens, new LoginRequestValidator());
+        _useCase = new LoginUseCase(
+            _accounts,
+            _accessTokens,
+            _refreshTokens,
+            _securityEventLog,
+            new LoginCommandValidator());
 
     /// <summary>
     /// Every way the credential check can refuse. Read off the enum rather than listed, so a new
@@ -47,11 +54,11 @@ public sealed class LoginUseCaseTests
     [InlineData("", "")]
     public async Task AnIncompleteRequest_NeverReachesTheCredentialCheck(string email, string password)
     {
-        var result = await _useCase.ExecuteAsync(new LoginRequest(email, password), TestToken);
+        var result = await _useCase.ExecuteAsync(new LoginCommand(email, password), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("auth.validation");
+        result.Error.Code.ShouldBe("request.validationFailed");
         _accounts.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -66,7 +73,7 @@ public sealed class LoginUseCaseTests
         GivenTheCredentialIsVerified();
 
         var result = await _useCase.ExecuteAsync(
-            new LoginRequest("not-an-email", "correct horse battery"),
+            new LoginCommand("not-an-email", "correct horse battery"),
             TestToken);
 
         result.IsSuccess.ShouldBeTrue();
@@ -96,6 +103,22 @@ public sealed class LoginUseCaseTests
         result.Error.ShouldBe(Error.Unauthorized(
             "auth.login.invalidCredentials",
             "Email or password is incorrect."));
+    }
+
+    /// <summary>
+    /// The failure is still recorded for the audit trail even though the caller is told nothing more
+    /// than the one uniform error.
+    /// </summary>
+    [Fact]
+    public async Task ARefusal_IsRecordedAsAnAuthenticationFailure()
+    {
+        _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(CredentialCheck.Refused(CredentialCheckOutcome.IncorrectPassword));
+
+        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        _securityEventLog.Received(1)
+            .Record(SecurityEvent.AuthenticationFailed(null, CredentialCheckOutcome.IncorrectPassword));
     }
 
     /// <summary>
@@ -171,13 +194,24 @@ public sealed class LoginUseCaseTests
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.UserId.ShouldBe(account.UserId);
-        result.Value.UserName.ShouldBe(account.UserName);
-        result.Value.Email.ShouldBe(account.Email);
-        result.Value.AccessToken.ShouldBe("access-token");
-        result.Value.AccessTokenExpiresAt.ShouldBe(_accessTokenExpiry);
-        result.Value.RefreshToken.ShouldBe("refresh-token");
-        result.Value.RefreshTokenExpiresAt.ShouldBe(_refreshTokenExpiry);
+        var authenticated = result.Value.ShouldBeOfType<LoginOutcome.Authenticated>();
+        authenticated.UserId.ShouldBe(account.UserId);
+        authenticated.UserName.ShouldBe(account.UserName);
+        authenticated.Email.ShouldBe(account.Email);
+        authenticated.AccessToken.ShouldBe("access-token");
+        authenticated.AccessTokenExpiresAt.ShouldBe(_accessTokenExpiry);
+        authenticated.RefreshToken.ShouldBe("refresh-token");
+        authenticated.RefreshTokenExpiresAt.ShouldBe(_refreshTokenExpiry);
+    }
+
+    [Fact]
+    public async Task AVerifiedCredential_IsRecordedAsALoginSuccess()
+    {
+        var account = GivenTheCredentialIsVerified();
+
+        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        _securityEventLog.Received(1).Record(SecurityEvent.LoginSucceeded(account.UserId));
     }
 
     /// <summary>
@@ -214,7 +248,7 @@ public sealed class LoginUseCaseTests
 
     #endregion
 
-    private static LoginRequest AValidRequest() => new("someone@example.com", "correct horse battery");
+    private static LoginCommand AValidRequest() => new("someone@example.com", "correct horse battery");
 
     private AccountIdentity GivenTheCredentialIsVerified()
     {

@@ -145,7 +145,7 @@ public sealed class TodoItemTests
         list.Items.Single().IsCompleted.ShouldBeTrue();
         list.Items.Single().CompletedAt.ShouldBe(_now);
 
-        list.ReopenItem(itemId);
+        list.ReopenItem(itemId, _now);
         list.Items.Single().IsCompleted.ShouldBeFalse();
         list.Items.Single().CompletedAt.ShouldBeNull();
     }
@@ -298,6 +298,8 @@ public sealed class TodoItemTests
     [InlineData("Reopen")]
     [InlineData("AddTag")]
     [InlineData("RemoveTag")]
+    [InlineData("ChangeTitle")]
+    [InlineData("ChangeDescription")]
     public void TheMutators_AreNotPartOfThePublicSurface(string methodName) =>
         typeof(TodoItem).GetMethod(methodName).ShouldBeNull();
 

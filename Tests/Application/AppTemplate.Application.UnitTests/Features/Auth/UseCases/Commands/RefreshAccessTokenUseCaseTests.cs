@@ -21,6 +21,7 @@ public sealed class RefreshAccessTokenUseCaseTests
     private readonly IUserAccounts _accounts = Substitute.For<IUserAccounts>();
     private readonly IAccessTokenIssuer _accessTokens = Substitute.For<IAccessTokenIssuer>();
     private readonly IRefreshTokenGrants _refreshTokens = Substitute.For<IRefreshTokenGrants>();
+    private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly RefreshAccessTokenUseCase _useCase;
 
     public RefreshAccessTokenUseCaseTests() =>
@@ -28,7 +29,8 @@ public sealed class RefreshAccessTokenUseCaseTests
             _accounts,
             _accessTokens,
             _refreshTokens,
-            new RefreshAccessTokenRequestValidator());
+            _securityEventLog,
+            new RefreshAccessTokenCommandValidator());
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -41,12 +43,12 @@ public sealed class RefreshAccessTokenUseCaseTests
     [InlineData("   ")]
     public async Task ABlankRefreshToken_NeverReachesRotation(string refreshToken)
     {
-        var result = await _useCase.ExecuteAsync(new RefreshAccessTokenRequest(refreshToken), TestToken);
+        var result = await _useCase.ExecuteAsync(new RefreshAccessTokenCommand(refreshToken), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("auth.validation");
-        result.Error.Message.ShouldContain("Refresh token is required.");
+        result.Error.Code.ShouldBe("request.validationFailed");
+        result.Error.Details!["refreshToken"].ShouldContain("Refresh token is required.");
         _refreshTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -60,7 +62,7 @@ public sealed class RefreshAccessTokenUseCaseTests
         _refreshTokens.RotateAsync("already-used", Arg.Any<CancellationToken>())
             .Returns(RefreshTokenRotation.Rejected);
 
-        var result = await _useCase.ExecuteAsync(new RefreshAccessTokenRequest("already-used"), TestToken);
+        var result = await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("already-used"), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(Error.Unauthorized(
@@ -82,7 +84,7 @@ public sealed class RefreshAccessTokenUseCaseTests
         var userId = GivenTheGrantRotates();
         _accounts.CanSignInAsync(userId, Arg.Any<CancellationToken>()).Returns(false);
 
-        var result = await _useCase.ExecuteAsync(new RefreshAccessTokenRequest("presented"), TestToken);
+        var result = await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("presented"), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.refreshToken.invalid");
@@ -91,13 +93,28 @@ public sealed class RefreshAccessTokenUseCaseTests
         _accessTokens.ReceivedCalls().ShouldBeEmpty("a refused refresh must not mint an access token.");
     }
 
+    /// <summary>
+    /// Deciding that a grant may not be renewed is this use case's job, so the resulting revocation
+    /// is what it records — not the adapter that merely carries out the decision.
+    /// </summary>
+    [Fact]
+    public async Task ARevokedFamily_IsRecordedAsARevocation()
+    {
+        var userId = GivenTheGrantRotates();
+        _accounts.CanSignInAsync(userId, Arg.Any<CancellationToken>()).Returns(false);
+
+        await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("presented"), TestToken);
+
+        _securityEventLog.Received(1).Record(SecurityEvent.RefreshTokenRevoked(userId));
+    }
+
     [Fact]
     public async Task ARotatedGrantForAnActiveAccount_YieldsANewPair()
     {
         var userId = GivenTheGrantRotates();
         _accounts.CanSignInAsync(userId, Arg.Any<CancellationToken>()).Returns(true);
 
-        var result = await _useCase.ExecuteAsync(new RefreshAccessTokenRequest("presented"), TestToken);
+        var result = await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("presented"), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.AccessToken.ShouldBe("access-token");
@@ -118,7 +135,7 @@ public sealed class RefreshAccessTokenUseCaseTests
         var userId = GivenTheGrantRotates();
         _accounts.CanSignInAsync(userId, Arg.Any<CancellationToken>()).Returns(true);
 
-        await _useCase.ExecuteAsync(new RefreshAccessTokenRequest("presented"), TestToken);
+        await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("presented"), TestToken);
 
         await _refreshTokens.DidNotReceiveWithAnyArgs().IssueAsync(default, Arg.Any<CancellationToken>());
     }
@@ -133,7 +150,7 @@ public sealed class RefreshAccessTokenUseCaseTests
         var userId = GivenTheGrantRotates();
         _accounts.CanSignInAsync(userId, Arg.Any<CancellationToken>()).Returns(true);
 
-        await _useCase.ExecuteAsync(new RefreshAccessTokenRequest("presented"), TestToken);
+        await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("presented"), TestToken);
 
         Received.InOrder(() =>
         {
@@ -150,7 +167,7 @@ public sealed class RefreshAccessTokenUseCaseTests
         _accounts.CanSignInAsync(userId, Arg.Any<CancellationToken>()).Returns(true);
         using var cancellation = new CancellationTokenSource();
 
-        await _useCase.ExecuteAsync(new RefreshAccessTokenRequest("presented"), cancellation.Token);
+        await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("presented"), cancellation.Token);
 
         await _refreshTokens.Received(1).RotateAsync("presented", cancellation.Token);
         await _accounts.Received(1).CanSignInAsync(userId, cancellation.Token);

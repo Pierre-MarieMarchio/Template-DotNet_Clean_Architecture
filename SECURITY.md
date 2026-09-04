@@ -145,17 +145,29 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   no `If-Match` at all is still accepted unless `Concurrency:IfMatch` is set to `Required` — see
   `docs/adr/0013`. Until you set it, a slow user's form submission can still overwrite a change made
   after it was rendered without anything detecting it.
-- **Domain-event consumers are isolated per event, not per consumer.** If a consumer of one event
-  throws, later consumers *of that same event* do not run. The failure is logged and the committed
-  transaction is correctly reported as committed, but the side effect is lost. This is the point at
-  which the mechanism wants an outbox — if your consumers do anything a user would notice missing,
+- **Domain-event delivery is best-effort, with no outbox.** Consumers are now isolated from one
+  another: one throwing is logged with its event and consumer type, and the remaining consumers of
+  that same event still run. What remains open is narrower but real — the throwing consumer's own
+  side effect is lost and never retried, and a process that dies between the commit and the dispatch
+  loop loses every consumer for that save, because nothing durable recorded that the event was
+  raised. Closing that needs an outbox, plus a dispatcher, a dead-letter path and idempotent
+  consumers; `docs/adr/0017` records why this template refuses to ship half of it. If a consumer
+  does anything a user would notice missing — money, mail, anything visible outside the process —
   add one before you rely on this.
+- **Idempotency keys expire only when something purges them.** `Idempotency:Retention` stamps each
+  row's `ExpiresAt`; it does not delete anything. Expiry is enforced by
+  `DELETE /api/v1/maintenance/idempotency-keys/expired`, which requires the `Administrator` policy
+  and which nothing calls automatically. Until it is scheduled, a completed key remains replayable
+  past its retention window and the table grows without bound.
 - **The auth wire format has two owners.** `ConfigureJwtBearerOptions` in the Identity module builds
   its own `ProblemDetails` and owns the `auth.required` / `auth.forbidden` codes, so a change to how
   failures look must be made in two places.
 - **Cancellation is not propagated through Identity.** `UserManager` and `SignInManager` accept no
   `CancellationToken`, so an abandoned request still runs its user-store I/O to completion.
 - **No audit log of security-relevant events.** Logins, lockouts, token-family revocations and
-  password changes are traced but not recorded in a queryable, tamper-evident store.
+  password changes are traced but not recorded in a queryable, tamper-evident store. This stays open
+  deliberately: `docs/adr/0021` records why a table this application can `UPDATE` and `DELETE`
+  through the same connection as business data would look like an audit trail without being one, and
+  what closing it properly requires.
 - **No multi-factor authentication.** ASP.NET Core Identity supports it; this template does not wire
   it up.

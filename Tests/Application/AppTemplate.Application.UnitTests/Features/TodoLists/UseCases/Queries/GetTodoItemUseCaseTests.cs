@@ -3,6 +3,7 @@ using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries;
+using AppTemplate.Application.Features.TodoLists.Validators;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using NSubstitute;
 using Shouldly;
@@ -190,7 +191,8 @@ public sealed class GetTodoItemUseCaseTests
     private static TodoItemDto AnItem(Guid itemId, string title = "Milk") =>
         new(itemId, title, null, false, null, []);
 
-    private GetTodoItemUseCase UseCaseFor(ICurrentUser currentUser) => new(_queries, currentUser);
+    private GetTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
+        new(_queries, currentUser, new GetTodoItemQueryValidator());
 
     private GetTodoItemUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 

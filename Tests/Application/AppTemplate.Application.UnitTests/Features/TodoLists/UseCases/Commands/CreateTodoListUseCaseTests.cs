@@ -75,8 +75,9 @@ public sealed class CreateTodoListUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("todoList.validationFailed");
-        result.Error.Message.ShouldContain("required");
+        result.Error.Code.ShouldBe("request.validationFailed");
+        result.Error.Details!["name"].Any(message => message.Contains("required", StringComparison.Ordinal))
+            .ShouldBeTrue();
     }
 
     [Fact]
@@ -87,7 +88,8 @@ public sealed class CreateTodoListUseCaseTests
             TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Message.ShouldContain("exceed");
+        result.Error.Details!["name"].Any(message => message.Contains("exceed", StringComparison.Ordinal))
+            .ShouldBeTrue();
     }
 
     [Fact]
@@ -146,15 +148,18 @@ public sealed class CreateTodoListUseCaseTests
     }
 
     [Fact]
-    public async Task AValidCommand_ReturnsTheIdOfTheStagedList()
+    public async Task AValidCommand_ReturnsTheDetailOfTheStagedList()
     {
         var staged = CaptureStagedLists();
 
         var result = await UseCase().ExecuteAsync(new CreateTodoListCommand("Groceries"), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(staged.ShouldHaveSingleItem().Id);
-        result.Value.ShouldNotBe(Guid.Empty);
+        var list = staged.ShouldHaveSingleItem();
+        result.Value.Value.Id.ShouldBe(list.Id);
+        result.Value.Value.Id.ShouldNotBe(Guid.Empty);
+        result.Value.Value.Items.ShouldBeEmpty();
+        result.Value.Version.ShouldBe(list.Version);
     }
 
     [Fact]

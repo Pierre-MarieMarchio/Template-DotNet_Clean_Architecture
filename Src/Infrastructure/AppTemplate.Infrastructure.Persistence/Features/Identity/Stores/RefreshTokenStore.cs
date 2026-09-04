@@ -100,13 +100,18 @@ internal sealed class RefreshTokenStore(AppDbContext context) : IRefreshTokenSto
         DateTimeOffset revokedAt,
         CancellationToken cancellationToken = default)
     {
-        var active = await context.RefreshTokens
+        // One UPDATE rather than a materialise-then-loop: this runs on the replay path, which an
+        // attacker can trigger repeatedly, and a per-row round trip for every live grant is exactly
+        // the amplification that path should not have.
+        await context.RefreshTokens
             .Where(token => token.UserId == userId && token.RevokedAt == null)
-            .ToListAsync(cancellationToken);
-
-        foreach (var token in active)
-        {
-            token.RevokedAt = revokedAt;
-        }
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(token => token.RevokedAt, revokedAt),
+                cancellationToken);
     }
+
+    public async Task<int> PurgeExpiredAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default) =>
+        await context.RefreshTokens
+            .Where(token => token.ExpiresAt <= cutoff)
+            .ExecuteDeleteAsync(cancellationToken);
 }

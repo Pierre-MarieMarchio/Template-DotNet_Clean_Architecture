@@ -1,7 +1,9 @@
-﻿using AppTemplate.Infrastructure.Persistence.Features.Identity.Configurations;
+﻿using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
+using AppTemplate.Infrastructure.Persistence.Features.Identity.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -43,13 +45,20 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
 /// </para>
 /// </summary>
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
-    : IdentityDbContext<AppUser, AppRole, Guid>(options)
+    : IdentityDbContext<AppUser, AppRole, Guid>(options), IDataProtectionKeyContext
 {
     /// <summary>The schema ASP.NET Identity's tables live in.</summary>
     public const string IdentitySchema = "identity";
 
     /// <summary>The schema the to-do list feature's tables live in.</summary>
     public const string TodoSchema = "todo";
+
+    /// <summary>
+    /// The schema for tables that are cross-cutting rather than owned by a feature — the idempotency
+    /// key store is the first of these. Neither <see cref="IdentitySchema"/> nor
+    /// <see cref="TodoSchema"/> would be honest: the table belongs to no feature.
+    /// </summary>
+    public const string PlatformSchema = "platform";
 
     /// <summary>
     /// One history table for one context. It is left in the connection's default schema rather than
@@ -77,6 +86,21 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     /// </summary>
     internal DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    /// <summary>
+    /// Claimed idempotency keys. Internal for the same reason as every other row type here: the
+    /// rules for claiming, completing and releasing one live in
+    /// <see cref="Common.Idempotency.IdempotencyStore"/>, reached only through
+    /// <see cref="Application.Common.Idempotency.IIdempotencyStore"/>.
+    /// </summary>
+    internal DbSet<IdempotencyRecord> IdempotencyKeys => Set<IdempotencyRecord>();
+
+    /// <summary>
+    /// The key ring <see cref="IDataProtectionKeyContext"/> requires. Public, unlike every other
+    /// set here: the ASP.NET Core data-protection system reads and writes it directly through this
+    /// interface, so nothing about it can be internal to this assembly.
+    /// </summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -95,9 +119,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.ApplyConfiguration(new UserLoginConfiguration());
         builder.ApplyConfiguration(new RoleClaimConfiguration());
         builder.ApplyConfiguration(new UserTokenConfiguration());
+        builder.ApplyConfiguration(new DataProtectionKeyConfiguration());
 
         builder.ApplyConfiguration(new TodoListRecordConfiguration());
         builder.ApplyConfiguration(new TodoItemRecordConfiguration());
         builder.ApplyConfiguration(new TodoItemTagRecordConfiguration());
+
+        builder.ApplyConfiguration(new IdempotencyRecordConfiguration());
     }
 }

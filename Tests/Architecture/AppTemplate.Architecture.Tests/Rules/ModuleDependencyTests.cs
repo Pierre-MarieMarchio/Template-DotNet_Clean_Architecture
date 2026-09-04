@@ -268,26 +268,43 @@ public sealed class ModuleDependencyTests
             "longer describing the repository.");
     }
 
+    /// <summary>
+    /// Composing the modules is a host's job, and only a host's. What the rule protects is that no
+    /// layer below a composition root learns which modules exist, so one can be swapped without any
+    /// other project noticing.
+    /// </summary>
     [Fact]
-    public void OnlyTheApi_ReferencesInfrastructureModules()
+    public void OnlyAHost_ReferencesInfrastructureModules()
     {
         var offenders = ProjectReferenceGraph.SourceProjects.Values
             .Where(project => !ProjectReferenceGraph.IsInfrastructureModule(project.Name))
-            .Where(project => !string.Equals(project.Name, _apiProject, StringComparison.Ordinal))
+            .Where(project => !ProjectReferenceGraph.IsHost(project))
             .Where(project => project.References.Any(ProjectReferenceGraph.IsInfrastructureModule))
             .Select(project => project.RelativePath)
             .Order(StringComparer.Ordinal)
             .ToList();
 
         offenders.ShouldBeEmpty(
-            "AppTemplate.Api is the only non-infrastructure project allowed to reference an infrastructure " +
-            "module. It is the composition root, and being the only holder of the full set is what " +
-            "lets a module be swapped without any other project noticing.");
+            "Only a composition root under Src\\Presentation may reference an infrastructure module.");
 
-        // Non-vacuity: the host must actually compose the modules.
-        ProjectReferenceGraph.Project(_apiProject)
-            .References
-            .Where(ProjectReferenceGraph.IsInfrastructureModule)
-            .ShouldNotBeEmpty("AppTemplate.Api references no infrastructure module, so it composes nothing.");
+        // Non-vacuity: a host that composes nothing would satisfy the rule for the wrong reason.
+        foreach (var host in ProjectReferenceGraph.Hosts)
+        {
+            host.References
+                .Where(ProjectReferenceGraph.IsInfrastructureModule)
+                .ShouldNotBeEmpty($"{host.RelativePath} references no infrastructure module, so it composes nothing.");
+        }
     }
+
+    /// <summary>
+    /// More than one host is the whole claim of the architecture made executable: the same use cases
+    /// answer an HTTP request and a background loop, and neither transport appears below them.
+    /// </summary>
+    [Fact]
+    public void TheApplicationLayer_IsComposedByMoreThanOneHost() =>
+        ProjectReferenceGraph.Hosts
+            .Count(host => host.References.Contains(_applicationProject))
+            .ShouldBeGreaterThan(
+                1,
+                "One host cannot show that the application layer is independent of its transport.");
 }

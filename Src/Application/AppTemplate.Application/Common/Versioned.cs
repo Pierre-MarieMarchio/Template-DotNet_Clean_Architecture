@@ -10,4 +10,7 @@
 /// description of the resource, with no field a client could mistake for part of the domain.
 /// </remarks>
 /// <param name="Version">The aggregate's version, not the value's.</param>
-public sealed record Versioned<TValue>(TValue Value, uint Version);
+public sealed record Versioned<TValue>(TValue Value, uint Version) where TValue : notnull
+{
+    public TValue Value { get; } = Value ?? throw new ArgumentNullException(nameof(Value));
+}

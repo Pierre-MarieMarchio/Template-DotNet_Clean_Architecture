@@ -47,11 +47,43 @@ be filled from user secrets or environment variables.
 > | `Jwt`, `Identity`, `RefreshToken`, `EmailConfirmation` | `AddIdentityModule` | `AppTemplate.Infrastructure.Identity/Options/` |
 > | `IdentitySeed` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Features/Identity/Seeding/` |
 > | `Email` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Options/` |
+> | `Database` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/PersistenceModule.cs` |
+> | `IdempotencyPurge` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Idempotency/IdempotencyStore.cs` |
+> | `MaintenanceWorker` | `AppTemplate.Worker`'s own `Program.cs` | `AppTemplate.Worker/Common/Maintenance/` |
 >
 > `IdentitySeed` sits with the seeder because seeding is a persistence concern, not an
 > authentication policy. **The configuration keys and their validation do not change** —
 > only the file paths and which DI extension method binds them. Treat any path in this
 > document as indicative and the key names as authoritative.
+
+## Two hosts, one configuration schema
+
+`AppTemplate.Worker` (`Src/Presentation/AppTemplate.Worker`) is a second entry point that calls
+`IPurgeExpiredIdempotencyKeysUseCase` and `IPurgeExpiredRefreshTokensUseCase` — the exact same
+application-layer use cases `MaintenanceController` exposes over HTTP — on a timer instead of a
+request. It composes `AddApplicationLayer`, `AddPersistenceModule` and `AddIdentityModule`, so it
+reads `ConnectionStrings`, `Database`, `IdempotencyPurge`, `Jwt`, `RefreshToken` and
+`EmailConfirmation` exactly like the API, plus its own `MaintenanceWorker` section below. It does
+**not** read `Email`, `IdentitySeed`, `Cors`, `ReverseProxy`, `SecurityHeaders`, `OpenTelemetry`,
+`Concurrency`, `Idempotency` or `RequestLimits` — those are the API's transport-layer concerns, and
+the worker has no transport layer.
+
+**Why the worker validates `Jwt`, `Identity`, `RefreshToken` and `EmailConfirmation` at startup
+even though it never authenticates anybody.** `IRefreshTokenMaintenance`'s only adapter lives in
+`AppTemplate.Infrastructure.Identity`, and composing that module also composes ASP.NET Identity,
+bearer validation and its own configuration surface as a whole — there is no narrower call that
+gets only the maintenance adapter. This is a real coupling cost of the current module boundary,
+not an oversight: the worker's `appsettings.json` therefore carries the same required `Jwt:Key`,
+`Jwt:Issuer`, `Jwt:Audience` and `EmailConfirmation:ConfirmEmailUrl` as the API, and its host
+generic-host reads `DOTNET_ENVIRONMENT` (not `ASPNETCORE_ENVIRONMENT` — there is no ASP.NET Core
+host here) to select `appsettings.Development.json`.
+
+**`ICurrentUser` outside a request.** The API's `CurrentUser` reads `IHttpContextAccessor`, which
+the worker cannot depend on and would be `null` for every call anyway — silently producing a
+`UserId` of `null` indistinguishable from a legitimate anonymous HTTP request. The worker instead
+registers `BackgroundCurrentUser`, whose `UserId` getter throws `NotSupportedException`: a use case
+moved onto this host that reads the caller's identity must fail loudly at that call, not proceed
+as if it were an anonymous request.
 
 ## Secrets: use `dotnet user-secrets`
 
@@ -93,6 +125,66 @@ Example: `Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=…`
 A missing or blank value throws `InvalidOperationException` from the DI registration
 itself — before options validation runs — with the message
 `The 'Default' connection string is not configured.`
+
+### `Database`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `MaxPoolSize` | int | `20` | Applied to `ConnectionStrings:Default` as Npgsql's `Maximum Pool Size`. Range **1–500**. |
+| `CommandTimeoutSeconds` | int | `30` | Npgsql's per-command timeout, matching the driver's own default. Range **1–300**. |
+
+**Why `MaxPoolSize` defaults to 20 and not Npgsql's own default of 100.** PostgreSQL's
+`max_connections` also defaults to 100 **for the whole server**, not per client. Two replicas of
+this process at the driver default (100 each) are already enough to exhaust it before anything
+else — a monitoring dashboard, a `psql` session, a second application — gets a connection at all.
+20 is deliberately conservative so that running several replicas, of the API *and* the worker,
+against one PostgreSQL instance does not by itself approach the server's ceiling.
+
+**Sizing this against replica count and `max_connections`.** Every replica of every process that
+calls `AddPersistenceModule` — each API instance and each worker instance — holds its own pool up
+to `MaxPoolSize`. Budget:
+
+```
+sum over every replica of (that replica's Database:MaxPoolSize)
+  + PostgreSQL's own reserved connections (superuser_reserved_connections, default 3)
+  <= max_connections
+```
+
+With the shipped default of 20 and `max_connections=100`, that is room for **4–5 replicas total**
+(API and worker combined) before the server itself starts refusing connections — and refusing a
+connection is not a graceful degradation, it is a hard failure of every feature that touches the
+database at once. Raising `max_connections` costs PostgreSQL memory per slot; lowering
+`MaxPoolSize` costs this process concurrency headroom under its own load. Pick the one that is
+cheaper for your deployment, but pick one — the failure mode of picking neither is silent until
+the day a second replica starts.
+
+**The idempotency store's extra connections count against this same budget, not a separate one.**
+`IIdempotencyStore` is backed by `IDbContextFactory<AppDbContext>` rather than the request's
+ambient `AppDbContext` — see the XML doc on `IdempotencyStore` for why that has to be a second,
+independently-committed connection. In practice that means **one idempotent write can hold up to
+three connections from this same pool at once**: the ambient request connection, the factory
+connection the claim is written through, and the factory connection the claim is completed
+through. A capacity plan that only counts "one connection per request" under-provisions for every
+idempotent endpoint. `AddContextFactory` deliberately shares `AddContext`'s options object rather
+than building a second one, specifically so both draw from the one pool this setting bounds
+instead of a second, unbounded one.
+
+**The worker is a replica of the same budget, not a bystander.** `AppTemplate.Worker` composes
+`AddPersistenceModule` too, and its own `Database:MaxPoolSize` — independently configurable —
+holds connections against the same server. Size it in, not around.
+
+### `IdempotencyPurge`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `BatchSize` | int | `1000` | Rows deleted per round trip by the expired-key purge. Range **1–100000**. |
+
+Read by `IdempotencyStore.PurgeExpiredAsync`. Under sustained ingestion the expired range can be
+hundreds of thousands of rows; deleting it in one `DELETE` holds one lock for the whole scan and
+produces one large burst of dead-tuple bloat. This purges in a loop of bounded batches instead,
+ordered by the already-indexed `ExpiresAt` column, and logs the total once the sweep finishes.
+Smaller batches mean more round trips and a shorter lock per trip; larger batches mean the
+opposite. 1000 is a starting point, not a measured optimum for your ingestion rate.
 
 ### `Jwt`
 
@@ -320,6 +412,73 @@ version at all.
 - Bound once at startup and validated: a value that is not one of the two enum members fails
   `ValidateOnStart()` rather than falling through to the more permissive branch.
 
+### `Idempotency`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Enabled` | bool | `true` | `false` makes the filter inert; a client sending `Idempotency-Key` is then simply not protected. |
+| `Retention` | timespan | `24:00:00` | Sets each row's `ExpiresAt`. Must be > 0 and ≤ 30 days. See the note below on what actually enforces it. |
+| `MaxKeyLength` | int | `128` | Must be 1…512. A longer key is `400` `idempotency.keyInvalid`. |
+| `MaxStoredResponseBytes` | int | `8192` | Must be ≥ 1. A larger response is stored without its body, and a replay then answers `409` `idempotency.notReplayable` rather than a truncated body. |
+
+Read by `Src/Presentation/AppTemplate.Api/Common/Idempotency/IdempotencyPolicies.cs`. The filter is
+registered globally but is **inert unless the action carries `[Idempotent]`** — only
+`POST /api/v1/todo-lists` and `POST /api/v1/todo-lists/{id}/items` do. Sending no
+`Idempotency-Key` is always allowed: the capability is available, not compulsory.
+
+What each setting does when it is wrong:
+
+- **`Retention` is a stamp, not a timer.** It only decides the `ExpiresAt` written on each row.
+  Expiry is enforced by `DELETE /api/v1/maintenance/idempotency-keys/expired`, which requires the
+  `Administrator` policy and which **nothing calls for you** — schedule it. Until a purge runs, a
+  completed key stays replayable past its retention, and the table grows. That endpoint is also the
+  template's worked example of policy-based authorisation.
+- **`Retention` too short** (with purging in place) — a client retrying after a network stall past
+  the window creates a second resource, which is the exact failure the feature exists to prevent.
+- **`Retention` ≤ 0 or > 30 days**, **`MaxKeyLength` outside 1…512**, or
+  **`MaxStoredResponseBytes` < 1** — the host fails `ValidateOnStart()` and does not boot.
+
+### `RequestLimits`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `MaxRequestBodyBytes` | long | `65536` | Must be between 1024 and 31457280 (30 MB). |
+
+Read by `Src/Presentation/AppTemplate.Api/Common/Http/RequestLimitsPolicies.cs`. It replaces
+Kestrel's 30 MB default, which is a free denial-of-service against an API whose largest legitimate
+body is a few kilobytes.
+
+- Enforced **twice, on purpose**: middleware rejects a request whose `Content-Length` exceeds the
+  limit with `413` and `code: "request.tooLarge"`, and Kestrel's own `MaxRequestBodySize` is set
+  from the same value as the backstop for a chunked request that sends no `Content-Length`. The
+  middleware exists because integration tests run on `TestServer`, where Kestrel limits do not
+  apply — a Kestrel-only limit would be untestable and therefore unverified.
+- **Set too low** and legitimate requests start failing with `413`; the validator's 1024-byte floor
+  stops the value going so low that nothing works at all.
+- **Set outside the allowed range** and the host fails `ValidateOnStart()` and does not boot.
+
+### `MaintenanceWorker` — `AppTemplate.Worker` only
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Interval` | timespan | `01:00:00` | How often the worker wakes up. Governs both tasks below. Range **1 second – 1 day**. |
+| `PurgeExpiredIdempotencyKeysEnabled` | bool | `true` | Runs `IPurgeExpiredIdempotencyKeysUseCase` each iteration when `true`. |
+| `PurgeExpiredRefreshTokensEnabled` | bool | `true` | Runs `IPurgeExpiredRefreshTokensUseCase` each iteration when `true`. |
+
+Read by `AppTemplate.Worker/Common/Maintenance/MaintenanceWorkerOptions.cs`. Each task can be
+switched off independently — an operator running the idempotency purge here but the refresh-token
+purge some other way is not forced into both.
+
+- Every iteration resolves both use cases from a fresh DI scope (`IServiceScopeFactory.CreateAsyncScope()`),
+  never from a scope held for the process lifetime, so neither use case's scoped dependencies (a
+  `DbContext`, a context factory) become an accidental singleton.
+- A task that throws is logged and the loop retries at the next interval; it never stops the host,
+  and it never stops its sibling task in the same iteration. A permanently broken idempotency purge
+  must not also silence refresh-token cleanup.
+- The loop honours cancellation immediately rather than waiting out the current `Interval`, and
+  does not treat a shutdown mid-iteration as a failure to log.
+- **Set outside 1 second – 1 day** and the host fails `ValidateOnStart()` and does not boot.
+
 ### Not configurable — and why that is worth knowing
 
 | Behaviour | Value | Where |
@@ -330,6 +489,23 @@ version at all.
 | Aggregate item cap | 500 items per list | `TodoList.MaxItems` |
 | Tag cap | 20 tags per item | `TodoItem.MaxTags` |
 | Readiness check | one DbContext check, tagged `ready` | `Program.cs` |
+| Max page size | 100 | `TodoListCollectionPolicy.MaxPageSize` |
+| Default page size | 20 | `TodoListCollectionPolicy.DefaultPageSize` |
+| Max sort terms | 3 | `TodoListCollectionPolicy.MaxSortTerms` |
+| Sortable fields | `name`, `createdAt`, `lastModifiedAt` | `TodoListCollectionPolicy.SortableFields` |
+| Max `search` length | 100 characters | `SearchTerm.MaxLength` |
+| Max cursor length | 512 characters | `Cursor.MaxEncodedLength` |
+| `Cache-Control` on reads | `private, no-cache` | `Src/Presentation/AppTemplate.Api/Common/Caching/CachePolicies.cs` |
+
+`Cache-Control` has no setting because there is only one defensible value for a per-user
+authenticated response — see `docs/adr/0019`. An endpoint whose response is identical for every
+caller may set its own header; the middleware never overwrites one already present.
+
+The collection bounds are per-feature by design: they live on that feature's
+`ICollectionPolicy`, not in configuration, because a deployment cannot know which of a
+feature's columns are indexed. Raising `MaxPageSize` without measuring the query behind it
+moves the cost onto the database, and widening `SortableFields` without adding the matching
+index turns a page read into a sort of the whole table. See `docs/ADDING-A-FEATURE.md`.
 
 These are compiled constants, not settings. If you need them per-environment, promote
 them to an options class with a validator — do not read them straight from
@@ -355,6 +531,9 @@ them to an options class with a validator — do not read them straight from
 | `Identity:PasswordRequiredLength` | `Identity__PasswordRequiredLength` |
 | `Email:AllowInsecureTransport` | `Email__AllowInsecureTransport` |
 | `Cors:AllowedOrigins[0]` | `Cors__AllowedOrigins__0` |
+| `Database:MaxPoolSize` | `Database__MaxPoolSize` |
+| `IdempotencyPurge:BatchSize` | `IdempotencyPurge__BatchSize` |
+| `MaintenanceWorker:Interval` | `MaintenanceWorker__Interval` |
 
 Colons do not work as separators in environment variables on all platforms; the double
 underscore always does.

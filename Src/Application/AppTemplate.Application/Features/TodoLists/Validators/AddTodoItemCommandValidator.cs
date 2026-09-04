@@ -14,11 +14,12 @@ public sealed class AddTodoItemCommandValidator : AbstractValidator<AddTodoItemC
 
         RuleFor(command => command.Title)
             .NotEmpty().WithMessage("An item title is required.")
-            .MaximumLength(TodoItemTitle.MaxLength)
+            // Measured after trimming, like the domain measures it.
+            .Must(title => title.Trim().Length <= TodoItemTitle.MaxLength)
             .WithMessage($"An item title cannot exceed {TodoItemTitle.MaxLength} characters.");
 
         RuleFor(command => command.Description)
-            .MaximumLength(TodoItem.MaxDescriptionLength)
+            .Must(description => description is null || description.Trim().Length <= TodoItem.MaxDescriptionLength)
             .WithMessage($"An item description cannot exceed {TodoItem.MaxDescriptionLength} characters.");
 
         // Bounds the collection itself, not just each element: the use case adds tags one at a
@@ -29,7 +30,7 @@ public sealed class AddTodoItemCommandValidator : AbstractValidator<AddTodoItemC
 
         RuleForEach(command => command.Tags)
             .NotEmpty().WithMessage("A tag cannot be blank.")
-            .MaximumLength(Tag.MaxLength)
+            .Must(tag => tag.Trim().Length <= Tag.MaxLength)
             .WithMessage($"A tag cannot exceed {Tag.MaxLength} characters.");
     }
 }

@@ -67,12 +67,13 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",
-            new LoginRequest(user.Email, user.Password),
+            new LoginCommand(user.Email, user.Password),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var session = await ApiJson.ReadAsync<LoginResponse>(response, TestToken);
+        var session = (await ApiJson.ReadAsync<LoginOutcome>(response, TestToken))
+            .ShouldBeOfType<LoginOutcome.Authenticated>();
         session.UserId.ShouldBe(user.Id);
         session.AccessToken.ShouldNotBeNullOrWhiteSpace();
         session.RefreshToken.ShouldNotBeNullOrWhiteSpace();
@@ -92,14 +93,14 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
 
         using var forUnknown = await client.PostAsJsonAsync(
             $"{AuthRoute}/resend-confirmation-email",
-            new ResendConfirmationEmailRequest("nobody-at-all@integration.test"),
+            new ResendConfirmationEmailCommand("nobody-at-all@integration.test"),
             TestToken);
         forUnknown.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         Emails.LastTo("nobody-at-all@integration.test").ShouldBeNull();
 
         using var forUnconfirmed = await client.PostAsJsonAsync(
             $"{AuthRoute}/resend-confirmation-email",
-            new ResendConfirmationEmailRequest(unconfirmed.Email),
+            new ResendConfirmationEmailCommand(unconfirmed.Email),
             TestToken);
         forUnconfirmed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         Emails.LastTo(unconfirmed.Email).ShouldNotBeNull();
@@ -111,7 +112,7 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
     {
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",
-            new LoginRequest(email, password),
+            new LoginCommand(email, password),
             TestToken);
 
         return await ApiJson.ReadProblemAsync(response, TestToken);

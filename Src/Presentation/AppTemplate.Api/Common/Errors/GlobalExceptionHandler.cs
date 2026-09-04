@@ -91,11 +91,10 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
             Status = status,
             Title = title,
             Detail = detail,
-            Type = $"https://httpstatuses.io/{status}",
         };
 
         problem.Extensions["code"] = code;
-        problem.Extensions["traceId"] = httpContext.TraceIdentifier;
+        ProblemDetailsDefaults.Normalise(problem, httpContext);
 
         httpContext.Response.StatusCode = status;
         await httpContext.Response.WriteAsJsonAsync(

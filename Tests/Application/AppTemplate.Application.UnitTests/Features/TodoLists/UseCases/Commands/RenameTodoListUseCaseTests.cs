@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.TodoLists.Access;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
@@ -65,7 +66,7 @@ public sealed class RenameTodoListUseCaseTests
         var result = await UseCase().ExecuteAsync(new RenameTodoListCommand(list.Id, name), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("todoList.validationFailed");
+        result.Error.Code.ShouldBe("request.validationFailed");
         list.Name.Value.ShouldBe("Groceries");
     }
 
@@ -88,7 +89,8 @@ public sealed class RenameTodoListUseCaseTests
         var result = await UseCase().ExecuteAsync(new RenameTodoListCommand(Guid.Empty, "Shopping"), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Message.ShouldContain("list id");
+        result.Error.Details!["todoListId"].Any(message => message.Contains("list id", StringComparison.Ordinal))
+            .ShouldBeTrue();
     }
 
     [Fact]
@@ -219,7 +221,7 @@ public sealed class RenameTodoListUseCaseTests
     #endregion
 
     private RenameTodoListUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_repository, _unitOfWork, currentUser, _validator);
+        new(new TodoListAccess(_repository, currentUser), _unitOfWork, _validator);
 
     private RenameTodoListUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 

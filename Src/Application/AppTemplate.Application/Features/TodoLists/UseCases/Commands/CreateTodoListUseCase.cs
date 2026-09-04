@@ -1,7 +1,7 @@
-﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.TodoLists.Errors;
-using AppTemplate.Application.Features.TodoLists.Ports;
+using AppTemplate.Application.Common.Validation;
+using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Stores;
 using FluentValidation;
@@ -10,7 +10,7 @@ namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 
 public sealed record CreateTodoListCommand(string Name);
 
-public interface ICreateTodoListUseCase : IUseCase<CreateTodoListCommand, Result<Guid>>;
+public interface ICreateTodoListUseCase : IUseCase<CreateTodoListCommand, Result<Versioned<TodoListDetailDto>>>;
 
 public sealed class CreateTodoListUseCase(
     ITodoListRepository repository,
@@ -19,29 +19,31 @@ public sealed class CreateTodoListUseCase(
     IDateTimeProvider dateTimeProvider,
     IValidator<CreateTodoListCommand> validator) : ICreateTodoListUseCase
 {
-    public async Task<Result<Guid>> ExecuteAsync(
+    public async Task<Result<Versioned<TodoListDetailDto>>> ExecuteAsync(
         CreateTodoListCommand command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        if (currentUser.UserId is not { } ownerId)
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
         {
-            return Result.Failure<Guid>(TodoListErrors.NotAuthenticated);
+            return userId.To<Versioned<TodoListDetailDto>>();
         }
 
-        var validation = await validator.ValidateAsync(command, cancellationToken);
+        var validation = await validator.EnsureValidAsync(command, cancellationToken);
 
-        if (!validation.IsValid)
+        if (validation.IsFailure)
         {
-            return Result.Failure<Guid>(TodoListErrors.Invalid(validation));
+            return validation.To<Versioned<TodoListDetailDto>>();
         }
 
-        var todoList = TodoList.Create(ownerId, command.Name, dateTimeProvider.UtcNow);
+        var todoList = TodoList.Create(userId.Value, command.Name, dateTimeProvider.UtcNow);
 
         repository.Add(todoList);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return todoList.Id;
+        return TodoListProjection.Detail(todoList);
     }
 }

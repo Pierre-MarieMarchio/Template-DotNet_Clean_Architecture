@@ -783,7 +783,7 @@ install:
 
 ```bash
 dotnet tool restore
-dotnet ef --version      # 10.0.10
+dotnet ef --version      # 10.0.11
 ```
 
 **Migrations are applied at startup in Development only.** In any other environment
@@ -1138,16 +1138,16 @@ or Central Package Management fails.
 `NuGetAuditLevel=low`, so a package with **any** known advisory fails the build, not
 just a critical one.
 
-That is why `Directory.Packages.props` pins `Microsoft.OpenApi` to **2.7.6** under a
-`Security pins` label even though nothing references it directly:
-`Microsoft.AspNetCore.OpenApi` 10.0.10 resolves `Microsoft.OpenApi` 2.0.0, which
-carries the high-severity **GHSA-v5pm-xwqc-g5wc**, and at audit level `low` that is a
-restore error. `CentralPackageTransitivePinningEnabled` is what makes the pin bind to
-a transitive dependency. 2.7.6 is deliberately not 3.x — that is a different major
-than the one `Microsoft.AspNetCore.OpenApi` was compiled against.
+Most real advisories arrive through a package nobody referenced directly, and the answer
+to one is a **transitive pin**: a `PackageVersion` for a package the solution never names,
+which `CentralPackageTransitivePinningEnabled` makes bind anyway. Such a pin goes in
+`Directory.Packages.props` under a `Security pins` label, with a comment saying what it
+holds back and what has to be true before it can go — and it stays out of Dependabot's
+`ignore` list, because the release that finally makes a pin unnecessary is the release
+nobody would otherwise hear about.
 
-**Do not remove that pin** without first checking that the ASP.NET Core package ships
-a patched dependency itself. `dotnet list package --vulnerable --include-transitive`
+Stay on the major the referencing package was compiled against; a pin that jumps a major
+trades an advisory for a load error. `dotnet list package --vulnerable --include-transitive`
 is the check, and CI runs it on every push.
 
 ## CI

@@ -499,8 +499,8 @@ internal static class Tasks
         {
             throw new InvalidOperationException(
                 "A package with a known vulnerability is referenced, directly or transitively. The "
-                + "listing above names it. Pin a patched version in Directory.Packages.props, in the "
-                + "Security pins group, with a comment saying when the pin can be removed.");
+                + "listing above names it. Pin a patched version in Directory.Packages.props, under a "
+                + "Security pins label, with a comment saying when the pin can be removed.");
         }
     }
 

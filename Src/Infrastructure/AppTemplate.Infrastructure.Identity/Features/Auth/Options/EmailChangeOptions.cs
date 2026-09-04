@@ -23,8 +23,6 @@ public sealed class EmailChangeOptions
     /// </summary>
     public Uri? ConfirmEmailChangeUrl { get; set; }
 
-    public string Subject { get; set; } = "Confirm your new email address";
-
     /// <summary>
     /// An hour, matching <see cref="PasswordResetOptions.TokenLifespan"/>'s reasoning: long enough to
     /// receive and act on the mail, short enough to limit a leaked link's reach.
@@ -64,11 +62,6 @@ internal sealed class EmailChangeOptionsValidator : IValidateOptions<EmailChange
                     $"'{EmailChangeOptions.SectionName}:ConfirmEmailChangeUrl' must not carry a fragment; the " +
                     "confirmation parameters are appended as one.");
             }
-        }
-
-        if (string.IsNullOrWhiteSpace(options.Subject))
-        {
-            failures.Add($"'{EmailChangeOptions.SectionName}:Subject' must not be blank.");
         }
 
         if (options.TokenLifespan < _minimumLifespan || options.TokenLifespan > _maximumLifespan)

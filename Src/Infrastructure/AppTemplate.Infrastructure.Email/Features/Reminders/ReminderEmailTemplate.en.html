@@ -1,8 +1,8 @@
-﻿<html>
+<html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Bienvenue</title>
+    <title>Reminder</title>
     <style>
       * {
         font-family: Arial, sans-serif;
@@ -53,12 +53,11 @@
     <div class="email-container">
       <tr>
         <td>
-          <h2>Bienvenue, {{UserName}} !</h2>
+          <h2>Hello, {{UserName}}</h2>
           <p>
-            Merci de vous être inscrit. Cliquez sur le bouton ci-dessous pour
-            confirmer votre adresse e-mail :
+            A to-do item you asked to be reminded about was due at
+            {{DueAt}}.
           </p>
-          <a href="{{ConfirmationLink}}" class="btn">Confirmer mon e-mail</a>
         </td>
       </tr>
     </div>

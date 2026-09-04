@@ -23,9 +23,17 @@
   <!-- Embedded rather than copied to the output directory: a deployment cannot then lose the
        template and turn every registration into a FileNotFoundException. -->
   <ItemGroup>
-    <EmbeddedResource Include="Features\Auth\Templates\RegisterEmailTemplate.html" />
-    <EmbeddedResource Include="Features\Auth\Templates\PasswordResetEmailTemplate.html" />
-    <EmbeddedResource Include="Features\Auth\Templates\EmailChangeEmailTemplate.html" />
+    <!-- A glob, not a list: a language ships as <Mail>.<culture>.html and nothing else, and a list
+         here would be one more place to remember. EmailBodyFactory discovers the cultures from the
+         resource names, so what is embedded is what is available.
+
+         WithCulture="false" is load-bearing, not tidiness. MSBuild reads the second-to-last
+         extension of an EmbeddedResource as a culture, so RegisterEmailTemplate.fr.html is taken for
+         a localised resource and compiled into a fr/ SATELLITE assembly instead of this one. The
+         build stays green and GetManifestResourceNames() returns nothing, so every mail throws at
+         the first send. Forward slashes matter too: a wildcard written with backslashes does not
+         expand on Linux or macOS. -->
+    <EmbeddedResource Include="Features/Auth/Templates/*.html" WithCulture="false" />
   </ItemGroup>
 
   <ItemGroup>

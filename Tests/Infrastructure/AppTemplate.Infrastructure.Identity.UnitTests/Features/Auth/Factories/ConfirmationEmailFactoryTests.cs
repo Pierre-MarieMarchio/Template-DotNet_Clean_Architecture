@@ -57,7 +57,7 @@ public sealed class ConfirmationEmailFactoryTests
     /// because the caller is what sends the message.
     /// </summary>
     [Fact]
-    public async Task ComposeAsync_CarriesTheConfiguredSubject()
+    public async Task ComposeAsync_TakesItsSubjectFromTheTemplate()
     {
         var message = await CreateFactory().CreateAsync(
             "newcomer",
@@ -76,6 +76,5 @@ public sealed class ConfirmationEmailFactoryTests
         new(new OptionsWrapper<EmailConfirmationOptions>(new EmailConfirmationOptions
         {
             ConfirmEmailUrl = new Uri(_confirmationPage, UriKind.Absolute),
-            Subject = "Confirm your email address",
         }));
 }

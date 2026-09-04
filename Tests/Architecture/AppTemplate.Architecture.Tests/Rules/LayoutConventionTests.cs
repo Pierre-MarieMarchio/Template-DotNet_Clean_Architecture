@@ -50,7 +50,9 @@ public sealed class LayoutConventionTests
 
         // Same reason, one layer down. These two modules have both a transverse adapter and a
         // feature-scoped one, which is what earns them Common/ and Features/ at all; the feature
-        // half is one adapter and its recording double, side by side.
+        // half is one adapter and its recording double, side by side — including the reminder mail's
+        // templates, which sit beside the notifier rather than earning a folder of their own for two
+        // files.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] = [],
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] = [],
     };
@@ -73,7 +75,7 @@ public sealed class LayoutConventionTests
         ["Src/Domain/AppTemplate.Domain"] =
             ["Abstractions", "Events", "Exceptions", "Primitives"],
         ["Src/Application/AppTemplate.Application"] =
-            ["Abstractions", "Collections", "Concurrency", "Idempotency", "Results", "Validation"],
+            ["Abstractions", "Collections", "Concurrency", "Idempotency", "Localization", "Results", "Validation"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] =
             ["Http", "Smtp"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] =
@@ -86,9 +88,9 @@ public sealed class LayoutConventionTests
             ["Budgets", "Factories", "Options"],
         ["Src/Presentation/AppTemplate.Api"] =
             ["Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
-             "Idempotency", "Observability", "OpenApi", "Outbound", "Security"],
+             "Idempotency", "Localization", "Observability", "OpenApi", "Outbound", "Security"],
         ["Src/Presentation/AppTemplate.Worker"] =
-            ["Observability", "Outbound", "Security"],
+            ["Localization", "Observability", "Outbound", "Security"],
     };
 
     [Fact]

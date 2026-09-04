@@ -12,7 +12,7 @@ namespace AppTemplate.Infrastructure.Identity.Features.Auth.Factories;
 internal sealed class ConfirmationEmailFactory(IOptions<EmailConfirmationOptions> options)
     : IConfirmationEmailFactory
 {
-    private static readonly EmailBodyFactory _body = new("Templates.RegisterEmailTemplate.html");
+    private static readonly EmailBodyFactory _body = new("RegisterEmailTemplate");
 
     public async Task<ConfirmationEmail> CreateAsync(
         string userName,
@@ -29,13 +29,13 @@ internal sealed class ConfirmationEmailFactory(IOptions<EmailConfirmationOptions
             ?? throw new InvalidOperationException(
                 $"'{EmailConfirmationOptions.SectionName}:ConfirmEmailUrl' is not configured.");
 
-        string body = await _body.CreateAsync(
+        var rendered = await _body.CreateAsync(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["UserName"] = userName,
                 ["ConfirmationLink"] = EmailBodyFactory.LinkTo(confirmEmailUrl, email, token),
             });
 
-        return new ConfirmationEmail(settings.Subject, body);
+        return new ConfirmationEmail(rendered.Subject, rendered.Body);
     }
 }

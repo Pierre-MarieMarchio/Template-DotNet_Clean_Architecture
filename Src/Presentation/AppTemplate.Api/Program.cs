@@ -3,6 +3,7 @@ using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Errors;
 using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Common.Idempotency;
+using AppTemplate.Api.Common.Localization;
 using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.OpenApi;
 using AppTemplate.Api.Common.Outbound;
@@ -54,6 +55,7 @@ builder.Services.AddStorageModule(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AppTemplate.Application.Common.Abstractions.ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing.IAuditActor, CurrentUserAuditActor>();
 
 // Global rather than per-controller: the filter is inert on any action without [Idempotent], so
 // registering it once here is safe and is one fewer thing every controller has to remember.
@@ -71,6 +73,7 @@ builder.Services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(
 // Model binding must answer the same ProblemDetails shape as an application validation failure, so
 // this is wired right beside AddControllers, before anything else has a chance to bind a request.
 builder.Services.AddApiModelStateProblemDetails();
+builder.Services.AddRequestLanguage();
 
 builder.Services.AddApiVersioning(options =>
     {
@@ -184,6 +187,11 @@ app.UseStatusCodePages();
 
 app.UseCors(CorsExtensions.Default);
 app.UseRateLimiter();
+
+// After the rate limiter, so a rejected request does no work; before the endpoint, because what
+// this sets is what an action's mail is written in. It touches CurrentUICulture only — see
+// RequestLanguageExtensions for why it deliberately is not UseRequestLocalization.
+app.UseRequestLanguage();
 
 // After the rate limiter, so a rejected request never starts a clock that then has to be torn
 // down; before authentication and authorization, so the deadline covers them too, not just the

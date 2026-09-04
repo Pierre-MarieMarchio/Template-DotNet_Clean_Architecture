@@ -1,9 +1,9 @@
 ﻿using System.Data;
 using System.Data.Common;
 using System.Globalization;
-using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -59,10 +59,10 @@ public sealed class GrantTableFixture : IAsyncLifetime
 
         var services = new ServiceCollection();
 
-        // Logging, because the interceptors take an ILogger; and the current user, because auditing
-        // takes one. Both are things the host supplies rather than a module.
+        // Logging, because the interceptors take an ILogger; and the audit actor, because the
+        // auditing interceptor takes one. Both are things the host supplies rather than a module.
         services.AddLogging();
-        services.AddSingleton<ICurrentUser, AnonymousCurrentUser>();
+        services.AddSingleton<IAuditActor, AnonymousAuditActor>();
         services.AddPersistenceModule(configuration);
 
         _services = services.BuildServiceProvider();

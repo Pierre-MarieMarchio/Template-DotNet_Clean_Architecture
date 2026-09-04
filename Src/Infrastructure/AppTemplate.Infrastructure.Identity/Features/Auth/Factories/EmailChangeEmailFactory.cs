@@ -12,7 +12,7 @@ namespace AppTemplate.Infrastructure.Identity.Features.Auth.Factories;
 internal sealed class EmailChangeEmailFactory(IOptions<EmailChangeOptions> options)
     : IEmailChangeEmailFactory
 {
-    private static readonly EmailBodyFactory _body = new("Templates.EmailChangeEmailTemplate.html");
+    private static readonly EmailBodyFactory _body = new("EmailChangeEmailTemplate");
 
     public async Task<EmailChangeEmail> CreateAsync(
         string userName,
@@ -29,13 +29,13 @@ internal sealed class EmailChangeEmailFactory(IOptions<EmailChangeOptions> optio
             ?? throw new InvalidOperationException(
                 $"'{EmailChangeOptions.SectionName}:ConfirmEmailChangeUrl' is not configured.");
 
-        string body = await _body.CreateAsync(
+        var rendered = await _body.CreateAsync(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["UserName"] = userName,
                 ["ConfirmationLink"] = EmailBodyFactory.LinkTo(confirmEmailChangeUrl, newEmail, token),
             });
 
-        return new EmailChangeEmail(settings.Subject, body);
+        return new EmailChangeEmail(rendered.Subject, rendered.Body);
     }
 }

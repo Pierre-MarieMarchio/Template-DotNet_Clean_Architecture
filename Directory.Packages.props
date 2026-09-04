@@ -50,17 +50,17 @@
   </ItemGroup>
 
   <!-- OpenTelemetry: the SDK, the three instrumentations the host installs, and the OTLP exporter,
-       all on one 1.17.x band. Npgsql.OpenTelemetry rides the same 10.0.3 as the EF provider, which
+       all on one 1.18.x band. Npgsql.OpenTelemetry rides the same 10.0.3 as the EF provider, which
        is the version whose ActivitySource it subscribes to.
        OpenTelemetry.Instrumentation.EntityFrameworkCore is deliberately absent: it has no stable
-       release (1.17.0-beta.1 is the newest), and Npgsql's own source produces the database spans at
+       release (1.18.0-beta.1 is the newest), and Npgsql's own source produces the database spans at
        the ADO.NET level, which is where the query and its duration actually are. -->
   <ItemGroup Label="OpenTelemetry">
     <PackageVersion Include="Npgsql.OpenTelemetry" Version="10.0.3" />
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
   </ItemGroup>
 
   <!-- Object storage. The AWS SDK ships one package per service on its own version line — 4.0.x for

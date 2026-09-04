@@ -24,6 +24,11 @@
 # Password satisfies appsettings.Development.json: >= 8 chars, upper, lower, digit, non-alphanumeric.
 @userName = ada
 @email = ada@localhost
+# The three passwords this walkthrough uses, in the order it changes them: the one it registers
+# with, the one 33b changes to, and the one the reset in 33d lands on. The last two are derived from
+# the first rather than written out, and every body references them as {{...}}: a password literal
+# is what a secret scanner reads as a leaked credential, wherever it sits and in every commit that
+# carries it. One literal is one too many to repeat.
 @password = Str0ng!Passw0rd
 @newPassword = {{password}}-2
 @resetPassword = {{password}}-3

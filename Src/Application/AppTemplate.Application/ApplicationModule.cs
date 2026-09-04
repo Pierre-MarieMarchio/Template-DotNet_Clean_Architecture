@@ -15,7 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AppTemplate.Application;
 
-public static class ServiceRegistration
+public static class ApplicationModule
 {
     /// <summary>
     /// Takes no <c>IConfiguration</c> deliberately: nothing in this layer reads settings, and
@@ -29,7 +29,7 @@ public static class ServiceRegistration
             lifetime: ServiceLifetime.Scoped,
             includeInternalTypes: true);
 
-        services.AddUseCasesFrom(typeof(ServiceRegistration).Assembly);
+        services.AddUseCasesFrom(typeof(ApplicationModule).Assembly);
 
         // Not a use case: it has no request/response shape of its own, so the marker-based
         // discovery above never sees it. Bound explicitly, like the domain-event consumers below.

@@ -59,6 +59,16 @@
     <PackageVersion Include="Microsoft.OpenApi" Version="2.7.6" />
   </ItemGroup>
 
+  <!-- Transitive security pin, same mechanism as the one above. Testcontainers 4.13.0 resolves
+       SSH.NET 2025.1.0 — it reaches a daemon over SSH, which nothing here does — and that version
+       carries the high-severity GHSA-q939-rpr3-3284, so NuGetAuditLevel=low fails the restore of
+       both integration test projects. The audit runs at restore, so an incremental build over a
+       cache taken before the advisory still reports success; a fresh clone does not.
+       Remove this pin once Testcontainers ships a patched dependency itself. -->
+  <ItemGroup Label="Security pins (test-only)">
+    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
+  </ItemGroup>
+
   <!-- OpenTelemetry: the SDK, the three instrumentations the host installs, and the OTLP exporter,
        all on one 1.17.x band. Npgsql.OpenTelemetry rides the same 10.0.3 as the EF provider, which
        is the version whose ActivitySource it subscribes to.

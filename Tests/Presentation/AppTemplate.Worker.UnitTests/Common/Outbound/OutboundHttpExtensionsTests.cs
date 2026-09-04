@@ -14,10 +14,10 @@ namespace AppTemplate.Worker.UnitTests.Common.Outbound;
 /// The verb allow-list this host wraps around the package's own idea of a transient failure, and the
 /// budget it writes down.
 /// <para>
-/// <c>OutboundHttpTests</c> in the architecture project proves the host installs the policy at all
-/// and that nothing constructs its own <c>HttpClient</c> around it. Neither reads a value, so
-/// nothing until now would have noticed a <c>PUT</c> becoming replayable — the thing the policy
-/// argues hardest for. AppTemplate.Api's twin file has no equivalent test either.
+/// <c>OutboundHttpTests</c> in the architecture project proves the host installs the policy and that
+/// nothing constructs its own <c>HttpClient</c> around it; neither reads a value, so a <c>PUT</c>
+/// becoming replayable — the thing the policy argues hardest for — would only be seen here.
+/// AppTemplate.Api's twin file has no equivalent test either.
 /// </para>
 /// </summary>
 public sealed class OutboundHttpExtensionsTests

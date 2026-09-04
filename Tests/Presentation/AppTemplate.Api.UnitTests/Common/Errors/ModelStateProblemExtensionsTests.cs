@@ -76,6 +76,35 @@ public sealed class ModelStateProblemExtensionsTests
         result.ContentTypes.ShouldContain("application/problem+json");
     }
 
+    /// <summary>
+    /// The branch every other test here misses. MVC records a deserialisation failure by handing the
+    /// exception to the model state with no text of its own, and the three tests above all use the
+    /// string overload, which fills the text in and never reaches this path.
+    /// </summary>
+    /// <remarks>
+    /// A JsonException's message names the CLR type being bound and the byte offset the parser
+    /// stopped at. CONTRIBUTING states that no exception message ever reaches a client, and that
+    /// promise is worth exactly as much as the one branch nobody exercised.
+    /// </remarks>
+    [Fact]
+    public void InvalidModelStateResponseFactory_DoesNotPutAnExceptionMessageInTheResponse()
+    {
+        const string leaked = "The JSON value could not be converted to System.Guid. Path: $.todoListId | LineNumber: 2";
+
+        var httpContext = HttpContextFactory.Create();
+        var modelState = new ModelStateDictionary();
+        // TryAddModelException is the overload that records an exception without metadata, which is
+        // the shape MVC's input formatter produces: an entry carrying the failure and no text.
+        modelState.TryAddModelException("TodoListId", new InvalidOperationException(leaked));
+
+        ObjectResult result = CreateResponse(httpContext, modelState);
+
+        var problem = (ValidationProblemDetails)result.Value!;
+
+        problem.Errors["todoListId"].ShouldNotContain(leaked);
+        problem.Errors["todoListId"].ShouldBe(["The value is invalid."]);
+    }
+
     private static ObjectResult CreateResponse(HttpContext httpContext, ModelStateDictionary modelState)
     {
         var services = new ServiceCollection();

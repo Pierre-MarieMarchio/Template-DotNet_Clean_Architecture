@@ -5,7 +5,7 @@ namespace AppTemplate.Worker.Common.Observability;
 
 /// <summary>
 /// Where this host's traces and metrics go, if anywhere. Deliberately the same shape as
-/// AppTemplate.Api's own <c>TelemetryOptions</c> — same section name, same three knobs — so one
+/// AppTemplate.Api's own <c>TelemetryOptions</c> — same section name, same knobs — so one
 /// collector configuration covers both hosts. Not shared code: AppTemplate.Api's version lives in
 /// the Api project, which this Worker does not and should not reference.
 /// </summary>
@@ -28,6 +28,15 @@ public sealed class WorkerTelemetryOptions
     /// several deployments of this template share one collector.
     /// </summary>
     public string? ServiceName { get; set; }
+
+    /// <summary>
+    /// Fraction of traces kept, applied at the root span so a whole trace is kept or dropped
+    /// together. <c>1.0</c> (the default) keeps every trace. Present here for the same reason as on
+    /// the Api host's <c>TelemetryOptions</c>, and with the same rule: the two classes bind the same
+    /// section, so a key the Api honours and this host silently ignores is a deployment configured
+    /// for one sampling rate and running at another.
+    /// </summary>
+    public double TracesSamplingRatio { get; set; } = 1.0;
 }
 
 internal sealed class WorkerTelemetryOptionsValidator : IValidateOptions<WorkerTelemetryOptions>
@@ -71,6 +80,16 @@ internal sealed class WorkerTelemetryOptionsValidator : IValidateOptions<WorkerT
             failures.Add(
                 $"'{WorkerTelemetryOptions.SectionName}:{nameof(WorkerTelemetryOptions.ServiceName)}' is " +
                 "present but blank. Remove the key to fall back to the assembly name.");
+        }
+
+        // Written as the range that passes, then negated: with NaN every direct comparison is
+        // false, so a check written as "<= 0 or > 1" would silently let NaN through. Copied from
+        // TelemetryOptionsValidator rather than rephrased — the two have to refuse the same values.
+        if (!(options.TracesSamplingRatio > 0 && options.TracesSamplingRatio <= 1))
+        {
+            failures.Add(
+                $"'{WorkerTelemetryOptions.SectionName}:{nameof(WorkerTelemetryOptions.TracesSamplingRatio)}' " +
+                $"must be greater than 0 and at most 1. It is '{options.TracesSamplingRatio}'.");
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

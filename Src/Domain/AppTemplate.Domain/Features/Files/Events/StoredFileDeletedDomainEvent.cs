@@ -10,10 +10,7 @@ namespace AppTemplate.Domain.Features.Files.Events;
 /// next sweep, and nothing depends on it having run. Storage is freed by comparing the object store
 /// against the live rows and deleting what no row names — a sweep that needs no flag, no queue and
 /// no delivery, and that covers a case this event cannot: bytes deposited against a signed URL whose
-/// registration was never confirmed and has since been swept away. This event's consumer is
-/// therefore an optimisation, in the same sense as
-/// <c>CancelRemindersOnTodoItemCompletedConsumer</c>, whose XML doc says the same thing about
-/// reminders.
+/// registration was never confirmed and has since been swept away.
 /// </para>
 /// <para>
 /// Delivered twice it is delivered once: deleting an object that is already gone is a no-op on any

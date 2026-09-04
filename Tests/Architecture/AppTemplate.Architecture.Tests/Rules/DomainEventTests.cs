@@ -9,11 +9,10 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// <summary>
 /// Whether a domain event is listened to is a decision, and this is where it is recorded.
 /// <para>
-/// The rule exists because the opposite happened: three files in the <c>Files</c> feature explained,
-/// at length and convincingly, that a deletion event had a consumer which reclaimed a file's bytes
-/// promptly — and no such consumer had ever been written. Every test was green, because nothing in
-/// this repository related the events that are raised to the consumers that exist. The prose was the
-/// only thing asserting it, and prose is not checked.
+/// Nothing else relates the events that are raised to the consumers that exist, so without this rule
+/// a file can explain at length and convincingly that a deletion event has a consumer reclaiming its
+/// bytes promptly, no such consumer be written, and every test stay green. Prose is the only thing
+/// asserting a consumer exists, and prose is not checked.
 /// </para>
 /// </summary>
 public sealed class DomainEventTests

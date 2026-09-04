@@ -15,10 +15,10 @@ namespace AppTemplate.Worker.UnitTests.Features.Maintenance;
 /// <summary>
 /// Proves the metric the maintenance loop emits carries the case that would otherwise stay
 /// invisible: a task that purged nothing. The log line in <c>MaintenanceBackgroundService</c> is
-/// unconditional for the same reason, but is not asserted here — <see cref="MaintenanceDiagnostics"/>
+/// unconditional for the same reason, but is not asserted here — <see cref="MaintenanceInstruments"/>
 /// is the signal an alert would actually watch.
 /// </summary>
-public sealed class MaintenanceDiagnosticsTests
+public sealed class MaintenanceInstrumentsTests
 {
     private static readonly TimeSpan _tinyInterval = TimeSpan.FromMilliseconds(20);
 
@@ -28,7 +28,7 @@ public sealed class MaintenanceDiagnosticsTests
         var idempotency = new FakeIdempotencyPurge(count: 0);
         var refreshTokens = new FakeRefreshTokenPurge(count: 0);
 
-        // Concurrent, not a List, for the reason FileDiagnosticsTests already records: the listener
+        // Concurrent, not a List, for the reason FileInstrumentsTests already records: the listener
         // below is enabled on a static meter, so it receives every measurement any thread in this
         // assembly records to it — and MaintenanceBackgroundServiceTests runs the same loop in
         // parallel, recording to these same two counters every 20 ms. A List<T>.Add from two threads

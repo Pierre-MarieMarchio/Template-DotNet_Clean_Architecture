@@ -49,11 +49,24 @@ public sealed class UseCaseConventionTests
             .HaveNameEndingWith(_useCaseSuffix);
 
         var matched = RuleAssertions.RequireTypes(useCases, "a class whose name ends with 'UseCase'");
-        matched.Count.ShouldBeGreaterThanOrEqualTo(
-            28,
-            "The application layer has fifteen to-do list use cases, eleven authentication ones and " +
-            "two maintenance ones. Finding fewer means the discovery in this rule has stopped " +
-            "matching them.");
+
+        SourceDeclarations.WalkComplaints.ShouldBeEmpty(
+            "The source-tree walk this rule measures its candidate set against did not read the " +
+            $"tree it describes.{Environment.NewLine}  " +
+            string.Join($"{Environment.NewLine}  ", SourceDeclarations.WalkComplaints));
+
+        var divergence = SourceDeclarations.Divergence(
+            SourceDeclarations.UseCaseFullNames,
+            matched.Select(SourceDeclarations.WithoutArity),
+            "matched by this rule's suffix filter");
+
+        divergence.ShouldBeEmpty(
+            "The candidate set is measured against the declarations on disk rather than floored at a " +
+            "number, because a floor cannot be wrong — only stale, and a stale one lets this rule " +
+            "check a fraction of the layer while reporting that the convention holds. " +
+            $"({SourceDeclarations.UseCaseFullNames.Count} declared in the application project, " +
+            $"{matched.Count} matched here.){Environment.NewLine}  " +
+            string.Join($"{Environment.NewLine}  ", divergence));
 
         useCases.Should()
             .ResideInNamespaceMatching(_useCaseNamespacePattern)
@@ -134,11 +147,22 @@ public sealed class UseCaseConventionTests
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .ToList();
 
-        folders.Count.ShouldBeGreaterThanOrEqualTo(
-            28,
-            "The application layer has eleven authentication use cases, fifteen to-do list ones and " +
-            "two maintenance ones, each in a folder of its own. Finding fewer folders means the " +
-            "discovery in this rule has stopped reading the layout.");
+        SourceDeclarations.WalkComplaints.ShouldBeEmpty(
+            "The source-tree walk this rule measures its folder set against did not read the tree " +
+            $"it describes.{Environment.NewLine}  " +
+            string.Join($"{Environment.NewLine}  ", SourceDeclarations.WalkComplaints));
+
+        var unread = SourceDeclarations.Divergence(
+            SourceDeclarations.UseCaseOperationNamespaces,
+            folders.Select(folder => folder.Key),
+            "read as an operation folder by this rule");
+
+        unread.ShouldBeEmpty(
+            "The set of operation folders is measured off disk rather than floored at a number, so " +
+            "adding a vertical needs no edit here and a folder this rule has stopped reading cannot " +
+            $"pass as one it inspected. ({SourceDeclarations.UseCaseOperationNamespaces.Count} " +
+            $"folders hold a use case on disk, {folders.Count} were read here.)" +
+            $"{Environment.NewLine}  " + string.Join($"{Environment.NewLine}  ", unread));
 
         var failures = new List<string>();
 

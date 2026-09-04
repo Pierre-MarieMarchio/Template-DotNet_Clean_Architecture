@@ -19,7 +19,7 @@ namespace AppTemplate.Worker.UnitTests.Features.Files;
 /// <c>apptemplate.worker.files.iterations</c> can, and it is what an alert on "a sweep stopped"
 /// would watch.
 /// </summary>
-public sealed class FileDiagnosticsTests
+public sealed class FileInstrumentsTests
 {
     private static readonly TimeSpan _tinyInterval = TimeSpan.FromMilliseconds(20);
 
@@ -154,5 +154,67 @@ public sealed class FileDiagnosticsTests
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         iterationMeasurements.ShouldContain(m => m.Task == "orphaned content" && m.Outcome == "exception");
+    }
+
+    /// <summary>
+    /// The third case, and the one this feature needs most: a loop a configuration flag switched off
+    /// still counts its passes, tagged <c>disabled</c>. Without it an operator reading a flat
+    /// <c>apptemplate.worker.files.iterations</c> cannot tell a loop somebody turned off from one
+    /// that died — and the inspection loop is the one whose death leaves every upload permanently
+    /// unreadable. <c>ReminderBackgroundService</c> has counted its own disabled pass all along; this
+    /// holds the file loops to the same reading.
+    /// </summary>
+    [Fact]
+    public async Task ADisabledSweep_RecordsAnIteration_SoAFlatLineIsNotAmbiguous()
+    {
+        var iterationMeasurements = new ConcurrentQueue<(string? Task, string? Outcome)>();
+
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, l) =>
+        {
+            if (instrument.Meter.Name == "AppTemplate.Worker.Files"
+                && instrument.Name == "apptemplate.worker.files.iterations")
+            {
+                l.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((_, _, tags, _) =>
+        {
+            var tagArray = tags.ToArray();
+            iterationMeasurements.Enqueue((
+                tagArray.FirstOrDefault(t => t.Key == "task").Value as string,
+                tagArray.FirstOrDefault(t => t.Key == "outcome").Value as string));
+        });
+        listener.Start();
+
+        // No use case is registered at all: a disabled pass must never open a scope, so a loop that
+        // reached for one would fail this test rather than quietly counting an exception.
+        using var provider = new ServiceCollection().BuildServiceProvider();
+
+        var options = new FileWorkerOptions
+        {
+            PurgeAbandonedRegistrationsInterval = _tinyInterval,
+            PurgeAbandonedRegistrationsEnabled = false,
+            ReclaimOrphanedContentInterval = _tinyInterval,
+            ReclaimOrphanedContentEnabled = false,
+            InspectDepositedFilesInterval = _tinyInterval,
+            InspectDepositedFilesEnabled = false,
+        };
+
+        using var service = new FileBackgroundService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(options),
+            NullLogger<FileBackgroundService>.Instance);
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => iterationMeasurements.Any(m => m.Task == "deposited files" && m.Outcome == "disabled"),
+            "a disabled inspection pass to be counted");
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        // ShouldContain, not an assertion over everything recorded: this static meter is shared with
+        // every other test in the assembly and they run in parallel, so the queue holds their
+        // measurements too.
+        iterationMeasurements.ShouldContain(m => m.Task == "deposited files" && m.Outcome == "disabled");
     }
 }

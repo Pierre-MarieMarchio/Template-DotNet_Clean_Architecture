@@ -117,6 +117,38 @@ public sealed class ReminderTests
 
     #region Rehydrating
 
+    /// <summary>
+    /// The load path holds every identity invariant scheduling holds, because both reach the
+    /// aggregate through the same constructor. Stating them once is what stops the two paths from
+    /// disagreeing about what a reminder must carry, and 0001-01-01 is the value that shows it: a
+    /// stored due date the aggregate would never have written.
+    /// </summary>
+    [Fact]
+    public void Rehydrate_Rejects_TheDefaultDueDate() =>
+        Should.Throw<DomainException>(
+            () => Reminder.Rehydrate(
+                Guid.CreateVersion7(),
+                _ownerId,
+                _todoListId,
+                _todoItemId,
+                default,
+                ReminderState.Pending,
+                null,
+                null));
+
+    [Fact]
+    public void Rehydrate_Rejects_AnEmptyOwnerId() =>
+        Should.Throw<DomainException>(
+            () => Reminder.Rehydrate(
+                Guid.CreateVersion7(),
+                Guid.Empty,
+                _todoListId,
+                _todoItemId,
+                _now.AddHours(1),
+                ReminderState.Pending,
+                null,
+                null));
+
     [Fact]
     public void Rehydrate_Rejects_AnEmptyId() =>
         Should.Throw<DomainException>(

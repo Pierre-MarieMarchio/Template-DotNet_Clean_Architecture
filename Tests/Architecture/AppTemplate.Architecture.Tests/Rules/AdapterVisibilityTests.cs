@@ -19,7 +19,7 @@ public sealed class AdapterVisibilityTests
 {
     /// <summary>
     /// Every port an infrastructure module implements, discovered rather than listed —
-    /// see <see cref="ApplicationPorts"/> for what a hand-kept list was missing.
+    /// see <see cref="ApplicationPorts"/> for what a hand-kept list silently omits.
     /// </summary>
     private static IReadOnlyList<Type> ApplicationPortContracts => ApplicationPorts.All;
 

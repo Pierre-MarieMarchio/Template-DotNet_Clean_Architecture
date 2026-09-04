@@ -1,7 +1,8 @@
-﻿using Shouldly;
+﻿using AppTemplate.Infrastructure.Persistence.Common.Options;
+using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Persistence.UnitTests;
+namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Options;
 
 public sealed class DatabaseOptionsValidatorTests
 {

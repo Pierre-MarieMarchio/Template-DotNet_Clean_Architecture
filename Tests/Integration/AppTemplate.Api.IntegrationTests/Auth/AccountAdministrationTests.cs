@@ -6,7 +6,7 @@ using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Features.Auth.Ports.RoleAssignments;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
-using AppTemplate.Infrastructure.Persistence.Features.Identity;
+using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
@@ -284,9 +284,8 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
     /// <summary>
     /// The gap this endpoint exists to close: a caller who has lost the authenticator app <em>and</em>
     /// the recovery codes can prove neither a code nor — once the second factor is armed — a
-    /// completed login at all, and had no recourse before this route existed short of deleting the
-    /// account outright. No password, no code: an administrator's own session is what this
-    /// capability is gated on instead.
+    /// completed login at all, and so has no recourse short of the account being deleted outright. No
+    /// password, no code: an administrator's own session is what this capability is gated on instead.
     /// </summary>
     [Fact]
     public async Task AnAdministrator_CanDisableTwoFactorOnAnAccountThatLostItsSecondFactor()

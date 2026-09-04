@@ -13,30 +13,20 @@ namespace AppTemplate.Worker.Features.Files;
 /// Runs the file feature's three background passes, each on its own timer: its two sweeps,
 /// <see cref="IPurgeAbandonedRegistrationsUseCase"/> and <see cref="IReclaimOrphanedContentUseCase"/>,
 /// and <see cref="IInspectDepositedFilesUseCase"/> — which is not a sweep and is the one a user
-/// feels, since nothing else moves a file from deposited to available. Modelled on
-/// <c>MaintenanceBackgroundService</c>: a fresh scope per pass, the stopping token honoured rather
-/// than waited out, and a failing pass logged and retried at the next tick instead of bringing the
-/// host down.
+/// feels, since nothing else moves a file from deposited to available. Each pass takes a fresh
+/// scope, honours the stopping token rather than waiting it out, and is logged and retried at the
+/// next tick when it fails instead of bringing the host down. <c>docs/ARCHITECTURE.md</c> carries
+/// the argument for three timers rather than one.
 /// <para>
-/// <b>Three timers in one service, not one timer for all of them.</b> A pass of the abandoned-registration
-/// purge is one indexed query and at most 200 deletes; a pass of the orphan sweep lists the whole
-/// object store and asks the database about every page of it. Sharing a cadence would mean either
-/// walking the store hourly or letting a quota slot sit unreturned for half a day, and a single
-/// sequential loop would additionally let a long sweep starve the purge behind it — and would put a
-/// user-visible inspection latency behind a twelve-hour walk of the object store. No loop can overlap
-/// <em>itself</em>: <see cref="PeriodicTimer"/> coalesces the ticks that elapse while a pass is still
-/// running.
-/// </para>
-/// <para>
-/// <b>No loop here takes <see cref="ILeaderLease"/>, and that is not this class's decision to
-/// make.</b> Exclusivity between hosts belongs to the operation rather than to the timer that starts
-/// it — a guard placed here would protect this host's callers and nobody else, and both use cases
-/// are also reachable by other routes. Both have looked at the question and written the answer down:
+/// No loop can overlap <em>itself</em>: <see cref="PeriodicTimer"/> coalesces the ticks that elapse
+/// while a pass is still running. Nothing coalesces two hosts, and no loop here takes
+/// <see cref="ILeaderLease"/>: exclusivity between hosts belongs to the operation rather than to the
+/// timer that starts it, since a guard placed here would protect this host's callers and nobody
+/// else while both use cases stay reachable by other routes. Both have written their answer down —
 /// the purge issues idempotent deletes over a range already covered, and deleting the same object
-/// twice is deleting it once, so a second replica costs a duplicated request and nothing else. If
-/// the duplicated <em>listing</em> of a large store ever becomes the cost that matters, the lease
-/// belongs inside <see cref="ReclaimOrphanedContentUseCase"/>, next to the reasoning it would
-/// contradict.
+/// twice is deleting it once. If the duplicated <em>listing</em> of a large store ever becomes the
+/// cost that matters, the lease belongs inside <see cref="ReclaimOrphanedContentUseCase"/>, next to
+/// the reasoning it would contradict.
 /// </para>
 /// <para>
 /// <b>Nothing here narrows what the orphan sweep covers, and nothing may.</b> No prefix, no time
@@ -84,7 +74,7 @@ internal sealed class FileBackgroundService(
                     "quota slot its owner never gets back.",
                     settings.PurgeAbandonedRegistrationsInterval,
                     settings.PurgeAbandonedRegistrationsEnabled,
-                    FileDiagnostics.RegistrationsPurged,
+                    FileInstruments.RegistrationsPurged,
                     stoppingToken),
                 RunLoopAsync<IReclaimOrphanedContentUseCase>(
                     _orphanedContentTask,
@@ -92,7 +82,7 @@ internal sealed class FileBackgroundService(
                     "path, not a guarantee — so stored objects will grow without bound.",
                     settings.ReclaimOrphanedContentInterval,
                     settings.ReclaimOrphanedContentEnabled,
-                    FileDiagnostics.ObjectsReclaimed,
+                    FileInstruments.ObjectsReclaimed,
                     stoppingToken),
                 RunLoopAsync<IInspectDepositedFilesUseCase>(
                     _depositedFilesTask,
@@ -101,7 +91,7 @@ internal sealed class FileBackgroundService(
                     "degrading it.",
                     settings.InspectDepositedFilesInterval,
                     settings.InspectDepositedFilesEnabled,
-                    FileDiagnostics.DepositsInspected,
+                    FileInstruments.DepositsInspected,
                     stoppingToken));
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -156,6 +146,15 @@ internal sealed class FileBackgroundService(
             }
             else
             {
+                // Counted, not skipped, for the reason ReminderBackgroundService counts its own
+                // disabled pass: an operator reading a flat Iterations series has to be able to tell
+                // a loop switched off from a loop that died, and on this feature that distinction is
+                // sharpest — a stopped inspection loop leaves every upload permanently unreadable.
+                FileInstruments.Iterations.Add(
+                    1,
+                    new KeyValuePair<string, object?>("task", label),
+                    new KeyValuePair<string, object?>("outcome", "disabled"));
+
                 logger.LogWarning(
                     "The {Label} sweep is disabled; skipping this pass. {Consequence}",
                     label,
@@ -173,7 +172,7 @@ internal sealed class FileBackgroundService(
     private async Task RunPassAsync<TUseCase>(string label, Counter<long> volume, CancellationToken stoppingToken)
         where TUseCase : IUseCase<Result<int>>
     {
-        using Activity? activity = FileDiagnostics.ActivitySource.StartActivity("files.sweep");
+        using Activity? activity = FileInstruments.ActivitySource.StartActivity("files.sweep");
         activity?.SetTag("files.task", label);
 
         KeyValuePair<string, object?> taskTag = new("task", label);
@@ -187,7 +186,7 @@ internal sealed class FileBackgroundService(
 
             if (result.IsSuccess)
             {
-                FileDiagnostics.Iterations.Add(1, taskTag, new("outcome", "success"));
+                FileInstruments.Iterations.Add(1, taskTag, new("outcome", "success"));
                 volume.Add(result.Value, taskTag);
                 activity?.SetTag("files.removed", result.Value);
 
@@ -203,7 +202,7 @@ internal sealed class FileBackgroundService(
             else
             {
                 Error error = result.Error!;
-                FileDiagnostics.Iterations.Add(1, taskTag, new("outcome", "failure"));
+                FileInstruments.Iterations.Add(1, taskTag, new("outcome", "failure"));
                 activity?.SetStatus(ActivityStatusCode.Error, error.Code);
                 logger.LogWarning(
                     "Sweeping {Label} reported a failure: {ErrorCode} — {ErrorMessage}.",
@@ -220,7 +219,7 @@ internal sealed class FileBackgroundService(
         }
         catch (Exception exception)
         {
-            FileDiagnostics.Iterations.Add(1, taskTag, new("outcome", "exception"));
+            FileInstruments.Iterations.Add(1, taskTag, new("outcome", "exception"));
             activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
             logger.LogError(exception, "Sweeping {Label} failed unexpectedly; will retry at the next interval.", label);
         }

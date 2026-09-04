@@ -13,7 +13,7 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Reminders.Observabilit
 /// counter by name, so the instrument name below is not free to drift from it.
 /// </summary>
 /// <remarks>
-/// Static fields, the same shape as <c>MaintenanceDiagnostics</c> in <c>AppTemplate.Worker</c>: a
+/// Static fields, the same shape as <c>MaintenanceInstruments</c> in <c>AppTemplate.Worker</c>: a
 /// <see cref="Meter"/> is meant to be created once per process, not once per scope. Exported by
 /// <c>AppTemplate.Worker</c>'s own OpenTelemetry setup — the only host that ever calls
 /// <see cref="IReminderDiagnostics.RecordMissedCancellation"/> — which is why the meter name below

@@ -6,11 +6,9 @@ namespace AppTemplate.Application.Features.Files.Dtos;
 /// A stored file as every read of it produces: the list, the single read, and the projection of the
 /// aggregate a command just wrote.
 /// <para>
-/// One shape rather than a summary and a detail, unlike <c>TodoLists</c>. That feature needs two
-/// because a detail carries its items and a summary must not; this aggregate is flat, so a second
-/// shape would differ from the first only by which fields somebody guessed a list would not want —
-/// a distinction with nothing behind it. It carries no content and no URL: reading the bytes is a
-/// separate, deliberate act that mints a short-lived grant.
+/// One shape rather than a summary and a detail, because the aggregate is flat and a second shape
+/// would differ only by which fields somebody guessed a list would not want. It carries no content
+/// and no URL: reading the bytes is a separate, deliberate act that mints a short-lived grant.
 /// </para>
 /// </summary>
 /// <param name="DeclaredMediaType">

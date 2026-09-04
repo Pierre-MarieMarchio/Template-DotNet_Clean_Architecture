@@ -52,7 +52,7 @@ internal static class BucketClientFactory
     /// The client every signed URL is minted by, built on <see cref="StorageOptions.SigningEndpoint"/>
     /// — which is <see cref="StorageOptions.PublicEndpoint"/> where a deployment states one and
     /// <see cref="StorageOptions.Endpoint"/> where it does not, so a configuration that names no
-    /// public endpoint gets exactly the client it got before this one existed.
+    /// public endpoint signs with a client aimed at the same endpoint it calls the store on.
     /// </summary>
     internal static IAmazonS3 CreateForSigning(StorageOptions options)
     {

@@ -15,15 +15,9 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
 
 /// <summary>
 /// The one <see cref="DbContext"/> in the system: ASP.NET Identity's tables and the domain's
-/// persistence models, in one model, on one connection, with one migrations history.
-/// <para>
-/// <b>Why one and not two.</b> The previous layout had a context per capability so that each could
-/// be migrated independently from its own project. Once all persistence lives in a single project
-/// that premise is gone, and a single context buys something the split could not: a real
-/// transaction spanning an identity write and a domain write. The features stay separate where
-/// separation is worth having — one PostgreSQL schema each, declared in their own configuration
-/// classes — rather than by owning different connections to the same database.
-/// </para>
+/// persistence models, in one model, on one connection, with one migrations history. Why one
+/// context rather than two, and why one database rather than two, is argued in
+/// docs/ARCHITECTURE.md under "One DbContext, one database, five schemas".
 /// <para>
 /// <b>This class is the model's composition root.</b> It is the one type in <c>Common/</c> allowed
 /// to name a feature, exactly as <c>Program.cs</c> is the one place allowed to name every module.
@@ -42,10 +36,9 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
 /// Two things it deliberately does not do. It does not take <c>ICurrentUser</c>: that would make
 /// every instance depend on an HTTP request, so any use outside one — a background worker, a
 /// migration, a seeding routine — would stamp audit columns with an empty caller. And it does not
-/// override <c>SaveChangesAsync</c> to stamp, flush or dispatch: cross-cutting save behaviour lives
-/// in <see cref="Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor"/>
-/// implementations, which are separately testable, individually replaceable, and apply to the
-/// synchronous overload too — an override does not.
+/// override <c>SaveChangesAsync</c> to stamp, flush or dispatch: that behaviour belongs in
+/// <see cref="Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor"/> implementations,
+/// which also apply to the synchronous overload an override would miss.
 /// </para>
 /// </summary>
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options)

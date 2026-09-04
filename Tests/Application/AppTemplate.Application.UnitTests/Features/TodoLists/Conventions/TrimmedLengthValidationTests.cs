@@ -85,8 +85,8 @@ public sealed class TrimmedLengthValidationTests
     }
 
     /// <summary>
-    /// The behavior the spec calls out explicitly: a malformed tag on <c>AddTodoItem</c> is now a
-    /// 400 from this validator, not a domain exception the use case turns into a 409.
+    /// A malformed tag on <c>AddTodoItem</c> is a 400 from this validator, not a domain exception the
+    /// use case turns into a 409.
     /// </summary>
     [Theory]
     [InlineData("")]

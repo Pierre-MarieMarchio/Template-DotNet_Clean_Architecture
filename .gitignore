@@ -43,6 +43,14 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+# Those two patterns match at any depth, so they also erase a source folder called Logs.
+# The identity module keeps its security event log in one, and CONTRIBUTING lists Logs in
+# that module's vocabulary, so the folder is required rather than incidental. Re-included
+# here: without this, a file added there compiles locally, is never committed, and breaks
+# the build for everyone else.
+![Ss]rc/**/[Ll]ogs/
+![Tt]ests/**/[Ll]ogs/
+
 # Visual Studio 2015/2017 cache/options directory
 .vs/
 # Uncomment if you have tasks that create the project's static files in wwwroot

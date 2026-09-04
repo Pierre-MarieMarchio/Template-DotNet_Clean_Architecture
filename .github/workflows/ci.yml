@@ -166,53 +166,25 @@ jobs:
       # Reads the TRX totals into the job summary, so a reviewer sees the counts
       # without downloading an artifact — and so a run that executed zero tests is
       # visible rather than merely green.
+      # A green run with no tests is a false pass: dotnet test exits zero when it finds
+      # nothing to run, so a project missing from the solution reads exactly like a project
+      # whose tests all passed. The counters come from the TRX files rather than from the
+      # console, which interleaves when assemblies run in parallel and can splice one
+      # assembly's line into another's.
       - name: Summarise test results
         if: always()
         run: |
-          set -uo pipefail
-          shopt -s nullglob globstar
-          total=0; passed=0; failed=0; skipped=0
-          for trx in TestResults/**/*.trx; do
-            counters=$(python3 - "$trx" <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          ns = {'t': 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
-          c = ET.parse(sys.argv[1]).getroot().find('t:ResultSummary/t:Counters', ns)
-          if c is None:
-              print('0 0 0 0')
-          else:
-              print(c.get('total', 0), c.get('passed', 0), c.get('failed', 0), c.get('notExecuted', 0))
-          PY
-            ) || continue
-            read -r t p f s <<<"$counters"
-            total=$((total + t)); passed=$((passed + p)); failed=$((failed + f)); skipped=$((skipped + s))
-          done
-          {
-            echo "### Test results"
-            echo
-            echo "| Total | Passed | Failed | Skipped |"
-            echo "|---:|---:|---:|---:|"
-            echo "| $total | $passed | $failed | $skipped |"
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$total" -eq 0 ]; then
-            echo "::error title=Zero tests executed::The run produced no test results. A green run with no tests is a false pass."
-            exit 1
-          fi
+          dotnet run Tools/TestSummary.cs \
+            --root TestResults \
+            --summary "$GITHUB_STEP_SUMMARY"
 
-      # Enforces the floor in coverage.minimum, which is the single source of truth
-      # shared with tasks.ps1 so the gate a developer runs locally is this gate.
-      # The script merges coverlet's per-project reports as a union over
-      # (source file, line) — summing the lines-valid/lines-covered attributes
-      # would double-count every line exercised by more than one suite.
-      #
-      # "No report found" is a failure inside the script, on purpose: a coverage
-      # gate that passes because it measured nothing is a false green.
       - name: Enforce coverage floor
         if: always()
         run: |
           set -euo pipefail
           minimum=$(grep -v '^[[:space:]]*#' coverage.minimum | tr -d '[:space:]')
           echo "Coverage floor from coverage.minimum: ${minimum}%"
-          python3 .github/scripts/coverage-gate.py \
+          dotnet run Tools/CoverageGate.cs \
             --root TestResults \
             --minimum "$minimum" \
             --summary "$GITHUB_STEP_SUMMARY" \
@@ -233,8 +205,10 @@ jobs:
   # Cheap, no SDK, no Docker: catches the class of defect that only shows up when
   # somebody follows the documentation or when a workflow finally runs.
   #
-  # Both scripts have been tested against deliberately faulted inputs — a validator
-  # whose clean result was never contrasted with a dirty one proves nothing.
+  # Every gate here runs its own `--self-test` before it judges the repository, and the
+  # self-test is a step of its own so that its failure is legible: a validator whose clean
+  # result was never contrasted with a dirty one proves nothing, and the claim that it was
+  # is worth no more than the fixtures that back it.
   repository-hygiene:
     name: Docs and workflows
     runs-on: ubuntu-latest
@@ -244,20 +218,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install PyYAML
-        run: python3 -m pip install --user --disable-pip-version-check pyyaml
+      # Fixtures: a citation that resolves to nothing, a bare filename that exists
+      # nowhere, an empty tree — and, against them, trees where every citation holds
+      # and a working note git ignores that must not be read at all.
+      - name: The doc-path gate can fail
+        run: dotnet run Tools/CheckDocPaths.cs --self-test
 
       # A renamed or moved file leaves the prose pointing at nothing. In a template
       # that is worse than elsewhere: the reader is following instructions, not
       # reading code, so a wrong path costs them an hour before they doubt the docs.
       - name: Every path cited in the docs exists
-        run: python3 .github/scripts/check-doc-paths.py .
+        run: dotnet run Tools/CheckDocPaths.cs .
+
+      # Fixtures: one workflow per fault the checks below name, one clean workflow that
+      # carries every construction mistakable for a fault, and a `.yaml` whose dangling
+      # `needs:` is only reported if the gate reads that spelling as well as `.yml`.
+      - name: The workflow gate can fail
+        run: dotnet run Tools/CheckWorkflows.cs --self-test
 
       # Structural checks a YAML parse does not make: a dangling `needs:`, an action
       # without a SHA pin, a missing `permissions:`, a `$VAR` defined in no env block,
       # a script referenced in a `run:` but absent from disk.
       - name: Workflows are structurally sound
-        run: python3 .github/scripts/check-workflows.py .
+        run: dotnet run Tools/CheckWorkflows.cs .
+
+      # The coverage gate runs in the test job, where the reports are; its fixtures run
+      # here, where no SDK is needed. The one that matters is a valid Cobertura report
+      # with no line in it: 0/0 reads as 100%, so a report that lost every assembly
+      # would clear any floor.
+      - name: The coverage gate can fail
+        run: dotnet run Tools/CoverageGate.cs --self-test
+
+      # The gate proves itself before it judges anything: the fixtures assert that it fires
+      # on real offenders taken from this repository, and stays silent on the sentences that
+      # only resemble one. A pattern list nobody contrasted against innocents is how a check
+      # like this ends up switched off.
+      - name: The narrative-comment gate can fail
+        run: dotnet run Tools/CheckNarrativeComments.cs --self-test
+
+      # CONTRIBUTING bans comments that say what the code was rather than what it is. A reader
+      # who did not live that past cannot act on it, and the sentence rots by itself.
+      - name: No comment narrates the repository's history
+        run: dotnet run Tools/CheckNarrativeComments.cs .
 
   # ---------------------------------------------------------------------------
   vulnerable-packages:
@@ -383,7 +385,7 @@ jobs:
       # generated project's own namespace falls among FluentValidation, Microsoft.* and
       # the rest — which no single committed ordering can satisfy for every possible name.
       # A generated project therefore fails the format check until formatted once, and the
-      # README tells an adopter to run `./tasks.ps1 bootstrap` before anything else. If that
+      # README tells an adopter to run `dotnet run Tools/Tasks.cs bootstrap` first. If that
       # one run ever stopped being enough, this step is what would say so.
       - name: Bootstrap formatting, then verify it is stable
         working-directory: ${{ runner.temp }}/generated

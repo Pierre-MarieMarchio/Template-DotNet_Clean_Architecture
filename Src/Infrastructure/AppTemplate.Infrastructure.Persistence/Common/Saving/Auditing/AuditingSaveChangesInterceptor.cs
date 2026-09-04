@@ -8,22 +8,12 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
 /// <summary>
 /// Stamps audit columns on the persistence models that opt in via <see cref="IAuditable"/>.
 /// <para>
-/// This replaces a reflection helper that tested for a generic base class, cast to
-/// <c>dynamic</c>, and assigned properties by name — so a renamed property broke at
-/// runtime, not at compile time — and that resolved the current user by
-/// <c>Guid.Parse</c>-ing a claim string, which threw on a malformed token and produced
-/// <c>Guid.Empty</c> for anything unauthenticated. Here the contract is an interface, the
-/// dispatch is pattern matching, and an anonymous caller is recorded as <c>null</c>,
-/// because "we do not know who did this" is a fact worth keeping and <c>Guid.Empty</c> is
-/// a lie that looks like a user id.
-/// </para>
-/// <para>
-/// <b>It stamps the record, not the aggregate.</b> The tracked entities are persistence models, and
-/// they are what carries the audit columns; the interceptor therefore remains the single writer of
-/// those four values. A mapper that copied audit values out of a domain object and into a row would
-/// be the second writer, and the two would disagree — which is the defect this template was rescued
-/// from. The flush pipeline runs <em>before</em> this interceptor and the read-back runs after, so a
-/// domain aggregate is handed the values this interceptor decided rather than the other way round.
+/// The contract is an interface and the dispatch is pattern matching, so a renamed property fails
+/// at compile time. An anonymous caller is recorded as <c>null</c>, because "we do not know who did
+/// this" is a fact worth keeping and <c>Guid.Empty</c> is a lie that looks like a user id. It stamps
+/// the record, not the aggregate: the tracked entities are the persistence models and they are what
+/// carries the audit columns, so this interceptor is their single writer. A mapper that copied audit
+/// values out of a domain object into a row would be a second writer, and the two would diverge.
 /// </para>
 /// <para>
 /// It knows no feature. Marking an aggregate root modified because one of its children changed is a

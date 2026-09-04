@@ -14,6 +14,9 @@ public sealed class AddTagToTodoItemCommandValidator : AbstractValidator<AddTagT
             .NotEmpty().WithMessage("An item id is required.");
 
         RuleFor(command => command.Tag)
+            // Every Must below dereferences the value, and FluentValidation runs the remaining rules
+            // for a property even after NotEmpty has failed.
+            .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("A tag cannot be blank.")
             // Measured after trimming, like the domain measures it.
             .Must(tag => tag.Trim().Length <= Tag.MaxLength)

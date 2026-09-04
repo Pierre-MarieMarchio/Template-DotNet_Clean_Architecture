@@ -13,16 +13,9 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Reminders;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Why reflection and not a list of assertions.</b> A hand-written round-trip test covers the
-/// properties somebody remembered. The failure mode here is forgetting — a property added to the
-/// aggregate and not to the mapper — so a test that has to be extended by hand fails in exactly the
-/// situation it exists for. These tests enumerate the aggregate's state from the type itself, so a new
-/// property is covered the moment it is declared.
-/// </para>
-/// <para>
-/// <b>What makes them fail.</b> A property whose value differs after aggregate → record → aggregate; a
-/// property whose value in the sample is its type's <em>default</em>, since comparing default to default
-/// proves nothing; or an entry in the exclusion list that no longer names a real property.
+/// The same reflection harness as <see cref="TodoLists.TodoListMapperFidelityTests"/>, which states
+/// why the aggregate's state is enumerated from the type rather than asserted by hand, and the three
+/// things that make it fail.
 /// </para>
 /// <see cref="TheHarness_DetectsAMapperThatForgetsAProperty"/> proves the machinery can actually fail, by
 /// running the same comparison against a mapper with one line missing.

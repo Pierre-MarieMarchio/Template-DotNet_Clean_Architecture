@@ -13,16 +13,10 @@
 /// <para>
 /// <b>What becomes of their rows.</b> Nothing, synchronously. They are left owned by an id that no
 /// longer names an account — visible to no one, since every query in those verticals scopes by the
-/// caller's own id and a deleted account can no longer authenticate as anyone. That is not an
-/// oversight: this template already has a home for exactly this shape of problem — data that outlives
-/// the event that made it stale and needs sweeping on a schedule rather than synchronously — in
-/// <c>MaintenanceController</c>'s expired-refresh-token and expired-idempotency-key purges. A project
-/// that keeps those features owes them the same treatment: a purge reachable the same way, scoped to
-/// rows whose owner no longer resolves. Refusing deletion until the account is provably empty, or
-/// reassigning ownership to some placeholder, both need the same forbidden reference this port
-/// refuses to take on, for no real gain: either still leaves a decision — what counts as empty, who
-/// if anyone owns the placeholder — that belongs to the feature that defines <c>OwnerId</c>, not to
-/// this one.
+/// caller's own id and a deleted account can no longer authenticate as anyone. A project that keeps
+/// those features owes them the treatment this template gives every other kind of stale row: a
+/// scheduled purge alongside <c>MaintenanceController</c>'s expired-refresh-token and
+/// expired-idempotency-key ones, scoped to rows whose owner no longer resolves.
 /// </para>
 /// </summary>
 public interface IAccountDeletionService

@@ -13,8 +13,8 @@ namespace AppTemplate.Domain.UnitTests.Features.TodoLists.Entities;
 /// <remarks>
 /// <para>
 /// It exists because the persistence layer keeps a model of its own and therefore has to reconstruct the
-/// aggregate itself. The alternative was reflection over private members, which fails at runtime when a
-/// property is renamed rather than at compile time — the exact mechanism this template was rescued from.
+/// aggregate itself. The alternative is reflection over private members, which fails at runtime when a
+/// property is renamed rather than at compile time.
 /// </para>
 /// <para>
 /// What these tests defend is the difference between <c>Rehydrate</c> and <c>Create</c>. Recalling a stored
@@ -194,10 +194,15 @@ public sealed class TodoListRehydrationTests
         exception.Message.ShouldContain(_otherListId.ToString());
     }
 
+    /// <summary>
+    /// An argument contract rather than an invariant, and typed accordingly. A null element is a
+    /// caller defect no request can produce — the only production caller builds the list itself —
+    /// so it is not a business rule a 400 could describe to whoever sent the request.
+    /// </summary>
     [Fact]
     public void Rehydrate_RefusesANullItem()
     {
-        Should.Throw<DomainException>(
+        Should.Throw<ArgumentNullException>(
             () => TodoList.Rehydrate(_listId, _ownerId, "Groceries", [null!]));
     }
 

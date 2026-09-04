@@ -72,12 +72,11 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
     /// <summary>
     /// Rebuilds an aggregate that already exists in a store, from the values that were stored.
     /// <para>
-    /// This is the seam a persistence layer needs once it stops mapping the domain type itself and
-    /// keeps a persistence model of its own: something has to turn a row back into an aggregate, and
-    /// the alternative is reflection over private members — which is precisely the mechanism this
-    /// template was rescued from, because a renamed property then fails at runtime instead of at
-    /// compile time. Declared here, the signature is checked by the compiler and a new piece of
-    /// state cannot be added to the aggregate without this method being visited.
+    /// This is the seam a persistence layer needs when it keeps a persistence model of its own:
+    /// something has to turn a row back into an aggregate. Declared here, the signature is checked
+    /// by the compiler, so a new piece of state cannot be added to the aggregate without this
+    /// method being visited — where reflection over private members would fail at runtime on a
+    /// rename instead.
     /// </para>
     /// <para>
     /// It is not <see cref="Create"/>. It raises no domain event — nothing happened, a fact is being
@@ -209,10 +208,11 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
     /// </summary>
     private void Accept(TodoItem item)
     {
-        if (item is null)
-        {
-            throw new DomainException("A to-do list cannot hold a null item.");
-        }
+        // Not a DomainException: a null item is a broken call, not a caller driving the aggregate
+        // into a forbidden state, and the two deserve different answers. Nothing a request can send
+        // reaches this line — AddItem passes an item it just constructed, and Rehydrate's only
+        // caller is TodoListMapper, which builds the list itself out of TodoItem.Rehydrate results.
+        ArgumentNullException.ThrowIfNull(item);
 
         if (item.TodoListId != Id)
         {

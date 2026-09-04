@@ -48,21 +48,26 @@ internal static class ArchitectureAssemblies
     /// </summary>
     internal const string PersistenceFeaturesNamespace = "AppTemplate.Infrastructure.Persistence.Features";
 
-    /// <summary>The business entities the cross-cutting mechanisms must stay free of.</summary>
-    internal const string TodoListsDomainNamespace = "AppTemplate.Domain.Features.TodoLists";
+    /// <summary>
+    /// Every feature's domain surface: its entities, its value objects, its events. Named at the
+    /// level of <c>Features</c> rather than of one feature, because a mechanism that must not know
+    /// about to-do lists must not know about reminders or files either, and a list of one feature
+    /// only guards the feature somebody happened to write it for.
+    /// </summary>
+    internal const string DomainFeaturesNamespace = "AppTemplate.Domain.Features";
 
     /// <summary>
     /// Every feature's application-layer surface: its ports, its DTOs, its errors. A cross-cutting
     /// persistence mechanism that names one of these is a feature adapter wearing the shared
-    /// mechanisms' clothes — which is exactly how <c>ReminderDiagnostics</c>, an OpenTelemetry counter
-    /// with no connection to the database at all, spent a while under <c>Common/Observability/</c>.
-    /// The two namespaces above could not catch it: it depended on neither.
+    /// mechanisms' clothes — <c>ReminderDiagnostics</c> is that shape: an OpenTelemetry counter with
+    /// no connection to the database at all, which would sit unnoticed under
+    /// <c>Common/Observability/</c>, since it depends on neither of the two namespaces above.
     /// </summary>
     internal const string ApplicationFeaturesNamespace = "AppTemplate.Application.Features";
 
     internal static Assembly Domain { get; } = Anchor(typeof(IAggregateRoot), DomainNamespace);
 
-    internal static Assembly Application { get; } = Anchor(typeof(ServiceRegistration), ApplicationNamespace);
+    internal static Assembly Application { get; } = Anchor(typeof(ApplicationModule), ApplicationNamespace);
 
     internal static Assembly Persistence { get; } = Anchor(typeof(PersistenceModule), PersistenceNamespace);
 

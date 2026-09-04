@@ -12,10 +12,10 @@ namespace AppTemplate.Api.IntegrationTests.Storage;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Nothing else in this repository has ever exercised this.</b> The unit tests read the URL a
-/// grant carries and assert its shape, which is all they can do without a store — the signature is
-/// computed locally, so a wrong one is indistinguishable from a right one until something checks it.
-/// Every assertion here is about the half nothing could see: whether the store agrees.
+/// <b>Only a real store can answer this.</b> The unit tests read the URL a grant carries and assert
+/// its shape, which is all they can do without a store — the signature is computed locally, so a
+/// wrong one is indistinguishable from a right one until something checks it. Every assertion here
+/// is about the half nothing else can see: whether the store agrees.
 /// </para>
 /// <para>
 /// The refusals matter as much as the acceptance. A grant is a bearer right, and its whole value is

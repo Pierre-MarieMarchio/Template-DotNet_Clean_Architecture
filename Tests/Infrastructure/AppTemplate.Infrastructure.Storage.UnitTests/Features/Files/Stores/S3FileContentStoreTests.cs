@@ -69,16 +69,15 @@ public sealed class S3FileContentStoreTests
     /// The grant carries the digest itself, base64-encoded, and not merely the name of an algorithm.
     /// </summary>
     /// <remarks>
-    /// <b>This used to assert <c>x-amz-sdk-checksum-algorithm: SHA256</c>, and that header was the
-    /// defect.</b> It names an algorithm and supplies nothing to check against, so MinIO accepted the
-    /// deposit and recorded no digest — and <c>DescribeAsync</c> then threw for want of one, leaving
-    /// every file deposited through the two-step upload unconfirmable. <c>StoredObjectTests</c> held a
-    /// characterisation test for that, against a real store, which the same change replaced with its
-    /// opposite.
+    /// <c>x-amz-sdk-checksum-algorithm: SHA256</c> would not do here, and that is the point: this
+    /// header names an algorithm and supplies nothing to check against, so the store accepts the
+    /// deposit and records no digest — after which <c>DescribeAsync</c> has nothing to read, and every
+    /// file deposited through the two-step upload becomes unconfirmable.
     /// <para>
     /// Carrying the value buys the other half for free: the store refuses content whose digest
     /// disagrees, so the grant authorises one body rather than any body of the right length and cannot
-    /// be replayed to swap content after a file has been inspected and released.
+    /// be replayed to swap content after a file has been inspected and released. <c>StoredObjectTests</c>
+    /// holds the same property against a real store.
     /// </para>
     /// </remarks>
     [Fact]
@@ -158,9 +157,10 @@ public sealed class S3FileContentStoreTests
     /// correct it.
     /// </summary>
     /// <remarks>
-    /// The last two rows are the deployment this module is shaped for and the one nothing used to
-    /// handle: plain HTTP inside a mesh with TLS at the ingress mints <c>https</c>, and its reverse
-    /// mints <c>http</c>. Both used to read the internal endpoint and get the wrong answer.
+    /// The last two rows are the two deployments where the internal endpoint and the public one
+    /// diverge: plain HTTP inside a mesh with TLS at the ingress mints <c>https</c>, and its reverse
+    /// mints <c>http</c>. Reading the internal endpoint would give the wrong answer in both cases, and
+    /// with the signature covering the host, no client could correct it.
     /// </remarks>
     [Theory]
     [InlineData("http://minio:9000", "", "http")]

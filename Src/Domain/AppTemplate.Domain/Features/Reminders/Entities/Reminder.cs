@@ -18,9 +18,34 @@ namespace AppTemplate.Domain.Features.Reminders.Entities;
 /// </summary>
 public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
 {
+    /// <summary>
+    /// The one place the identity invariants are stated. Both factories reach the aggregate through
+    /// here, so scheduling and loading cannot disagree about what a reminder must carry — a rule
+    /// written twice is a rule that only has to be edited once to start meaning two things.
+    /// </summary>
     private Reminder(Guid id, Guid ownerId, Guid todoListId, Guid todoItemId, DateTimeOffset dueAt)
         : base(id)
     {
+        if (id == Guid.Empty)
+        {
+            throw new DomainException("A reminder must have an id.");
+        }
+
+        if (ownerId == Guid.Empty)
+        {
+            throw new DomainException("A reminder must have an owner.");
+        }
+
+        if (todoListId == Guid.Empty || todoItemId == Guid.Empty)
+        {
+            throw new DomainException("A reminder must name the to-do item it is about.");
+        }
+
+        if (dueAt == default)
+        {
+            throw new DomainException("A reminder must have a due date.");
+        }
+
         OwnerId = ownerId;
         TodoListId = todoListId;
         TodoItemId = todoItemId;
@@ -81,27 +106,18 @@ public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
         DateTimeOffset dueAt,
         DateTimeOffset now)
     {
-        if (ownerId == Guid.Empty)
-        {
-            throw new DomainException("A reminder must have an owner.");
-        }
-
-        if (todoListId == Guid.Empty || todoItemId == Guid.Empty)
-        {
-            throw new DomainException("A reminder must name the to-do item it is about.");
-        }
-
-        if (dueAt == default)
-        {
-            throw new DomainException("A reminder must have a due date.");
-        }
+        // Built before the check below rather than after, so the constructor's invariants are the
+        // first thing an ill-formed call meets. Being due in the future cannot join them there: it
+        // is a precondition of scheduling, not a property of the state, and the load path must be
+        // able to rebuild a reminder for which it holds no longer.
+        var reminder = new Reminder(Guid.CreateVersion7(), ownerId, todoListId, todoItemId, dueAt);
 
         if (dueAt <= now)
         {
             throw new DomainException("A reminder must be due in the future.");
         }
 
-        return new Reminder(Guid.CreateVersion7(), ownerId, todoListId, todoItemId, dueAt);
+        return reminder;
     }
 
     /// <summary>
@@ -125,21 +141,10 @@ public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
         DateTimeOffset? claimedAt,
         DateTimeOffset? notifiedAt)
     {
-        if (id == Guid.Empty)
-        {
-            throw new DomainException("A stored reminder must have an id.");
-        }
-
-        if (ownerId == Guid.Empty)
-        {
-            throw new DomainException("A stored reminder must have an owner.");
-        }
-
-        if (todoListId == Guid.Empty || todoItemId == Guid.Empty)
-        {
-            throw new DomainException("A stored reminder must name the to-do item it is about.");
-        }
-
+        // The identity and due-date invariants are the constructor's, reached at the bottom of this
+        // method. What is checked here is the part a constructor cannot see: whether the three
+        // stored values that describe a reminder's progress agree with each other.
+        //
         // A fired reminder keeps the claim it was notified under — MarkNotified requires one and
         // does not clear it. Cancel does clear it, so a cancelled row still holding one is a row no
         // sequence of operations could have written.

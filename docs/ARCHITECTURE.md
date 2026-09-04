@@ -122,36 +122,57 @@ storage — one DbContext in one schema:
 
 | Module | Registers | Storage |
 |---|---|---|
-| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, the interceptor pipeline, `IUnitOfWork`, `ILeaderLease`, the aggregate repositories and read-side ports, `IRefreshTokenTable`, `IIdentitySeeder` | `AppDbContext` → `identity`, `todo`, `reminders`, `platform` |
+| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, the interceptor pipeline, `IUnitOfWork`, `ILeaderLease`, the aggregate repositories and read-side ports, `IRefreshTokenTable`, `IIdentitySeeder` | `AppDbContext` → `identity`, `todo`, `reminders`, `files`, `platform` |
 | `AppTemplate.Infrastructure.Identity` | the authentication ports, ASP.NET Identity, JWT bearer, refresh-token rotation | — (uses the shared context) |
 | `AppTemplate.Infrastructure.Email` | `IEmailSender`, `IReminderNotifier`, email options | — |
 | `AppTemplate.Infrastructure.Storage` | `IFileContentStore`, `IFileContentInventory`, storage options | one S3-compatible bucket |
 | `AppTemplate.Infrastructure.InMemory` | in-memory port implementations for tests and demos | — |
 
-**Persistence is the one module that serves more than one feature**, and that is
-deliberate. It is partitioned internally as `Common/` (the mechanisms) plus
-`Features/<Feature>/` (models, configurations, mapping, tracking, repositories, queries,
-and — for row access to one table rather than an aggregate, such as `IRefreshTokenTable` —
-stores). Every infrastructure module is partitioned that same way, whether or not it
-serves more than one feature: `Identity` serves `Auth` alone and `Storage` serves `Files`
-alone, and both still read `Common/` plus `Features/<Feature>/`, because a reader who has
-learned one module should not have to learn a second filing system for the next. An
-architecture test asserts that nothing under `Common/` depends on a
-feature's domain or persistence types, nor on a feature's application-layer surface.
-`AppDbContext` is the one exception, because it applies every feature's configuration and
-is therefore the model's composition root. There used to be a second:
-`ReminderDiagnostics`, the adapter behind `IReminderDiagnostics`, sat under
-`Common/Observability/` while naming a feature in everything but its dependencies — which
-is precisely why the test could not see it. It now lives with the feature it counts, at
-`Features/Reminders/Observability/ReminderDiagnostics.cs`, and the rule has grown the third
-forbidden namespace that would have caught it. See
-below for why the contexts were
-merged and why EF
-maps rows rather than aggregates.
+**How many features a module serves is not what distinguishes it.** Two modules serve
+several: `Persistence` carries `Auth`, `TodoLists`, `Reminders` and `Files`, and
+`InMemory` carries `Auth`, `Files` and `Reminders` — five ports under those three feature
+folders, plus `IEmailSender` and `IDateTimeProvider` under its own `Common/`, and one opt-in
+extension method per feature (`AddInMemoryExternalIdentities`,
+`AddInMemoryReminderNotifications`, `AddInMemoryFileContent`) on top of `AddInMemoryModule`
+itself. `Identity` serves `Auth` alone, `Email` serves the two ports that send mail, and
+`Storage` serves `Files` alone. What is uniform is the *shape*: every module is partitioned
+as `Common/` (the mechanisms) plus `Features/<Feature>/` (models, configurations, mapping,
+tracking, repositories, queries, and — for row access to one table rather than an aggregate,
+such as `IRefreshTokenTable` — stores), whether it serves one feature or four, because a
+reader who has learned one module should not have to learn a second filing system for the
+next.
 
-**One DI module per project.** `AppTemplate.Api`'s composition root is a list of
-`AddXInfrastructure(configuration)` calls. Adding a capability adds one line there
-and touches nothing else; removing one deletes a project and a line.
+That shape is held by two tests, over all five modules that have a `Common/`.
+`ModuleDependencyTests.ThePersistenceMechanisms_KnowNoFeature` takes the types under
+`AppTemplate.Infrastructure.Persistence.Common` and `EveryModuleCommon_KnowsNoFeature` takes
+the other four, and both assert that nothing there depends on `AppTemplate.Domain.Features`,
+`AppTemplate.Infrastructure.Persistence.Features` or `AppTemplate.Application.Features`.
+`AppDbContext` is excluded by name because it applies every feature's configuration and is
+therefore the model's composition root — and a second test asserts that it really does name a
+feature, so the exclusion stays a decision rather than a hole.
+
+There is one other exclusion, in the identity module, and it is written as a list with a
+reason beside it rather than as a condition. `IAppUserDirectory` and its adapter name
+`AppUser`, the ASP.NET Identity row the persistence module maps. That is the permitted
+direction — the rule above forbids only the reverse — and `AppUser` is a stored account rather
+than a business entity, which is why the directory is shared machinery rather than a feature
+adapter in disguise. Adding a second name to that list is a line somebody has to justify in
+review.
+
+The forbidden list runs to three namespaces rather than one because an adapter can belong to a
+feature in its name, its counters and its prose while depending on none of that feature's
+types, and a rule that reads only dependencies cannot see it. An adapter that counts one
+feature therefore lives with that feature, as
+`Features/Reminders/Observability/ReminderDiagnostics.cs` does. See below for why one context
+rather than two, and why EF maps rows rather than aggregates.
+
+**One DI module per project.** Both hosts' composition roots are the same five lines, in the
+same order — `AddApplicationLayer()`, which takes no argument because the application layer
+binds no configuration section of its own, then `AddPersistenceModule(builder.Configuration)`,
+`AddIdentityModule`, `AddEmailModule` and `AddStorageModule`, each of which does. Adding a
+capability adds one line there and touches nothing else; removing one deletes a project and a
+line. `AddInMemoryModule` is the one module no host composes: it is registered by tests, over
+whichever real module they are replacing.
 
 **Why there is deliberately no `.Core` / `.<Technology>` sub-split.** The tempting
 next step is `AppTemplate.Infrastructure.Persistence.Core` + `.PostgreSql`, or
@@ -172,20 +193,27 @@ guessing at that shape.
 
 ## A second host: `AppTemplate.Worker`
 
-`AppTemplate.Worker` runs two `BackgroundService`s. `MaintenanceBackgroundService`
+`AppTemplate.Worker` runs three `BackgroundService`s. `MaintenanceBackgroundService`
 purges expired idempotency keys and expired refresh-token grants on a timer, through
 the exact same `IPurgeExpiredIdempotencyKeysUseCase` and
 `IPurgeExpiredRefreshTokensUseCase` that `AppTemplate.Api`'s `MaintenanceController`
 exposes over HTTP. `ReminderBackgroundService` runs `IFireDueRemindersUseCase` on its
 own timer — the only caller that use case ever has, since firing a reminder must never
-run behind a request.
+run behind a request. `FileBackgroundService` runs three passes on three separate
+timers, because their costs are three orders of magnitude apart:
+`IPurgeAbandonedRegistrationsUseCase` (one indexed query and a bounded batch of deletes),
+`IReclaimOrphanedContentUseCase` (a walk of the whole object store), and
+`IInspectDepositedFilesUseCase`, which is not a sweep at all — it is the only thing that
+moves a file from `deposited` to `available`, so its interval is a latency a user feels
+rather than a background cost.
 
 The Worker proves that the Application layer is composable by a non-HTTP host — it
 references neither `AppTemplate.Api` nor `AppTemplate.Domain` (verified in
 `Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj`), and it calls real use
 cases without shortcutting to infrastructure
 (`Features/Maintenance/MaintenanceBackgroundService.cs`,
-`Features/Reminders/ReminderBackgroundService.cs`). It shows, in the same stroke, what
+`Features/Reminders/ReminderBackgroundService.cs`,
+`Features/Files/FileBackgroundService.cs`). It shows, in the same stroke, what
 that costs: a host has to satisfy, on its own, the ports that describe its calling
 context. Its `ICurrentUser` (`Common/Security/BackgroundCurrentUser.cs`) **throws** on
 `UserId`, because it has no caller to name — there is no HTTP request and no principal
@@ -243,16 +271,16 @@ There is no `IRepository<T>`. `ITodoListRepository` has exactly three members �
 that make sense for every entity, which in practice means CRUD, and CRUD is exactly
 what an aggregate is supposed to hide.
 
-Two concrete defects in the `BaseRepository<T>` this replaces:
+Two concrete defects a `BaseRepository<T>` carries, and that this shape exists to refuse:
 
-1. **It leaked `IQueryable` to callers.** Query composition moved into the
-   application layer, so EF Core's translation rules — and any change to them —
-   became an application-layer concern.
-2. **It called `SaveChangesAsync` inside every method.** A use case touching two
-   things produced two transactions with no way to roll back the first.
+1. **It leaks `IQueryable` to its callers.** Query composition lands in the application
+   layer, so EF Core's translation rules — and every change to them — become an
+   application-layer concern.
+2. **It calls `SaveChangesAsync` inside every method.** A use case touching two things gets
+   two transactions, with no way to roll back the first.
 
-Repository methods now only *stage* work. See
-`CONTRIBUTING.md`.
+Repository methods here only *stage* work; the commit belongs to `IUnitOfWork` and to the use
+case that calls it. See `CONTRIBUTING.md`.
 
 ## Aggregates and domain events
 
@@ -303,9 +331,9 @@ The rule: **an expected outcome is a value; only a bug is an exception.**
 
 "Not found" is not exceptional — it is one of two normal answers to a lookup, and
 modelling it as a `Result` makes the failure modes visible in the use case's signature
-instead of discoverable by reading its body. The previous code threw
-`InvalidOperationException` for "not found" and leaked the message to clients as an
-HTTP 500.
+instead of discoverable by reading its body. Throwing `InvalidOperationException` for
+"not found" instead would surface a routine answer as an unhandled fault, and leak the
+message to clients as an HTTP 500.
 
 `Error` carries a stable dotted `Code` (`todoList.notFound`,
 `auth.login.invalidCredentials`) and an `ErrorType` that says how the transport should
@@ -362,20 +390,28 @@ answers that as `409` with the stable code `concurrency.conflict` in an
 `application/problem+json` body. Nothing is retried: re-applying a decision made against
 state that no longer exists is the lost update the token exists to prevent.
 
-## One DbContext, one database, four schemas
+## One DbContext, one database, five schemas
 
-| Schema | Tables | Migrations history |
-|---|---|---|
-| `todo` | `TodoLists`, `TodoItems`, `TodoItemTags` | `public.__EFMigrationsHistory` |
-| `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `DataProtectionKeys` | `public.__EFMigrationsHistory` |
-| `reminders` | `Reminders` | `public.__EFMigrationsHistory` |
-| `platform` | `IdempotencyKeys` | `public.__EFMigrationsHistory` |
+| Schema | Tables |
+|---|---|
+| `todo` | `TodoLists`, `TodoItems`, `TodoItemTags` |
+| `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `DataProtectionKeys` |
+| `reminders` | `Reminders` |
+| `files` | `StoredFiles` |
+| `platform` | `IdempotencyKeys` |
 
-There is one `AppDbContext`, deriving from `IdentityDbContext<AppUser, AppRole, Guid>`
-and also mapping the to-do list feature's rows. Every table names its own schema in its
+Four of those name a feature; `platform` is the one that does not, and it exists precisely so
+that a table belonging to no feature — the idempotency key store is the first of them — is not
+filed under a feature that would be a lie. `__EFMigrationsHistory` sits in `public`, outside
+every module schema, for the same reason taken one step further: it describes the database
+rather than anything in it. The constants are on `AppDbContext` (`IdentitySchema`, `TodoSchema`,
+`RemindersSchema`, `FilesSchema`, `PlatformSchema`, `MigrationsHistorySchema`), so a schema name
+is spelled once.
+
+There is one `AppDbContext`, deriving from `IdentityDbContext<AppUser, AppRole, Guid>` and also
+mapping the to-do list, reminder and file features' rows. Every table names its own schema in its
 own `IEntityTypeConfiguration`, so no default schema is set and a mapping cannot drift
-into the wrong schema by omission. The single history table sits in `public`, because it
-belongs to neither feature.
+into the wrong schema by omission.
 
 It resolves from the **single `ConnectionStrings:Default`**. There was previously a
 `DefaultConnection` and an `IdentityConnection` describing two databases that were
@@ -386,7 +422,7 @@ inconsistently and nothing would notice until runtime.
 independently from its own project. Once all persistence lives in one project that
 premise is gone, and one context buys something the split could not: a real transaction
 spanning an identity write and a domain write. It also removes a class of deployment
-state that used to be reachable — two histories that disagree about what has been
+state the split makes reachable — two histories that disagree about what has been
 applied, leaving one feature's schema ahead of the other's.
 
 **The boundary the split was protecting is kept by other means.** The risk of one model
@@ -406,6 +442,16 @@ the environment, with a visible localhost fallback, so `dotnet ef` works without
 the host. Two contexts on one database were tried first and merged: a second context bought a
 boundary the schema already had, and cost a second migration history.
 
+### Why a separate row type at all
+
+Mapping the domain aggregate directly is less code. The cost it hides is that the storage shape
+then dictates the model: a column has to become a property, a collection has to be something EF can
+materialise, and every mapping decision — a value object as a complex type, a derived property
+ignored, a backing field written through — is a constraint the domain carries for the database's
+benefit. Separating them means the aggregate answers only to its own rules and the row only to the
+schema, and the price is paid in one place: the mapper, plus the flush pipeline that keeps EF's
+change tracker useful without it ever seeing the aggregate.
+
 ## The HTTP boundary
 
 `AppTemplate.Api` is thin on purpose. A controller binds, calls one use case, and maps:
@@ -415,7 +461,7 @@ boundary the schema already had, and cost a second migration history.
   error shapes.
 - **Authorisation is default-deny.** `Program.cs` installs an authorization fallback
   policy requiring an authenticated user, so an endpoint is protected unless it opts
-  out. Nine of `AuthController`'s seventeen actions and the two health endpoints do —
+  out. Ten of `AuthController`'s eighteen actions and the two health endpoints do —
   and, in Development only, so do the two OpenAPI endpoints. One consequence: because
   the fallback policy also applies when no endpoint matched, an unknown route answers
   401 to an anonymous caller rather than 404.
@@ -428,9 +474,9 @@ boundary the schema already had, and cost a second migration history.
   globally, 429 with `Retry-After`. Both counters are per instance, so the limit a caller
   meets is multiplied by the replica count — see `docs/CONFIGURATION.md`. The health
   endpoints sit outside the limiter, so a traffic spike can never make a probe fail and
-  have the orchestrator restart a process that is merely busy. Behind a proxy this needs
-  `ForwardedHeaders`, which this template does not configure because it depends on your
-  topology.
+  have the orchestrator restart a process that is merely busy. Behind a proxy the partition
+  key is only correct once `ReverseProxy:Enabled` is turned on — see below; the mechanism is
+  shipped, the trust list is what your topology has to supply.
 - **Structured JSON logs.** `AddJsonConsole` replaces the default unstructured
   formatter, so production logs are queryable without taking on a third-party logging
   dependency the template would then have to maintain.
@@ -447,7 +493,16 @@ boundary the schema already had, and cost a second migration history.
 | A refresh-token cookie | The refresh token is returned in the response body: opaque, rotated on every presentation, and stored only as a SHA-256 hash. |
 | Migrations at startup in production | Development only; a deployment applies them as an explicit step. |
 | An outbox | Domain-event handlers run in-process. If a handler must reach another system, add one — do not do the I/O inline. |
-| `ForwardedHeaders` | Required for correct rate-limit partitioning and client IPs behind a proxy, but the correct configuration depends on your topology, so it is a deliberate blank. |
+| A trusted-proxy list | The hops in front of this API are a property of your topology rather than of this code, so both lists ship empty and `ReverseProxy:Enabled` defaults to `false`. The mechanism that reads them is not absent — see below. |
+
+**The trust set is the blank, not the mechanism.** `ForwardedHeaders` is wired in full:
+`Common/Security/ForwardedHeadersExtensions.cs` installs it first in the pipeline, ahead of anything
+that reads the client address or the scheme, `ReverseProxyOptions` binds the `ReverseProxy` section
+of `appsettings.json`, and `deploy/kubernetes/configmap-api.yaml` turns it on. Its validator refuses
+to start with `Enabled: true` and nothing trusted, because ASP.NET Core reads two empty lists as
+*trust everyone*, and a caller who can set `X-Forwarded-For` freely chooses its own rate-limit
+partition. The extension also clears the framework's default loopback entries before adding yours,
+so the trust set is exactly what you configured and nothing more — putting them back widens it.
 
 ## Adding a feature
 

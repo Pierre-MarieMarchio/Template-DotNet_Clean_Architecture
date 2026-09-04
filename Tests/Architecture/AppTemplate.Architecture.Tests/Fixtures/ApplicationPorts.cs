@@ -7,13 +7,11 @@ namespace AppTemplate.Architecture.Tests.Fixtures;
 /// Every contract the application layer declares for something else to satisfy, discovered from the
 /// namespaces the convention puts them in.
 /// <para>
-/// This exists because the same list used to be written out by hand in two places, eleven entries
-/// long, while the repository had twenty-nine contracts. Eighteen of them — every Reminders port,
-/// most of Auth, and <c>IIdempotencyStore</c> — were covered by no rule at all, not because anyone
-/// decided they should not be, but because adding a port and remembering to extend two arrays are
-/// different acts. <c>PortConventionTests</c> had already written the discovery and said why:
-/// "from the namespaces the convention puts them in rather than from a list a change could forget."
-/// It is now the only copy, and the rules that used the arrays read it instead.
+/// Discovered rather than listed. A port is recognised by the namespace the convention puts it in,
+/// so adding one under <c>Features/&lt;F&gt;/Ports/</c> or under <c>Common/</c> brings it into every
+/// rule that reads this — no array to remember. The match on <c>Common</c> is deliberately the whole
+/// of it rather than <c>Common.Abstractions</c> alone, because <c>IIdempotencyStore</c> lives in
+/// <c>Common.Idempotency</c>.
 /// </para>
 /// </summary>
 internal static class ApplicationPorts
@@ -30,7 +28,7 @@ internal static class ApplicationPorts
     /// <summary>
     /// The cross-cutting half: <c>Common.Abstractions</c> for the clock, the mail relay, the unit of
     /// work and the caller, plus the rest of <c>Common</c> — which is where <c>IIdempotencyStore</c>
-    /// lives, and where a narrower match on <c>Common.Abstractions</c> alone stopped seeing it.
+    /// lives, and which a narrower match on <c>Common.Abstractions</c> alone would not reach.
     /// </summary>
     private const string _crossCuttingPortNamespacePrefix = "AppTemplate.Application.Common";
 
@@ -52,6 +50,14 @@ internal static class ApplicationPorts
         typeof(IDomainEventConsumer<>),
         typeof(ICollectionPolicy),
     ];
+
+    /// <summary>
+    /// What this discovery deliberately drops. Exposed because the difference between "every public
+    /// interface in a port namespace" and "every port" is exactly this list: a rule comparing the
+    /// discovery against the source tree has to add it back, and one that could not name it would
+    /// re-derive the exclusion and drift from it.
+    /// </summary>
+    internal static IReadOnlyList<Type> NotPorts => _notPorts;
 
     /// <summary>
     /// The ports declared in <c>AppTemplate.Application</c>, ordered so a failure message reads the

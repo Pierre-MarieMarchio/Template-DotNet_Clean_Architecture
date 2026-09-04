@@ -317,7 +317,11 @@ services:
   # The object store the Files feature writes to. In production this is S3 (or R2, or Azure Blob
   # behind an S3 gateway); here it is MinIO, addressed through Storage__Endpoint. The API never
   # carries a byte either way: it signs a URL and the client talks to this service directly, which
-  # is exactly why an endpoint the browser can reach has to be published on the host.
+  # is exactly why an endpoint the browser can reach has to be published on the host. Loopback all
+  # the same, like every other port here: the browser that follows the signed URL runs on this
+  # machine — Storage__PublicEndpoint says so, it is localhost:9000 — so 127.0.0.1 costs that
+  # browser nothing, and the alternative is MINIO_ROOT_USER's minioadmin/minioadmin default offered
+  # to the local network.
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     command: server /data --console-address ":9001"
@@ -326,8 +330,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9000:9000"   # the S3 API — what Storage__Endpoint points at
-      - "9001:9001"   # the web console, for looking at what landed
+      - "127.0.0.1:9000:9000"   # the S3 API — what Storage__Endpoint points at
+      - "127.0.0.1:9001:9001"   # the web console, for looking at what landed
     volumes:
       - minio-data:/data
     healthcheck:

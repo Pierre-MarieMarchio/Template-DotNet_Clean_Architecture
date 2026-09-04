@@ -27,9 +27,7 @@ namespace AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownl
 /// <b>The gate asks for <see cref="StoredFileState.Available"/> by name, and that one word is what
 /// buys the whole inspection.</b> It is a whitelist, not a list of states to exclude, so a state
 /// added to the enum is refused here on the day it is added rather than on the day somebody
-/// remembers to extend a predicate. That is why quarantine can be a state on this aggregate at all
-/// while a deleted flag cannot: refusing by default costs nothing, and a soft delete would have
-/// needed a predicate in every query instead.
+/// remembers to extend a predicate. Rewriting it as an exclusion undoes that.
 /// </para>
 /// </summary>
 public sealed class IssueFileDownloadUseCase(

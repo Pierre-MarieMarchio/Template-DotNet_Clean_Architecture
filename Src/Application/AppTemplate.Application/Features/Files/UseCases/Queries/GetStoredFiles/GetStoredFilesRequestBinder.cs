@@ -10,6 +10,11 @@ namespace AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles
 /// applying <see cref="StoredFileCollectionPolicy.Instance"/>'s whitelist along the way. Kept apart
 /// from the use case because none of this is application logic — it is query-string translation.
 /// </summary>
+/// <remarks>
+/// <see cref="CollectionOrder"/> does the half of that translation that is the same for every
+/// collection. What is written out here is what only this feature knows: what a caller may filter
+/// its files by, and which of its sortable fields holds an instant rather than a string.
+/// </remarks>
 public static class GetStoredFilesRequestBinder
 {
     public static Result<StoredFilePageRequest> Bind(GetStoredFilesQuery query)
@@ -18,32 +23,14 @@ public static class GetStoredFilesRequestBinder
 
         var policy = StoredFileCollectionPolicy.Instance;
 
-        var modeResult = PageRequest.ParseMode(query.Paging);
+        var orderResult = CollectionOrder.Parse(query.Paging, query.Sort, policy);
 
-        if (modeResult.IsFailure)
+        if (orderResult.IsFailure)
         {
-            return modeResult.To<StoredFilePageRequest>();
+            return orderResult.To<StoredFilePageRequest>();
         }
 
-        var mode = modeResult.Value;
-
-        var sortResult = SortOrder.Parse(query.Sort, policy);
-
-        if (sortResult.IsFailure)
-        {
-            return sortResult.To<StoredFilePageRequest>();
-        }
-
-        var sort = sortResult.Value;
-
-        // A keyset comparison over more than one key plus the id tiebreaker is a row comparison this
-        // template does not implement. Refused unconditionally rather than only once a cursor is
-        // actually sent, so a caller cannot be let through on page 1 and refused on page 2.
-        if (mode == PagingMode.Cursor && sort.Terms.Count > 1)
-        {
-            return Result.Failure<StoredFilePageRequest>(
-                CollectionErrors.InvalidCursor("Cursor paging supports a single sort field."));
-        }
+        var order = orderResult.Value;
 
         var filterResult = StoredFileFilter.Create(query.Search, query.State);
 
@@ -52,54 +39,17 @@ public static class GetStoredFilesRequestBinder
             return filterResult.To<StoredFilePageRequest>();
         }
 
-        var filter = filterResult.Value;
-
-        Cursor? cursor = null;
-
-        // Decoded whenever a cursor was sent, regardless of mode: one sent with paging=offset must
-        // still fail — through PageRequest.Create, which already knows the two are alternatives —
-        // rather than being silently ignored because the mode did not match.
-        if (!string.IsNullOrWhiteSpace(query.Cursor))
-        {
-            var cursorResult = Cursor.Decode(query.Cursor, policy);
-
-            if (cursorResult.IsFailure)
-            {
-                return cursorResult.To<StoredFilePageRequest>();
-            }
-
-            var keyResult = GetStoredFilesCursorKeys.Validate(cursorResult.Value);
-
-            if (keyResult.IsFailure)
-            {
-                return keyResult.To<StoredFilePageRequest>();
-            }
-
-            cursor = keyResult.Value;
-
-            // The cursor names the order it was minted under and the read side compares its key
-            // using the request's sort term, so the two disagreeing is a comparison between a value
-            // and a column that do not match — resuming a name-ordered cursor under
-            // sort=registeredAt would parse a file name as a date. Neither side is preferred:
-            // ignoring `sort` would serve an order nobody asked for, and re-minting the cursor would
-            // skip or repeat rows.
-            if (mode == PagingMode.Cursor
-                && (!string.Equals(cursor.Field, sort.Terms[0].Field, StringComparison.Ordinal)
-                    || cursor.Direction != sort.Terms[0].Direction))
-            {
-                return Result.Failure<StoredFilePageRequest>(CollectionErrors.InvalidCursor(
-                    "This cursor was minted under a different sort order. Send the same 'sort' the "
-                    + "cursor came from, or start again without a cursor."));
-            }
-        }
-
-        var pagingResult = PageRequest.Create(mode, query.Page, query.PageSize, cursor, policy);
+        var pagingResult = order.ToPageRequest(
+            query.Page,
+            query.PageSize,
+            query.Cursor,
+            StoredFileCollectionPolicy.RegisteredAtField);
 
         if (pagingResult.IsFailure)
         {
             return pagingResult.To<StoredFilePageRequest>();
         }
 
-        return StoredFilePageRequest.Of(pagingResult.Value, sort, filter);
+        return StoredFilePageRequest.Of(pagingResult.Value, order.Sort, filterResult.Value);
     }
 }

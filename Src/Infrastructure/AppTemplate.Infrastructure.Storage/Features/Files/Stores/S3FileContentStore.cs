@@ -14,11 +14,8 @@ namespace AppTemplate.Infrastructure.Storage.Features.Files.Stores;
 
 /// <summary>
 /// <see cref="IFileContentStore"/> over an S3-compatible object store.
-/// <para>
-/// <b>The prefix is what tells this adapter from the double.</b> Two modules implement this port —
-/// this one and <c>InMemoryFileContentStore</c> — so each names the technology it is, exactly as
-/// <c>MailKitEmailSender</c> and <c>InMemoryEmailSender</c> do.
-/// </para>
+/// The prefix tells this adapter from the double: the other implementation of the port is
+/// <c>InMemoryFileContentStore</c>.
 /// <para>
 /// <b>Not one byte of any file passes through this class</b>, and every method below is shaped by
 /// that. A deposit is a signed <c>PUT</c> the client makes itself; a read is a signed <c>GET</c> the
@@ -50,14 +47,12 @@ internal sealed class S3FileContentStore(
     /// can neither drop it nor change it.
     /// </summary>
     /// <remarks>
-    /// <b>The value, not the algorithm.</b> This used to be
-    /// <c>x-amz-sdk-checksum-algorithm: SHA256</c>, which names an algorithm and supplies nothing to
-    /// check against: MinIO accepted the deposit, recorded no digest, and every confirmation then
-    /// failed in <see cref="DescribeAsync"/> for want of one — the two-step upload could not complete
-    /// against a real store at all. Sending the value fixes that and buys a second guarantee for free:
-    /// the store refuses content whose digest disagrees, so a grant authorises one body rather than
-    /// any body of the right length, and cannot be replayed to swap content after a file has been
-    /// inspected and released.
+    /// <b>The value, not the algorithm: the header carries the digest itself, so a mismatch is
+    /// refused rather than assumed compatible.</b> A header naming only an algorithm supplies
+    /// nothing to check against — the store accepts the deposit, records no digest, and
+    /// <see cref="DescribeAsync"/> then has none to confirm with. Carrying the value also makes the
+    /// grant authorise one body rather than any body of the right length, so it cannot be replayed
+    /// to swap content after a file has been inspected and released.
     /// </remarks>
     private const string _checksumHeader = "x-amz-checksum-sha256";
 
@@ -190,22 +185,6 @@ internal sealed class S3FileContentStore(
     }
 
     /// <summary>
-    /// The lifetime actually signed, clamped to the operator's ceiling. Clamping rather than
-    /// refusing, and the instant returned in the grant is computed from the clamped value, so the
-    /// caller is told how long the URL it is holding will work for and the correction is always
-    /// shorter.
-    /// <para>
-    /// <b>To within a second, and in the unsafe direction.</b> Signature Version 4 carries
-    /// <c>X-Amz-Date</c> floored to the whole second and <c>X-Amz-Expires</c> as a whole number of
-    /// seconds, so the deadline the store computes can fall up to one second before the instant this
-    /// returns. Measured against MinIO, not reasoned about: a grant asked for with a one-second
-    /// lifetime is refused on its first request while its own <c>ExpiresAt</c> is still in the
-    /// future. It is immaterial at the five-minute download window the API actually issues and it is
-    /// worth knowing before anyone mints a grant measured in seconds — a caller that treats
-    /// <c>ExpiresAt</c> as the last usable instant is right by minutes and wrong by a second.
-    /// </para>
-    /// </summary>
-    /// <summary>
     /// The digest as the store wants it: base64 of the raw bytes, where the domain carries hex.
     /// </summary>
     /// <remarks>
@@ -226,6 +205,22 @@ internal sealed class S3FileContentStore(
         return Convert.ToBase64String(Convert.FromHexString(declaredSha256));
     }
 
+    /// <summary>
+    /// The lifetime actually signed, clamped to the operator's ceiling. Clamping rather than
+    /// refusing, and the instant returned in the grant is computed from the clamped value, so the
+    /// caller is told how long the URL it is holding will work for and the correction is always
+    /// shorter.
+    /// <para>
+    /// <b>To within a second, and in the unsafe direction.</b> Signature Version 4 carries
+    /// <c>X-Amz-Date</c> floored to the whole second and <c>X-Amz-Expires</c> as a whole number of
+    /// seconds, so the deadline the store computes can fall up to one second before the instant this
+    /// returns. Measured against MinIO, not reasoned about: a grant asked for with a one-second
+    /// lifetime is refused on its first request while its own <c>ExpiresAt</c> is still in the
+    /// future. It is immaterial at the five-minute download window the API actually issues and it is
+    /// worth knowing before anyone mints a grant measured in seconds — a caller that treats
+    /// <c>ExpiresAt</c> as the last usable instant is right by minutes and wrong by a second.
+    /// </para>
+    /// </summary>
     private DateTimeOffset ExpiryFor(TimeSpan lifetime)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(lifetime, TimeSpan.Zero);

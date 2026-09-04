@@ -4,13 +4,13 @@ using System.Diagnostics.Metrics;
 namespace AppTemplate.Worker.Features.Maintenance;
 
 /// <summary>
-/// The one signal that a maintenance iteration ran at all, independent of whether it purged
-/// anything. Before this, a task that purged 0 rows every hour for weeks — because its query was
-/// silently wrong — was indistinguishable from a healthy task that simply had nothing to do: the
-/// log line only fired when the count was positive. An operator can alert on
-/// <see cref="Iterations"/> going flat; nothing before could tell them a purge had died.
+/// The one signal that a maintenance iteration ran at all, independent of whether it
+/// purged anything. A task whose query silently stops matching purges 0 rows every
+/// hour and is otherwise indistinguishable from a healthy task with nothing to do —
+/// a count of what was removed cannot tell the two apart, and only
+/// <see cref="Iterations"/> going flat can.
 /// </summary>
-internal static class MaintenanceDiagnostics
+internal static class MaintenanceInstruments
 {
     /// <summary>Shared by the <see cref="ActivitySource"/> and the <see cref="Meter"/> below, and
     /// by <c>WorkerObservabilityExtensions</c>'s own <c>AddSource</c>/<c>AddMeter</c> calls — one name, so the

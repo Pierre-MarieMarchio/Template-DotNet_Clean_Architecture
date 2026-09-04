@@ -22,6 +22,7 @@ public sealed class ReplaceTodoItemTagsCommandValidator : AbstractValidator<Repl
             .WithMessage($"An item cannot carry more than {TodoItem.MaxTags} tags.");
 
         RuleForEach(command => command.Tags)
+            .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("A tag cannot be blank.")
             .Must(tag => tag.Trim().Length <= Tag.MaxLength)
             .WithMessage($"A tag cannot exceed {Tag.MaxLength} characters.");

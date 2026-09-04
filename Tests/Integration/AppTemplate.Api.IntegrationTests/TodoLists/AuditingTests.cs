@@ -59,8 +59,8 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
 
     /// <summary>
     /// A change to a child is a change to its aggregate, so adding an item has to move the root's
-    /// <c>LastModifiedAt</c> even though no column of the root itself changed. With EF mapping the
-    /// domain this was an interceptor's job; it is now the flusher's, and the guarantee is identical.
+    /// <c>LastModifiedAt</c> even though no column of the root itself changed. The flusher is what
+    /// marks the root modified; nothing in EF's own change tracking would.
     /// </summary>
     [Fact]
     public async Task AChangeToAChild_StampsTheRoot()

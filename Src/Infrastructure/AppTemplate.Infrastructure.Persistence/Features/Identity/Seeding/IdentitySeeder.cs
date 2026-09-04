@@ -9,19 +9,19 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
 
 /// <summary>
 /// Creates the <c>Admin</c> role and, in Development only, one administrator account.
-///
-/// Three things changed from the version this replaces. It is opt-in: nothing happens unless
-/// <c>IdentitySeed:Enabled</c> is set. It is refused outside Development, loudly, rather than quietly
-/// shipping a known superuser to production. And its password comes from configuration with no
-/// default — the previous seeder hard-coded <c>admin</c> / <c>admin</c> with a pre-confirmed
-/// <c>admin@admin</c> address and silently ignored <c>!result.Succeeded</c>, so a rejected password
-/// looked like a clean start-up.
-///
+/// <para>
+/// Three guarantees, in order. It is opt-in: nothing happens unless <c>IdentitySeed:Enabled</c> is
+/// set. It is refused outside Development, loudly, rather than shipping a known superuser to
+/// production. And a failed create throws instead of being ignored, so a password the hasher
+/// rejected cannot pass for a clean start-up.
+/// </para>
+/// <para>
 /// It writes through <see cref="UserManager{TUser}"/> rather than through the context, because an
 /// account is not just a row: the password has to be hashed with the configured hasher and the
 /// security stamp has to be generated. That does mean this type is only constructible once ASP.NET
 /// Identity has been composed, which the identity module does; nothing else in this assembly has that
 /// dependency.
+/// </para>
 /// </summary>
 internal sealed class IdentitySeeder(
     UserManager<AppUser> userManager,
@@ -69,8 +69,8 @@ internal sealed class IdentitySeeder(
 
     private async Task EnsureAdminRoleAsync()
     {
-        // The previous guard was `if (!await roleManager.Roles.AnyAsync() && ...)`, so once any other
-        // role existed the Admin role could never be created again.
+        // Asks whether this role exists, not whether any role does: a guard on the emptiness of the
+        // whole table would stop creating Admin as soon as some other role was seeded.
         if (await roleManager.RoleExistsAsync(AdminRoleName))
         {
             return;

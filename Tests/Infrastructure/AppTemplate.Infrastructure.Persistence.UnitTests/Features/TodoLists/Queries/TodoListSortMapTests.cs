@@ -159,7 +159,7 @@ public sealed class TodoListSortMapTests
 
     /// <summary>
     /// A createdAt key that does not parse as a date only reaches here if
-    /// <c>TodoListCursorKeys.Validate</c> was bypassed — this proves that failure mode is loud
+    /// <c>CursorKeys.Validate</c> was bypassed — this proves that failure mode is loud
     /// rather than a wrong or silently-empty result.
     /// </summary>
     [Fact]

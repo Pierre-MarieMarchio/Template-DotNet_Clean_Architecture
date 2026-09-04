@@ -38,7 +38,7 @@ public sealed class LayoutConventionTests
         // Tracking/. Which is what makes a folder findable from a type name alone and back again: a
         // …Service is in Services/ and nowhere else, and Services/ holds nothing that is not one.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Identity"] =
-            ["Directories", "Factories", "Issuers", "Logs", "Options", "Providers", "Services", "Verifiers"],
+            ["Directories", "Factories", "Issuers", "Logs", "Options", "Providers", "Services", "Templates", "Verifiers"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Inspectors", "Inventories", "Options", "Scanners", "Stores"],
 
@@ -57,11 +57,10 @@ public sealed class LayoutConventionTests
 
     /// <summary>
     /// The folders a project's <c>Common/</c> may hold, per project. Closed for the same reason as
-    /// the feature vocabulary above, and added later for a reason worth keeping: nothing checked
-    /// <c>Common/</c> in any layer, and it is where every layout defect of the last month appeared —
-    /// twelve top-level folders in the Api with three vague names among them, a one-file
-    /// <c>Mapping/</c> in the persistence project borrowing a word that already meant something else
-    /// one level down.
+    /// the feature vocabulary above: <c>Common/</c> is where a layout drifts fastest, because a
+    /// folder with no feature to belong to accepts any name — a dozen top-level folders with vague
+    /// names among them, or a one-file <c>Mapping/</c> borrowing a word that already means something
+    /// else one level down.
     /// <para>
     /// Only the first level is checked. A word a reader meets on the way in has to be one of these;
     /// what a folder holds below that is the folder's own business — <c>Saving/</c> partitions
@@ -82,7 +81,7 @@ public sealed class LayoutConventionTests
         ["Src/Infrastructure/AppTemplate.Infrastructure.Identity"] =
             ["Directories", "Options"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
-            ["Contexts", "Idempotency", "Leases", "Saving", "Time"],
+            ["Contexts", "Idempotency", "Leases", "Options", "Saving", "Time"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Budgets", "Factories", "Options"],
         ["Src/Presentation/AppTemplate.Api"] =
@@ -165,6 +164,23 @@ public sealed class LayoutConventionTests
                 .Where(folder => !allowed.Contains(Path.GetFileName(folder), StringComparer.Ordinal))
                 .Select(folder => $"{project}: '{Path.GetRelativePath(features, folder)}' is not one of " +
                     $"[{string.Join(", ", allowed)}]"));
+
+            // The same second pass its sibling above makes over Common/'s loose files, and it has to
+            // be conditional where that one does not: a project whose list is empty says by saying so
+            // that its features hold their files side by side, which is the documented shape for the
+            // worker and for the two smallest infrastructure modules. Running the pass there would
+            // fail twenty-one correct files. Where a word does exist, a file lying beside the folders
+            // rather than in one is filed under nothing.
+            if (allowed.Length == 0)
+            {
+                continue;
+            }
+
+            offenders.AddRange(Directory
+                .EnumerateDirectories(features)
+                .SelectMany(feature => Directory.EnumerateFiles(feature, "*.cs"))
+                .Select(file => $"{project}: '{Path.GetRelativePath(features, file)}' sits loose at " +
+                    $"the root of its feature, under none of [{string.Join(", ", allowed)}]"));
         }
 
         checkedLayers.ShouldBe(
@@ -173,7 +189,9 @@ public sealed class LayoutConventionTests
 
         offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
             "A folder outside its layer's vocabulary makes the reader infer a concept from the files " +
-            "inside it, and lets one feature be organised unlike every other.");
+            "inside it, and lets one feature be organised unlike every other. A file loose beside " +
+            "those folders is the same defect from the other side: the vocabulary stops describing " +
+            "the feature the moment part of it is filed under no word at all.");
     }
 
     /// <summary>
@@ -218,6 +236,160 @@ public sealed class LayoutConventionTests
     }
 
     /// <summary>
+    /// What a project root may hold besides its <c>.csproj</c> and its one composition file.
+    /// <para>
+    /// <c>Properties/</c> is here because the SDK and the IDE own it — it holds
+    /// <c>launchSettings.json</c> and no code — and <c>Migrations/</c> because EF Core writes there.
+    /// The other two are the shape every project has.
+    /// </para>
+    /// </summary>
+    private static readonly string[] _projectRootFolders =
+        ["Common", "Features", "Migrations", "Properties"];
+
+    /// <summary>
+    /// A project root holds its <c>.csproj</c>, at most one <c>.cs</c> — the DI module class, or a
+    /// host's <c>Program.cs</c> — and folders.
+    /// <para>
+    /// A root is the one place in the tree where a file has no folder to be filed under, so it is
+    /// the one place a file can be dropped without answering the question the layout asks of every
+    /// other file. Which is why it is also where files land when nobody decides: the identity
+    /// module carried loose adapters at its root for as long as nothing read the root.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void NoProjectRoot_HoldsAnythingButItsModule()
+    {
+        var checkedProjects = 0;
+        var offenders = new List<string>();
+
+        foreach (var project in ProjectReferenceGraph.SourceProjects.Values)
+        {
+            string root = RootOf(project);
+            checkedProjects++;
+
+            var loose = Directory
+                .EnumerateFiles(root, "*.cs")
+                .Select(Path.GetFileName)
+                .Order(StringComparer.Ordinal)
+                .ToList();
+
+            if (loose.Count > 1)
+            {
+                offenders.Add(
+                    $"{project.Name}: {loose.Count} .cs files sit at its root " +
+                    $"({string.Join(", ", loose)}); only its composition file may.");
+            }
+            else if (loose.Count == 1 && !IsCompositionFile(project.Name, loose[0]!))
+            {
+                offenders.Add(
+                    $"{project.Name}: '{loose[0]}' sits at its root, which is neither 'Program.cs' " +
+                    $"nor '{ModuleFileName(project.Name)}'.");
+            }
+
+            offenders.AddRange(Directory
+                .EnumerateDirectories(root)
+                .Select(Path.GetFileName)
+                .Where(folder => folder is not "bin" and not "obj")
+                .Where(folder => !_projectRootFolders.Contains(folder, StringComparer.Ordinal))
+                .Select(folder => $"{project.Name}: '{folder}/' sits at its root, which is not one " +
+                    $"of [{string.Join(", ", _projectRootFolders)}]"));
+        }
+
+        checkedProjects.ShouldBeGreaterThanOrEqualTo(
+            9,
+            "Fewer projects were found under Src than this template ships, so this rule read no " +
+            "root at all and every root in it would report as clean.");
+
+        offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
+            "A folder even for a single file. The root is where a file goes when nobody decided " +
+            "where it goes, so it holds the one file that composes the project and nothing else.");
+    }
+
+    /// <summary>
+    /// A file-scoped namespace declaration. Anchored at column zero, and the only form the compiler
+    /// accepts here — <c>csharp_style_namespace_declarations = file_scoped</c> is an error in
+    /// .editorconfig — so a file this does not match declares no namespace at all.
+    /// </summary>
+    private static readonly Regex _fileScopedNamespace = new(
+        @"^namespace\s+([A-Za-z_][A-Za-z0-9_.]*)\s*;",
+        RegexOptions.Multiline,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>
+    /// Namespaces follow folders, with no exceptions: the namespace of a file is its project's name
+    /// followed by the folders on the way to it.
+    /// <para>
+    /// This is what makes the two directions of navigation agree. A folder in the vocabulary tells a
+    /// reader what nature of thing is in it, and the rules above hold that; but a using directive
+    /// naming a folder that does not hold the file sends the next reader to the wrong place, and no
+    /// compiler complains, because a namespace is a name and not a location.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void EverySourceFile_DeclaresTheNamespaceOfItsFolder()
+    {
+        var examined = 0;
+        var offenders = new List<string>();
+
+        foreach (var project in ProjectReferenceGraph.SourceProjects.Values)
+        {
+            string root = RootOf(project);
+
+            foreach (string file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
+            {
+                if (IsBuildOutput(file) || IsGenerated(file))
+                {
+                    continue;
+                }
+
+                examined++;
+
+                // No project sets RootNamespace, so it is the project name, which is also the name
+                // of the folder the project file sits in.
+                string folder = Path.GetRelativePath(root, Path.GetDirectoryName(file)!);
+                string expected = folder is "."
+                    ? project.Name
+                    : $"{project.Name}.{folder.Replace(Path.DirectorySeparatorChar, '.')}";
+
+                string relative = Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file);
+                var declaration = _fileScopedNamespace.Match(File.ReadAllText(file));
+
+                if (!declaration.Success)
+                {
+                    // A host's Program.cs is top-level statements, which the compiler puts in the
+                    // global namespace. There is nothing to compare, and the only way to give it a
+                    // namespace is to give up the top-level form.
+                    if (Path.GetFileName(file) is "Program.cs" && folder is ".")
+                    {
+                        continue;
+                    }
+
+                    offenders.Add($"{relative} declares no namespace; its folder asks for '{expected}'.");
+                }
+                else if (!string.Equals(declaration.Groups[1].Value, expected, StringComparison.Ordinal))
+                {
+                    offenders.Add(
+                        $"{relative} declares '{declaration.Groups[1].Value}'; its folder asks for " +
+                        $"'{expected}'.");
+                }
+            }
+        }
+
+        // Without this, a filter that matched nothing reports no offender and reads as a pass — and
+        // the count is printed with the offenders below for the same reason: a rule that says how
+        // many files it read is one whose silence can be checked.
+        examined.ShouldBeGreaterThanOrEqualTo(
+            600,
+            "Far fewer source files were found than this template holds, so the walk is not reading " +
+            "the tree it is meant to describe and every file in it would read as well named.");
+
+        offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
+            $"Namespaces follow folders. No exceptions. ({examined} files read.) A namespace that " +
+            "names a folder the file is not in is a wrong direction given to every reader who " +
+            "follows the using directive, and nothing else in the build will say so.");
+    }
+
+    /// <summary>
     /// A folder holding nothing is structure carrying no information: it suggests a concept the
     /// feature does not actually have, and a reader opening it learns only that they were misled.
     /// </summary>
@@ -231,11 +403,10 @@ public sealed class LayoutConventionTests
             .Where(folder => !IsBuildOutput(folder))
             .ToList();
 
-        // The floor RuleAssertions asks every test in this project for, and the one test here that
-        // did not have it: this rule asserts an emptiness, so a walk that found no folders at all
-        // passes it. Its two siblings above establish their own candidate sets and would fail on a
-        // wrong root, but a rule that leans on a neighbour to be non-vacuous is one that stops being
-        // a guarantee the day the neighbour moves.
+        // This rule asserts an emptiness, so a walk that found no folders at all passes it. Its two
+        // siblings above establish their own candidate sets and would fail on a wrong root, but a
+        // rule that leans on a neighbour to be non-vacuous is one that stops being a guarantee the
+        // day the neighbour moves.
         walked.Count.ShouldBeGreaterThanOrEqualTo(
             200,
             "Far fewer folders were found than this template holds, so the walk is not reading the " +
@@ -345,6 +516,22 @@ public sealed class LayoutConventionTests
             File.Delete(probe);
         }
     }
+
+    /// <summary>The directory holding a project file, which is the project's root.</summary>
+    private static string RootOf(ProjectNode project) =>
+        Path.GetDirectoryName(Path.Combine(ProjectReferenceGraph.RepositoryRoot, project.RelativePath))!;
+
+    /// <summary>
+    /// The DI module class a project's name asks for: the last segment of the name, plus
+    /// <c>Module</c>. <c>AppTemplate.Infrastructure.Persistence</c> composes itself in
+    /// <c>PersistenceModule</c>, which is how <c>AddPersistenceModule</c> is findable from the call.
+    /// </summary>
+    private static string ModuleFileName(string projectName) =>
+        $"{projectName[(projectName.LastIndexOf('.') + 1)..]}Module.cs";
+
+    private static bool IsCompositionFile(string projectName, string fileName) =>
+        fileName is "Program.cs"
+        || string.Equals(fileName, ModuleFileName(projectName), StringComparison.Ordinal);
 
     private static HashSet<string> PublicTypesIn(string file) =>
         [.. _publicTypeDeclaration

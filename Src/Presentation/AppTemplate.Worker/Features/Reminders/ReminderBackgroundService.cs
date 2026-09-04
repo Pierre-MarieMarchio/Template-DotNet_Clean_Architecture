@@ -66,7 +66,7 @@ internal sealed class ReminderBackgroundService(
             // decided to do nothing, and it has to look different both from a healthy quiet pass and
             // from a loop that died. Logged every time for the same reason — see the log inside the
             // try block below for the other half of that requirement.
-            ReminderDiagnostics.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "disabled"));
+            ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "disabled"));
 
             if (logger.IsEnabled(LogLevel.Information))
             {
@@ -78,7 +78,7 @@ internal sealed class ReminderBackgroundService(
 
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
 
-        using Activity? activity = ReminderDiagnostics.ActivitySource.StartActivity("reminders.fire");
+        using Activity? activity = ReminderInstruments.ActivitySource.StartActivity("reminders.fire");
 
         try
         {
@@ -91,8 +91,8 @@ internal sealed class ReminderBackgroundService(
                 // silently stopped matching anything must look different from a healthy pass that
                 // simply had nothing due, and only this line — logged every time, count included —
                 // makes that visible.
-                ReminderDiagnostics.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "success"));
-                ReminderDiagnostics.Notified.Add(result.Value);
+                ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "success"));
+                ReminderInstruments.Notified.Add(result.Value);
                 activity?.SetTag("reminders.notified", result.Value);
 
                 if (logger.IsEnabled(LogLevel.Information))
@@ -103,7 +103,7 @@ internal sealed class ReminderBackgroundService(
             else
             {
                 Error error = result.Error!;
-                ReminderDiagnostics.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "failure"));
+                ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "failure"));
                 activity?.SetStatus(ActivityStatusCode.Error, error.Code);
                 logger.LogWarning(
                     "Firing due reminders reported a failure: {ErrorCode} — {ErrorMessage}.",
@@ -119,7 +119,7 @@ internal sealed class ReminderBackgroundService(
         }
         catch (Exception exception)
         {
-            ReminderDiagnostics.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "exception"));
+            ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "exception"));
             activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
             logger.LogError(exception, "Firing due reminders failed unexpectedly; will retry at the next interval.");
         }

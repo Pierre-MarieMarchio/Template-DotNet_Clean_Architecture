@@ -5,12 +5,22 @@ summarises: aggregate → EF model → mapper → tracker → repository → use
 named interface) → controller → tests → migration. `TodoLists` is the real example
 running through every step below — open the file next to the paragraph describing
 it. `Reminders` is the same vertical without child entities, and `Files` is the one
-whose state does not all live in the database; section 4b says what that changes.
+whose state does not all live in the database; sections 4b and 4c say what each of
+those changes.
 
 The rule behind every step: **a layer only speaks its own language.** The domain
 never imports EF; the API never imports EF Core either, only the application
 layer's DTOs and ports. `Tests/Architecture/AppTemplate.Architecture.Tests` enforces
-this at build time, so a shortcut here is a failing test, not a silent drift.
+this, so a shortcut here is a failing architecture test rather than a silent drift.
+Those rules are tests, not compiler checks: `dotnet build` says nothing about them,
+so run `dotnet test Tests/Architecture` before you push. Where a step below can only
+be got right by knowing which rule reads it, the rule is named on the spot.
+
+Two placeholders run through the whole document. **`<Feature>` is the folder, in the
+plural** — `TodoLists`, `Reminders`, `Files` — and **`<Aggregate>` is the type, in the
+singular** — `TodoList`, `Reminder`, `StoredFile`. Folders under `Features/` carry the
+feature; file and type names carry the aggregate. `TodoListErrors` lives in
+`Features/TodoLists/Errors/`, and nothing in the tree is called `TodoListsErrors`.
 
 ## 1. Domain — the aggregate
 
@@ -43,7 +53,18 @@ public interface ITodoListRepository
 ```
 
 `AdapterVisibilityTests` recognises a repository contract by a namespace ending in
-`.Repositories` — that is the whole rule, so follow the folder name exactly.
+`.Repositories` — that is the whole rule, so follow the folder name exactly. Seal the
+aggregate root: `DomainModelTests.AggregateRoots_AreSealed` requires it.
+
+**An event nothing listens to has to be a decision, not an oversight.** The first
+`Events/<Thing>DomainEvent.cs` you add turns
+`DomainEventTests.EveryDomainEvent_IsEitherConsumedOrListedAsUnconsumed` red until one
+of two things is true: some `IDomainEventConsumer<T>` in the application layer handles
+it, or its type name is written into the `_deliberatelyUnconsumed` array at the top of
+`Tests/Architecture/AppTemplate.Architecture.Tests/Rules/DomainEventTests.cs` with the
+reason nothing consumes it. Publishing a fact no consumer wants yet is perfectly good
+design; leaving the reader unable to tell that from a consumer somebody forgot is not,
+and the array is where the difference is stated.
 
 ## 2. Application — the use case and its port
 
@@ -64,7 +85,7 @@ Policies/                      the collection whitelist, and every other rule th
 Extensions/                    small helpers scoped to this feature
 Mapping/                       aggregate -> DTO projections
 Dtos/<Name>Dto.cs              read models more than one operation shares
-Errors/<Feature>Errors.cs      the feature's Error catalogue
+Errors/<Aggregate>Errors.cs    the feature's Error catalogue
 ```
 
 A folder is only present when it has content — a feature with no domain-event consumer
@@ -74,6 +95,26 @@ A type that appears in a port's signature never moves into a use case's folder, 
 many use cases call that port — otherwise `Ports/` would depend on `UseCases/`.
 `TodoListPageRequest` is the real example: it is `ITodoListQueries`'s parameter, so it
 lives in `Ports/TodoListQueries/`, not inside any one query's own folder.
+
+**Two of those folders hold things nothing discovers for you, and both are registered
+by hand in `ApplicationModule.AddApplicationLayer`.** A domain-event consumer is bound
+to its event with `services.AddDomainEventConsumer<TEvent, TConsumer>()`; the binding
+is written out rather than scanned, so a consumer nothing reaches is an absence you can
+see in the file instead of a silence at runtime. A collaborator under `Services/` has
+no request or response shape of its own, so the marker-based discovery below never sees
+it either: bind it with its own `services.AddScoped<TContract, TImplementation>()` next
+to the three that are already there. Skip either line and the code still compiles — the
+consumer simply never fires, and the use case that takes the collaborator throws on its
+first resolution.
+
+A port is a capability, not a façade, and two architecture rules hold it to that.
+`PortConventionTests` refuses any port declaring more than **four** operations: four is
+what the widest port here needs, and a fifth means a second capability that belongs in
+a port of its own. It also refuses a feature port that *every* use case in its vertical
+depends on, because a vertical whose use cases are all wrappers around one collaborator
+has put its logic in the collaborator. Neither rule applies to the cross-cutting ports
+in `Common/Abstractions/` — the clock and the caller's identity may legitimately be
+needed everywhere.
 
 One class per use case, plus **exactly one named interface** deriving from
 `IUseCase<TRequest, TResponse>` (or `IUseCase<TResponse>`):
@@ -101,11 +142,12 @@ public sealed class CreateTodoListUseCase(
 }
 ```
 
-The named interface is not decoration: `ServiceRegistration.AddUseCases` scans every
-`IUseCase` implementation and registers it under the **one** other interface it
-declares. Zero or several named interfaces throws at container-build time — the
-same moment a missing DI registration would otherwise surface as a 500 on first
-request. Controllers depend on the named interface, never on the concrete class.
+The named interface is not decoration: `ApplicationModule.AddUseCasesFrom` walks the
+application assembly and registers every `IUseCase` implementation under the **one**
+other interface it declares. Zero or several named interfaces throws from
+`AddApplicationLayer` itself, at registration, before the container is ever built —
+rather than surfacing as a 500 on first request the way a missing registration would.
+Controllers depend on the named interface, never on the concrete class.
 
 Return `Result`/`Result<T>` carrying an `Error` with a stable `code` for every
 expected failure (not found, not owner, validation). Reserve `DomainException` for a
@@ -122,9 +164,9 @@ Sorting, filtering and paging are already built, once, in
 allows**:
 
 ```
-Policies/<Feature>CollectionPolicy.cs            the sortable whitelist and the bounds
-Ports/<Feature>Queries/<Feature>Filter.cs        the typed filter surface + its validation
-Ports/<Feature>Queries/<Feature>PageRequest.cs   the one validated type the port accepts
+Policies/<Aggregate>CollectionPolicy.cs              the sortable whitelist and the bounds
+Ports/<Aggregate>Queries/<Aggregate>Filter.cs       the typed filter surface + its validation
+Ports/<Aggregate>Queries/<Aggregate>PageRequest.cs  the one validated type the port accepts
 ```
 
 The filter and the page request travel with the read-side port they are the parameter
@@ -141,13 +183,20 @@ public sealed class TodoListCollectionPolicy : ICollectionPolicy
     public const string NameField = "name";
     public const string CreatedAtField = "createdAt";
 
+    /// <summary>
+    /// Offset-only because the column is nullable: a keyset comparison against a row
+    /// whose key is <c>NULL</c> is neither true nor false, so the row the cursor was
+    /// minted from would be skipped rather than resumed from.
+    /// </summary>
+    public const string LastModifiedAtField = "lastModifiedAt";
+
     public static readonly TodoListCollectionPolicy Instance = new();
 
     public IReadOnlyList<SortableField> SortableFields { get; } =
     [
         SortableField.Keyset(NameField),          // may also be used with paging=cursor
         SortableField.Keyset(CreatedAtField),
-        SortableField.OffsetOnly(LastModifiedAtField),   // nullable column — see below
+        SortableField.OffsetOnly(LastModifiedAtField),
     ];
 
     public string DefaultSort => "createdAt:desc";
@@ -180,7 +229,7 @@ Four rules, and they are the whole reason this is safe:
    `CONTRIBUTING.md` for why there is no expression language.
 
 The use case parses the raw query into the validated types and hands the port a
-single `<Feature>PageRequest` — which has no public constructor, so a request that
+single `<Aggregate>PageRequest` — which has no public constructor, so a request that
 skipped validation cannot be built at all:
 
 ```csharp
@@ -191,7 +240,7 @@ Task<PagedResult<TodoListSummaryDto>> GetForOwnerAsync(
 ```
 
 The translation to SQL is the persistence half, in
-`Features/<Feature>/Queries/<Feature>SortMap.cs`: an exhaustive `switch` on the
+`Features/<Feature>/Queries/<Aggregate>SortMap.cs`: an exhaustive `switch` on the
 canonical field name returning a typed key selector, a `default` arm that throws
 because the use case should already have refused, and a mandatory
 `.ThenBy(record => record.Id)` on every order. Copy `TodoListSortMap` — the shape
@@ -239,8 +288,10 @@ because they exist specifically to keep the split intact:
    registers the result with the tracker. Never calls `SaveChangesAsync` — that is
    `IUnitOfWork`'s job, called once by the use case.
 
-Register everything in `PersistenceModule.AddPersistenceModule`, following the
-existing `AddTodoListsFeature` method as the template:
+Registration is in two files, and both are required. The first is
+`PersistenceModule.AddPersistenceModule`, which wires the container — add an
+`Add<Feature>Feature` method of your own next to the existing `AddTodoListsFeature`,
+and call it from `AddPersistenceModule` alongside the others:
 
 ```csharp
 services.TryAddSingleton<ITodoListMapper, TodoListMapper>();
@@ -251,7 +302,12 @@ services.AddScoped<IAggregateFlusher>(p => p.GetRequiredService<TodoListTracker>
 services.AddScoped<IDomainEventSource>(p => p.GetRequiredService<TodoListTracker>());
 
 services.TryAddScoped<ITodoListRepository, TodoListRepository>();
+services.TryAddScoped<ITodoListQueries, TodoListQueries>();
 ```
+
+That last line is the read-side port from section 2, and it is the one to check twice:
+leaving it out breaks nothing the write endpoints touch, so everything looks right
+until the list endpoint fails to resolve on its first request.
 
 **Register the tracker once, as a factory under each contract — never three
 separate `AddScoped` calls.** Three registrations mean three instances: the
@@ -260,6 +316,37 @@ one, and every write persists nothing, silently, with no error anywhere.
 `SharedInstanceRegistrationTests` exists to catch exactly this, and it will fail
 loudly if a new feature gets it wrong — do not treat a failure there as a false
 positive.
+
+The second file is
+`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs`,
+and it is where the mapping becomes real. **`PersistenceModule` applies no EF
+configuration at all**; `AppDbContext` names each one by hand, so a feature needs three
+things written there:
+
+1. **A schema constant.** No default schema is set on the model, so a table that names
+   none lands in the connection's default schema rather than the feature's. Add
+   `public const string <Feature>Schema = "<feature>";` beside `TodoSchema`,
+   `RemindersSchema` and `FilesSchema`, and read it from your
+   `IEntityTypeConfiguration`'s `ToTable` call. A feature that owns its own schema is
+   also a feature whose removal is a deleted migration file rather than a drop.
+2. **A `DbSet`.** `internal DbSet<<Aggregate>Record> <Feature> => Set<<Aggregate>Record>();`
+   — internal, like every other set here, because nothing outside the assembly has any
+   business naming a storage shape.
+3. **The `ApplyConfiguration` call.** Add
+   `builder.ApplyConfiguration(new <Aggregate>RecordConfiguration());` to
+   `OnModelCreating`, in the block for your feature.
+
+Miss the third and the configuration is inert. Nothing about that is loud on its own:
+the build is green, the architecture rules that read types are green, and
+`dotnet ef migrations add` writes an **empty** migration, because the model and the
+snapshot omit the entity in exactly the same way — so even `PendingModelChangesTests`
+agrees. The first thing that disagrees is a query at runtime.
+`PersistenceModelTests.EveryEntityTypeConfiguration_IsAppliedByTheContext` is the rule
+that closes that gap: it reads the `IEntityTypeConfiguration` implementations in the
+module, reads the `ApplyConfiguration` calls out of `AppDbContext.cs`, and names any
+configuration that appears in the first list and not the second. Its counterpart
+checks the other direction. Run the architecture project and you will be told which
+configuration you forgot; skip it and you will find out from a `500`.
 
 ## 4. API — controller and contracts
 
@@ -278,6 +365,18 @@ commands, and turns `Result`/`Error` into the right status via `ErrorMapping` (s
 installs a default-deny fallback policy — so an anonymous endpoint needs an
 explicit `[AllowAnonymous]`, not the absence of an attribute.
 
+Two things about the HTTP surface are decided for you, and `HttpSurfaceTests` holds
+both. **There is no `PATCH`**: a partial update means an omitted field is ambiguous
+between *absent* and *unchanged*, and an invariant is a property of the whole
+aggregate, so it cannot be checked against a body whose meaning depends on which keys
+the client happened to send. Every write says in its route what it does — `RenameX`,
+`CompleteX`, `RescheduleX` — rather than accepting a bag of optional fields.
+**And an `[AllowAnonymous]` is two edits, not one**: the attribute on the action, and
+the action's method name added to the `_anonymousActions` array in
+`Tests/Architecture/AppTemplate.Architecture.Tests/Rules/HttpSurfaceTests.cs`. That
+array is the whole of the public surface written down in one place, so opening an
+endpoint is a line somebody reviews rather than an attribute nobody notices.
+
 ## 4b. When the feature is not only rows — the `Files` example
 
 Everything above assumes a feature whose whole state is rows in the one database.
@@ -295,7 +394,13 @@ takes a `string` key and a `long` size, never an `ObjectKey` or a `FileSize` —
 `StorageVocabularyTests` refuses a `Store` whose signature names anything under
 `AppTemplate.Domain.Features`, and that refusal is what the word `Store` means here.
 The adapter lives in its own module, `AppTemplate.Infrastructure.Storage`, which
-names its folders by subject because it has one kind of adapter.
+follows the same nature-word vocabulary as everything else: `Common/{Budgets,
+Factories, Options}` and `Features/Files/{Inspectors, Inventories, Options, Scanners,
+Stores}`, one plural per nature of file and nothing else inside. A new infrastructure
+module of your own gets the same treatment, and
+`LayoutConventionTests.EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn` will not
+let it build until its vocabulary is written into `CONTRIBUTING.md`'s layout tree and
+into the rule's own dictionary.
 
 **The two halves meet in a use case and nowhere else.** No repository reaches the
 bucket, no adapter reaches the database. `ConfirmFileUploadUseCase` is where the row
@@ -325,11 +430,46 @@ the factory **and** `Rehydrate`, like any aggregate here — and its enum values
 pinned by a test, because they are persisted as integers and renumbering them would
 reinterpret every existing row without changing a single line of the schema.
 
+## 4c. When the aggregate has no child entities — the `Reminders` example
+
+`TodoLists` owns items, and items own tags, so a good part of what section 3 asks for
+exists only because of that ownership. `Reminders` is the same vertical with a flat
+aggregate, and it is the closer comparison for most new features: read it to see which
+of the pieces above you actually need.
+
+What it does not have is the point. The domain side is four files —
+`Entities/Reminder.cs`, `ValueObjects/ReminderState.cs`,
+`Events/ReminderFiredDomainEvent.cs`, `Repositories/IReminderRepository.cs` — with no
+child collection, so `ReminderRepository` loads a row and maps it, where
+`TodoListRepository` needs `.Include(list => list.Items).ThenInclude(item => item.Tags)`
+and `.AsSplitQuery()`. There is no `Policies/` folder either: reminders are read one
+item's worth at a time, so the feature has no collection endpoint, and therefore no
+`CollectionPolicy`, no `Filter`, no `PageRequest` and no `SortMap`. Section 2b simply
+does not apply to it. Skipping all of that is the default, not a shortcut — build the
+collection machinery when a feature has a list to page, and not before.
+
+Three things it does show that `TodoLists` does not. **The four-operation cap is a rule
+about application ports, not about repository contracts.** `IReminderRepository`
+declares five members, and that is legitimate: it lives in the domain, and
+`PortConventionTests` reads only interfaces under
+`AppTemplate.Application.Features.<F>.Ports`. **`ReminderFiredDomainEvent` is a live
+entry in `_deliberatelyUnconsumed`**, with the reason written next to it — the worked
+example of the decision section 1 asks you to make. **And the feature is driven from
+two hosts**: `RemindersController` serves the HTTP side, while `FireDueRemindersUseCase`
+is called by the Worker, which is why the feature has ports for a notifier
+(`Ports/ReminderNotifier/`), for its own metrics (`Ports/ReminderDiagnostics/`) and for
+the targets it notifies (`Ports/ReminderTargetQueries/`). A use case is a use case
+whichever host calls it; nothing about the shape changes.
+
 ## 5. Tests
 
-`Tests/` mirrors `Src/` one directory for one directory — domain tests under
-`Tests/Domain/AppTemplate.Domain.UnitTests/`, application tests under
-`Tests/Application/AppTemplate.Application.UnitTests/`, and so on. Add:
+`Tests/` mirrors `Src/`: domain tests under `Tests/Domain/AppTemplate.Domain.UnitTests/`,
+application tests under `Tests/Application/AppTemplate.Application.UnitTests/`, and so
+on. The mirror is exact down to `Features/<Feature>/`; below that it is followed only
+where a feature has enough tests of one nature to be worth separating. In the
+persistence mirror, for instance, the mapper and tracker tests sit directly under
+`Features/<Feature>/` while `Queries/` has a folder of its own. Match the neighbouring
+feature rather than the source tree when the two disagree. Add:
 
 - Domain: the aggregate's invariants, from the constructor, the factory, and
   `Rehydrate` alike.
@@ -359,7 +499,7 @@ restore it.
 ## 6. Migration
 
 ```bash
-./tasks.ps1 migration-add <Name>
+dotnet run Tools/Tasks.cs migration-add <Name>
 ```
 
 Then confirm nothing was missed:
@@ -369,6 +509,12 @@ dotnet ef migrations has-pending-model-changes \
   --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
   --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
 ```
+
+`PendingModelChangesTests` asserts the same thing without a database and runs in CI, so
+a migration that has fallen behind the model is caught whether or not anyone ran the
+command. Read it together with the caution in section 3: it compares the model to the
+snapshot, and a configuration that was never applied is missing from both, so a green
+result here is not on its own evidence that your table exists.
 
 See `CONTRIBUTING.md` for why the API applies migrations at startup only in
 Development, and `SECURITY.md` for what a real deployment still has to do with the
@@ -385,12 +531,12 @@ so cleanly would mean rewriting those tests against a different resource, not ju
 deleting files, and shipping a switch that quietly weakens the test suite is worse
 than not shipping one.
 
-If you want it gone, delete, in this order, and let the compiler and the
-architecture tests find what is left: `Src/**/Features/TodoLists/`,
-`Tests/{Domain,Application,Infrastructure,Presentation}/**/Features/TodoLists/`,
-`Tests/Integration/AppTemplate.Api.IntegrationTests/TodoLists/`, the
-`AddTodoListsFeature` call in `PersistenceModule`, the `TodoItemCompletedDomainEvent`
-consumer registration in `ServiceRegistration`, and the `TodoLists` table migration
-(regenerate with `./tasks.ps1 migration-add InitialCreate` against a project that no
-longer references the feature). Expect to also rewrite the integration tests listed
-above against whatever resource replaces it.
+If you want it gone anyway, follow `docs/REMOVING-THE-EXAMPLE-FEATURES.md` rather than
+improvising from the tree. Deleting the folders is the easy half. The removal takes
+`Reminders` with it, because a reminder is scheduled against a to-do item and that
+feature does not compile without this one; it touches `ApplicationModule` in five
+separate lines, one of which is the validator anchor naming a type you just deleted;
+and the migration is where guessing costs data, since `AddExampleFeatures` carries
+`todo` and `reminders` together and what to do with it depends on whether a database
+has already applied it. That document names every file, every edit and the state each
+test suite is left in.

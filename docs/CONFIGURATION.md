@@ -1,14 +1,19 @@
 ﻿# Configuration
 
-Every setting the application reads is listed here. The tracked
-`Src/Presentation/AppTemplate.Api/appsettings.json` is the schema of record and contains **no secrets** —
-every secret-shaped value in it is an empty string.
+Every setting the application reads is listed here — this page, not a file, is the complete
+list. The tracked `Src/Presentation/AppTemplate.Api/appsettings.json` is the schema of record for
+everything the API host must be told, and contains **no secrets**: every secret-shaped value in it
+is an empty string. Five sections whose defaults are all safe are omitted from it and documented
+here instead — `Database`, `IdempotencyPurge`, `IdentityTokens`, `ExternalIdentity` and `Postmark`
+— as is `Idempotency:ClaimLease`, whose four siblings are there. An absent section is not an absent
+key: each of them binds and validates exactly as the ones written out do.
 
 ## How configuration is loaded
 
 Sources, later overriding earlier:
 
-1. `appsettings.json` — committed, non-secret, complete key list.
+1. `appsettings.json` — committed, non-secret, every key the host must be told (see above for
+   the sections it deliberately leaves to their defaults).
 2. `appsettings.Development.json` — committed, localhost throwaways. Loaded **only**
    when `ASPNETCORE_ENVIRONMENT=Development`, and **only** under that exact spelling.
 3. **User secrets** — local machine, never committed. `UserSecretsId` is already set
@@ -19,9 +24,10 @@ Sources, later overriding earlier:
 
 ## Validation happens at startup, not on first use
 
-Each section below binds to an options class with an `IValidateOptions<T>` validator
-registered with `.ValidateOnStart()`. A missing or out-of-range value **fails the host
-at startup** with a message naming the exact key.
+Every section below binds to an options class with an `IValidateOptions<T>` validator
+registered with `.ValidateOnStart()` — every one but `Cors`, which is read straight off
+`IConfiguration` and is the single exception noted in its own section. A missing or
+out-of-range value **fails the host at startup** with a message naming the exact key.
 
 Verified — blanking `EmailConfirmation:ConfirmEmailUrl` and shortening `Jwt:Key`:
 
@@ -39,22 +45,36 @@ value that silently works.
 This means `appsettings.json` alone will not boot the app — by design. The blanks must
 be filled from user secrets or environment variables.
 
-> **Where the options classes live.** Each section is bound and validated by the module
-> that consumes it, so the file path follows the responsibility rather than the history:
+> **Where the options classes live.** Each section is bound and validated by the module that
+> consumes it, and inside that module a transverse section sits under `Common/Options/` while
+> one that belongs to a single feature sits under `Features/<Feature>/Options/` — the same
+> partition every infrastructure module uses for everything else.
 >
 > | Section | Bound by | Declared in |
 > |---|---|---|
-> | `Jwt`, `Identity`, `RefreshToken`, `EmailConfirmation`, `IdentityTokens` | `AddIdentityModule` | beside the service each configures, under `AppTemplate.Infrastructure.Identity/<Subject>/` |
+> | `Identity`, `IdentityTokens` | `AddIdentityModule` | `AppTemplate.Infrastructure.Identity/Common/Options/` |
+> | `Jwt`, `RefreshToken`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `TwoFactor`, `ExternalIdentity` | `AddIdentityModule` | `AppTemplate.Infrastructure.Identity/Features/Auth/Options/` |
 > | `IdentitySeed` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Features/Identity/Seeding/` |
-> | `Email` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Options/` |
-> | `Database` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/PersistenceModule.cs` |
-> | `IdempotencyPurge` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Idempotency/IdempotencyStore.cs` |
-> | `MaintenanceWorker` | `AppTemplate.Worker`'s own `Program.cs` | `AppTemplate.Worker/Features/Maintenance/` |
+> | `Database` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Options/` |
+> | `IdempotencyPurge` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Idempotency/` |
+> | `Email`, `Postmark` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Common/Smtp/` and `Common/Http/` |
+> | `Storage` | `AddStorageModule` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
+> | `ContentInspection` | `AddStorageModule` | `AppTemplate.Infrastructure.Storage/Features/Files/Options/` |
+> | `MaintenanceWorker`, `ReminderWorker`, `FileWorker` | `AppTemplate.Worker`'s own `Program.cs` | `AppTemplate.Worker/Features/<Feature>/` |
+> | Everything else | `AppTemplate.Api`'s own `Program.cs` | beside the middleware that reads it, under `AppTemplate.Api/Common/` |
 >
 > `IdentitySeed` sits with the seeder because seeding is a persistence concern, not an
 > authentication policy. **The configuration keys and their validation do not change** —
 > only the file paths and which DI extension method binds them. Treat any path in this
 > document as indicative and the key names as authoritative.
+>
+> One consequence of the `Options/` folder name is worth knowing before you add another: it
+> puts an `Options` namespace under the module's own root, which shadows
+> `Microsoft.Extensions.Options.Options` for every file beneath it — so the short
+> `Options.Create(…)` stops resolving in the test project that mirrors it. The two projects
+> that meet this say so where they work around it: `StorageFixture` writes the fully
+> qualified `Microsoft.Extensions.Options.Options.Create`, and
+> `ConfirmationEmailFactoryTests` uses `OptionsWrapper<T>` instead.
 
 ## Two hosts, one configuration schema
 
@@ -69,15 +89,18 @@ would use if it ever called it. It composes `AddApplicationLayer`, `AddPersisten
 bound and validated too — `AddPersistenceModule` does that unconditionally — but every one of its
 members has a safe default (`Enabled: false`), so an absent section validates cleanly; the worker
 never *exercises* seeding either way, since `IIdentitySeeder`/`MigrateAndSeedForDevelopmentAsync`
-are only ever called from `AppTemplate.Api/Program.cs`. The worker does **not** read `Cors`,
-`ReverseProxy`, `SecurityHeaders`, `OpenTelemetry`, `Concurrency`, `Idempotency`, `RequestLimits`,
+are only ever called from `AppTemplate.Api/Program.cs`. It reads `OpenTelemetry` too, through its
+own `WorkerTelemetryOptions` — a deliberate twin of the API's `TelemetryOptions`, same section and
+same keys, because the worker cannot reference the API project; an option one of them honours and
+the other ignores is a bug, not a difference. The worker does **not** read `Cors`,
+`ReverseProxy`, `SecurityHeaders`, `Concurrency`, `Idempotency`, `RequestLimits`,
 `Shutdown` or `RequestTimeouts` — those are the API's transport-layer concerns, and the worker has
 no transport layer. The worker still waits for its own in-flight iteration to finish on shutdown,
 on `HostOptions.ShutdownTimeout`'s framework default — nothing here raises it for that host.
 
 **Why the worker validates `Jwt`, `Identity`, `RefreshToken`, `EmailConfirmation`, `PasswordReset`
 and `EmailChange` at startup even though it never authenticates anybody.**
-Two reasons, and for a long time this document named only the smaller of them.
+Two reasons, and the second is the one that decides it.
 
 The smaller: `IRefreshTokenMaintenanceService`'s only adapter lives in
 `AppTemplate.Infrastructure.Identity`. Read alone, that invites an obvious conclusion — move that
@@ -169,7 +192,7 @@ they are **not** the values in `appsettings.Development.json`, which override th
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `Default` | string | — | **Required.** The one and only connection string. Npgsql format. Every DbContext uses it; see [ARCHITECTURE.md](ARCHITECTURE.md#two-dbcontexts-one-database). |
+| `Default` | string | — | **Required.** The one and only connection string. Npgsql format. The one `DbContext` uses it; see [ARCHITECTURE.md](ARCHITECTURE.md#one-dbcontext-one-database-five-schemas). |
 
 Example: `Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=…`
 
@@ -398,9 +421,9 @@ that never knew the key behaves exactly as before.
 **Two of the three validation rules follow the *public* endpoint, and that is the point.** The
 scheme of the signed URL, and the refusal to send a bearer right in clear without
 `AllowInsecureTransport`, are properties of the endpoint that produces URLs. The typical deployment
-is the inverse of what the code used to assume — plain HTTP inside the mesh, TLS at the ingress —
-and it was being forced to allow insecure transport for the internal hop and then signing `http://`
-URLs for a public that was on `https://`. An internal endpoint in clear carries no file bytes and no
+is plain HTTP inside the mesh and TLS at the ingress; validating against the *internal* endpoint
+would force such a deployment to allow insecure transport for the internal hop and then sign
+`http://` URLs for a public that is on `https://`. An internal endpoint in clear carries no file bytes and no
 reusable credential (Signature V4 puts a per-request signature on the wire, never the secret); a
 **public** endpoint in clear puts a reusable right to read or write an object into a proxy log, a
 `Referer` and a browser history.
@@ -531,7 +554,8 @@ SMTP transport.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `Host` | string | `""` | **Required.** |
+| `Transport` | string | `Smtp` | `Smtp` or `Postmark`. It decides whether the rest of this table is read at all — see [Email:Transport](#emailtransport--smtp-or-an-http-api) above. |
+| `Host` | string | `""` | **Required when `Transport` is `Smtp`.** |
 | `Port` | int | `587` | Range 1–65535. |
 | `Security` | enum | `StartTls` | MailKit `SecureSocketOptions`: `None`, `Auto`, `SslOnConnect`, `StartTls`, `StartTlsWhenAvailable`. Constrained — see below. |
 | `AllowInsecureTransport` | bool | `false` | Explicit opt-in to an unencrypted transport against a **non-loopback** host. |
@@ -651,14 +675,22 @@ environment fails at that call site rather than being quietly ignored.
 |---|---|---|---|
 | `AllowedOrigins` | string[] | `[]` | Exact origins. Bind by index from the environment: `Cors__AllowedOrigins__0`, `…__1`, … |
 
-Reconciled against `Src/Presentation/AppTemplate.Api/Common/Security/CorsExtensions.cs`, which reads the key
-`Cors:AllowedOrigins`:
+**This is the one section with no options class and no validator.**
+`Src/Presentation/AppTemplate.Api/Common/Security/CorsExtensions.cs` reads
+`Cors:AllowedOrigins` straight off `IConfiguration` at composition time, so nothing checks
+the values: an entry that is not a well-formed origin — a trailing slash, a path, a
+hostname with no scheme — is registered exactly as written and then silently matches no
+browser request. Every other section on this page fails the host at startup instead. If you
+depend on CORS, verify the header on a real preflight rather than trusting that the process
+started.
 
 - **An empty or absent array allows nothing**, rather than silently allowing
   everything. A same-origin caller is unaffected, since CORS only governs
   cross-origin requests.
 - When origins are configured, the policy allows any header and any method, exposes
-  `Retry-After`, and caches preflight for 10 minutes.
+  `Retry-After`, `ETag`, `Location` and `Idempotency-Replayed`, and caches preflight for
+  10 minutes. Those four are exactly the response headers this API's contracts ask a client
+  to read, and a browser cannot see one that is not exposed.
 - `AllowCredentials` is deliberately **not** set: tokens travel in the `Authorization`
   header, not a cookie. It is the wildcard-origin-plus-credentials combination that
   turns a permissive policy into a vulnerability.
@@ -732,6 +764,12 @@ Read by `Src/Presentation/AppTemplate.Api/Common/Observability/ObservabilityExte
 ASP.NET Core, `HttpClient` and Npgsql; metrics cover ASP.NET Core and `HttpClient`. `/health*` is
 excluded from both traces and the request log.
 
+The worker reads the same five keys, from the same section, through
+`Src/Presentation/AppTemplate.Worker/Common/Observability/WorkerObservabilityExtensions.cs`. It
+instruments no ASP.NET Core — it answers no request — and adds its three loops' own sources and
+meters instead; `ServiceName` falls back to `AppTemplate.Worker` there rather than to the API's
+assembly name.
+
 - **An unreachable collector is safe.** Startup succeeds and the failing export cycles produce
   no log output at all, because the OTLP exporter reports failures on its own `EventSource`
   rather than through `ILogger`. Verified against a dead endpoint.
@@ -770,14 +808,15 @@ version at all.
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `Enabled` | bool | `true` | `false` makes the filter inert; a client sending `Idempotency-Key` is then simply not protected. |
-| `Retention` | timespan | `24:00:00` | Sets each row's `ExpiresAt` — how long a *completed* response stays replayable. Must be > 0 and ≤ 30 days. See the note below on what actually enforces it. |
+| `Retention` | timespan | `1.00:00:00` (24 hours) | Sets each row's `ExpiresAt` — how long a *completed* response stays replayable. Must be > 0 and ≤ 30 days. See the note below on what actually enforces it. |
 | `ClaimLease` | timespan | `00:15:00` | How long an *unfinished* claim blocks a retry before it is treated as abandoned and made reclaimable. Must be > 0 and ≤ `Retention`. |
 | `MaxKeyLength` | int | `128` | Must be 1…512. A longer key is `400` `idempotency.keyInvalid`. |
 | `MaxStoredResponseBytes` | int | `8192` | Must be ≥ 1. A larger response is stored without its body, and a replay then answers `409` `idempotency.notReplayable` rather than a truncated body. |
 
 Read by `Src/Presentation/AppTemplate.Api/Common/Idempotency/IdempotencyExtensions.cs`. The filter is
-registered globally but is **inert unless the action carries `[Idempotent]`** — only
-`POST /api/v1/todo-lists` and `POST /api/v1/todo-lists/{id}/items` do. Sending no
+registered globally but is **inert unless the action carries `[Idempotent]`** — four actions do:
+`POST /api/v1/todo-lists`, `POST /api/v1/todo-lists/{id}/items`,
+`POST /api/v1/todo-lists/{id}/items/{id}/reminders` and `POST /api/v1/files`. Sending no
 `Idempotency-Key` is always allowed: the capability is available, not compulsory.
 
 What each setting does when it is wrong:
@@ -927,7 +966,11 @@ knob: `IFireDueRemindersUseCase` takes no command, so how many reminders one pas
 | Refresh token size / hash | 32 bytes CSPRNG / SHA-256 | `RefreshTokenGrants` |
 | Aggregate item cap | 500 items per list | `TodoList.MaxItems` |
 | Tag cap | 20 tags per item | `TodoItem.MaxTags` |
-| Readiness checks | a DbContext check and a shutdown-state check, both tagged `ready` | `Program.cs`, `Common/Lifecycle/ShutdownHealthCheck.cs` |
+| Readiness checks | a DbContext check and a shutdown-state check, both tagged `ready` | `Program.cs`, `Common/Hosting/ShutdownHealthCheck.cs` |
+| Largest single file | 5 GiB | `FileSize.MaxBytes` |
+| Uploads one owner may have outstanding | 20 | `StoredFileQuotaPolicy.MaxPendingRegistrations` |
+| Files one owner may keep | 1 000 | `StoredFileQuotaPolicy.MaxFiles` |
+| Bytes one owner may keep | 10 GiB | `StoredFileQuotaPolicy.MaxBytes` |
 | Max page size | 100 | `TodoListCollectionPolicy.MaxPageSize` |
 | Default page size | 20 | `TodoListCollectionPolicy.DefaultPageSize` |
 | Max sort terms | 3 | `TodoListCollectionPolicy.MaxSortTerms` |
@@ -962,6 +1005,14 @@ explains why partitioning the global limiter by user identity is not available a
 is computed, and why moving authentication earlier to make it available would cost more than it
 saves. Behind a proxy this all depends on `ReverseProxy` being configured — see above; without it
 every request carries the proxy's address and the whole deployment shares one partition.
+
+**The four file bounds are the anti-abuse rule of a feature that hands out signed write
+URLs**, and they measure three different costs: how many unexpired write rights one caller
+may be holding, how large that caller's listing may get, and how much of the bucket one
+owner may fill. A caller that meets any of them gets `409` `storedFile.quotaExceeded`. The
+pending bound is self-clearing — `FileWorker:PurgeAbandonedRegistrations*` removes
+registrations that were never deposited against — so a client that crashed mid-upload waits
+rather than being locked out.
 
 The collection bounds are per-feature by design: they live on that feature's
 `ICollectionPolicy`, not in configuration, because a deployment cannot know which of a

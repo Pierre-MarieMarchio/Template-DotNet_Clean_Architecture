@@ -141,7 +141,7 @@ public sealed class RateLimitingExtensionsTests
     /// <summary>
     /// <c>RateLimiterWindow</c> is the one lever a host has over a limiter with no injectable clock,
     /// and the integration suite widens it to an hour to stay off a real window boundary. Reading it
-    /// into the budget is what keeps that lever working now that the counters are behind a seam.
+    /// into the budget is what carries that lever across the <see cref="IRateLimitCounters"/> seam.
     /// </summary>
     [Fact]
     public void AReplacedWindow_ReachesTheCountersThroughBothBudgets()

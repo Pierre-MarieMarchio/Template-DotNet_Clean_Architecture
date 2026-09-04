@@ -4,11 +4,9 @@
 /// The object store, as this application uses it: mint a right to write one object, mint a right to
 /// read one object, say what is actually under a key, and remove it.
 /// <para>
-/// <b>It never carries a byte, and that is the whole point.</b> Inbound bodies are capped at 64 KiB
-/// by <c>RequestLimitsOptions</c> and the idempotency filter buffers and SHA-256s every <c>POST</c>
-/// body before a handler sees it, so routing a real upload through this process is not viable. The
-/// client deposits directly against a signed URL this port produces, and comes back to confirm.
-/// The same reasoning applies to reading: the API answers with a right, not with content.
+/// <b>It never carries a byte, in either direction.</b> The client deposits directly against a
+/// signed URL this port produces and comes back to confirm; reading answers with a right, not with
+/// content. See <c>SECURITY.md</c> for what makes routing an upload through this process untenable.
 /// </para>
 /// <para>
 /// <b>A grant is a bearer right.</b> Whoever holds the URL can use it, so nothing about it is a

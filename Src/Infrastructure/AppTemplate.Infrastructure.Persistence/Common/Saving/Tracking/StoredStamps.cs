@@ -7,18 +7,9 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 /// <para>
 /// Every feature's <c>ToAggregate</c> ends the same way, because the store owns exactly the same four
 /// values regardless of what the aggregate itself looks like: the concurrency token, and the
-/// created/modified pair the audit interceptor writes. That is a genuine duplicate between
-/// <c>TodoListMapper</c> and <c>ReminderMapper</c> — the two implementations differed only in the word
-/// naming the aggregate in the one message a malformed row can raise — and collecting it here removes
-/// the duplicate without touching the part of either mapper that actually needs a reviewer's eyes: the
-/// field-by-field translation the round-trip fidelity test exists to check.
-/// </para>
-/// <para>
-/// <b>A method, not a base class.</b> A base <c>Mapper&lt;TAggregate, TRecord&gt;</c> would have nothing
-/// else to put in it — <c>ToNewRecord</c> and <c>WriteTo</c> are exactly where the two mappers stop
-/// agreeing — and splitting one mapper's total, checkable behaviour across two files for the sake of a
-/// four-line tail is what the round-trip test's reader would then have to read around rather than see
-/// whole: only the block both mappers wrote identically is here, and the rest diverges on purpose.
+/// created/modified pair the audit interceptor writes. Only that identical tail lives here; the
+/// field-by-field translation stays in each mapper, whole, where the round-trip fidelity test's
+/// reader can see all of it at once.
 /// </para>
 /// </summary>
 internal static class StoredStamps

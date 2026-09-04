@@ -11,14 +11,10 @@ namespace AppTemplate.Domain.Features.Files.Entities;
 /// with no child entities — nothing about a file has to be consistent with anything else in the same
 /// transaction.
 /// <para>
-/// <b>This aggregate never holds a byte, and that is the design rather than an omission.</b> The
-/// content lives in an object store, and it gets there without passing through this application at
-/// all: the client registers the file here, receives a signed URL, deposits the bytes directly onto
-/// the store, and comes back to confirm. Two measured facts force that shape. Inbound bodies are
-/// capped at 64 KiB by <c>RequestLimitsOptions</c>, with a validated ceiling far below the size of a
-/// real upload; and the idempotency filter buffers and SHA-256s the entire body of every
-/// <c>POST</c>, so a large multipart body would be held in memory and hashed before any handler saw
-/// it. A deposit that never enters the request pipeline pays neither cost.
+/// <b>This aggregate never holds a byte.</b> The content lives in an object store and gets there
+/// without passing through this application at all: the client registers the file here, receives a
+/// signed URL, deposits the bytes directly onto the store, and comes back to confirm. See
+/// <c>SECURITY.md</c> for why the API carries no content in either direction.
 /// </para>
 /// <para>
 /// The consequence is the state machine below. Because the row and the bytes are written by two
@@ -31,11 +27,9 @@ namespace AppTemplate.Domain.Features.Files.Entities;
 /// <para>
 /// <b>Deleting is removing the row.</b> There is no deleted state and no deletion instant: the
 /// file's bytes are reclaimed by a sweep that lists the store and deletes what no live row names, so
-/// nothing has to survive the row in order to say which bytes are owed. That is what lets this
-/// aggregate keep the repository's rule that a row is either there or it is not, while still
-/// reclaiming storage without depending on any message being delivered.
-/// <see cref="StoredFileState.Quarantined"/> is not an exception to it — a quarantined file is a
-/// live row its owner can see and delete, not a tombstone every query has to filter out.
+/// nothing has to survive the row in order to say which bytes are owed.
+/// <see cref="StoredFileState.Quarantined"/> is not an exception — a quarantined file is a live row
+/// its owner can see and delete, not a tombstone every query has to filter out.
 /// </para>
 /// </summary>
 public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
@@ -103,8 +97,8 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
     public StoredFileName Name { get; private set; }
 
     /// <summary>
-    /// What the client said the file is, and it keeps the word "declared" for the whole life of the
-    /// file even though something does now read the content.
+    /// What the client said the file is. It keeps the word "declared" for the whole life of the
+    /// file, even after the content has been read.
     /// <para>
     /// The reason is that the inspection between <see cref="StoredFileState.Deposited"/> and
     /// <see cref="StoredFileState.Available"/> does not <em>correct</em> this value, it

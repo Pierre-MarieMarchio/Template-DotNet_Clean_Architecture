@@ -21,10 +21,10 @@ public sealed class TodoListMapperReconciliationTests
     private readonly TodoListMapper _mapper = new();
 
     /// <summary>
-    /// The single most important negative assertion in the persistence layer. The defect this template was
-    /// rescued from was a write that rebuilt a detached row and assigned every column, which flattened the
-    /// audit values with whatever the detached object happened to hold. The audit columns have exactly one
-    /// writer — the interceptor — and the mapper is not it.
+    /// The single most important negative assertion in the persistence layer. A write that rebuilds a
+    /// detached row and assigns every column flattens the audit values with whatever the detached object
+    /// happens to hold. The audit columns have exactly one writer — the interceptor — and the mapper is
+    /// not it.
     /// </summary>
     [Fact]
     public void WriteTo_LeavesTheAuditColumnsAndTheConcurrencyTokenAlone()

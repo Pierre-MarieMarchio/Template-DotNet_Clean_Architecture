@@ -23,25 +23,29 @@ against your production system.
 ## What the template provides
 
 ### Authentication and session handling
-- **Default-deny authorisation.** A fallback policy requires an authenticated user, so an endpoint
-  is protected unless it carries an explicit `[AllowAnonymous]`. Forgetting `[Authorize]` no longer
-  publishes an endpoint.
+- **Default-deny authorisation.** `Program.cs` sets `AuthorizationOptions.FallbackPolicy` to one
+  requiring an authenticated user, so an endpoint is protected unless it carries an explicit
+  `[AllowAnonymous]`. Forgetting `[Authorize]` does not publish an endpoint. The policy also
+  applies where no endpoint matched, so an unknown route answers `401` to an anonymous caller.
 - **Opaque, rotating refresh tokens**, never JWTs. Only a hash is stored. Presenting a token always
   consumes it, and replaying one that was already consumed **revokes the whole family** for that
-  user. Consumption is a single conditional `UPDATE` — zero affected rows *is* the replay signal —
-  so two simultaneous presentations cannot both succeed.
+  user. `RefreshTokenTable` does the consumption as a single conditional `UPDATE` — zero affected
+  rows *is* the replay signal — so two simultaneous presentations cannot both succeed.
 - **Account lockout** and a configurable password policy with a floor that configuration cannot
   lower. Email confirmation is required to sign in.
-- **JWT validation** with issuer and audience always checked, a pinned algorithm list, thirty
-  seconds of clock skew, and security-stamp revalidation on every token — so a password change or a
+- **JWT validation** with issuer and audience always checked, a pinned algorithm list
+  (`ConfigureJwtBearerOptions` sets `ValidAlgorithms = [HmacSha256]`, matching what
+  `AccessTokenIssuer` signs with), thirty seconds of clock skew, and security-stamp revalidation on
+  every token — so a password change or a
   lockout takes effect before the access token would have expired. The skew is small and
   deliberately not zero: the issuer stamps the token from the injected clock while validation reads
   the machine's, so at zero tolerance one backward step — an NTP correction, a resumed VM — refuses
   every token in circulation at once. It is far below the framework's five-minute default.
 - **Resistance to account enumeration.** Login does not distinguish an unknown user from a wrong
-  password, *including in timing* — there is a deliberate decoy-hash path built from the configured
-  hasher so both branches cost the same. Confirm-email answers identically for an unknown address
-  and a bad token. Resend-confirmation answers identically whether or not the address exists.
+  password, *including in timing* — `UserAccountsService` runs a deliberate decoy-hash path built
+  from the configured hasher, so both branches cost the same. Confirm-email answers identically for
+  an unknown address and a bad token. Resend-confirmation answers identically whether or not the
+  address exists.
 - **Email confirmation is a POST with a JSON body**, not a GET with a query string, to keep a
   single-use token out of access logs, browser history and the `Referer` header.
 - **Two-factor sign-in via an authenticator app (TOTP)**, built entirely on ASP.NET Core Identity's
@@ -49,6 +53,10 @@ against your production system.
   codes, shown once. A password that matches a two-factor account still does not sign in on its own:
   `/login` answers with a short-lived challenge token instead of a token pair, and a second call
   exchanges that token plus a code — from the authenticator app or a recovery code — for the pair.
+  It is neither a JWT nor a data-protected token, and could not be: both carry their own validity
+  and are accepted on the strength of a signature, whereas this one has to be revocable while it is
+  still in date — spent by the redemption that succeeds, destroyed by the attempts that fail. That
+  makes server-side state the requirement rather than the implementation detail.
   The challenge is spent by a successful redemption, and **bounded on failure**: it tolerates
   `TwoFactor:MaxChallengeAttempts` wrong codes (five by default) and is then destroyed, so the
   password has to be presented again. That counter is the only thing that bounds guessing a code —
@@ -71,6 +79,10 @@ against your production system.
   prevent a stolen session doing.
 
 ### Transport and headers
+
+`Common/Security/SecurityHeadersExtensions.cs` holds all of the following, and
+`Common/Security/CorsExtensions.cs` the last one.
+
 - `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, and a
   default-deny `Content-Security-Policy`
   (`default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`).
@@ -89,15 +101,36 @@ against your production system.
 
 ### Abuse resistance
 - Rate limiting per client address: 10 requests/minute on the authentication endpoints, 300/minute
-  globally, answering `429` with `Retry-After` and a ProblemDetails body.
+  globally, answering `429` with `Retry-After` and a ProblemDetails body. The two numbers are
+  `RateLimitingExtensions.AuthenticationPermitLimit` and `.GlobalPermitLimit`, over the
+  one-minute `RateLimiterWindow.Default`.
 - **This is only correct if `ReverseProxy` is configured — see the deployment obligations.**
 - Bounded aggregates: a maximum number of items per list and tags per item, so one request cannot
   make the server do unbounded work.
+- **An oversized body is refused before it is buffered, and the refusal is logged.**
+  `UseApiRequestLimits` answers `413` without calling the next middleware, which would ordinarily
+  make the rejection invisible — so `Program.cs` registers `UseApiRequestLogging` *ahead* of it,
+  and every `413` produces a log entry reporting the status the caller received. A flood of them
+  is the signal that someone is probing the limit, and it would otherwise be the one class of
+  refusal that left no trace.
 
 ### Data handling
-- **No exception message ever reaches a client.** Every failure becomes an RFC 7807 ProblemDetails
-  with a stable machine-readable `code`, and a `traceId` that joins to the server-side trace and log
-  entry.
+- **No exception message ever reaches a client**, and it takes two mechanisms rather than one,
+  because there are two ways a message gets out. `GlobalExceptionHandler` closes the first: an
+  unhandled exception becomes an RFC 7807 ProblemDetails with a fixed sentence, a stable
+  machine-readable `code` and a `traceId` that joins to the server-side trace and log entry —
+  never the exception's own text. `builder.Services.Configure<Mvc.JsonOptions>(o =>
+  o.AllowInputFormatterExceptionMessages = false)` in `Program.cs` closes the second: left on, the
+  JSON input formatter copies a `JsonException`'s text into the model error, and that text names
+  the CLR type being bound and the byte offset it stopped at. Turned off, the model error carries
+  the exception with no message and `ModelStateProblemExtensions` writes the sentence instead.
+  Malformed JSON — a `null` inside an array included — is therefore a `400` describing the request,
+  not a `500` describing the server.
+- **Every ProblemDetails carries the same three members.** `ProblemDetailsNormaliser` is the single
+  funnel, so a `400` the framework produced before any of this repository's code ran — a body that
+  is not JSON, a failed `:guid` route constraint, an unacceptable media type — still fills in
+  `code`, `traceId` and `type`, and never overwrites a value a producer already set. A client that
+  always reads `code` does not break on exactly the inputs most likely to be malformed.
 - **Another user's resource is a `404` and never a `403`** — a `403` would confirm the resource
   exists. Two mechanisms reach that answer, and which one applies depends on whether an aggregate is
   loaded. A read that projects rows filters on the owner **inside the query**, so the row never
@@ -115,7 +148,8 @@ against your production system.
   `Optional`; see the known gap
   below for what stays your responsibility.
 - **Request logging never touches the `Authorization` header, cookies, the query string or the body.**
-  It logs a fixed field list, so a credential cannot arrive in a log by accident. The auth endpoints
+  `Common/Observability/RequestLoggingMiddleware.cs` logs a fixed field list, so a credential cannot
+  arrive in a log by accident. The auth endpoints
   carry passwords and refresh tokens in their bodies, which is why body logging is not merely
   disabled but absent.
 
@@ -166,6 +200,10 @@ says otherwise.
   URL.
 - **The bucket must never allow anonymous reads.** `docker-compose.yml`'s bucket bootstrap sets
   `anonymous none` explicitly. A readable bucket makes every grant in this template decoration.
+  The MinIO service in that file publishes both its ports on loopback — `127.0.0.1:9000` for the
+  S3 API and `127.0.0.1:9001` for the console — like every other published port in the stack, so a
+  development object store holding whatever was uploaded to it is not reachable from the network
+  the developer's machine happens to be on.
 - **A file name is a label, never a path.** `StoredFileName` refuses separators, control characters
   and reserved device names, and the object key is generated independently of it — so nothing a
   client sends can steer where bytes land. The name never reaches a filesystem at all.
@@ -173,7 +211,8 @@ says otherwise.
   is inspected before it becomes readable: the leading bytes are matched against the declared type,
   and the content is scanned. A file whose real type disagrees with its declaration is
   **quarantined**, not served. **Markup is refused outright, whatever it was declared as** — an SVG
-  is a script container, and there is no version of "serve it inline" that is safe. Two checks do
+  is a script container, and there is no version of "serve it inline" that is safe. Two checks in
+  `Src/Application/AppTemplate.Application/Features/Files/Policies/MediaTypeSignatures.cs` do
   that, and the second is the one that cannot be walked past: the first searches the inspected
   prefix for `<svg`, `<html`, `<script` and a doctype, which an author can evade by padding with a
   kibibyte of XML comment, and the second refuses any document whose *first* meaningful byte is

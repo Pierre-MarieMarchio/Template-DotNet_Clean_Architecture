@@ -48,9 +48,10 @@ internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
         {
             ValidateIssuerSigningKey = true,
 
-            // Never conditional. The previous code wrote `ValidateIssuer = !string.IsNullOrEmpty(...)`,
-            // so leaving the issuer blank in configuration silently switched the check off instead of
-            // failing; both values are now required by JwtOptionsValidator.
+            // Never conditional, and never derived from whether a value is present: a check that
+            // switches itself off when its configuration is blank refuses nothing while looking
+            // like it does. JwtOptionsValidator requires both values, so there is nothing left to
+            // be conditional about.
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,

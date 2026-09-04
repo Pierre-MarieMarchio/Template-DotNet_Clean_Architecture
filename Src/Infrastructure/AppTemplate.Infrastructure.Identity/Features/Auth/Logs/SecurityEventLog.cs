@@ -101,13 +101,19 @@ internal sealed partial class SecurityEventLog(ILogger<SecurityEventLog> logger)
     [LoggerMessage(Level = LogLevel.Information, Message = "Login succeeded for user {UserId}.")]
     private static partial void LogLoginSucceeded(ILogger logger, Guid? userId);
 
+    /// <summary>
+    /// The field is <c>{Status}</c> because what it carries is a <see cref="CredentialCheckStatus"/>.
+    /// In this repository's vocabulary (CONTRIBUTING.md, Naming) an <c>…Outcome</c> is the record an
+    /// operation hands back and a <c>…Status</c> is the closed enum of ways it went, so the old
+    /// <c>{Outcome}</c> named the wrong one of the two in the JSON an operator queries.
+    /// </summary>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "Authentication failed for user {UserId} with outcome {Outcome}.")]
+        Message = "Authentication failed for user {UserId} with status {Status}.")]
     private static partial void LogAuthenticationFailed(
         ILogger logger,
         Guid? userId,
-        CredentialCheckStatus? outcome);
+        CredentialCheckStatus? status);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "User {UserId} was locked out.")]
     private static partial void LogAccountLockedOut(ILogger logger, Guid? userId);

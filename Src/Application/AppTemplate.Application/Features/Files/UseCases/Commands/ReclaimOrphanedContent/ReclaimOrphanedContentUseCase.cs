@@ -12,13 +12,13 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphan
 /// Deletes stored objects that no row names. This is where the storage a deleted file used to
 /// occupy actually goes away, and it is the only thing in the feature that guarantees it.
 /// <para>
-/// <b>It re-derives its own precondition rather than consuming a message, which is what makes the
-/// missing outbox a cost instead of a bug.</b> <c>StoredFileDeletedDomainEvent</c> has a consumer
-/// and that consumer is a fast path: events here are dispatched in-process, after commit, at most
-/// once, so one may simply not run. This pass asks a question whose answer does not depend on any
-/// delivery having happened — "is there a row that names this key?" — and it covers a case no event
-/// could: bytes deposited against a signed URL whose registration was swept away before it was ever
-/// confirmed, for which nothing was ever raised at all.
+/// <b>It re-derives its own precondition rather than consuming a message.</b>
+/// <c>StoredFileDeletedDomainEvent</c> has a consumer, but that consumer is a fast path: events
+/// here are dispatched in-process, after commit, at most once, so one may simply not run. This pass
+/// asks a question whose answer does not depend on any delivery having happened — "is there a row
+/// that names this key?" — and it covers a case no event could: bytes deposited against a signed
+/// URL whose registration was swept away before it was ever confirmed, for which nothing was ever
+/// raised at all.
 /// </para>
 /// <para>
 /// <b>The order of the two reads is the safety argument, and reversing it deletes live files.</b>

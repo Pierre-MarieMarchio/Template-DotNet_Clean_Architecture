@@ -160,7 +160,7 @@ internal static class StoredFileSortMap
         SortDirection direction,
         Cursor cursor)
     {
-        // GetStoredFilesCursorKeys validates that a "registeredAt" cursor's key parses as a date before
+        // CursorKeys validates that a "registeredAt" cursor's key parses as a date before
         // the use case ever calls this port, so an unparseable key here means that check was bypassed —
         // a defect in this template, not in the request, and it must stay loud rather than silently
         // ordering by nothing.
@@ -171,7 +171,7 @@ internal static class StoredFileSortMap
             out DateTimeOffset key))
         {
             throw new InvalidOperationException(
-                "The cursor's key is not a valid date/time: GetStoredFilesCursorKeys should have rejected "
+                "The cursor's key is not a valid date/time: CursorKeys should have rejected "
                 + "it before this was ever reached.");
         }
 

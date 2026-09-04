@@ -37,10 +37,97 @@ public sealed class ModuleDependencyTests
     /// </summary>
     private static readonly string[] _forbiddenInPersistenceCommon =
     [
-        ArchitectureAssemblies.TodoListsDomainNamespace,
+        ArchitectureAssemblies.DomainFeaturesNamespace,
         ArchitectureAssemblies.PersistenceFeaturesNamespace,
         ArchitectureAssemblies.ApplicationFeaturesNamespace,
     ];
+
+    /// <summary>
+    /// The modules whose <c>Common/</c> is held to the same rule as the persistence one: what no
+    /// single subject owns may not name a subject.
+    /// </summary>
+    private static readonly (string Module, System.Reflection.Assembly Assembly)[] _moduleCommons =
+    [
+        ("AppTemplate.Infrastructure.Identity", ArchitectureAssemblies.IdentityInfrastructure),
+        ("AppTemplate.Infrastructure.Storage", ArchitectureAssemblies.StorageInfrastructure),
+        ("AppTemplate.Infrastructure.Email", ArchitectureAssemblies.EmailInfrastructure),
+        ("AppTemplate.Infrastructure.InMemory", ArchitectureAssemblies.InMemoryInfrastructure),
+    ];
+
+    /// <summary>
+    /// The one documented exception, and the reason it is one rather than a defect. The identity
+    /// module reads accounts through <c>AppUser</c>, which is the shared ASP.NET Identity row that
+    /// the persistence module maps — not a business entity, and not a type any application port
+    /// exposes. Identity depending on persistence is the permitted direction: the rule above
+    /// forbids only the reverse, and the architecture describes this module as using the shared
+    /// context. So the directory names it, and nothing else in this module's <c>Common/</c> does.
+    /// <para>
+    /// It sits here rather than in the rule's condition so that adding a second one is a line in
+    /// this list with a reason beside it, which is a thing a reviewer sees.
+    /// </para>
+    /// </summary>
+    private static readonly string[] _commonTypesAllowedToNameAFeature =
+    [
+        "IAppUserDirectory",
+        "AppUserDirectory",
+    ];
+
+    /// <summary>
+    /// The same rule the persistence mechanisms are held to, applied to the four other modules.
+    /// <c>Common/</c> holds what no single subject owns; a type there that names a feature is a
+    /// feature adapter wearing the shared machinery's clothes, and the folder stops meaning
+    /// anything.
+    /// </summary>
+    [Fact]
+    public void EveryModuleCommon_KnowsNoFeature()
+    {
+        var checkedModules = 0;
+
+        foreach ((string module, var assembly) in _moduleCommons)
+        {
+            var mechanisms = Types.InAssembly(assembly)
+                .That()
+                .ResideInNamespaceStartingWith($"{module}.Common");
+
+            var candidates = mechanisms.GetTypes()
+                .Where(type => !_commonTypesAllowedToNameAFeature.Contains(type.Name, StringComparer.Ordinal))
+                .ToList();
+
+            if (candidates.Count == 0)
+            {
+                continue;
+            }
+
+            checkedModules++;
+
+            var offenders = candidates
+                .Where(type => Types.InAssembly(assembly)
+                    .That()
+                    .HaveName(type.Name)
+                    .ShouldNot()
+                    .HaveDependencyOnAny(_forbiddenInPersistenceCommon)
+                    .GetResult()
+                    .IsSuccessful is false)
+                .Select(type => $"{module}: {type.Name}")
+                .Order(StringComparer.Ordinal)
+                .ToList();
+
+            offenders.ShouldBeEmpty(
+                $"Nothing under '{module}.Common' may name a feature's domain types, a feature's "
+                + "persistence namespace, or a feature's application-layer surface. A type that "
+                + "does is a feature adapter filed as shared machinery, which is how one of them "
+                + "escaped every rule in this project for a month. Move it under "
+                + $"Features/<Feature>/, or add it to {nameof(_commonTypesAllowedToNameAFeature)} "
+                + "with the reason it belongs to no single subject.");
+        }
+
+        // Four modules have a Common/, and all four are read. A filter that stopped matching would
+        // otherwise leave this test reporting success over nothing at all.
+        checkedModules.ShouldBeGreaterThanOrEqualTo(
+            3,
+            $"Only {checkedModules} module Common namespaces yielded types. This rule is written "
+            + "against four, so either a module lost its Common/ or the namespace match is stale.");
+    }
 
     [Fact]
     public void Persistence_DependsOnNoModule()
@@ -150,13 +237,11 @@ public sealed class ModuleDependencyTests
     /// The assembly list the rules above address, against the modules that actually exist on disk.
     /// </summary>
     /// <remarks>
-    /// <c>ArchitectureAssemblies</c> is maintained by hand, and nothing about adding an
-    /// infrastructure module prompts anyone to extend it. It had already fallen behind:
-    /// <c>AppTemplate.Infrastructure.Storage</c> was referenced by this project, composed by
-    /// <c>HostComposition</c>, and absent from both lists — so five rules had no jurisdiction over the
-    /// module holding the object-store adapter and the content inspector, and every one of them passed
-    /// while never reading a type of it. The rules keyed on the project graph did cover it, because
-    /// <c>ProjectReferenceGraph</c> reads the disk, which is precisely the difference this rule closes.
+    /// Both lists in <c>ArchitectureAssemblies</c> are maintained by hand, and nothing about adding an
+    /// infrastructure module prompts anyone to extend them. A module missing from them is a module
+    /// five rules in this file walk past while reporting success, because each addresses assemblies by
+    /// name. The rules keyed on the project graph do cover it, because <c>ProjectReferenceGraph</c>
+    /// reads the disk — which is the difference this rule closes.
     /// <para>
     /// The sharpest half is the forbidden list in the rule below: it is computed <em>from</em> these
     /// assemblies, so a module missing here is not only unchecked as a subject — it is also not

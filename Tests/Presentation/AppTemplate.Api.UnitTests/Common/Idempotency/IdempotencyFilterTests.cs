@@ -132,9 +132,9 @@ public sealed class IdempotencyFilterTests
     /// Response writing starts only once the action has already produced a result, and every
     /// <see cref="IdempotentAttribute"/> action returns one only once its use case has committed. An
     /// exception caught with the response already under way must therefore never release the claim —
-    /// doing so would let a retry run an already-committed write again for real. Without the
-    /// <c>HasStarted</c> guard in <see cref="IdempotencyFilter"/>, this test fails: the old code
-    /// released on every exception from <c>next()</c>, this scenario included.
+    /// doing so would let a retry run an already-committed write again for real. Removing the
+    /// <c>HasStarted</c> guard in <see cref="IdempotencyFilter"/> turns this red: without it, every
+    /// exception out of <c>next()</c> releases the claim, this scenario included.
     /// </summary>
     [Fact]
     public async Task AnExceptionAfterTheResponseHasStarted_DoesNotReleaseTheClaim()

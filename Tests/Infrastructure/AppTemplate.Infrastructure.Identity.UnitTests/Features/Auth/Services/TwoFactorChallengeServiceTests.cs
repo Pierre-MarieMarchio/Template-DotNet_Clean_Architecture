@@ -213,9 +213,9 @@ public sealed class TwoFactorChallengeServiceTests
     /// </summary>
     /// <remarks>
     /// Account lockout counts failed <em>password</em> checks — <c>CheckPasswordSignInAsync</c> with
-    /// <c>lockoutOnFailure</c> — and presenting a code is not one, so before this counter existed a
-    /// caller holding the password could offer codes for the whole challenge lifetime, bounded only
-    /// by a rate limiter that is per process and therefore per replica. The right code is presented
+    /// <c>lockoutOnFailure</c> — and presenting a code is not one. Without this counter a caller
+    /// holding the password could offer codes for the whole challenge lifetime, bounded only by a
+    /// rate limiter that is per process and therefore per replica. The right code is presented
     /// last on purpose: what has to be refused is the challenge itself, not the code.
     /// </remarks>
     [Fact]

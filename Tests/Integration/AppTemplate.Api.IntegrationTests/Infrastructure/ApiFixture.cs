@@ -82,8 +82,8 @@ public sealed class ApiFixture : IAsyncLifetime
 /// </summary>
 /// <remarks>
 /// One collection means one container, and it also means the classes run one after another. That is
-/// required, not incidental: the reset between tests truncates every table, so two tests running at
-/// the same time against the same database would delete each other's rows.
+/// required, not incidental: the reset between tests truncates every table of every module schema,
+/// so two tests running at the same time against the same database would delete each other's rows.
 /// </remarks>
 [CollectionDefinition(Name)]
 public sealed class ApiCollectionDefinition : ICollectionFixture<ApiFixture>

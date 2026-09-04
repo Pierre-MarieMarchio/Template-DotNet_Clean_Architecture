@@ -22,9 +22,9 @@ namespace AppTemplate.Infrastructure.Email.UnitTests;
 public sealed class EmailModuleTests
 {
     /// <summary>
-    /// The value every existing deployment of this template has, because none of them has the key at
-    /// all. A different default here is not a new feature, it is every cloned repository sending its
-    /// mail somewhere else after an upgrade.
+    /// The transport a deployment gets when it names none, which is every deployment that has not
+    /// added the key. A different default here is not a new feature, it is every cloned repository
+    /// sending its mail somewhere else after an upgrade.
     /// </summary>
     [Fact]
     public void AddEmailModule_ComposesTheSmtpSenderWhenNoTransportIsNamed()

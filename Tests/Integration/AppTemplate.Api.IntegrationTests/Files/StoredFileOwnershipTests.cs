@@ -16,11 +16,11 @@ namespace AppTemplate.Api.IntegrationTests.Files;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>The Files feature had no test at this level at all.</b> Ownership is enforced in one place —
+/// <b>The entry points are asserted, not the gate.</b> Ownership is enforced in one place —
 /// <c>StoredFileAccess.LoadOwnedAsync</c> — which is the right shape and is exactly why a single
 /// endpoint that stopped going through it would be invisible: every other endpoint would keep
-/// passing. So this asserts the entry points rather than the gate, and it enumerates all four of
-/// them deliberately. One forgotten route is the whole vulnerability.
+/// passing. So all four entry points are enumerated deliberately. One forgotten route is the whole
+/// vulnerability.
 /// </para>
 /// <para>
 /// A registration is enough to test with, and no bytes are deposited. What is under test is who may

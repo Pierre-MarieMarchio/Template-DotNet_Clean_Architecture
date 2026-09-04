@@ -3,10 +3,10 @@
 namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
 
 /// <summary>
-/// The one connection string this system has. There is exactly one PostgreSQL database and, since
-/// there is now exactly one <see cref="AppDbContext"/>, exactly one migrations history; the features
-/// separate themselves by schema. The previous layout's split between <c>DefaultConnection</c> and
-/// <c>IdentityConnection</c> described two databases that were always the same one.
+/// The one connection string this system has. There is exactly one PostgreSQL database and exactly
+/// one <see cref="AppDbContext"/>, so exactly one migrations history; the features separate
+/// themselves by schema rather than by connection. A second name for this database would be a
+/// second thing to configure, and the two could disagree without anything noticing until runtime.
 /// </summary>
 public static class DefaultConnectionString
 {

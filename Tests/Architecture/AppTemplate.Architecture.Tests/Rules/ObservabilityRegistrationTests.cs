@@ -11,10 +11,9 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// An instrument is recorded to whether or not anything listens, and OpenTelemetry exports only the
 /// meters and sources a host names explicitly. So a <c>Meter</c> declared and never passed to
 /// <c>AddMeter</c> costs the same to record, reads correctly in a unit test holding a
-/// <c>MeterListener</c>, and reaches no collector — which is precisely what happened to the Files
-/// loop: four counters and an <c>ActivitySource</c>, produced on every pass of the loop that decides
-/// whether a deposited file ever becomes readable, and thrown away. Its own documentation claimed
-/// the registration existed.
+/// <c>MeterListener</c>, and reaches no collector. Nothing about the declaration says whether the
+/// registration exists, and prose beside it is not evidence — which is why this is a rule rather
+/// than a convention.
 /// </para>
 /// <para>
 /// Read from the source tree, for the reason <c>BackgroundWorkTests</c> gives: this project

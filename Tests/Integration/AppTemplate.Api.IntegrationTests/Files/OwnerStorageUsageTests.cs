@@ -15,13 +15,12 @@ namespace AppTemplate.Api.IntegrationTests.Files;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>The query this exercises had no test at all, and was wrong.</b> It read
-/// <c>Available</c> and <c>Pending</c> and nothing else, under a comment asserting that
-/// <c>StoredFileState</c> "has two members and there is no third". It has four, and two of the other
-/// three mean the bytes are already on the store: <c>Deposited</c> waiting for a verdict, and
-/// <c>Quarantined</c> refused and kept. Neither counted, so failing a file's own content inspection
-/// was the cheapest way to hold bytes for ever — nothing moves a file out of <c>Quarantined</c>, and
-/// the orphan sweep will not reclaim its object because a row still names it.
+/// <b>Every state that means bytes are on the store has to count, and <c>StoredFileState</c> has
+/// four of them.</b> A query that reads <c>Available</c> and <c>Pending</c> alone misses
+/// <c>Deposited</c>, waiting for a verdict, and <c>Quarantined</c>, refused and kept — which makes
+/// failing a file's own content inspection the cheapest way to hold bytes for ever, since nothing
+/// moves a file out of <c>Quarantined</c> and the orphan sweep will not reclaim its object while a
+/// row still names it.
 /// </para>
 /// <para>
 /// Driven through the repository and the aggregate's own transitions rather than through HTTP: the

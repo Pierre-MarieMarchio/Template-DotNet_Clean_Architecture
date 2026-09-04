@@ -8,6 +8,15 @@ this file is about how those keys interact with an orchestrator, not a second li
 Raw manifests, not a Helm chart. A template is meant to be read and changed, not parameterised
 through a values file for values nobody has picked yet.
 
+One limit on everything below, stated once rather than repeated. The manifests are checked
+against the code they configure — every environment variable against the options class that
+binds it, every port and probe path against `Program.cs` and the Dockerfile, every `secretKeyRef`
+against `secret.example.yaml` — but they are **not** checked against a running cluster, because
+this repository has none and applies nothing. Anything that depends on how a *controller*
+behaves, rather than on what a manifest says, is reasoned from that controller's documentation
+and is yours to confirm on first deploy. The HSTS section below is the one place where that
+distinction currently changes the answer.
+
 ## The shutdown chain: three numbers that have to agree
 
 `Src/Presentation/AppTemplate.Api/Common/Hosting/ShutdownHealthCheck.cs` turns
@@ -107,9 +116,33 @@ orchestrator's own plain-HTTP probe with a `307` instead of a health status.
 The application deliberately sends no HSTS header: `max-age`, `includeSubDomains` and
 `preload` are commitments about a whole domain that a process serving one path prefix cannot
 make on its own, and the container does not even see the TLS connection the header is about.
-`ingress.yaml` carries the header instead, with the recommended starting point (a
-short `max-age`, no subdomains, no preload) — raise it only after confirming every host under the
-domain actually serves TLS.
+`ingress.yaml` states the recommended starting point — a short `max-age`, no subdomains, no
+preload — and it is the intent to carry forward: raise it only after confirming every host under
+the domain actually serves TLS.
+
+**But read that file as a statement of intent, not as a working configuration.** The four
+`hsts`, `hsts-max-age`, `hsts-include-subdomains` and `hsts-preload` keys it carries under the
+`nginx.ingress.kubernetes.io/` prefix are **ingress-nginx ConfigMap keys, not per-Ingress
+annotations**. The controller has no annotation of those names, so it does not read them off an
+`Ingress` object; it does not reject them either, because an unrecognised annotation is simply
+ignored. The net effect is that the manifest's four lines do nothing at all and the controller's
+own defaults apply instead — HSTS on, `max-age` of one year, `includeSubDomains` **enabled** —
+which is the exact opposite of the 300 s the comment above them argues for, and it is a
+commitment about your domain that cannot be withdrawn for a year once a browser has seen it.
+
+Where the value actually lives: the ingress-nginx controller's own ConfigMap (the one named by
+the controller Deployment's `--configmap` flag, typically `ingress-nginx-controller` in the
+`ingress-nginx` namespace), whose `hsts-max-age`, `hsts-include-subdomains` and `hsts-preload`
+keys apply to **every** Ingress that controller serves — which is why this template cannot ship
+it: the file is cluster-wide and not ours to own. If you need HSTS per host rather than per
+cluster, the per-Ingress route is a `configuration-snippet` (or, on a controller where snippets
+are disabled, `more_set_headers` through a controller-level snippet), not these keys. Either way,
+set it deliberately before the first browser sees the domain.
+
+Per the limit stated at the top: this is read from ingress-nginx's documented vocabulary, not
+observed against a cluster. Check the rendered header with `curl -I` against your own ingress
+once, on the day you deploy; it is a one-line check and it is the only thing that settles what
+your controller actually sends.
 
 ## `ReverseProxy`, or: what an Ingress silently breaks if you forget it
 
@@ -183,7 +216,10 @@ secrets take as Kubernetes objects — placeholder values only, referenced by bo
 through individual `secretKeyRef` entries rather than `envFrom`, so a container gets exactly the
 keys it composes and nothing else. `AppTemplate.Worker` **does** receive `Email__UserName` /
 `Email__Password`: it composes `AppTemplate.Infrastructure.Email` too, for `IReminderNotifier`'s
-adapter — see below and `AppTemplate.Worker.csproj`.
+adapter — see below and `AppTemplate.Worker.csproj`. It receives `Storage__AccessKeyId` /
+`Storage__SecretAccessKey` on the same reasoning: it composes the storage module for the file
+loop's sweeps. Both may legitimately be empty, since the AWS SDK's own credential chain resolves
+an instance role and the validator only refuses exactly one of the pair — see `SECURITY.md`.
 
 It **does not** receive `Jwt__Key`, and that is the one asymmetry between the two Deployments.
 The worker needs the `Jwt` *section* to exist, because it composes the identity module and
@@ -216,10 +252,12 @@ into one object would put every pod one credential away from being able to alter
 
 ## Applying migrations
 
-Migrations run as an explicit step, never inside the serving process, and
-names a Kubernetes `Job` as exactly the right shape for that step. `migration-job.yaml` is that
-Job: it runs the self-contained `efbundle` executable `.github/workflows/release.yml`'s
-`migration-bundle` job already produces, against the DDL-capable principal above. Two things this
+Migrations run as an explicit step, never inside the serving process, and a Kubernetes `Job` is
+exactly the right shape for that step: it runs once, to completion, with its own credentials, and
+its success or failure is a thing the cluster records rather than a line in a pod's log.
+`migration-job.yaml` is that Job — it runs the self-contained `efbundle` executable
+`.github/workflows/release.yml`'s `migration-bundle` job already produces, against the
+DDL-capable principal above. Two things this
 manifest assumes but does not itself provide:
 
 - **An image to run it in.** The release workflow uploads `efbundle` as a plain workflow
@@ -235,10 +273,20 @@ manifest assumes but does not itself provide:
 
 ## The worker is its own Deployment, on purpose
 
-`AppTemplate.Worker` answers no HTTP request — `MaintenanceBackgroundService` and
-`ReminderBackgroundService` run on their own timers, nothing else. `worker-deployment.yaml`
+`AppTemplate.Worker` answers no HTTP request. Three `BackgroundService`s run on their own
+timers, and nothing else: `MaintenanceBackgroundService`, `ReminderBackgroundService`, and
+`FileBackgroundService` — which alone carries three timers, because the file feature's two
+sweeps and its deposit inspection have costs orders of magnitude apart (`configmap-worker.yaml`
+sets all three intervals under `FileWorker__`). `worker-deployment.yaml`
 therefore has no matching `Service` and no `Ingress` (there is no traffic to route), and no
 readiness probe (readiness answers "safe to route traffic to", which does not apply to a process
-nothing calls). It still shares `app-template-secrets` for the database connection and signing
-key, and it is still a replica against the same `Database:MaxPoolSize` budget as the API — see
-above.
+nothing calls). It is still a replica against the same `Database:MaxPoolSize` budget as the API —
+see above.
+
+It shares `app-template-secrets` with the API, but not the whole of it: five `secretKeyRef`
+entries — `ConnectionStrings__Default`, `Email__UserName`, `Email__Password`,
+`Storage__AccessKeyId`, `Storage__SecretAccessKey` — against the API's six. `Jwt__Key` is the
+sixth, and it is the one this pod does not mount; `worker-deployment.yaml` says so in a comment
+at the point where the entry would otherwise sit. Copy that omission into any manifest you write
+from this one. The section above explains why, and `SECURITY.md` explains what mounting it here
+would cost.

@@ -91,9 +91,9 @@ public sealed class AccountLockoutsServiceTests
     /// <summary>
     /// <c>SetLockoutEndDateAsync</c> refuses outright — <c>UserLockoutNotEnabled</c> — when the
     /// account's <c>LockoutEnabled</c> flag is false, which is also exactly the state an account is
-    /// in when nobody has ever locked it out. Discovered by this suite: without the fallback in
-    /// <see cref="AccountLockoutsService.UnlockAsync"/>, this case answered <c>Rejected</c> for an account
-    /// that was never anything but unlocked.
+    /// in when nobody has ever locked it out. Without the fallback in
+    /// <see cref="AccountLockoutsService.UnlockAsync"/>, this case answers <c>Rejected</c> for an account
+    /// that has never been anything but unlocked.
     /// </summary>
     [Fact]
     public async Task UnlockingAnAccountThatWasNeverLockedOut_IsStillReportedAsApplied()

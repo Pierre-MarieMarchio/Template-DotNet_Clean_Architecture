@@ -66,7 +66,7 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests;
 
-public sealed class ServiceRegistrationTests
+public sealed class ApplicationModuleTests
 {
     /// <summary>
     /// Fifteen to-do list operations, twenty-three authentication ones, two maintenance operations,
@@ -218,7 +218,7 @@ public sealed class ServiceRegistrationTests
 
     [Fact]
     public void TheEntryPoint_Rejects_ANullServiceCollection() =>
-        Should.Throw<ArgumentNullException>(() => ServiceRegistration.AddApplicationLayer(null!));
+        Should.Throw<ArgumentNullException>(() => ApplicationModule.AddApplicationLayer(null!));
 
     [Fact]
     public void TheDiscovery_Rejects_ANullAssembly() =>
@@ -231,8 +231,8 @@ public sealed class ServiceRegistrationTests
     /// </summary>
     [Fact]
     public void TheEntryPoint_AsksForNothingButTheServiceCollection() =>
-        typeof(ServiceRegistration)
-            .GetMethod(nameof(ServiceRegistration.AddApplicationLayer))!
+        typeof(ApplicationModule)
+            .GetMethod(nameof(ApplicationModule.AddApplicationLayer))!
             .GetParameters().Length.ShouldBe(1);
 
     /// <summary>

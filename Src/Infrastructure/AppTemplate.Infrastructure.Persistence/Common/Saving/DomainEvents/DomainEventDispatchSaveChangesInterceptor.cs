@@ -25,9 +25,8 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
 /// consumer that throws is logged and stepped over.
 /// </para>
 /// <para>
-/// Handlers run in-process and are not retried: this is the deliberately small version. A
-/// system that cannot lose a notification needs the events written to an outbox table
-/// inside the same transaction, which is a different mechanism, not a bigger one.
+/// Handlers run in-process, in the caller's own request, and are not retried. One that must reach
+/// another system belongs behind an outbox rather than doing that I/O here.
 /// </para>
 /// </summary>
 internal sealed class DomainEventDispatchSaveChangesInterceptor(

@@ -147,11 +147,12 @@ public sealed class StorageOptionsValidatorTests
     }
 
     /// <summary>
-    /// <b>The deployment the old rule had backwards.</b> Plain HTTP inside a service mesh with TLS at
-    /// the ingress is the ordinary shape, and it used to be forced to declare
-    /// <c>AllowInsecureTransport</c> — which then let a genuinely plaintext public endpoint through
-    /// unnoticed. The internal endpoint carries this process's own calls, signed per request, inside a
-    /// network the operator chose; nothing re-usable is minted from it.
+    /// Plain HTTP inside a service mesh with TLS at the ingress is the ordinary shape, and that is why
+    /// it demands no permission: the internal endpoint carries this process's own calls, signed per
+    /// request, inside a network the operator chose; nothing re-usable is minted from it. Demanding
+    /// <c>AllowInsecureTransport</c> here would force this deployment to raise a flag that would then
+    /// let a genuinely plaintext public endpoint through unnoticed. The rule is about the public
+    /// endpoint, not the internal one.
     /// </summary>
     [Fact]
     public void APlaintextInternalEndpointUnderAnEncryptedPublicOne_NeedsNoPermission()

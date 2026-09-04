@@ -188,6 +188,21 @@ in this repository:
   *before* asserting the condition. `AggregateRoots_AreSealed` once matched zero types and passed.
 - A test project missing from `AppTemplate.sln` makes `dotnet test AppTemplate.sln` green with zero tests. CI asserts
   every project under `Tests/` is in the solution, and that the run executed more than zero tests.
+- **A test that picks its own static type does not test the real path.** A unit test asserting the
+  discriminator of a polymorphic response passed while the API served a body without one, because it
+  called `JsonSerializer.Serialize<TBase>(…)` and named the base itself. MVC does not: `Ok(value)`
+  leaves `DeclaredType` null and the formatter serialises the runtime type. When a guarantee depends
+  on the framework, prove it through the framework — read the raw response.
+- **A comment claiming a guarantee is covered elsewhere is a claim to check, not evidence.** Several
+  have been wrong here: an ETag asserted to be replayed that was not, a cross-reference naming the
+  wrong layer, a formatting gate believed to catch unused usings that did not.
+- **Some defects only an end-to-end test can see.** An exhaustive `switch` over an event enum threw
+  on a newly added member and turned the first real call into a 500; every unit test around it had
+  substituted that collaborator away. Where a component is substituted everywhere, something has to
+  exercise the real one.
+- **Never compare two problem documents whole.** They carry a `traceId`, which identifies the
+  request rather than its outcome, so two requests always differ — an assertion that they are equal
+  is asserting that two requests are the same one. Compare everything else.
 
 ### Known sharp edge: coverage and the architecture tests
 
@@ -262,6 +277,20 @@ Generate with `./tasks.ps1 migration-add <Name>`. The application applies migrat
 **only in Development**; a deployment applies them as a separate step from a bundle
 (`./tasks.ps1 migration-bundle`). See `docs/adr/0009` for why, and `SECURITY.md` for what a
 deployment still owes.
+
+There are two, and the split is deliberate: `InitialCreate` carries the `identity` and `platform`
+schemas — what every project keeps — and `AddExampleFeatures` carries `todo` and `reminders` alone,
+so removing the examples is a deleted file rather than a drop migration. A new migration goes on the
+end as usual; the split only matters for the two that are there.
+
+**If `dotnet ef` refuses to run**, failing on `Settings file 'DotnetToolSettings.xml' was not found
+in the package`, the local tool manifest is what is broken, not the package. A globally installed
+copy invoked by its full path works: `dotnet tool install --global dotnet-ef` then
+`$HOME/.dotnet/tools/dotnet-ef migrations add <Name> --project …`.
+
+Whatever produced them, `PendingModelChangesTests` is what proves a migration matches the model —
+it calls `HasPendingModelChanges()` and needs no database — and the integration suites are the only
+thing that ever executes an `Up()`.
 
 ## Architecture decisions
 

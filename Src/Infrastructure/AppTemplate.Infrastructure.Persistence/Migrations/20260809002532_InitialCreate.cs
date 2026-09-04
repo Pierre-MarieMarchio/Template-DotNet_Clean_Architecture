@@ -16,7 +16,45 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 name: "identity");
 
             migrationBuilder.EnsureSchema(
-                name: "todo");
+                name: "platform");
+
+            migrationBuilder.CreateTable(
+                name: "DataProtectionKeys",
+                schema: "identity",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    FriendlyName = table.Column<string>(type: "text", nullable: true),
+                    Xml = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DataProtectionKeys", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "IdempotencyKeys",
+                schema: "platform",
+                columns: table => new
+                {
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Key = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    Endpoint = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    Fingerprint = table.Column<string>(type: "character(64)", fixedLength: true, maxLength: 64, nullable: false),
+                    IsCompleted = table.Column<bool>(type: "boolean", nullable: false),
+                    ClaimedUntil = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    StatusCode = table.Column<int>(type: "integer", nullable: true),
+                    ResponseBody = table.Column<string>(type: "character varying(65536)", maxLength: 65536, nullable: true),
+                    Location = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
+                    ETag = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    ExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IdempotencyKeys", x => new { x.UserId, x.Key });
+                });
 
             migrationBuilder.CreateTable(
                 name: "Role",
@@ -31,25 +69,6 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Role", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "TodoLists",
-                schema: "todo",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    OwnerId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: true),
-                    LastModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    LastModifiedBy = table.Column<Guid>(type: "uuid", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_TodoLists", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -98,29 +117,6 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         column: x => x.RoleId,
                         principalSchema: "identity",
                         principalTable: "Role",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "TodoItems",
-                schema: "todo",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    TodoListId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
-                    CompletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_TodoItems", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_TodoItems_TodoLists_TodoListId",
-                        column: x => x.TodoListId,
-                        principalSchema: "todo",
-                        principalTable: "TodoLists",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -244,25 +240,17 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "TodoItemTags",
-                schema: "todo",
-                columns: table => new
-                {
-                    TodoItemId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Value = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_TodoItemTags", x => new { x.TodoItemId, x.Value });
-                    table.ForeignKey(
-                        name: "FK_TodoItemTags_TodoItems_TodoItemId",
-                        column: x => x.TodoItemId,
-                        principalSchema: "todo",
-                        principalTable: "TodoItems",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            migrationBuilder.CreateIndex(
+                name: "IX_IdempotencyKeys_ExpiresAt",
+                schema: "platform",
+                table: "IdempotencyKeys",
+                column: "ExpiresAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_ExpiresAt",
+                schema: "identity",
+                table: "RefreshTokens",
+                column: "ExpiresAt");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RefreshTokens_TokenHash",
@@ -289,18 +277,6 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 schema: "identity",
                 table: "RoleClaims",
                 column: "RoleId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TodoItems_TodoListId",
-                schema: "todo",
-                table: "TodoItems",
-                column: "TodoListId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TodoLists_OwnerId",
-                schema: "todo",
-                table: "TodoLists",
-                column: "OwnerId");
 
             migrationBuilder.CreateIndex(
                 name: "EmailIndex",
@@ -339,16 +315,20 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "DataProtectionKeys",
+                schema: "identity");
+
+            migrationBuilder.DropTable(
+                name: "IdempotencyKeys",
+                schema: "platform");
+
+            migrationBuilder.DropTable(
                 name: "RefreshTokens",
                 schema: "identity");
 
             migrationBuilder.DropTable(
                 name: "RoleClaims",
                 schema: "identity");
-
-            migrationBuilder.DropTable(
-                name: "TodoItemTags",
-                schema: "todo");
 
             migrationBuilder.DropTable(
                 name: "UserClaims",
@@ -367,20 +347,12 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "TodoItems",
-                schema: "todo");
-
-            migrationBuilder.DropTable(
                 name: "Role",
                 schema: "identity");
 
             migrationBuilder.DropTable(
                 name: "User",
                 schema: "identity");
-
-            migrationBuilder.DropTable(
-                name: "TodoLists",
-                schema: "todo");
         }
     }
 }

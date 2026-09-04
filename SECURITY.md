@@ -149,9 +149,12 @@ against your production system.
 
 Stated here rather than left to be discovered. None of these is a hypothetical.
 
-- **Deleting an account leaves its business data behind.** `DELETE /api/v1/auth/me` removes the
-  account row and everything ASP.NET Identity owns with it — grants, claims, logins, tokens — and
-  nothing else. A user's to-do lists and reminders carry an `OwnerId` that is a plain `Guid` with no
+- **There is no self-service account deletion, and the administrative one leaves business data
+  behind.** Deletion is `DELETE /api/v1/auth/accounts/{userId}`, behind the `Administrator` policy,
+  and it refuses the caller's own account. A user cannot erase themselves at all — a deployment
+  under an erasure obligation has to add that endpoint, and it should carry a password re-proof for
+  the same reason changing an address does. What deletion does remove is the account row and
+  everything ASP.NET Identity owns with it — grants, claims, logins, tokens — and nothing else. A user's to-do lists and reminders carry an `OwnerId` that is a plain `Guid` with no
   foreign key to the account, by the same rule that keeps aggregates from referencing each other
   across features, so nothing cascades to them. They become unreachable, because every read filters
   by owner, and they stay in the database indefinitely.
@@ -160,6 +163,34 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   data remains, reassign it, or remove it — and the shape to copy is the scheduled purge the
   maintenance endpoints already use, not a foreign key added across a feature boundary.
 
+- **Sending mail inside the request leaks which addresses exist, by timing.** Forgot-password,
+  resend-confirmation and change-email all answer identically and log nothing, but each awaits an
+  SMTP round trip — connection, STARTTLS, AUTH, DATA — **only on the branch where the account
+  exists**. The difference is orders of magnitude, needs no averaging to read, and grows further
+  when the relay is slow or down. Change-email is authenticated, so any registered user can test an
+  arbitrary address this way. The "including in timing" claim above holds for `/login`, which was
+  written for it, and not for these three.
+  Closing it means taking delivery off the request: queue the message durably and answer on both
+  branches at once. A detached task is not the fix — it drops the mail on the next deployment — and
+  neither is a fixed delay, which would have to exceed the relay's own variance to hide anything.
+- **Nothing bounds distributed credential stuffing.** Lockout is per account and rate limiting is
+  per client address, so one password tried against a hundred thousand accounts from a thousand
+  addresses trips neither. Closing it needs something neither of those two mechanisms is: a global
+  bound on `/login` failures, a compromised-password check, or an alert on the rate.
+- **Lockout is itself a denial of service.** Five failures lock an account for fifteen minutes, so
+  roughly twenty requests an hour keep a chosen account shut out indefinitely. A growing delay, or
+  notifying the account owner, are the usual answers; neither is here.
+- **One JWT signing key, with no rotation and no `kid`.** Replacing it invalidates every token in
+  circulation at once, because there is no overlap window in which two keys are accepted. A `jti` is
+  issued but nothing consumes it, so an individual token cannot be revoked either.
+- **A residual timing difference on the login path.** The two branches derive a key either way, so
+  the expensive part is constant, but a wrong password writes an access-failure count where an
+  unknown address does not. It is far smaller than the hash and always the same sign, so it is
+  extractable by averaging. Making it nil would mean writing for a user that does not exist.
+- **Nothing proves the process actually drains on SIGTERM.** The readiness flip is tested, and the
+  Kubernetes manifests carry the `preStop` and grace period it needs, but that Kestrel finishes
+  in-flight requests and that `ShutdownTimeout` is honoured are asserted nowhere — doing so means
+  running the binary and signalling it, which is a different kind of test than any here.
 - **`If-Match` is optional by default.** Every read publishes a strong `ETag` and every write
   honours `If-Match`, refusing a stale or unrecognised version with `412`, but a request that sends
   no `If-Match` at all is still accepted unless `Concurrency:IfMatch` is set to `Required` — see
@@ -179,11 +210,12 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   consumer whose effect *cannot* be re-derived, because nothing re-reads the state later — mail,
   money, a call to a third party — still needs an outbox before you rely on it.
   See `docs/adr/0026`.
-- **Idempotency keys expire only when something purges them.** `Idempotency:Retention` stamps each
-  row's `ExpiresAt`; it does not delete anything. Expiry is enforced by
-  `DELETE /api/v1/maintenance/idempotency-keys/expired`, which requires the `Administrator` policy
-  and which nothing calls automatically. Until it is scheduled, a completed key remains replayable
-  past its retention window and the table grows without bound.
+- **Idempotency keys expire only where the worker runs.** `Idempotency:Retention` stamps each row's
+  `ExpiresAt`; it does not delete anything. `AppTemplate.Worker`'s maintenance loop calls the purge
+  on its own schedule, and the same operation is exposed as
+  `DELETE /api/v1/maintenance/idempotency-keys/expired` behind the `Administrator` policy for a
+  deployment that runs no worker. Deploy neither and a completed key stays replayable past its
+  retention window while the table grows without bound.
 - **The auth wire format has two owners.** `ConfigureJwtBearerOptions` in the Identity module builds
   its own `ProblemDetails` and owns the `auth.required` / `auth.forbidden` codes, so a change to how
   failures look must be made in two places.

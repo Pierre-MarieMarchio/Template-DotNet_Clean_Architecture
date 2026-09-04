@@ -1,7 +1,11 @@
 {
   "$schema": "http://json.schemastore.org/template",
   "author": "AppTemplate contributors",
-  "classifications": ["Web API", "Clean Architecture", "DDD"],
+  "classifications": [
+    "Web API",
+    "Clean Architecture",
+    "DDD"
+  ],
   "identity": "AppTemplate.Templates.CleanArchitectureApi",
   "name": ".NET Clean Architecture API",
   "shortName": "cleanarch-webapi",
@@ -28,7 +32,10 @@
       "parameters": {
         "source": "nameLower",
         "steps": [
-          { "regex": "[.\\s_]+", "replacement": "-" }
+          {
+            "regex": "[.\\s_]+",
+            "replacement": "-"
+          }
         ]
       },
       "replaces": "app-template"
@@ -60,7 +67,9 @@
     "F52C267D-47BB-4422-9B18-6133A6C34EBE",
     "609A0E67-8706-4481-BF62-B6EECFED3E2B",
     "A63B96E9-70FC-0FDC-3588-905A57B46513",
-    "14408293-E279-41AA-8D03-AE489B1EBC94"
+    "14408293-E279-41AA-8D03-AE489B1EBC94",
+    "28A6993C-471E-82FE-7D9E-AD3B1EC22BD9",
+    "6A63B1ED-8153-44F3-9E5C-C0576B0890B0"
   ],
   "sources": [
     {
@@ -72,14 +81,15 @@
             "**/bin/**",
             "**/obj/**",
             ".env",
-            ".vs/**",
-            "HANDOFF.md"
+            ".vs/**"
           ]
         }
       ]
     }
   ],
   "primaryOutputs": [
-    { "path": "AppTemplate.sln" }
+    {
+      "path": "AppTemplate.sln"
+    }
   ]
 }

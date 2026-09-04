@@ -152,7 +152,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   layer was missing a project, which `dotnet restore` skips with a log line rather than an error, so
   the failure only appeared at publish time.
 - **`dotnet new` regenerates every project guid.** Five were missing from the list, so two projects
-  generated from this template shared them. Generated projects no longer carry `HANDOFF.md` or a
+  generated from this template shared them. Generated projects no longer carry a working document or a
   `.vs` cache.
 - **A stale `<see cref="…"/>` or an unused `using` now fails the build.** Nine cross-references were
   wrong, one of them naming the wrong layer for a repository contract; forty-two unnecessary usings
@@ -199,6 +199,13 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **The seven migrations that accumulated while the schema was still moving are recomposed into
+  exactly two: `InitialCreate` (`identity` and `platform` — the schema every derived project keeps)
+  and `AddExampleFeatures` (`todo` and `reminders`, and nothing else).** Net effect only: every table,
+  column and index that existed before still exists after, in the same shape. This is what makes
+  `docs/REMOVING-THE-EXAMPLE-FEATURES.md`'s migration step a `rm` of one file pair instead of a
+  generated `DropTable` migration — a project that deletes the example features before ever running a
+  migration against a real database never has their schema to begin with.
 - **One closed folder vocabulary per layer, and one public type per file** (`docs/adr/0025`). Each
   use case owns a folder holding its command, interface, implementation and validator; each port
   owns a folder holding its interface and the messages it exchanges. Architecture tests read the
@@ -264,7 +271,12 @@ repeat the investigation. A template's value is as much in what it refuses as in
 |---|---|---|
 | A filter expression language (OData `$filter`, RSQL) | [0015](docs/adr/0015-typed-filters-not-a-filter-expression-language.md) | Makes query cost unbounded and the whitelist unprovable; the typed surface can be read off a type. |
 | RFC 8288 `Link` headers for paging | [0016](docs/adr/0016-pagination-metadata-in-the-body.md) | A second statement of next-page that can disagree with the envelope. |
-| An outbox for domain events | [0017](docs/adr/0017-no-outbox-for-domain-events.md) | At-least-once is a contract on every consumer and needs a dispatcher, dead-letter path and lag monitoring a template cannot default. |
+| An outbox for domain events | [0017](docs/adr/0017-no-outbox-for-domain-events.md), [0026](docs/adr/0026-correctness-does-not-depend-on-event-delivery.md) | At-least-once is a contract on every consumer; the effect re-derives its own precondition instead, and the divergence is counted. |
+| A security-stamp cache | [0023](docs/adr/0023-no-security-stamp-cache.md) | Invalidating at the rotation points does not propagate between instances, so the observable promise stays "within at most the TTL" and the invalidation buys nothing. |
+| Rate limiting partitioned by identity | — | The limiter runs before authentication, so the principal is always anonymous where the partition key is computed. Moving authentication earlier would make every request the limiter is about to reject pay for a bearer validation first. |
+| A paginated user search | — | Every other endpoint in the authentication vertical spends its effort not revealing whether an address exists; one listing them all would contradict the other nine. |
+| A caller id on `ICurrentUser` | — | Nothing would populate it until machine-to-machine authentication exists, and a member that is never set makes eight consuming use cases imply a capability the template does not have. |
+| Listing and revoking active sessions | — | Rotation inserts a new row per refresh, so the id a client read would be dead within the access token's lifetime and `DELETE` would fail silently against a live session. It needs a session id stable across rotation first — a column, not an endpoint. |
 | `PATCH` (JSON Patch or Merge Patch) | [0018](docs/adr/0018-no-patch.md) | Patching a representation lets a caller assemble a state change no aggregate operation authorises. |
 | Output caching | [0019](docs/adr/0019-caching-is-revalidation-not-storage.md) | Every response is per-user, so it either serves the wrong data or has no hit rate. |
 | `Deprecation`/`Sunset` headers | [0020](docs/adr/0020-no-deprecation-or-sunset-headers.md) | One version ships, so any date emitted would be invented. |

@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AppTemplate.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260805151119_AddIdempotencyKeys")]
-    partial class AddIdempotencyKeys
+    [Migration("20260809002532_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -34,8 +34,15 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<DateTimeOffset>("ClaimedUntil")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ETag")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("Endpoint")
                         .IsRequired()
@@ -198,6 +205,8 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ExpiresAt");
+
                     b.HasIndex("TokenHash")
                         .IsUnique();
 
@@ -206,90 +215,23 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("RefreshTokens", "identity");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
 
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("text");
 
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<Guid>("TodoListId")
-                        .HasColumnType("uuid");
+                    b.Property<string>("Xml")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TodoListId");
-
-                    b.ToTable("TodoItems", "todo");
-                });
-
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemTagRecord", b =>
-                {
-                    b.Property<Guid>("TodoItemId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Value")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.HasKey("TodoItemId", "Value");
-
-                    b.ToTable("TodoItemTags", "todo");
-                });
-
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoListRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("LastModifiedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<Guid>("OwnerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OwnerId", "CreatedAt", "Id")
-                        .HasDatabaseName("IX_TodoLists_OwnerId_CreatedAt_Id");
-
-                    b.HasIndex("OwnerId", "LastModifiedAt", "Id")
-                        .HasDatabaseName("IX_TodoLists_OwnerId_LastModifiedAt_Id");
-
-                    b.HasIndex("OwnerId", "Name", "Id")
-                        .HasDatabaseName("IX_TodoLists_OwnerId_Name_Id");
-
-                    b.ToTable("TodoLists", "todo");
+                    b.ToTable("DataProtectionKeys", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -406,24 +348,6 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
-                {
-                    b.HasOne("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoListRecord", null)
-                        .WithMany("Items")
-                        .HasForeignKey("TodoListId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemTagRecord", b =>
-                {
-                    b.HasOne("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", null)
-                        .WithMany("Tags")
-                        .HasForeignKey("TodoItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("AppTemplate.Infrastructure.Persistence.Features.Identity.Models.AppRole", null)
@@ -478,16 +402,6 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Identity.Models.AppUser", b =>
                 {
                     b.Navigation("RefreshTokens");
-                });
-
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
-                {
-                    b.Navigation("Tags");
-                });
-
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoListRecord", b =>
-                {
-                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

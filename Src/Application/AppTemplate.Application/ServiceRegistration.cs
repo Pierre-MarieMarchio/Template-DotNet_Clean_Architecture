@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.TodoLists.Access;
 using AppTemplate.Application.Features.TodoLists.Consumers;
 using AppTemplate.Application.Features.TodoLists.Validators;
 using AppTemplate.Domain.Common.Events;
@@ -24,6 +25,10 @@ public static class ServiceRegistration
             includeInternalTypes: true);
 
         services.AddUseCasesFrom(typeof(ServiceRegistration).Assembly);
+
+        // Not a use case: it has no request/response shape of its own, so the marker-based
+        // discovery above never sees it. Bound explicitly, like the domain-event consumer below.
+        services.AddScoped<ITodoListAccess, TodoListAccess>();
 
         services.AddDomainEventConsumer<TodoItemCompletedDomainEvent, LogTodoItemCompletedConsumer>();
 

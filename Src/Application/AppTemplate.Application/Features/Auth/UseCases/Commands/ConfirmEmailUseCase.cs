@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports;
-using AppTemplate.Application.Features.Auth.Validators;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands;
@@ -11,23 +11,23 @@ namespace AppTemplate.Application.Features.Auth.UseCases.Commands;
 /// Sent in a request body rather than a query string, to keep the single-use token out of access
 /// logs, browser history and the <c>Referer</c> header.
 /// </summary>
-public sealed record ConfirmEmailRequest(string Email, string Token);
+public sealed record ConfirmEmailCommand(string Email, string Token);
 
-public interface IConfirmEmailUseCase : IUseCase<ConfirmEmailRequest, Result>;
+public interface IConfirmEmailUseCase : IUseCase<ConfirmEmailCommand, Result>;
 
 public sealed class ConfirmEmailUseCase(
     IEmailConfirmationTokens confirmationTokens,
-    IValidator<ConfirmEmailRequest> validator) : IConfirmEmailUseCase
+    IValidator<ConfirmEmailCommand> validator) : IConfirmEmailUseCase
 {
-    public async Task<Result> ExecuteAsync(ConfirmEmailRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result> ExecuteAsync(ConfirmEmailCommand request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var validation = await validator.ValidateAsync(request, cancellationToken);
+        var validation = await validator.EnsureValidAsync(request, cancellationToken);
 
-        if (!validation.IsValid)
+        if (validation.IsFailure)
         {
-            return Result.Failure(validation.ToError());
+            return validation;
         }
 
         var outcome = await confirmationTokens.RedeemAsync(request.Email, request.Token, cancellationToken);

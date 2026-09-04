@@ -1,8 +1,10 @@
 ﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Errors;
 using AppTemplate.Application.Features.TodoLists.Ports;
+using FluentValidation;
 
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Queries;
 
@@ -10,7 +12,10 @@ public sealed record GetTodoItemQuery(Guid TodoListId, Guid TodoItemId);
 
 public interface IGetTodoItemUseCase : IUseCase<GetTodoItemQuery, Result<Versioned<TodoItemDto>>>;
 
-public sealed class GetTodoItemUseCase(ITodoListQueries queries, ICurrentUser currentUser) : IGetTodoItemUseCase
+public sealed class GetTodoItemUseCase(
+    ITodoListQueries queries,
+    ICurrentUser currentUser,
+    IValidator<GetTodoItemQuery> validator) : IGetTodoItemUseCase
 {
     /// <returns>
     /// The item, carrying the <em>list's</em> version. The aggregate root is the consistency
@@ -23,14 +28,23 @@ public sealed class GetTodoItemUseCase(ITodoListQueries queries, ICurrentUser cu
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        if (currentUser.UserId is not { } ownerId)
+        var validation = await validator.EnsureValidAsync(query, cancellationToken);
+
+        if (validation.IsFailure)
         {
-            return Result.Failure<Versioned<TodoItemDto>>(TodoListErrors.NotAuthenticated);
+            return validation.To<Versioned<TodoItemDto>>();
+        }
+
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
+        {
+            return userId.To<Versioned<TodoItemDto>>();
         }
 
         // Read through the list's projection rather than a port of its own, so the query that
         // finds the item is the same one that enforces ownership.
-        var detail = await queries.GetDetailAsync(query.TodoListId, ownerId, cancellationToken);
+        var detail = await queries.GetDetailAsync(query.TodoListId, userId.Value, cancellationToken);
 
         if (detail is null)
         {

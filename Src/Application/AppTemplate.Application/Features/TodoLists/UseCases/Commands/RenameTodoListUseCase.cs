@@ -1,9 +1,9 @@
-﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.TodoLists.Concurrency;
-using AppTemplate.Application.Features.TodoLists.Errors;
-using AppTemplate.Application.Features.TodoLists.Ports;
-using AppTemplate.Domain.Features.TodoLists.Stores;
+using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Validation;
+using AppTemplate.Application.Features.TodoLists.Access;
+using AppTemplate.Application.Features.TodoLists.Dtos;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands;
@@ -16,45 +16,34 @@ public sealed record RenameTodoListCommand(
     string Name,
     VersionPrecondition? Precondition = null);
 
-public interface IRenameTodoListUseCase : IUseCase<RenameTodoListCommand, Result>;
+public interface IRenameTodoListUseCase : IUseCase<RenameTodoListCommand, Result<Versioned<TodoListDetailDto>>>;
 
 public sealed class RenameTodoListUseCase(
-    ITodoListRepository repository,
+    ITodoListAccess lists,
     IUnitOfWork unitOfWork,
-    ICurrentUser currentUser,
     IValidator<RenameTodoListCommand> validator) : IRenameTodoListUseCase
 {
-    public async Task<Result> ExecuteAsync(
+    public async Task<Result<Versioned<TodoListDetailDto>>> ExecuteAsync(
         RenameTodoListCommand command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        if (currentUser.UserId is not { } ownerId)
+        var validation = await validator.EnsureValidAsync(command, cancellationToken);
+
+        if (validation.IsFailure)
         {
-            return Result.Failure(TodoListErrors.NotAuthenticated);
+            return validation.To<Versioned<TodoListDetailDto>>();
         }
 
-        var validation = await validator.ValidateAsync(command, cancellationToken);
+        var access = await lists.LoadOwnedAsync(command.TodoListId, command.Precondition, cancellationToken);
 
-        if (!validation.IsValid)
+        if (access.IsFailure)
         {
-            return Result.Failure(TodoListErrors.Invalid(validation));
+            return access.To<Versioned<TodoListDetailDto>>();
         }
 
-        var todoList = await repository.GetAsync(command.TodoListId, cancellationToken);
-
-        if (todoList is null || todoList.OwnerId != ownerId)
-        {
-            return Result.Failure(TodoListErrors.ListNotFound(command.TodoListId));
-        }
-
-        // Compared against the aggregate this scope just loaded, so nothing can commit between the
-        // comparison and the write below.
-        if (command.Precondition is { } precondition && !precondition.IsSatisfiedBy(todoList.Version))
-        {
-            return Result.Failure(TodoListErrors.PreconditionFailed);
-        }
+        var todoList = access.Value;
 
         // No try/catch: Rename only rejects names the validator above already rejected, so a
         // DomainException here means the two disagree — a bug to surface, not a user failure.
@@ -62,6 +51,6 @@ public sealed class RenameTodoListUseCase(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success();
+        return TodoListProjection.Detail(todoList);
     }
 }

@@ -141,7 +141,48 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
         RaiseDomainEvent(new TodoItemCompletedDomainEvent(Id, item.Id, item.Title.Value, completedAt));
     }
 
-    public void ReopenItem(Guid itemId) => RequireItem(itemId).Reopen();
+    /// <param name="reopenedAt">Injected rather than read from the clock, for the same reason
+    /// <see cref="CompleteItem"/> takes <c>completedAt</c>: the event's instant must be
+    /// reproducible in a test, not stamped by an ambient <c>DateTime.UtcNow</c>.</param>
+    public void ReopenItem(Guid itemId, DateTimeOffset reopenedAt)
+    {
+        var item = RequireItem(itemId);
+
+        if (item.Reopen())
+        {
+            RaiseDomainEvent(new TodoItemReopenedDomainEvent(Id, item.Id, item.Title.Value, reopenedAt));
+        }
+    }
+
+    /// <summary>Renames and/or redescribes an existing item in one step, so a caller does not
+    /// need two round trips — and two version bumps — to change both fields.</summary>
+    public void UpdateItem(Guid itemId, string title, string? description)
+    {
+        var item = RequireItem(itemId);
+        EnsureTitleIsFree(title, itemId);
+        item.ChangeTitle(title);
+        item.ChangeDescription(description);
+    }
+
+    /// <summary>Total replacement, not a merge: the caller sends the tag set it wants the item
+    /// to end up with, so this removes what is no longer present and adds what is new.</summary>
+    public void SetItemTags(Guid itemId, IEnumerable<string> tags)
+    {
+        ArgumentNullException.ThrowIfNull(tags);
+
+        var item = RequireItem(itemId);
+        var wanted = tags.Select(Tag.Create).ToHashSet();
+
+        foreach (var existing in item.Tags.Where(existing => !wanted.Contains(existing)).ToArray())
+        {
+            item.RemoveTag(existing);
+        }
+
+        foreach (var tag in wanted)
+        {
+            item.AddTag(tag);
+        }
+    }
 
     public void AddTagToItem(Guid itemId, string tag) => RequireItem(itemId).AddTag(Tag.Create(tag));
 
@@ -179,13 +220,7 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
                 $"Item '{item.Id}' belongs to list '{item.TodoListId}', not to list '{Id}'.");
         }
 
-        // Case-insensitive: "Buy milk" and "buy milk" are the same entry to whoever reads them.
-        // The titles are already trimmed, because they come from a TodoItemTitle.
-        if (_items.Exists(
-            existing => string.Equals(existing.Title.Value, item.Title.Value, StringComparison.OrdinalIgnoreCase)))
-        {
-            throw new DomainException($"This list already contains an item titled '{item.Title.Value}'.");
-        }
+        EnsureTitleIsFree(item.Title.Value, item.Id);
 
         if (_items.Count >= MaxItems)
         {
@@ -193,6 +228,21 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
         }
 
         _items.Add(item);
+    }
+
+    /// <summary>
+    /// Case-insensitive: "Buy milk" and "buy milk" are the same entry to whoever reads them.
+    /// <paramref name="exceptItemId"/> excludes the item being checked from the comparison, so
+    /// renaming an item to the title it already has does not collide with itself.
+    /// </summary>
+    private void EnsureTitleIsFree(string title, Guid exceptItemId)
+    {
+        if (_items.Exists(existing =>
+            existing.Id != exceptItemId &&
+            string.Equals(existing.Title.Value, title, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new DomainException($"This list already contains an item titled '{title}'.");
+        }
     }
 
     /// <summary>

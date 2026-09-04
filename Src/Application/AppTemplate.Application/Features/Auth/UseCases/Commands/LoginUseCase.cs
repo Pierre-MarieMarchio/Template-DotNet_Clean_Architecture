@@ -1,34 +1,35 @@
-﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Dtos;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports;
-using AppTemplate.Application.Features.Auth.Validators;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands;
 
-public sealed record LoginRequest(string Email, string Password);
+public sealed record LoginCommand(string Email, string Password);
 
-public interface ILoginUseCase : IUseCase<LoginRequest, Result<LoginResponse>>;
+public interface ILoginUseCase : IUseCase<LoginCommand, Result<LoginOutcome>>;
 
 public sealed class LoginUseCase(
     IUserAccounts accounts,
     IAccessTokenIssuer accessTokens,
     IRefreshTokenGrants refreshTokens,
-    IValidator<LoginRequest> validator) : ILoginUseCase
+    ISecurityEventLog securityEventLog,
+    IValidator<LoginCommand> validator) : ILoginUseCase
 {
-    public async Task<Result<LoginResponse>> ExecuteAsync(
-        LoginRequest request,
+    public async Task<Result<LoginOutcome>> ExecuteAsync(
+        LoginCommand request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var validation = await validator.ValidateAsync(request, cancellationToken);
+        var validation = await validator.EnsureValidAsync(request, cancellationToken);
 
-        if (!validation.IsValid)
+        if (validation.IsFailure)
         {
-            return Result.Failure<LoginResponse>(validation.ToError());
+            return validation.To<LoginOutcome>();
         }
 
         var credential = await accounts.VerifyCredentialAsync(
@@ -41,13 +42,17 @@ public sealed class LoginUseCase(
         // trying to tell apart. Branching on the outcome here is what would let it.
         if (credential is not { Outcome: CredentialCheckOutcome.Verified, Account: { } account })
         {
-            return Result.Failure<LoginResponse>(AuthErrors.InvalidCredentials);
+            securityEventLog.Record(SecurityEvent.AuthenticationFailed(credential.Account?.UserId, credential.Outcome));
+
+            return Result.Failure<LoginOutcome>(AuthErrors.InvalidCredentials);
         }
+
+        securityEventLog.Record(SecurityEvent.LoginSucceeded(account.UserId));
 
         var accessToken = await accessTokens.IssueAsync(account.UserId, cancellationToken);
         var refreshToken = await refreshTokens.IssueAsync(account.UserId, cancellationToken);
 
-        return Result.Success(new LoginResponse(
+        return Result.Success<LoginOutcome>(new LoginOutcome.Authenticated(
             account.UserId,
             account.UserName,
             account.Email,

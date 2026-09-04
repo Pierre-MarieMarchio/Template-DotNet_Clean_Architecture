@@ -1,5 +1,8 @@
-﻿using AppTemplate.Api.Common.Concurrency;
+﻿using AppTemplate.Api.Common.Caching;
+using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Errors;
+using AppTemplate.Api.Common.Http;
+using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.OpenApi;
 using AppTemplate.Api.Common.Security;
@@ -10,6 +13,7 @@ using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Asp.Versioning;
+using Asp.Versioning.ApiExplorer;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -44,12 +48,22 @@ builder.Services.AddEmailModule(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AppTemplate.Application.Common.Abstractions.ICurrentUser, CurrentUser>();
 
-builder.Services.AddControllers();
+// Global rather than per-controller: the filter is inert on any action without [Idempotent], so
+// registering it once here is safe and is one fewer thing every controller has to remember.
+builder.Services.AddControllers(options => options.Filters.Add<IdempotencyFilter>());
+
+// Model binding must answer the same ProblemDetails shape as an application validation failure, so
+// this is wired right beside AddControllers, before anything else has a chance to bind a request.
+builder.Services.AddApiModelStateProblemDetails();
 
 builder.Services.AddApiVersioning(options =>
     {
         options.DefaultApiVersion = new ApiVersion(1, 0);
-        options.AssumeDefaultVersionWhenUnspecified = true;
+
+        // Not AssumeDefaultVersionWhenUnspecified: the route template below is
+        // 'api/v{version:apiVersion}', which makes the segment mandatory. A request naming no
+        // version never reaches routing at all, so the option had nothing to apply to — it was
+        // dead configuration, not a lenient default.
         options.ReportApiVersions = true;
     })
     .AddMvc()
@@ -64,7 +78,30 @@ builder.Services.AddApiVersioning(options =>
 builder.Services.AddApiProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
-builder.Services.AddOpenApi(options => options.AddDocumentTransformer<OpenApiSecurityTransformer>());
+// One OpenAPI document per API version group, not one document for all of them: the ApiExplorer
+// above already partitions actions into 'v1', 'v2', ... groups, and a single AddOpenApi() call
+// captures every action regardless of its group, so a v2 added later would show up inside the v1
+// document too. This is registration, not request handling, and nothing here is resolved from the
+// throwaway provider except the version list itself, so the "extra singleton copy" ASP0000 warns
+// about does not apply — there is no other supported way to read the version list before the real
+// host exists, which is the only point AddOpenApi can still be called.
+#pragma warning disable ASP0000
+using (var versionProvider = builder.Services.BuildServiceProvider())
+#pragma warning restore ASP0000
+{
+    var descriptions = versionProvider.GetRequiredService<IApiVersionDescriptionProvider>().ApiVersionDescriptions;
+
+    foreach (var description in descriptions)
+    {
+        string groupName = description.GroupName;
+
+        builder.Services.AddOpenApi(groupName, options =>
+        {
+            options.AddDocumentTransformer<OpenApiSecurityTransformer>();
+            options.ShouldInclude = apiDescription => apiDescription.GroupName == groupName;
+        });
+    }
+}
 
 builder.Services.AddApiForwardedHeaders(builder.Configuration);
 builder.Services.AddApiSecurityHeaders(builder.Configuration);
@@ -72,6 +109,8 @@ builder.Services.AddApiCors(builder.Configuration);
 builder.Services.AddApiRateLimiting();
 builder.Services.AddApiObservability(builder.Configuration);
 builder.Services.AddApiConcurrency(builder.Configuration);
+builder.Services.AddApiIdempotency(builder.Configuration);
+builder.Services.AddApiRequestLimits(builder.Configuration);
 
 // Authorisation: authenticated by default. This single line is what closes the template's worst
 // defect — fifteen endpoints were reachable anonymously because each action was individually
@@ -80,6 +119,11 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build());
+
+// A named policy on top of the fallback above, for the one operation that needs more than "any
+// authenticated user": purging expired idempotency keys. Left as a second call rather than folded
+// into the one above, so the default-deny fallback stays exactly what it was.
+builder.Services.AddApiAuthorizationPolicies();
 
 // Liveness answers "is the process up" with no dependency, so an orchestrator does not restart the
 // API because the database is briefly unreachable. Readiness answers "can it serve traffic".
@@ -97,6 +141,14 @@ app.UseApiForwardedHeaders();
 // Next, so that a response written by the exception handler, the rate limiter or a health endpoint
 // carries the same headers as one written by a controller.
 app.UseApiSecurityHeaders();
+
+// Same reasoning and the same OnStarting mechanism as the security headers above: registered before
+// UseExceptionHandler can clear the response, so an error response states Cache-Control too.
+app.UseApiCacheHeaders();
+
+// Before anything reads the body, and before the request is logged, so an oversized request is
+// rejected — and that rejection is logged — the same as any other response.
+app.UseApiRequestLimits();
 
 // Outside the exception handler, so the entry reports the status the caller received.
 app.UseApiRequestLogging();

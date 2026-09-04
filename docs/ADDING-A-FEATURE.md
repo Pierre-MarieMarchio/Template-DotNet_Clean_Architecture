@@ -92,6 +92,84 @@ expected failure (not found, not owner, validation). Reserve `DomainException` f
 a violated invariant and let it become a 500 — that path means the domain and the
 use case disagreed about what is allowed, which is a bug, not a client error.
 
+### If the feature has a collection endpoint
+
+Sorting, filtering and paging are already built, once, in
+`Common/Collections/`. A feature does not implement them — it **declares what it
+allows**, in `Features/<Feature>/Collections/`:
+
+```
+Collections/<Feature>CollectionPolicy.cs   the sortable whitelist and the bounds
+Collections/<Feature>Filter.cs             the typed filter surface + its validation
+Collections/<Feature>PageRequest.cs        the one validated type the port accepts
+```
+
+The policy is the whitelist, and it lives here rather than in `Common/` because
+only the feature knows which of its columns are cheap to order by:
+
+```csharp
+public sealed class TodoListCollectionPolicy : ICollectionPolicy
+{
+    public const string NameField = "name";
+    public const string CreatedAtField = "createdAt";
+
+    public static readonly TodoListCollectionPolicy Instance = new();
+
+    public IReadOnlyList<SortableField> SortableFields { get; } =
+    [
+        SortableField.Keyset(NameField),          // may also be used with paging=cursor
+        SortableField.Keyset(CreatedAtField),
+        SortableField.OffsetOnly(LastModifiedAtField),   // nullable column — see below
+    ];
+
+    public string DefaultSort => "createdAt:desc";
+    public int MaxSortTerms => 3;
+    public int MaxPageSize => 100;
+    public int DefaultPageSize => 20;
+}
+```
+
+Four rules, and they are the whole reason this is safe:
+
+1. **A field on the whitelist gets an index.** Putting a name in
+   `SortableFields` is a promise that ordering by it is cheap, so add a composite
+   index `(<owner or tenant key>, <field>, Id)` in the feature's
+   `IEntityTypeConfiguration` — ending in the tiebreaker, so both the sort and the
+   keyset comparison are index-ordered. If you are not willing to add the index,
+   the field does not belong on the list.
+2. **`SortableField.Keyset` only for a non-nullable column.** A keyset comparison
+   against `NULL` is neither true nor false, so the row the cursor was minted from
+   would be skipped instead of resumed from. A nullable column is
+   `SortableField.OffsetOnly`, and asking for it with `paging=cursor` is a `400`.
+3. **`DefaultSort` is written in the caller's own syntax** and parsed by the same
+   `SortOrder.Parse` that parses caller input — so a typo in a feature's default
+   fails a test instead of shipping. `CollectionPolicyRules` in
+   `Tests/Architecture/AppTemplate.Architecture.Tests` asserts exactly that, for
+   every policy, automatically.
+4. **The filter is typed, never a string that becomes a predicate.** Each filter
+   is a named parameter with a CLR type and a validating factory returning
+   `Result<T>`; free text goes through `SearchTerm`, which bounds its length. See
+   `docs/adr/0015` for why there is no expression language.
+
+The use case parses the raw query into the validated types and hands the port a
+single `<Feature>PageRequest` — which has no public constructor, so a request that
+skipped validation cannot be built at all:
+
+```csharp
+Task<PagedResult<TodoListSummaryDto>> GetForOwnerAsync(
+    Guid ownerId,
+    TodoListPageRequest request,
+    CancellationToken cancellationToken = default);
+```
+
+The translation to SQL is the persistence half, in
+`Features/<Feature>/Queries/<Feature>SortMap.cs`: an exhaustive `switch` on the
+canonical field name returning a typed key selector, a `default` arm that throws
+because the use case should already have refused, and a mandatory
+`.ThenBy(record => record.Id)` on every order. Copy `TodoListSortMap` — the shape
+is the point, and `Tests/Architecture` enforces the parts of it that can be
+checked mechanically.
+
 ## 3. Persistence — model, mapping, tracker, repository
 
 `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/<Feature>/`

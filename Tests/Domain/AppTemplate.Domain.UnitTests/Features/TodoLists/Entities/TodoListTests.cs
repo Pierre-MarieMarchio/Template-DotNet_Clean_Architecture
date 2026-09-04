@@ -371,7 +371,7 @@ public sealed class TodoListTests
         var itemId = list.AddItem("Buy milk", null);
         list.CompleteItem(itemId, _now);
 
-        list.ReopenItem(itemId);
+        list.ReopenItem(itemId, _now);
 
         var item = list.Items.ShouldHaveSingleItem();
         item.IsCompleted.ShouldBeFalse();
@@ -384,7 +384,7 @@ public sealed class TodoListTests
         var list = ANewList();
         var itemId = list.AddItem("Buy milk", null);
         list.CompleteItem(itemId, _now);
-        list.ReopenItem(itemId);
+        list.ReopenItem(itemId, _now);
 
         var secondCompletion = _now.AddDays(1);
         list.CompleteItem(itemId, secondCompletion);
@@ -398,7 +398,7 @@ public sealed class TodoListTests
         var list = ANewList();
         var itemId = list.AddItem("Buy milk", null);
 
-        list.ReopenItem(itemId);
+        list.ReopenItem(itemId, _now);
 
         list.Items.ShouldHaveSingleItem().IsCompleted.ShouldBeFalse();
     }
@@ -408,7 +408,145 @@ public sealed class TodoListTests
     {
         var list = ANewList();
 
-        Should.Throw<DomainException>(() => list.ReopenItem(Guid.CreateVersion7()));
+        Should.Throw<DomainException>(() => list.ReopenItem(Guid.CreateVersion7(), _now));
+    }
+
+    #endregion
+
+    #region Renaming and describing items
+
+    [Fact]
+    public void UpdateItem_ReplacesTheTitleAndDescription()
+    {
+        var list = ANewList();
+        var itemId = list.AddItem("Buy milk", "Semi-skimmed");
+
+        list.UpdateItem(itemId, "Buy bread", "Wholemeal");
+
+        var item = list.Items.ShouldHaveSingleItem();
+        item.Title.Value.ShouldBe("Buy bread");
+        item.Description.ShouldBe("Wholemeal");
+    }
+
+    /// <summary>
+    /// The exclusion that makes the uniqueness check usable from a rename: without it,
+    /// renaming "Buy milk" to "Buy milk" would collide with itself.
+    /// </summary>
+    [Fact]
+    public void UpdateItem_Accepts_RenamingAnItemToItsOwnCurrentTitle()
+    {
+        var list = ANewList();
+        var itemId = list.AddItem("Buy milk", null);
+
+        Should.NotThrow(() => list.UpdateItem(itemId, "Buy milk", null));
+
+        list.Items.ShouldHaveSingleItem().Title.Value.ShouldBe("Buy milk");
+    }
+
+    [Fact]
+    public void UpdateItem_Accepts_RenamingAnItemToItsOwnTitleInADifferentCase()
+    {
+        var list = ANewList();
+        var itemId = list.AddItem("Buy milk", null);
+
+        Should.NotThrow(() => list.UpdateItem(itemId, "BUY MILK", null));
+
+        list.Items.ShouldHaveSingleItem().Title.Value.ShouldBe("BUY MILK");
+    }
+
+    /// <summary>
+    /// The exclusion is by id, not by title: it must not let a rename collide-check against
+    /// nothing at all when another item genuinely holds the title already.
+    /// </summary>
+    [Fact]
+    public void UpdateItem_Rejects_ATitleAlreadyHeldByAnotherItem()
+    {
+        var list = ANewList();
+        list.AddItem("Buy milk", null);
+        var itemId = list.AddItem("Buy bread", null);
+
+        var exception = Should.Throw<DomainException>(() => list.UpdateItem(itemId, "Buy milk", null));
+
+        exception.Message.ShouldContain("Buy milk");
+        list.Items.Single(item => item.Id == itemId).Title.Value.ShouldBe("Buy bread");
+    }
+
+    [Fact]
+    public void UpdateItem_Rejects_AnUnknownItemId()
+    {
+        var list = ANewList();
+
+        Should.Throw<DomainException>(() => list.UpdateItem(Guid.CreateVersion7(), "Buy milk", null));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void UpdateItem_Rejects_ABlankTitle(string title)
+    {
+        var list = ANewList();
+        var itemId = list.AddItem("Buy milk", null);
+
+        Should.Throw<DomainException>(() => list.UpdateItem(itemId, title, null));
+        list.Items.ShouldHaveSingleItem().Title.Value.ShouldBe("Buy milk");
+    }
+
+    #endregion
+
+    #region Replacing an item's tags
+
+    [Fact]
+    public void SetItemTags_ReplacesTheWholeSet()
+    {
+        var list = ANewList();
+        var itemId = list.AddItem("Buy milk", null);
+        list.AddTagToItem(itemId, "urgent");
+
+        list.SetItemTags(itemId, ["shopping", "weekly"]);
+
+        list.Items.ShouldHaveSingleItem().Tags.Select(tag => tag.Value).ShouldBe(["shopping", "weekly"]);
+    }
+
+    [Fact]
+    public void SetItemTags_KeepsATagPresentInBothTheOldAndTheNewSet()
+    {
+        var list = ANewList();
+        var itemId = list.AddItem("Buy milk", null);
+        list.AddTagToItem(itemId, "urgent");
+        list.AddTagToItem(itemId, "shopping");
+
+        list.SetItemTags(itemId, ["urgent", "weekly"]);
+
+        list.Items.ShouldHaveSingleItem().Tags.Select(tag => tag.Value).ShouldBe(["urgent", "weekly"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void SetItemTags_Accepts_AnEmptySetAndClearsTheTags()
+    {
+        var list = ANewList();
+        var itemId = list.AddItem("Buy milk", null);
+        list.AddTagToItem(itemId, "urgent");
+
+        list.SetItemTags(itemId, []);
+
+        list.Items.ShouldHaveSingleItem().Tags.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void SetItemTags_Rejects_AnUnknownItemId()
+    {
+        var list = ANewList();
+
+        Should.Throw<DomainException>(() => list.SetItemTags(Guid.CreateVersion7(), ["urgent"]));
+    }
+
+    [Fact]
+    public void SetItemTags_Rejects_ANullTagCollection()
+    {
+        var list = ANewList();
+        var itemId = list.AddItem("Buy milk", null);
+
+        Should.Throw<ArgumentNullException>(() => list.SetItemTags(itemId, null!));
     }
 
     #endregion
@@ -589,7 +727,7 @@ public sealed class TodoListTests
     }
 
     [Fact]
-    public void TheOtherOperations_RaiseNoEvents()
+    public void TheNonCompletionOperations_RaiseNoEvents()
     {
         var list = ANewList();
         list.ClearDomainEvents();
@@ -598,11 +736,45 @@ public sealed class TodoListTests
         list.Rename("Shopping");
         list.AddTagToItem(itemId, "urgent");
         list.RemoveTagFromItem(itemId, "urgent");
-        list.CompleteItem(itemId, _now);
-        list.ReopenItem(itemId);
+        list.UpdateItem(itemId, "Buy bread", "Wholemeal");
+        list.SetItemTags(itemId, ["weekly"]);
+        list.ReopenItem(itemId, _now); // already open: a no-op, not an event
         list.RemoveItem(itemId);
 
-        list.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<TodoItemCompletedDomainEvent>();
+        list.DomainEvents.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// Mirrors <see cref="CompleteItem_RaisesACompletionEvent"/>: a consumer tracking
+    /// completions must be able to track reversals too, or it drifts after the first reopen.
+    /// </summary>
+    [Fact]
+    public void ReopenItem_RaisesAReopenedEvent_WhenTheItemWasCompleted()
+    {
+        var list = ANewList();
+        var itemId = list.AddItem("Buy milk", null);
+        list.CompleteItem(itemId, _now);
+        list.ClearDomainEvents();
+
+        list.ReopenItem(itemId, _now);
+
+        list.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<TodoItemReopenedDomainEvent>();
+    }
+
+    /// <summary>
+    /// No event on a no-op: an item that was already open has nothing to announce a
+    /// reversal of.
+    /// </summary>
+    [Fact]
+    public void ReopenItem_RaisesNoEvent_WhenTheItemWasAlreadyOpen()
+    {
+        var list = ANewList();
+        var itemId = list.AddItem("Buy milk", null);
+        list.ClearDomainEvents();
+
+        list.ReopenItem(itemId, _now);
+
+        list.DomainEvents.ShouldBeEmpty();
     }
 
     [Fact]

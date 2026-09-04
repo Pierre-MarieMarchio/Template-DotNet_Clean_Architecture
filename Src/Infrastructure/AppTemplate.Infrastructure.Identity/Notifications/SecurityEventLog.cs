@@ -1,0 +1,90 @@
+using AppTemplate.Application.Features.Auth.Ports;
+using Microsoft.Extensions.Logging;
+
+namespace AppTemplate.Infrastructure.Identity.Notifications;
+
+/// <summary>
+/// Writes every <see cref="ISecurityEventLog"/> event as a structured log entry. The host's
+/// <c>AddJsonConsole</c> already emits scopes and named parameters as JSON fields, so nothing here
+/// formats a message for a human — <see cref="LoggerMessage"/> delegates carry the user id as its
+/// own field rather than interpolated into text.
+/// </summary>
+internal sealed partial class SecurityEventLog(ILogger<SecurityEventLog> logger) : ISecurityEventLog
+{
+    public void Record(SecurityEvent securityEvent)
+    {
+        ArgumentNullException.ThrowIfNull(securityEvent);
+
+        switch (securityEvent.Kind)
+        {
+            case SecurityEventKind.LoginSucceeded:
+                LogLoginSucceeded(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.AuthenticationFailed:
+                LogAuthenticationFailed(logger, securityEvent.UserId, securityEvent.Outcome);
+                break;
+
+            case SecurityEventKind.AccountLockedOut:
+                LogAccountLockedOut(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.Registered:
+                LogRegistered(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.LoggedOut:
+                LogLoggedOut(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.RefreshTokenRevoked:
+                LogRefreshTokenRevoked(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.RefreshTokenReplayDetected:
+                LogRefreshTokenReplayDetected(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.SecurityStampRotated:
+                LogSecurityStampRotated(logger, securityEvent.UserId);
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(securityEvent),
+                    securityEvent.Kind,
+                    $"Unknown {nameof(SecurityEventKind)}.");
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Login succeeded for user {UserId}.")]
+    private static partial void LogLoginSucceeded(ILogger logger, Guid? userId);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Authentication failed for user {UserId} with outcome {Outcome}.")]
+    private static partial void LogAuthenticationFailed(
+        ILogger logger,
+        Guid? userId,
+        CredentialCheckOutcome? outcome);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "User {UserId} was locked out.")]
+    private static partial void LogAccountLockedOut(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "User {UserId} registered.")]
+    private static partial void LogRegistered(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "User {UserId} logged out.")]
+    private static partial void LogLoggedOut(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Every refresh-token grant for user {UserId} was revoked.")]
+    private static partial void LogRefreshTokenRevoked(ILogger logger, Guid? userId);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "A consumed refresh token was replayed for user {UserId}.")]
+    private static partial void LogRefreshTokenReplayDetected(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "The security stamp for user {UserId} was rotated.")]
+    private static partial void LogSecurityStampRotated(ILogger logger, Guid? userId);
+}

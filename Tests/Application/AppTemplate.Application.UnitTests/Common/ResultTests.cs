@@ -177,10 +177,72 @@ public sealed class ResultTests
     }
 
     #endregion
+
+    #region To<TOther>
+
+    [Fact]
+    public void To_ReportsTheSameFailure_UnderAnotherValueType()
+    {
+        var result = Result.Failure<int>(_anError);
+
+        var converted = result.To<string>();
+
+        converted.IsFailure.ShouldBeTrue();
+        converted.Error.ShouldBe(_anError);
+    }
+
+    /// <summary>A success carries no error to report, so converting one is a programming error.</summary>
+    [Fact]
+    public void To_Throws_OnASuccess() =>
+        Should.Throw<InvalidOperationException>(() => Result.Success(1).To<string>());
+
+    [Fact]
+    public void To_WorksFromTheNonGenericResultToo()
+    {
+        var result = Result.Failure(_anError);
+
+        var converted = result.To<int>();
+
+        converted.IsFailure.ShouldBeTrue();
+        converted.Error.ShouldBe(_anError);
+    }
+
+    #endregion
+
+    #region The failure-only Value
+
+    /// <summary>
+    /// Property subpatterns short-circuit in the order they are written. Naming <c>Value</c> before
+    /// <c>IsSuccess</c> reads the getter before the guard runs, so it throws on a failure instead of
+    /// simply not matching.
+    /// </summary>
+    [Fact]
+    public void APropertyPatternNamingValueBeforeIsSuccess_ThrowsOnAFailure_InsteadOfFailingToMatch()
+    {
+        Result<int> result = Result<int>.Failure(_anError);
+
+        // A discard ("Value: var _") is elided by the compiler and never calls the getter at all,
+        // so the pattern has to bind the value to a real variable to force the read this test pins.
+        Should.Throw<InvalidOperationException>(() =>
+        {
+            _ = result is { Value: var capturedValue, IsSuccess: true } && capturedValue >= 0;
+        });
+    }
+
+    /// <summary>The safe order: the guard runs first and the pattern simply fails to match.</summary>
+    [Fact]
+    public void APropertyPatternNamingIsSuccessFirst_FailsToMatch_InsteadOfThrowing()
+    {
+        Result<int> result = Result<int>.Failure(_anError);
+
+        (result is { IsSuccess: true, Value: var capturedValue } && capturedValue >= 0).ShouldBeFalse();
+    }
+
+    #endregion
 }
 
 /// <summary>
-/// The guards live in a protected constructor, so reaching them means deriving from
+/// The guards live in a private protected constructor, so reaching them means deriving from
 /// <c>Result</c> — which is exactly what any future result type in the layer would do.
 /// </summary>
 internal sealed class DerivedResult(bool isSuccess, Error? error) : Result(isSuccess, error);

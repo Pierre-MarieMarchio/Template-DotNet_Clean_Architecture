@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Idempotency;
 using AppTemplate.Application.Features.TodoLists.Ports;
 using AppTemplate.Domain.Common.Events;
 using AppTemplate.Domain.Features.TodoLists.Events;
@@ -6,6 +7,7 @@ using AppTemplate.Domain.Features.TodoLists.Stores;
 using AppTemplate.Infrastructure.Persistence.Common.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.DomainEvents;
+using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Mapping;
 using AppTemplate.Infrastructure.Persistence.Common.Time;
 using AppTemplate.Infrastructure.Persistence.Common.UnitOfWork;
@@ -20,8 +22,58 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence;
+
+/// <summary>
+/// Connection pooling and command-timeout policy for <see cref="Common.Contexts.AppDbContext"/>.
+/// <para>
+/// <b>Why this exists.</b> Npgsql defaults <c>Maximum Pool Size</c> to 100 per process, and
+/// PostgreSQL's own <c>max_connections</c> defaults to 100 for the whole server. Two replicas at
+/// the driver default are already enough to exhaust it, and <c>AddDbContextFactory</c> makes the
+/// arithmetic worse: <see cref="Common.Idempotency.IdempotencyStore"/> opens its own connection
+/// per call, separate from the ambient request context, so one idempotent write can hold up to
+/// three connections at once instead of one. See docs/CONFIGURATION.md for how to size
+/// <c>MaxPoolSize</c> against replica count and PostgreSQL's <c>max_connections</c>.
+/// </para>
+/// </summary>
+public sealed class DatabaseOptions
+{
+    public const string SectionName = "Database";
+
+    /// <summary>
+    /// Passed through as Npgsql's <c>Maximum Pool Size</c>. Deliberately well under the driver's own
+    /// default of 100, so that running several replicas of this process (API and/or worker) against
+    /// one PostgreSQL server does not, by itself, approach <c>max_connections</c>.
+    /// </summary>
+    public int MaxPoolSize { get; set; } = 20;
+
+    /// <summary>Npgsql's per-command timeout. The driver's own default is also 30 seconds.</summary>
+    public int CommandTimeoutSeconds { get; set; } = 30;
+}
+
+internal sealed class DatabaseOptionsValidator : IValidateOptions<DatabaseOptions>
+{
+    public ValidateOptionsResult Validate(string? name, DatabaseOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var failures = new List<string>();
+
+        if (options.MaxPoolSize is < 1 or > 500)
+        {
+            failures.Add($"'{DatabaseOptions.SectionName}:MaxPoolSize' must be between 1 and 500.");
+        }
+
+        if (options.CommandTimeoutSeconds is < 1 or > 300)
+        {
+            failures.Add($"'{DatabaseOptions.SectionName}:CommandTimeoutSeconds' must be between 1 and 300.");
+        }
+
+        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+}
 
 /// <summary>
 /// Composes all persistence: the one context, the interceptor pipeline, the clock, the unit of work, and
@@ -63,10 +115,13 @@ public static class PersistenceModule
         string connectionString = DefaultConnectionString.Require(configuration);
 
         AddSeedingOptions(services, configuration);
+        AddDatabaseOptions(services, configuration);
         AddSharedServices(services);
         AddTodoListsFeature(services);
         AddIdentityFeature(services);
+        AddIdempotencyFeature(services, configuration);
         AddContext(services, connectionString);
+        AddContextFactory(services, connectionString);
 
         return services;
     }
@@ -78,6 +133,14 @@ public static class PersistenceModule
             .Bind(configuration.GetSection(IdentitySeedOptions.SectionName))
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<IdentitySeedOptions>, IdentitySeedOptionsValidator>();
+    }
+
+    private static void AddDatabaseOptions(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<DatabaseOptions>()
+            .Bind(configuration.GetSection(DatabaseOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<DatabaseOptions>, DatabaseOptionsValidator>();
     }
 
     private static void AddSharedServices(IServiceCollection services)
@@ -125,11 +188,26 @@ public static class PersistenceModule
         services.TryAddScoped<IIdentitySeeder, IdentitySeeder>();
     }
 
+    private static void AddIdempotencyFeature(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<IdempotencyPurgeOptions>()
+            .Bind(configuration.GetSection(IdempotencyPurgeOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<IdempotencyPurgeOptions>, IdempotencyPurgeOptionsValidator>();
+
+        // Scoped: the factory itself is stateless, but IDbContextFactory<T> is conventionally scoped
+        // alongside the context it stands beside, and nothing here needs it to outlive a request.
+        services.TryAddScoped<IIdempotencyStore, IdempotencyStore>();
+    }
+
     private static void AddContext(IServiceCollection services, string connectionString)
     {
         services.AddDbContext<AppDbContext>((serviceProvider, options) =>
+        {
+            var database = serviceProvider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+
             options
-                .UseNpgsql(connectionString, npgsql => npgsql
+                .UseNpgsql(WithMaxPoolSize(connectionString, database.MaxPoolSize), npgsql => npgsql
                     // Transient connection failures are the driver's problem to solve. The previous
                     // version hand-rolled a retry loop around startup with an empty catch block, which
                     // swallowed configuration errors as if they were network blips and then failed much
@@ -138,6 +216,7 @@ public static class PersistenceModule
                         maxRetryCount: 5,
                         maxRetryDelay: TimeSpan.FromSeconds(10),
                         errorCodesToAdd: null)
+                    .CommandTimeout(database.CommandTimeoutSeconds)
                     .MigrationsAssembly(typeof(AppDbContext).Assembly.GetName().Name)
                     .MigrationsHistoryTable(
                         AppDbContext.MigrationsHistoryTableName,
@@ -153,6 +232,47 @@ public static class PersistenceModule
                 .AddInterceptors(
                     serviceProvider.GetRequiredService<AggregateFlushSaveChangesInterceptor>(),
                     serviceProvider.GetRequiredService<AuditingSaveChangesInterceptor>(),
-                    serviceProvider.GetRequiredService<DomainEventDispatchSaveChangesInterceptor>()));
+                    serviceProvider.GetRequiredService<DomainEventDispatchSaveChangesInterceptor>());
+        });
+    }
+
+    /// <summary>
+    /// Applies <see cref="DatabaseOptions.MaxPoolSize"/> to the connection string rather than
+    /// appending it as text at the call site, so a value that is already present (a deployment that
+    /// sets it directly in <c>ConnectionStrings:Default</c>) is overridden consistently instead of
+    /// producing a string with the key twice.
+    /// </summary>
+    private static string WithMaxPoolSize(string connectionString, int maxPoolSize) =>
+        new NpgsqlConnectionStringBuilder(connectionString) { MaxPoolSize = maxPoolSize }.ConnectionString;
+
+    /// <summary>
+    /// A second way to create an <see cref="AppDbContext"/>, for <see cref="IdempotencyStore"/>
+    /// alone: a fresh instance — its own change tracker, its own connection, its own commit — rather
+    /// than the ambient request-scoped one <c>IUnitOfWork</c> owns.
+    /// <para>
+    /// <b>Why this registers no options of its own.</b> <c>AddDbContextFactory</c> adds
+    /// <c>DbContextOptions&lt;AppDbContext&gt;</c> with <c>TryAdd</c>, and <see cref="AddContext"/>
+    /// has already registered one, scoped, with the flush/audit/dispatch interceptors attached. The
+    /// options action below is therefore never invoked — it exists only so the call reads as
+    /// intentional rather than accidentally relying on that ordering. What actually matters is the
+    /// factory's own lifetime: requesting the default (<c>Singleton</c>) here would make it depend on
+    /// that scoped options object, which <c>BuildServiceProvider(validateScopes: true)</c> refuses
+    /// outright — the exact conflict the task that added this file called out. Registering the
+    /// factory <c>Scoped</c> instead makes it consume the same scoped options safely, which also
+    /// means every context it creates carries the same interceptor pipeline as the ambient one; that
+    /// is harmless here, since none of those interceptors recognise <c>IdempotencyRecord</c> as an
+    /// aggregate root or an auditable entity, and it is one fewer configuration to keep in sync with
+    /// <see cref="AddContext"/>. It is also why <see cref="DatabaseOptions.MaxPoolSize"/> and
+    /// <see cref="DatabaseOptions.CommandTimeoutSeconds"/> need no wiring here: every context this
+    /// factory creates carries <see cref="AddContext"/>'s options, pool limit included, so
+    /// <see cref="IdempotencyStore"/>'s extra connections count against the same bound as the
+    /// ambient one rather than a second pool with a bound of its own.
+    /// </para>
+    /// </summary>
+    private static void AddContextFactory(IServiceCollection services, string connectionString)
+    {
+        services.AddDbContextFactory<AppDbContext>(
+            options => options.UseNpgsql(connectionString),
+            lifetime: ServiceLifetime.Scoped);
     }
 }

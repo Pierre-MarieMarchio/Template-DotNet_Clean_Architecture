@@ -66,7 +66,9 @@ internal sealed class DomainEventDispatchSaveChangesInterceptor(
         {
             try
             {
-                await dispatcher.DispatchAsync(domainEvent, cancellationToken);
+                // Not the save's token: the transaction has committed, so abandoning publication
+                // because the caller walked away would drop a side effect for a write that landed.
+                await dispatcher.DispatchAsync(domainEvent, CancellationToken.None);
             }
             catch (Exception exception)
             {

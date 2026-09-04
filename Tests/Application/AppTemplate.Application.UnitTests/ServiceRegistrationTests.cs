@@ -1,7 +1,9 @@
 ﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Idempotency;
 using AppTemplate.Application.Features.Auth.Ports;
 using AppTemplate.Application.Features.Auth.UseCases.Commands;
+using AppTemplate.Application.Features.TodoLists.Access;
 using AppTemplate.Application.Features.TodoLists.Ports;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries;
@@ -18,8 +20,13 @@ namespace AppTemplate.Application.UnitTests;
 
 public sealed class ServiceRegistrationTests
 {
-    /// <summary>Nine to-do list operations and six authentication ones.</summary>
-    private const int _knownUseCaseCount = 15;
+    /// <summary>
+    /// Fifteen to-do list operations (the original nine, plus reopen, update, the three tag
+    /// operations and the item-collection read), ten authentication ones (the original six, plus
+    /// the profile read, change-password, and the two password-reset operations), and two
+    /// maintenance operations.
+    /// </summary>
+    private const int _knownUseCaseCount = 27;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
@@ -88,12 +95,26 @@ public sealed class ServiceRegistrationTests
     [InlineData(typeof(IValidator<CreateTodoListCommand>))]
     [InlineData(typeof(IValidator<RenameTodoListCommand>))]
     [InlineData(typeof(IValidator<AddTodoItemCommand>))]
-    [InlineData(typeof(IValidator<RegisterRequest>))]
-    [InlineData(typeof(IValidator<LoginRequest>))]
-    [InlineData(typeof(IValidator<RefreshAccessTokenRequest>))]
-    [InlineData(typeof(IValidator<ConfirmEmailRequest>))]
-    [InlineData(typeof(IValidator<ResendConfirmationEmailRequest>))]
-    [InlineData(typeof(IValidator<LogoutRequest>))]
+    [InlineData(typeof(IValidator<DeleteTodoListCommand>))]
+    [InlineData(typeof(IValidator<CompleteTodoItemCommand>))]
+    [InlineData(typeof(IValidator<RemoveTodoItemCommand>))]
+    [InlineData(typeof(IValidator<UpdateTodoItemCommand>))]
+    [InlineData(typeof(IValidator<ReopenTodoItemCommand>))]
+    [InlineData(typeof(IValidator<AddTagToTodoItemCommand>))]
+    [InlineData(typeof(IValidator<RemoveTagFromTodoItemCommand>))]
+    [InlineData(typeof(IValidator<ReplaceTodoItemTagsCommand>))]
+    [InlineData(typeof(IValidator<GetTodoListQuery>))]
+    [InlineData(typeof(IValidator<GetTodoItemQuery>))]
+    [InlineData(typeof(IValidator<GetTodoItemsQuery>))]
+    [InlineData(typeof(IValidator<RegisterCommand>))]
+    [InlineData(typeof(IValidator<LoginCommand>))]
+    [InlineData(typeof(IValidator<RefreshAccessTokenCommand>))]
+    [InlineData(typeof(IValidator<ConfirmEmailCommand>))]
+    [InlineData(typeof(IValidator<ResendConfirmationEmailCommand>))]
+    [InlineData(typeof(IValidator<LogoutCommand>))]
+    [InlineData(typeof(IValidator<ChangePasswordCommand>))]
+    [InlineData(typeof(IValidator<RequestPasswordResetCommand>))]
+    [InlineData(typeof(IValidator<ResetPasswordCommand>))]
     public void EveryValidator_IsDiscovered(Type validatorType)
     {
         using var provider = BuildProvider();
@@ -108,15 +129,29 @@ public sealed class ServiceRegistrationTests
     /// </summary>
     [Theory]
     [InlineData(typeof(IValidator<CreateTodoListCommand>))]
-    [InlineData(typeof(IValidator<RegisterRequest>))]
-    [InlineData(typeof(IValidator<LoginRequest>))]
-    [InlineData(typeof(IValidator<LogoutRequest>))]
+    [InlineData(typeof(IValidator<RegisterCommand>))]
+    [InlineData(typeof(IValidator<LoginCommand>))]
+    [InlineData(typeof(IValidator<LogoutCommand>))]
     public void EachValidator_IsRegisteredExactlyOnce(Type validatorType)
     {
         var services = new ServiceCollection();
         services.AddApplicationLayer();
 
         services.Count(descriptor => descriptor.ServiceType == validatorType).ShouldBe(1);
+    }
+
+    /// <summary>
+    /// Not a use case, so the marker-based discovery never reaches it: it has to be bound by hand,
+    /// and this is the one place that checks the hand-written line was not forgotten.
+    /// </summary>
+    [Fact]
+    public void TodoListAccess_IsRegisteredAsScoped()
+    {
+        var services = new ServiceCollection();
+        services.AddApplicationLayer();
+
+        services.Single(descriptor => descriptor.ServiceType == typeof(ITodoListAccess))
+            .Lifetime.ShouldBe(ServiceLifetime.Scoped);
     }
 
     /// <summary>
@@ -169,10 +204,16 @@ public sealed class ServiceRegistrationTests
         services.AddScoped(_ => Substitute.For<IDateTimeProvider>());
         services.AddScoped(_ => Substitute.For<IEmailSender>());
         services.AddScoped(_ => Substitute.For<IUserAccounts>());
+        services.AddScoped(_ => Substitute.For<IUserProfiles>());
         services.AddScoped(_ => Substitute.For<IEmailConfirmationTokens>());
+        services.AddScoped(_ => Substitute.For<IPasswordResetTokens>());
+        services.AddScoped(_ => Substitute.For<IPasswordResetEmailComposer>());
         services.AddScoped(_ => Substitute.For<IAccessTokenIssuer>());
         services.AddScoped(_ => Substitute.For<IRefreshTokenGrants>());
         services.AddScoped(_ => Substitute.For<IConfirmationEmailComposer>());
+        services.AddScoped(_ => Substitute.For<IIdempotencyStore>());
+        services.AddScoped(_ => Substitute.For<IRefreshTokenMaintenance>());
+        services.AddScoped(_ => Substitute.For<ISecurityEventLog>());
 
         // The layer's domain-event consumer takes an ILogger, which every real host supplies.
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));

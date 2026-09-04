@@ -220,8 +220,8 @@ public sealed class PortConventionTests
             .ToList();
 
         authUseCases.Count.ShouldBe(
-            6,
-            "The authentication vertical has six use cases. Finding another number means this rule " +
+            10,
+            "The authentication vertical has ten use cases. Finding another number means this rule " +
             "is no longer describing it.");
 
         // The validator every use case takes is not a collaborator it sequences.

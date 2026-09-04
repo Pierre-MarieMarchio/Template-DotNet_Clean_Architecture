@@ -96,6 +96,18 @@ services:
       # own database.
       ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true"
 
+      # --- Database: connection-pool bound and command timeout. See -----------
+      # docs/CONFIGURATION.md for how DATABASE_MAX_POOL_SIZE must be sized
+      # against replica count (api + worker, and every replica of each) and
+      # PostgreSQL's own max_connections. The worker service below reads the
+      # same two variables, so raising replica count and lowering the
+      # per-instance pool stays a one-place change.
+      Database__MaxPoolSize: ${DATABASE_MAX_POOL_SIZE:-20}
+      Database__CommandTimeoutSeconds: ${DATABASE_COMMAND_TIMEOUT_SECONDS:-30}
+
+      # --- IdempotencyPurge ----------------------------------------------------
+      IdempotencyPurge__BatchSize: ${IDEMPOTENCY_PURGE_BATCH_SIZE:-1000}
+
       # --- Jwt ---------------------------------------------------------------
       Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env (min 32 bytes; openssl rand -base64 48)}
       Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
@@ -137,6 +149,10 @@ services:
       EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
       EmailConfirmation__Subject: ${CONFIRM_EMAIL_SUBJECT:-Confirm your email address}
 
+      # --- PasswordReset -----------------------------------------------------
+      PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
+      PasswordReset__Subject: ${RESET_PASSWORD_SUBJECT:-Reset your password}
+
       # --- IdentitySeed — DEVELOPMENT ONLY -----------------------------------
       # Off by default, and no default password: enabling it without
       # SEED_ADMIN_PASSWORD fails startup validation rather than creating a
@@ -165,6 +181,53 @@ services:
       retries: 5
       # Generous: the first start runs EF migrations against an empty database.
       start_period: 60s
+    networks: [backend]
+
+  worker:
+    # The template's proof that Clean Architecture pays for itself: this process calls the exact
+    # same IPurgeExpiredIdempotencyKeysUseCase and IPurgeExpiredRefreshTokensUseCase as the api
+    # service's MaintenanceController, through the same application layer, with no use case and
+    # no domain type touched to run it here instead of over HTTP. See
+    # Src/Presentation/AppTemplate.Worker.
+    image: app-template-worker:dev
+    build:
+      context: .
+      dockerfile: Src/Presentation/AppTemplate.Worker/Dockerfile
+    restart: unless-stopped
+    environment:
+      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true"
+
+      # Same two variables as the api service — this process holds its own pool against the same
+      # server, and MaxPoolSize must be sized with the api's replicas in mind, not just its own.
+      # See docs/CONFIGURATION.md.
+      Database__MaxPoolSize: ${DATABASE_MAX_POOL_SIZE:-20}
+      Database__CommandTimeoutSeconds: ${DATABASE_COMMAND_TIMEOUT_SECONDS:-30}
+
+      IdempotencyPurge__BatchSize: ${IDEMPOTENCY_PURGE_BATCH_SIZE:-1000}
+
+      # --- MaintenanceWorker ---------------------------------------------------
+      MaintenanceWorker__Interval: ${MAINTENANCE_WORKER_INTERVAL:-01:00:00}
+      MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: ${MAINTENANCE_WORKER_PURGE_IDEMPOTENCY_KEYS:-true}
+      MaintenanceWorker__PurgeExpiredRefreshTokensEnabled: ${MAINTENANCE_WORKER_PURGE_REFRESH_TOKENS:-true}
+
+      # --- Jwt, RefreshToken, EmailConfirmation --------------------------------
+      # Composed only because IRefreshTokenMaintenance's sole adapter lives in
+      # AppTemplate.Infrastructure.Identity, which validates its own configuration surface at
+      # startup regardless of whether this host ever authenticates anybody. Same variables and
+      # same required values as the api service — see docs/CONFIGURATION.md.
+      Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env (min 32 bytes; openssl rand -base64 48)}
+      Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
+      Jwt__Audience: ${JWT_AUDIENCE:?set JWT_AUDIENCE in .env}
+      RefreshToken__LifetimeInDays: ${REFRESH_TOKEN_LIFETIME_DAYS:-7}
+      # Both are validated at start-up by the Identity module this host composes,
+      # even though a background loop sends neither mail.
+      EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
+      PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
+    depends_on:
+      db:
+        condition: service_healthy
     networks: [backend]
 
 volumes:

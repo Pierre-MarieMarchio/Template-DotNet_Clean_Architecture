@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Common;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Common.Errors;
@@ -9,22 +10,55 @@ namespace AppTemplate.Api.Common.Errors;
 /// </summary>
 public static class ErrorResults
 {
-    public static ActionResult ToActionResult(this Error error)
+    /// <summary>
+    /// Without a request to normalise against: no <c>traceId</c>, and <c>type</c> falls back to
+    /// <see cref="ProblemTypes.DefaultBaseUri"/> rather than whatever <see cref="ProblemTypeOptions"/>
+    /// configures. Prefer <see cref="ToActionResult(Error, HttpContext)"/> everywhere a
+    /// <see cref="HttpContext"/> is available.
+    /// </summary>
+    public static ActionResult ToActionResult(this Error error) => Build(error, httpContext: null);
+
+    /// <summary>Normalises the response through <see cref="ProblemDetailsDefaults.Normalise"/>.</summary>
+    public static ActionResult ToActionResult(this Error error, HttpContext httpContext)
+    {
+        ArgumentNullException.ThrowIfNull(httpContext);
+
+        return Build(error, httpContext);
+    }
+
+    private static ObjectResult Build(Error error, HttpContext? httpContext)
     {
         ArgumentNullException.ThrowIfNull(error);
 
         int status = StatusCodeFor(error.Type);
 
-        var problem = new ProblemDetails
-        {
-            Status = status,
-            Title = TitleFor(error.Type),
-            Detail = error.Message,
-            Type = $"https://httpstatuses.io/{status}",
-        };
+        // A dictionary of per-field failures is what turns this into a validation problem: the same
+        // distinction ModelStateProblemDetails makes for the errors MVC's own binding produces.
+        ProblemDetails problem = error.Details is { Count: > 0 } details
+            ? new ValidationProblemDetails(ToFieldErrors(details))
+            {
+                Status = status,
+                Title = TitleFor(error.Type),
+                Detail = error.Message,
+            }
+            : new ProblemDetails
+            {
+                Status = status,
+                Title = TitleFor(error.Type),
+                Detail = error.Message,
+            };
 
         // Clients branch on this, never on Detail.
         problem.Extensions["code"] = error.Code;
+
+        if (httpContext is not null)
+        {
+            ProblemDetailsDefaults.Normalise(problem, httpContext);
+        }
+        else
+        {
+            problem.Type = ProblemTypes.For(error.Code);
+        }
 
         return new ObjectResult(problem)
         {
@@ -32,6 +66,12 @@ public static class ErrorResults
             ContentTypes = { "application/problem+json" },
         };
     }
+
+    // Keys are already camelCase: ValidationError.From normalises them once, at the point the
+    // failure is authored, and this must not re-transform what is already in the right shape.
+    private static Dictionary<string, string[]> ToFieldErrors(
+        IReadOnlyDictionary<string, IReadOnlyList<string>> details) =>
+        details.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray(), StringComparer.Ordinal);
 
     private static int StatusCodeFor(ErrorType type) => type switch
     {

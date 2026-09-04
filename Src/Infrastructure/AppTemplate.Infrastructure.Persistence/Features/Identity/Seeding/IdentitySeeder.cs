@@ -31,7 +31,11 @@ internal sealed class IdentitySeeder(
     IDateTimeProvider dateTimeProvider,
     ILogger<IdentitySeeder> logger) : IIdentitySeeder
 {
-    public const string AdminRoleName = "Admin";
+    /// <summary>
+    /// Read from <see cref="IdentityRoles"/> rather than spelled again here, so the role this
+    /// creates and the role the API's administrator policy requires cannot drift apart.
+    /// </summary>
+    public const string AdminRoleName = IdentityRoles.Administrator;
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {

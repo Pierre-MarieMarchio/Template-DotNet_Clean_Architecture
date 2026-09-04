@@ -31,4 +31,17 @@ public interface IUserAccounts
 
     /// <summary>Whether an already-authenticated principal is still allowed to obtain a new token.</summary>
     Task<bool> CanSignInAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Verifies the current password and, on a match, replaces it. ASP.NET Identity rotates the
+    /// security stamp as part of this call, which — through the bearer handler's
+    /// <c>ValidateSecurityStampAsync</c> — invalidates every access token already issued for the
+    /// account. Refresh tokens are untouched by that rotation and are the caller's responsibility to
+    /// revoke.
+    /// </summary>
+    Task<PasswordChange> ChangePasswordAsync(
+        Guid userId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken = default);
 }

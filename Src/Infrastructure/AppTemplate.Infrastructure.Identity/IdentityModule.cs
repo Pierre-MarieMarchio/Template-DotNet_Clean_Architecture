@@ -9,6 +9,8 @@ using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,6 +42,13 @@ namespace AppTemplate.Infrastructure.Identity;
 /// </summary>
 public static class IdentityModule
 {
+    /// <summary>
+    /// The key ring's isolation namespace. Shared between every call to <c>AddDataProtection</c>
+    /// this process makes, so a second one — a test host, say — cannot end up unkeyed by naming a
+    /// different string.
+    /// </summary>
+    internal const string DataProtectionApplicationName = "AppTemplate";
+
     /// <summary>
     /// Registers ASP.NET Identity itself, bearer validation, and an adapter for each authentication
     /// port the application layer declares.
@@ -84,16 +93,22 @@ public static class IdentityModule
         // One adapter per capability port. Nothing in this module depends on a concrete class, so
         // replacing one is a single line here.
         services.AddScoped<IUserAccounts, UserAccounts>();
+        services.AddScoped<IUserProfiles, UserProfiles>();
         services.AddScoped<IEmailConfirmationTokens, EmailConfirmationTokens>();
+        services.AddScoped<IPasswordResetTokens, PasswordResetTokens>();
         services.AddScoped<IAccessTokenIssuer, AccessTokenIssuer>();
         services.AddScoped<IRefreshTokenGrants, RefreshTokenGrants>();
+        services.AddScoped<IRefreshTokenMaintenance, RefreshTokenMaintenance>();
         services.AddScoped<IConfirmationEmailComposer, ConfirmationEmailComposer>();
+        services.AddScoped<IPasswordResetEmailComposer, PasswordResetEmailComposer>();
+        services.AddScoped<ISecurityEventLog, SecurityEventLog>();
 
         // Not a port: the account lookup and claim generation the two token adapters share.
         services.AddScoped<IAppUserDirectory, AppUserDirectory>();
 
         AddIdentityCore(services);
         AddJwtBearerAuthentication(services);
+        AddDataProtection(services);
 
         return services;
     }
@@ -120,6 +135,16 @@ public static class IdentityModule
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<EmailConfirmationOptions>, EmailConfirmationOptionsValidator>();
 
+        services.AddOptions<IdentityTokenOptions>()
+            .Bind(configuration.GetSection(IdentityTokenOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<IdentityTokenOptions>, IdentityTokenOptionsValidator>();
+
+        services.AddOptions<PasswordResetOptions>()
+            .Bind(configuration.GetSection(PasswordResetOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<PasswordResetOptions>, PasswordResetOptionsValidator>();
+
         // IdentitySeedOptions is deliberately absent: seeding is a persistence concern and the
         // persistence module binds and validates that section. The section name is unchanged.
     }
@@ -128,7 +153,10 @@ public static class IdentityModule
     {
         services.AddIdentity<AppUser, AppRole>()
             .AddEntityFrameworkStores<AppDbContext>()
-            .AddDefaultTokenProviders();
+            .AddDefaultTokenProviders()
+            // A provider of its own, not the "Default" one email confirmation resolves to — see
+            // PasswordResetTokenProviderName for why sharing it would tie the two lifespans together.
+            .AddTokenProvider<PasswordResetTokenProvider>(PasswordResetTokenProviderName.Value);
 
         // Applied after AddIdentity's own defaults, and sourced from validated options rather than
         // from a section read eagerly at composition time.
@@ -154,7 +182,39 @@ public static class IdentityModule
                 identity.Lockout.AllowedForNewUsers = policy.LockoutEnabled;
                 identity.Lockout.MaxFailedAccessAttempts = policy.LockoutMaxFailedAccessAttempts;
                 identity.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(policy.LockoutDurationInMinutes);
+
+                // Points ResetPasswordAsync/GeneratePasswordResetTokenAsync at the named provider
+                // above instead of ASP.NET Identity's own "Default" — the value it and email
+                // confirmation would otherwise both resolve to.
+                identity.Tokens.PasswordResetTokenProvider = PasswordResetTokenProviderName.Value;
             });
+
+        // Every provider AddDefaultTokenProviders just registered shares this one options type, so
+        // this is the single knob that currently exists for "how long is a minted token good for" —
+        // see IdentityTokenOptions for why that is one setting and not one per provider.
+        services.AddOptions<DataProtectionTokenProviderOptions>()
+            .Configure<IOptions<IdentityTokenOptions>>(
+                (tokenOptions, identityTokenOptions) => tokenOptions.TokenLifespan = identityTokenOptions.Value.Lifespan);
+
+        // The password-reset provider's own lifespan, independent of the one just above.
+        services.AddOptions<PasswordResetTokenProviderOptions>()
+            .Configure<IOptions<PasswordResetOptions>>(
+                (tokenOptions, passwordResetOptions) => tokenOptions.TokenLifespan = passwordResetOptions.Value.TokenLifespan);
+    }
+
+    /// <summary>
+    /// Points the data-protection key ring at the shared database instead of the process's local,
+    /// ephemeral one. <c>AddDefaultTokenProviders</c> mints email-confirmation and password-reset
+    /// tokens through <c>DataProtectorTokenProvider</c>, which without this call keys itself from
+    /// whatever the machine or container offers — nothing in a container that is rebuilt on every
+    /// deploy, and nothing shared between replicas. Either way, a token issued by one process is
+    /// rejected by another, and every redeploy invalidates every link already sent.
+    /// </summary>
+    private static void AddDataProtection(IServiceCollection services)
+    {
+        services.AddDataProtection()
+            .PersistKeysToDbContext<AppDbContext>()
+            .SetApplicationName(DataProtectionApplicationName);
     }
 
     private static void AddJwtBearerAuthentication(IServiceCollection services)

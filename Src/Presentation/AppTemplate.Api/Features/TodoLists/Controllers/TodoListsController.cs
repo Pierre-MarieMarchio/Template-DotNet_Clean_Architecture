@@ -1,8 +1,10 @@
 ﻿using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Errors;
+using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Features.TodoLists.Contracts;
 using AppTemplate.Application.Common;
+using AppTemplate.Application.Common.Concurrency;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Errors;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
@@ -54,19 +56,41 @@ public sealed class TodoListsController(
     IRemoveTodoItemUseCase removeTodoItem,
     IOptions<ConcurrencyOptions> concurrency) : ApiControllerBase
 {
-    /// <summary>Lists the caller's own todo lists, paginated.</summary>
+    /// <summary>Lists the caller's own todo lists, sorted, filtered and paginated.</summary>
     /// <remarks>
+    /// Two paging modes: <c>offset</c> (the default), addressed by <c>page</c>/<c>pageSize</c> and
+    /// answering a <c>totalCount</c>; and <c>cursor</c>, addressed by an opaque <c>cursor</c> token
+    /// minted by the previous page's <c>nextCursor</c>, which never counts the whole match set.
+    /// <c>sort</c> is a comma-separated list of whitelisted fields (<c>name</c>, <c>createdAt</c>,
+    /// <c>lastModifiedAt</c>), each optionally suffixed <c>:asc</c>/<c>:desc</c>; cursor mode allows
+    /// at most one. <c>search</c> matches the list name, case-insensitively, as a contains;
+    /// <c>createdAfter</c>/<c>createdBefore</c> narrow by creation date.
+    /// <para>
     /// No <c>ETag</c>: a page of summaries is not one aggregate, so there is no single version that
     /// describes it and no write that <c>If-Match</c> could guard.
+    /// </para>
     /// </remarks>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<TodoListSummaryDto>))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<PagedResult<TodoListSummaryDto>>> GetAll(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
-        CancellationToken cancellationToken = default) =>
-        OkOrProblem(await getTodoLists.ExecuteAsync(new GetTodoListsQuery(page, pageSize), cancellationToken));
+        [FromQuery] GetTodoListsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var query = new GetTodoListsQuery(
+            request.Paging,
+            request.Page,
+            request.PageSize,
+            request.Cursor,
+            request.Sort,
+            request.Search,
+            request.CreatedAfter,
+            request.CreatedBefore);
+
+        return OkOrProblem(await getTodoLists.ExecuteAsync(query, cancellationToken));
+    }
 
     /// <summary>Gets one todo list with its items, and the <c>ETag</c> needed to change it.</summary>
     [HttpGet("{todoListId:guid}", Name = nameof(GetById))]
@@ -76,7 +100,7 @@ public sealed class TodoListsController(
     public async Task<ActionResult<TodoListDetailDto>> GetById(
         Guid todoListId,
         CancellationToken cancellationToken) =>
-        Validated(await getTodoList.ExecuteAsync(todoListId, cancellationToken));
+        Validated(await getTodoList.ExecuteAsync(new GetTodoListQuery(todoListId), cancellationToken));
 
     /// <summary>Gets one item of a todo list.</summary>
     /// <remarks>
@@ -97,8 +121,15 @@ public sealed class TodoListsController(
     /// <remarks>
     /// No <c>If-Match</c>: the resource does not exist yet, so there is no version to name. Two
     /// callers creating lists are not competing for one.
+    /// <para>
+    /// Idempotent: send an <c>Idempotency-Key</c> header to make a retried request safe. Repeating
+    /// the same key with the same body returns the first response again, carrying
+    /// <c>Idempotency-Replayed: true</c>, instead of creating a second list; repeating it with a
+    /// different body is refused with <c>idempotency.keyReused</c>.
+    /// </para>
     /// </remarks>
     [HttpPost]
+    [Idempotent]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Guid))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
@@ -164,7 +195,13 @@ public sealed class TodoListsController(
     }
 
     /// <summary>Adds an item to a todo list.</summary>
+    /// <remarks>
+    /// Idempotent: send an <c>Idempotency-Key</c> header to make a retried request safe. Repeating
+    /// the same key with the same body returns the first response again instead of adding a second
+    /// item; repeating it with a different body is refused with <c>idempotency.keyReused</c>.
+    /// </remarks>
     [HttpPost("{todoListId:guid}/items")]
+    [Idempotent]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Guid))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
@@ -260,7 +297,7 @@ public sealed class TodoListsController(
     /// The header is written before the status is chosen, because RFC 9110 requires a 304 to carry
     /// the validator it is refusing to resend the body for.
     /// </remarks>
-    private ActionResult<TValue> Validated<TValue>(Result<Versioned<TValue>> result)
+    private ActionResult<TValue> Validated<TValue>(Result<Versioned<TValue>> result) where TValue : notnull
     {
         if (result.IsFailure)
         {
@@ -294,11 +331,11 @@ public sealed class TodoListsController(
     /// the change, because both arrive here as the same not-found error.
     /// </summary>
     private static Result Existing(IfMatchPrecondition precondition, Result result) =>
-        FailsExistence(precondition, result) ? Result.Failure(TodoListErrors.PreconditionFailed) : result;
+        FailsExistence(precondition, result) ? Result.Failure(ConcurrencyErrors.PreconditionFailed) : result;
 
     private static Result<TValue> Existing<TValue>(IfMatchPrecondition precondition, Result<TValue> result) =>
         FailsExistence(precondition, result)
-            ? Result.Failure<TValue>(TodoListErrors.PreconditionFailed)
+            ? Result.Failure<TValue>(ConcurrencyErrors.PreconditionFailed)
             : result;
 
     private static bool FailsExistence(IfMatchPrecondition precondition, Result result) =>

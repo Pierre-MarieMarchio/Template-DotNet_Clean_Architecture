@@ -98,6 +98,7 @@ public sealed class UserAccountsTests
             userManager,
             signInManager,
             Substitute.For<IAppUserDirectory>(),
-            Substitute.For<IDateTimeProvider>());
+            Substitute.For<IDateTimeProvider>(),
+            Substitute.For<ISecurityEventLog>());
     }
 }

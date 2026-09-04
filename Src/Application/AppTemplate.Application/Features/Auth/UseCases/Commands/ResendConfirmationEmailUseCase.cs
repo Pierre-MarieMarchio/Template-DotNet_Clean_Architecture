@@ -1,38 +1,38 @@
 ﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Ports;
-using AppTemplate.Application.Features.Auth.Validators;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands;
 
-public sealed record ResendConfirmationEmailRequest(string Email);
+public sealed record ResendConfirmationEmailCommand(string Email);
 
 /// <summary>
 /// Exists because sign-up commits the account before handing the mail to the relay: without a
 /// resend path, a delivery failure would take the address forever.
 /// </summary>
-public interface IResendConfirmationEmailUseCase : IUseCase<ResendConfirmationEmailRequest, Result>;
+public interface IResendConfirmationEmailUseCase : IUseCase<ResendConfirmationEmailCommand, Result>;
 
 public sealed class ResendConfirmationEmailUseCase(
     IEmailConfirmationTokens confirmationTokens,
     IConfirmationEmailComposer composer,
     IEmailSender emailSender,
-    IValidator<ResendConfirmationEmailRequest> validator,
+    IValidator<ResendConfirmationEmailCommand> validator,
     ILogger<ResendConfirmationEmailUseCase> logger) : IResendConfirmationEmailUseCase
 {
     public async Task<Result> ExecuteAsync(
-        ResendConfirmationEmailRequest request,
+        ResendConfirmationEmailCommand request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var validation = await validator.ValidateAsync(request, cancellationToken);
+        var validation = await validator.EnsureValidAsync(request, cancellationToken);
 
-        if (!validation.IsValid)
+        if (validation.IsFailure)
         {
-            return Result.Failure(validation.ToError());
+            return validation;
         }
 
         var pending = await confirmationTokens.IssueAsync(request.Email, cancellationToken);

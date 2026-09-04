@@ -22,6 +22,9 @@ internal static class ProjectReferenceGraph
 {
     private const string _infrastructurePrefix = "AppTemplate.Infrastructure.";
 
+    private static readonly string _presentationPrefix =
+        Path.Combine("Src", "Presentation") + Path.DirectorySeparatorChar;
+
     /// <summary>The repository root, located by walking up from the test assembly.</summary>
     internal static string RepositoryRoot { get; } = LocateRepositoryRoot();
 
@@ -33,6 +36,16 @@ internal static class ProjectReferenceGraph
 
     internal static IEnumerable<ProjectNode> InfrastructureModules =>
         SourceProjects.Values.Where(project => IsInfrastructureModule(project.Name));
+
+    /// <summary>
+    /// A composition root: a project under <c>Src\Presentation</c>. Location decides, not name, so a
+    /// new host is covered by the rules the moment it exists rather than when somebody lists it.
+    /// </summary>
+    internal static bool IsHost(ProjectNode project) =>
+        project is not null
+        && project.RelativePath.StartsWith(_presentationPrefix, StringComparison.Ordinal);
+
+    internal static IEnumerable<ProjectNode> Hosts => SourceProjects.Values.Where(IsHost);
 
     internal static ProjectNode Project(string name) =>
         SourceProjects.TryGetValue(name, out var project)

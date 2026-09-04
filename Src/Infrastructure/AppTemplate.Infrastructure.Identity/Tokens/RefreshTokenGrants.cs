@@ -33,6 +33,7 @@ internal sealed class RefreshTokenGrants(
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider,
     IOptions<RefreshTokenOptions> options,
+    ISecurityEventLog securityEventLog,
     ILogger<RefreshTokenGrants> logger) : IRefreshTokenGrants
 {
     /// <summary>256 bits of entropy: the token is the credential, so it must not be guessable.</summary>
@@ -118,15 +119,25 @@ internal sealed class RefreshTokenGrants(
             new IssuedRefreshToken(replacementValue, replacementExpiresAt));
     }
 
-    public async Task RevokeAsync(string presentedToken, CancellationToken cancellationToken = default)
+    public async Task<Guid?> RevokeAsync(string presentedToken, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(presentedToken))
         {
-            return;
+            return null;
         }
 
-        await store.RevokeAsync(ComputeHash(presentedToken), dateTimeProvider.UtcNow, cancellationToken);
+        string hash = ComputeHash(presentedToken);
+        var grant = await store.FindAsync(hash, cancellationToken);
+
+        if (grant is null)
+        {
+            return null;
+        }
+
+        await store.RevokeAsync(hash, dateTimeProvider.UtcNow, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return grant.UserId;
     }
 
     public async Task RevokeAllForUserAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -144,6 +155,8 @@ internal sealed class RefreshTokenGrants(
         logger.LogWarning(
             "A consumed refresh token was presented for user {UserId}. Revoking the whole token family.",
             userId);
+
+        securityEventLog.Record(SecurityEvent.RefreshTokenReplayDetected(userId));
 
         await RevokeAllForUserAsync(userId, cancellationToken);
 

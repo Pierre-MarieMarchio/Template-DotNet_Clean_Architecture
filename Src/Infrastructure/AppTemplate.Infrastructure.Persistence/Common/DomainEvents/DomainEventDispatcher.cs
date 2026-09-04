@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Domain.Common.Events;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.DomainEvents;
 
@@ -13,8 +14,17 @@ namespace AppTemplate.Infrastructure.Persistence.Common.DomainEvents;
 /// transaction and this assembly owns that moment. A feature or a host supplies consumers, never
 /// the dispatcher.
 /// </para>
+/// <para>
+/// <b>Isolation, not durability.</b> Each consumer of an event runs in its own <c>try</c>/<c>catch</c>,
+/// so one consumer's exception cannot stop a sibling consumer of the <em>same</em> event from running.
+/// That is the entire guarantee: the throwing consumer's own side effect is still lost, there is no
+/// retry, and there is no outbox. <c>docs/adr/0017</c> already refuses an outbox for this mechanism;
+/// this is the narrower, deliberately incomplete half of that decision.
+/// </para>
 /// </summary>
-internal sealed class DomainEventDispatcher(IServiceProvider serviceProvider) : IDomainEventDispatcher
+internal sealed class DomainEventDispatcher(
+    IServiceProvider serviceProvider,
+    ILogger<DomainEventDispatcher> logger) : IDomainEventDispatcher
 {
     public async Task DispatchAsync(IDomainEvent domainEvent, CancellationToken cancellationToken = default)
     {
@@ -28,7 +38,9 @@ internal sealed class DomainEventDispatcher(IServiceProvider serviceProvider) : 
         {
             // Unreachable through the interface hierarchy, and loud rather than silent if a
             // registration ever makes it reachable: skipping a consumer in a mechanism whose whole
-            // job is a side effect is the one failure nobody would notice.
+            // job is a side effect is the one failure nobody would notice. Thrown outside the
+            // try/catch below, so the new isolation cannot turn this composition bug into a silent
+            // no-op.
             if (consumer is not IDomainEventConsumer typedConsumer)
             {
                 throw new InvalidOperationException(
@@ -36,7 +48,27 @@ internal sealed class DomainEventDispatcher(IServiceProvider serviceProvider) : 
                     + $"'{domainEvent.GetType().Name}' but is not an {nameof(IDomainEventConsumer)}.");
             }
 
-            await typedConsumer.ConsumeAsync(domainEvent, cancellationToken);
+            try
+            {
+                await typedConsumer.ConsumeAsync(domainEvent, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // A cancelled request is not a failed consumer: rethrowing keeps cancellation
+                // honest instead of logging every cancelled request as a consumer failure.
+                throw;
+            }
+            catch (Exception exception)
+            {
+                // Isolation, not durability: this consumer's side effect is lost and every
+                // remaining consumer of this event still runs.
+                logger.LogError(
+                    exception,
+                    "Consumer {ConsumerType} of domain event {DomainEventType} threw and was skipped. " +
+                    "Its side effect for this event did not happen and will not be retried.",
+                    typedConsumer.GetType().Name,
+                    domainEvent.GetType().Name);
+            }
         }
     }
 }

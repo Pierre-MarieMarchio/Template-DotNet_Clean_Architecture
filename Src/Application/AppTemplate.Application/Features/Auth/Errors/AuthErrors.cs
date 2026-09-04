@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Common.Validation;
 
 namespace AppTemplate.Application.Features.Auth.Errors;
 
@@ -43,8 +44,25 @@ public static class AuthErrors
 
     /// <summary>
     /// <paramref name="message"/> describes the submitted values — password policy, allowed
-    /// characters, format — so it is safe, and useful, to return verbatim.
+    /// characters, format — so it is safe, and useful, to return verbatim. Attached to the
+    /// "password" field rather than used as the error message itself, so a client can render it
+    /// next to the field it concerns instead of parsing free text.
     /// </summary>
-    public static Error RegistrationRejected(string message) =>
-        Error.Validation("auth.register.rejected", message);
+    public static Error RegistrationRejected(string message) => ValidationError.ForField("password", message);
+
+    /// <summary>Attached to the "currentPassword" field, since it names exactly what the caller typed wrong.</summary>
+    public static Error IncorrectCurrentPassword { get; } = ValidationError.ForField(
+        "currentPassword",
+        "The current password is incorrect.");
+
+    /// <summary>
+    /// Identical whether the address is unknown or the token is wrong or expired, for the same
+    /// reason as <see cref="InvalidEmailConfirmation"/>.
+    /// </summary>
+    public static Error InvalidPasswordReset { get; } = Error.Validation(
+        "auth.resetPassword.invalid",
+        "The password reset link is invalid or has expired.");
+
+    /// <summary>The token was valid; the store refused the new password itself. See <see cref="RegistrationRejected"/>.</summary>
+    public static Error PasswordResetRejected(string message) => ValidationError.ForField("password", message);
 }

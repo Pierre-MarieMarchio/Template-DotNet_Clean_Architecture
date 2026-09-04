@@ -140,5 +140,6 @@ public sealed class RefreshTokenRotationTests(GrantStoreFixture fixture) : IClas
             scoped.GetRequiredService<IUnitOfWork>(),
             scoped.GetRequiredService<IDateTimeProvider>(),
             new OptionsWrapper<RefreshTokenOptions>(new RefreshTokenOptions()),
+            Substitute.For<ISecurityEventLog>(),
             NullLogger<RefreshTokenGrants>.Instance);
 }

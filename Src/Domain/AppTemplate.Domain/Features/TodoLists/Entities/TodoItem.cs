@@ -87,6 +87,10 @@ public sealed class TodoItem : Entity<Guid>
 
     public IReadOnlyCollection<Tag> Tags => _tags.AsReadOnly();
 
+    internal void ChangeTitle(string title) => Title = TodoItemTitle.Create(title);
+
+    internal void ChangeDescription(string? description) => Description = NormaliseDescription(description);
+
     internal void Complete(DateTimeOffset completedAt)
     {
         if (IsCompleted)
@@ -104,7 +108,22 @@ public sealed class TodoItem : Entity<Guid>
         CompletedAt = completedAt;
     }
 
-    internal void Reopen() => CompletedAt = null;
+    /// <summary>
+    /// Idempotent, unlike <see cref="Complete"/>: reopening an already-open item is not a
+    /// mistake worth rejecting, whereas completing a completed one usually signals a stale
+    /// client racing another completion.
+    /// </summary>
+    /// <returns><see langword="true"/> if the item was completed and is now reopened.</returns>
+    internal bool Reopen()
+    {
+        if (!IsCompleted)
+        {
+            return false;
+        }
+
+        CompletedAt = null;
+        return true;
+    }
 
     /// <summary>
     /// Adding a tag that is already present is a no-op rather than an error: the caller's

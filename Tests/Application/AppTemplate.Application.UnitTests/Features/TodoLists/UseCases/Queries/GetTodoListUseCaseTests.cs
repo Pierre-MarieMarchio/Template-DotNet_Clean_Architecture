@@ -3,6 +3,7 @@ using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries;
+using AppTemplate.Application.Features.TodoLists.Validators;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using NSubstitute;
 using Shouldly;
@@ -25,7 +26,7 @@ public sealed class GetTodoListUseCaseTests
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
-        var result = await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(Guid.CreateVersion7(), TestToken);
+        var result = await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(new GetTodoListQuery(Guid.CreateVersion7()), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
@@ -39,7 +40,7 @@ public sealed class GetTodoListUseCaseTests
     [Fact]
     public async Task AnAnonymousCaller_QueriesNothing()
     {
-        await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(Guid.CreateVersion7(), TestToken);
+        await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(new GetTodoListQuery(Guid.CreateVersion7()), TestToken);
 
         await _queries.DidNotReceive().GetDetailAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
@@ -59,7 +60,7 @@ public sealed class GetTodoListUseCaseTests
         var listId = Guid.CreateVersion7();
         _queries.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>()).Returns(ADetailFor(listId));
 
-        await UseCase().ExecuteAsync(listId, TestToken);
+        await UseCase().ExecuteAsync(new GetTodoListQuery(listId), TestToken);
 
         await _queries.Received(1).GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>());
     }
@@ -70,7 +71,7 @@ public sealed class GetTodoListUseCaseTests
         var otherCallerId = Guid.CreateVersion7();
         var listId = Guid.CreateVersion7();
 
-        await UseCaseFor(StubCurrentUser.WithId(otherCallerId)).ExecuteAsync(listId, TestToken);
+        await UseCaseFor(StubCurrentUser.WithId(otherCallerId)).ExecuteAsync(new GetTodoListQuery(listId), TestToken);
 
         await _queries.Received(1).GetDetailAsync(listId, otherCallerId, Arg.Any<CancellationToken>());
         await _queries.DidNotReceive().GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>());
@@ -87,7 +88,7 @@ public sealed class GetTodoListUseCaseTests
         _queries.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>())
             .Returns((Versioned<TodoListDetailDto>?)null);
 
-        var result = await UseCase().ExecuteAsync(listId, TestToken);
+        var result = await UseCase().ExecuteAsync(new GetTodoListQuery(listId), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.NotFound);
@@ -101,7 +102,7 @@ public sealed class GetTodoListUseCaseTests
         _queries.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>())
             .Returns((Versioned<TodoListDetailDto>?)null);
 
-        var result = await UseCase().ExecuteAsync(listId, TestToken);
+        var result = await UseCase().ExecuteAsync(new GetTodoListQuery(listId), TestToken);
 
         result.Error!.Message.ShouldContain(listId.ToString());
     }
@@ -117,7 +118,7 @@ public sealed class GetTodoListUseCaseTests
         var detail = ADetailFor(listId);
         _queries.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>()).Returns(detail);
 
-        var result = await UseCase().ExecuteAsync(listId, TestToken);
+        var result = await UseCase().ExecuteAsync(new GetTodoListQuery(listId), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBeSameAs(detail);
@@ -134,7 +135,7 @@ public sealed class GetTodoListUseCaseTests
         var listId = Guid.CreateVersion7();
         _queries.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>()).Returns(ADetailFor(listId));
 
-        var result = await UseCase().ExecuteAsync(listId, TestToken);
+        var result = await UseCase().ExecuteAsync(new GetTodoListQuery(listId), TestToken);
 
         result.Value.Version.ShouldBe(_listVersion);
         typeof(TodoListDetailDto).GetProperties()
@@ -149,7 +150,7 @@ public sealed class GetTodoListUseCaseTests
         _queries.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>()).Returns(ADetailFor(listId));
         using var cancellation = new CancellationTokenSource();
 
-        await UseCase().ExecuteAsync(listId, cancellation.Token);
+        await UseCase().ExecuteAsync(new GetTodoListQuery(listId), cancellation.Token);
 
         await _queries.Received(1).GetDetailAsync(listId, _callerId, cancellation.Token);
     }
@@ -159,7 +160,8 @@ public sealed class GetTodoListUseCaseTests
     private static Versioned<TodoListDetailDto> ADetailFor(Guid listId) =>
         new(new TodoListDetailDto(listId, "Groceries", FixedDateTimeProvider.DefaultInstant, null, []), _listVersion);
 
-    private GetTodoListUseCase UseCaseFor(ICurrentUser currentUser) => new(_queries, currentUser);
+    private GetTodoListUseCase UseCaseFor(ICurrentUser currentUser) =>
+        new(_queries, currentUser, new GetTodoListQueryValidator());
 
     private GetTodoListUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

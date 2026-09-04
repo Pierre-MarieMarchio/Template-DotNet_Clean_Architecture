@@ -36,8 +36,19 @@ internal sealed class TodoListRecordConfiguration : IEntityTypeConfiguration<Tod
 
         builder.Property(list => list.OwnerId).IsRequired();
 
-        // Every read filters by owner, so this index carries the whole read side.
-        builder.HasIndex(list => list.OwnerId);
+        // One composite index per sortable field, each leading with OwnerId — every read filters by
+        // it — and ending in Id, the same tiebreaker TodoListSortMap always appends, so both the
+        // ORDER BY and the keyset comparison that resumes it stay index-ordered instead of falling
+        // back to a sort. A field made sortable is a field that gets an index: that is the cost of
+        // adding one to the whitelist, and the reason the whitelist stays short.
+        builder.HasIndex(list => new { list.OwnerId, list.Name, list.Id })
+            .HasDatabaseName("IX_TodoLists_OwnerId_Name_Id");
+
+        builder.HasIndex(list => new { list.OwnerId, list.CreatedAt, list.Id })
+            .HasDatabaseName("IX_TodoLists_OwnerId_CreatedAt_Id");
+
+        builder.HasIndex(list => new { list.OwnerId, list.LastModifiedAt, list.Id })
+            .HasDatabaseName("IX_TodoLists_OwnerId_LastModifiedAt_Id");
 
         builder.Property(list => list.Name)
             .HasMaxLength(TodoListName.MaxLength)

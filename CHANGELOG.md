@@ -21,6 +21,49 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **A collection-query contract: sorting, filtering and two paging modes.** `GET /api/v1/todo-lists`
+  now takes `sort`, `search`, `createdAfter`, `createdBefore`, `paging`, `cursor` alongside
+  `page`/`pageSize`. Sorting is multi-field with a direction per field over a **per-feature
+  whitelist** (`ICollectionPolicy` in `Common/Collections/`, declared by
+  `TodoListCollectionPolicy`); an unknown or unwhitelisted field is refused before a query is built,
+  so no caller string ever reaches a LINQ expression. Every order ends in a unique `Id` tiebreaker,
+  because without one two rows with equal keys can swap between pages and be served twice or never.
+  `search` is a case-insensitive contains on the list name, executed in PostgreSQL via `ILIKE` with
+  `%`, `_` and `\` escaped — it is deliberately **not** accent-insensitive. Every bound (page size,
+  sort-term count, filter length, cursor length) is a `400` with its own stable code:
+  `paging.invalid`, `sort.invalid`, `filter.invalid`, `cursor.invalid`.
+- **Keyset (cursor) pagination alongside offset paging.** `paging=cursor` resumes from the last row
+  served, so a concurrent insert cannot shift a caller's position and a deep page costs what the
+  first page costs. It answers no `totalCount` — counting the match set is a second scan of it — and
+  allows one sort term over a field declared keyset-capable (`lastModifiedAt` is not, being
+  nullable). The cursor is opaque but unsigned, which is safe because it carries only values from a
+  row the caller was served and the read query filters by owner regardless. `PagedResult<T>` gained
+  `nextCursor`, and `page`/`totalCount`/`totalPages` are now nullable, being absent in cursor mode.
+- **Composite indexes** `(OwnerId, <sortable field>, Id)` for each whitelisted sort field, so both
+  the order and the keyset comparison are index-ordered. Migration `AddTodoListSortIndexes`.
+- **Idempotency keys on POST.** An action marked `[Idempotent]` — `POST /api/v1/todo-lists` and
+  `POST /api/v1/todo-lists/{id}/items` — honours an `Idempotency-Key` header, so a client retrying
+  through a flaky network cannot create twice. A replay returns the original status, body and
+  `Location` plus `Idempotency-Replayed: true`; the same key with a different body is `409`
+  `idempotency.keyReused`; a still-running duplicate is `409` `idempotency.inProgress`; a failed
+  request releases its claim so a corrected retry succeeds. Keys are scoped **per user**, so two
+  callers may use the same key string. New `Idempotency` configuration section and a `platform`
+  schema; migration `AddIdempotencyKeys`. Auth endpoints are deliberately **not** marked: replaying
+  a login would store a bearer token in the database.
+- **Policy-based authorisation, with a real operation behind it.**
+  `DELETE /api/v1/maintenance/idempotency-keys/expired` requires the `Administrator` policy and
+  prunes expired keys — the seeded `Admin` role now authorises something. The role name has one
+  declaration (`IdentityRoles.Administrator`) shared by the seeder and the policy.
+- **`Cache-Control: private, no-cache` on reads**, which is what makes the strong `ETag` this API
+  already publishes worth having: a client may store a response but must revalidate, and
+  `If-None-Match` then answers `304`. See `docs/adr/0019`.
+- **A request body size limit** (`RequestLimits:MaxRequestBodyBytes`, default 64 KiB) replacing
+  Kestrel's 30 MB default. Enforced both by middleware on `Content-Length` — answering `413`
+  `request.tooLarge`, a code that already existed with nothing able to produce it — and by Kestrel
+  as the backstop for a chunked body.
+- **Per-consumer isolation for domain events.** A consumer that throws no longer prevents the other
+  consumers *of the same event* from running; the failure is logged with the event and consumer
+  type. This narrows the known gap below without pretending to close it — see `docs/adr/0017`.
 - **Packaged as a `dotnet new` template.** `dotnet new install <path>` followed by
   `dotnet new cleanarch-webapi -n Your.Project` generates a solution under your own
   name, namespace, and Compose/Docker identifiers — see the README's "Using this as
@@ -161,13 +204,34 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 - Two unit tests asserting guarantees they could not verify — each configured a substitute and then
   asserted what it had just configured. The real guarantees are pinned where the behaviour lives.
 
+### Deliberately not added
+
+Each of these was investigated and refused, and the record says why so the next person does not
+repeat the investigation. A template's value is as much in what it refuses as in what it ships.
+
+| Capability | Record | In one line |
+|---|---|---|
+| A filter expression language (OData `$filter`, RSQL) | [0015](docs/adr/0015-typed-filters-not-a-filter-expression-language.md) | Makes query cost unbounded and the whitelist unprovable; the typed surface can be read off a type. |
+| RFC 8288 `Link` headers for paging | [0016](docs/adr/0016-pagination-metadata-in-the-body.md) | A second statement of next-page that can disagree with the envelope. |
+| An outbox for domain events | [0017](docs/adr/0017-no-outbox-for-domain-events.md) | At-least-once is a contract on every consumer and needs a dispatcher, dead-letter path and lag monitoring a template cannot default. |
+| `PATCH` (JSON Patch or Merge Patch) | [0018](docs/adr/0018-no-patch.md) | Patching a representation lets a caller assemble a state change no aggregate operation authorises. |
+| Output caching | [0019](docs/adr/0019-caching-is-revalidation-not-storage.md) | Every response is per-user, so it either serves the wrong data or has no hit rate. |
+| `Deprecation`/`Sunset` headers | [0020](docs/adr/0020-no-deprecation-or-sunset-headers.md) | One version ships, so any date emitted would be invented. |
+| A queryable audit trail | [0021](docs/adr/0021-no-queryable-audit-trail.md) | A table the app can `UPDATE` through its own connection has the appearance of an audit trail without the property. |
+| Soft delete / restore | [0022](docs/adr/0022-no-soft-delete.md) | An invisible predicate on every read of every feature, where one omission leaks deleted rows silently. |
+
 ### Known gaps
 
 Stated rather than left to be discovered:
 
-- Within a single domain event, a consumer that throws still prevents later consumers for **that
-  event** from running. Events are isolated from one another, consumers of one event are not. This
-  is the point at which the mechanism wants an outbox.
+- **Domain-event delivery is best-effort.** Consumers of one event are now isolated from each other,
+  so one throwing no longer cancels its siblings — but the throwing consumer's own side effect is
+  still lost, and a process that dies between the commit and the dispatch loop loses every consumer
+  for that save. Closing this needs an outbox, which is refused for the reasons in
+  `docs/adr/0017`; add one before relying on a consumer whose absence a user would notice.
+- **Idempotency retention is enforced by a purge you must schedule.** `Idempotency:Retention` only
+  stamps each row's `ExpiresAt`. Until `DELETE /api/v1/maintenance/idempotency-keys/expired` runs,
+  a completed key stays replayable past its retention and the table grows.
 - `ConfigureJwtBearerOptions` builds `ProblemDetails` and owns the `auth.required` /
   `auth.forbidden` codes, so the wire format for auth failures has an owner in the infrastructure
   layer as well as in the API.

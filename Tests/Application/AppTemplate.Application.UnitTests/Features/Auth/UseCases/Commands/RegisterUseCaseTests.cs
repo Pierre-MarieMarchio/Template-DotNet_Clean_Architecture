@@ -23,6 +23,7 @@ public sealed class RegisterUseCaseTests
     private readonly IEmailConfirmationTokens _confirmationTokens = Substitute.For<IEmailConfirmationTokens>();
     private readonly IConfirmationEmailComposer _composer = Substitute.For<IConfirmationEmailComposer>();
     private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
+    private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly RegisterUseCase _useCase;
 
     public RegisterUseCaseTests() =>
@@ -31,7 +32,8 @@ public sealed class RegisterUseCaseTests
             _confirmationTokens,
             _composer,
             _emailSender,
-            new RegisterRequestValidator(),
+            _securityEventLog,
+            new RegisterCommandValidator(),
             NullLogger<RegisterUseCase>.Instance);
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -52,11 +54,11 @@ public sealed class RegisterUseCaseTests
     [InlineData("someone", "someone@example.com", "short")]
     public async Task AnInvalidRequest_NeverCreatesAnAccount(string userName, string email, string password)
     {
-        var result = await _useCase.ExecuteAsync(new RegisterRequest(userName, email, password), TestToken);
+        var result = await _useCase.ExecuteAsync(new RegisterCommand(userName, email, password), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("auth.validation");
+        result.Error.Code.ShouldBe("request.validationFailed");
         _accounts.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -67,26 +69,27 @@ public sealed class RegisterUseCaseTests
     [Fact]
     public async Task APasswordOneCharacterBelowTheFloor_IsRefused()
     {
-        string tooShort = new('a', RegisterRequestValidator.AbsoluteMinimumPasswordLength - 1);
+        string tooShort = new('a', RegisterCommandValidator.AbsoluteMinimumPasswordLength - 1);
 
         var result = await _useCase.ExecuteAsync(
-            new RegisterRequest("someone", "someone@example.com", tooShort),
+            new RegisterCommand("someone", "someone@example.com", tooShort),
             TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Message.ShouldContain("at least");
+        result.Error.Details!["password"].Any(message => message.Contains("at least", StringComparison.Ordinal))
+            .ShouldBeTrue();
         _accounts.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task APasswordExactlyAtTheFloor_IsAccepted()
     {
-        string atTheFloor = new('a', RegisterRequestValidator.AbsoluteMinimumPasswordLength);
+        string atTheFloor = new('a', RegisterCommandValidator.AbsoluteMinimumPasswordLength);
         GivenTheAccountIsCreated();
         GivenTheConfirmationTokenIsIssued();
 
         var result = await _useCase.ExecuteAsync(
-            new RegisterRequest("someone", "someone@example.com", atTheFloor),
+            new RegisterCommand("someone", "someone@example.com", atTheFloor),
             TestToken);
 
         result.IsSuccess.ShouldBeTrue();
@@ -99,10 +102,10 @@ public sealed class RegisterUseCaseTests
     [Fact]
     public async Task APasswordBeyondTheMaximumLength_NeverReachesTheStore()
     {
-        string tooLong = new('a', RegisterRequestValidator.MaximumPasswordLength + 1);
+        string tooLong = new('a', RegisterCommandValidator.MaximumPasswordLength + 1);
 
         var result = await _useCase.ExecuteAsync(
-            new RegisterRequest("someone", "someone@example.com", tooLong),
+            new RegisterCommand("someone", "someone@example.com", tooLong),
             TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
@@ -112,10 +115,10 @@ public sealed class RegisterUseCaseTests
     [Fact]
     public async Task AUserNameBeyondTheMaximumLength_IsRefused()
     {
-        string tooLong = new('a', RegisterRequestValidator.MaximumUserNameLength + 1);
+        string tooLong = new('a', RegisterCommandValidator.MaximumUserNameLength + 1);
 
         var result = await _useCase.ExecuteAsync(
-            new RegisterRequest(tooLong, "someone@example.com", "correct horse battery"),
+            new RegisterCommand(tooLong, "someone@example.com", "correct horse battery"),
             TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
@@ -125,11 +128,12 @@ public sealed class RegisterUseCaseTests
     [Fact]
     public async Task EveryFailureMessage_ReachesTheCaller()
     {
-        var result = await _useCase.ExecuteAsync(new RegisterRequest("", "", ""), TestToken);
+        var result = await _useCase.ExecuteAsync(new RegisterCommand("", "", ""), TestToken);
 
-        result.Error!.Message.ShouldContain("Username");
-        result.Error.Message.ShouldContain("Email");
-        result.Error.Message.ShouldContain("Password");
+        result.Error!.Details.ShouldNotBeNull();
+        result.Error.Details.ShouldContainKey("userName");
+        result.Error.Details.ShouldContainKey("email");
+        result.Error.Details.ShouldContainKey("password");
     }
 
     #endregion
@@ -159,11 +163,12 @@ public sealed class RegisterUseCaseTests
     }
 
     /// <summary>
-    /// A rejection describes the submitted values, so its text is returned verbatim — that is the
-    /// only way a caller learns which rule the password broke.
+    /// A rejection describes the submitted values, so its text is returned verbatim, attached to the
+    /// field it concerns — that is the only way a caller learns which rule the password broke, and
+    /// which field to point at.
     /// </summary>
     [Fact]
-    public async Task ARejection_CarriesTheStoresOwnExplanation()
+    public async Task ARejection_CarriesTheStoresOwnExplanationOnThePasswordField()
     {
         _accounts.CreateAsync(
                 Arg.Any<string>(),
@@ -175,8 +180,7 @@ public sealed class RegisterUseCaseTests
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("auth.register.rejected");
-        result.Error.Message.ShouldBe("Passwords must have at least one digit.");
+        result.Error.Details!["password"].ShouldContain("Passwords must have at least one digit.");
         _emailSender.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -197,6 +201,33 @@ public sealed class RegisterUseCaseTests
         result.Value.UserName.ShouldBe("someone");
         result.Value.Email.ShouldBe("someone@example.com");
         result.Value.ConfirmationEmailSent.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task ACreatedAccount_IsRecordedAsARegistration()
+    {
+        var userId = GivenTheAccountIsCreated();
+        GivenTheConfirmationTokenIsIssued();
+
+        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        _securityEventLog.Received(1).Record(SecurityEvent.Registered(userId));
+    }
+
+    /// <summary>A conflict or a rejection is not a registration: nothing is created, so nothing is logged.</summary>
+    [Fact]
+    public async Task ATakenAddress_IsNotRecordedAsARegistration()
+    {
+        _accounts.CreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>())
+            .Returns(AccountCreation.Conflict);
+
+        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
     /// <summary>
@@ -388,7 +419,7 @@ public sealed class RegisterUseCaseTests
 
     #endregion
 
-    private static RegisterRequest AValidRequest() =>
+    private static RegisterCommand AValidRequest() =>
         new("someone", "someone@example.com", "correct horse battery");
 
     private Guid GivenTheAccountIsCreated()

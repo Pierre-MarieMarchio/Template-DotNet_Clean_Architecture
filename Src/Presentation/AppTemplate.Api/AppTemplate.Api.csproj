@@ -32,4 +32,17 @@
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
   </ItemGroup>
 
+  <!-- EntityTagValue, IfMatchPrecondition and ProblemDetailsDefaults.Normalise are internal on
+       purpose: nothing outside this assembly may read or mint a version token, or skip the one
+       normaliser every ProblemDetails producer funnels through. A test restricted to the public
+       surface could reach their branches only through a live HTTP pipeline, which would not isolate
+       the microsecond-scale decision from everything MVC does around it. Granted to exactly one
+       assembly, for the same reason AppTemplate.Application grants its own internals to exactly its
+       unit tests. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Api.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>

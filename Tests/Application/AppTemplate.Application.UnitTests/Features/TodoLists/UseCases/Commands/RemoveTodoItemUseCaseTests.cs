@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.TodoLists.Access;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
@@ -143,6 +144,11 @@ public sealed class RemoveTodoItemUseCaseTests
 
         result.IsSuccess.ShouldBeTrue();
         list.Items.ShouldBeEmpty();
+
+        // The item is gone; what is returned is the list it used to belong to, at its new version.
+        result.Value.Value.Id.ShouldBe(list.Id);
+        result.Value.Value.Items.ShouldBeEmpty();
+        result.Value.Version.ShouldBe(list.Version);
     }
 
     [Fact]
@@ -210,7 +216,7 @@ public sealed class RemoveTodoItemUseCaseTests
     #endregion
 
     private RemoveTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_repository, _unitOfWork, currentUser);
+        new(new TodoListAccess(_repository, currentUser), _unitOfWork, new RemoveTodoItemCommandValidator());
 
     private RemoveTodoItemUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

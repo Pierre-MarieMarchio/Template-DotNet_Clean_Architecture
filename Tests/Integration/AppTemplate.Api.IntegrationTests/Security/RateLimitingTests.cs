@@ -65,7 +65,7 @@ public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(
 
         using var registration = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("late-comer", "late-comer@integration.test", ValidPassword),
+            new RegisterCommand("late-comer", "late-comer@integration.test", ValidPassword),
             TestToken);
 
         registration.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
@@ -97,6 +97,6 @@ public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(
     private static Task<HttpResponseMessage> AttemptLoginAsync(HttpClient client) =>
         client.PostAsJsonAsync(
             $"{AuthRoute}/login",
-            new LoginRequest("nobody-at-all@integration.test", ValidPassword),
+            new LoginCommand("nobody-at-all@integration.test", ValidPassword),
             TestToken);
 }

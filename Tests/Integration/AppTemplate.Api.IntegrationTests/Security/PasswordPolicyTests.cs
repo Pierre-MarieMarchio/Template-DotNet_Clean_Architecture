@@ -44,7 +44,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("candidate", "candidate@integration.test", password),
+            new RegisterCommand("candidate", "candidate@integration.test", password),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, why);
@@ -67,7 +67,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("candidate", "candidate@integration.test", password),
+            new RegisterCommand("candidate", "candidate@integration.test", password),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -85,7 +85,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var rejected = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("second-attempt", email, "weakweak"),
+            new RegisterCommand("second-attempt", email, "weakweak"),
             TestToken);
 
         rejected.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -96,7 +96,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
         // The address is still free.
         using var accepted = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("second-attempt", email, ValidPassword),
+            new RegisterCommand("second-attempt", email, ValidPassword),
             TestToken);
 
         accepted.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -110,7 +110,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("someone-else", existing.Email, ValidPassword),
+            new RegisterCommand("someone-else", existing.Email, ValidPassword),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
@@ -132,7 +132,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("candidate", email, ValidPassword),
+            new RegisterCommand("candidate", email, ValidPassword),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

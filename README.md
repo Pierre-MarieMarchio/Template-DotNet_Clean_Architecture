@@ -286,7 +286,7 @@ means — there is no route that reaches an item without naming its list.
 
 | Method | Route | Success |
 |---|---|---|
-| GET | `/api/v1/todo-lists?page=1&pageSize=20` | 200 — paged summaries of the caller's own lists |
+| GET | `/api/v1/todo-lists?page=1&pageSize=20&sort=createdAt:desc` | 200 — paged summaries of the caller's own lists |
 | GET | `/api/v1/todo-lists/{todoListId}` | 200 — the list with its items and tags |
 | POST | `/api/v1/todo-lists` | 201 + `Location` |
 | PUT | `/api/v1/todo-lists/{todoListId}` | 204 — rename; the id comes from the route, never the body |
@@ -297,6 +297,16 @@ means — there is no route that reaches an item without naming its list.
 
 The old `api/ListTodos`, `api/TodoItem` and `api/TodoTag` controllers are gone.
 
+### Maintenance — `api/v1/maintenance/*`
+
+| Method | Route | Success |
+|---|---|---|
+| DELETE | `/api/v1/maintenance/idempotency-keys/expired` | 200 — the number of rows removed |
+
+Requires the `Administrator` policy — an authenticated non-admin gets `403`. This is the
+one endpoint whose authority is more than "authenticated plus ownership", and it exists
+because the idempotency store grows until something prunes it. Schedule it.
+
 **Conditional requests.** Every read of a single list or item publishes the list's
 version as a strong, opaque `ETag`; every write of one honours `If-Match`, so a stale
 edit — decided against a version somebody else has since changed — is refused with
@@ -306,12 +316,125 @@ exists, so a missing or someone-else's list also answers `412`, not `404`. Sendi
 which case it is refused with `428` — see `docs/adr/0013`. `AppTemplate.Api.http` walks through
 the whole round trip.
 
+### Collection queries — sorting, filtering, paging
+
+The collection endpoint takes the same contract every collection endpoint in this
+template should take. It is deliberately a **closed** contract: a caller may only ask
+for what a feature has declared, and anything else is a `400` with a stable `code`
+rather than a clamp, a guess or a 500.
+
+| Parameter | Type | Default | Bound |
+|---|---|---|---|
+| `sort` | `field[:asc\|:desc]`, comma-separated | `createdAt:desc` | ≤ 3 terms, each a whitelisted field, no field twice |
+| `search` | text, matched against the list **name** | none | ≤ 100 characters |
+| `createdAfter` / `createdBefore` | ISO 8601 instant | none | `createdAfter` must not be later than `createdBefore` |
+| `paging` | `offset` or `cursor` | `offset` | — |
+| `page` | integer, 1-based | `1` | ≥ 1, offset mode only |
+| `pageSize` | integer | `20` | 1…100 |
+| `cursor` | opaque token from `nextCursor` | none | cursor mode only, ≤ 512 characters |
+
+```bash
+# newest first, then by name, second page of ten
+GET /api/v1/todo-lists?sort=createdAt:desc,name:asc&page=2&pageSize=10
+
+# name contains "grocer", case-insensitively, created this year
+GET /api/v1/todo-lists?search=grocer&createdAfter=2026-01-01T00:00:00Z
+
+# keyset paging: first page, then follow nextCursor
+GET /api/v1/todo-lists?paging=cursor&pageSize=10&sort=name:asc
+GET /api/v1/todo-lists?paging=cursor&pageSize=10&sort=name:asc&cursor=eyJmIjoibmFtZSI...
+```
+
+**Sortable fields are a whitelist, per feature.** `name`, `createdAt` and
+`lastModifiedAt` — and nothing else. An unknown field, or one that exists on the row
+but is not on the list, is `400` `sort.invalid` with the legal names in the message. No
+caller string ever reaches a LINQ expression: the field name is canonicalised against
+the whitelist in the application layer, and the persistence layer turns it into a
+column with an exhaustive `switch` whose `default` arm throws. A field is on the
+whitelist only if it is cheap to order by, which is why the list is short and why each
+entry has a composite index behind it (`(OwnerId, <field>, Id)`).
+
+**Every order ends in a unique tiebreaker.** `Id` is appended to every `ORDER BY`,
+always. Without it two rows with equal sort keys can swap places between two page
+reads, so one row is served twice and another never — which is a silent wrong answer,
+not a slow one.
+
+**Search is bounded and happens in the database.** It is a case-insensitive contains
+on the list name, via PostgreSQL `ILIKE` with `%`, `_` and `\` escaped, so a caller
+sending `%` matches lists literally containing `%` rather than matching everything. It
+is **not** accent-insensitive: that needs the `unaccent` extension and a functional
+index, which is a deployment's decision, and doing it in memory instead would mean
+reading every row to filter a page of twenty.
+
+**Two paging modes, and the difference matters.**
+
+- **Offset** (`page`/`pageSize`) answers `totalCount`, `totalPages` and `hasNextPage`,
+  which is what a page-number UI needs. It is unstable under concurrent writes — a row
+  inserted before your position shifts everything down, so page 2 can repeat a row from
+  page 1 — and it gets slower the deeper you go, because the database still walks the
+  rows it skips.
+- **Cursor** (`paging=cursor`, then follow `nextCursor`) resumes from the last row it
+  served, so an insert elsewhere cannot shift your position, and page 500 costs what
+  page 1 costs. It answers **no `totalCount`**: counting the whole match set is a second
+  scan of it, which is the cost keyset paging exists to avoid. It allows **one** sort
+  term (plus the tiebreaker), and only over a field marked keyset-capable —
+  `lastModifiedAt` is not, because it is nullable and a comparison against `NULL` would
+  skip the row the cursor was minted from instead of resuming at it.
+
+The cursor is opaque but **not signed**. It does not need to be: it carries only values
+from a row the caller was already served, and the read query filters by owner regardless
+of what the cursor claims. A tampered cursor is a `400` `cursor.invalid`, never a 500
+and never another user's rows.
+
+**Pagination metadata lives in the body**, in the `PagedResult` envelope — there are no
+RFC 8288 `Link` headers, so there is exactly one statement of where the next page is.
+See `docs/adr/0016`.
+
+Every bound above is a `400` carrying its own code — `paging.invalid`, `sort.invalid`,
+`filter.invalid`, `cursor.invalid` — so a client can tell which rule it broke. A value
+of the wrong *type* (`page=abc`) is instead the framework's `request.malformed`: one
+vocabulary for a malformed request, one for a broken rule.
+
+To give a new feature this contract, it declares an `ICollectionPolicy` — see
+`docs/ADDING-A-FEATURE.md`. Why the filter surface is typed rather than an expression
+language is `docs/adr/0015`.
+
+### Retrying a `POST` safely — `Idempotency-Key`
+
+A client that retries a create through a flaky network must not create twice. Send an
+`Idempotency-Key` header (any opaque string up to 128 characters — a UUID is the obvious
+choice) on `POST /api/v1/todo-lists` or `POST /api/v1/todo-lists/{id}/items`:
+
+```bash
+curl -X POST "$API/todo-lists" -H "Authorization: Bearer $TOKEN" \
+     -H 'Idempotency-Key: 9f1c7e2a-0c1b-4f0a-9a3e-2b6d5c4a8e10' \
+     -H 'Content-Type: application/json' -d '{"name":"Groceries"}'
+```
+
+| Situation | Answer |
+|---|---|
+| First use of the key | The request runs normally |
+| Same key, same body, after it completed | The original status, body and `Location`, plus `Idempotency-Replayed: true` — the action does **not** run again |
+| Same key, **different** body | `409` `idempotency.keyReused` |
+| Same key while the first is still running | `409` `idempotency.inProgress` |
+| Same key, but the first attempt **failed** | Runs normally — a failed attempt releases its claim, so a corrected retry is not blocked |
+| No key at all | Runs normally; the header is available, not compulsory |
+
+Keys are scoped **per user**, so two callers may use the same key string without colliding.
+Only actions marked `[Idempotent]` participate — the auth endpoints deliberately do not,
+because replaying a login would mean storing a bearer token in the database.
+
+Keys are remembered for `Idempotency:Retention` (24 hours by default), but **nothing prunes
+them for you**: schedule `DELETE /api/v1/maintenance/idempotency-keys/expired`, which requires
+the `Administrator` policy and is also this template's worked example of policy-based
+authorisation.
+
 ### Health
 
 | Route | Checks | Anonymous |
 |---|---|---|
 | `/health` | nothing — answers "is the process up" | yes |
-| `/health/ready` | both DbContexts (`ready` tag) | yes |
+| `/health/ready` | the database, through `AppDbContext` (`ready` tag) | yes |
 
 Liveness deliberately touches no dependency, so an orchestrator does not restart a
 healthy API because the database was briefly unreachable. The Compose and Dockerfile

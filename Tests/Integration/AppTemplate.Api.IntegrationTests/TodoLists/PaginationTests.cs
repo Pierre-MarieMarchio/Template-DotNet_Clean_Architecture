@@ -2,8 +2,8 @@
 using System.Net;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Common;
+using AppTemplate.Application.Features.TodoLists.Collections;
 using AppTemplate.Application.Features.TodoLists.Dtos;
-using AppTemplate.Application.Features.TodoLists.UseCases.Queries;
 using Shouldly;
 using Xunit;
 
@@ -77,12 +77,16 @@ public sealed class PaginationTests(ApiFixture fixture) : IntegrationTestBase(fi
         page.TotalCount.ShouldBe(_listCount);
     }
 
+    // 101 is TodoListCollectionPolicy.Instance.MaxPageSize + 1, restated as a literal: InlineData
+    // arguments must be compile-time constants, so the arithmetic cannot reference the policy
+    // directly. TodoListCollectionPolicyTests asserts the ceiling is 100, which is what keeps this
+    // literal honest.
     [Theory]
     [InlineData(0, 20, "the page number must be 1 or greater")]
     [InlineData(-1, 20, "a negative page number")]
     [InlineData(1, 0, "a page size of zero")]
     [InlineData(1, -5, "a negative page size")]
-    [InlineData(1, GetTodoListsUseCase.MaxPageSize + 1, "a page size above the ceiling")]
+    [InlineData(1, 101, "a page size above the ceiling")]
     public async Task AnOutOfBoundsPageRequest_Is400WithTheStableCode(int page, int pageSize, string why)
     {
         var (client, _, _) = await SignInAsync();
@@ -104,9 +108,9 @@ public sealed class PaginationTests(ApiFixture fixture) : IntegrationTestBase(fi
         // rejected the largest legal page.
         var (client, _, _) = await SignInAsync();
 
-        var page = await ReadPageAsync(client, page: 1, pageSize: GetTodoListsUseCase.MaxPageSize);
+        var page = await ReadPageAsync(client, page: 1, pageSize: TodoListCollectionPolicy.Instance.MaxPageSize);
 
-        page.PageSize.ShouldBe(GetTodoListsUseCase.MaxPageSize);
+        page.PageSize.ShouldBe(TodoListCollectionPolicy.Instance.MaxPageSize);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Features.TodoLists.Collections;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Domain.Features.TodoLists.Stores;
 
@@ -10,11 +11,13 @@ namespace AppTemplate.Application.Features.TodoLists.Ports;
 /// </summary>
 public interface ITodoListQueries
 {
-    /// <param name="page">1-based page number.</param>
+    /// <summary>
+    /// <paramref name="request"/> has already been through <see cref="TodoListCollectionPolicy"/>'s
+    /// whitelist, so nothing here re-validates paging, sort or filter — it only translates them.
+    /// </summary>
     Task<PagedResult<TodoListSummaryDto>> GetForOwnerAsync(
         Guid ownerId,
-        int page,
-        int pageSize,
+        TodoListPageRequest request,
         CancellationToken cancellationToken = default);
 
     /// <returns>The list and the aggregate's version, or <c>null</c> when it does not exist or is

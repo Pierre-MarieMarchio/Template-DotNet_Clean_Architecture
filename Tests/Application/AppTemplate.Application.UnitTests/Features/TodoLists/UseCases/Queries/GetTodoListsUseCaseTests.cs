@@ -1,5 +1,7 @@
 ﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Collections;
+using AppTemplate.Application.Features.TodoLists.Collections;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries;
@@ -7,6 +9,7 @@ using AppTemplate.Application.UnitTests.TestDoubles;
 using NSubstitute;
 using Shouldly;
 using Xunit;
+using SortDirection = AppTemplate.Application.Common.Collections.SortDirection;
 
 namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Queries;
 
@@ -23,7 +26,8 @@ public sealed class GetTodoListsUseCaseTests
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
-        var result = await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(new GetTodoListsQuery(1, 10), TestToken);
+        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+            .ExecuteAsync(GetTodoListsQuery.Offset(1, 10), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
@@ -33,23 +37,23 @@ public sealed class GetTodoListsUseCaseTests
     [Fact]
     public async Task AnAnonymousCaller_QueriesNothing()
     {
-        await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(new GetTodoListsQuery(1, 10), TestToken);
+        await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(GetTodoListsQuery.Offset(1, 10), TestToken);
 
         await _queries.DidNotReceive().GetForOwnerAsync(
             Arg.Any<Guid>(),
-            Arg.Any<int>(),
-            Arg.Any<int>(),
+            Arg.Any<TodoListPageRequest>(),
             Arg.Any<CancellationToken>());
     }
 
     /// <summary>
-    /// Authentication is checked before the paging bounds, so an anonymous caller cannot
-    /// tell a bad page number from a missing session.
+    /// Authentication is checked before anything else, so an anonymous caller cannot tell bad input
+    /// from a missing session.
     /// </summary>
     [Fact]
-    public async Task AnAnonymousCaller_IsRefusedBeforeThePagingIsValidated()
+    public async Task AnAnonymousCaller_IsRefusedBeforeAnythingElseIsValidated()
     {
-        var result = await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(new GetTodoListsQuery(0, 0), TestToken);
+        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+            .ExecuteAsync(GetTodoListsQuery.Offset(0, 0), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
     }
@@ -67,9 +71,12 @@ public sealed class GetTodoListsUseCaseTests
     {
         GivenThePageIsEmpty();
 
-        await UseCase().ExecuteAsync(new GetTodoListsQuery(1, 10), TestToken);
+        await UseCase().ExecuteAsync(GetTodoListsQuery.Offset(1, 10), TestToken);
 
-        await _queries.Received(1).GetForOwnerAsync(_callerId, 1, 10, Arg.Any<CancellationToken>());
+        await _queries.Received(1).GetForOwnerAsync(
+            _callerId,
+            Arg.Any<TodoListPageRequest>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -78,10 +85,17 @@ public sealed class GetTodoListsUseCaseTests
         var otherCallerId = Guid.CreateVersion7();
         GivenThePageIsEmpty();
 
-        await UseCaseFor(StubCurrentUser.WithId(otherCallerId)).ExecuteAsync(new GetTodoListsQuery(1, 10), TestToken);
+        await UseCaseFor(StubCurrentUser.WithId(otherCallerId))
+            .ExecuteAsync(GetTodoListsQuery.Offset(1, 10), TestToken);
 
-        await _queries.Received(1).GetForOwnerAsync(otherCallerId, 1, 10, Arg.Any<CancellationToken>());
-        await _queries.DidNotReceive().GetForOwnerAsync(_callerId, 1, 10, Arg.Any<CancellationToken>());
+        await _queries.Received(1).GetForOwnerAsync(
+            otherCallerId,
+            Arg.Any<TodoListPageRequest>(),
+            Arg.Any<CancellationToken>());
+        await _queries.DidNotReceive().GetForOwnerAsync(
+            _callerId,
+            Arg.Any<TodoListPageRequest>(),
+            Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -95,126 +109,61 @@ public sealed class GetTodoListsUseCaseTests
 
     #endregion
 
-    #region Paging bounds
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    [InlineData(int.MinValue)]
-    public async Task APageNumberBelowOne_IsRejected(int page)
-    {
-        var result = await UseCase().ExecuteAsync(new GetTodoListsQuery(page, 10), TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("paging.invalid");
-        result.Error.Message.ShouldContain("page number");
-    }
-
     /// <summary>
-    /// An unbounded page size is an unbounded query wearing a pagination costume, so both
-    /// ends of the range are enforced.
-    /// </summary>
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    [InlineData(GetTodoListsUseCase.MaxPageSize + 1)]
-    [InlineData(int.MaxValue)]
-    public async Task APageSizeOutsideTheAllowedRange_IsRejected(int pageSize)
-    {
-        var result = await UseCase().ExecuteAsync(new GetTodoListsQuery(1, pageSize), TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Code.ShouldBe("paging.invalid");
-        result.Error.Message.ShouldContain("page size");
-    }
-
-    [Theory]
-    [InlineData(1)]
-    [InlineData(50)]
-    [InlineData(GetTodoListsUseCase.MaxPageSize)]
-    public async Task APageSizeInsideTheAllowedRange_IsAccepted(int pageSize)
-    {
-        GivenThePageIsEmpty();
-
-        var result = await UseCase().ExecuteAsync(new GetTodoListsQuery(1, pageSize), TestToken);
-
-        result.IsSuccess.ShouldBeTrue();
-    }
-
-    /// <summary>
-    /// Bad paging must be refused before the query runs, otherwise the bound is advisory.
+    /// All of paging/sort/cursor/filter parsing lives in <c>TodoListRequestBinder</c> now, and is
+    /// exercised exhaustively in <c>TodoListRequestBinderTests</c>. This use case only has to prove
+    /// it delegates to the binder and propagates its failure — one representative case.
     /// </summary>
     [Fact]
-    public async Task InvalidPaging_NeverReachesTheReadSide()
+    public async Task ABinderFailure_IsPropagatedWithoutReachingThePort()
     {
-        await UseCase().ExecuteAsync(new GetTodoListsQuery(0, 10), TestToken);
-        await UseCase().ExecuteAsync(new GetTodoListsQuery(1, 0), TestToken);
-        await UseCase().ExecuteAsync(new GetTodoListsQuery(1, GetTodoListsUseCase.MaxPageSize + 1), TestToken);
+        var result = await UseCase().ExecuteAsync(GetTodoListsQuery.Offset(0, 10), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("paging.invalid");
 
         await _queries.DidNotReceive().GetForOwnerAsync(
             Arg.Any<Guid>(),
-            Arg.Any<int>(),
-            Arg.Any<int>(),
+            Arg.Any<TodoListPageRequest>(),
             Arg.Any<CancellationToken>());
     }
-
-    /// <summary>
-    /// Asserted against a literal on purpose: every other paging case above derives its input from
-    /// <see cref="GetTodoListsUseCase.MaxPageSize"/> and would move with the constant, so raising
-    /// the bound out of usefulness would go unnoticed.
-    /// </summary>
-    [Fact]
-    public async Task ThePageSizeCeiling_IsOneHundredRows()
-    {
-        GetTodoListsUseCase.MaxPageSize.ShouldBe(100);
-        GivenThePageIsEmpty();
-
-        (await UseCase().ExecuteAsync(new GetTodoListsQuery(1, 100), TestToken)).IsSuccess.ShouldBeTrue();
-
-        var beyond = await UseCase().ExecuteAsync(new GetTodoListsQuery(1, 101), TestToken);
-
-        beyond.IsFailure.ShouldBeTrue();
-        beyond.Error!.Code.ShouldBe("paging.invalid");
-    }
-
-    /// <summary>
-    /// The page number is checked before the page size, so a request that is wrong in both
-    /// ways is told about the page first — a stable answer, not an arbitrary one.
-    /// </summary>
-    [Fact]
-    public async Task APageNumberIsCheckedBeforeThePageSize()
-    {
-        var result = await UseCase().ExecuteAsync(new GetTodoListsQuery(0, 0), TestToken);
-
-        result.Error!.Message.ShouldContain("page number");
-    }
-
-    #endregion
 
     #region Success
 
     [Fact]
     public async Task TheRequestedPage_IsHandedBackUnchanged()
     {
-        var page = new PagedResult<TodoListSummaryDto>([ASummary()], 2, 10, 42);
-        _queries.GetForOwnerAsync(_callerId, 2, 10, Arg.Any<CancellationToken>()).Returns(page);
+        var page = PagedResult.Offset<TodoListSummaryDto>([ASummary()], 2, 10, 42);
+        _queries.GetForOwnerAsync(_callerId, Arg.Any<TodoListPageRequest>(), Arg.Any<CancellationToken>())
+            .Returns(page);
 
-        var result = await UseCase().ExecuteAsync(new GetTodoListsQuery(2, 10), TestToken);
+        var result = await UseCase().ExecuteAsync(GetTodoListsQuery.Offset(2, 10), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBeSameAs(page);
     }
 
     [Fact]
-    public async Task ThePagingArguments_AreForwardedVerbatim()
+    public async Task ThePortReceivesTheValidatedRequest()
     {
         GivenThePageIsEmpty();
 
-        await UseCase().ExecuteAsync(new GetTodoListsQuery(3, 25), TestToken);
+        await UseCase().ExecuteAsync(
+            new GetTodoListsQuery(null, 3, 25, null, "name:asc", "milk", null, null),
+            TestToken);
 
-        await _queries.Received(1).GetForOwnerAsync(_callerId, 3, 25, Arg.Any<CancellationToken>());
+        await _queries.Received(1).GetForOwnerAsync(
+            _callerId,
+            Arg.Is<TodoListPageRequest>(request =>
+                request != null
+                && request.Paging.Mode == PagingMode.Offset
+                && request.Paging.Page == 3
+                && request.Paging.PageSize == 25
+                && request.Sort.Terms.Count == 1
+                && request.Sort.Terms[0].Field == "name"
+                && request.Sort.Terms[0].Direction == SortDirection.Ascending
+                && request.Filter.Search!.Value == "milk"),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -223,9 +172,9 @@ public sealed class GetTodoListsUseCaseTests
         GivenThePageIsEmpty();
         using var cancellation = new CancellationTokenSource();
 
-        await UseCase().ExecuteAsync(new GetTodoListsQuery(1, 10), cancellation.Token);
+        await UseCase().ExecuteAsync(GetTodoListsQuery.Offset(1, 10), cancellation.Token);
 
-        await _queries.Received(1).GetForOwnerAsync(_callerId, 1, 10, cancellation.Token);
+        await _queries.Received(1).GetForOwnerAsync(_callerId, Arg.Any<TodoListPageRequest>(), cancellation.Token);
     }
 
     #endregion
@@ -240,8 +189,7 @@ public sealed class GetTodoListsUseCaseTests
     private void GivenThePageIsEmpty() =>
         _queries.GetForOwnerAsync(
                 Arg.Any<Guid>(),
-                Arg.Any<int>(),
-                Arg.Any<int>(),
+                Arg.Any<TodoListPageRequest>(),
                 Arg.Any<CancellationToken>())
-            .Returns(new PagedResult<TodoListSummaryDto>([], 1, 10, 0));
+            .Returns(PagedResult.Offset<TodoListSummaryDto>([], 1, 10, 0));
 }

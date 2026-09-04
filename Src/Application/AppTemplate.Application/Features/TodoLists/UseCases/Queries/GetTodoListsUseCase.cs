@@ -1,14 +1,39 @@
-﻿using AppTemplate.Application.Common;
+using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Collections;
+using AppTemplate.Application.Features.TodoLists.Collections;
 using AppTemplate.Application.Features.TodoLists.Dtos;
-using AppTemplate.Application.Features.TodoLists.Errors;
 using AppTemplate.Application.Features.TodoLists.Ports;
 
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Queries;
 
-/// <param name="Page">1-based page number.</param>
-/// <param name="PageSize">Between 1 and <see cref="GetTodoListsUseCase.MaxPageSize"/>.</param>
-public sealed record GetTodoListsQuery(int Page, int PageSize);
+/// <param name="Paging">"offset" (the default) or "cursor". Blank means offset.</param>
+/// <param name="Page">1-based page number. Offset mode only.</param>
+/// <param name="PageSize">
+/// Defaults to <see cref="TodoListCollectionPolicy.Instance"/>'s own default page size; must not
+/// exceed its ceiling.
+/// </param>
+/// <param name="Cursor">Opaque, minted by a previous page's <c>nextCursor</c>. Cursor mode only.</param>
+/// <param name="Sort">
+/// Comma-separated sort terms, e.g. <c>name:asc,createdAt:desc</c>. Cursor mode allows at most one.
+/// </param>
+/// <param name="Search">Matches the list name, case-insensitively, as a contains.</param>
+/// <param name="CreatedAfter">ISO 8601. Inclusive lower bound on <c>createdAt</c>.</param>
+/// <param name="CreatedBefore">ISO 8601. Inclusive upper bound on <c>createdAt</c>.</param>
+public sealed record GetTodoListsQuery(
+    string? Paging,
+    int? Page,
+    int? PageSize,
+    string? Cursor,
+    string? Sort,
+    string? Search,
+    string? CreatedAfter,
+    string? CreatedBefore)
+{
+    /// <summary>The common case: offset paging, nothing sorted, filtered or resumed.</summary>
+    public static GetTodoListsQuery Offset(int? page, int? pageSize) =>
+        new(null, page, pageSize, null, null, null, null, null);
+}
 
 /// <summary>
 /// The owner filter comes from <see cref="ICurrentUser"/> and is deliberately not part of the
@@ -18,31 +43,26 @@ public interface IGetTodoListsUseCase : IUseCase<GetTodoListsQuery, Result<Paged
 
 public sealed class GetTodoListsUseCase(ITodoListQueries queries, ICurrentUser currentUser) : IGetTodoListsUseCase
 {
-    public const int MaxPageSize = 100;
-
     public async Task<Result<PagedResult<TodoListSummaryDto>>> ExecuteAsync(
         GetTodoListsQuery query,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        if (currentUser.UserId is not { } ownerId)
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
         {
-            return Result.Failure<PagedResult<TodoListSummaryDto>>(TodoListErrors.NotAuthenticated);
+            return userId.To<PagedResult<TodoListSummaryDto>>();
         }
 
-        if (query.Page < 1)
+        var bound = TodoListRequestBinder.Bind(query);
+
+        if (bound.IsFailure)
         {
-            return Result.Failure<PagedResult<TodoListSummaryDto>>(
-                TodoListErrors.InvalidPaging("The page number must be 1 or greater."));
+            return bound.To<PagedResult<TodoListSummaryDto>>();
         }
 
-        if (query.PageSize is < 1 or > MaxPageSize)
-        {
-            return Result.Failure<PagedResult<TodoListSummaryDto>>(
-                TodoListErrors.InvalidPaging($"The page size must be between 1 and {MaxPageSize}."));
-        }
-
-        return await queries.GetForOwnerAsync(ownerId, query.Page, query.PageSize, cancellationToken);
+        return await queries.GetForOwnerAsync(userId.Value, bound.Value, cancellationToken);
     }
 }

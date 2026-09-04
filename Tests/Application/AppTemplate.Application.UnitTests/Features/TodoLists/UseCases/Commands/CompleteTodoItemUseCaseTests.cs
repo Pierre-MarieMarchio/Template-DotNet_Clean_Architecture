@@ -1,5 +1,7 @@
 ﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Features.TodoLists.Access;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
@@ -135,6 +137,28 @@ public sealed class CompleteTodoItemUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// The precondition is checked as part of loading the list, before the item is looked up. A
+    /// stale caller naming an unknown item therefore sees 412, not 404: the precondition is about
+    /// the resource the request names (the list), and answering 404 first would confirm or deny an
+    /// item's existence to a caller working from an outdated copy of the list.
+    /// </summary>
+    [Fact]
+    public async Task AStalePreconditionOnAnUnknownItem_IsReportedAsPreconditionFailedNotAsMissingItem()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        var stalePrecondition = new VersionPrecondition([list.Version + 1]);
+
+        var result = await UseCase().ExecuteAsync(
+            new CompleteTodoItemCommand(list.Id, Guid.CreateVersion7(), stalePrecondition),
+            TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.PreconditionFailed);
+        result.Error.Code.ShouldBe("precondition.failed");
+    }
+
     [Fact]
     public async Task AnItemIdFromAnotherList_IsReportedAsAMissingItem()
     {
@@ -169,7 +193,7 @@ public sealed class CompleteTodoItemUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Conflict);
-        result.Error.Code.ShouldBe("todoList.invariantViolated");
+        result.Error.Code.ShouldBe("domain.invariantViolated");
     }
 
     [Fact]
@@ -218,10 +242,10 @@ public sealed class CompleteTodoItemUseCaseTests
         _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var useCase = new CompleteTodoItemUseCase(
-            _repository,
+            new TodoListAccess(_repository, StubCurrentUser.WithId(_callerId)),
             _unitOfWork,
-            StubCurrentUser.WithId(_callerId),
-            new FixedDateTimeProvider(pinnedInstant));
+            new FixedDateTimeProvider(pinnedInstant),
+            new CompleteTodoItemCommandValidator());
 
         await useCase.ExecuteAsync(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
 
@@ -283,7 +307,7 @@ public sealed class CompleteTodoItemUseCaseTests
     #endregion
 
     private CompleteTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_repository, _unitOfWork, currentUser, _clock);
+        new(new TodoListAccess(_repository, currentUser), _unitOfWork, _clock, new CompleteTodoItemCommandValidator());
 
     private CompleteTodoItemUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

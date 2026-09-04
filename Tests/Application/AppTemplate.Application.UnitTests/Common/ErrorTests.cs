@@ -58,6 +58,77 @@ public sealed class ErrorTests
     /// renumbering the existing ones would silently repoint every persisted or logged
     /// value.
     /// </summary>
+    #region Details
+
+    [Fact]
+    public void Validation_WithDetails_CarriesThemThrough()
+    {
+        var details = new Dictionary<string, IReadOnlyList<string>> { ["name"] = ["A name is required."] };
+
+        var error = Error.Validation("request.validationFailed", "One or more fields are invalid.", details);
+
+        error.Details.ShouldBe(details);
+    }
+
+    [Fact]
+    public void ErrorsWithoutDetails_AreStillEqual()
+    {
+        Error.NotFound("a.b", "m").ShouldBe(Error.NotFound("a.b", "m"));
+    }
+
+    /// <summary>
+    /// The compiler-generated equality would compare <see cref="Error.Details"/> by reference: two
+    /// errors built from separate dictionaries holding the same keys and values would count as
+    /// different, which would make two validation failures over the same field look distinct.
+    /// </summary>
+    [Fact]
+    public void Equality_ComparesDetailsStructurally_NotByReference()
+    {
+        var first = Error.Validation(
+            "request.validationFailed",
+            "One or more fields are invalid.",
+            new Dictionary<string, IReadOnlyList<string>> { ["name"] = ["required"] });
+
+        var second = Error.Validation(
+            "request.validationFailed",
+            "One or more fields are invalid.",
+            new Dictionary<string, IReadOnlyList<string>> { ["name"] = ["required"] });
+
+        first.ShouldBe(second);
+        first.GetHashCode().ShouldBe(second.GetHashCode());
+    }
+
+    [Fact]
+    public void Equality_DistinguishesDifferentDetails()
+    {
+        var first = Error.Validation(
+            "request.validationFailed",
+            "One or more fields are invalid.",
+            new Dictionary<string, IReadOnlyList<string>> { ["name"] = ["required"] });
+
+        var second = Error.Validation(
+            "request.validationFailed",
+            "One or more fields are invalid.",
+            new Dictionary<string, IReadOnlyList<string>> { ["name"] = ["too long"] });
+
+        first.ShouldNotBe(second);
+    }
+
+    [Fact]
+    public void Equality_DistinguishesNoDetailsFromDetails()
+    {
+        var withoutDetails = Error.Validation("request.validationFailed", "One or more fields are invalid.");
+
+        var withDetails = Error.Validation(
+            "request.validationFailed",
+            "One or more fields are invalid.",
+            new Dictionary<string, IReadOnlyList<string>> { ["name"] = ["required"] });
+
+        withoutDetails.ShouldNotBe(withDetails);
+    }
+
+    #endregion
+
     [Fact]
     public void TheErrorTypes_KeepTheirDeclaredOrder() =>
         Enum.GetValues<ErrorType>().ShouldBe(

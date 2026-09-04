@@ -14,6 +14,7 @@ different stores — enough to show an aggregate, a read/write port split and a
 > - Every configuration key: [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
 > - Running it on Kubernetes: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 > - Deleting the `TodoLists`, `Reminders` and `Files` examples once you have read them: [docs/REMOVING-THE-EXAMPLE-FEATURES.md](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
+> - Moving it into a repository that already exists: [docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md](docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md)
 
 ## What is in the box
 
@@ -98,6 +99,9 @@ A few things worth knowing before you commit the result:
   metadata in PostgreSQL, bytes behind a port to an S3-compatible object store. There is no generator switch to exclude them;
   [docs/REMOVING-THE-EXAMPLE-FEATURES.md](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
   is the verified procedure, and says what stops being demonstrated once they go.
+- **The repository you are generating into may already exist.** Two shapes work, and they cost
+  different things: [docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md](docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md)
+  measures both.
 - `dotnet new uninstall <path-to-this-repository>` removes the template again.
 
 `.github/workflows/ci.yml`'s `template` job runs this exact install → generate →
@@ -1207,6 +1211,7 @@ migration bundle built from the same commit. It needs no secret beyond the autom
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | how the layers fit together |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | every configuration key, its default, and what happens when it is wrong |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | running it on Kubernetes: the raw manifests in `deploy/kubernetes/`, and why their numbers are what they are |
+| [docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md](docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md) | putting the generated project into a repository that already has a history: the two shapes, and what the subdirectory one costs |
 | [AppTemplate.Api.http](AppTemplate.Api.http) | the whole API walkthrough, executable |
 | [Tools/](Tools/) | the six single-file C# apps this repository runs on itself — detailed below |
 

@@ -187,7 +187,16 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          minimum=$(grep -v '^[[:space:]]*#' coverage.minimum | tr -d '[:space:]')
+          # The first line that IS a number, rather than the first line that is not a comment.
+          # The two differ by one byte: a UTF-8 BOM sits in front of the leading `#`, so a
+          # `^[[:space:]]*#` filter keeps that line and the floor arrives with the whole comment
+          # glued to it. GNU grep does not skip a BOM; .NET's File.ReadLines does, so the local
+          # gate read 85 and this one read the comment — the exact drift this file exists to stop.
+          minimum=$(tr -d '\r' < coverage.minimum | grep -oE '^[0-9]+(\.[0-9]+)?$' | head -n 1)
+          if [ -z "$minimum" ]; then
+            echo "::error title=No coverage floor::coverage.minimum states no bare number."
+            exit 1
+          fi
           echo "Coverage floor from coverage.minimum: ${minimum}%"
           dotnet run Tools/CoverageGate.cs \
             --root TestResults \

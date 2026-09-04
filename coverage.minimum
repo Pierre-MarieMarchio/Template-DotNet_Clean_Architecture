@@ -1,4 +1,4 @@
-﻿# Line-coverage floor, in percent. Read by .github/workflows/ci.yml and by Tools/Tasks.cs, so the
+# Line-coverage floor, in percent. Read by .github/workflows/ci.yml and by Tools/Tasks.cs, so the
 # gate a developer runs locally is the gate CI runs. One value, one file, no second copy to drift.
 #
 # Set from measurement, never invented. A threshold above the real number fails on day one and gets

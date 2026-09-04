@@ -2,6 +2,7 @@
 
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 return Tasks.Run(args);
@@ -352,20 +353,28 @@ internal static class Tasks
     }
 
     /// <summary>
-    /// The floor is the first line of <c>coverage.minimum</c> that is neither blank nor a comment.
-    /// CI reads the same file, so the gate a developer runs locally is the gate CI runs.
+    /// The floor is the first line of <c>coverage.minimum</c> that <em>is</em> a number. CI reads the
+    /// same file with a POSIX shell, so the gate a developer runs locally is the gate CI runs — and
+    /// "the first line that is a number" is the one definition both can hold to.
     /// </summary>
+    /// <remarks>
+    /// Deliberately not "the first line that is not a comment", which the two cannot agree on: a
+    /// UTF-8 BOM sits in front of a leading <c>#</c>, and <c>File.ReadLines</c> strips it while GNU
+    /// grep does not — so that definition read 85 here and the whole comment line in CI.
+    /// </remarks>
     private static string CoverageMinimum(string path)
     {
         foreach (string line in File.ReadLines(path))
         {
-            if (!line.TrimStart().StartsWith('#') && line.Trim().Length > 0)
+            string candidate = line.Trim();
+
+            if (double.TryParse(candidate, CultureInfo.InvariantCulture, out _))
             {
-                return line.Trim();
+                return candidate;
             }
         }
 
-        throw new InvalidOperationException($"'{path}' states no coverage floor: every line is blank or a comment.");
+        throw new InvalidOperationException($"'{path}' states no coverage floor: no line is a bare number.");
     }
 
     /// <summary>

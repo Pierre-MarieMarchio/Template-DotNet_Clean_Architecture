@@ -73,11 +73,10 @@ internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
 
         options.Events = new JwtBearerEvents
         {
-            // 401 and 403 are the two most common failures this API produces, and they used to be the
-            // two that did not look like the others: a bare `{"message":"..."}` as application/json,
-            // with no code, while every other failure was application/problem+json carrying a stable,
-            // machine-readable `code`. A client therefore had to special-case the most frequent
-            // response it would ever see, and had nothing but English prose to branch on.
+            // 401 and 403 are the two most common failures this API produces, so they get the same
+            // treatment as every other error: application/problem+json carrying a stable,
+            // machine-readable `code`, not a bare `{"message":"..."}` a client would have to
+            // special-case as the one response shaped differently from all the rest.
             OnChallenge = context =>
             {
                 ArgumentNullException.ThrowIfNull(context);

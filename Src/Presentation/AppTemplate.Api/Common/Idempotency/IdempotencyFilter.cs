@@ -5,11 +5,8 @@ using AppTemplate.Api.Common.Errors;
 using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Idempotency;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Common.Idempotency;

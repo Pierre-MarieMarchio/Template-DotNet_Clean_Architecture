@@ -1,5 +1,4 @@
-﻿using AppTemplate.Infrastructure.InMemory;
-using AppTemplate.Infrastructure.InMemory.Email;
+﻿using AppTemplate.Infrastructure.InMemory.Email;
 using AppTemplate.Infrastructure.InMemory.Time;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;

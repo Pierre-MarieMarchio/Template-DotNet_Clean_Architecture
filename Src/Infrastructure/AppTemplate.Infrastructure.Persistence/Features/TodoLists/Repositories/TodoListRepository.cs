@@ -1,8 +1,7 @@
-﻿using AppTemplate.Application.Features.TodoLists.Ports;
-using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Domain.Features.TodoLists.Stores;
+﻿using AppTemplate.Domain.Features.TodoLists.Entities;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mappers;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;
 using Microsoft.EntityFrameworkCore;

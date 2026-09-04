@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Features.Auth.Ports;
+﻿using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Infrastructure.Identity.Notifications;

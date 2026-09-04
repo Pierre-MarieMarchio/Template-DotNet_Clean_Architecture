@@ -34,6 +34,8 @@ internal sealed class RefreshToken
     /// <summary>Nullable so a grant can be created without materialising the whole user.</summary>
     public AppUser? User { get; set; }
 
-    /// <summary>Expiry is compared explicitly on every presentation; it used to be stored and ignored.</summary>
+    /// <summary>Expiry is compared explicitly on every presentation, so a grant past
+    /// <see cref="ExpiresAt"/> is rejected immediately, without depending on a background job to
+    /// have marked it inactive first.</summary>
     public bool IsActiveAt(DateTimeOffset instant) => RevokedAt is null && ExpiresAt > instant;
 }

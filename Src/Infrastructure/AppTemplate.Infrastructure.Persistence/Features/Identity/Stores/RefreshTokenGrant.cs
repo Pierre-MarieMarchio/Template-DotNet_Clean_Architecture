@@ -6,6 +6,8 @@
 /// <param name="RevokedAt">When it was revoked or rotated, or <c>null</c> while it is live.</param>
 public sealed record RefreshTokenGrant(Guid UserId, DateTimeOffset ExpiresAt, DateTimeOffset? RevokedAt)
 {
-    /// <summary>Expiry is compared explicitly on every presentation; it used to be stored and ignored.</summary>
+    /// <summary>Expiry is compared explicitly on every presentation, so a grant past
+    /// <see cref="ExpiresAt"/> is rejected immediately, without depending on a background job to
+    /// have marked it inactive first.</summary>
     public bool IsActiveAt(DateTimeOffset instant) => RevokedAt is null && ExpiresAt > instant;
 }

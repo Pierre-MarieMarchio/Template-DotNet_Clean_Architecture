@@ -15,8 +15,6 @@ using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);

@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Domain.Common.Abstractions;
 using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 
 namespace AppTemplate.Application.UnitTests.TestDoubles;
 

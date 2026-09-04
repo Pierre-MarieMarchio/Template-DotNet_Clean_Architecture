@@ -1,8 +1,6 @@
 ﻿using System.Reflection;
 using AppTemplate.Domain.Common.Abstractions;
-using AppTemplate.Domain.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 using Shouldly;
 using Xunit;
 

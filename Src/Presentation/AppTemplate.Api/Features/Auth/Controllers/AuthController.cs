@@ -4,11 +4,26 @@ using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.Features.Auth.Mapping;
-using AppTemplate.Application.Features.Auth.UseCases.Commands;
-using AppTemplate.Application.Features.Auth.UseCases.Queries;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.ChangePassword;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.ConfirmEmail;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.Login;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.Logout;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.LogoutEverywhere;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.RefreshAccessToken;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.Register;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.RequestPasswordReset;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.ResendConfirmationEmail;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.ResetPassword;
+using AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+
+// UseCases.Queries.GetCurrentUser declares an application-layer type by the same name.
+using CurrentUserResponse = AppTemplate.Api.Features.Auth.Contracts.Responses.CurrentUserResponse;
+
+// UseCases.Commands.Register declares an application-layer type by the same name.
+using RegisterResponse = AppTemplate.Api.Features.Auth.Contracts.Responses.RegisterResponse;
 
 namespace AppTemplate.Api.Features.Auth.Controllers;
 

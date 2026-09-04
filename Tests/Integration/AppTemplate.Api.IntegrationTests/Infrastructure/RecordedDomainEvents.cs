@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Domain.Features.TodoLists.Events;
-using AppTemplate.Infrastructure.Persistence.Common.DomainEvents;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 

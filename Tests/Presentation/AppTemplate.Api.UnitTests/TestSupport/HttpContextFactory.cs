@@ -8,7 +8,7 @@ namespace AppTemplate.Api.UnitTests.TestSupport;
 
 /// <summary>
 /// A minimal <see cref="HttpContext"/> wired with just enough <c>RequestServices</c> for the code
-/// under test — <see cref="ProblemDetailsDefaults.Normalise"/> resolves
+/// under test — <c>ProblemDetailsDefaults.Normalise</c> resolves
 /// <see cref="IOptions{TOptions}"/> of <see cref="ProblemTypeOptions"/>, and
 /// <c>ApiControllerBase.ReadPrecondition</c> resolves <see cref="IOptions{TOptions}"/> of
 /// <see cref="ConcurrencyOptions"/> — without starting a real host for either.

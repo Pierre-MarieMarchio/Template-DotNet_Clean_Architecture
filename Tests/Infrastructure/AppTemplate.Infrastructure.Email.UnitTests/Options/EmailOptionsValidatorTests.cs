@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Infrastructure.Email.Options;
 using MailKit.Security;
-using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
 

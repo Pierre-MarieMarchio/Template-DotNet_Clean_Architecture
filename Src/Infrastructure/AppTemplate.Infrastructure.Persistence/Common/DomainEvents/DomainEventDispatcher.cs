@@ -39,7 +39,7 @@ internal sealed class DomainEventDispatcher(
             // Unreachable through the interface hierarchy, and loud rather than silent if a
             // registration ever makes it reachable: skipping a consumer in a mechanism whose whole
             // job is a side effect is the one failure nobody would notice. Thrown outside the
-            // try/catch below, so the new isolation cannot turn this composition bug into a silent
+            // try/catch below, so this isolation cannot turn this composition bug into a silent
             // no-op.
             if (consumer is not IDomainEventConsumer typedConsumer)
             {

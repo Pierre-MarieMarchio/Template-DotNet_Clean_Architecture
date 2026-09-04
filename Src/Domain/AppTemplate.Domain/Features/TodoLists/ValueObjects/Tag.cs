@@ -3,7 +3,7 @@
 namespace AppTemplate.Domain.Features.TodoLists.ValueObjects;
 
 /// <summary>
-/// A free-text label on a <see cref="TodoItem"/>. Normalised on the way in (trimmed,
+/// A free-text label on an <see cref="Entities.TodoItem"/>. Normalised on the way in (trimmed,
 /// lower-cased) so that "Urgent", "urgent " and "URGENT" are one tag, which is what makes
 /// de-duplication and filtering by tag reliable.
 /// </summary>

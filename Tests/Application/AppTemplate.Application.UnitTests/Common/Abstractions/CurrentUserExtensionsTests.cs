@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using Shouldly;
 using Xunit;

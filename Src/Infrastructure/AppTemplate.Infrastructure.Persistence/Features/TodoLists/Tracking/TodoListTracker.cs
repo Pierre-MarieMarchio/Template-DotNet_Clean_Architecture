@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Domain.Common.Abstractions;
 using AppTemplate.Domain.Common.Events;
 using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mappers;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 using Microsoft.EntityFrameworkCore;
 

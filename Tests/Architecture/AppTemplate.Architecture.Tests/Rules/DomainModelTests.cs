@@ -1,6 +1,5 @@
 ﻿using System.Reflection;
 using AppTemplate.Architecture.Tests.Fixtures;
-using AppTemplate.Domain.Common.Abstractions;
 using AppTemplate.Domain.Common.Events;
 using AppTemplate.Domain.Common.Primitives;
 using NetArchTest.Rules;

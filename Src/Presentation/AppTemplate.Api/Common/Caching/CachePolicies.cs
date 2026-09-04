@@ -1,7 +1,8 @@
 ﻿namespace AppTemplate.Api.Common.Caching;
 
 /// <summary>
-/// States whether a response may be stored at all, which this API previously left unsaid.
+/// States whether a response may be stored at all, so every action carries an explicit caching
+/// contract instead of leaving one implied.
 /// </summary>
 /// <remarks>
 /// See <c>docs/adr/0019-caching-is-revalidation-not-storage.md</c>: <c>private</c> confines storage to

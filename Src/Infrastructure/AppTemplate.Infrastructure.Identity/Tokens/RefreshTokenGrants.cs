@@ -2,7 +2,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.Auth.Ports;
+using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Infrastructure.Identity.Options;
 using AppTemplate.Infrastructure.Identity.Users;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Stores;

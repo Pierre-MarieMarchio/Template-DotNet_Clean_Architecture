@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

@@ -5,9 +5,6 @@ using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Worker.Common.Maintenance;
 using AppTemplate.Worker.Common.Observability;
 using AppTemplate.Worker.Common.Security;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -38,8 +35,8 @@ builder.Services.AddOptions<MaintenanceWorkerOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<MaintenanceWorkerOptions>, MaintenanceWorkerOptionsValidator>();
 
-// This host's only signal used to be its JSON log — and the maintenance loop only logged when a
-// purge removed something, so a purge broken for weeks was invisible. See WorkerObservability and
+// The JSON log alone is not enough: the maintenance loop only logs when a purge removes something,
+// so a purge broken for weeks would otherwise be invisible. See WorkerObservability and
 // MaintenanceDiagnostics.
 builder.Services.AddWorkerObservability(builder.Configuration);
 

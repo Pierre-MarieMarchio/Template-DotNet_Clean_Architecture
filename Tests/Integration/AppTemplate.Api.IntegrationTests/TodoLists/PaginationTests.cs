@@ -3,7 +3,7 @@ using System.Net;
 using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.TodoLists.Collections;
+using AppTemplate.Application.Features.TodoLists.Policies;
 using Shouldly;
 using Xunit;
 

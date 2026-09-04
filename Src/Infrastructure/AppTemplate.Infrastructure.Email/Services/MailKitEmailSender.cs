@@ -7,10 +7,9 @@ using MimeKit;
 namespace AppTemplate.Infrastructure.Email.Services;
 
 /// <summary>
-/// The <see cref="IEmailSender"/> port, over MailKit. Replaces the
-/// <c>System.Net.Mail.SmtpClient</c> (obsolete since .NET 5) that used to be constructed per
-/// email, never disposed, and configured through four null-forgiving lookups — and that lived
-/// in the Application layer with Infrastructure inheriting from it.
+/// The <see cref="IEmailSender"/> port, over MailKit, rather than <c>System.Net.Mail.SmtpClient</c>
+/// (obsolete since .NET 5) — a type that invites being constructed anew per email, never disposed,
+/// and configured through null-forgiving lookups when nothing declares the settings' shape.
 /// <para>
 /// Internal and sealed. It is an adapter for a port the application layer declares; callers
 /// depend on <see cref="IEmailSender"/> and nothing outside this assembly has any reason to

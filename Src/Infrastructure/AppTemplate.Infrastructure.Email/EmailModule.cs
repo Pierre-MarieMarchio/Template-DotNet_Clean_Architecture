@@ -10,9 +10,9 @@ namespace AppTemplate.Infrastructure.Email;
 /// <summary>
 /// Composes outbound email: one options type, one validator, one adapter.
 /// <para>
-/// This module has exactly one reason to change — how mail leaves the process. It used to be
-/// part of the identity vertical, which meant a change of SMTP library touched the assembly
-/// that also owns password policy and token signing.
+/// This module has exactly one reason to change — how mail leaves the process. It is separate
+/// from the identity module, so a change of SMTP library never touches the assembly that also
+/// owns password policy and token signing.
 /// </para>
 /// </summary>
 public static class EmailModule

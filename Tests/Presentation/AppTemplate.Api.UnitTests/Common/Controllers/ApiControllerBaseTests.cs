@@ -5,7 +5,6 @@ using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Concurrency;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Net.Http.Headers;
 using Shouldly;
 using Xunit;
 

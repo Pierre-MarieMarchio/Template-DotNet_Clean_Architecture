@@ -2,7 +2,8 @@
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Maintenance.Contracts.Responses;
 using AppTemplate.Api.Features.Maintenance.Mapping;
-using AppTemplate.Application.Features.Maintenance.UseCases.Commands;
+using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
+using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredRefreshTokens;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

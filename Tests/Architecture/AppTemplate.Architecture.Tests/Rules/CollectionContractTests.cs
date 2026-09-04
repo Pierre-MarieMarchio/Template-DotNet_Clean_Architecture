@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Collections;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
@@ -22,8 +23,6 @@ public sealed class CollectionContractTests
     /// <summary><c>AppTemplate.Application.Common.Collections</c> or a feature's own <c>…Collections</c>.</summary>
     private const string _collectionsNamespacePattern = @"^AppTemplate\.Application\..*\.Collections$";
 
-    private const string _portsNamespaceSuffix = ".Ports";
-
     #region 1. Every validated collection contract is unconstructible without validation
 
     [Fact]
@@ -39,14 +38,15 @@ public sealed class CollectionContractTests
 
         candidates.ShouldNotBeEmpty(
             "No record type was found in a namespace matching " +
-            $"'{_collectionsNamespacePattern}', so this rule is no longer describing the collection " +
-            "contracts (SortableField, SortTerm, SortOrder, Cursor, PageRequest, SearchTerm, " +
-            "TodoListFilter, TodoListPageRequest). Either the convention was renamed or the rule is stale.");
+            $"'{_collectionsNamespacePattern}', so this rule is no longer describing the shared " +
+            "collection contracts (SortableField, SortTerm, SortOrder, Cursor, PageRequest, " +
+            "SearchTerm). Either the convention was renamed or the rule is stale.");
 
-        // The floor comes from Common/Collections (SortableField, SortOrder, SortTerm, Cursor,
-        // PageRequest, SearchTerm) plus TodoLists/Collections (TodoListFilter, TodoListPageRequest).
+        // SortableField, SortOrder, SortTerm, Cursor, PageRequest, SearchTerm. A feature's own
+        // paging contracts are not counted here: they travel with the port that accepts them, and
+        // NoPortParameter_IsPartlyValidated is what holds them to the same standard.
         candidates.Count.ShouldBeGreaterThanOrEqualTo(
-            8,
+            6,
             "Fewer collection-contract records were found than this template is known to declare. " +
             "The discovery in this rule has stopped matching them.");
 
@@ -74,13 +74,12 @@ public sealed class CollectionContractTests
         var policies = ArchitectureAssemblies.Application
             .GetTypes()
             .Where(type => type is { IsClass: true, IsNested: false })
-            .Where(type => type.Namespace is not null && IsCollectionsNamespace(type.Namespace))
             .Where(type => typeof(ICollectionPolicy).IsAssignableFrom(type))
             .ToList();
 
         policies.ShouldNotBeEmpty(
-            "No ICollectionPolicy implementation was found in a Collections namespace, so this rule " +
-            "is not proving anything about the exemption it describes.");
+            "No ICollectionPolicy implementation was found, so this rule is not proving anything " +
+            "about the exemption it describes.");
 
         policies.ShouldAllBe(
             policy => !TypeFacts.IsRecord(policy),
@@ -187,46 +186,75 @@ public sealed class CollectionContractTests
 
     #endregion
 
-    #region 3. No collection contract reaches a port unvalidated
+    #region 3. Nothing that validates itself can be built having skipped the validation
 
+    /// <summary>
+    /// A record that offers a factory returning <c>Result&lt;itself&gt;</c> has declared that it can be
+    /// asked for and refused — so a public constructor beside that factory is a second way in that
+    /// answers nothing, and the value the read side receives may never have been checked.
+    /// <para>
+    /// The discriminant is the type's own shape rather than the folder it sits in, which is the point:
+    /// a feature's paging contract travels with the port that accepts it and a shared one lives in
+    /// <c>Common/Collections</c>, so any rule keyed on location stops describing them the first time
+    /// something moves. This one cannot be defeated by moving a file.
+    /// </para>
+    /// </summary>
     [Fact]
-    public void NoPortParameter_FromACollectionsNamespace_HasAPublicConstructor()
+    public void EveryRecord_WithAValidatingFactory_HasNoPublicConstructor()
     {
-        var portInterfaces = ArchitectureAssemblies.Application
+        var validated = ArchitectureAssemblies.Application
             .GetTypes()
-            .Where(type => type is { IsInterface: true, IsNested: false })
-            .Where(type => type.Namespace is not null
-                && type.Namespace.EndsWith(_portsNamespaceSuffix, StringComparison.Ordinal))
+            .Where(type => type is { IsClass: true, IsNested: false })
+            .Where(type => !Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute)))
+            .Where(TypeFacts.IsRecord)
+            .Where(HasAValidatingFactory)
             .ToList();
 
-        portInterfaces.ShouldNotBeEmpty(
-            $"No interface was found in a namespace ending '{_portsNamespaceSuffix}', so this rule is " +
-            "no longer describing the application layer's ports.");
+        // Cursor, PageRequest, SearchTerm, SortOrder from Common/Collections, the feature's own
+        // TodoListFilter and TodoListPageRequest, wherever the layout puts them.
+        validated.Count.ShouldBeGreaterThanOrEqualTo(
+            6,
+            "Fewer self-validating records were found than this template is known to declare. The " +
+            "discovery in this rule has stopped matching them, most likely because a factory stopped " +
+            "returning Result<T>.");
 
-        var collectionParameterTypes = portInterfaces
-            .SelectMany(port => port.GetMethods())
-            .SelectMany(method => method.GetParameters())
-            .Select(parameter => parameter.ParameterType)
-            .Where(parameterType => parameterType.Namespace is not null
-                && IsCollectionsNamespace(parameterType.Namespace))
-            .Distinct()
-            .ToList();
-
-        collectionParameterTypes.ShouldNotBeEmpty(
-            "No port method takes a parameter from a *.Collections namespace (expected at least " +
-            "ITodoListQueries.GetForOwnerAsync's TodoListPageRequest), so the rule below cannot go " +
-            "stale silently when a port is renamed or a parameter's type changes.");
-
-        collectionParameterTypes
+        validated
             .Where(HasAPublicConstructor)
             .Select(type => type.FullName ?? type.Name)
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty(
-                "A port parameter drawn from a *.Collections namespace must be unconstructible without " +
-                "validation, exactly like the contracts in rule 1 above — otherwise a caller could " +
-                "hand the read side a request that skipped SortOrder.Parse / Cursor.Decode / " +
-                "PageRequest.Create.");
+                "A record offering a Result-returning factory must not also offer a public " +
+                "constructor: the factory is where the value is refused, and a caller reaching past " +
+                "it hands the rest of the system a contract nobody checked.");
     }
+
+    /// <summary>
+    /// Proves the discovery above can select, by applying it to a record written here to have exactly
+    /// the shape it looks for. If this failed, the rule would be filtering everything out and passing
+    /// over an empty set.
+    /// </summary>
+    [Fact]
+    public void TheValidatingFactoryRule_IsSensitive_AndSelectsSuchARecord()
+    {
+        HasAValidatingFactory(typeof(DeliberatelyValidatedRecord)).ShouldBeTrue(
+            $"{nameof(DeliberatelyValidatedRecord)} declares a static factory returning " +
+            "Result<itself>, which is precisely what the discovery looks for.");
+
+        HasAPublicConstructor(typeof(DeliberatelyValidatedRecord)).ShouldBeTrue(
+            "The fixture is written with a public constructor, so a rule that selected it would " +
+            "report it. That is what makes the emptiness of the real result meaningful.");
+    }
+
+    /// <summary>
+    /// A static method returning <see cref="Result{TValue}"/> of the very type that declares it.
+    /// Non-public factories count: <c>SearchTerm.Create</c> and <c>Cursor.Decode</c> are internal,
+    /// and are no less the only way in.
+    /// </summary>
+    private static bool HasAValidatingFactory(Type type) =>
+        type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Any(method => method.ReturnType.IsGenericType
+                && method.ReturnType.GetGenericTypeDefinition() == typeof(Result<>)
+                && method.ReturnType.GetGenericArguments()[0] == type);
 
     #endregion
 
@@ -235,4 +263,16 @@ public sealed class CollectionContractTests
 
     private static bool HasAPublicConstructor(Type type) =>
         type.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Length > 0;
+}
+
+/// <summary>
+/// A record with both a Result-returning factory and a public constructor — the shape
+/// <see cref="CollectionContractTests.EveryRecord_WithAValidatingFactory_HasNoPublicConstructor"/>
+/// forbids. It lives in the test project so the sensitivity proof needs no violation in the product
+/// code, and so the rule itself — which reads the application assembly — never sees it.
+/// </summary>
+internal sealed record DeliberatelyValidatedRecord(string Value)
+{
+    public static Result<DeliberatelyValidatedRecord> Create(string value) =>
+        Result.Success(new DeliberatelyValidatedRecord(value));
 }

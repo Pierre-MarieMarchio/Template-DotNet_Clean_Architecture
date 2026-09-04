@@ -4,7 +4,10 @@ using AppTemplate.Api.Features.Auth.Mapping;
 using AppTemplate.Application.Common;
 using Shouldly;
 using Xunit;
-using ApplicationDtos = AppTemplate.Application.Features.Auth.Dtos;
+using ApplicationCurrentUserResponse = AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser.CurrentUserResponse;
+using ApplicationLoginOutcome = AppTemplate.Application.Features.Auth.UseCases.Commands.Login.LoginOutcome;
+using ApplicationRefreshAccessTokenResponse = AppTemplate.Application.Features.Auth.UseCases.Commands.RefreshAccessToken.RefreshAccessTokenResponse;
+using ApplicationRegisterResponse = AppTemplate.Application.Features.Auth.UseCases.Commands.Register.RegisterResponse;
 
 namespace AppTemplate.Api.UnitTests.Features.Auth.Mapping;
 
@@ -17,7 +20,7 @@ public sealed class AuthMappingTests
     [Fact]
     public void ToRegisterResponse_CopiesEveryField()
     {
-        var dto = new ApplicationDtos.RegisterResponse(
+        var dto = new ApplicationRegisterResponse(
             UserId: Guid.NewGuid(),
             UserName: "ada",
             Email: "ada@example.com",
@@ -44,7 +47,7 @@ public sealed class AuthMappingTests
     public void ToRegisterResponse_PropagatesAFailure_WithoutReadingTheValue()
     {
         var result = Should.NotThrow(
-            () => AuthMapping.ToRegisterResponse(Result.Failure<ApplicationDtos.RegisterResponse>(_someConflict)));
+            () => AuthMapping.ToRegisterResponse(Result.Failure<ApplicationRegisterResponse>(_someConflict)));
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_someConflict);
@@ -53,7 +56,7 @@ public sealed class AuthMappingTests
     [Fact]
     public void ToLoginResponse_MapsAuthenticated_ToEveryTokenField()
     {
-        var outcome = new ApplicationDtos.LoginOutcome.Authenticated(
+        var outcome = new ApplicationLoginOutcome.Authenticated(
             UserId: Guid.NewGuid(),
             UserName: "ada",
             Email: "ada@example.com",
@@ -62,7 +65,7 @@ public sealed class AuthMappingTests
             RefreshToken: "refresh",
             RefreshTokenExpiresAt: _refreshExpiry);
 
-        var response = AuthMapping.ToLoginResponse(Result.Success<ApplicationDtos.LoginOutcome>(outcome)).Value;
+        var response = AuthMapping.ToLoginResponse(Result.Success<ApplicationLoginOutcome>(outcome)).Value;
 
         var authenticated = response.ShouldBeOfType<LoginResponse.Authenticated>();
         authenticated.Tokens.AccessToken.ShouldBe("access");
@@ -90,9 +93,9 @@ public sealed class AuthMappingTests
     [Fact]
     public void ToLoginResponse_MapsTwoFactorRequired()
     {
-        var outcome = new ApplicationDtos.LoginOutcome.TwoFactorRequired("challenge");
+        var outcome = new ApplicationLoginOutcome.TwoFactorRequired("challenge");
 
-        var response = AuthMapping.ToLoginResponse(Result.Success<ApplicationDtos.LoginOutcome>(outcome)).Value;
+        var response = AuthMapping.ToLoginResponse(Result.Success<ApplicationLoginOutcome>(outcome)).Value;
 
         response.ShouldBeOfType<LoginResponse.TwoFactorRequired>().ChallengeToken.ShouldBe("challenge");
     }
@@ -101,7 +104,7 @@ public sealed class AuthMappingTests
     public void ToLoginResponse_PropagatesAFailure_WithoutReadingTheValue()
     {
         var result = Should.NotThrow(
-            () => AuthMapping.ToLoginResponse(Result.Failure<ApplicationDtos.LoginOutcome>(_someRefusal)));
+            () => AuthMapping.ToLoginResponse(Result.Failure<ApplicationLoginOutcome>(_someRefusal)));
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_someRefusal);
@@ -110,7 +113,7 @@ public sealed class AuthMappingTests
     [Fact]
     public void ToTokenResponse_CopiesEveryField()
     {
-        var dto = new ApplicationDtos.RefreshAccessTokenResponse(
+        var dto = new ApplicationRefreshAccessTokenResponse(
             AccessToken: "access",
             AccessTokenExpiresAt: _accessExpiry,
             RefreshToken: "refresh",
@@ -129,7 +132,7 @@ public sealed class AuthMappingTests
     {
         var result = Should.NotThrow(
             () => AuthMapping.ToTokenResponse(
-                Result.Failure<ApplicationDtos.RefreshAccessTokenResponse>(_someRefusal)));
+                Result.Failure<ApplicationRefreshAccessTokenResponse>(_someRefusal)));
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_someRefusal);
@@ -140,7 +143,7 @@ public sealed class AuthMappingTests
     {
         var userId = Guid.NewGuid();
         var createdAt = new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
-        var dto = new ApplicationDtos.CurrentUserResponse(
+        var dto = new ApplicationCurrentUserResponse(
             UserId: userId,
             UserName: "ada",
             Email: "ada@example.com",
@@ -165,7 +168,7 @@ public sealed class AuthMappingTests
     {
         var result = Should.NotThrow(
             () => AuthMapping.ToCurrentUserResponse(
-                Result.Failure<ApplicationDtos.CurrentUserResponse>(_someRefusal)));
+                Result.Failure<ApplicationCurrentUserResponse>(_someRefusal)));
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_someRefusal);

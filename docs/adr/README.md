@@ -32,6 +32,8 @@ with a new numbered record rather than editing history.
 | [0021](0021-no-queryable-audit-trail.md) | No queryable audit trail in the application database | Accepted |
 | [0022](0022-no-soft-delete.md) | No soft delete | Accepted |
 | [0023](0023-no-security-stamp-cache.md) | No security stamp cache | Accepted |
+| [0024](0024-repository-in-domain-query-ports-in-application.md) | A repository contract lives in the Domain; every other port lives in Application | Accepted |
+| [0025](0025-closed-folder-vocabulary-per-layer.md) | A closed folder vocabulary per layer | Accepted |
 
 ## Format
 

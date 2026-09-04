@@ -25,9 +25,16 @@
     <NuGetAuditLevel>low</NuGetAuditLevel>
   </PropertyGroup>
 
+  <!-- Documentation is optional, but what is written must be true. Generating the XML file is what
+       turns a stale <see cref="…"/> or <paramref/> into CS1574/CS1734, and those are the comments
+       that actively mislead: one naming a type that has moved sends a reader looking in the wrong
+       layer. CS1591 and CS1573 are suppressed because they demand the opposite thing — a comment on
+       every public member and on every parameter of any member that documents one — which would
+       turn a prose comment explaining a decision into an obligation to describe each argument. -->
   <PropertyGroup>
     <Deterministic>true</Deterministic>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
 

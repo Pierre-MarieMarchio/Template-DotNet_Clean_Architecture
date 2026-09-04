@@ -1,10 +1,8 @@
 ﻿using System.Diagnostics;
 using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.Maintenance.UseCases.Commands;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
+using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredRefreshTokens;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Worker.Common.Maintenance;
@@ -117,8 +115,8 @@ internal sealed class MaintenanceBackgroundService(
                 MaintenanceDiagnostics.Purged.Add(result.Value, taskTag);
                 activity?.SetTag("maintenance.purged", result.Value);
 
-                // Unconditional on purpose: a purge that removes nothing for weeks, because its
-                // query silently stopped matching anything, used to be indistinguishable from a
+                // Unconditional on purpose: without it, a purge that removes nothing for weeks
+                // because its query silently stopped matching anything looks identical to a
                 // healthy one — this line, and the iterations counter above, are what make "the
                 // loop ran" visible even when there was nothing to do.
                 if (logger.IsEnabled(LogLevel.Information))

@@ -24,9 +24,9 @@ namespace AppTemplate.Infrastructure.Persistence.Common.UnitOfWork;
 /// creates or opens anything itself and there is no second unit of work to reconcile.</description></item>
 /// <item><description><b>Who commits it.</b> The use case, and only the use case, by
 /// calling <see cref="SaveChangesAsync"/> once. Repositories and stores stage; they never save. That
-/// is the whole reason this indirection exists — not the one line of code, but the fact
-/// that a use case can no longer commit by accident through a repository that saved inside
-/// every write.</description></item>
+/// is the whole reason this indirection exists — not the one line of code, but the fact that a
+/// repository or store has no way to commit on its own, so a use case cannot commit by accident
+/// through one.</description></item>
 /// <item><description><b>When ownership transfers.</b> It does not. A repository, a store or a query
 /// class borrows the context for the duration of a call and hands nothing back that keeps
 /// the transaction open. Ownership ends when the request scope is disposed, which is the

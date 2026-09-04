@@ -569,7 +569,7 @@ Integration tests start a real PostgreSQL in Docker, so **Docker must be running
 CI runs on `ubuntu-latest`, which provides a Docker daemon; the hosted macOS and
 Windows runners do not.
 
-All four test projects are listed in `AppTemplate.sln`, so `dotnet test AppTemplate.sln` runs every one of
+All ten test projects are listed in `AppTemplate.sln`, so `dotnet test AppTemplate.sln` runs every one of
 them. Keep it that way: a project on disk but absent from the solution is skipped silently,
 and CI asserts against exactly that (see the "Assert test projects exist and are in the
 solution" step in `.github/workflows/ci.yml`).
@@ -665,7 +665,7 @@ Src/
   Infrastructure/
     AppTemplate.Infrastructure.Persistence/    ALL persistence: the one DbContext, the interceptor
                                       pipeline, the unit of work, and per-feature models,
-                                      mappers, repositories, queries and stores
+                                      mapping, repositories, queries and stores
                                       -> Application
     AppTemplate.Infrastructure.Identity/       ASP.NET Identity policy, JWT, refresh-token rotation
                                       (no database of its own)
@@ -677,12 +677,19 @@ Src/
   Presentation/
     AppTemplate.Api/                           controllers, composition root, Dockerfile
                                       -> Application + every module
+    AppTemplate.Worker/                        one BackgroundService running maintenance use cases
+                                      -> Application + Persistence + Identity
 
 Tests/
   Domain/AppTemplate.Domain.UnitTests/           the aggregate, in memory
   Application/AppTemplate.Application.UnitTests/ use cases against test doubles
   Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/
                                         the domain <-> row mapper, reflection-driven
+  Infrastructure/AppTemplate.Infrastructure.Identity.UnitTests/  the authentication adapters
+  Infrastructure/AppTemplate.Infrastructure.Email.UnitTests/     the MailKit sender, in isolation
+  Infrastructure/AppTemplate.Infrastructure.InMemory.UnitTests/  the test/demo doubles themselves
+  Presentation/AppTemplate.Api.UnitTests/        controllers and request/response mapping
+  Presentation/AppTemplate.Worker.UnitTests/     the maintenance loop and its resilience
   Architecture/AppTemplate.Architecture.Tests/   layer/module rules + container composition
   Integration/AppTemplate.Api.IntegrationTests/  the real host over HTTP, real PostgreSQL
 
@@ -700,28 +707,46 @@ and only inside a feature is code grouped by what it does:
 
 ```
 AppTemplate.Application/
-  Common/                       Result, Error, PagedResult, Abstractions/ (cross-feature ports)
+  Common/                       Result, Error, PagedResult, Abstractions/ (cross-feature ports),
+                                 Validation/, Idempotency/, Collections/, Concurrency/
   Features/
     TodoLists/
-      Dtos/                     read-model shapes
-      Ports/                    ITodoListRepository, ITodoListQueries
-      UseCases/Commands/        Create, Rename, Delete, AddItem, CompleteItem, RemoveItem
-      UseCases/Queries/         GetTodoLists, GetTodoList
-      Validators/               FluentValidation rules for the commands
-      TodoListErrors.cs         the feature's failure vocabulary
+      Errors/                   TodoListErrors.cs — the feature's failure vocabulary
+      Policies/                 TodoListCollectionPolicy — the sortable whitelist
+      Ports/TodoListQueries/    ITodoListQueries, TodoListFilter, TodoListPageRequest
+      Services/                 ITodoListAccess — the one gate every command loads its aggregate through
+      Extensions/               TodoListItemLookup — a known-item id turned into the same 404 everywhere
+      Mapping/                  TodoListProjection — the aggregate a write just staged, read back as a DTO
+      Consumers/TodoItemCompleted/  a worked example of a domain-event consumer
+      UseCases/Commands/<Operation>/   CreateTodoList, RenameTodoList, DeleteTodoList, AddTodoItem,
+                                UpdateTodoItem, RemoveTodoItem, CompleteTodoItem, ReopenTodoItem,
+                                AddTagToTodoItem, RemoveTagFromTodoItem, ReplaceTodoItemTags — one
+                                folder per operation, each holding its command, named interface, use
+                                case and validator
+      UseCases/Queries/<Operation>/    GetTodoLists, GetTodoList, GetTodoItems, GetTodoItem
+      Dtos/                     TodoListSummaryDto, TodoListDetailDto, TodoItemDto — read models more
+                                than one operation returns
     Auth/
-      Dtos/                     response shapes
-      Errors/                   AuthErrors — the vertical's failure vocabulary
-      Ports/                    IUserAccounts, IEmailConfirmationTokens, IAccessTokenIssuer,
-                                IRefreshTokenGrants, IConfirmationEmailComposer
-      UseCases/Commands/        Register, Login, RefreshAccessToken, ConfirmEmail,
-                                ResendConfirmationEmail, Logout — each with the request
-                                record it accepts
-      Validators/               one per request
+      Errors/                   AuthErrors.cs — the vertical's failure vocabulary
+      Policies/                 CredentialInvalidation, PasswordRules
+      Ports/<Port>/             UserAccounts, EmailConfirmationTokens, AccessTokenIssuer,
+                                RefreshTokenGrants, RefreshTokenMaintenance, ConfirmationEmailComposer,
+                                PasswordResetTokens, PasswordResetEmailComposer, SecurityEventLog,
+                                UserProfiles — ten ports, one capability each, in place of one
+                                IAuthService
+      UseCases/Commands/<Operation>/   Register, Login, Logout, LogoutEverywhere,
+                                RefreshAccessToken, ConfirmEmail, ResendConfirmationEmail,
+                                ChangePassword, RequestPasswordReset, ResetPassword
+      UseCases/Queries/GetCurrentUser/
 ```
 
-A command or request record lives **in the file of the single use case that accepts it**,
-because it is that use case's signature. Only outbound shapes get a folder of their own.
+A command or query record lives **in the same folder as the one use case that accepts
+it**, alongside that use case's named interface, its class and its FluentValidation
+validator, because together they are that operation's signature. A response type only
+that one operation returns stays there too; a read model more than one operation
+shares is promoted to `Dtos/`, and a type that is a *port's* own parameter — not one
+use case's — lives beside that port in `Ports/<Port>/` instead, however many use cases
+call it.
 
 In `AppTemplate.Domain`, `AppTemplate.Application` and `AppTemplate.Api` there is deliberately **no `Services/`,
 `Interfaces/`, `DTOs/`, `Helpers/`, `Managers/` or `Factories/` folder at the project
@@ -750,23 +775,28 @@ AppTemplate.Infrastructure.Persistence/
     Time/                       the system clock
     UnitOfWork/                 EfUnitOfWork, and the EF -> ConcurrencyConflictException
                                 translation
+    Idempotency/                the idempotency-key record, its store and its EF configuration
   Features/
     TodoLists/
       Models/                   TodoListRecord, TodoItemRecord, TodoItemTagRecord
       Configurations/           IEntityTypeConfiguration for each record
-      Mappers/                  ITodoListMapper: aggregate <-> rows
+      Mapping/                  ITodoListMapper: aggregate <-> rows
       Tracking/                 the per-request identity map, flusher and event source
       Repositories/             TodoListRepository : ITodoListRepository
       Queries/                  TodoListQueries : ITodoListQueries (rows -> DTOs, in SQL)
-      DomainEvents/             the feature's own consumers
     Identity/
       Models/                   AppUser, AppRole, RefreshToken
       Configurations/           table and index mapping, one schema per feature
-      Stores/                   IRefreshTokenStore
+      Stores/                   IRefreshTokenStore — a technical port, not an aggregate repository
       Seeding/                  IIdentitySeeder and its options
   Migrations/                   one history
   PersistenceModule.cs
 ```
+
+The `TodoLists` feature's own domain-event consumer is not here: publishing an event is a
+persistence mechanism, but deciding what happens next is application behaviour, so
+`LogTodoItemCompletedConsumer` lives in `AppTemplate.Application/Features/TodoLists/Consumers/`
+instead, registered from `ServiceRegistration`, not `PersistenceModule`.
 
 An architecture test asserts the rule that layout encodes: nothing under `Common/` may name a
 feature, with `AppDbContext` as the single documented exception — it applies every feature's
@@ -836,10 +866,10 @@ or Central Package Management fails.
   `.git/config`, which can carry a token in a remote URL), `Tests/`, certificates and
   keys out of the image layers.
 
-> The Dockerfile's `COPY` list names the project files one by one. **It must be
-> updated when the infrastructure split lands**, or restore inside the image will
-> fail on a missing `.csproj` even though the local build is fine. The `docker` job in
-> CI is what catches that.
+> The Dockerfile's `COPY` list names each project file individually. **Adding a project
+> reference to `AppTemplate.Api` means adding it here too**, or restore inside the image
+> will fail on a missing `.csproj` even though the local build is fine. The `docker` job
+> in CI is what catches that.
 
 ## Supply chain
 

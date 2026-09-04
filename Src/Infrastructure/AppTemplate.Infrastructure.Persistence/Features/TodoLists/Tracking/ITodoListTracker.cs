@@ -8,8 +8,8 @@ namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;
 /// <summary>
 /// The change tracker EF cannot be, for one aggregate, for the duration of one request.
 /// <para>
-/// EF's change tracker does three things this layer still needs and can no longer get from it, because
-/// it is not tracking the domain types. It is an <b>identity map</b> — ask for the same aggregate twice
+/// EF's change tracker does three things this layer still needs, but cannot supply, because it is not
+/// tracking the domain types. It is an <b>identity map</b> — ask for the same aggregate twice
 /// and get the same object, so two use cases in one request cannot each hold a divergent copy. It is
 /// the <b>list of things to write</b> when a save happens. And it is where the <b>domain events</b>
 /// raised during the request can be found, since the aggregates that raised them are reachable from

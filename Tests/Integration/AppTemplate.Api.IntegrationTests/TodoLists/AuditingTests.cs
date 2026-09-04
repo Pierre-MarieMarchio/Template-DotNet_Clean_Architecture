@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Domain.Features.TodoLists.Stores;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
@@ -15,7 +15,7 @@ namespace AppTemplate.Api.IntegrationTests.TodoLists;
 /// The interceptor stamps the <em>row</em>, and the values then have to travel back into the
 /// aggregate. Reading the stamps straight out of the row would pass even if the aggregate never
 /// learned them, so these tests load through
-/// <see cref="Application.Features.TodoLists.Ports.ITodoListRepository"/> — the same path a use case
+/// <see cref="ITodoListRepository"/> — the same path a use case
 /// takes — and assert on the aggregate.
 /// </remarks>
 public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixture)

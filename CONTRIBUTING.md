@@ -93,17 +93,29 @@ filing system:
 
 ```
 AppTemplate.Domain/         Common/{Abstractions,Events,Exceptions,Primitives}
-                   Features/<F>/{Entities,Events,ValueObjects,Stores}
-AppTemplate.Application/    Common/{,Abstractions}
-                   Features/<F>/{Dtos,Ports,UseCases/{Commands,Queries},Validators}
+                   Features/<F>/{Entities,Events,ValueObjects,Repositories}
+AppTemplate.Application/    Common/{Abstractions,Validation,Idempotency,Collections,Concurrency}
+                   Features/<F>/{UseCases/{Commands,Queries}/<Operation>,Ports/<Port>,
+                                 Consumers,Services,Policies,Extensions,Mapping,Dtos,Errors}
 AppTemplate.Infrastructure.Persistence/
-                   Common/{Contexts,Auditing,DomainEvents,Mapping,Time,UnitOfWork}
-                   Features/<F>/{Models,Configurations,Mappers,Tracking,Repositories,Queries}
+                   Common/{Contexts,Auditing,DomainEvents,Mapping,Time,UnitOfWork,Idempotency}
+                   Features/<F>/{Models,Configurations,Mapping,Tracking,Repositories,Queries}
                    Migrations/
-AppTemplate.Api/            Common/{Controllers,Errors,OpenApi,Security,Startup}
-                   Features/<F>/{Controllers,Contracts}
+AppTemplate.Api/            Common/{Controllers,Contracts,Errors,Http,Idempotency,Caching,
+                                    Security,Startup,OpenApi,Lifecycle,Observability,Concurrency}
+                   Features/<F>/{Controllers,Contracts/{Requests,Responses},Mapping}
 Tests/             a 1:1 mirror of Src/
 ```
+
+A folder is only present when it has content: a feature with no read-side projection has no
+`Queries/`, one with no domain-event consumer has no `Consumers/`. `UseCases/{Commands,Queries}/`
+is one folder per operation — the command or query record, its named interface, the use case, and
+its FluentValidation validator live together, because they are that one operation's signature.
+`Dtos/` holds only the read models more than one operation shares; a shape only one operation
+returns lives beside that operation instead. `Ports/<Port>/` holds a port's interface together
+with the messages that cross it, and a type in a port's signature never moves into a use case's
+own folder, however many use cases happen to call it — otherwise `Ports/` would depend on
+`UseCases/`.
 
 Rules that the architecture tests enforce, so you will find out anyway:
 
@@ -126,10 +138,10 @@ implementation. An interface with a single implementation is fine here — that 
 testability choice, not an oversight. Default visibility is `internal sealed`; only ports,
 configuration-bound options classes, and types the host must name are `public`.
 
-**Where a contract lives.** A store/repository contract goes in `AppTemplate.Domain/Features/<F>/Stores/`,
+**Where a contract lives.** A repository contract goes in `AppTemplate.Domain/Features/<F>/Repositories/`,
 because it speaks only in domain types. Every other port goes in `AppTemplate.Application`, because it speaks
-in DTOs or platform concerns. `AdapterVisibilityTests` enforces this by recognising a store from a
-namespace ending in `.Stores`.
+in DTOs or platform concerns. `AdapterVisibilityTests` enforces this by recognising a repository contract from
+a namespace ending in `.Repositories`.
 
 **Use cases.** One class per use case, plus **one named interface per use case** inheriting
 `IUseCase<TRequest,TResponse>` (or `IUseCase<TResponse>`) — the named interface is what constrains the
@@ -192,22 +204,25 @@ The vertical, from the inside out. `TodoLists` is the worked example — read it
 signatures at each step, if this checklist is not enough on its own.
 
 1. **Domain** — `AppTemplate.Domain/Features/<F>/`: the aggregate root in `Entities/`, value objects in
-   `ValueObjects/`, events in `Events/`, and the store contract in `Stores/`. Invariants belong in the
-   constructor, the factory, and `Rehydrate` — all three, or a stored row can produce an aggregate
-   that breaks its own rules.
-2. **Application** — `AppTemplate.Application/Features/<F>/`: the use case plus its named interface in
-   `UseCases/{Commands,Queries}/`, the command record beside the use case that accepts it, read models
-   in `Dtos/`, any non-store port in `Ports/`, and a FluentValidation validator in `Validators/`.
-   Validate against the *trimmed* value if the domain normalises.
+   `ValueObjects/`, events in `Events/`, and the repository contract in `Repositories/`. Invariants
+   belong in the constructor, the factory, and `Rehydrate` — all three, or a stored row can produce
+   an aggregate that breaks its own rules.
+2. **Application** — `AppTemplate.Application/Features/<F>/`: one folder per operation under
+   `UseCases/{Commands,Queries}/<Operation>/`, holding the command or query record, its named
+   interface, the use case, and its FluentValidation validator together. Any port that is not the
+   repository goes in `Ports/<Port>/`, next to the messages that cross it. Read models more than one
+   operation shares go in `Dtos/`; the feature's failure vocabulary goes in `Errors/`. Validate
+   against the *trimmed* value if the domain normalises.
 3. **Persistence** — `AppTemplate.Infrastructure.Persistence/Features/<F>/`: the `*Record` in `Models/`, its
-   `IEntityTypeConfiguration` in `Configurations/`, the mapper in `Mappers/`, the tracker in
-   `Tracking/`, the store implementation in `Repositories/`, read-side projections in `Queries/`.
+   `IEntityTypeConfiguration` in `Configurations/`, the mapper in `Mapping/`, the tracker in
+   `Tracking/`, the repository implementation in `Repositories/`, read-side projections in `Queries/`.
    Register them in `PersistenceModule`. **A tracker must resolve as one instance under every
    contract it serves** — three independent registrations give three instances, and every write then
    persists nothing, silently. `SharedInstanceRegistrationTests` is the guard.
 4. **API** — `AppTemplate.Api/Features/<F>/`: the controller in `Controllers/`, request records in
-   `Contracts/`. Endpoints are authenticated by default; opting out needs an explicit
-   `[AllowAnonymous]`.
+   `Contracts/Requests/`, response records in `Contracts/Responses/`, and the mapping between them
+   and the application's DTOs in `Mapping/`. Endpoints are authenticated by default; opting out needs
+   an explicit `[AllowAnonymous]`.
 5. **Tests** — mirror each of the above.
 6. **Migration** — `./tasks.ps1 migration-add <Name>`, then confirm
    `has-pending-model-changes` reports nothing.

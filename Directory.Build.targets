@@ -1,0 +1,16 @@
+<Project>
+
+  <!-- Test projects, under Microsoft.Testing.Platform. Every one of them is a console application
+       that hosts its own test runner: xunit.v3 builds no adapter for an external runner to load,
+       and refuses to build a test project that is not executable.
+
+       Stated once here rather than in each of the twelve project files, because there is no test
+       project it does not apply to. In .targets and not in Directory.Build.props, which is the
+       whole reason this file exists: props is imported before the project body, so IsTestProject —
+       which each test project sets itself — is still empty there and the condition never matches.
+       OutputType is read well after both imports, so setting it this late is in time. -->
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+</Project>

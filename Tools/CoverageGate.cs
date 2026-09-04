@@ -1,9 +1,9 @@
 ﻿#:property UseAppHost=false
 
-// Merge the Cobertura reports coverlet writes, then enforce a line-coverage floor.
+// Merge the Cobertura reports the coverage extension writes, then enforce a line-coverage floor.
 //
-// Why this exists rather than a `dotnet test` flag: coverlet writes one report per test
-// project, and the same product assembly is exercised by more than one of them. Summing the
+// Why this exists rather than a `dotnet test` flag: one report is written per test module,
+// and the same product assembly is exercised by more than one of them. Summing the
 // `lines-valid` / `lines-covered` attributes across those files double-counts every shared
 // line and produces a number that is wrong in whichever direction the overlap happens to
 // lean. The correct merge is a union over (source file, line): a line is covered if any
@@ -58,8 +58,13 @@ internal static class CoverageGate
             return [];
         }
 
+        // A pattern rather than a fixed name, because the writer names the file and two writers
+        // name it differently: one report per module under a GUID of its own
+        // ('<guid>.cobertura.xml'), or a fixed name inside a directory of its own
+        // ('<guid>/coverage.cobertura.xml'). Matching the extension covers both, and the union
+        // below is indifferent to how many files it reads or what they are called.
         return Directory
-            .EnumerateFiles(root, "coverage.cobertura.xml", SearchOption.AllDirectories)
+            .EnumerateFiles(root, "*.cobertura.xml", SearchOption.AllDirectories)
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToList();
     }
@@ -140,7 +145,7 @@ internal static class CoverageGate
         if (reports.Count == 0)
         {
             Console.Error.WriteLine(
-                $"::error title=No coverage report::No coverage.cobertura.xml under '{root}'.");
+                $"::error title=No coverage report::No *.cobertura.xml under '{root}'.");
             return 2;
         }
 

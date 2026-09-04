@@ -1,75 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Coverage settings for `dotnet test /collect:"XPlat Code Coverage"` (coverlet.collector).
+  Coverage settings for the code-coverage extension, passed explicitly with `dotnet test`'s
+  `coverage-settings` switch by CI and by Tools/Tasks.cs alike, so the number the gate enforces is
+  the same one a developer sees locally. Without this file the engine also measures the generated
+  EF migrations and the source-generated files under obj/, which moves the percentage for reasons
+  that have nothing to do with the code under test.
 
-  Passed explicitly with the `settings` switch, by CI and by Tools/Tasks.cs alike, so the number
-  the gate enforces is the same a developer sees locally. Without this file coverlet also
-  instruments the test assemblies themselves and the generated EF migrations, which moves the
-  percentage for reasons that have nothing to do with the code under test.
+  Every filter here is a .NET regular expression matched against a full path or a full type name,
+  not a glob: `.` matches any character, so a literal dot is written `\.`, and a directory
+  separator is written `[\\/]` because a Windows box and an ubuntu runner disagree about which
+  one they use.
 
   Note for editors: an XML comment may not contain a double hyphen, so command-line switches are
-  written here without their leading dashes. `dotnet test` rejects the whole file if that rule is
-  broken — and, as of SDK 10.0.300, still exits 0 while running no tests at all.
+  written here without their leading dashes. A malformed file is not silent — the platform runs no
+  tests and exits 5, which the gate and the summary both report as the failure it is.
 -->
 <RunSettings>
 
   <DataCollectionRunSettings>
     <DataCollectors>
-      <DataCollector friendlyName="XPlat code coverage">
+      <DataCollector friendlyName="Code Coverage">
         <Configuration>
+          <CodeCoverage>
 
-          <!-- Cobertura only. The gate and the job summary both parse this shape. -->
-          <Format>cobertura</Format>
+            <!-- Test assemblies are not the subject of the measurement.
 
-          <!-- Test assemblies are not the subject of the measurement.
+                 A pattern rather than one entry per project, because the enumerated form went
+                 stale: a test project added later was simply not in the list, and nothing said so.
+                 Every test assembly in this repository ends in "Tests", so this cannot be
+                 outgrown by adding one.
 
-               A wildcard rather than one entry per project, because the enumerated form went
-               stale: a test project added later was simply not in the list, and nothing said so.
-               Every test assembly in this repository ends in "Tests", so this pattern cannot be
-               outgrown by adding one.
+                 Stated precisely: IncludeTestAssembly below already declines the assembly a run is
+                 launched from, so this filter is not what keeps test code out of the total today.
+                 It is the guard for the case that setting does not cover — a test assembly pulled
+                 in as a reference by another test project, which would otherwise be measured as
+                 if it were product code. -->
+            <ModulePaths>
+              <Exclude>
+                <ModulePath>.*Tests\.dll$</ModulePath>
+              </Exclude>
+            </ModulePaths>
 
-               Stated precisely, because the previous wording overclaimed: coverlet already
-               declines to instrument the assembly under test, so this filter is not what keeps
-               test code out of the total today. It is the guard for the case coverlet does not
-               cover on its own — a test assembly pulled in as a reference by another test
-               project, which would otherwise be measured as if it were product code. -->
-          <Exclude>[*Tests]*</Exclude>
+            <!-- Code a tool wrote, excluded by where it lives rather than by the attribute it
+                 carries.
 
-          <!-- Code a tool wrote, excluded by where it lives rather than by the attribute it
-               carries.
+                 Migrations: EF Core writes them, they are asserted on by being applied rather
+                 than by line coverage, and their size would otherwise dominate the total.
 
-               Migrations: EF Core writes them, they are asserted on by being applied rather than
-               by line coverage, and their size would otherwise dominate the total.
+                 Anything under obj/: every source generator writes there and nowhere else, so the
+                 path is an unambiguous statement that nobody typed the file. In this repository
+                 that is one 7,580-line file from the OpenAPI XML-comment generator in
+                 AppTemplate.Api, and the logging partial the LoggerMessage generator writes for
+                 AppTemplate.Infrastructure.Identity's SecurityEventLog. -->
+            <Sources>
+              <Exclude>
+                <Source>.*[\\/]Migrations[\\/].*</Source>
+                <Source>.*[\\/]obj[\\/].*</Source>
+              </Exclude>
+            </Sources>
 
-               Anything under obj/: every source generator writes there and nowhere else, so the
-               path is an unambiguous statement that nobody typed the file. In this repository that
-               is one 7,580-line file from the OpenAPI XML-comment generator in AppTemplate.Api,
-               and the logging partial the LoggerMessage generator writes for
-               AppTemplate.Infrastructure.Identity's SecurityEventLog.
+            <!-- Compiler-synthesised members: record Equals/GetHashCode/ToString/Deconstruct,
+                 iterator and async state machines. Not code anybody wrote or can test directly.
+                 Alongside the explicit opt-out an author writes by hand. -->
+            <Attributes>
+              <Exclude>
+                <Attribute>^System\.Runtime\.CompilerServices\.CompilerGeneratedAttribute$</Attribute>
+                <Attribute>^System\.Diagnostics\.CodeAnalysis\.ExcludeFromCodeCoverageAttribute$</Attribute>
+              </Exclude>
+            </Attributes>
 
-               This replaces GeneratedCodeAttribute in the attribute list below, and the swap was
-               measured rather than assumed: every assembly's covered and total line counts are
-               identical either way, except the one the attribute was silently losing. -->
-          <ExcludeByFile>**/Migrations/*.cs,**/obj/**/*.cs</ExcludeByFile>
+            <!-- Trivial `{ get; set; }` accessors. Counting them rewards DTOs and dilutes the
+                 signal from the branches that hold real decisions. -->
+            <SkipAutoProps>true</SkipAutoProps>
 
-          <!-- Compiler-synthesised members: record Equals/GetHashCode/ToString/Deconstruct,
-               iterator and async state machines. Not code anybody wrote or can test directly.
+            <!-- The assembly a run is launched from. Off for the reason the ModulePath filter
+                 above states. -->
+            <IncludeTestAssembly>false</IncludeTestAssembly>
 
-               GeneratedCodeAttribute is deliberately NOT in this list. With coverlet 10.0.1, an
-               assembly holding a source-generated partial class is dropped from the report
-               entirely — not the generated half, the whole module — so
-               AppTemplate.Infrastructure.Identity was absent from the coverage of its own 187 unit
-               tests, and the gate scored it 0 while every one of them passed. The ExcludeByFile
-               glob above covers the same code without losing the module. Adding the attribute back
-               reintroduces the loss; verify against a run of
-               Tests/Infrastructure/AppTemplate.Infrastructure.Identity.UnitTests alone, whose
-               report must contain an AppTemplate.Infrastructure.Identity package. -->
-          <ExcludeByAttribute>CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
-
-          <!-- Trivial `{ get; set; }` accessors. Counting them rewards DTOs and dilutes the
-               signal from the branches that hold real decisions. -->
-          <SkipAutoProps>true</SkipAutoProps>
-
+          </CodeCoverage>
         </Configuration>
       </DataCollector>
     </DataCollectors>

@@ -183,7 +183,7 @@ internal static class Tasks
                 break;
 
             case "coverage":
-                Coverage(repoRoot, configuration, runsettings);
+                Coverage(repoRoot, solution, configuration, runsettings);
                 break;
 
             case "format":
@@ -303,7 +303,7 @@ internal static class Tasks
         Step("dotnet", "run", Gate(repoRoot, "CheckNarrativeComments.cs"), repoRoot);
     }
 
-    private static void Coverage(string repoRoot, string configuration, string runsettings)
+    private static void Coverage(string repoRoot, string solution, string configuration, string runsettings)
     {
         string results = Path.Combine(repoRoot, "TestResults");
         if (Directory.Exists(results))
@@ -311,22 +311,22 @@ internal static class Tasks
             Directory.Delete(results, recursive: true);
         }
 
-        // AppTemplate.Architecture.Tests is excluded on purpose: NetArchTest resolves types through
-        // Type.GetType(name, throwOnError: true), which fails against a Coverlet-instrumented
-        // assembly, so 7 of its rules throw under the collector and all pass without it.
-        // Run 'dotnet run Tools/Tasks.cs test' for those.
-        foreach (string project in TestProjects(repoRoot, excludeContaining: "AppTemplate.Architecture.Tests"))
-        {
-            Step(
-                "dotnet",
-                "test", project,
-                "--configuration", configuration,
-                // Two elements, not '--collect:XPlat Code Coverage': the value contains a space,
-                // and each element reaches the child process whole.
-                "--collect", "XPlat Code Coverage",
-                "--settings", runsettings,
-                "--results-directory", results);
-        }
+        // The whole solution in one invocation, architecture suite included: the platform runs
+        // every test module the solution names, and this collector does not break the type
+        // resolution NetArchTest does through Type.GetType(name, throwOnError: true). Discovery
+        // per project is not needed here and would be a second copy of what the solution states.
+        //
+        // The switches are the platform's, and the coverage ones only look like the VSTest
+        // spellings: '--settings' is accepted and then ignored, so the settings file has to arrive
+        // through '--coverage-settings' or every exclusion in it goes silently unapplied.
+        Step(
+            "dotnet",
+            "test", solution,
+            "--configuration", configuration,
+            "--results-directory", results,
+            "--coverage",
+            "--coverage-settings", runsettings,
+            "--coverage-output-format", "cobertura");
 
         // Same floor CI enforces, read from the same file.
         string minimum = CoverageMinimum(Path.Combine(repoRoot, "coverage.minimum"));
@@ -384,17 +384,12 @@ internal static class Tasks
     /// csproj — so a project that adopts Testcontainers leaves the <c>--no-integration</c> set on
     /// its own.
     /// </summary>
-    private static string[] TestProjects(string repoRoot, bool dockerFreeOnly = false, string? excludeContaining = null)
+    private static string[] TestProjects(string repoRoot, bool dockerFreeOnly = false)
     {
         string tests = Path.Combine(repoRoot, "Tests");
         IEnumerable<string> projects = Directory.Exists(tests)
             ? Directory.EnumerateFiles(tests, "*.csproj", SearchOption.AllDirectories)
             : [];
-
-        if (!string.IsNullOrEmpty(excludeContaining))
-        {
-            projects = projects.Where(path => !path.Contains(excludeContaining, StringComparison.OrdinalIgnoreCase));
-        }
 
         if (dockerFreeOnly)
         {

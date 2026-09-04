@@ -95,7 +95,12 @@ jobs:
           solution_paths=$(tr '\\' '/' < "$SOLUTION")
           missing=0
           for p in "${projects[@]}"; do
-            if printf '%s' "$solution_paths" | grep -qF -- "$p"; then
+            # A here-string, not a pipe. `grep -q` exits at its first match and closes the
+            # pipe, so `printf` takes EPIPE; with `pipefail` the pipeline then reports the
+            # write error and the test below reads a project that IS in the solution as
+            # missing. Whether it happens depends on where the match falls in the file, which
+            # is why it looked like a flaky subset rather than a bug.
+            if grep -qF -- "$p" <<< "$solution_paths"; then
               echo "  in solution : $p"
             else
               echo "  MISSING     : $p"

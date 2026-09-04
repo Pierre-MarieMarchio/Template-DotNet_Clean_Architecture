@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.RemoveTodoItem;
@@ -212,7 +212,7 @@ public sealed class RemoveTodoItemUseCaseTests
     #endregion
 
     private RemoveTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(new TodoListAccess(_repository, currentUser), _unitOfWork, new RemoveTodoItemCommandValidator());
+        new(new TodoListService(_repository, currentUser), _unitOfWork, new RemoveTodoItemCommandValidator());
 
     private RemoveTodoItemUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Reminders.Services;
@@ -7,7 +7,7 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.CancelReminder;
 
 public sealed class CancelReminderUseCase(
-    IReminderAccess reminders,
+    IReminderService reminders,
     IUnitOfWork unitOfWork,
     IValidator<CancelReminderCommand> validator) : ICancelReminderUseCase
 {

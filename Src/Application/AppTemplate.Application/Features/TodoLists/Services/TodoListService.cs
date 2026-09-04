@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Errors;
 using AppTemplate.Domain.Features.TodoLists.Entities;
@@ -7,7 +7,7 @@ using AppTemplate.Domain.Features.TodoLists.Repositories;
 
 namespace AppTemplate.Application.Features.TodoLists.Services;
 
-internal sealed class TodoListAccess(ITodoListRepository repository, ICurrentUser currentUser) : ITodoListAccess
+internal sealed class TodoListService(ITodoListRepository repository, ICurrentUser currentUser) : ITodoListService
 {
     public async Task<Result<TodoList>> LoadOwnedAsync(
         Guid todoListId,

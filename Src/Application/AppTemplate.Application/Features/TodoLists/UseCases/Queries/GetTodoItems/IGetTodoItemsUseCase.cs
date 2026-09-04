@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
 using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Common.UseCases;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 

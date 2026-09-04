@@ -7,7 +7,7 @@ namespace AppTemplate.Application.Features.Files.Services;
 
 /// <summary>
 /// The one gate every file command loads its aggregate through, on the same model as
-/// <c>ITodoListAccess</c> and <c>IReminderAccess</c>: identity, ownership and the version
+/// <c>ITodoListService</c> and <c>IReminderService</c>: identity, ownership and the version
 /// precondition, in that order.
 /// <para>
 /// The third instance of the pattern rather than a generalisation of the first two. What the three
@@ -17,7 +17,7 @@ namespace AppTemplate.Application.Features.Files.Services;
 /// only what two real cases prove identical.
 /// </para>
 /// </summary>
-public interface IStoredFileAccess
+public interface IStoredFileService
 {
     /// <returns>
     /// The aggregate, or a failure — <see cref="StoredFileErrors.FileNotFound"/> for an anonymous

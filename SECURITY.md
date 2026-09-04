@@ -136,7 +136,7 @@ against your production system.
   loaded. A read that projects rows filters on the owner **inside the query**, so the row never
   leaves the database. A command that has to load the aggregate first cannot: it fetches by id and
   compares the owner afterwards, in one place per feature —
-  `Src/Application/AppTemplate.Application/Features/Files/Services/StoredFileAccess.cs` is the
+  `Src/Application/AppTemplate.Application/Features/Files/Services/StoredFileService.cs` is the
   Files one — and answers the same `404` either way. The guarantee is the answer, not the mechanism;
   a new command that loads an aggregate must go through that gate rather than assume a query filtered
   for it.

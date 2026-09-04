@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Events;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;

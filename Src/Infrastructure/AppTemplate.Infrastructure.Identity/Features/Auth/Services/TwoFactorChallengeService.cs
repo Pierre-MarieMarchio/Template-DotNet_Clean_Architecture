@@ -2,7 +2,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Infrastructure.Identity.Common.Directories;

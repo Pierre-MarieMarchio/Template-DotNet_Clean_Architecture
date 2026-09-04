@@ -1,5 +1,5 @@
 ﻿using System.Globalization;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Infrastructure.Identity.IntegrationTests.Fixtures;
 using Shouldly;
 using Xunit;

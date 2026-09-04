@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Services;
@@ -268,7 +268,7 @@ public sealed class ConfirmFileUploadUseCaseTests
     private ConfirmFileUploadUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
     private ConfirmFileUploadUseCase UseCaseFor(ICurrentUser currentUser) => new(
-        new StoredFileAccess(_repository, currentUser),
+        new StoredFileService(_repository, currentUser),
         _content,
         _unitOfWork,
         new ConfirmFileUploadCommandValidator());

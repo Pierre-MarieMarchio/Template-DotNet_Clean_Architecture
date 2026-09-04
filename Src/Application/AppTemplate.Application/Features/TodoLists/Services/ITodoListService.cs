@@ -10,7 +10,7 @@ namespace AppTemplate.Application.Features.TodoLists.Services;
 /// the version precondition, in that order, so every use case rejects the same way for the same
 /// reasons instead of repeating the three checks slightly differently each time.
 /// </summary>
-public interface ITodoListAccess
+public interface ITodoListService
 {
     /// <returns>
     /// The aggregate, or a failure — <see cref="TodoListErrors.ListNotFound"/> for an anonymous

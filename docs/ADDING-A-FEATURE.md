@@ -1,4 +1,4 @@
-# Adding a feature
+﻿# Adding a feature
 
 A worked walkthrough of the vertical `CONTRIBUTING.md`'s "Adding a feature" section
 summarises: aggregate → EF model → mapper → tracker → repository → use case (with its
@@ -113,7 +113,7 @@ what the widest port here needs, and a fifth means a second capability that belo
 a port of its own. It also refuses a feature port that *every* use case in its vertical
 depends on, because a vertical whose use cases are all wrappers around one collaborator
 has put its logic in the collaborator. Neither rule applies to the cross-cutting ports
-in `Common/Abstractions/` — the clock and the caller's identity may legitimately be
+in `Common/Ports/` — the clock and the caller's identity may legitimately be
 needed everywhere.
 
 One class per use case, plus **exactly one named interface** deriving from

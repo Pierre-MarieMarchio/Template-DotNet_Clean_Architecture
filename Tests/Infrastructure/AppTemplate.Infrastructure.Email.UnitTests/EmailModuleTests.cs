@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Infrastructure.Email.Common.Http;
 using AppTemplate.Infrastructure.Email.Common.Smtp;
 using Microsoft.Extensions.Configuration;

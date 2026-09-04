@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;

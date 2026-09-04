@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Events;
 using AppTemplate.Architecture.Tests.Fixtures;
 using AppTemplate.Domain.Common.Events;
 using Shouldly;

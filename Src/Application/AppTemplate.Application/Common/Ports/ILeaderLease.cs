@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.Application.Common.Abstractions;
+﻿namespace AppTemplate.Application.Common.Ports;
 
 /// <summary>
 /// Runs work on one host at a time, so that a loop which is only correct at a single replica can be

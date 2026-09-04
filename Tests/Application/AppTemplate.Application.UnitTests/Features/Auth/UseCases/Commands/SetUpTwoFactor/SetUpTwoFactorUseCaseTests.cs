@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.SetUpTwoFactor;
 using AppTemplate.Application.UnitTests.TestDoubles;

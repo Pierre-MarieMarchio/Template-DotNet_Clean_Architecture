@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.Application.Common.Abstractions;
+﻿namespace AppTemplate.Application.Common.Ports;
 
 public interface IEmailSender
 {

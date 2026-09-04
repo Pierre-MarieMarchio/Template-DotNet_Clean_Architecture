@@ -15,7 +15,7 @@ namespace AppTemplate.Application.UnitTests.Features.Files.Services;
 /// identity/ownership/precondition matrix is proven exhaustively rather than re-proven, slightly
 /// differently, in every use case's test file.
 /// </summary>
-public sealed class StoredFileAccessTests
+public sealed class StoredFileServiceTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
@@ -57,7 +57,7 @@ public sealed class StoredFileAccessTests
 
     /// <summary>
     /// "Not yours" and "does not exist" answer identically, so a caller cannot use this to enumerate
-    /// other users' file ids. Deleting the <c>OwnerId</c> comparison in <c>StoredFileAccess</c>
+    /// other users' file ids. Deleting the <c>OwnerId</c> comparison in <c>StoredFileService</c>
     /// turns this red, and every other ownership test in the feature with it.
     /// </summary>
     [Fact]
@@ -151,7 +151,7 @@ public sealed class StoredFileAccessTests
         return storedFile;
     }
 
-    private StoredFileAccess Access() => AccessFor(StubCurrentUser.WithId(_callerId));
+    private StoredFileService Access() => AccessFor(StubCurrentUser.WithId(_callerId));
 
-    private StoredFileAccess AccessFor(StubCurrentUser currentUser) => new(_repository, currentUser);
+    private StoredFileService AccessFor(StubCurrentUser currentUser) => new(_repository, currentUser);
 }

@@ -1,4 +1,4 @@
-# Removing the example features
+﻿# Removing the example features
 
 This template ships three worked examples: `TodoLists`, `Reminders` and `Files`. They exist to teach
 — an aggregate with real invariants and child entities, a flat aggregate reached from a background
@@ -141,8 +141,8 @@ reaches them. Each entry names the exact change. `(R)`, `(T)` and `(F)` mark whi
 belongs to.
 
 **`Src/Application/AppTemplate.Application/ApplicationModule.cs`**
-Remove `AddScoped<ITodoListAccess, TodoListAccess>()` **(T)**, `AddScoped<IReminderAccess,
-ReminderAccess>()` **(R)** and `AddScoped<IStoredFileAccess, StoredFileAccess>()` **(F)**. Remove
+Remove `AddScoped<ITodoListService, TodoListService>()` **(T)**, `AddScoped<IReminderService,
+ReminderService>()` **(R)** and `AddScoped<IStoredFileService, StoredFileService>()` **(F)**. Remove
 the domain-event consumer registrations that go with each: both
 `AddDomainEventConsumer<TodoItemCompletedDomainEvent, …>()` calls with `TodoLists` **(T)**, the
 `CancelRemindersOnTodoItemCompletedConsumer` one on its own with `Reminders` **(R)**, and the

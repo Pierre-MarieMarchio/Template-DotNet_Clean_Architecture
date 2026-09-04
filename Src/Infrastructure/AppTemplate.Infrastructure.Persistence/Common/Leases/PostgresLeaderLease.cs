@@ -1,7 +1,7 @@
 ﻿using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;

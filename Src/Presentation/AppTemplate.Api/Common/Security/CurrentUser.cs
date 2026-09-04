@@ -1,5 +1,5 @@
 ﻿using System.Security.Claims;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 
 namespace AppTemplate.Api.Common.Security;
 

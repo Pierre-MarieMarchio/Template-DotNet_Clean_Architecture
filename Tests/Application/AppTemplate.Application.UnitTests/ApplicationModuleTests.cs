@@ -1,6 +1,7 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Idempotency;
+﻿using AppTemplate.Application.Common.Idempotency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Common.UseCases;
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
 using AppTemplate.Application.Features.Auth.Ports.AccountDeletion;
 using AppTemplate.Application.Features.Auth.Ports.AccountLockouts;
@@ -193,12 +194,12 @@ public sealed class ApplicationModuleTests
     /// and this is the one place that checks the hand-written line was not forgotten.
     /// </summary>
     [Fact]
-    public void TodoListAccess_IsRegisteredAsScoped()
+    public void TodoListService_IsRegisteredAsScoped()
     {
         var services = new ServiceCollection();
         services.AddApplicationLayer();
 
-        services.Single(descriptor => descriptor.ServiceType == typeof(ITodoListAccess))
+        services.Single(descriptor => descriptor.ServiceType == typeof(ITodoListService))
             .Lifetime.ShouldBe(ServiceLifetime.Scoped);
     }
 

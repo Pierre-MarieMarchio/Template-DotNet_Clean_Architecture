@@ -1,5 +1,5 @@
 ﻿using System.Security.Cryptography;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Infrastructure.Identity.Common.Directories;

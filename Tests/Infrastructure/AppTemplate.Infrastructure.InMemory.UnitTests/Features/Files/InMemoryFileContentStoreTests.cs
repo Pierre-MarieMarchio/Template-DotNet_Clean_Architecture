@@ -1,6 +1,6 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Infrastructure.InMemory.Features.Files;
 using Microsoft.Extensions.DependencyInjection;

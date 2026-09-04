@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
-using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Collections;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Policies;

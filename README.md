@@ -923,7 +923,7 @@ AppTemplate.Application/
       Errors/                   TodoListErrors.cs — the feature's failure vocabulary
       Policies/                 TodoListCollectionPolicy — the sortable whitelist
       Ports/TodoListQueries/    ITodoListQueries, TodoListFilter, TodoListPageRequest
-      Services/                 ITodoListAccess — the one gate every command loads its aggregate through
+      Services/                 ITodoListService — the one gate every command loads its aggregate through
       Extensions/               TodoListItemExtensions — a known-item id turned into the same 404 everywhere
       Mapping/                  TodoListDtoMapping — the aggregate a write just staged, read back as a DTO
       Consumers/TodoItemCompleted/  a worked example of a domain-event consumer
@@ -939,7 +939,7 @@ AppTemplate.Application/
       Errors/                   ReminderErrors.cs
       Ports/<Port>/             ReminderNotifier, ReminderTargetQueries (is the target still
                                 outstanding?), ReminderDiagnostics (the missed-cancellation counter)
-      Services/                 IReminderAccess — identity, ownership and precondition in one gate
+      Services/                 IReminderService — identity, ownership and precondition in one gate
       Mapping/                  ReminderDtoMapping
       Consumers/TodoItemCompleted/  cancels an item's reminders — a fast path, not the guarantee
       UseCases/Commands/<Operation>/   ScheduleReminder, RescheduleReminder, CancelReminder, and
@@ -971,7 +971,7 @@ AppTemplate.Application/
                                 FileContentInventory (what the bucket holds),
                                 FileContentInspector — four ports where TodoLists has one,
                                 because the bytes are somebody else's store
-      Services/                 IStoredFileAccess — the one gate every command loads through
+      Services/                 IStoredFileService — the one gate every command loads through
       Mapping/                  StoredFileDtoMapping
       Consumers/StoredFileDeleted/  reclaims the object promptly; the sweep is the guarantee
       UseCases/Commands/<Operation>/   RegisterFile, ConfirmFileUpload, DeleteStoredFile, and the

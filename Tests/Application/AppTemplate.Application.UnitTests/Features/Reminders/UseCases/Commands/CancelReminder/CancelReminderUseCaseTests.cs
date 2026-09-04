@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Reminders.Services;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.CancelReminder;
@@ -149,7 +149,7 @@ public sealed class CancelReminderUseCaseTests
     #endregion
 
     private CancelReminderUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(new ReminderAccess(_repository, currentUser), _unitOfWork, _validator);
+        new(new ReminderService(_repository, currentUser), _unitOfWork, _validator);
 
     private CancelReminderUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 

@@ -1,5 +1,5 @@
 ﻿using System.Security.Claims;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
 using AppTemplate.Infrastructure.Identity.Common.Directories;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Options;

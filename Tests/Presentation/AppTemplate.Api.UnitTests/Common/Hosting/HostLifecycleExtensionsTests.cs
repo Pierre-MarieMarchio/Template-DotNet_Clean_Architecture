@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Api.UnitTests.Common.Lifecycle;
+namespace AppTemplate.Api.UnitTests.Common.Hosting;
 
 /// <summary>
 /// Both option classes already have their own validator tests; what is worth asserting here is the

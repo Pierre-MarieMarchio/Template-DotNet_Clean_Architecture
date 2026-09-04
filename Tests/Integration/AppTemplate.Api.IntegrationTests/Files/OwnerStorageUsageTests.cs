@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;

@@ -1,7 +1,7 @@
 ﻿using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Infrastructure.Identity.Common.Directories;

@@ -1,5 +1,5 @@
 ﻿using System.Text.Json;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

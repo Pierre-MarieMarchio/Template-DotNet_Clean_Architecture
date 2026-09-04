@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;

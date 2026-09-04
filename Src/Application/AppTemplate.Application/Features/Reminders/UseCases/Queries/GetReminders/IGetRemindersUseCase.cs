@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Results;
+﻿using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Common.UseCases;
 using AppTemplate.Application.Features.Reminders.Dtos;
 
 namespace AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminders;

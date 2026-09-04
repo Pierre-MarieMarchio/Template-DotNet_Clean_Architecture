@@ -56,7 +56,7 @@ public sealed class InMemoryFileContentInspectorTests
             DeclaredMediaType.Create("image/png"),
             await InspectAsync(host));
 
-        verdict.ShouldBe(ContentVerdict.Quarantine);
+        verdict.ShouldBe(ContentDecision.Quarantine);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public sealed class InMemoryFileContentInspectorTests
             DeclaredMediaType.Create("image/png"),
             await InspectAsync(host));
 
-        verdict.ShouldBe(ContentVerdict.Release);
+        verdict.ShouldBe(ContentDecision.Release);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public sealed class InMemoryFileContentInspectorTests
         outcome.Status.ShouldBe(ContentInspectionStatus.Unavailable);
         outcome.Head.IsEmpty.ShouldBeTrue();
         StoredFileContentPolicy.Decide(DeclaredMediaType.Create("image/png"), outcome)
-            .ShouldBe(ContentVerdict.Retry);
+            .ShouldBe(ContentDecision.Retry);
     }
 
     /// <summary>

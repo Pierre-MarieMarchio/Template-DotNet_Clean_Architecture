@@ -17,7 +17,7 @@ namespace AppTemplate.Api.IntegrationTests.Files;
 /// <remarks>
 /// <para>
 /// <b>The entry points are asserted, not the gate.</b> Ownership is enforced in one place —
-/// <c>StoredFileAccess.LoadOwnedAsync</c> — which is the right shape and is exactly why a single
+/// <c>StoredFileService.LoadOwnedAsync</c> — which is the right shape and is exactly why a single
 /// endpoint that stopped going through it would be invisible: every other endpoint would keep
 /// passing. So all four entry points are enumerated deliberately. One forgotten route is the whole
 /// vulnerability.

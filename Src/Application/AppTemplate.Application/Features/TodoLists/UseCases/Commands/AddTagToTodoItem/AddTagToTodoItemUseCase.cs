@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.TodoLists.Dtos;
@@ -11,7 +11,7 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands.AddTagToTodoItem;
 
 public sealed class AddTagToTodoItemUseCase(
-    ITodoListAccess lists,
+    ITodoListService lists,
     IUnitOfWork unitOfWork,
     IValidator<AddTagToTodoItemCommand> validator) : IAddTagToTodoItemUseCase
 {

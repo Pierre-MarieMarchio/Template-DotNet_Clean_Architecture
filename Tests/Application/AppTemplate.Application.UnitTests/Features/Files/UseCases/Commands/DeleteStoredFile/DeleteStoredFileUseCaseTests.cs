@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredFile;
@@ -196,7 +196,7 @@ public sealed class DeleteStoredFileUseCaseTests
     private DeleteStoredFileUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
     private DeleteStoredFileUseCase UseCaseFor(ICurrentUser currentUser) => new(
-        new StoredFileAccess(_repository, currentUser),
+        new StoredFileService(_repository, currentUser),
         _repository,
         _unitOfWork,
         new StubDateTimeProvider(),

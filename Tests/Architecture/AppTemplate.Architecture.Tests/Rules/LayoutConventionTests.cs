@@ -74,8 +74,13 @@ public sealed class LayoutConventionTests
     {
         ["Src/Domain/AppTemplate.Domain"] =
             ["Abstractions", "Events", "Exceptions", "Primitives"],
+        // No "Abstractions": every interface here is one, so the word sorted by nothing. What the
+        // layer declares for something else to implement is a Ports/, at both scopes — the same word
+        // Features/<F>/Ports/ uses — and the two interfaces the layer implements itself sit with the
+        // subject they are about instead.
         ["Src/Application/AppTemplate.Application"] =
-            ["Abstractions", "Collections", "Concurrency", "Idempotency", "Localization", "Results", "Validation"],
+            ["Collections", "Concurrency", "Events", "Idempotency", "Localization", "Policies",
+             "Ports", "Results", "UseCases", "Validation"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] =
             ["Http", "Smtp"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] =

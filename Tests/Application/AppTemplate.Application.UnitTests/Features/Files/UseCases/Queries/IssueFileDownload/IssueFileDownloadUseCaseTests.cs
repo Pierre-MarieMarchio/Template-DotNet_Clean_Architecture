@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Services;
@@ -60,7 +60,7 @@ public sealed class IssueFileDownloadUseCaseTests
 
     /// <summary>
     /// The one that matters most in the whole feature. Deleting the ownership comparison in
-    /// <c>StoredFileAccess</c> hands any authenticated caller a readable URL for any file in the
+    /// <c>StoredFileService</c> hands any authenticated caller a readable URL for any file in the
     /// system, and turns this red.
     /// </summary>
     [Fact]
@@ -254,7 +254,7 @@ public sealed class IssueFileDownloadUseCaseTests
     private IssueFileDownloadUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
     private IssueFileDownloadUseCase UseCaseFor(ICurrentUser currentUser) => new(
-        new StoredFileAccess(_repository, currentUser),
+        new StoredFileService(_repository, currentUser),
         _content,
         new IssueFileDownloadQueryValidator());
 }

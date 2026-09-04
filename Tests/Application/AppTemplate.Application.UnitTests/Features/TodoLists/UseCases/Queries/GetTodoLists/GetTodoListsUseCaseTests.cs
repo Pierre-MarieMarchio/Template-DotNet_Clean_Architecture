@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Common.Collections;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;

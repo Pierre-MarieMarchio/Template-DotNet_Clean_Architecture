@@ -1,5 +1,6 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Common.Events;
+using AppTemplate.Application.Common.Policies;
+using AppTemplate.Application.Common.UseCases;
 
 namespace AppTemplate.Architecture.Tests.Fixtures;
 

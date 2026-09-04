@@ -258,11 +258,11 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("State", "DueAt")
-                        .HasDatabaseName("IX_Reminders_State_DueAt");
-
                     b.HasIndex("TodoItemId")
                         .HasDatabaseName("IX_Reminders_TodoItemId");
+
+                    b.HasIndex("State", "DueAt")
+                        .HasDatabaseName("IX_Reminders_State_DueAt");
 
                     b.ToTable("Reminders", "reminders");
                 });

@@ -46,7 +46,7 @@ since nothing reads that name back out of the project's own identity) and would
 tie a security-relevant default to a string that is, by design, meant to change
 per environment anyway.
 
-**Every project GUID is regenerated per generation** (`template.json`'s `guids`),
+**Every project GUID is regenerated per generation** (the template manifest's `guids` list),
 so two generated solutions never collide if a GUID leaks into shared state (a
 NuGet cache key, a CI cache, a solution opened side by side in one IDE instance).
 The two Visual Studio *type* GUIDs (C# project, solution folder) are left alone —

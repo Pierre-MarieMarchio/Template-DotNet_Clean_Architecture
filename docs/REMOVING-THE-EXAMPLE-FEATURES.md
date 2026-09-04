@@ -69,11 +69,20 @@ directory anywhere in the repository:
 - `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Observability/ReminderDiagnostics.cs` (Reminders only)
 
 After deleting a feature's directories, **delete the parent directory too if it is now empty.**
-Removing both examples empties `Src/Domain/AppTemplate.Domain/Features/` completely (there is no
-example left to put anything else there), and empties
-`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Observability/` the same way. An
-architecture test — `LayoutConventionTests.NoFolderInTheSourceTree_IsEmpty` — exists specifically to
-catch a folder left behind after everything inside it is gone; it found both.
+Removing both examples empties `Src/Domain/AppTemplate.Domain/Features/`,
+`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Observability/`, and the mirror
+`Features` directories under the domain and persistence unit-test projects. An architecture test —
+`LayoutConventionTests.NoFolderInTheSourceTree_IsEmpty` — exists specifically to catch a folder left
+behind after everything inside it is gone, so it will name any that were missed.
+
+**Two things the compiler reports in ways that are easy to misread.** An unused `using` is
+`IDE0005`, which `TreatWarningsAsErrors` turns into an error — expect them in
+`PersistenceModule.cs`, `AppDbContext.cs`, `EmailModule.cs`, `InMemoryModule.cs`, `ApiFactory.cs`
+and `IntegrationTestBase.cs`, not only in `ServiceRegistration.cs`. Remove them one at a time and
+rebuild: `…Persistence.Common.Mapping` looks like it belongs to the deleted mappers but also holds
+`AggregateFlushSaveChangesInterceptor`, which stays. And a `<see cref="…"/>` naming a deleted type
+is a build error too — `InMemoryModule.cs`'s class summary names `IReminderNotifier`, so its
+comment has to change along with its code.
 
 ## What to edit
 
@@ -161,34 +170,51 @@ use case and no domain type touched to make it work in either.
 
 ## The migration
 
-Deleting the `TodoLists`/`Reminders` persistence models and their `AppDbContext` registrations
-changes the model EF Core has built in memory without changing what is actually in the database, and
-`Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Migrations/PendingModelChangesTests.cs`
-exists specifically to catch that gap — it fails the moment the two disagree. Generate the migration
-the same way `docs/ADDING-A-FEATURE.md` documents for adding one:
+The template ships its schema as exactly two migrations, and the split exists for this moment.
+`InitialCreate` is the schema every derived project keeps — `identity` and `platform` — and
+`AddExampleFeatures` is `todo` and `reminders`, and nothing else. Neither the baseline nor any
+surviving code references either example schema, so removing them from a project that has not yet
+applied any migration to a real database is not a matter of generating a migration to undo them —
+it is a matter of deleting the file that created them:
 
 ```bash
-dotnet ef migrations add RemoveExampleFeatures \
-  --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
-  --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
+rm Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/*_AddExampleFeatures.cs \
+   Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/*_AddExampleFeatures.Designer.cs
 ```
 
-Reviewed, this produced exactly four `DropTable` calls — `Reminders`, `TodoItemTags`, `TodoItems`,
-`TodoLists` — and nothing else; no column on a surviving table was touched, because neither feature's
-schema (`todo`, `reminders`) was ever referenced from outside it except through the two application
-ports above. `AppDbContext.TodoSchema` and `.RemindersSchema` go with it — grep for either constant
-after editing `AppDbContext.cs`, because `TestDatabase.cs` and `HealthEndpointTests.cs` in the
-integration suite both name `AppDbContext.TodoSchema` directly, for the per-test truncation
-statement and for a "did both schemas get migrated" health check respectively. Update the first to
-truncate `AppDbContext.IdentitySchema` and `.PlatformSchema` only (the two schemas left); the second
-to assert on the same pair rather than on `TodoSchema`.
+That leaves `AppDbContextModelSnapshot.cs` describing a model — `TodoListRecord`, `TodoItemRecord`,
+`TodoItemTagRecord`, `ReminderRecord`, their relationships and navigations — that no longer matches
+either the one remaining migration or the code once the persistence models above are deleted too
+(see [What to delete](#what-to-delete)). There is no new migration for `dotnet ef` to fold the
+snapshot into here, so the snapshot has to be hand-edited back to describing exactly the migration
+that is left: copy the `BuildTargetModel` body of the `InitialCreate` migration's designer file over
+`AppDbContextModelSnapshot.cs`'s `BuildModel` body verbatim — same entities, described the same way —
+and drop the four example entities' blocks along with the relationship/navigation blocks that name
+them. The two files differ only in the wrapping: the snapshot's class extends `ModelSnapshot` and
+carries no `[Migration(...)]` attribute, where the migration's carries one and no base class override
+signature change beyond the method name (`BuildModel` vs. `BuildTargetModel`).
+`Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Migrations/PendingModelChangesTests.cs`
+(`Database.HasPendingModelChanges()`, no database required) is what proves the edit is complete — it
+fails the moment the snapshot, the remaining migration and the code's model disagree with each
+other, so run it before trusting this step done.
 
-The tool used to generate this migration is pinned by `.config/dotnet-tools.json`
-(`dotnet-ef` `10.0.10`) but that exact package version failed to restore in this environment with an
-unrelated packaging error (`Settings file 'DotnetToolSettings.xml' was not found in the package`); a
-globally installed `dotnet-ef 9.0.2` produced the migration without incident, after warning that it
-was older than the project's runtime. If the pinned version restores cleanly for you, use it instead
-— nothing here depends on which one generates the file, only on reviewing what it generates.
+Once both examples are gone, `AppDbContext.TodoSchema` and `.RemindersSchema` go with them — grep for
+either constant after editing `AppDbContext.cs`, because `TestDatabase.cs` and
+`HealthEndpointTests.cs` in the integration suite both name `AppDbContext.TodoSchema` directly, for
+the per-test truncation statement and for a "did both schemas get migrated" health check
+respectively. Update the first to truncate `AppDbContext.IdentitySchema` and `.PlatformSchema` only
+(the two schemas left); the second to assert on the same pair rather than on `TodoSchema`.
+
+**If a database has already had `AddExampleFeatures` applied to it**, deleting the file does not drop
+`todo`/`reminders` there — it only stops a fresh database from ever creating them. Dropping the
+schemas from a database that already has them still needs a real migration generated the way
+`docs/ADDING-A-FEATURE.md` documents (`dotnet ef migrations add DropExampleFeatures`, reviewed for
+exactly two `DropTable`/`DropSchema`-equivalent groups and nothing else touched on a surviving
+table). The tool that would generate it is pinned by `.config/dotnet-tools.json` (`dotnet-ef`
+`10.0.10`) but that exact package version failed to restore in this environment with an unrelated
+packaging error (`Settings file 'DotnetToolSettings.xml' was not found in the package`); a globally
+installed `dotnet-ef 9.0.2` worked without incident, after warning that it was older than the
+project's runtime.
 
 ## What remains, and why
 
@@ -277,7 +303,9 @@ in the diff, with the same reasoning repeated as a comment at the point it appli
 Beyond what is listed above, the removal breaks a long tail of smaller things, entirely by count or
 by name rather than by missing mechanism. In the order they were hit:
 
-- **Use-case and validator counts.** `ServiceRegistrationTests._knownUseCaseCount` (33 → 15),
+- **Use-case and validator counts.** `ServiceRegistrationTests._knownUseCaseCount` (44 → 24 —
+  read the current value rather than trusting this one; the authentication vertical has grown twice
+  since it was written),
   `PortConventionTests`, `UseCaseConventionTests` and `LayoutConventionTests` all state a number
   either in an assertion or in the comment beside it. Every one of them needed its number and its
   comment updated together — the number alone, without the comment explaining what it now counts,

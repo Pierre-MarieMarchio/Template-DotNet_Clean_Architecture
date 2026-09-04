@@ -572,10 +572,11 @@ Integration tests start a real PostgreSQL in Docker, so **Docker must be running
 CI runs on `ubuntu-latest`, which provides a Docker daemon; the hosted macOS and
 Windows runners do not.
 
-All ten test projects are listed in `AppTemplate.sln`, so `dotnet test AppTemplate.sln` runs every one of
+Every test project is listed in `AppTemplate.sln`, so `dotnet test AppTemplate.sln` runs all of
 them. Keep it that way: a project on disk but absent from the solution is skipped silently,
 and CI asserts against exactly that (see the "Assert test projects exist and are in the
-solution" step in `.github/workflows/ci.yml`).
+solution" step in `.github/workflows/ci.yml`) — a count stated here would be one more thing to
+keep in step, so it is deliberately not stated.
 
 > If the test projects opt into Microsoft.Testing.Platform
 > (`<TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>`), the

@@ -20,6 +20,12 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.10" />
+    <!-- IHttpClientFactory and AddHttpClient. Referenced by the one infrastructure module that
+         registers a typed client without also referencing ASP.NET Core: the identity module gets
+         the same assembly from the Microsoft.AspNetCore.App framework reference its Identity
+         package brings, but the email module is composed by the worker too, and a framework
+         reference there would make a non-web host require the ASP.NET Core runtime. -->
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
@@ -29,6 +35,18 @@
        System.IdentityModel.Tokens.Jwt entry is gone along with its last consumer. -->
   <ItemGroup Label="Identity model">
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
+  </ItemGroup>
+
+  <!-- Outbound HTTP resilience. Ships from dotnet/extensions on its own 10.8.x band rather than
+       the 10.0.x band above — same owner, different release train — so it gets its own group
+       instead of silently breaking the "all Microsoft.* on one band" rule that group states.
+       It brings Polly transitively, and the policy does name two Polly types — DelayBackoffType and
+       PredicateResult — because the Microsoft options surface re-exports them and offers no alias.
+       That is the whole extent of it: no Polly pipeline is built by hand anywhere, and there is
+       deliberately no PackageVersion for Polly itself, so the version stays the one this package
+       chose. -->
+  <ItemGroup Label="Outbound HTTP">
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.8.0" />
   </ItemGroup>
 
   <!-- Transitive security pin (CentralPackageTransitivePinningEnabled makes this bind).
@@ -55,6 +73,20 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0" />
   </ItemGroup>
 
+  <!-- Object storage. The AWS SDK ships one package per service on its own version line — 4.0.x for
+       S3, whose AWSSDK.Core dependency it pins itself — so it gets its own group rather than joining
+       "Third-party runtime", where every entry is a library this repository chose the version of.
+       Only AWSSDK.S3 is declared: the credential providers, the transfer utility and the extensions
+       package (AWSSDK.Extensions.NETCore.Setup) are deliberately absent, because this module
+       constructs its one client from its own validated options and never reads AWS's own
+       configuration files.
+       It is the one dependency in this repository that brings its own HTTP stack: see
+       AppTemplate.Infrastructure.Storage/Buckets/BucketBudget.cs for what that costs and what is
+       done about it. -->
+  <ItemGroup Label="Object storage">
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.102" />
+  </ItemGroup>
+
   <ItemGroup Label="Third-party runtime">
     <PackageVersion Include="Asp.Versioning.Mvc" Version="10.0.1" />
     <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.0.1" />
@@ -72,6 +104,11 @@
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
     <PackageVersion Include="NSubstitute" Version="6.0.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <!-- Same 4.13.0 as Testcontainers.PostgreSql, and it has to be: both are thin modules over the
+         same Testcontainers core package, which each one pins to its own version. Two different
+         bands would resolve one core for both and leave one module compiled against a different
+         one. -->
+    <PackageVersion Include="Testcontainers.Minio" Version="4.13.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />

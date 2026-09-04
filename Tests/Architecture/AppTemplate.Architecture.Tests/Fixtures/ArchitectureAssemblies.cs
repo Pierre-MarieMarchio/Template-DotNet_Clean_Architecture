@@ -5,6 +5,7 @@ using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.InMemory;
 using AppTemplate.Infrastructure.Persistence;
+using AppTemplate.Infrastructure.Storage;
 
 namespace AppTemplate.Architecture.Tests.Fixtures;
 
@@ -31,6 +32,7 @@ internal static class ArchitectureAssemblies
     internal const string IdentityInfrastructureNamespace = "AppTemplate.Infrastructure.Identity";
     internal const string EmailInfrastructureNamespace = "AppTemplate.Infrastructure.Email";
     internal const string InMemoryInfrastructureNamespace = "AppTemplate.Infrastructure.InMemory";
+    internal const string StorageInfrastructureNamespace = "AppTemplate.Infrastructure.Storage";
 
     /// <summary>
     /// The cross-cutting mechanisms inside the persistence project: the interceptor pipeline, the unit
@@ -73,6 +75,9 @@ internal static class ArchitectureAssemblies
     internal static Assembly InMemoryInfrastructure { get; } =
         Anchor(typeof(InMemoryModule), InMemoryInfrastructureNamespace);
 
+    internal static Assembly StorageInfrastructure { get; } =
+        Anchor(typeof(StorageModule), StorageInfrastructureNamespace);
+
     /// <summary>
     /// The infrastructure modules the API composes. <c>AppTemplate.Infrastructure.InMemory</c> is not one
     /// of them: it exists to replace their adapters in a test host, and its doubles are public by
@@ -83,6 +88,7 @@ internal static class ArchitectureAssemblies
         Persistence,
         IdentityInfrastructure,
         EmailInfrastructure,
+        StorageInfrastructure,
     ];
 
     internal static IReadOnlyList<Assembly> AllInfrastructure { get; } =
@@ -91,6 +97,7 @@ internal static class ArchitectureAssemblies
         IdentityInfrastructure,
         EmailInfrastructure,
         InMemoryInfrastructure,
+        StorageInfrastructure,
     ];
 
     /// <summary>The namespace each infrastructure assembly owns, keyed by the assembly itself.</summary>

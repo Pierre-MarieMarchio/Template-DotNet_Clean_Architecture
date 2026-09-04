@@ -1,17 +1,24 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Idempotency;
+using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
+using AppTemplate.Domain.Features.Files.Repositories;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
+using AppTemplate.Infrastructure.Persistence.Common.Leases;
 using AppTemplate.Infrastructure.Persistence.Common.Saving;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Common.Time;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Repositories;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Tables;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
@@ -75,6 +82,7 @@ public static class PersistenceModule
         AddSharedServices(services);
         AddTodoListsFeature(services);
         AddRemindersFeature(services);
+        AddFilesFeature(services);
         AddIdentityFeature(services);
         AddIdempotencyFeature(services, configuration);
         AddContext(services, connectionString);
@@ -104,6 +112,13 @@ public static class PersistenceModule
     {
         services.TryAddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
 
+        // Singleton, and it has to be: the lease holds nothing between calls, but the background
+        // services that take it are singletons, and a scoped dependency captured by one is what
+        // ValidateScopes exists to refuse. Its connection is deliberately unpooled and lives only
+        // for the duration of one guarded run — see PostgresLeaderLease, and docs/CONFIGURATION.md
+        // for what that costs against the Database:MaxPoolSize budget.
+        services.TryAddSingleton<ILeaderLease, PostgresLeaderLease>();
+
         // Scoped, because auditing needs the caller of the current request, the flush pipeline needs the
         // aggregates loaded in it, and event dispatch accumulates the events of the current save.
         services.TryAddScoped<AggregateFlushSaveChangesInterceptor>();
@@ -132,6 +147,23 @@ public static class PersistenceModule
 
         services.TryAddScoped<ITodoListRepository, TodoListRepository>();
         services.TryAddScoped<ITodoListQueries, TodoListQueries>();
+    }
+
+    private static void AddFilesFeature(IServiceCollection services)
+    {
+        services.TryAddSingleton<IStoredFileMapper, StoredFileMapper>();
+
+        // Same factory-over-one-scoped-instance as the two features above, for the same reason. It
+        // matters more here than anywhere else: the mapper's ObjectKey round trip is what keeps the
+        // orphan sweep from deleting a live file's bytes, and a repository filling one identity map
+        // while the interceptor flushes another would break that quietly.
+        services.TryAddScoped<StoredFileTracker>();
+        services.TryAddScoped<IStoredFileTracker>(provider => provider.GetRequiredService<StoredFileTracker>());
+        services.AddScoped<IAggregateFlusher>(provider => provider.GetRequiredService<StoredFileTracker>());
+        services.AddScoped<IDomainEventSource>(provider => provider.GetRequiredService<StoredFileTracker>());
+
+        services.TryAddScoped<IStoredFileRepository, StoredFileRepository>();
+        services.TryAddScoped<IStoredFileQueries, StoredFileQueries>();
     }
 
     private static void AddRemindersFeature(IServiceCollection services)

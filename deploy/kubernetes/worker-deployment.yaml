@@ -17,21 +17,22 @@ metadata:
     app.kubernetes.io/part-of: app-template
     app.kubernetes.io/component: worker
 spec:
-  # One, and this is a ceiling rather than a preference: there is no leader election and no locking
-  # between replicas, so two of these is not merely wasteful, it is wrong.
+  # One by default, and raising it is now a supported choice rather than a bug.
   #
-  # The two purges would be fine. They are idempotent deletes over an already-covered range, so a
-  # second replica costs a connection from this same Database__MaxPoolSize budget and nothing else.
-  # The reminder loop is not. FireDueRemindersUseCase claims a reminder in memory with
-  # Reminder.TryClaim, notifies, and commits the whole batch at the end — so two replicas ticking
-  # in the same second both see ClaimedAt as null, both take the claim, and both send the mail
-  # before either commit happens and one of them loses on xmin. That claim was written against a
-  # host that died mid-attempt, not against a concurrent pass.
+  # The two purges were always safe to double up: idempotent deletes over an already-covered range,
+  # so a second replica costs a connection and nothing else. The reminder loop was not, and that is
+  # what changed. FireDueRemindersUseCase claims a reminder in memory with Reminder.TryClaim,
+  # notifies, and commits the whole batch at the end — so two replicas ticking in the same second
+  # both saw ClaimedAt as null, both took the claim, and both sent the mail before either commit
+  # happened and one of them lost on xmin. The pass now runs under ILeaderLease, a PostgreSQL
+  # session-level advisory lock, so exactly one host runs it and losing that host releases the lock
+  # rather than stranding it.
   #
-  # Do NOT raise this to get availability. At one replica a stopped pod means no reminders and no
-  # purges, with nothing alerting on it — see SECURITY.md's Known gaps, which says what to watch
-  # until leadership exists. And remember this counts against the same pool budget as every API
-  # replica — see docs/DEPLOYMENT.md.
+  # Two things to know before raising it. Each replica costs its own Database__MaxPoolSize budget
+  # PLUS one unpooled connection for the lease while a leased loop runs — see docs/CONFIGURATION.md,
+  # and size it in rather than around. And availability is still not free: at any replica count,
+  # nothing yet alerts when the loops stop, which is why SECURITY.md's Known gaps keeps this open
+  # and says what to watch.
   replicas: 1
   selector:
     matchLabels:

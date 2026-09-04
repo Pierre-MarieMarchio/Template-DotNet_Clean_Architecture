@@ -76,6 +76,85 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("IdempotencyKeys", "platform");
                 });
 
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AvailableAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Checksum")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DeclaredMediaType")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("RegisteredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("SizeInBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ObjectKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_StoredFiles_ObjectKey");
+
+                    b.HasIndex("State", "RegisteredAt")
+                        .HasDatabaseName("IX_StoredFiles_State_RegisteredAt");
+
+                    b.HasIndex("OwnerId", "AvailableAt", "Id")
+                        .HasDatabaseName("IX_StoredFiles_OwnerId_AvailableAt_Id");
+
+                    b.HasIndex("OwnerId", "Name", "Id")
+                        .HasDatabaseName("IX_StoredFiles_OwnerId_Name_Id");
+
+                    b.HasIndex("OwnerId", "RegisteredAt", "Id")
+                        .HasDatabaseName("IX_StoredFiles_OwnerId_RegisteredAt_Id");
+
+                    b.ToTable("StoredFiles", "files");
+                });
+
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Identity.Models.AppRole", b =>
                 {
                     b.Property<Guid>("Id")

@@ -4,7 +4,8 @@ A worked walkthrough of the vertical `CONTRIBUTING.md`'s "Adding a feature" sect
 summarises: aggregate → EF model → mapper → tracker → repository → use case (with its
 named interface) → controller → tests → migration. `TodoLists` is the real example
 running through every step below — open the file next to the paragraph describing
-it.
+it. `Reminders` is the same vertical without child entities, and `Files` is the one
+whose state does not all live in the database; section 4b says what that changes.
 
 The rule behind every step: **a layer only speaks its own language.** The domain
 never imports EF; the API never imports EF Core either, only the application
@@ -277,6 +278,53 @@ commands, and turns `Result`/`Error` into the right status via `ErrorMapping` (s
 installs a default-deny fallback policy — so an anonymous endpoint needs an
 explicit `[AllowAnonymous]`, not the absence of an attribute.
 
+## 4b. When the feature is not only rows — the `Files` example
+
+Everything above assumes a feature whose whole state is rows in the one database.
+`Files` is the third worked example and the one that breaks that assumption: half of
+a stored file is an aggregate in PostgreSQL, the other half is bytes in an
+S3-compatible object store. Read it when your feature has a second place where its
+state lives — a bucket, a search index, a queue.
+
+Five things it does differently, and none of them is optional once your feature has
+two stores:
+
+**The second store is behind a port, and the port speaks no domain type.**
+`IFileContentStore` (`Src/Application/AppTemplate.Application/Features/Files/Ports/FileContentStore/`)
+takes a `string` key and a `long` size, never an `ObjectKey` or a `FileSize` —
+`StorageVocabularyTests` refuses a `Store` whose signature names anything under
+`AppTemplate.Domain.Features`, and that refusal is what the word `Store` means here.
+The adapter lives in its own module, `AppTemplate.Infrastructure.Storage`, which
+names its folders by subject because it has one kind of adapter.
+
+**The two halves meet in a use case and nowhere else.** No repository reaches the
+bucket, no adapter reaches the database. `ConfirmFileUploadUseCase` is where the row
+and the object are compared, and it is the only place either knows the other exists.
+
+**Bytes do not travel through the API, in either direction.** Registering returns a
+signed upload grant and the client writes to the store directly; reading returns a
+signed download grant and the controller answers `302`. That is arithmetic rather
+than taste: `RequestLimits:MaxRequestBodyBytes` is 65 536, and `IdempotencyFilter`
+buffers and SHA-256s the entire body of every `POST`.
+
+**Consistency between the two stores is re-derived, not transacted.** There is no
+distributed transaction and no tombstone: `DELETE` removes the row, and
+`ReclaimOrphanedContentUseCase` deletes every object no row references. That shape —
+an effect that re-derives its own precondition — is what lets this template keep
+refusing an outbox, and any feature with a second store owes the same shape. The
+deletion event is a fast path on top of it, never the guarantee.
+
+**Anything the second store holds is untrusted until something has looked at it.**
+`InspectDepositedFilesUseCase` checks the declared media type against the bytes and
+scans the content before a file becomes readable, in the worker rather than in the
+request. See `SECURITY.md` for which threats that answers and which it does not.
+
+The cost is a state machine, which a single-store feature does not need: `Pending →
+Deposited → Available`, plus `Quarantined`. Its invariants are in the constructor,
+the factory **and** `Rehydrate`, like any aggregate here — and its enum values are
+pinned by a test, because they are persisted as integers and renumbering them would
+reinterpret every existing row without changing a single line of the schema.
+
 ## 5. Tests
 
 `Tests/` mirrors `Src/` one directory for one directory — domain tests under
@@ -292,6 +340,17 @@ explicit `[AllowAnonymous]`, not the absence of an attribute.
   controller and the request/response mapping, against test doubles.
 - Integration (`Tests/Integration/AppTemplate.Api.IntegrationTests/<Feature>/`): the
   HTTP surface end to end, against a real PostgreSQL via Testcontainers.
+- If the feature has a second store (section 4b), it needs integration tests against
+  the real thing too. A signature is computed locally, so a wrong one is
+  indistinguishable from a right one until something checks it —
+  `Tests/Integration/AppTemplate.Api.IntegrationTests/Storage/` is the worked example,
+  against MinIO under Testcontainers.
+
+The round-trip fidelity test deserves a second mention when a feature has a second
+store, because it stops being hygiene. With no tombstone, a mapper that writes a key
+differing from the one the bytes went to turns a storage leak into **data loss**: the
+sweep finds the object unreferenced and deletes a live file. `StoredFileMapperObjectKeyTests`
+is that barrier, and the mapper says so in its own file.
 
 A test that cannot fail is not a guarantee. For anything security- or
 correctness-shaped: break the production code, watch the new test go red, then

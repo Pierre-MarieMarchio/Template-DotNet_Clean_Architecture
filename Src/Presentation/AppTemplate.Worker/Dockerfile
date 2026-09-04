@@ -42,6 +42,7 @@ COPY ["Src/Application/AppTemplate.Application/AppTemplate.Application.csproj", 
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence/AppTemplate.Infrastructure.Persistence.csproj",     "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/"]
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Identity/AppTemplate.Infrastructure.Identity.csproj",           "Src/Infrastructure/AppTemplate.Infrastructure.Identity/"]
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Email/AppTemplate.Infrastructure.Email.csproj",                 "Src/Infrastructure/AppTemplate.Infrastructure.Email/"]
+COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Storage/AppTemplate.Infrastructure.Storage.csproj",             "Src/Infrastructure/AppTemplate.Infrastructure.Storage/"]
 COPY ["Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj",                                               "Src/Presentation/AppTemplate.Worker/"]
 
 RUN dotnet restore "Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj"

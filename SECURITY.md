@@ -91,8 +91,15 @@ against your production system.
 - **No exception message ever reaches a client.** Every failure becomes an RFC 7807 ProblemDetails
   with a stable machine-readable `code`, and a `traceId` that joins to the server-side trace and log
   entry.
-- **Ownership is a filter inside the read query**, not a check after fetching, so another user's
-  resource is a `404` and never a `403` — a `403` would confirm the resource exists.
+- **Another user's resource is a `404` and never a `403`** — a `403` would confirm the resource
+  exists. Two mechanisms reach that answer, and which one applies depends on whether an aggregate is
+  loaded. A read that projects rows filters on the owner **inside the query**, so the row never
+  leaves the database. A command that has to load the aggregate first cannot: it fetches by id and
+  compares the owner afterwards, in one place per feature —
+  `Src/Application/AppTemplate.Application/Features/Files/Services/StoredFileAccess.cs` is the
+  Files one — and answers the same `404` either way. The guarantee is the answer, not the mechanism;
+  a new command that loads an aggregate must go through that gate rather than assume a query filtered
+  for it.
 - **Optimistic concurrency** on writes via PostgreSQL's `xmin`, translated to a
   `ConcurrencyConflictException` and a `409`.
 - **Conditional requests.** Every read of a `TodoList` or `TodoItem` publishes a strong `ETag`, and
@@ -104,6 +111,91 @@ against your production system.
   It logs a fixed field list, so a credential cannot arrive in a log by accident. The auth endpoints
   carry passwords and refresh tokens in their bodies, which is why body logging is not merely
   disabled but absent.
+
+### Signing in through an external provider
+
+The client runs the OAuth/PKCE flow itself and posts the provider's `id_token`; the API verifies it
+and mints **its own** access/refresh pair. No cookie, no browser redirect, and the token model is
+untouched — which is what makes the same endpoint work for a SPA, a mobile app and a desktop client.
+
+- **Verification is complete or it is a refusal.** Signature against the provider's JWKS, `iss`,
+  `aud` (the configured client id), `exp` and `nbf`. There is no configuration that turns any of
+  those off. Key sets are cached and refreshed, so a provider's key rotation does not lock everyone
+  out and does not make the provider a dependency on every sign-in.
+- **A link is keyed on `(provider, subject)`, never on the email address.** Apple returns the address
+  only at the first authorisation, so resolving by address would break the second Apple sign-in —
+  silently, and only in production.
+- **Automatic linking requires both sides to have proved the address.** The provider must assert
+  `email_verified`, *and* an existing local account must already have `EmailConfirmed`. A local
+  account whose address was never confirmed is an unproven claim on it, so the link is **refused**
+  rather than made — otherwise registering `victim@example.com` and never confirming it would hand
+  the attacker the account the victim later creates by signing in with Google.
+- **An account provisioned this way has no password and a confirmed address.** The provider vouched
+  for it; asking the user to confirm an address they just proved would be theatre.
+- **The second factor is not bypassed.** External sign-in runs the same tail as local sign-in: an
+  account with two-factor enabled gets a challenge, not a token pair. Without this, linking a Google
+  identity would have been the way around 2FA.
+- **A refusal says as little as the local one does.** Invalid token, unknown provider, unverified
+  address, unconfirmed local account and locked-out account are deliberately hard to tell apart from
+  outside, on the same reasoning as `/auth/login`.
+- **No client secret is involved.** Verifying an `id_token` is asymmetric cryptography; the template
+  holds no secret for any provider, and a deployment configuring one has taken the wrong flow.
+
+### File storage
+
+A file upload is the most dangerous surface an API can grow, so what is decided and what is not is
+written out rather than left to be inferred. Everything below is shipped behaviour except where it
+says otherwise.
+
+- **The API never carries a byte, in either direction.** Registering a file returns a *signed upload
+  grant* and the client writes to the object store directly; reading returns a *signed download
+  grant* and the controller answers `302`. This is not an optimisation. `RequestLimits:MaxRequestBodyBytes`
+  is 65 536 with a validated ceiling of 30 MiB, and `IdempotencyFilter` buffers and SHA-256s the
+  entire body of every `POST` — routing 200 MiB through either would be untenable.
+- **A signed URL is a bearer right.** Anyone holding it can read the object for as long as it lives,
+  so `Storage:MaxGrantLifetime` bounds it and the decision about *who* may have one belongs to the
+  use case, which compares `OwnerId` against `ICurrentUser` before issuing anything. That is the
+  IDOR defence, and it is in the application layer where the other two features put it, not in the
+  URL.
+- **The bucket must never allow anonymous reads.** `docker-compose.yml`'s bucket bootstrap sets
+  `anonymous none` explicitly. A readable bucket makes every grant in this template decoration.
+- **A file name is a label, never a path.** `StoredFileName` refuses separators, control characters
+  and reserved device names, and the object key is generated independently of it — so nothing a
+  client sends can steer where bytes land. The name never reaches a filesystem at all.
+- **The declared media type is a claim, and it is now checked against the bytes.** A deposited file
+  is inspected before it becomes readable: the leading bytes are matched against the declared type,
+  and the content is scanned. A file whose real type disagrees with its declaration is
+  **quarantined**, not served. SVG is refused outright when declared as an image — an SVG is a
+  script container, and there is no version of "serve it inline" that is safe.
+- **Inspection happens in the worker, not in the request.** Scanning 200 MiB inside an HTTP request
+  is the same CPU-denial problem as resizing an image there, which this template refuses by name.
+  The consequence is a state a client can observe: a confirmed upload is `deposited`, not
+  `available`, until the loop has decided — and `FileWorker:InspectDepositedFilesInterval` is
+  therefore a user-visible latency rather than a cost.
+- **No verdict is not a pass.** A scanner that cannot be reached leaves the file `deposited` and
+  retries; it never releases it. Fail-open would make an outage a way through, which is the one
+  failure mode that is worse than the outage.
+- **`Quarantined` is a persisted, terminal state, and it costs no query a predicate.** The only
+  place that hands out bytes guards with an allow-list — `State != Available` refuses — so a new
+  state is refused the day it is added rather than the day someone remembers to extend a predicate.
+  That asymmetry is what makes this different from the deleted flag `NoPersistenceRecord_CarriesADeletedFlag`
+  forbids. Read projections deliberately do **not** filter it out: an owner has to be able to see
+  that their file was refused.
+- **The refusal does not say what tripped it.** Telling a depositor which detector matched hands
+  them a test bench for tuning a payload until it passes. The detail goes to the operator's log
+  instead.
+- **Decompression bombs are still not addressed**, because nothing here decompresses anything —
+  inspection reads leading bytes and streams to the scanner, and neither expands input. Any
+  derivative pipeline added later must bound output size and time **before** it reads an archive or
+  an image, not after.
+- **Storage exhaustion is bounded per owner**, by a policy in the application layer rather than by
+  the store — a registration mints a signed upload grant, so an unbounded one is a free way to fill
+  someone else's bucket. Pending registrations and available bytes are budgeted separately, because
+  an unconfirmed registration costs a reserved key and nothing more.
+- **Long-lived storage credentials are avoided by default.** `Storage:AccessKeyId` and
+  `Storage:SecretAccessKey` are empty in every tracked file, and empty is the intended production
+  shape: the SDK's own chain resolves an instance role, and nothing holds a key pair. The validator
+  refuses exactly one of the two, since half a pair means signing anonymously.
 
 ### Supply chain and configuration
 - `NuGetAudit` at the `low` level with `NuGetAuditMode=all`, so **a known advisory in a direct or
@@ -207,18 +299,23 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   loops log a healthy pass rather than emitting a heartbeat anything watches. A deployment should
   alert on the absence of `apptemplate.reminders.missed_cancellations` samples, or on the pod's
   restart count, until something better exists.
-  Raising the count is not the answer as things stand. The manifest's own comment reasons about the
-  two purges — idempotent deletes over an already-covered range, so a second replica wastes a
-  connection and nothing more — and is silent about the loop where it matters.
+  Raising the count is now **safe**, and it was not before. The manifest's own comment reasoned
+  about the two purges — idempotent deletes over an already-covered range, so a second replica
+  wastes a connection and nothing more — and was silent about the loop where it mattered.
   `FireDueRemindersUseCase` claims a reminder with `Reminder.TryClaim` **in memory**, notifies, and
-  commits the whole batch once at the end. Two replicas ticking in the same second both read
-  `ClaimedAt` as null, both take the claim, and both send the mail; only then does one of them lose
+  commits the whole batch once at the end, so two replicas ticking in the same second both read
+  `ClaimedAt` as null, both took the claim, and both sent the mail; only then did one of them lose
   on `xmin` and roll back. The claim defends against a host that died mid-attempt, which is what it
-  was written for, and not against a concurrent pass. So `replicas: 2` means every due reminder is
-  delivered twice, systematically — not as a rare duplicate the at-least-once contract allows for.
-  Closing it means leadership, not more replicas: a PostgreSQL session-level advisory lock held on
-  a dedicated connection, so that losing the process releases it and a standby takes over. That is
-  also what would let a file-derivative loop scale out later.
+  was written for, and not against a concurrent pass.
+  The pass now runs under `ILeaderLease`, whose adapter is a PostgreSQL session-level advisory lock
+  on its own unpooled connection: exactly one host runs a pass, and losing that process closes the
+  session and releases the lock rather than stranding a lease until a timer says otherwise. The
+  guard is in the use case rather than in the `BackgroundService`, so it also covers any future
+  caller — `MaintenanceController` is the standing proof that one turns up.
+  **It is not a fencing token.** Leadership can be lost mid-run without the work being told, so
+  delivery stays at-least-once and anything else put under a lease has to survive a second host
+  starting it. What the lease removes is the systematic duplication of every single pass.
+  Still open, and the reason this entry stays here: nothing yet alerts when the loops stop.
 - **Nothing bounds distributed credential stuffing.** Lockout is per account and rate limiting is
   per client address, so one password tried against a hundred thousand accounts from a thousand
   addresses trips neither. Closing it needs something neither of those two mechanisms is: a global

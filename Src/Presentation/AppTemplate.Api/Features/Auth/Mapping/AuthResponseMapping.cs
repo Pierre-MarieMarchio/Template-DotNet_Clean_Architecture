@@ -5,6 +5,7 @@ using AppTemplate.Application.Features.Auth.UseCases.Commands.Login;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.RefreshAccessToken;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.Register;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.SetUpTwoFactor;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser;
 
 namespace AppTemplate.Api.Features.Auth.Mapping;
@@ -38,6 +39,33 @@ internal static class AuthResponseMapping
             // success with no body at all.
             _ => throw new NotSupportedException(
                 $"'{value.GetType().Name}' has no HTTP contract: add a branch to LoginResponse."),
+        });
+
+    /// <summary>
+    /// The external sign-in's own two branches. Written out rather than routed through
+    /// <see cref="ToLoginResponse"/>: the outcomes are two closed hierarchies that happen to have the
+    /// same shape today, and a conversion between them would make either one unable to grow a branch
+    /// without the other.
+    /// </summary>
+    public static Result<ExternalLoginResponse> ToExternalLoginResponse(
+        Result<SignInWithExternalProviderOutcome> result) =>
+        result.Map<SignInWithExternalProviderOutcome, ExternalLoginResponse>(value => value switch
+        {
+            SignInWithExternalProviderOutcome.Authenticated authenticated => new ExternalLoginResponse.Authenticated(
+                new TokenResponse(
+                    authenticated.AccessToken,
+                    authenticated.AccessTokenExpiresAt,
+                    authenticated.RefreshToken,
+                    authenticated.RefreshTokenExpiresAt),
+                authenticated.AccountCreated),
+            SignInWithExternalProviderOutcome.TwoFactorRequired twoFactor =>
+                new ExternalLoginResponse.TwoFactorRequired(twoFactor.ChallengeToken),
+
+            // A branch added to the hierarchy without one here would otherwise be served as a
+            // success with no body at all — and, on this endpoint, a second factor served as an
+            // empty 200 is a second factor a client would skip.
+            _ => throw new NotSupportedException(
+                $"'{value.GetType().Name}' has no HTTP contract: add a branch to ExternalLoginResponse."),
         });
 
     public static Result<TokenResponse> ToTokenResponse(Result<RefreshAccessTokenOutcome> result) =>

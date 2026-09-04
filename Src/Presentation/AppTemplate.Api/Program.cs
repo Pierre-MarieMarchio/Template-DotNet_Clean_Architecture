@@ -5,12 +5,14 @@ using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.OpenApi;
+using AppTemplate.Api.Common.Outbound;
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Application;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+using AppTemplate.Infrastructure.Storage;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
 using Scalar.AspNetCore;
@@ -38,10 +40,17 @@ builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 //
 // A test host adds AppTemplate.Infrastructure.InMemory *after* these lines to replace the clock and the
 // email sender with recording doubles. That module is deliberately not referenced by the API.
+
+// Before the modules, so that a client any of them registers already has the budget on it. The
+// storage module below is the first adapter that calls outwards, and it did not have to ask for the
+// policy — that is the point of installing it on the factory's defaults. See Common/Outbound/.
+builder.Services.AddApiOutboundHttp();
+
 builder.Services.AddApplicationLayer();
 builder.Services.AddPersistenceModule(builder.Configuration);
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddEmailModule(builder.Configuration);
+builder.Services.AddStorageModule(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AppTemplate.Application.Common.Abstractions.ICurrentUser, CurrentUser>();

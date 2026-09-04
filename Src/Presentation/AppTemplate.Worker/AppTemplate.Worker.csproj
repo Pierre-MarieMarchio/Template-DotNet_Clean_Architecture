@@ -17,16 +17,23 @@
     <!-- Not pulled in transitively: unlike AppTemplate.Api, this host does not reference the
          ASP.NET Core shared framework, so the console logging provider needs its own reference. -->
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <!-- Referenced by the host, not by any module: the outbound policy is installed once on the
+         factory's defaults in Common/Outbound/, so no infrastructure module needs the package to
+         benefit from it. It is here as well as in AppTemplate.Api because the modules that make
+         outbound calls are composed by both hosts. -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
   </ItemGroup>
 
-  <!-- Same OpenTelemetry SDK band as AppTemplate.Api (Directory.Packages.props), minus the two
-       ASP.NET Core instrumentations: this host has no inbound request and no outbound HTTP call to
-       instrument. Npgsql.OpenTelemetry supplies the .AddNpgsql() tracing extension the same way it
-       does for the Api host. -->
+  <!-- Same OpenTelemetry SDK band as AppTemplate.Api (Directory.Packages.props), minus the ASP.NET
+       Core instrumentation: this host has no inbound request to instrument. The outbound HTTP
+       instrumentation is here, because the modules this host composes do call out — the same calls
+       Common/Outbound/ installs the resilience policy for. Npgsql.OpenTelemetry supplies the
+       .AddNpgsql() tracing extension the same way it does for the Api host. -->
   <ItemGroup>
     <PackageReference Include="Npgsql.OpenTelemetry" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
   </ItemGroup>
 
   <!-- The same modules AppTemplate.Api composes for these use cases, and no reference to
@@ -53,6 +60,7 @@
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Identity\AppTemplate.Infrastructure.Identity.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
   </ItemGroup>
 
   <!-- The loop's resilience and its use of the stopping token are the whole point of this

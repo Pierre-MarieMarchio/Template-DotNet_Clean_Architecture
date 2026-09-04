@@ -72,6 +72,19 @@ data:
   MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: "true"
   MaintenanceWorker__PurgeExpiredRefreshTokensEnabled: "true"
 
+  # The Files feature's two sweeps. ReclaimOrphanedContent is not housekeeping: with no soft
+  # delete, it is the only thing that ever removes the bytes of a deleted file, so disabling it
+  # leaks storage quietly.
+  # Neither takes the leader lease, and neither needs it for correctness — both are idempotent, and
+  # the reclamation's safety comes from listing the store before reading the rows, not from being
+  # alone. At replicas: 2 the reclamation does cost a second full walk of the store every cycle;
+  # that is a price, not a bug, and the day it stops being worth paying the lease belongs in the
+  # use case rather than in the loop. See CONTRIBUTING.md.
+  FileWorker__PurgeAbandonedRegistrationsInterval: "01:00:00"
+  FileWorker__PurgeAbandonedRegistrationsEnabled: "true"
+  FileWorker__ReclaimOrphanedContentInterval: "12:00:00"
+  FileWorker__ReclaimOrphanedContentEnabled: "true"
+
   # AppTemplate.Worker's second loop, restated at its shipped default for the same reason. Enabled
   # is the off switch an operator reaches for during a maintenance window, or while a deployment is
   # still validating the IReminderNotifier it wired in: the reminder loop stops, everything else in

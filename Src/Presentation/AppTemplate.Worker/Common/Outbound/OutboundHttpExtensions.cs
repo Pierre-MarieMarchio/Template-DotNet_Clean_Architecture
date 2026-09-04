@@ -1,0 +1,99 @@
+﻿using Polly;
+
+namespace AppTemplate.Worker.Common.Outbound;
+
+/// <summary>
+/// The one outbound HTTP policy, applied to every client this host's
+/// <c>IHttpClientFactory</c> hands out, whichever module registered it.
+/// <para>
+/// It goes on the factory's defaults rather than into a method each module calls, because a method
+/// is something a module can forget: only <c>AppTemplate.Infrastructure.Persistence</c> may be
+/// shared between infrastructure modules, so a shared HTTP project is not available, and putting
+/// <c>HttpClient</c> behind an application port is the abstraction <c>docs/ARCHITECTURE.md</c>
+/// refuses by name. Defaults need no cooperation from the module and cannot be opted out of by
+/// accident.
+/// </para>
+/// <para>
+/// <c>Src/Presentation/AppTemplate.Api/Common/Outbound/OutboundHttpExtensions.cs</c> is this file's
+/// twin and the two policies have to stay identical: the modules that call outwards — Email and
+/// Identity — are composed by both hosts, and a budget enforced in the API only would leave this
+/// host, the one nobody watches, unprotected. They are two files rather than one because this
+/// project deliberately does not reference <c>AppTemplate.Api</c> — see
+/// <c>AppTemplate.Worker.csproj</c>; a difference between them is a bug, not a variation.
+/// </para>
+/// </summary>
+internal static class OutboundHttpExtensions
+{
+    internal static IServiceCollection AddWorkerOutboundHttp(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler(options =>
+        {
+            // These are the API's numbers, and they are the API's numbers on purpose — see the twin
+            // file named above. There, an outbound call happens inside an inbound request that
+            // AppTemplate.Api.Common.Hosting.RequestTimeoutsOptions.Default gives 5 minutes, and
+            // the enclosing budget has to be the longer of the two, or the outer timeout cancels
+            // work that was still retrying correctly underneath. 30 s inside 300 s leaves a factor
+            // of ten. This host has no inbound request to sit inside, so nothing here forces the
+            // ratio; keeping the same one is what keeps the two hosts one policy instead of two.
+            // If either number moves in the API, it moves here in the same commit.
+            //
+            // Per attempt, 10 s: a dependency that has not answered in 10 s does not answer better
+            // at 60, it just holds the caller longer.
+            //
+            // The package validates the combination at start-up, not at the first call: the total
+            // timeout must exceed the attempt timeout, and the circuit breaker's sampling window
+            // (30 s, left at the default below) must be at least twice the attempt timeout.
+            // 10 s / 30 s satisfies both, with no margin on the second — doubling the attempt
+            // timeout alone would fail the host's own start-up validation.
+            options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
+            options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
+
+            options.Retry.MaxRetryAttempts = 3;
+            options.Retry.BackoffType = DelayBackoffType.Exponential;
+
+            // Jitter, because several replicas failing against the same dependency otherwise retry
+            // in the same millisecond, which is the worst moment to arrive together.
+            options.Retry.UseJitter = true;
+
+            // Retry is decided per verb, as an allow-list of the safe ones. The package ships
+            // DisableForUnsafeHttpMethods(), which is the deny-list POST, PATCH, PUT, DELETE,
+            // CONNECT — close, but not this rule: any verb it does not name (a WebDAV method, a
+            // future one) would still be retried. A default that covers every client in the host
+            // has to be the one that is never wrong; relaxing it for a client whose server is known
+            // is one line, and discovering it was wrong costs an incident.
+            //
+            // PUT and DELETE are out even though the specification calls them idempotent, because
+            // that promise belongs to the server at the other end and a default applies to servers
+            // nobody here controls. Replaying a 200 MiB PUT because the response was slow doubles
+            // the bytes, and against a server that does not keep the promise it writes twice.
+            //
+            // The verb is read from the resilience context, not from the outcome's response: a
+            // failed attempt frequently has no response at all — a timeout or a connection failure
+            // arrives as an exception — and an allow-list that could not see the verb there would
+            // refuse exactly the retries this policy exists for. Wrapping the existing predicate
+            // rather than replacing it keeps the package's own definition of a transient failure.
+            var isTransientFailure = options.Retry.ShouldHandle;
+
+            options.Retry.ShouldHandle = args =>
+                IsSafeToReplay(args.Context.GetRequestMessage()?.Method)
+                    ? isTransientFailure(args)
+                    : PredicateResult.False();
+
+            // The circuit breaker and the concurrency limiter keep the package's defaults. The
+            // limiter is the part that matters most here: it is what stops one slow dependency
+            // from occupying every thread that wanted to call it, and a number invented in this
+            // file would be a number no one could justify later.
+        }));
+
+        return services;
+    }
+
+    private static bool IsSafeToReplay(HttpMethod? method) =>
+        method is not null
+        && (method == HttpMethod.Get
+            || method == HttpMethod.Head
+            || method == HttpMethod.Options
+            || method == HttpMethod.Trace);
+}

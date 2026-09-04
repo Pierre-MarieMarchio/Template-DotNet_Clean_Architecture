@@ -724,3 +724,66 @@ Authorization: Bearer {{accessToken}}
 #     operator prunes it, which is why the endpoint exists at all.
 DELETE {{api}}/maintenance/refresh-tokens/expired
 Authorization: Bearer {{accessToken}}
+
+###
+# 39. Register a file. This does NOT carry the bytes: it declares the metadata and answers 201 with
+#      the file id and a SIGNED UPLOAD GRANT — a URL, a method, the headers the store will insist on,
+#      and an expiry. That shape is forced rather than chosen: RequestLimits:MaxRequestBodyBytes is
+#      65 536, and IdempotencyFilter buffers and SHA-256s the whole body of every POST, so routing a
+#      200 MiB upload through this process was never possible. [Idempotent] is safe here precisely
+#      because the body is metadata rather than bytes.
+# @name registerFile
+POST {{api}}/files
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "name": "photo.png",
+  "mediaType": "image/png",
+  "sizeInBytes": 12,
+  "checksum": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+}
+
+###
+@storedFileId = {{registerFile.response.body.$.id}}
+@uploadUrl = {{registerFile.response.body.$.upload.url}}
+
+# 40. Step two happens OUTSIDE this file and outside the API: the client PUTs the bytes straight at
+#      {{uploadUrl}}. Against the docker-compose stack that is MinIO on http://localhost:9000, and
+#      the API never sees a byte of it. Do it with curl:
+#
+#        printf 'hello world\n' | curl -X PUT --data-binary @- "<the upload url>"
+
+###
+# 41. Confirm the upload. The store is asked what it actually holds, and the aggregate refuses the
+#      confirmation if the size or checksum disagrees with what was declared — leaving the file
+#      Pending, which the worker's abandonment sweep retires on its own. Deliberately NOT
+#      [Idempotent]: this POST names the file it acts on, so a replay is already well defined.
+POST {{api}}/files/{{storedFileId}}/confirm
+Authorization: Bearer {{accessToken}}
+
+###
+# 42. Read the metadata. Never the bytes.
+GET {{api}}/files/{{storedFileId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 43. The owner's files, paged. Same pagination contract as to-do lists: the metadata is in the body.
+GET {{api}}/files?pageSize=20
+Authorization: Bearer {{accessToken}}
+
+###
+# 44. Download. Answers 302 to a short-lived signed URL rather than streaming the object: serving
+#      bytes is not this API's job, issuing the right to read them is. Note that the signed URL is a
+#      BEARER right — anyone holding it can read the object until it expires — which is why
+#      Storage:MaxGrantLifetime is short and why the redirect must not be cached beyond it.
+GET {{api}}/files/{{storedFileId}}/content
+Authorization: Bearer {{accessToken}}
+
+###
+# 45. Delete. The row goes; the bytes are reclaimed by the worker's sweep, which deletes every object
+#      no row references. There is no soft delete and no tombstone — the sweep re-derives its own
+#      precondition, which is what lets the row simply disappear.
+DELETE {{api}}/files/{{storedFileId}}
+Authorization: Bearer {{accessToken}}

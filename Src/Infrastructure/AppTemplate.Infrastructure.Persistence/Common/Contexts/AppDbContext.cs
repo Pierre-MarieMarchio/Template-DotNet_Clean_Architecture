@@ -1,4 +1,6 @@
 ﻿using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Configurations;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Configurations;
@@ -59,6 +61,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public const string RemindersSchema = "reminders";
 
     /// <summary>
+    /// The schema the file feature's tables live in. Its own, like every other feature's, rather than
+    /// <see cref="PlatformSchema"/>: the table belongs to a feature, and a feature that owns a schema
+    /// is one whose removal is a deleted migration file rather than a drop.
+    /// </summary>
+    public const string FilesSchema = "files";
+
+    /// <summary>
     /// The schema for tables that are cross-cutting rather than owned by a feature — the idempotency
     /// key store is the first of these. Neither <see cref="IdentitySchema"/> nor
     /// <see cref="TodoSchema"/> would be honest: the table belongs to no feature.
@@ -89,6 +98,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     /// mapped by <see cref="Features.Reminders.Mapping.IReminderMapper"/> and never tracked by EF.
     /// </summary>
     internal DbSet<ReminderRecord> Reminders => Set<ReminderRecord>();
+
+    /// <summary>
+    /// The stored-file aggregate's table: everything about a file except its content, which never
+    /// passes through this application at all. Also a persistence model rather than the domain
+    /// aggregate, mapped by <see cref="Features.Files.Mapping.IStoredFileMapper"/> and never tracked by
+    /// EF.
+    /// </summary>
+    internal DbSet<StoredFileRecord> StoredFiles => Set<StoredFileRecord>();
 
     /// <summary>
     /// Refresh-token grants. Internal, like <see cref="RefreshToken"/> itself: the grant table is
@@ -137,6 +154,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.ApplyConfiguration(new TodoItemTagRecordConfiguration());
 
         builder.ApplyConfiguration(new ReminderRecordConfiguration());
+
+        builder.ApplyConfiguration(new StoredFileRecordConfiguration());
 
         builder.ApplyConfiguration(new IdempotencyRecordConfiguration());
     }

@@ -5,6 +5,7 @@ using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.Login;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.RefreshAccessToken;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.Register;
+using AppTemplate.Application.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser;
 using Shouldly;
 using Xunit;
@@ -105,6 +106,93 @@ public sealed class AuthResponseMappingTests
     {
         var result = Should.NotThrow(
             () => AuthResponseMapping.ToLoginResponse(Result.Failure<LoginOutcome>(_someRefusal)));
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(_someRefusal);
+    }
+
+    [Fact]
+    public void ToExternalLoginResponse_MapsAuthenticated_ToEveryTokenFieldAndTheCreationFlag()
+    {
+        var outcome = new SignInWithExternalProviderOutcome.Authenticated(
+            UserId: Guid.NewGuid(),
+            UserName: "ada",
+            Email: "ada@example.com",
+            AccessToken: "access",
+            AccessTokenExpiresAt: _accessExpiry,
+            RefreshToken: "refresh",
+            RefreshTokenExpiresAt: _refreshExpiry,
+            AccountCreated: true);
+
+        var response = AuthResponseMapping
+            .ToExternalLoginResponse(Result.Success<SignInWithExternalProviderOutcome>(outcome)).Value;
+
+        var authenticated = response.ShouldBeOfType<ExternalLoginResponse.Authenticated>();
+        authenticated.Tokens.AccessToken.ShouldBe("access");
+        authenticated.Tokens.AccessTokenExpiresAt.ShouldBe(_accessExpiry);
+        authenticated.Tokens.RefreshToken.ShouldBe("refresh");
+        authenticated.Tokens.RefreshTokenExpiresAt.ShouldBe(_refreshExpiry);
+        authenticated.AccountCreated.ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// <c>false</c> is the value a copied-nothing projection produces, so the flag is asserted in both
+    /// states: a mapping that hard-coded it would pass the test above on its own.
+    /// </summary>
+    [Fact]
+    public void ToExternalLoginResponse_CarriesAccountCreated_ForASignInThatCreatedNothing()
+    {
+        var outcome = new SignInWithExternalProviderOutcome.Authenticated(
+            UserId: Guid.NewGuid(),
+            UserName: "ada",
+            Email: "ada@example.com",
+            AccessToken: "access",
+            AccessTokenExpiresAt: _accessExpiry,
+            RefreshToken: "refresh",
+            RefreshTokenExpiresAt: _refreshExpiry,
+            AccountCreated: false);
+
+        var response = AuthResponseMapping
+            .ToExternalLoginResponse(Result.Success<SignInWithExternalProviderOutcome>(outcome)).Value;
+
+        response.ShouldBeOfType<ExternalLoginResponse.Authenticated>().AccountCreated.ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// The branch a provider sign-in produces for an account whose owner armed a second factor. It
+    /// carries a challenge and nothing else: the token fields are not on this record at all, so no
+    /// mapping mistake can put a pair in it.
+    /// </summary>
+    [Fact]
+    public void ToExternalLoginResponse_MapsTwoFactorRequired()
+    {
+        var outcome = new SignInWithExternalProviderOutcome.TwoFactorRequired("challenge");
+
+        var response = AuthResponseMapping
+            .ToExternalLoginResponse(Result.Success<SignInWithExternalProviderOutcome>(outcome)).Value;
+
+        response.ShouldBeOfType<ExternalLoginResponse.TwoFactorRequired>().ChallengeToken.ShouldBe("challenge");
+    }
+
+    [Fact]
+    public void ExternalLoginResponse_Authenticated_PublishesNoProfileField()
+    {
+        var names = Array.ConvertAll(
+            typeof(ExternalLoginResponse.Authenticated).GetProperties(),
+            property => property.Name);
+
+        names.ShouldBe(
+            ["Tokens", "AccountCreated"],
+            "the account this signed in as is read from GET /auth/me, exactly as it is after a "
+            + "password sign-in — there is one definition of a profile.");
+    }
+
+    [Fact]
+    public void ToExternalLoginResponse_PropagatesAFailure_WithoutReadingTheValue()
+    {
+        var result = Should.NotThrow(
+            () => AuthResponseMapping.ToExternalLoginResponse(
+                Result.Failure<SignInWithExternalProviderOutcome>(_someRefusal)));
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_someRefusal);

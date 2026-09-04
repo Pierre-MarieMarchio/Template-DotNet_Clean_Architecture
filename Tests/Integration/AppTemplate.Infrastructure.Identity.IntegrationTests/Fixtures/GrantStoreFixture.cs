@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Fixtures;
+namespace AppTemplate.Infrastructure.Identity.IntegrationTests.Fixtures;
 
 /// <summary>
 /// A real PostgreSQL and the persistence module composed against it, started once for the class that

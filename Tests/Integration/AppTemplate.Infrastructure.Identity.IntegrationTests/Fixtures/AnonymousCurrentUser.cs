@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Fixtures;
+namespace AppTemplate.Infrastructure.Identity.IntegrationTests.Fixtures;
 
 /// <summary>
 /// The one adapter the host supplies rather than a module. Auditing needs it to resolve a context at

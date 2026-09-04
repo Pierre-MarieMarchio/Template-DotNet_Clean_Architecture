@@ -108,7 +108,15 @@ public sealed class TestDatabase(IServiceProvider rootServices)
         return values.Count == 0 ? 0 : int.Parse(values[0], CultureInfo.InvariantCulture);
     }
 
-    private async Task ExecuteAsync(string sql, CancellationToken cancellationToken)
+    /// <summary>
+    /// Runs a statement with no result set — for the handful of test fixtures that have to put a row
+    /// in place rather than only look at what is already there. Seeding the <c>Admin</c> role for the
+    /// administration tests is the reason this exists: this test host seeds no identity data at all
+    /// (<c>IdentitySeed:Enabled</c> is <c>false</c> for the whole suite), and the row that names the
+    /// role is otherwise nowhere for a test to put it without naming <c>AppRole</c>, the persistence
+    /// module's internal type, which this project's own convention keeps out of an integration test.
+    /// </summary>
+    public async Task ExecuteAsync(string sql, CancellationToken cancellationToken)
     {
         await using var scope = rootServices.CreateAsyncScope();
         await using var command = await CreateCommandAsync(scope.ServiceProvider, sql, cancellationToken);

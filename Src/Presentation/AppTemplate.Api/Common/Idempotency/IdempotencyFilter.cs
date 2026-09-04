@@ -97,7 +97,8 @@ internal sealed class IdempotencyFilter(
         }
 
         var key = keyResult.Value;
-        var claim = await store.ClaimAsync(key, dateTimeProvider.UtcNow + settings.Retention, httpContext.RequestAborted);
+        var now = dateTimeProvider.UtcNow;
+        var claim = await store.ClaimAsync(key, now + settings.Retention, now + settings.ClaimLease, httpContext.RequestAborted);
 
         switch (claim.Outcome)
         {
@@ -130,9 +131,22 @@ internal sealed class IdempotencyFilter(
         }
         catch
         {
-            // The action never produced a response at all, so the corrected retry a caller sends
-            // after fixing whatever threw must not find this key still held.
-            await store.ReleaseAsync(key, CancellationToken.None);
+            // Response writing only starts once the action has produced a result, and every
+            // [Idempotent] action returns one only once its use case has committed. An exception
+            // caught here with the response already under way — a client disconnecting mid-write,
+            // say — is therefore downstream of that commit, and releasing the claim would let a
+            // retry run the write again for real.
+            //
+            // The converse is the safer guess rather than a certainty: a failure between the commit
+            // and the first byte — serialising the result, for instance — releases a claim whose
+            // write did land. That window is narrow and the alternative is worse, because never
+            // releasing would hold every genuinely failed request's key until its lease runs out.
+            // The lease is what bounds the mistake either way.
+            if (!httpContext.Response.HasStarted)
+            {
+                await store.ReleaseAsync(key, CancellationToken.None);
+            }
+
             throw;
         }
 

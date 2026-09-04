@@ -166,8 +166,13 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
         authenticated.ShouldBe(
             [
                 nameof(AuthController.ChangePassword),
+                nameof(AuthController.ConfirmEmailChange),
+                nameof(AuthController.ConfirmTwoFactorSetup),
+                nameof(AuthController.DisableTwoFactor),
                 nameof(AuthController.GetCurrentUser),
                 nameof(AuthController.LogoutEverywhere),
+                nameof(AuthController.RequestEmailChange),
+                nameof(AuthController.SetUpTwoFactor),
             ],
             "An authentication endpoint changed sides. Decide deliberately, then update this list.");
     }

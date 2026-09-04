@@ -68,8 +68,8 @@ Infrastructure**. Its name says what the application needs, not what supplies it
 
 | Port (Application) | Implementation (Infrastructure) |
 |---|---|
-| `ITodoListRepository` | EF Core repository over `AppDbContext` |
-| `ITodoListQueries` | EF Core projections to DTOs |
+| `ITodoListRepository`, `IReminderRepository` | EF Core repositories over `AppDbContext` |
+| `ITodoListQueries`, `IReminderTargets` | EF Core projections to DTOs |
 | `IUnitOfWork` | one `SaveChangesAsync` on `AppDbContext` |
 | `IEmailSender` | `MailKitEmailSender` |
 | `ICurrentUser` | `CurrentUser`, reading `HttpContext` claims |
@@ -103,9 +103,9 @@ storage — one DbContext in one schema:
 
 | Module | Registers | Storage |
 |---|---|---|
-| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, the interceptor pipeline, `IUnitOfWork`, `ITodoListRepository`, `ITodoListQueries`, `IRefreshTokenStore`, `IIdentitySeeder`, domain-event consumers | `AppDbContext` → `todo` + `identity` |
-| `AppTemplate.Infrastructure.Identity` | the five authentication ports, ASP.NET Identity, JWT bearer, refresh-token rotation | — (uses the shared context) |
-| `AppTemplate.Infrastructure.Email` | `IEmailSender`, email options | — |
+| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, the interceptor pipeline, `IUnitOfWork`, the aggregate repositories and read-side ports, `IRefreshTokenStore`, `IIdentitySeeder` | `AppDbContext` → `identity`, `todo`, `reminders`, `platform` |
+| `AppTemplate.Infrastructure.Identity` | the authentication ports, ASP.NET Identity, JWT bearer, refresh-token rotation | — (uses the shared context) |
+| `AppTemplate.Infrastructure.Email` | `IEmailSender`, `IReminderNotifier`, email options | — |
 | `AppTemplate.Infrastructure.InMemory` | in-memory port implementations for tests and demos | — |
 
 **Persistence is the one module that holds more than one capability**, and that is
@@ -192,8 +192,8 @@ two ports rather than two stacks:
 
 | Port | Purpose |
 |---|---|
-| `ITodoListRepository` | Write side. Loads and stages whole aggregates. |
-| `ITodoListQueries` | Read side. Returns DTOs projected in SQL, no aggregate materialisation. |
+| `ITodoListRepository`, `IReminderRepository` | Write side. Load and stage whole aggregates. |
+| `ITodoListQueries`, `IReminderTargets` | Read side. Return DTOs projected in SQL, no aggregate materialisation. |
 
 Reads do not need invariants enforced, and loading a full aggregate to render a list
 view is pure waste. Both read methods take the owner's id as a parameter, so

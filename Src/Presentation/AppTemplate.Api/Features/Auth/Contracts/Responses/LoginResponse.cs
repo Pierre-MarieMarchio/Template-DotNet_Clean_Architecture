@@ -3,9 +3,10 @@
 namespace AppTemplate.Api.Features.Auth.Contracts.Responses;
 
 /// <summary>
-/// What signing in produces on the wire: either a token pair, or — once two-factor sign-in exists —
-/// a challenge to complete first. The shape carries an explicit <c>status</c> tag, so a client reads
-/// which outcome it got instead of inferring it from which fields happen to be present.
+/// What signing in produces on the wire: either a token pair, or — for an account with two-factor
+/// sign-in armed — a challenge to complete with <c>POST /auth/login/two-factor</c>. The shape
+/// carries an explicit <c>status</c> tag, so a client reads which outcome it got instead of inferring
+/// it from which fields happen to be present.
 /// <para>
 /// No profile fields: a caller that wants the account it just signed in as reads
 /// <c>GET /auth/me</c>, which is the single definition of a profile.
@@ -26,7 +27,6 @@ public abstract record LoginResponse
     /// </summary>
     public sealed record Authenticated(TokenResponse Tokens) : LoginResponse;
 
-    /// <summary>Not produced today: no use case has a second factor to challenge yet.</summary>
-    /// <param name="ChallengeToken">Identifies the pending sign-in for whichever step completes it.</param>
+    /// <param name="ChallengeToken">Identifies the pending sign-in for <c>POST /auth/login/two-factor</c>.</param>
     public sealed record TwoFactorRequired(string ChallengeToken) : LoginResponse;
 }

@@ -335,20 +335,22 @@ tout ce qui suit doit l'appeler plutôt que recopier une révocation.**
 
 ### Vague 5 — ce qui reste
 
-**Le défaut de production le plus coûteux encore ouvert : la revendication d'idempotence n'a pas de
-bail.** `IdempotencyFilter` réclame la clé en écrivant `IsCompleted = false` ; si le processus meurt
-entre là et `CompleteAsync`/`ReleaseAsync` — arrêt de pod, OOM kill —, la ligne reste « en cours »
-et `Decide` répond `InProgress` à toute nouvelle tentative. La seule libération est la purge, sur
-`ExpiresAt`, avec une rétention de **24 heures**. Une écriture idempotente interrompue devient donc
-irréessayable pendant 24 h sous 409, alors que l'écriture métier n'a peut-être jamais eu lieu — pour
-un appelant machine qui rejoue, c'est une perte d'opération franche. Correctif : une colonne de bail
-(`ClaimedUntil`) courte, indépendante de la rétention, plus la reprise d'une revendication périmée.
-Coût : une migration **écrite à la main** (voir §5, piège 5) — c'est pour ça que ce n'est pas fait.
+~~**Le défaut de production le plus coûteux encore ouvert : la revendication d'idempotence n'a pas de
+bail.**~~ **Soldé** (commit `24c7e48`). `IdempotencyRecord.ClaimedUntil` + `IdempotencyOptions.ClaimLease`
+(15 min par défaut, soit 1,5× le plafond de `RequestTimeoutsOptions.Extended` ; validé `> 0` et
+`<= Retention`). La reprise d'une revendication périmée est **atomique** : mise à jour conditionnelle
+dont « zéro ligne affectée » est le signal de course perdue — même rendez-vous que
+`RefreshTokenStore.TryRotateAsync` — et un test d'intégration lance deux réclamations concurrentes
+contre une vraie base pour le prouver. Le bail **n'est pas** la rétention : `ExpiresAt` gouverne
+combien de temps une réponse *complétée* reste rejouable, le bail seulement combien de temps une
+revendication *inachevée* bloque les autres.
 
-Ensuite : la libération de clé après une écriture déjà commitée (`IdempotencyFilter` libère la clé
-sur toute exception remontant de `next()`, qui englobe l'exécution du résultat — une exception après
-le `SaveChangesAsync`, par exemple un abandon client pendant l'écriture de la réponse, libère la clé
-d'une opération qui a bel et bien commité, et le rejeu réexécute l'écriture pour de vrai).
+~~La libération de clé après une écriture déjà commitée.~~ **Soldé** au même commit.
+`Response.HasStarted` distingue les deux cas. **Attention en le relisant** : c'est une heuristique,
+pas une certitude — un échec de sérialisation survenant après le commit mais avant le premier octet
+libère une clé dont l'écriture a bel et bien eu lieu. Le commentaire du code le dit ; c'est le bail
+qui borne l'erreur, dans les deux sens.
+
 
 Souhaitables, inchangés : outbox transactionnel ; authentification machine-à-machine ;
 `IStreamingUseCase` et un endpoint SSE d'exemple (le mécanisme de timeout et sa politique `long`
@@ -450,7 +452,7 @@ Quatre audits ont été menés. Ce qu'ils ont trouvé et qui **n'est pas encore 
 - **Les 3 tests Docker de `Identity.UnitTests.Tokens.RefreshTokenRotationTests` sont toujours dans
   un projet « unitaire ».** Le bon geste n'est pas un `[Trait]` — un attribut au milieu d'un fichier
   n'est pas de la documentation, l'arborescence si — mais un projet
-  `Tests/Integration/AppTemplate.Infrastructure.Persistence.IntegrationTests`. Les fondre dans la
+  `Tests/Integration/AppTemplate.Infrastructure.Identity.IntegrationTests`. Les fondre dans la
   suite d'intégration existante les mettrait dans sa collection partagée et **casserait la propriété
   qu'ils testent** (un rendez-vous à deux participants sur une mise à jour conditionnelle). La
   fixture plaide elle-même pour ce déménagement : « a container rather than an in-memory provider,

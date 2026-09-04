@@ -18,6 +18,18 @@ internal sealed class IdempotencyRecord
     /// <summary>Set once the action has run and <see cref="IdempotencyStore.CompleteAsync"/> was called.</summary>
     public bool IsCompleted { get; set; }
 
+    /// <summary>
+    /// How long this claim blocks a retry while <see cref="IsCompleted"/> is still false, independent
+    /// of <see cref="ExpiresAt"/>: that column is the retention window for a <em>completed</em>
+    /// response, this one is the lease on an <em>unfinished</em> one. A claimant that dies — a killed
+    /// pod, an OOM — between <see cref="IdempotencyStore.ClaimAsync"/> and either
+    /// <see cref="IdempotencyStore.CompleteAsync"/> or <see cref="IdempotencyStore.ReleaseAsync"/>
+    /// leaves this row stuck at <c>IsCompleted == false</c> forever; without this column the only way
+    /// out would be waiting for <see cref="ExpiresAt"/> — the full retention window, not a lease. Once
+    /// this instant passes, the row is fair game for a retry to reclaim, regardless of who holds it.
+    /// </summary>
+    public required DateTimeOffset ClaimedUntil { get; set; }
+
     /// <summary>Only set once <see cref="IsCompleted"/> is true.</summary>
     public int? StatusCode { get; set; }
 

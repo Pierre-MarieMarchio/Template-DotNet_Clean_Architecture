@@ -193,13 +193,42 @@ in this repository:
 
 NetArchTest resolves each type through `Type.GetType(name, throwOnError: true)`, and that fails
 against a Coverlet-instrumented assembly. Running `AppTemplate.Architecture.Tests` under
-`--collect:"XPlat Code Coverage"` makes 7 of its 40 tests throw; without the collector all 40 pass.
-So coverage is collected over every project **except** that one, in CI and in `./tasks.ps1 coverage`
-alike. Do not merge those runs back together.
+`--collect:"XPlat Code Coverage"` makes its NetArchTest-based rules throw; without the collector the
+project passes whole. So coverage is collected over every project **except** that one, in CI and in
+`./tasks.ps1 coverage` alike. Do not merge those runs back together.
+
+### Sharp edges worth knowing before they cost you an afternoon
+
+Each of these has been paid for at least once in this repository.
+
+- **`Result<TValue>.Value` throws on a failure.** So `is { IsSuccess: true, Value: var x }` evaluates
+  the getter *while* matching and throws instead of not matching. Test `IsFailure` first.
+- **FluentValidation runs the remaining rules for a property even after `NotNull()` failed.** A
+  `Must` that dereferences needs `.Cascade(CascadeMode.Stop)` ahead of it.
+- **NSubstitute's `Arg.Is<T>` takes an expression tree**, which rejects pattern matching (CS8122).
+  Compare a record by value instead of by predicate.
+- **The injectable clock controls neither JWT validation nor ASP.NET Identity**, both of which read
+  `TimeProvider.System`. Moving it forward and then signing in mints a token whose `nbf` is in the
+  future, refused as `IDX10222` — not an expired one. It has no effect on lockout end dates or on
+  confirmation and reset token lifetimes either.
+- **The rate limiter's window advances on wall-clock time** and exposes no injectable clock;
+  `AutoReplenishment = false` does not change that. The window itself is replaceable
+  (`RateLimiterWindow`) so a test host can widen it.
+- **Never name a folder after the type it contains.** A namespace and a type sharing a name make
+  name resolution ambiguous for consumers (CS0118), because lookup walks the enclosing namespaces.
+- **`.cs` files are UTF-8 *with* BOM** (`.editorconfig`), and a file written without one fails the
+  formatting gate. Detecting a BOM by piping bytes through `grep` does not work reliably — it will
+  happily add a second one.
+- **A stale `<see cref="…"/>` and an unused `using` both fail the build**, because
+  `GenerateDocumentationFile` is on with CS1591/CS1573 suppressed. Documentation stays optional;
+  what is written has to be true.
 
 ## Adding a feature
 
 The vertical, from the inside out. `TodoLists` is the worked example — read it alongside this list.
+`Reminders` is the second one, and the more useful comparison for a new feature: a flat aggregate
+with no child entities, so what a to-do list needs only because it owns items is visible by what
+a reminder does without.
 [docs/ADDING-A-FEATURE.md](docs/ADDING-A-FEATURE.md) walks the same vertical with the actual
 signatures at each step, if this checklist is not enough on its own.
 

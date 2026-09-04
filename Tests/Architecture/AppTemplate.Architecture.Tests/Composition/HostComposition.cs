@@ -87,6 +87,8 @@ internal static class HostComposition
             ["EmailConfirmation:ConfirmEmailUrl"] = "https://localhost:5001/confirm-email",
             ["EmailConfirmation:Subject"] = "Confirm your email address",
 
+            ["EmailChange:ConfirmEmailChangeUrl"] = "https://localhost:5001/confirm-email-change",
+            ["EmailChange:Subject"] = "Confirm your new email address",
             ["PasswordReset:ResetPasswordUrl"] = "https://localhost:5001/reset-password",
             ["PasswordReset:Subject"] = "Reset your password",
 

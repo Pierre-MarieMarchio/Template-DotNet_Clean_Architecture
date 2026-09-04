@@ -50,6 +50,42 @@ internal sealed partial class SecurityEventLog(ILogger<SecurityEventLog> logger)
                 LogSecurityStampRotated(logger, securityEvent.UserId);
                 break;
 
+            case SecurityEventKind.AccountLockedByAdministrator:
+                LogAccountLockedByAdministrator(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.AccountUnlockedByAdministrator:
+                LogAccountUnlockedByAdministrator(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.RoleGranted:
+                LogRoleGranted(logger, securityEvent.UserId, securityEvent.Role);
+                break;
+
+            case SecurityEventKind.RoleRevoked:
+                LogRoleRevoked(logger, securityEvent.UserId, securityEvent.Role);
+                break;
+
+            case SecurityEventKind.AccountDeleted:
+                LogAccountDeleted(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.TwoFactorEnabled:
+                LogTwoFactorEnabled(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.TwoFactorDisabled:
+                LogTwoFactorDisabled(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.TwoFactorChallengeFailed:
+                LogTwoFactorChallengeFailed(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.RecoveryCodeRedeemed:
+                LogRecoveryCodeRedeemed(logger, securityEvent.UserId);
+                break;
+
             default:
                 throw new ArgumentOutOfRangeException(
                     nameof(securityEvent),
@@ -88,4 +124,33 @@ internal sealed partial class SecurityEventLog(ILogger<SecurityEventLog> logger)
 
     [LoggerMessage(Level = LogLevel.Information, Message = "The security stamp for user {UserId} was rotated.")]
     private static partial void LogSecurityStampRotated(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "An administrator locked out user {UserId}.")]
+    private static partial void LogAccountLockedByAdministrator(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "An administrator lifted the lockout on user {UserId}.")]
+    private static partial void LogAccountUnlockedByAdministrator(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "An administrator granted role {Role} to user {UserId}.")]
+    private static partial void LogRoleGranted(ILogger logger, Guid? userId, string? role);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "An administrator revoked role {Role} from user {UserId}.")]
+    private static partial void LogRoleRevoked(ILogger logger, Guid? userId, string? role);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "An administrator deleted user {UserId}.")]
+    private static partial void LogAccountDeleted(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Two-factor sign-in was armed for user {UserId}.")]
+    private static partial void LogTwoFactorEnabled(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Two-factor sign-in was turned off for user {UserId}.")]
+    private static partial void LogTwoFactorDisabled(ILogger logger, Guid? userId);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "A two-factor challenge for user {UserId} was presented with a wrong code.")]
+    private static partial void LogTwoFactorChallengeFailed(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "A recovery code was redeemed for user {UserId}.")]
+    private static partial void LogRecoveryCodeRedeemed(ILogger logger, Guid? userId);
 }

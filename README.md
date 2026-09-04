@@ -13,6 +13,7 @@ policy, without becoming an application you have to delete.
 > - Every configuration key: [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
 > - Running it on Kubernetes: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 > - Why each decision was made, one file per decision: [docs/adr/](docs/adr/README.md)
+> - Deleting the `TodoLists`/`Reminders` examples once you have read them: [docs/REMOVING-THE-EXAMPLE-FEATURES.md](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
 
 ## What is in the box
 
@@ -91,10 +92,11 @@ A few things worth knowing before you commit the result:
   CI workflow you inherit, your first push fails with it. One run fixes it permanently.
   It cannot be fixed in the template itself: no single committed ordering is correct for
   every possible name.
-- **The `TodoLists` feature ships by default** as the worked example for
-  [docs/ADDING-A-FEATURE.md](docs/ADDING-A-FEATURE.md); there is no generator
-  switch to exclude it, and that doc's last section explains why, plus what to
-  remove by hand if you want it gone.
+- **The `TodoLists` and `Reminders` features ship by default** as the worked
+  examples for [docs/ADDING-A-FEATURE.md](docs/ADDING-A-FEATURE.md): one aggregate
+  with child entities, one flat. There is no generator switch to exclude them;
+  [docs/REMOVING-THE-EXAMPLE-FEATURES.md](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
+  is the verified procedure, and says what stops being demonstrated once they go.
 - `dotnet new uninstall <path-to-this-repository>` removes the template again.
 
 `.github/workflows/ci.yml`'s `template` job runs this exact install → generate →
@@ -730,6 +732,18 @@ AppTemplate.Application/
       UseCases/Queries/<Operation>/    GetTodoLists, GetTodoList, GetTodoItems, GetTodoItem
       Dtos/                     TodoListSummaryDto, TodoListDetailDto, TodoItemDto — read models more
                                 than one operation returns
+    Reminders/                  the second worked example: a flat aggregate, no child entities
+      Errors/                   ReminderErrors.cs
+      Ports/<Port>/             ReminderNotifier, ReminderTargets (is the target still outstanding?),
+                                ReminderDiagnostics (the missed-cancellation counter)
+      Services/                 IReminderAccess — identity, ownership and precondition in one gate
+      Mapping/                  ReminderProjection
+      Consumers/TodoItemCompleted/  cancels an item's reminders — a fast path, not the guarantee
+      UseCases/Commands/<Operation>/   ScheduleReminder, RescheduleReminder, CancelReminder, and
+                                FireDueReminders, which the worker runs and which re-reads its
+                                target rather than trusting the event that should have cancelled it
+      UseCases/Queries/<Operation>/    GetReminders
+      Dtos/                     ReminderDto
     Auth/
       Errors/                   AuthErrors.cs — the vertical's failure vocabulary
       Policies/                 CredentialInvalidation, PasswordRules

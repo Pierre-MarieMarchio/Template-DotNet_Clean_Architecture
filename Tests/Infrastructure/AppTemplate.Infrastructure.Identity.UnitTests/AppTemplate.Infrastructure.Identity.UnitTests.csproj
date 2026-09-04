@@ -4,16 +4,14 @@
        is allowed to disclose, how an account email is encoded, and what the options validators
        refuse.
 
-       Most of it needs no infrastructure — the collaborators are ports and the decisions are the
-       module's own. One class is the exception, and deliberately so: single-use rotation under
-       concurrency is a guarantee the *database* makes, so asserting it against a fake store would
-       only assert that the fake was written to agree. That class runs against a real PostgreSQL in a
-       container and races two presentations of the same token.
+       Everything here runs without infrastructure: the collaborators are ports and the decisions are
+       the module's own. What needs a database — single-use rotation under concurrency, which is a
+       guarantee the database makes rather than this module — lives in
+       Tests/Integration/AppTemplate.Infrastructure.Identity.IntegrationTests, so that running this
+       project needs no container.
 
        The identity module's types are internal apart from IdentityModule, so this project holds
-       InternalsVisibleTo from it. It needs none from AppTemplate.Infrastructure.Persistence: the grant store
-       is reached through the public IRefreshTokenStore, exactly as the module reaches it, and rows
-       are inspected over the context's own connection. -->
+       InternalsVisibleTo from it. -->
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
@@ -35,7 +33,6 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Shouldly" />
-    <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>

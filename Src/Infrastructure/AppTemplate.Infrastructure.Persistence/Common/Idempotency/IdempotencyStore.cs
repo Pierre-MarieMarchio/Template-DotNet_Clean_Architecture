@@ -32,6 +32,7 @@ internal sealed class IdempotencyStore(
     public async Task<IdempotencyClaim> ClaimAsync(
         IdempotencyKey key,
         DateTimeOffset expiresAt,
+        DateTimeOffset claimedUntil,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(key);
@@ -45,6 +46,7 @@ internal sealed class IdempotencyStore(
             Endpoint = key.Endpoint,
             Fingerprint = key.Fingerprint,
             IsCompleted = false,
+            ClaimedUntil = claimedUntil,
             CreatedAt = dateTimeProvider.UtcNow,
             ExpiresAt = expiresAt,
         });
@@ -62,13 +64,67 @@ internal sealed class IdempotencyStore(
             // running. Detaching it is what makes the re-read safe.
             entry.State = EntityState.Detached;
 
-            var existing = await context.IdempotencyKeys
-                .AsNoTracking()
-                .SingleAsync(record => record.UserId == key.UserId && record.Key == key.Key, ct);
-
-            return Decide(key, existing);
+            return await ClaimExistingAsync(context, key, expiresAt, claimedUntil, ct);
         }
     }
+
+    /// <summary>
+    /// What the loser of the initial insert race does next: read the row it collided with, and either
+    /// accept its verdict or — when that row is an unfinished claim whose lease has run out — reclaim
+    /// it for this attempt instead of reporting <see cref="IdempotencyOutcome.InProgress"/> forever.
+    /// </summary>
+    private async Task<IdempotencyClaim> ClaimExistingAsync(
+        AppDbContext context,
+        IdempotencyKey key,
+        DateTimeOffset expiresAt,
+        DateTimeOffset claimedUntil,
+        CancellationToken ct)
+    {
+        var existing = await ReadAsync(context, key, ct);
+
+        // A fingerprint mismatch means the same key string was reused for a genuinely different
+        // request — a client error, not an abandoned claim. Never reclaim on the strength of that,
+        // no matter how stale the row looks.
+        if (!string.Equals(existing.Fingerprint, key.Fingerprint, StringComparison.Ordinal))
+        {
+            return IdempotencyClaim.KeyReused();
+        }
+
+        if (!HasExpiredLease(existing, dateTimeProvider.UtcNow))
+        {
+            return Decide(key, existing);
+        }
+
+        // Same two-participant rendezvous as RefreshTokenStore.TryRotateAsync: the WHERE clause
+        // restates every condition that made the row reclaimable, so the database — not this read —
+        // decides which of two simultaneous retries wins. Zero rows affected means we lost.
+        int reclaimed = await context.IdempotencyKeys
+            .Where(record =>
+                record.UserId == key.UserId
+                && record.Key == key.Key
+                && !record.IsCompleted
+                && record.ClaimedUntil <= dateTimeProvider.UtcNow)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(record => record.ClaimedUntil, claimedUntil)
+                    .SetProperty(record => record.ExpiresAt, expiresAt),
+                ct);
+
+        if (reclaimed > 0)
+        {
+            return IdempotencyClaim.Claimed();
+        }
+
+        // Lost the reclaim race: another retry got there first, and may since have completed or
+        // renewed the lease again. Whatever its row says now is final enough to answer with — a
+        // caller that disagrees will simply retry.
+        return Decide(key, await ReadAsync(context, key, ct));
+    }
+
+    private static Task<IdempotencyRecord> ReadAsync(AppDbContext context, IdempotencyKey key, CancellationToken ct) =>
+        context.IdempotencyKeys
+            .AsNoTracking()
+            .SingleAsync(record => record.UserId == key.UserId && record.Key == key.Key, ct);
 
     public async Task CompleteAsync(IdempotencyKey key, IdempotentResponse response, CancellationToken ct = default)
     {
@@ -173,11 +229,18 @@ internal sealed class IdempotencyStore(
     }
 
     /// <summary>
-    /// What a lost race means for the loser, read off the row the winner (or an earlier attempt by
-    /// the same caller) wrote. Isolated from EF and Npgsql, like
+    /// What a lost race means for the loser, read off the row the winner (an earlier attempt by the
+    /// same caller, or — once <see cref="ClaimExistingAsync"/> has ruled out a reclaim — whoever
+    /// currently holds the lease) wrote. Isolated from EF and Npgsql, like
     /// <see cref="RunBatchedDeleteAsync"/>, so the rules it encodes — and the replay it rebuilds from
     /// stored columns — can be exercised without a database.
     /// </summary>
+    /// <remarks>
+    /// Deliberately does not look at <see cref="IdempotencyRecord.ClaimedUntil"/>: by the time this
+    /// runs, <see cref="ClaimExistingAsync"/> has already established that either the lease is still
+    /// valid, or a reclaim attempt against it just lost. Either way "still running" is the right
+    /// answer here, with no further lease arithmetic to repeat.
+    /// </remarks>
     internal static IdempotencyClaim Decide(IdempotencyKey key, IdempotencyRecord existing)
     {
         if (!string.Equals(existing.Fingerprint, key.Fingerprint, StringComparison.Ordinal))
@@ -202,6 +265,15 @@ internal sealed class IdempotencyStore(
                 existing.Location,
                 existing.ETag));
     }
+
+    /// <summary>
+    /// Whether an unfinished claim's lease has run out, and it is therefore fair game for
+    /// <see cref="ClaimExistingAsync"/> to reclaim on behalf of a new retry instead of reporting
+    /// <see cref="IdempotencyOutcome.InProgress"/> for the rest of the row's retention window.
+    /// Isolated from EF, like <see cref="Decide"/>, so it can be exercised without a database.
+    /// </summary>
+    internal static bool HasExpiredLease(IdempotencyRecord existing, DateTimeOffset now) =>
+        !existing.IsCompleted && existing.ClaimedUntil <= now;
 
     private static bool IsPrimaryKeyViolation(DbUpdateException exception) =>
         exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };

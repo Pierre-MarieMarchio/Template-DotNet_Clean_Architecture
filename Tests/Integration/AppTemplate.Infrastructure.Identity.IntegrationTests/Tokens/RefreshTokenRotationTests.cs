@@ -1,9 +1,9 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Infrastructure.Identity.IntegrationTests.Fixtures;
 using AppTemplate.Infrastructure.Identity.Options;
 using AppTemplate.Infrastructure.Identity.Tokens;
-using AppTemplate.Infrastructure.Identity.UnitTests.Fixtures;
 using AppTemplate.Infrastructure.Identity.Users;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Stores;
@@ -14,7 +14,7 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Tokens;
+namespace AppTemplate.Infrastructure.Identity.IntegrationTests.Tokens;
 
 /// <summary>
 /// Single-use rotation, against a real database.

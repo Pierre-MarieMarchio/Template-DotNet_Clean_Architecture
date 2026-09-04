@@ -1,12 +1,19 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
+using AppTemplate.Application.Features.Auth.Ports.AccountDeletion;
+using AppTemplate.Application.Features.Auth.Ports.AccountLockouts;
 using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailComposer;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetTokens;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenMaintenance;
+using AppTemplate.Application.Features.Auth.Ports.RoleAssignments;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
+using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Infrastructure.Identity.Bearer;
@@ -102,13 +109,20 @@ public static class IdentityModule
         // replacing one is a single line here.
         services.AddScoped<IUserAccounts, UserAccounts>();
         services.AddScoped<IUserProfiles, UserProfiles>();
+        services.AddScoped<IAccountLockouts, AccountLockouts>();
+        services.AddScoped<IRoleAssignments, RoleAssignments>();
+        services.AddScoped<IAccountDeletion, AccountDeletion>();
         services.AddScoped<IEmailConfirmationTokens, EmailConfirmationTokens>();
         services.AddScoped<IPasswordResetTokens, PasswordResetTokens>();
+        services.AddScoped<IEmailChangeTokens, EmailChangeTokens>();
         services.AddScoped<IAccessTokenIssuer, AccessTokenIssuer>();
         services.AddScoped<IRefreshTokenGrants, RefreshTokenGrants>();
         services.AddScoped<IRefreshTokenMaintenance, RefreshTokenMaintenance>();
+        services.AddScoped<ITwoFactorEnrollment, TwoFactorEnrollment>();
+        services.AddScoped<ITwoFactorChallenge, TwoFactorChallenge>();
         services.AddScoped<IConfirmationEmailComposer, ConfirmationEmailComposer>();
         services.AddScoped<IPasswordResetEmailComposer, PasswordResetEmailComposer>();
+        services.AddScoped<IEmailChangeEmailComposer, EmailChangeEmailComposer>();
         services.AddScoped<ISecurityEventLog, SecurityEventLog>();
 
         // Not a port: the account lookup and claim generation the two token adapters share.
@@ -153,6 +167,16 @@ public static class IdentityModule
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<PasswordResetOptions>, PasswordResetOptionsValidator>();
 
+        services.AddOptions<EmailChangeOptions>()
+            .Bind(configuration.GetSection(EmailChangeOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<EmailChangeOptions>, EmailChangeOptionsValidator>();
+
+        services.AddOptions<TwoFactorOptions>()
+            .Bind(configuration.GetSection(TwoFactorOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<TwoFactorOptions>, TwoFactorOptionsValidator>();
+
         // IdentitySeedOptions is deliberately absent: seeding is a persistence concern and the
         // persistence module binds and validates that section. The section name is unchanged.
     }
@@ -164,7 +188,9 @@ public static class IdentityModule
             .AddDefaultTokenProviders()
             // A provider of its own, not the "Default" one email confirmation resolves to — see
             // PasswordResetTokenProviderName for why sharing it would tie the two lifespans together.
-            .AddTokenProvider<PasswordResetTokenProvider>(PasswordResetTokenProviderName.Value);
+            .AddTokenProvider<PasswordResetTokenProvider>(PasswordResetTokenProviderName.Value)
+            // Same reasoning again, for the email-change token — see EmailChangeTokenProviderName.
+            .AddTokenProvider<EmailChangeTokenProvider>(EmailChangeTokenProviderName.Value);
 
         // Applied after AddIdentity's own defaults, and sourced from validated options rather than
         // from a section read eagerly at composition time.
@@ -195,6 +221,11 @@ public static class IdentityModule
                 // above instead of ASP.NET Identity's own "Default" — the value it and email
                 // confirmation would otherwise both resolve to.
                 identity.Tokens.PasswordResetTokenProvider = PasswordResetTokenProviderName.Value;
+
+                // Same reasoning again: ChangeEmailAsync/GenerateChangeEmailTokenAsync default to
+                // "Default" too, which would tie an email-change link to email confirmation's
+                // one-day lifespan instead of its own, shorter one.
+                identity.Tokens.ChangeEmailTokenProvider = EmailChangeTokenProviderName.Value;
             });
 
         // Every provider AddDefaultTokenProviders just registered shares this one options type, so
@@ -208,6 +239,11 @@ public static class IdentityModule
         services.AddOptions<PasswordResetTokenProviderOptions>()
             .Configure<IOptions<PasswordResetOptions>>(
                 (tokenOptions, passwordResetOptions) => tokenOptions.TokenLifespan = passwordResetOptions.Value.TokenLifespan);
+
+        // The email-change provider's own lifespan, independent of both of the above.
+        services.AddOptions<EmailChangeTokenProviderOptions>()
+            .Configure<IOptions<EmailChangeOptions>>(
+                (tokenOptions, emailChangeOptions) => tokenOptions.TokenLifespan = emailChangeOptions.Value.TokenLifespan);
     }
 
     /// <summary>

@@ -3,6 +3,7 @@ using AppTemplate.Api.UnitTests.TestSupport;
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Idempotency;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -53,6 +54,7 @@ public sealed class IdempotencyFilterTests
 
         await store.DidNotReceive().ClaimAsync(
             Arg.Any<IdempotencyKey>(),
+            Arg.Any<DateTimeOffset>(),
             Arg.Any<DateTimeOffset>(),
             Arg.Any<CancellationToken>());
 
@@ -124,6 +126,100 @@ public sealed class IdempotencyFilterTests
 
         nextWasCalled.ShouldBeTrue();
         context.Result.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// Response writing starts only once the action has already produced a result, and every
+    /// <see cref="IdempotentAttribute"/> action returns one only once its use case has committed. An
+    /// exception caught with the response already under way must therefore never release the claim —
+    /// doing so would let a retry run an already-committed write again for real. Without the
+    /// <c>HasStarted</c> guard in <see cref="IdempotencyFilter"/>, this test fails: the old code
+    /// released on every exception from <c>next()</c>, this scenario included.
+    /// </summary>
+    [Fact]
+    public async Task AnExceptionAfterTheResponseHasStarted_DoesNotReleaseTheClaim()
+    {
+        var store = Substitute.For<IIdempotencyStore>();
+        store.ClaimAsync(
+            Arg.Any<IdempotencyKey>(),
+            Arg.Any<DateTimeOffset>(),
+            Arg.Any<DateTimeOffset>(),
+            Arg.Any<CancellationToken>()).Returns(IdempotencyClaim.Claimed());
+
+        var currentUser = Substitute.For<ICurrentUser>();
+        currentUser.UserId.Returns(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+
+        var filter = new IdempotencyFilter(
+            store,
+            Options.Create(new IdempotencyOptions()),
+            currentUser,
+            Substitute.For<IDateTimeProvider>(),
+            new RecordingLogger<IdempotencyFilter>());
+
+        var context = CreateIdempotentPostContext(idempotencyKey: "some-key");
+        context.HttpContext.Features.Set<IHttpResponseFeature>(new AlreadyStartedResponseFeature());
+
+        ResourceExecutionDelegate next = () => throw new InvalidOperationException("client disconnected mid-write");
+
+        await Should.ThrowAsync<InvalidOperationException>(() => filter.OnResourceExecutionAsync(context, next));
+
+        await store.DidNotReceive().ReleaseAsync(Arg.Any<IdempotencyKey>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// The counterpart to the test above: nothing has been written yet, so whatever threw did so
+    /// before the action could have produced a committed result at all — releasing here is still
+    /// exactly right, and must stay right after the fix above.
+    /// </summary>
+    [Fact]
+    public async Task AnExceptionBeforeTheResponseHasStarted_StillReleasesTheClaim()
+    {
+        var store = Substitute.For<IIdempotencyStore>();
+        store.ClaimAsync(
+            Arg.Any<IdempotencyKey>(),
+            Arg.Any<DateTimeOffset>(),
+            Arg.Any<DateTimeOffset>(),
+            Arg.Any<CancellationToken>()).Returns(IdempotencyClaim.Claimed());
+
+        var currentUser = Substitute.For<ICurrentUser>();
+        currentUser.UserId.Returns(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+
+        var filter = new IdempotencyFilter(
+            store,
+            Options.Create(new IdempotencyOptions()),
+            currentUser,
+            Substitute.For<IDateTimeProvider>(),
+            new RecordingLogger<IdempotencyFilter>());
+
+        var context = CreateIdempotentPostContext(idempotencyKey: "some-key");
+
+        ResourceExecutionDelegate next = () => throw new InvalidOperationException("the use case blew up before committing anything");
+
+        await Should.ThrowAsync<InvalidOperationException>(() => filter.OnResourceExecutionAsync(context, next));
+
+        await store.Received(1).ReleaseAsync(Arg.Any<IdempotencyKey>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>A response that has already started sending, the way a real Kestrel one would report it.</summary>
+    private sealed class AlreadyStartedResponseFeature : IHttpResponseFeature
+    {
+        public int StatusCode { get; set; } = StatusCodes.Status200OK;
+
+        public string? ReasonPhrase { get; set; }
+
+        public IHeaderDictionary Headers { get; set; } = new HeaderDictionary();
+
+        public Stream Body { get; set; } = Stream.Null;
+
+        public bool HasStarted => true;
+
+        public void OnStarting(Func<object, Task> callback, object state)
+        {
+        }
+
+        public void OnCompleted(Func<object, Task> callback, object state)
+        {
+        }
     }
 
     private static ResourceExecutingContext CreateIdempotentPostContext(string? idempotencyKey)

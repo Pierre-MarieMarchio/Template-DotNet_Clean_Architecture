@@ -21,6 +21,30 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **A second example feature, `Reminders`: a flat aggregate, no child entities.** A reminder is
+  scheduled on a to-do item, fired by `AppTemplate.Worker` on a due-date query, and cancelled when
+  its item is completed. It exists to be *different in shape* from `TodoLists` — what a to-do list's
+  persistence needs only because it owns items is now legible from what a reminder does without, and
+  that comparison is what decided which parts of the persistence layer were extracted and which were
+  left duplicated (`docs/adr/0027`).
+- **Correctness that does not depend on event delivery** (`docs/adr/0026`, amending `0017`). Firing a
+  reminder re-reads whether its item is still outstanding rather than trusting the event that should
+  have cancelled it, cancellation assigns a state so a redelivery is a no-op, and the case where
+  re-reading finds an already-completed item increments
+  `apptemplate.reminders.missed_cancellations` — the number of domain events that went missing.
+  Deleting an item needs no domain event at all: its reminders retire at their next due date.
+- **Changing an email address**, with the current password required, the token issued for and mailed
+  to the *new* address under its own named provider, an unchanged answer when that address is
+  already taken, and the refresh-token revocation that a security-stamp rotation does not perform by
+  itself.
+- **Administrative account operations are covered by a lease on every claim** — see Fixed.
+- **Raw Kubernetes manifests** under `deploy/kubernetes/`, with `docs/DEPLOYMENT.md`. Deployment,
+  Service and Ingress for the API, a Deployment of its own for the worker, and a migration Job
+  because `docs/adr/0009` refuses to migrate at startup. `preStop`, `Shutdown__Timeout` and
+  `terminationGracePeriodSeconds` are one arithmetic and the manifests say which constrains which.
+- **`docs/REMOVING-THE-EXAMPLE-FEATURES.md`**, a procedure that was carried out before it was
+  written, and which states what stops being demonstrated once the examples are gone.
+
 - **A collection-query contract: sorting, filtering and two paging modes.** `GET /api/v1/todo-lists`
   now takes `sort`, `search`, `createdAfter`, `createdBefore`, `paging`, `cursor` alongside
   `page`/`pageSize`. Sorting is multi-field with a direction per field over a **per-feature
@@ -116,6 +140,24 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Fixed
 
+- **An idempotency claim now carries a lease.** A process dying between claiming a key and completing
+  it left the row in progress, and every retry got `409` until the 24-hour retention purge — an
+  interrupted write was unretryable for a day, for an operation that may never have happened.
+  `IdempotencyOptions:ClaimLease` bounds it, an expired claim is taken over by a conditional update
+  whose zero-row result is the signal, and the filter no longer releases a claim whose write had
+  already committed.
+- **`ConfirmEmailAsync` rotates the security stamp**, which is what makes the confirmation token
+  single-use — the command documented it as such while the token stayed replayable until it expired.
+- **The worker's container image builds again**, and the release workflow publishes it. Its restore
+  layer was missing a project, which `dotnet restore` skips with a log line rather than an error, so
+  the failure only appeared at publish time.
+- **`dotnet new` regenerates every project guid.** Five were missing from the list, so two projects
+  generated from this template shared them. Generated projects no longer carry `HANDOFF.md` or a
+  `.vs` cache.
+- **A stale `<see cref="…"/>` or an unused `using` now fails the build.** Nine cross-references were
+  wrong, one of them naming the wrong layer for a repository contract; forty-two unnecessary usings
+  were in the tree while the formatting gate believed to catch them was green.
+
 - **A failure the framework produced carried no `code`.** The API's contract is that a client
   branches on the `code` extension and never on prose, but only errors the application *authors* went
   through `ErrorResults` and got one. A body that is not JSON, a route segment failing its `:guid`
@@ -156,6 +198,15 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   assembly. Coverage now excludes that project, and every test still runs exactly once.
 
 ### Changed
+
+- **One closed folder vocabulary per layer, and one public type per file** (`docs/adr/0025`). Each
+  use case owns a folder holding its command, interface, implementation and validator; each port
+  owns a folder holding its interface and the messages it exchanges. Architecture tests read the
+  source tree and refuse a folder outside the vocabulary, an empty folder, a file declaring two
+  public types, and a use-case folder that does not name what is inside it.
+- **A repository contract lives in the Domain; every other port lives in Application**
+  (`docs/adr/0024`). The domain's `Stores/` folder is now `Repositories/`, after the contract it has
+  always held; `Store` is kept for a technical contract with no aggregate behind it.
 
 - **BREAKING: the project prefix is `AppTemplate`, not `CA`.** Every project, namespace, `.sln`/
   `.csproj`/`.http` file name, `InternalsVisibleTo`, and `.editorconfig` path-scoped section is

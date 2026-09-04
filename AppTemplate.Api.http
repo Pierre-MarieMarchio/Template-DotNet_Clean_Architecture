@@ -24,6 +24,7 @@
 @password = Str0ng!Passw0rd
 @newPassword = {{password}}-2
 @resetPassword = {{password}}-3
+@newEmail = ada.new@localhost
 
 ###
 # 1. Register. The account is committed before the mail is handed to the relay, so
@@ -112,9 +113,14 @@ Content-Type: application/json
 
 ###
 # 7b. The caller's own profile. The only endpoint that publishes an account: neither register nor
-#     login returns one, so a client reads it here once it holds a token.
+#     login returns one, so a client reads it here once it holds a token. Captured for the
+#     administration walkthrough at 33i onward, which needs an id to act on.
+# @name myProfile
 GET {{api}}/auth/me
 Authorization: Bearer {{accessToken}}
+
+###
+@myUserId = {{myProfile.response.body.$.userId}}
 
 ###
 # 8. Without a token: 401. The application's fallback policy requires an authenticated user,
@@ -491,6 +497,177 @@ Content-Type: application/json
   "email": "{{email}}",
   "token": "{{resetToken}}",
   "newPassword": "{{resetPassword}}"
+}
+
+###
+# 33e. Sign in again with the password reset above: 33b's change-password already revoked every
+#      refresh token this file captured earlier, so nothing below has a working access token yet.
+# @name reLogin
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{resetPassword}}"
+}
+
+###
+@freshAccessToken = {{reLogin.response.body.$.tokens.accessToken}}
+
+###
+# 33f. Start an email change. Authenticated, and the current password is presented again for the
+#      same reason as 33b. 204 whether or not the new address is already registered: the response
+#      must not say which addresses exist. The token is mailed to the new address, not the old one.
+POST {{api}}/auth/change-email
+Authorization: Bearer {{freshAccessToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "{{resetPassword}}",
+  "newEmail": "{{newEmail}}"
+}
+
+###
+# 33g. MANUAL STEP. Read the email-change mail out of mailpit — sent to {{newEmail}}, not
+#      {{email}} — and copy its token into @emailChangeToken below.
+# @name emailChangeMail
+GET {{mailpit}}/api/v1/message/latest
+Accept: application/json
+
+###
+# Paste the token from request 33g here.
+@emailChangeToken = paste-the-token-from-request-33g
+
+###
+# 33h. Confirm the change. Authenticated by the same access token as 33f: the new address is not on
+#      file yet, so there is nothing to look it up by until this call succeeds. Rotates the security
+#      stamp, so that access token stops working immediately after — sign in again with
+#      {{newEmail}} before running anything below that needs one.
+POST {{api}}/auth/confirm-email-change
+Authorization: Bearer {{freshAccessToken}}
+Content-Type: application/json
+
+{
+  "newEmail": "{{newEmail}}",
+  "token": "{{emailChangeToken}}"
+}
+
+###
+# 33i. Administration: lock an account out. Administrator-only, like every request below — this
+#      walkthrough account holds no such role, so all of these are expected to 403 unless it has
+#      been granted one directly against the database (registration never grants it). Read as
+#      documentation of that 403, the same way requests 37/38 already are.
+#      {{myUserId}} names the caller itself here only because no second account exists in this
+#      walkthrough to target; against a real second account this would 204 for an administrator.
+POST {{api}}/auth/accounts/{{myUserId}}/lockout
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33j. Lift the lockout. A no-op, not a 404, on an account that was never locked.
+DELETE {{api}}/auth/accounts/{{myUserId}}/lockout
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33k. Grant a role. PUT, not POST: asking twice for the same role is idempotent in effect.
+PUT {{api}}/auth/accounts/{{myUserId}}/roles/Admin
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33l. Revoke a role. Even a real administrator gets a 403 removing a role from their own account —
+#      not just from lacking the policy, but from RemoveRoleUseCase's own guard against acting on
+#      oneself. Against a real administrator this would still 403, for that second reason instead.
+DELETE {{api}}/auth/accounts/{{myUserId}}/roles/Admin
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33m. Delete the account outright. Same self-guard as 33l. 204 against someone else's account
+#      deletes exactly the identity row and what ASP.NET Identity owns alongside it — any to-do list
+#      or reminder that account owns is left in place, owned by an id nothing can sign in as any
+#      longer. See IAccountDeletion for why this call does not reach for either feature, and where
+#      the cleanup for their rows belongs instead.
+DELETE {{api}}/auth/accounts/{{myUserId}}
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33n. Two-factor sign-in: begin enrollment. Returns a shared key and an otpauth:// URI — scan the
+#      URI as a QR code with an authenticator app, or type the shared key in by hand. Provisioning
+#      rotates the security stamp (see TwoFactorOptions and SetUpTwoFactorUseCase), which invalidates
+#      {{freshAccessToken}} on its very next use — sign in again before the next request, the same
+#      way 33b already does after a password change.
+# @name twoFactorSetup
+POST {{api}}/auth/two-factor/setup
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# @name reLoginAfterTwoFactorSetup
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{resetPassword}}"
+}
+
+###
+@postSetupAccessToken = {{reLoginAfterTwoFactorSetup.response.body.$.tokens.accessToken}}
+
+###
+# 33o. MANUAL STEP. Confirm with the six-digit code your authenticator app now shows for the shared
+#      key from 33n. This is what actually arms two-factor sign-in — 33n alone arms nothing, so a
+#      key that was never scanned successfully cannot lock the account out. Returns ten recovery
+#      codes; write them down, they are shown once and never retrievable again.
+@twoFactorCode = paste-the-six-digit-code-from-your-authenticator-app
+POST {{api}}/auth/two-factor/confirm
+Authorization: Bearer {{postSetupAccessToken}}
+Content-Type: application/json
+
+{
+  "code": "{{twoFactorCode}}"
+}
+
+###
+# 33p. Sign in again. A correct password on a two-factor account no longer answers with a token pair
+#      by itself — 33o's confirmation also revoked every refresh token, so this is required either
+#      way, but the shape of the answer is the point: `status` is now `twoFactorRequired`, carrying a
+#      challenge token instead of `tokens`.
+# @name twoFactorLogin
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{resetPassword}}"
+}
+
+###
+@twoFactorChallengeToken = {{twoFactorLogin.response.body.$.challengeToken}}
+
+###
+# 33q. MANUAL STEP. Complete the second step with the authenticator app's current code — a fresh one,
+#      not the one pasted into 33o, since a TOTP code is only valid for a 30-second window. A
+#      recovery code from 33o works here too, once each.
+@secondTwoFactorCode = paste-the-current-six-digit-code
+# @name twoFactorVerify
+POST {{api}}/auth/login/two-factor
+Content-Type: application/json
+
+{
+  "challengeToken": "{{twoFactorChallengeToken}}",
+  "code": "{{secondTwoFactorCode}}"
+}
+
+###
+@twoFactorAccessToken = {{twoFactorVerify.response.body.$.tokens.accessToken}}
+
+###
+# 33r. Turn two-factor sign-in back off. The current password is presented again, for the reason 33b
+#      gives: a stolen session alone must not be able to strip the account's second factor.
+POST {{api}}/auth/two-factor/disable
+Authorization: Bearer {{twoFactorAccessToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "{{resetPassword}}"
 }
 
 ###

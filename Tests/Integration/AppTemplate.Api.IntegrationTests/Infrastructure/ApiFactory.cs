@@ -180,6 +180,10 @@ public sealed class ApiFactory : WebApplicationFactory<ApiControllerBase>
                 "https://client.integration.test/reset-password",
             [$"{PasswordResetOptions.SectionName}__Subject"] = "Reset your password",
 
+            [$"{EmailChangeOptions.SectionName}__ConfirmEmailChangeUrl"] =
+                "https://client.integration.test/confirm-email-change",
+            [$"{EmailChangeOptions.SectionName}__Subject"] = "Confirm your new email address",
+
             [$"{IdentitySeedOptions.SectionName}__Enabled"] = "false",
 
             // Information, because a test asserts on a log the product's domain-event consumer

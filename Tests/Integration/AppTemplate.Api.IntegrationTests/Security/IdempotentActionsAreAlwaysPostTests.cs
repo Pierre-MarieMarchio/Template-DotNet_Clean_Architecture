@@ -29,6 +29,7 @@ public sealed class IdempotentActionsAreAlwaysPostTests
     /// misapplied [Idempotent] on it escape this rule.</summary>
     private static readonly Type[] _controllers =
     [
+        typeof(AccountAdministrationController),
         typeof(AuthController),
         typeof(MaintenanceController),
         typeof(RemindersController),

@@ -4,6 +4,7 @@ using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 using FluentValidation;
 
@@ -13,6 +14,7 @@ public sealed class LoginUseCase(
     IUserAccounts accounts,
     IAccessTokenIssuer accessTokens,
     IRefreshTokenGrants refreshTokens,
+    ITwoFactorChallenge twoFactorChallenge,
     ISecurityEventLog securityEventLog,
     IValidator<LoginCommand> validator) : ILoginUseCase
 {
@@ -42,6 +44,18 @@ public sealed class LoginUseCase(
             securityEventLog.Record(SecurityEvent.AuthenticationFailed(credential.Account?.UserId, credential.Outcome));
 
             return Result.Failure<LoginOutcome>(AuthErrors.InvalidCredentials);
+        }
+
+        // A verified password on a two-factor account is only half a login: the challenge issued here
+        // proves nothing on its own, and LoginSucceeded/the token pair wait for VerifyTwoFactorUseCase
+        // to redeem it. Checked after the credential, never before — see the comment above for why
+        // the order matters: an unauthenticated caller must learn nothing about the account from a
+        // guess alone, and this branch is only reached once the password already matched.
+        if (account.TwoFactorEnabled)
+        {
+            var challenge = await twoFactorChallenge.IssueAsync(account.UserId, cancellationToken);
+
+            return Result.Success<LoginOutcome>(new LoginOutcome.TwoFactorRequired(challenge.ChallengeToken));
         }
 
         securityEventLog.Record(SecurityEvent.LoginSucceeded(account.UserId));

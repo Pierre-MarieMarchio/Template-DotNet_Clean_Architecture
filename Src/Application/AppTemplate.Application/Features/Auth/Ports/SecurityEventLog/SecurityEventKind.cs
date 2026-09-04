@@ -28,7 +28,7 @@ public enum SecurityEventKind
     /// <summary>
     /// A user's security stamp was rotated, invalidating every credential issued against the old
     /// one. Recorded by a password change and by a password reset, both through
-    /// <see cref="AppTemplate.Application.Features.Auth.Policies.CredentialInvalidation"/>.
+    /// <see cref="AppTemplate.Application.Features.Auth.Policies.CredentialInvalidationPolicy"/>.
     /// </summary>
     SecurityStampRotated,
 
@@ -66,7 +66,7 @@ public enum SecurityEventKind
 
     /// <summary>
     /// An administrator disabled two-factor sign-in on someone else's account through
-    /// <see cref="AppTemplate.Application.Features.Auth.Ports.TwoFactorAdministration.ITwoFactorAdministration"/>,
+    /// <see cref="AppTemplate.Application.Features.Auth.Ports.TwoFactorAdministration.ITwoFactorAdministrationService"/>,
     /// rather than the account itself proving its password through <see cref="TwoFactorDisabled"/>'s route.
     /// </summary>
     TwoFactorDisabledByAdministrator,

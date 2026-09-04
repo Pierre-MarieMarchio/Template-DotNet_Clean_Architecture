@@ -10,11 +10,11 @@ namespace AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeEx
 /// <see cref="PurgeExpiredIdempotencyKeys.PurgeExpiredIdempotencyKeysUseCase"/>: nothing about a
 /// caller's own request needs this, only the operator running the store's housekeeping. Left
 /// unpurged, this table grows by one row per rotation forever — see
-/// <see cref="IRefreshTokenMaintenance"/> for why a grant still lingers a while after it expires
+/// <see cref="IRefreshTokenMaintenanceService"/> for why a grant still lingers a while after it expires
 /// rather than being deleted immediately.
 /// </summary>
 public sealed class PurgeExpiredRefreshTokensUseCase(
-    IRefreshTokenMaintenance maintenance,
+    IRefreshTokenMaintenanceService maintenance,
     IDateTimeProvider dateTimeProvider) : IPurgeExpiredRefreshTokensUseCase
 {
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default) =>

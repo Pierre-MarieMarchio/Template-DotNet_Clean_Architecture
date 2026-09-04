@@ -20,8 +20,15 @@ builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 // the same infrastructure modules AppTemplate.Api uses for these two use cases, with no use case
 // and no domain type touched to make it work here.
 //
-// AppTemplate.Infrastructure.Identity is composed only because IRefreshTokenMaintenance's sole
-// adapter lives there — see AppTemplate.Worker.csproj for what that costs in configuration surface.
+// AppTemplate.Infrastructure.Identity is composed for two reasons, and the one written here alone
+// for months was the smaller: IRefreshTokenMaintenanceService's sole adapter lives there. The
+// larger is that EmailReminderNotifier — the adapter behind this host's own reminder loop, not a
+// favour to the API — resolves IUserProfilesService to find the address a due reminder is rung at.
+// Above both, AddApplicationLayer registers every use case in the assembly, so ValidateOnBuild
+// requires every port the layer declares to resolve in every host, not only the ports these two
+// loops reach. TheWorkerContainer_NeedsIdentityForItsReminderLoop_NotOnlyForThePurgeAdapter holds
+// that, so the claim cannot rot again. See AppTemplate.Worker.csproj for what it costs in
+// configuration surface.
 // AddEmailModule is here for one port: a reminder that comes due is rung by mail.
 builder.Services.AddApplicationLayer();
 builder.Services.AddPersistenceModule(builder.Configuration);

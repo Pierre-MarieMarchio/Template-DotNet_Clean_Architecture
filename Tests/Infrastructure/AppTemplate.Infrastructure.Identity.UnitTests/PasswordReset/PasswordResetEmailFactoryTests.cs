@@ -1,17 +1,17 @@
-﻿using AppTemplate.Infrastructure.Identity.Notifications;
-using AppTemplate.Infrastructure.Identity.Options;
+﻿using AppTemplate.Infrastructure.Identity.PasswordReset;
+using AppTemplate.Infrastructure.Identity.UnitTests.EmailConfirmation;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Notifications;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.PasswordReset;
 
 /// <summary>
-/// Mirrors <see cref="ConfirmationEmailComposerTests"/>: the composer's job is to put a user-supplied
+/// Mirrors <see cref="ConfirmationEmailFactoryTests"/>: the factory's job is to put a user-supplied
 /// name into an HTML document, which makes it an injection site, and the encoding is the whole
 /// defence.
 /// </summary>
-public sealed class PasswordResetEmailComposerTests
+public sealed class PasswordResetEmailFactoryTests
 {
     private const string _resetPage = "https://localhost:5001/reset-password";
 
@@ -22,7 +22,7 @@ public sealed class PasswordResetEmailComposerTests
     {
         const string hostile = "<a href=\"https://evil.test\">click me</a>";
 
-        var message = await CreateComposer().ComposeAsync(
+        var message = await CreateFactory().CreateAsync(
             hostile,
             "victim@identity.test",
             "reset-token",
@@ -39,7 +39,7 @@ public sealed class PasswordResetEmailComposerTests
     [Fact]
     public async Task ComposeAsync_PutsTheTokenInTheLinkFragment()
     {
-        var message = await CreateComposer().ComposeAsync(
+        var message = await CreateFactory().CreateAsync(
             "someone",
             "someone@identity.test",
             "a+token/with=reserved characters",
@@ -52,7 +52,7 @@ public sealed class PasswordResetEmailComposerTests
     [Fact]
     public async Task ComposeAsync_CarriesTheConfiguredSubject()
     {
-        var message = await CreateComposer().ComposeAsync(
+        var message = await CreateFactory().CreateAsync(
             "someone",
             "someone@identity.test",
             "reset-token",
@@ -61,7 +61,7 @@ public sealed class PasswordResetEmailComposerTests
         message.Subject.ShouldBe("Reset your password");
     }
 
-    private static PasswordResetEmailComposer CreateComposer() =>
+    private static PasswordResetEmailFactory CreateFactory() =>
         new(new OptionsWrapper<PasswordResetOptions>(new PasswordResetOptions
         {
             ResetPasswordUrl = new Uri(_resetPage, UriKind.Absolute),

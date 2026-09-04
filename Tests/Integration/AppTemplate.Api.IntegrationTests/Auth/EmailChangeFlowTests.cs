@@ -167,7 +167,7 @@ public sealed class EmailChangeFlowTests(ApiFixture fixture) : IntegrationTestBa
     /// <summary>
     /// The stamp rotation kills access tokens on its own; refresh tokens are this codebase's own and
     /// survive it untouched unless <c>ConfirmEmailChangeUseCase</c> revokes them itself through
-    /// <c>CredentialInvalidation</c>.
+    /// <c>CredentialInvalidationPolicy</c>.
     /// </summary>
     [Fact]
     public async Task ConfirmEmailChange_RevokesEveryRefreshTokenForTheAccount()

@@ -1,16 +1,17 @@
 ﻿using AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
+using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace AppTemplate.Infrastructure.Identity.Users;
+namespace AppTemplate.Infrastructure.Identity.EmailChange;
 
 /// <summary>
-/// <see cref="IEmailChangeTokens"/> over ASP.NET Identity's named <c>ChangeEmail</c> token provider
+/// <see cref="IEmailChangeTokensService"/> over ASP.NET Identity's named <c>ChangeEmail</c> token provider
 /// — see <c>EmailChangeTokenProvider</c> for why it is a named provider of its own.
 /// </summary>
-internal sealed class EmailChangeTokens(
+internal sealed class EmailChangeTokensService(
     UserManager<AppUser> userManager,
-    IAppUserDirectory directory) : IEmailChangeTokens
+    IAppUserDirectory directory) : IEmailChangeTokensService
 {
     public async Task<EmailChangeRequestOutcome> IssueAsync(
         Guid userId,
@@ -25,7 +26,7 @@ internal sealed class EmailChangeTokens(
         var user = await directory.FindByIdAsync(userId, cancellationToken);
 
         // The caller already authenticated as this id, so there is no address to protect from
-        // enumeration here, for the reason UserAccounts.ChangePasswordAsync gives: an absent account
+        // enumeration here, for the reason UserAccountsService.ChangePasswordAsync gives: an absent account
         // only means it was deleted after the token that authenticated this request was issued.
         if (user is null)
         {

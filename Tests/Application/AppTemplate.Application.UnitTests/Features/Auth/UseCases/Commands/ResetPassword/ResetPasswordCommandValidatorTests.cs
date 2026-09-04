@@ -33,7 +33,7 @@ public sealed class ResetPasswordCommandValidatorTests
             new ResetPasswordCommand(
                 "someone@example.com",
                 "a-token",
-                new string('a', PasswordRules.AbsoluteMinimumPasswordLength - 1)),
+                new string('a', PasswordPolicy.AbsoluteMinimumPasswordLength - 1)),
             "NewPassword");
 
     [Fact]

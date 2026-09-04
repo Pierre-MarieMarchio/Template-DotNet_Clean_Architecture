@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Infrastructure.Persistence.Common.DomainEvents;
-using AppTemplate.Infrastructure.Persistence.Common.Tracking;
+using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
+using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;

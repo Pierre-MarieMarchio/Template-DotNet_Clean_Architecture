@@ -25,8 +25,8 @@ public static class ResultExtensions
     /// </summary>
     /// <exception cref="ArgumentNullException">
     /// Either argument is <c>null</c>. Thrown rather than treated as a failure: a missing result or
-    /// a missing projection is a bug in the caller, not an expected outcome
-    /// (<c>docs/adr/0004-result-as-the-failure-channel.md</c>).
+    /// a missing projection is a bug in the caller, not an expected outcome, and only expected
+    /// outcomes travel as a <see cref="Result"/>.
     /// </exception>
     public static Result<TOut> Map<TIn, TOut>(this Result<TIn> result, Func<TIn, TOut> project)
     {

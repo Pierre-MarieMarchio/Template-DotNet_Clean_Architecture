@@ -10,7 +10,7 @@ using Xunit;
 namespace AppTemplate.Api.IntegrationTests.TodoLists;
 
 /// <summary>
-/// The other half of the decision recorded in ADR 0013: what a deployment gets when it turns
+/// The other half of the <c>Concurrency:IfMatch</c> decision: what a deployment gets when it turns
 /// <c>Concurrency:IfMatch</c> up to <c>Required</c>.
 /// </summary>
 /// <remarks>

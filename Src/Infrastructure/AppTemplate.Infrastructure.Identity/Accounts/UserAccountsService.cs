@@ -5,19 +5,19 @@ using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace AppTemplate.Infrastructure.Identity.Users;
+namespace AppTemplate.Infrastructure.Identity.Accounts;
 
 /// <summary>
-/// <see cref="IUserAccounts"/> over <see cref="UserManager{TUser}"/> and
+/// <see cref="IUserAccountsService"/> over <see cref="UserManager{TUser}"/> and
 /// <see cref="SignInManager{TUser}"/>. It translates and nothing more: every decision about what a
 /// refusal means to a caller belongs to the use case.
 /// </summary>
-internal sealed class UserAccounts(
+internal sealed class UserAccountsService(
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
     IAppUserDirectory directory,
     IDateTimeProvider dateTimeProvider,
-    ISecurityEventLog securityEventLog) : IUserAccounts
+    ISecurityEventLog securityEventLog) : IUserAccountsService
 {
     private static string? _absentUserPasswordHash;
 

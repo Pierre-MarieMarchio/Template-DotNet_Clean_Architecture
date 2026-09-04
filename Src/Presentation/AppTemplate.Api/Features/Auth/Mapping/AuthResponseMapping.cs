@@ -10,7 +10,7 @@ using AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser;
 namespace AppTemplate.Api.Features.Auth.Mapping;
 
 /// <summary>
-/// Projects use-case output onto the HTTP contract, by hand — <c>docs/adr/0011</c> rejects mapping
+/// Projects use-case output onto the HTTP contract, by hand — this repository rejects mapping
 /// libraries: a projection the compiler cannot check is a runtime failure waiting for a rename.
 /// </summary>
 /// <remarks>

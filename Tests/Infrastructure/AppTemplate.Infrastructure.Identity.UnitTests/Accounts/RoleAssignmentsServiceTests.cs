@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Features.Auth.Ports.RoleAssignments;
-using AppTemplate.Infrastructure.Identity.Users;
+using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,14 +8,14 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.Accounts;
 
 /// <summary>
-/// <see cref="RoleAssignments"/> over a real <see cref="UserManager{TUser}"/> and
+/// <see cref="RoleAssignmentsService"/> over a real <see cref="UserManager{TUser}"/> and
 /// <see cref="RoleManager{TRole}"/>: the gap this type exists to close is that neither
 /// <c>AddToRoleAsync</c> nor <c>RemoveFromRoleAsync</c> rotates the security stamp on its own.
 /// </summary>
-public sealed class RoleAssignmentsTests
+public sealed class RoleAssignmentsServiceTests
 {
     private const string _role = "Admin";
     private static readonly Guid _userId = Guid.CreateVersion7();
@@ -188,7 +188,7 @@ public sealed class RoleAssignmentsTests
         _roleStore.FindByNameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(exists ? new AppRole(_role) { NormalizedName = _role.ToUpperInvariant() } : null);
 
-    private RoleAssignments CreateRoleAssignments()
+    private RoleAssignmentsService CreateRoleAssignments()
     {
         var options = new OptionsWrapper<IdentityOptions>(new IdentityOptions());
         var lookupNormalizer = new UpperInvariantLookupNormalizer();
@@ -211,6 +211,6 @@ public sealed class RoleAssignmentsTests
             new IdentityErrorDescriber(),
             NullLogger<RoleManager<AppRole>>.Instance);
 
-        return new RoleAssignments(userManager, roleManager, _directory);
+        return new RoleAssignmentsService(userManager, roleManager, _directory);
     }
 }

@@ -2,14 +2,14 @@
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace AppTemplate.Infrastructure.Identity.Users;
+namespace AppTemplate.Infrastructure.Identity.Accounts;
 
 /// <summary>
-/// <see cref="IAccountLockouts"/> over <see cref="UserManager{TUser}"/>.
+/// <see cref="IAccountLockoutsService"/> over <see cref="UserManager{TUser}"/>.
 /// </summary>
-internal sealed class AccountLockouts(
+internal sealed class AccountLockoutsService(
     UserManager<AppUser> userManager,
-    IAppUserDirectory directory) : IAccountLockouts
+    IAppUserDirectory directory) : IAccountLockoutsService
 {
     public async Task<LockoutChangeStatus> LockAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -23,7 +23,7 @@ internal sealed class AccountLockouts(
         }
 
         // A lockout end date has no effect on an account whose LockoutEnabled flag is false, and this
-        // adapter cannot assume it is already set: every account UserAccounts.CreateAsync creates gets
+        // adapter cannot assume it is already set: every account UserAccountsService.CreateAsync creates gets
         // it, through IdentityOptions.Lockout.AllowedForNewUsers, but a store seeded another way might
         // not carry it. Setting the flag explicitly is what makes an administrative lock actually take
         // effect rather than silently do nothing.

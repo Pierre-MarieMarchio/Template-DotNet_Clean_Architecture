@@ -15,8 +15,8 @@ public sealed class ChangePasswordUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly IUserAccounts _accounts = Substitute.For<IUserAccounts>();
-    private readonly IRefreshTokenGrants _refreshTokens = Substitute.For<IRefreshTokenGrants>();
+    private readonly IUserAccountsService _accounts = Substitute.For<IUserAccountsService>();
+    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

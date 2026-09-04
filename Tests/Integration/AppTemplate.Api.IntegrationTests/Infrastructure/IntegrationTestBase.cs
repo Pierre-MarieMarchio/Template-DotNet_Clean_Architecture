@@ -8,8 +8,8 @@ using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
-using AppTemplate.Infrastructure.InMemory.Email;
-using AppTemplate.Infrastructure.InMemory.Time;
+using AppTemplate.Infrastructure.InMemory.Common.Email;
+using AppTemplate.Infrastructure.InMemory.Common.Time;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 

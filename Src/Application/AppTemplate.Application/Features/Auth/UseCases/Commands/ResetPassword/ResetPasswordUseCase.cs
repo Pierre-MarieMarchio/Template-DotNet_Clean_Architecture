@@ -10,8 +10,8 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.ResetPassword;
 
 public sealed class ResetPasswordUseCase(
-    IPasswordResetTokens resetTokens,
-    IRefreshTokenGrants refreshTokens,
+    IPasswordResetTokensService resetTokens,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     IValidator<ResetPasswordCommand> validator) : IResetPasswordUseCase
 {
@@ -46,7 +46,7 @@ public sealed class ResetPasswordUseCase(
             return Result.Failure(AuthErrors.InvalidPasswordReset);
         }
 
-        await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId, cancellationToken);
 
         return Result.Success();
     }

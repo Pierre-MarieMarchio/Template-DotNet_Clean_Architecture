@@ -2,7 +2,7 @@
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
-using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
@@ -12,9 +12,9 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.Register;
 
 public sealed class RegisterUseCase(
-    IUserAccounts accounts,
-    IEmailConfirmationTokens confirmationTokens,
-    IConfirmationEmailComposer composer,
+    IUserAccountsService accounts,
+    IEmailConfirmationTokensService confirmationTokens,
+    IConfirmationEmailFactory emailFactory,
     IEmailSender emailSender,
     ISecurityEventLog securityEventLog,
     IValidator<RegisterCommand> validator,
@@ -84,7 +84,7 @@ public sealed class RegisterUseCase(
                 return false;
             }
 
-            var message = await composer.ComposeAsync(
+            var message = await emailFactory.CreateAsync(
                 pending.UserName,
                 email,
                 pending.Token,

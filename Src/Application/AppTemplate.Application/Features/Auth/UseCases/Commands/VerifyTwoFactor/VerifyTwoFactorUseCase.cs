@@ -12,10 +12,10 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.VerifyTwoFactor;
 
 public sealed class VerifyTwoFactorUseCase(
-    ITwoFactorChallenge challenges,
-    IUserAccounts accounts,
+    ITwoFactorChallengeService challenges,
+    IUserAccountsService accounts,
     IAccessTokenIssuer accessTokens,
-    IRefreshTokenGrants refreshTokens,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     IValidator<VerifyTwoFactorCommand> validator) : IVerifyTwoFactorUseCase
 {

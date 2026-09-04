@@ -1,13 +1,11 @@
 ﻿using AppTemplate.Api.Common.Caching;
 using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Errors;
-using AppTemplate.Api.Common.Http;
+using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Common.Idempotency;
-using AppTemplate.Api.Common.Lifecycle;
 using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.OpenApi;
 using AppTemplate.Api.Common.Security;
-using AppTemplate.Api.Common.Startup;
 using AppTemplate.Application;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
@@ -163,7 +161,7 @@ app.UseStatusCodePages();
 //
 // HSTS is not sent either, and not because it was forgotten: max-age, includeSubDomains and preload
 // are commitments over a whole domain that this application cannot know. The component terminating
-// TLS is the one that knows them and must send the header — see docs/adr/0012.
+// TLS is the one that knows them and must send the header.
 
 app.UseCors(CorsExtensions.Default);
 app.UseRateLimiter();

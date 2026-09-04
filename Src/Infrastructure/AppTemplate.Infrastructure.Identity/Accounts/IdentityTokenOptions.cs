@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Options;
+namespace AppTemplate.Infrastructure.Identity.Accounts;
 
 /// <summary>
 /// How long a token minted by ASP.NET Identity's default token provider stays valid.

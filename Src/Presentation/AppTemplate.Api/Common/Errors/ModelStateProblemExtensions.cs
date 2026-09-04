@@ -47,7 +47,7 @@ public static class ModelStateProblemExtensions
         // Same code an application validation failure carries: the two are one dialect, not two.
         problem.Extensions["code"] = ValidationError.Code;
 
-        ProblemDetailsDefaults.Normalise(problem, context.HttpContext);
+        ProblemDetailsNormaliser.Normalise(problem, context.HttpContext);
 
         return new ObjectResult(problem)
         {

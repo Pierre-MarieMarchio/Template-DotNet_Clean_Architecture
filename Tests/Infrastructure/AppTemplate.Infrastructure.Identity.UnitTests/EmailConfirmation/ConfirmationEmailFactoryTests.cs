@@ -1,16 +1,15 @@
-﻿using AppTemplate.Infrastructure.Identity.Notifications;
-using AppTemplate.Infrastructure.Identity.Options;
+﻿using AppTemplate.Infrastructure.Identity.EmailConfirmation;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Notifications;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.EmailConfirmation;
 
 /// <summary>
-/// The composer's job is to put a user-supplied name into an HTML document. That makes it an
+/// The factory's job is to put a user-supplied name into an HTML document. That makes it an
 /// injection site, and the encoding is the whole defence.
 /// </summary>
-public sealed class ConfirmationEmailComposerTests
+public sealed class ConfirmationEmailFactoryTests
 {
     private const string _confirmationPage = "https://localhost:5001/confirm-email";
 
@@ -25,7 +24,7 @@ public sealed class ConfirmationEmailComposerTests
     {
         const string hostile = "<a href=\"https://evil.test\">click me</a>";
 
-        var message = await CreateComposer().ComposeAsync(
+        var message = await CreateFactory().CreateAsync(
             hostile,
             "victim@identity.test",
             "confirmation-token",
@@ -42,7 +41,7 @@ public sealed class ConfirmationEmailComposerTests
     [Fact]
     public async Task ComposeAsync_PutsTheTokenInTheLinkFragment()
     {
-        var message = await CreateComposer().ComposeAsync(
+        var message = await CreateFactory().CreateAsync(
             "newcomer",
             "newcomer@identity.test",
             "a+token/with=reserved characters",
@@ -53,13 +52,13 @@ public sealed class ConfirmationEmailComposerTests
     }
 
     /// <summary>
-    /// The subject comes from configuration and is handed back rather than applied by the composer,
+    /// The subject comes from configuration and is handed back rather than applied by the factory,
     /// because the caller is what sends the message.
     /// </summary>
     [Fact]
     public async Task ComposeAsync_CarriesTheConfiguredSubject()
     {
-        var message = await CreateComposer().ComposeAsync(
+        var message = await CreateFactory().CreateAsync(
             "newcomer",
             "newcomer@identity.test",
             "confirmation-token",
@@ -72,7 +71,7 @@ public sealed class ConfirmationEmailComposerTests
     /// <c>OptionsWrapper</c> rather than <c>Options.Create</c>: this project mirrors <c>Src/</c>, so it
     /// has an <c>Options</c> folder of its own and the short name resolves to that namespace.
     /// </summary>
-    private static ConfirmationEmailComposer CreateComposer() =>
+    private static ConfirmationEmailFactory CreateFactory() =>
         new(new OptionsWrapper<EmailConfirmationOptions>(new EmailConfirmationOptions
         {
             ConfirmEmailUrl = new Uri(_confirmationPage, UriKind.Absolute),

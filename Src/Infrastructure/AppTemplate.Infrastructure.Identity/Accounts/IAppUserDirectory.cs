@@ -2,7 +2,7 @@
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace AppTemplate.Infrastructure.Identity.Users;
+namespace AppTemplate.Infrastructure.Identity.Accounts;
 
 /// <summary>
 /// Looking an account up and reading its current claims — the two things the token adapters in this

@@ -2,7 +2,7 @@
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
-using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
@@ -10,8 +10,8 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.RequestEmailChange;
 
 public sealed class RequestEmailChangeUseCase(
-    IEmailChangeTokens emailChangeTokens,
-    IEmailChangeEmailComposer composer,
+    IEmailChangeTokensService emailChangeTokens,
+    IEmailChangeEmailFactory emailFactory,
     IEmailSender emailSender,
     ICurrentUser currentUser,
     IValidator<RequestEmailChangeCommand> validator,
@@ -63,7 +63,7 @@ public sealed class RequestEmailChangeUseCase(
     {
         try
         {
-            var message = await composer.ComposeAsync(userName, newEmail, token, cancellationToken);
+            var message = await emailFactory.CreateAsync(userName, newEmail, token, cancellationToken);
 
             await emailSender.SendAsync(newEmail, message.Subject, message.HtmlBody, cancellationToken);
         }

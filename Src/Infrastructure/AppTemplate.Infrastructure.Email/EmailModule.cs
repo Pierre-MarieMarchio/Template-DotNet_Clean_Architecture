@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
-using AppTemplate.Infrastructure.Email.Options;
-using AppTemplate.Infrastructure.Email.Services;
+using AppTemplate.Infrastructure.Email.Common.Smtp;
+using AppTemplate.Infrastructure.Email.Features.Reminders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

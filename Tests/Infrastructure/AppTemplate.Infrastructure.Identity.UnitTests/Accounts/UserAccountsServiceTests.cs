@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Identity.UnitTests.Fixtures;
-using AppTemplate.Infrastructure.Identity.Users;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -13,7 +13,7 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.Accounts;
 
 /// <summary>
 /// What the credential check costs, and which of ASP.NET Identity's refusals is reported as what.
@@ -23,7 +23,7 @@ namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
 /// derivation answers in a fraction of the time a wrong password takes, and that difference is a
 /// user-enumeration oracle no uniform error message hides.
 /// </remarks>
-public sealed class UserAccountsTests : IDisposable
+public sealed class UserAccountsServiceTests : IDisposable
 {
     private const string _password = "correct horse battery";
 
@@ -33,7 +33,7 @@ public sealed class UserAccountsTests : IDisposable
     private readonly UserManager<AppUser> _userManager;
     private readonly SignInManager<AppUser> _signInManager;
 
-    public UserAccountsTests()
+    public UserAccountsServiceTests()
     {
         _userManager = new UserManager<AppUser>(
             _store,
@@ -161,7 +161,7 @@ public sealed class UserAccountsTests : IDisposable
         return user;
     }
 
-    private UserAccounts CreateAccounts() =>
+    private UserAccountsService CreateAccounts() =>
         new(
             _userManager,
             _signInManager,

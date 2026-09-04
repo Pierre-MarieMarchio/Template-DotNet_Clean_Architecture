@@ -16,8 +16,8 @@ public sealed class LockAccountUseCaseTests
     private static readonly Guid _callerId = Guid.CreateVersion7();
     private static readonly Guid _targetId = Guid.CreateVersion7();
 
-    private readonly IAccountLockouts _lockouts = Substitute.For<IAccountLockouts>();
-    private readonly IRefreshTokenGrants _refreshTokens = Substitute.For<IRefreshTokenGrants>();
+    private readonly IAccountLockoutsService _lockouts = Substitute.For<IAccountLockoutsService>();
+    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

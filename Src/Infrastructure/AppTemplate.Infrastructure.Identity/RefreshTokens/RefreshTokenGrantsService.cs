@@ -4,13 +4,12 @@ using System.Text;
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Infrastructure.Identity.Options;
-using AppTemplate.Infrastructure.Identity.Users;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Stores;
+using AppTemplate.Infrastructure.Identity.Accounts;
+using AppTemplate.Infrastructure.Persistence.Features.Identity.Tables;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Tokens;
+namespace AppTemplate.Infrastructure.Identity.RefreshTokens;
 
 /// <summary>
 /// Issues, rotates and revokes refresh tokens.
@@ -21,21 +20,21 @@ namespace AppTemplate.Infrastructure.Identity.Tokens;
 /// leak, so the entire family for that user is revoked and the request fails.
 ///
 /// <para>
-/// Rows are staged through <see cref="IRefreshTokenStore"/> and committed through
+/// Rows are staged through <see cref="IRefreshTokenTable"/> and committed through
 /// <see cref="IUnitOfWork"/> — the same unit of work a domain write uses — so a rotation could share
 /// a transaction with other work. The one step that does not wait for that commit is consuming a
 /// presented grant: single-use rotation has to be decided by one conditional UPDATE, and
-/// <see cref="IRefreshTokenStore.TryRotateAsync"/> says why.
+/// <see cref="IRefreshTokenTable.TryRotateAsync"/> says why.
 /// </para>
 /// </summary>
-internal sealed class RefreshTokenGrants(
-    IRefreshTokenStore store,
+internal sealed class RefreshTokenGrantsService(
+    IRefreshTokenTable table,
     IAppUserDirectory directory,
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider,
     IOptions<RefreshTokenOptions> options,
     ISecurityEventLog securityEventLog,
-    ILogger<RefreshTokenGrants> logger) : IRefreshTokenGrants
+    ILogger<RefreshTokenGrantsService> logger) : IRefreshTokenGrantsService
 {
     /// <summary>256 bits of entropy: the token is the credential, so it must not be guessable.</summary>
     private const int _tokenSizeInBytes = 32;
@@ -52,7 +51,7 @@ internal sealed class RefreshTokenGrants(
         var now = dateTimeProvider.UtcNow;
         var (value, expiresAt) = CreateSecret(now);
 
-        store.Add(userId, ComputeHash(value), now, expiresAt);
+        table.Add(userId, ComputeHash(value), now, expiresAt);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new IssuedRefreshToken(value, expiresAt);
@@ -68,7 +67,7 @@ internal sealed class RefreshTokenGrants(
         }
 
         string presentedHash = ComputeHash(presentedToken);
-        var grant = await store.FindAsync(presentedHash, cancellationToken);
+        var grant = await table.FindAsync(presentedHash, cancellationToken);
 
         if (grant is null)
         {
@@ -97,11 +96,11 @@ internal sealed class RefreshTokenGrants(
 
         var (replacementValue, replacementExpiresAt) = CreateSecret(now);
 
-        // The store consumes the grant with a single conditional UPDATE, so of two simultaneous
+        // The table consumes the grant with a single conditional UPDATE, so of two simultaneous
         // presentations exactly one is told it rotated. The grant was live when it was read a moment
         // ago, so the only way to be refused here is that something else consumed it in between —
         // which is indistinguishable from a stolen copy being redeemed, and is answered as one.
-        bool rotated = await store.TryRotateAsync(
+        bool rotated = await table.TryRotateAsync(
             presentedHash,
             ComputeHash(replacementValue),
             now,
@@ -128,14 +127,14 @@ internal sealed class RefreshTokenGrants(
         }
 
         string hash = ComputeHash(presentedToken);
-        var grant = await store.FindAsync(hash, cancellationToken);
+        var grant = await table.FindAsync(hash, cancellationToken);
 
         if (grant is null)
         {
             return null;
         }
 
-        await store.RevokeAsync(hash, dateTimeProvider.UtcNow, cancellationToken);
+        await table.RevokeAsync(hash, dateTimeProvider.UtcNow, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return grant.UserId;
@@ -143,7 +142,7 @@ internal sealed class RefreshTokenGrants(
 
     public async Task RevokeAllForUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        await store.RevokeAllForUserAsync(userId, dateTimeProvider.UtcNow, cancellationToken);
+        await table.RevokeAllForUserAsync(userId, dateTimeProvider.UtcNow, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 

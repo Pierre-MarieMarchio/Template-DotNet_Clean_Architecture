@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.InMemory;
@@ -89,8 +90,8 @@ internal static class HostComposition
 
             ["EmailChange:ConfirmEmailChangeUrl"] = "https://localhost:5001/confirm-email-change",
             ["EmailChange:Subject"] = "Confirm your new email address",
-            ["PasswordResetOutcome:ResetPasswordUrl"] = "https://localhost:5001/reset-password",
-            ["PasswordResetOutcome:Subject"] = "Reset your password",
+            ["PasswordReset:ResetPasswordUrl"] = "https://localhost:5001/reset-password",
+            ["PasswordReset:Subject"] = "Reset your password",
 
             ["Email:Host"] = "smtp.example.invalid",
             ["Email:Port"] = "587",
@@ -181,6 +182,29 @@ internal static class HostComposition
         // After the real modules, which is the documented order: it removes and re-adds rather than
         // relying on last-registration-wins.
         services.AddInMemoryModule();
+
+        return services;
+    }
+
+    /// <summary>
+    /// The worker's composition with the identity module left out, which is the question every
+    /// comment about this host's configuration surface answers wrongly. The written reason is
+    /// <c>IRefreshTokenMaintenanceService</c>'s adapter; the operative one is that
+    /// <c>EmailReminderNotifier</c> — the adapter behind the worker's <em>own</em> reminder loop —
+    /// needs <see cref="IUserProfilesService"/> to find the address it notifies. Moving the
+    /// maintenance adapter to another module would not free this host of anything.
+    /// </summary>
+    internal static ServiceCollection ComposeWorkerWithoutTheIdentityModule(IConfiguration configuration)
+    {
+        var services = new ServiceCollection();
+
+        AddHostSuppliedServices(services, configuration);
+
+        services.AddApplicationLayer();
+        services.AddPersistenceModule(configuration);
+        services.AddEmailModule(configuration);
+
+        services.AddScoped<ICurrentUser, ArchitectureTestCurrentUser>();
 
         return services;
     }

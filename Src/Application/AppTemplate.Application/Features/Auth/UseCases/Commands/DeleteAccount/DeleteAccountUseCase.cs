@@ -11,12 +11,12 @@ namespace AppTemplate.Application.Features.Auth.UseCases.Commands.DeleteAccount;
 
 /// <summary>
 /// Removes exactly the account row and what ASP.NET Identity owns alongside it — see
-/// <see cref="IAccountDeletion"/> for why nothing here reaches past that. No
-/// <c>CredentialInvalidation</c> call either: there is no security stamp left to rotate once the row
+/// <see cref="IAccountDeletionService"/> for why nothing here reaches past that. No
+/// <c>CredentialInvalidationPolicy</c> call either: there is no security stamp left to rotate once the row
 /// is gone, and the refresh-token grants go with it through the store's own cascading delete.
 /// </summary>
 public sealed class DeleteAccountUseCase(
-    IAccountDeletion accountDeletion,
+    IAccountDeletionService accountDeletion,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<DeleteAccountCommand> validator) : IDeleteAccountUseCase
@@ -39,7 +39,7 @@ public sealed class DeleteAccountUseCase(
             return callerId;
         }
 
-        var guard = SelfAdministrationGuard.EnsureNotSelf(
+        var guard = SelfAdministrationPolicy.EnsureNotSelf(
             callerId.Value,
             request.UserId,
             AuthErrors.CannotDeleteOwnAccount);

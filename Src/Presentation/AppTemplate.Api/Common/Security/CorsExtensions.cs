@@ -7,7 +7,6 @@ public static class CorsExtensions
 {
     public const string Default = "default";
 
-    /// <summary>Configuration key holding the allowed origins array.</summary>
     public const string AllowedOriginsKey = "Cors:AllowedOrigins";
 
     public static IServiceCollection AddApiCors(this IServiceCollection services, IConfiguration configuration)

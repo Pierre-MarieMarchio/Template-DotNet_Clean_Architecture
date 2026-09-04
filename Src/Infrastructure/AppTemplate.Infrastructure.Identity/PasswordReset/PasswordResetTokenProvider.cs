@@ -4,22 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Tokens;
-
-/// <summary>
-/// The name this module registers <see cref="PasswordResetTokenProvider"/> under, and the value
-/// <c>IdentityOptions.Tokens.PasswordResetTokenProvider</c> is pointed at.
-/// <para>
-/// ASP.NET Identity's own default for that setting is <c>"Default"</c> — the same provider name email
-/// confirmation resolves to — so leaving it there would give a reset link the confirmation link's
-/// lifespan (see <see cref="AppTemplate.Infrastructure.Identity.Options.IdentityTokenOptions"/>) instead of its
-/// own, shorter one.
-/// </para>
-/// </summary>
-internal static class PasswordResetTokenProviderName
-{
-    public const string Value = "PasswordResetOutcome";
-}
+namespace AppTemplate.Infrastructure.Identity.PasswordReset;
 
 /// <summary>
 /// A distinct <see cref="DataProtectionTokenProviderOptions"/> subtype, so DI resolves an

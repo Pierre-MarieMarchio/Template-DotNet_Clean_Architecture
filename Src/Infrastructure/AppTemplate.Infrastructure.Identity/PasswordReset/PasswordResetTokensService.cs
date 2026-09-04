@@ -1,15 +1,16 @@
 ﻿using AppTemplate.Application.Features.Auth.Ports.PasswordResetTokens;
+using AppTemplate.Infrastructure.Identity.EmailConfirmation;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace AppTemplate.Infrastructure.Identity.Users;
+namespace AppTemplate.Infrastructure.Identity.PasswordReset;
 
 /// <summary>
-/// <see cref="IPasswordResetTokens"/> over ASP.NET Identity's <c>PasswordResetOutcome</c> token provider —
+/// <see cref="IPasswordResetTokensService"/> over ASP.NET Identity's <c>PasswordReset</c> token provider —
 /// see <c>PasswordResetTokenProvider</c> for why it is a named provider of its own rather than the
-/// one <see cref="EmailConfirmationTokens"/> shares with every other default provider.
+/// one <see cref="EmailConfirmationTokensService"/> shares with every other default provider.
 /// </summary>
-internal sealed class PasswordResetTokens(UserManager<AppUser> userManager) : IPasswordResetTokens
+internal sealed class PasswordResetTokensService(UserManager<AppUser> userManager) : IPasswordResetTokensService
 {
     public async Task<PendingPasswordReset?> IssueAsync(
         string email,

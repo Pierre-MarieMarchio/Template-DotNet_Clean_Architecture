@@ -14,8 +14,8 @@ namespace AppTemplate.Application.Features.Auth.UseCases.Commands.AddRole;
 /// oneself cannot strip the access the request is being made under, only add to it.
 /// </summary>
 public sealed class AddRoleUseCase(
-    IRoleAssignments roles,
-    IRefreshTokenGrants refreshTokens,
+    IRoleAssignmentsService roles,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     IValidator<AddRoleCommand> validator) : IAddRoleUseCase
 {
@@ -37,7 +37,7 @@ public sealed class AddRoleUseCase(
             return Result.Failure(ToError(change));
         }
 
-        await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
         securityEventLog.Record(SecurityEvent.RoleGranted(request.UserId, request.Role));
 
         return Result.Success();

@@ -58,7 +58,8 @@ UseCases/Commands|Queries/<Operation>/         one folder per operation:
 Ports/<Port>/                  a port interface, together with the messages that cross it
 Consumers/<Event>/             domain-event consumers, if the feature has any
 Services/                      internal collaborators shared by more than one use case
-Policies/                      the collection whitelist, and anything else the feature declares
+Policies/                      the collection whitelist, and every other rule the feature
+                               enforces; each one named ...Policy
 Extensions/                    small helpers scoped to this feature
 Mapping/                       aggregate -> DTO projections
 Dtos/<Name>Dto.cs              read models more than one operation shares
@@ -175,7 +176,7 @@ Four rules, and they are the whole reason this is safe:
 4. **The filter is typed, never a string that becomes a predicate.** Each filter
    is a named parameter with a CLR type and a validating factory returning
    `Result<T>`; free text goes through `SearchTerm`, which bounds its length. See
-   `docs/adr/0015` for why there is no expression language.
+   `CONTRIBUTING.md` for why there is no expression language.
 
 The use case parses the raw query into the validated types and hands the port a
 single `<Feature>PageRequest` — which has no public constructor, so a request that
@@ -211,7 +212,7 @@ Queries/<Aggregate>Queries.cs                read-side projections, if the featu
 
 **The record is not the aggregate.** `TodoListRecord` is a settable class with no
 rules; `TodoList` is the aggregate with all of them. This split is
-`docs/adr/0011`'s subject — read it before changing any of the four pieces below,
+the subject of `CONTRIBUTING.md`'s Persistence paragraph — read it before changing any of the four pieces below,
 because they exist specifically to keep the split intact:
 
 1. **Record** (`Models/`) — implements `IAuditable`; carries the EF-visible shape
@@ -310,7 +311,7 @@ dotnet ef migrations has-pending-model-changes \
   --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
 ```
 
-See `docs/adr/0009` for why the API applies migrations at startup only in
+See `CONTRIBUTING.md` for why the API applies migrations at startup only in
 Development, and `SECURITY.md` for what a real deployment still has to do with the
 migration bundle.
 

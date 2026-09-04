@@ -4,8 +4,10 @@
 # Src/Presentation/AppTemplate.Worker/Program.cs, which registers no such option and therefore
 # runs on the .NET Generic Host's own default shutdown timeout, not the 30 s this template tunes
 # for the API). It still composes AppTemplate.Infrastructure.Identity — for
-# IRefreshTokenMaintenance's sole adapter — and therefore still validates Jwt, EmailConfirmation,
-# PasswordReset and EmailChange at startup, exactly as if it served requests. It also composes
+# IRefreshTokenMaintenance's adapter, and above all for IUserProfilesService, which
+# EmailReminderNotifier needs to find the address a due reminder is rung at — and therefore still
+# validates Jwt, EmailConfirmation, PasswordReset and EmailChange at startup, exactly as if it
+# served requests. It also composes
 # AppTemplate.Infrastructure.Email — for IReminderNotifier's mail adapter, a due reminder is rung
 # by mail — and therefore validates Email (SMTP) at startup too. See docs/CONFIGURATION.md.
 apiVersion: v1
@@ -26,6 +28,19 @@ data:
   # make the two hosts disagree about what a valid token looks like.
   Jwt__Issuer: "https://api.example.com"
   Jwt__Audience: "app-template-clients"
+
+  # NOT the API's signing key, and not a secret at all — which is why it sits in a ConfigMap next
+  # to the two values above rather than in app-template-secrets. JwtOptionsValidator requires a
+  # non-blank value of at least 32 bytes and nothing in this host ever uses it: AccessTokenIssuer
+  # is the only thing that signs with it, no loop here resolves it, and bearer validation needs an
+  # inbound request this process does not have. Handing this pod the real key would give anything
+  # that got into a container whose job is deleting expired rows the power to mint an access token
+  # for any user — see SECURITY.md.
+  #
+  # If a future loop in this host ever does need to mint or check a token, it will fail with an
+  # invalid signature rather than silently work, and this value says so out loud when it appears
+  # in a stack trace.
+  Jwt__Key: "this-host-neither-signs-nor-verifies-a-token"
 
   # Same three required URLs as configmap-api.yaml, same reasoning: this host does not send any of
   # this mail, but AppTemplate.Infrastructure.Identity validates all three sections regardless of

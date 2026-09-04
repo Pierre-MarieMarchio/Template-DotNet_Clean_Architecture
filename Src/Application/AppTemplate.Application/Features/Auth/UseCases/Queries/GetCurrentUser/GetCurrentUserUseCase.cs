@@ -5,7 +5,7 @@ using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
 namespace AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser;
 
 public sealed class GetCurrentUserUseCase(
-    IUserProfiles profiles,
+    IUserProfilesService profiles,
     ICurrentUser currentUser) : IGetCurrentUserUseCase
 {
     public async Task<Result<GetCurrentUserOutcome>> ExecuteAsync(CancellationToken cancellationToken = default)
@@ -17,7 +17,7 @@ public sealed class GetCurrentUserUseCase(
             return userId.To<GetCurrentUserOutcome>();
         }
 
-        // Read from the store rather than from the principal's claims — see IUserProfiles for why a
+        // Read from the store rather than from the principal's claims — see IUserProfilesService for why a
         // claim-built profile would be stale.
         var profile = await profiles.FindByIdAsync(userId.Value, cancellationToken);
 

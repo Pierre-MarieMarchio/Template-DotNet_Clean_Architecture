@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
-using AppTemplate.Infrastructure.InMemory.Email;
-using AppTemplate.Infrastructure.InMemory.Reminders;
-using AppTemplate.Infrastructure.InMemory.Time;
+using AppTemplate.Infrastructure.InMemory.Common.Email;
+using AppTemplate.Infrastructure.InMemory.Common.Time;
+using AppTemplate.Infrastructure.InMemory.Features.Reminders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 

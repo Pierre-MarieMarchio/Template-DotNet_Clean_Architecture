@@ -1,9 +1,9 @@
 ﻿using System.Text;
-using AppTemplate.Infrastructure.Identity.Options;
+using AppTemplate.Infrastructure.Identity.AccessTokens;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Options;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.AccessTokens;
 
 /// <summary>
 /// The validator runs under <c>ValidateOnStart</c>, so what it rejects is what stops the process from

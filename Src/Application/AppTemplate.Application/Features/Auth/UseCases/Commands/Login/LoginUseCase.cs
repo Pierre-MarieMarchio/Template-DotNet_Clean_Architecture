@@ -11,10 +11,10 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.Login;
 
 public sealed class LoginUseCase(
-    IUserAccounts accounts,
+    IUserAccountsService accounts,
     IAccessTokenIssuer accessTokens,
-    IRefreshTokenGrants refreshTokens,
-    ITwoFactorChallenge twoFactorChallenge,
+    IRefreshTokenGrantsService refreshTokens,
+    ITwoFactorChallengeService twoFactorChallenge,
     ISecurityEventLog securityEventLog,
     IValidator<LoginCommand> validator) : ILoginUseCase
 {

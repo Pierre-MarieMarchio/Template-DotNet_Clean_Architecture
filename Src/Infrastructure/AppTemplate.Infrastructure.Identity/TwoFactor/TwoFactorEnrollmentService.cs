@@ -1,23 +1,23 @@
 ﻿using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
-using AppTemplate.Infrastructure.Identity.Options;
+using AppTemplate.Infrastructure.Identity.Accounts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Users;
+namespace AppTemplate.Infrastructure.Identity.TwoFactor;
 
 /// <summary>
-/// <see cref="ITwoFactorEnrollment"/> over <see cref="UserManager{TUser}"/>. Every operation here
+/// <see cref="ITwoFactorEnrollmentService"/> over <see cref="UserManager{TUser}"/>. Every operation here
 /// uses ASP.NET Identity's own authenticator plumbing — <c>GetAuthenticatorKeyAsync</c>,
 /// <c>ResetAuthenticatorKeyAsync</c>, <c>VerifyTwoFactorTokenAsync</c>,
 /// <c>GenerateNewTwoFactorRecoveryCodesAsync</c> — rather than RFC 6238 implemented by hand: the
 /// shared secret, the 30-second step and the SHA-1 HMAC are exactly what
 /// <see cref="TokenOptions.DefaultAuthenticatorProvider"/> already does, tested by the framework.
 /// </summary>
-internal sealed class TwoFactorEnrollment(
+internal sealed class TwoFactorEnrollmentService(
     UserManager<AppUser> userManager,
     IAppUserDirectory directory,
-    IOptions<TwoFactorOptions> options) : ITwoFactorEnrollment
+    IOptions<TwoFactorOptions> options) : ITwoFactorEnrollmentService
 {
     public async Task<TwoFactorSetupOutcome> BeginAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -58,7 +58,7 @@ internal sealed class TwoFactorEnrollment(
         var user = await directory.FindByIdAsync(userId, cancellationToken)
             ?? throw new InvalidOperationException($"No account with id '{userId}' exists.");
 
-        // Not userManager.CheckPasswordAsync: see EmailChangeTokens.IssueAsync for why. A
+        // Not userManager.CheckPasswordAsync: see EmailChangeTokensService.IssueAsync for why. A
         // rehash-needed result would rotate the security stamp on its own, before the code below even
         // gets a say — which would arm nothing yet still cost the caller every session it holds, on a
         // password that was actually correct. VerifyHashedPassword alone has no such side effect.
@@ -106,7 +106,7 @@ internal sealed class TwoFactorEnrollment(
         var user = await directory.FindByIdAsync(userId, cancellationToken);
 
         // The caller already authenticated as this id, so there is no address to protect from
-        // enumeration here — see IUserAccounts.ChangePasswordAsync for the same reasoning. An absent
+        // enumeration here — see IUserAccountsService.ChangePasswordAsync for the same reasoning. An absent
         // account only means it was deleted after the token was issued.
         //
         // Verified through the hasher for the same reason ConfirmAsync above does it:

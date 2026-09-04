@@ -10,10 +10,10 @@ namespace AppTemplate.Application.Features.Auth.UseCases.Commands.Register;
 public sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand>
 {
     /// <summary>Defence-in-depth floor mirroring the minimum the Identity configuration cannot go below.</summary>
-    public const int AbsoluteMinimumPasswordLength = PasswordRules.AbsoluteMinimumPasswordLength;
+    public const int AbsoluteMinimumPasswordLength = PasswordPolicy.AbsoluteMinimumPasswordLength;
 
     /// <summary>Guards against a denial of service through an arbitrarily long PBKDF2 input.</summary>
-    public const int MaximumPasswordLength = PasswordRules.MaximumPasswordLength;
+    public const int MaximumPasswordLength = PasswordPolicy.MaximumPasswordLength;
 
     public const int MaximumUserNameLength = 64;
 

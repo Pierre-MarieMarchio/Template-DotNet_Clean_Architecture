@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Options;
+namespace AppTemplate.Infrastructure.Identity.EmailConfirmation;
 
 /// <summary>
 /// Where the confirmation link points. Replaces the undocumented, null-forgiven

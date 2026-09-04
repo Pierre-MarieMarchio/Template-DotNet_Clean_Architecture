@@ -4,7 +4,7 @@ using AppTemplate.Api.Features.Reminders.Contracts.Requests;
 using AppTemplate.Api.Features.Reminders.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
-using AppTemplate.Infrastructure.InMemory.Reminders;
+using AppTemplate.Infrastructure.InMemory.Features.Reminders;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

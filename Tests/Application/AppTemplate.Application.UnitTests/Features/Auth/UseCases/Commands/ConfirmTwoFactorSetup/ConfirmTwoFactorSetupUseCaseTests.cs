@@ -15,8 +15,8 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly ITwoFactorEnrollment _enrollment = Substitute.For<ITwoFactorEnrollment>();
-    private readonly IRefreshTokenGrants _refreshTokens = Substitute.For<IRefreshTokenGrants>();
+    private readonly ITwoFactorEnrollmentService _enrollment = Substitute.For<ITwoFactorEnrollmentService>();
+    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

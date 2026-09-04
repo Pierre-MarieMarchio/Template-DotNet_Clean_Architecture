@@ -2,6 +2,8 @@
 using AppTemplate.Application;
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Features.Auth.Ports.RefreshTokenMaintenance;
+using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -166,6 +168,41 @@ public sealed class ContainerCompositionTests
             "The worker runs FireDueReminders and both purges through the same ports the API uses. " +
             "A port only the API's own composition could satisfy would fail here.",
             HostComposition.ComposeWorker);
+    }
+
+    /// <summary>
+    /// Pins <em>why</em> the worker composes the identity module, because eight comments in this
+    /// repository name the wrong reason and every one of them stayed true-looking for months.
+    /// <para>
+    /// The written reason is <c>IRefreshTokenMaintenanceService</c>'s sole adapter, which invites
+    /// the conclusion that moving that one adapter would let this host drop the module and its
+    /// whole configuration surface with it. It would not. <c>EmailReminderNotifier</c> — the
+    /// adapter behind the reminder loop, which is this host's own feature and not a favour to the
+    /// API — resolves <see cref="IUserProfilesService"/> to find the address a due reminder is
+    /// rung at. And <c>AddApplicationLayer</c> registers every use case in the assembly, so under
+    /// <c>ValidateOnBuild</c> — which <c>Host.CreateApplicationBuilder</c> turns on in Development
+    /// — every port the layer declares has to be resolvable in every host, not merely the ports
+    /// this host's own loops reach.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void TheWorkerContainer_NeedsIdentityForItsReminderLoop_NotOnlyForThePurgeAdapter()
+    {
+        var services = HostComposition.ComposeWorkerWithoutTheIdentityModule(HostComposition.Configuration());
+
+        var exception = Should.Throw<AggregateException>(
+            () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose());
+
+        exception.Message.ShouldContain(
+            nameof(IUserProfilesService),
+            customMessage: "If this port ever stops being needed here, the worker really can drop " +
+            "AddIdentityModule — and the comments in Program.cs, the csproj, docker-compose.yml, " +
+            "configmap-worker.yaml and docs/CONFIGURATION.md all become answerable at last.");
+
+        exception.Message.ShouldContain(
+            nameof(IRefreshTokenMaintenanceService),
+            customMessage: "The written reason is real too, just not the only one — if it were, " +
+            "moving that adapter would be worth doing.");
     }
 
     // ---- Proof that the checks above can fail -------------------------------------------------

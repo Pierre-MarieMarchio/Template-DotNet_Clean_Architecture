@@ -17,7 +17,7 @@ public static class ErrorMapping
     /// </summary>
     public static ActionResult ToActionResult(this Error error) => Build(error, httpContext: null);
 
-    /// <summary>Normalises the response through <see cref="ProblemDetailsDefaults.Normalise"/>.</summary>
+    /// <summary>Normalises the response through <see cref="ProblemDetailsNormaliser.Normalise"/>.</summary>
     public static ActionResult ToActionResult(this Error error, HttpContext httpContext)
     {
         ArgumentNullException.ThrowIfNull(httpContext);
@@ -52,7 +52,7 @@ public static class ErrorMapping
 
         if (httpContext is not null)
         {
-            ProblemDetailsDefaults.Normalise(problem, httpContext);
+            ProblemDetailsNormaliser.Normalise(problem, httpContext);
         }
         else
         {

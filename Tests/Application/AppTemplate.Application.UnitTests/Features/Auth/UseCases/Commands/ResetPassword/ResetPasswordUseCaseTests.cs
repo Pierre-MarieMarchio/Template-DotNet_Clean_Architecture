@@ -11,8 +11,8 @@ namespace AppTemplate.Application.UnitTests.Features.Auth.UseCases.Commands.Rese
 
 public sealed class ResetPasswordUseCaseTests
 {
-    private readonly IPasswordResetTokens _resetTokens = Substitute.For<IPasswordResetTokens>();
-    private readonly IRefreshTokenGrants _refreshTokens = Substitute.For<IRefreshTokenGrants>();
+    private readonly IPasswordResetTokensService _resetTokens = Substitute.For<IPasswordResetTokensService>();
+    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly ResetPasswordUseCase _useCase;
 

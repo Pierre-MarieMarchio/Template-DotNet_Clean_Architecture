@@ -32,7 +32,7 @@
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
   </ItemGroup>
 
-  <!-- EntityTagMapping, IfMatchPrecondition and ProblemDetailsDefaults.Normalise are internal on
+  <!-- EntityTagMapping, IfMatchPrecondition and ProblemDetailsNormaliser.Normalise are internal on
        purpose: nothing outside this assembly may read or mint a version token, or skip the one
        normaliser every ProblemDetails producer funnels through. A test restricted to the public
        surface could reach their branches only through a live HTTP pipeline, which would not isolate

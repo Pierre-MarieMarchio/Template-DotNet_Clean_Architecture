@@ -2,12 +2,12 @@
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace AppTemplate.Infrastructure.Identity.Users;
+namespace AppTemplate.Infrastructure.Identity.EmailConfirmation;
 
 /// <summary>
-/// <see cref="IEmailConfirmationTokens"/> over ASP.NET Identity's default token provider.
+/// <see cref="IEmailConfirmationTokensService"/> over ASP.NET Identity's default token provider.
 /// </summary>
-internal sealed class EmailConfirmationTokens(UserManager<AppUser> userManager) : IEmailConfirmationTokens
+internal sealed class EmailConfirmationTokensService(UserManager<AppUser> userManager) : IEmailConfirmationTokensService
 {
     public async Task<PendingConfirmation?> IssueAsync(
         string email,

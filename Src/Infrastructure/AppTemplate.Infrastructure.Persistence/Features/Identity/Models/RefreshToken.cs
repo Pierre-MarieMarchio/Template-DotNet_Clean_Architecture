@@ -6,7 +6,7 @@
 /// column instead of the former unindexed <c>nvarchar(max)</c> table scan joined to the user.
 /// <para>
 /// Internal, unlike <see cref="AppUser"/>: nothing forces it to be visible. The identity module reaches
-/// grants through <see cref="Stores.IRefreshTokenStore"/>, which speaks in hashes and instants and never
+/// grants through <see cref="Tables.IRefreshTokenTable"/>, which speaks in hashes and instants and never
 /// hands this type out. A row type that leaves this assembly is a row somebody can write without going
 /// through the rules that govern it.
 /// </para>

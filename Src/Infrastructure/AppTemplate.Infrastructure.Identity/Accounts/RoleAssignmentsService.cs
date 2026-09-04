@@ -2,10 +2,10 @@
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace AppTemplate.Infrastructure.Identity.Users;
+namespace AppTemplate.Infrastructure.Identity.Accounts;
 
 /// <summary>
-/// <see cref="IRoleAssignments"/> over <see cref="UserManager{TUser}"/>. The role name is passed
+/// <see cref="IRoleAssignmentsService"/> over <see cref="UserManager{TUser}"/>. The role name is passed
 /// through unexamined — this module knows no role names of its own.
 /// <para>
 /// <see cref="RoleManager{TRole}"/> is here only to guard <see cref="AddRoleAsync"/> against a role
@@ -19,10 +19,10 @@ namespace AppTemplate.Infrastructure.Identity.Users;
 /// not exist just as much as for one that does but was never granted.
 /// </para>
 /// </summary>
-internal sealed class RoleAssignments(
+internal sealed class RoleAssignmentsService(
     UserManager<AppUser> userManager,
     RoleManager<AppRole> roleManager,
-    IAppUserDirectory directory) : IRoleAssignments
+    IAppUserDirectory directory) : IRoleAssignmentsService
 {
     public async Task<RoleAssignmentChangeOutcome> AddRoleAsync(
         Guid userId,

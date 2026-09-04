@@ -2,11 +2,11 @@
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
 using AppTemplate.Application.Features.Auth.Ports.AccountDeletion;
 using AppTemplate.Application.Features.Auth.Ports.AccountLockouts;
-using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
-using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailFactory;
+using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
-using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailComposer;
+using AppTemplate.Application.Features.Auth.Ports.PasswordResetEmailFactory;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetTokens;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenMaintenance;
@@ -17,11 +17,14 @@ using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
 using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
-using AppTemplate.Infrastructure.Identity.Bearer;
-using AppTemplate.Infrastructure.Identity.Notifications;
-using AppTemplate.Infrastructure.Identity.Options;
-using AppTemplate.Infrastructure.Identity.Tokens;
-using AppTemplate.Infrastructure.Identity.Users;
+using AppTemplate.Infrastructure.Identity.AccessTokens;
+using AppTemplate.Infrastructure.Identity.Accounts;
+using AppTemplate.Infrastructure.Identity.EmailChange;
+using AppTemplate.Infrastructure.Identity.EmailConfirmation;
+using AppTemplate.Infrastructure.Identity.PasswordReset;
+using AppTemplate.Infrastructure.Identity.RefreshTokens;
+using AppTemplate.Infrastructure.Identity.SecurityEvents;
+using AppTemplate.Infrastructure.Identity.TwoFactor;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
@@ -46,7 +49,7 @@ namespace AppTemplate.Infrastructure.Identity;
 /// <see cref="AppDbContext"/>.
 /// </para>
 /// <para>
-/// It sends no mail. <see cref="ConfirmationEmailComposer"/> renders the confirmation message and
+/// It sends no mail. <see cref="ConfirmationEmailFactory"/> renders the confirmation message and
 /// hands it back; the use case delivers it through <see cref="IEmailSender"/>, which the host
 /// supplies by composing <c>AppTemplate.Infrastructure.Email</c> or <c>AppTemplate.Infrastructure.InMemory</c>.
 /// </para>
@@ -94,7 +97,7 @@ public static class IdentityModule
         // One guard at the top rather than a Try- form per registration, for the same reason the
         // persistence module uses one: AddIdentity and AddAuthentication have no Try- form, and would
         // duplicate a schema and a whole store on a second call.
-        if (services.Any(descriptor => descriptor.ServiceType == typeof(IUserAccounts)))
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(IUserAccountsService)))
         {
             return services;
         }
@@ -108,26 +111,26 @@ public static class IdentityModule
 
         // One adapter per capability port. Nothing in this module depends on a concrete class, so
         // replacing one is a single line here.
-        services.AddScoped<IUserAccounts, UserAccounts>();
-        services.AddScoped<IUserProfiles, UserProfiles>();
-        services.AddScoped<IAccountLockouts, AccountLockouts>();
-        services.AddScoped<IRoleAssignments, RoleAssignments>();
-        services.AddScoped<IAccountDeletion, AccountDeletion>();
-        services.AddScoped<IEmailConfirmationTokens, EmailConfirmationTokens>();
-        services.AddScoped<IPasswordResetTokens, PasswordResetTokens>();
-        services.AddScoped<IEmailChangeTokens, EmailChangeTokens>();
+        services.AddScoped<IUserAccountsService, UserAccountsService>();
+        services.AddScoped<IUserProfilesService, UserProfilesService>();
+        services.AddScoped<IAccountLockoutsService, AccountLockoutsService>();
+        services.AddScoped<IRoleAssignmentsService, RoleAssignmentsService>();
+        services.AddScoped<IAccountDeletionService, AccountDeletionService>();
+        services.AddScoped<IEmailConfirmationTokensService, EmailConfirmationTokensService>();
+        services.AddScoped<IPasswordResetTokensService, PasswordResetTokensService>();
+        services.AddScoped<IEmailChangeTokensService, EmailChangeTokensService>();
         services.AddScoped<IAccessTokenIssuer, AccessTokenIssuer>();
-        services.AddScoped<IRefreshTokenGrants, RefreshTokenGrants>();
-        services.AddScoped<IRefreshTokenMaintenance, RefreshTokenMaintenance>();
-        services.AddScoped<ITwoFactorEnrollment, TwoFactorEnrollment>();
-        services.AddScoped<ITwoFactorChallenge, TwoFactorChallenge>();
-        services.AddScoped<ITwoFactorAdministration, TwoFactorAdministration>();
-        services.AddScoped<IConfirmationEmailComposer, ConfirmationEmailComposer>();
-        services.AddScoped<IPasswordResetEmailComposer, PasswordResetEmailComposer>();
-        services.AddScoped<IEmailChangeEmailComposer, EmailChangeEmailComposer>();
+        services.AddScoped<IRefreshTokenGrantsService, RefreshTokenGrantsService>();
+        services.AddScoped<IRefreshTokenMaintenanceService, RefreshTokenMaintenanceService>();
+        services.AddScoped<ITwoFactorEnrollmentService, TwoFactorEnrollmentService>();
+        services.AddScoped<ITwoFactorChallengeService, TwoFactorChallengeService>();
+        services.AddScoped<ITwoFactorAdministrationService, TwoFactorAdministrationService>();
+        services.AddScoped<IConfirmationEmailFactory, ConfirmationEmailFactory>();
+        services.AddScoped<IPasswordResetEmailFactory, PasswordResetEmailFactory>();
+        services.AddScoped<IEmailChangeEmailFactory, EmailChangeEmailFactory>();
         services.AddScoped<ISecurityEventLog, SecurityEventLog>();
 
-        // Not a port: the account lookup and claim generation the two token adapters share.
+        // Not a port: the account lookup and claim generation nine of the adapters above share.
         services.AddScoped<IAppUserDirectory, AppUserDirectory>();
 
         AddIdentityCore(services);

@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Identity.Configurations;
 
-/// <summary>Mapping for the refresh-token grant table.</summary>
 internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 {
     /// <summary>Base64url SHA-256 is always 43 characters, so the column is fixed width.</summary>

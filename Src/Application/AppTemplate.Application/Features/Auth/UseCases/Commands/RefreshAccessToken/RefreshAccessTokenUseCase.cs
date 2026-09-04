@@ -10,9 +10,9 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.RefreshAccessToken;
 
 public sealed class RefreshAccessTokenUseCase(
-    IUserAccounts accounts,
+    IUserAccountsService accounts,
     IAccessTokenIssuer accessTokens,
-    IRefreshTokenGrants refreshTokens,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     IValidator<RefreshAccessTokenCommand> validator) : IRefreshAccessTokenUseCase
 {

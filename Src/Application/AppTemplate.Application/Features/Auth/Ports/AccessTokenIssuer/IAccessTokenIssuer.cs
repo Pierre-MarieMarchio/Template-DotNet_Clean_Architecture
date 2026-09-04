@@ -3,7 +3,7 @@
 namespace AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
 
 /// <summary>
-/// Mints access tokens, and nothing else. Separate from <see cref="IRefreshTokenGrants"/> because a
+/// Mints access tokens, and nothing else. Separate from <see cref="IRefreshTokenGrantsService"/> because a
 /// refresh token is opaque server-side state and an access token is a signed assertion: an
 /// implementer of one has no use for the other's machinery.
 /// </summary>

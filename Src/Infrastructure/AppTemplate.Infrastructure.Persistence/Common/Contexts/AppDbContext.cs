@@ -92,7 +92,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     /// <summary>
     /// Refresh-token grants. Internal, like <see cref="RefreshToken"/> itself: the grant table is
-    /// reached only through <see cref="Features.Identity.Stores.IRefreshTokenStore"/>, and the
+    /// reached only through <see cref="Features.Identity.Tables.IRefreshTokenTable"/>, and the
     /// policy for how a grant is hashed, rotated and revoked lives in the identity module.
     /// </summary>
     internal DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();

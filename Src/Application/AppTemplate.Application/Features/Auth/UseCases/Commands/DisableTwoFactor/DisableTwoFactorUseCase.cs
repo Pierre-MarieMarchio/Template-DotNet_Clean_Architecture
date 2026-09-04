@@ -11,8 +11,8 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.DisableTwoFactor;
 
 public sealed class DisableTwoFactorUseCase(
-    ITwoFactorEnrollment enrollment,
-    IRefreshTokenGrants refreshTokens,
+    ITwoFactorEnrollmentService enrollment,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<DisableTwoFactorCommand> validator) : IDisableTwoFactorUseCase
@@ -44,7 +44,7 @@ public sealed class DisableTwoFactorUseCase(
 
         securityEventLog.Record(SecurityEvent.TwoFactorDisabled(userId.Value));
 
-        await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
 
         return Result.Success();
     }

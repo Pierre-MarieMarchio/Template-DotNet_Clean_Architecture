@@ -22,10 +22,10 @@ public sealed class VerifyTwoFactorUseCaseTests
     private static readonly DateTimeOffset _accessTokenExpiry = DateTimeOffset.UnixEpoch.AddMinutes(15);
     private static readonly DateTimeOffset _refreshTokenExpiry = DateTimeOffset.UnixEpoch.AddDays(30);
 
-    private readonly ITwoFactorChallenge _challenges = Substitute.For<ITwoFactorChallenge>();
-    private readonly IUserAccounts _accounts = Substitute.For<IUserAccounts>();
+    private readonly ITwoFactorChallengeService _challenges = Substitute.For<ITwoFactorChallengeService>();
+    private readonly IUserAccountsService _accounts = Substitute.For<IUserAccountsService>();
     private readonly IAccessTokenIssuer _accessTokens = Substitute.For<IAccessTokenIssuer>();
-    private readonly IRefreshTokenGrants _refreshTokens = Substitute.For<IRefreshTokenGrants>();
+    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly VerifyTwoFactorUseCase _useCase;
 

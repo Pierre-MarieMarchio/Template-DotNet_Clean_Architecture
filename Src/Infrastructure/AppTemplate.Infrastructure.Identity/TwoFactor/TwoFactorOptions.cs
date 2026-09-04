@@ -1,6 +1,7 @@
-﻿using Microsoft.Extensions.Options;
+﻿using AppTemplate.Infrastructure.Identity.Accounts;
+using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Options;
+namespace AppTemplate.Infrastructure.Identity.TwoFactor;
 
 /// <summary>
 /// How long a login challenge stays redeemable, how many recovery codes enrollment mints, and the

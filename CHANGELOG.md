@@ -26,8 +26,8 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   its item is completed. It exists to be *different in shape* from `TodoLists` — what a to-do list's
   persistence needs only because it owns items is now legible from what a reminder does without, and
   that comparison is what decided which parts of the persistence layer were extracted and which were
-  left duplicated (`docs/adr/0027`).
-- **Correctness that does not depend on event delivery** (`docs/adr/0026`, amending `0017`). Firing a
+  left duplicated.
+- **Correctness that does not depend on event delivery** . Firing a
   reminder re-reads whether its item is still outstanding rather than trusting the event that should
   have cancelled it, cancellation assigns a state so a redelivery is a no-op, and the case where
   re-reading finds an already-completed item increments
@@ -40,7 +40,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 - **Administrative account operations are covered by a lease on every claim** — see Fixed.
 - **Raw Kubernetes manifests** under `deploy/kubernetes/`, with `docs/DEPLOYMENT.md`. Deployment,
   Service and Ingress for the API, a Deployment of its own for the worker, and a migration Job
-  because `docs/adr/0009` refuses to migrate at startup. `preStop`, `Shutdown__Timeout` and
+  because the application refuses to migrate at startup. `preStop`, `Shutdown__Timeout` and
   `terminationGracePeriodSeconds` are one arithmetic and the manifests say which constrains which.
 - **`docs/REMOVING-THE-EXAMPLE-FEATURES.md`**, a procedure that was carried out before it was
   written, and which states what stops being demonstrated once the examples are gone.
@@ -80,18 +80,18 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   declaration (`IdentityRoles.Administrator`) shared by the seeder and the policy.
 - **`Cache-Control: private, no-cache` on reads**, which is what makes the strong `ETag` this API
   already publishes worth having: a client may store a response but must revalidate, and
-  `If-None-Match` then answers `304`. See `docs/adr/0019`.
+  `If-None-Match` then answers `304`.
 - **A request body size limit** (`RequestLimits:MaxRequestBodyBytes`, default 64 KiB) replacing
   Kestrel's 30 MB default. Enforced both by middleware on `Content-Length` — answering `413`
   `request.tooLarge`, a code that already existed with nothing able to produce it — and by Kestrel
   as the backstop for a chunked body.
 - **Per-consumer isolation for domain events.** A consumer that throws no longer prevents the other
   consumers *of the same event* from running; the failure is logged with the event and consumer
-  type. This narrows the known gap below without pretending to close it — see `docs/adr/0017`.
+  type. This narrows the known gap below without pretending to close it.
 - **Packaged as a `dotnet new` template.** `dotnet new install <path>` followed by
   `dotnet new cleanarch-webapi -n Your.Project` generates a solution under your own
   name, namespace, and Compose/Docker identifiers — see the README's "Using this as
-  a `dotnet new` template" section and `docs/adr/0014`. `.github/workflows/ci.yml`
+  a `dotnet new` template" section. `.github/workflows/ci.yml`
   gained a `template` job that installs, generates under a different name, builds
   and tests the result on every push.
 - `docs/ADDING-A-FEATURE.md`, a full walkthrough of the vertical `CONTRIBUTING.md`'s
@@ -103,7 +103,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   unrecognised version with `412`, and `If-Match: *` against a missing or someone-else's list also
   answers `412` rather than `404`. A repeated `GET` naming the current `ETag` in `If-None-Match`
   answers `304` with no body. New `Concurrency:IfMatch` section (`Optional` by default; `Required`
-  refuses a write with no `If-Match` at all with `428`) — see `docs/adr/0013`.
+  refuses a write with no `If-Match` at all with `428`).
 - `ReverseProxy` configuration section (`Enabled`, `KnownProxies`, `KnownNetworks`, `ForwardLimit`)
   driving `UseForwardedHeaders`. Off by default, and the validator **refuses to start** when it is
   enabled with an empty trust set — because ASP.NET Core treats two empty lists as "trust every
@@ -116,10 +116,6 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 - A coverage floor in `coverage.minimum`, read by CI and `tasks.ps1` from the same file. Set from
   measurement (86.53% of lines over 974 tests), not invented, and the file records the measurements
   it was derived from.
-- The ADR index is now checked against the records on disk: a new record with no row in
-  `docs/adr/README.md`, a row linking a record that was deleted, or two records sharing a number all
-  fail `./tasks.ps1 hygiene`. An unindexed record is invisible to anyone starting from the index, and
-  nothing else notices.
 - `tasks.ps1`, `AppTemplate.Api.http`, `CONTRIBUTING.md`, `SECURITY.md`, this file, and a release workflow
   publishing to GHCR with an SBOM and a signed provenance attestation.
 - Dependabot coverage for NuGet, GitHub Actions, Dockerfile **and** `docker-compose.yml` — the last
@@ -206,13 +202,12 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `docs/REMOVING-THE-EXAMPLE-FEATURES.md`'s migration step a `rm` of one file pair instead of a
   generated `DropTable` migration — a project that deletes the example features before ever running a
   migration against a real database never has their schema to begin with.
-- **One closed folder vocabulary per layer, and one public type per file** (`docs/adr/0025`). Each
+- **One closed folder vocabulary per layer, and one public type per file**. Each
   use case owns a folder holding its command, interface, implementation and validator; each port
   owns a folder holding its interface and the messages it exchanges. Architecture tests read the
   source tree and refuse a folder outside the vocabulary, an empty folder, a file declaring two
   public types, and a use-case folder that does not name what is inside it.
-- **A repository contract lives in the Domain; every other port lives in Application**
-  (`docs/adr/0024`). The domain's `Stores/` folder is now `Repositories/`, after the contract it has
+- **A repository contract lives in the Domain; every other port lives in Application**. The domain's `Stores/` folder is now `Repositories/`, after the contract it has
   always held; `Store` is kept for a technical contract with no aggregate behind it.
 
 - **BREAKING: the project prefix is `AppTemplate`, not `CA`.** Every project, namespace, `.sln`/
@@ -225,11 +220,11 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   future. **Anyone who forked this repository before this change must merge or reapply that rename
   by hand** — there is no automated migration path, because there is no way to distinguish "this
   repository's own `CA` token" from an adopter's unrelated code that happens to contain `CA` once
-  the fork has diverged. See `docs/adr/0014` for the packaging decision this rename made possible.
+  the fork has diverged.
 - Compose's project name and the API image tag are now `app-template`/`app-template-api` (was
   `ca-template`/`ca-api`); `POSTGRES_DB`/`POSTGRES_USER` are now the generic `appdb`/`appuser` (was
   `ca_template`/`ca_app`) — generic on purpose, so a generated project's database credentials do not
-  encode its name. See `docs/adr/0014`.
+  encode its name.
 - `Features/<F>/DomainEvents/` is now `Features/<F>/Consumers/` — the folder holds consumers, while
   the Domain's `Events/` holds the event types.
 - Feature-level error catalogues moved to `Features/<F>/Errors/`.
@@ -267,21 +262,21 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 Each of these was investigated and refused, and the record says why so the next person does not
 repeat the investigation. A template's value is as much in what it refuses as in what it ships.
 
-| Capability | Record | In one line |
-|---|---|---|
-| A filter expression language (OData `$filter`, RSQL) | [0015](docs/adr/0015-typed-filters-not-a-filter-expression-language.md) | Makes query cost unbounded and the whitelist unprovable; the typed surface can be read off a type. |
-| RFC 8288 `Link` headers for paging | [0016](docs/adr/0016-pagination-metadata-in-the-body.md) | A second statement of next-page that can disagree with the envelope. |
-| An outbox for domain events | [0017](docs/adr/0017-no-outbox-for-domain-events.md), [0026](docs/adr/0026-correctness-does-not-depend-on-event-delivery.md) | At-least-once is a contract on every consumer; the effect re-derives its own precondition instead, and the divergence is counted. |
-| A security-stamp cache | [0023](docs/adr/0023-no-security-stamp-cache.md) | Invalidating at the rotation points does not propagate between instances, so the observable promise stays "within at most the TTL" and the invalidation buys nothing. |
-| Rate limiting partitioned by identity | — | The limiter runs before authentication, so the principal is always anonymous where the partition key is computed. Moving authentication earlier would make every request the limiter is about to reject pay for a bearer validation first. |
-| A paginated user search | — | Every other endpoint in the authentication vertical spends its effort not revealing whether an address exists; listing them all in one call would contradict that effort. |
-| A caller id on `ICurrentUser` | — | Nothing would populate it until machine-to-machine authentication exists, and a member that is never set makes every consuming use case imply a capability the template does not have. |
-| Listing and revoking active sessions | — | Rotation inserts a new row per refresh, so the id a client read would be dead within the access token's lifetime and `DELETE` would fail silently against a live session. It needs a session id stable across rotation first — a column, not an endpoint. |
-| `PATCH` (JSON Patch or Merge Patch) | [0018](docs/adr/0018-no-patch.md) | Patching a representation lets a caller assemble a state change no aggregate operation authorises. |
-| Output caching | [0019](docs/adr/0019-caching-is-revalidation-not-storage.md) | Every response is per-user, so it either serves the wrong data or has no hit rate. |
-| `Deprecation`/`Sunset` headers | [0020](docs/adr/0020-no-deprecation-or-sunset-headers.md) | One version ships, so any date emitted would be invented. |
-| A queryable audit trail | [0021](docs/adr/0021-no-queryable-audit-trail.md) | A table the app can `UPDATE` through its own connection has the appearance of an audit trail without the property. |
-| Soft delete / restore | [0022](docs/adr/0022-no-soft-delete.md) | An invisible predicate on every read of every feature, where one omission leaks deleted rows silently. |
+| Capability | In one line |
+|---|---|
+| A filter expression language (OData `$filter`, RSQL) | Makes query cost unbounded and the whitelist unprovable; the typed surface can be read off a type. |
+| RFC 8288 `Link` headers for paging | A second statement of next-page that can disagree with the envelope. |
+| An outbox for domain events | At-least-once is a contract on every consumer; the effect re-derives its own precondition instead, and the divergence is counted. |
+| A security-stamp cache | Invalidating at the rotation points does not propagate between instances, so the observable promise stays "within at most the TTL" and the invalidation buys nothing. |
+| Rate limiting partitioned by identity | The limiter runs before authentication, so the principal is always anonymous where the partition key is computed. Moving authentication earlier would make every request the limiter is about to reject pay for a bearer validation first. |
+| A paginated user search | Every other endpoint in the authentication vertical spends its effort not revealing whether an address exists; listing them all in one call would contradict that effort. |
+| A caller id on `ICurrentUser` | Nothing would populate it until machine-to-machine authentication exists, and a member that is never set makes every consuming use case imply a capability the template does not have. |
+| Listing and revoking active sessions | Rotation inserts a new row per refresh, so the id a client read would be dead within the access token's lifetime and `DELETE` would fail silently against a live session. It needs a session id stable across rotation first — a column, not an endpoint. |
+| `PATCH` (JSON Patch or Merge Patch) | Patching a representation lets a caller assemble a state change no aggregate operation authorises. |
+| Output caching | Every response is per-user, so it either serves the wrong data or has no hit rate. |
+| `Deprecation`/`Sunset` headers | One version ships, so any date emitted would be invented. |
+| A queryable audit trail | A table the app can `UPDATE` through its own connection has the appearance of an audit trail without the property. |
+| Soft delete / restore | An invisible predicate on every read of every feature, where one omission leaks deleted rows silently. |
 
 ### Known gaps
 
@@ -291,7 +286,7 @@ Stated rather than left to be discovered:
   so one throwing no longer cancels its siblings — but the throwing consumer's own side effect is
   still lost, and a process that dies between the commit and the dispatch loop loses every consumer
   for that save. Closing this needs an outbox, which is refused for the reasons in
-  `docs/adr/0017`; add one before relying on a consumer whose absence a user would notice.
+  no outbox; add one before relying on a consumer whose absence a user would notice.
 - **Idempotency retention is enforced by a purge you must schedule.** `Idempotency:Retention` only
   stamps each row's `ExpiresAt`. Until `DELETE /api/v1/maintenance/idempotency-keys/expired` runs,
   a completed key stays replayable past its retention and the table grows.

@@ -7,7 +7,7 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.Logout;
 
 public sealed class LogoutUseCase(
-    IRefreshTokenGrants refreshTokens,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     IValidator<LogoutCommand> validator) : ILogoutUseCase
 {

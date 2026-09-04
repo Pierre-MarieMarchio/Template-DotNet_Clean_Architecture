@@ -2,6 +2,7 @@
 using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredRefreshTokens;
 using AppTemplate.Worker.Features.Maintenance;
+using AppTemplate.Worker.UnitTests.TestSupport;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -72,7 +73,9 @@ public sealed class MaintenanceDiagnosticsTests
             NullLogger<MaintenanceBackgroundService>.Instance);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await WaitUntilAsync(() => idempotency.CallCount >= 1 && refreshTokens.CallCount >= 1);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => idempotency.CallCount >= 1 && refreshTokens.CallCount >= 1,
+            "both purges to have run once");
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         // No other fake in this project reports a success with zero purged, so a zero here can only
@@ -81,14 +84,4 @@ public sealed class MaintenanceDiagnosticsTests
         iterationMeasurements.ShouldContain(m => m.Outcome == "success" && m.Value == 1);
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-
-        while (!condition())
-        {
-            timeout.Token.ThrowIfCancellationRequested();
-            await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token);
-        }
-    }
 }

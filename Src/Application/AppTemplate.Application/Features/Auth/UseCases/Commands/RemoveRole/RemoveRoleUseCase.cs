@@ -22,8 +22,8 @@ namespace AppTemplate.Application.Features.Auth.UseCases.Commands.RemoveRole;
 /// administrative endpoint that acts on someone else's.
 /// </summary>
 public sealed class RemoveRoleUseCase(
-    IRoleAssignments roles,
-    IRefreshTokenGrants refreshTokens,
+    IRoleAssignmentsService roles,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<RemoveRoleCommand> validator) : IRemoveRoleUseCase
@@ -46,7 +46,7 @@ public sealed class RemoveRoleUseCase(
             return callerId;
         }
 
-        var guard = SelfAdministrationGuard.EnsureNotSelf(
+        var guard = SelfAdministrationPolicy.EnsureNotSelf(
             callerId.Value,
             request.UserId,
             AuthErrors.CannotRemoveOwnRole);
@@ -63,7 +63,7 @@ public sealed class RemoveRoleUseCase(
             return Result.Failure(ToError(change));
         }
 
-        await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
         securityEventLog.Record(SecurityEvent.RoleRevoked(request.UserId, request.Role));
 
         return Result.Success();

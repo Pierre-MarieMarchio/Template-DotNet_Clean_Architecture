@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredRefreshTokens;
 using AppTemplate.Worker.Features.Maintenance;
+using AppTemplate.Worker.UnitTests.TestSupport;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -28,7 +29,9 @@ public sealed class MaintenanceBackgroundServiceTests
         using var service = CreateService(idempotency, refreshTokens, EnabledOptions());
 
         await service.StartAsync(CancellationToken.None);
-        await WaitUntilAsync(() => refreshTokens.CallCount >= 3);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => refreshTokens.CallCount >= 3,
+            "the refresh-token purge to have run three times");
         await service.StopAsync(CancellationToken.None);
 
         // The point: a permanently failing task in one iteration does not stop the loop from
@@ -48,7 +51,9 @@ public sealed class MaintenanceBackgroundServiceTests
         using var service = CreateService(idempotency, refreshTokens, options);
 
         await service.StartAsync(CancellationToken.None);
-        await WaitUntilAsync(() => idempotency.CallCount >= 3);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => idempotency.CallCount >= 3,
+            "the idempotency purge to have run three times");
         await service.StopAsync(CancellationToken.None);
 
         refreshTokens.CallCount.ShouldBe(0);
@@ -66,7 +71,9 @@ public sealed class MaintenanceBackgroundServiceTests
         using var service = CreateService(idempotency, refreshTokens, options);
 
         await service.StartAsync(CancellationToken.None);
-        await WaitUntilAsync(() => refreshTokens.CallCount >= 3);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => refreshTokens.CallCount >= 3,
+            "the refresh-token purge to have run three times");
         await service.StopAsync(CancellationToken.None);
 
         idempotency.CallCount.ShouldBe(0);
@@ -128,14 +135,4 @@ public sealed class MaintenanceBackgroundServiceTests
             NullLogger<MaintenanceBackgroundService>.Instance);
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-
-        while (!condition())
-        {
-            timeout.Token.ThrowIfCancellationRequested();
-            await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token);
-        }
-    }
 }

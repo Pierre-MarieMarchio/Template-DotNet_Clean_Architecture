@@ -11,8 +11,8 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.ChangePassword;
 
 public sealed class ChangePasswordUseCase(
-    IUserAccounts accounts,
-    IRefreshTokenGrants refreshTokens,
+    IUserAccountsService accounts,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<ChangePasswordCommand> validator) : IChangePasswordUseCase
@@ -53,7 +53,7 @@ public sealed class ChangePasswordUseCase(
                     change.RejectionMessage ?? "The submitted password does not meet the required policy."));
         }
 
-        await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
 
         return Result.Success();
     }

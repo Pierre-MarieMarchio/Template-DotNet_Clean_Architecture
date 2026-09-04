@@ -98,24 +98,35 @@ AppTemplate.Application/    Common/{Abstractions,Validation,Idempotency,Collecti
                    Features/<F>/{UseCases/{Commands,Queries}/<Operation>,Ports/<Port>,
                                  Consumers,Services,Policies,Extensions,Mapping,Dtos,Errors}
 AppTemplate.Infrastructure.Persistence/
-                   Common/{Contexts,Auditing,DomainEvents,Mapping,Time,Tracking,UnitOfWork,
-                           Idempotency}
+                   Common/{Contexts,Idempotency,Saving/{Auditing,DomainEvents,Tracking},Time}
                    Features/<F>/{Models,Configurations,Mapping,Tracking,Repositories,Queries,
-                                 Observability,Seeding,Stores}
+                                 Observability,Seeding,Tables}
                    Migrations/
-AppTemplate.Api/            Common/{Controllers,Contracts,Errors,Http,Idempotency,Caching,
-                                    Security,Startup,OpenApi,Lifecycle,Observability,Concurrency}
+AppTemplate.Api/            Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
+                                    Idempotency,Observability,OpenApi,Security}
                    Features/<F>/{Controllers,Contracts/{Requests,Responses},Mapping}
 AppTemplate.Worker/         Common/{Observability,Security}
                    Features/<F>/            one BackgroundService, its options, its metrics
+AppTemplate.Infrastructure.Email/       Common/{Smtp}            Features/<F>/
+AppTemplate.Infrastructure.InMemory/    Common/{Email,Time}      Features/<F>/
+AppTemplate.Infrastructure.Identity/    by subject: Accounts, AccessTokens, RefreshTokens,
+                                        EmailConfirmation, EmailChange, PasswordReset,
+                                        TwoFactor, SecurityEvents
 Tests/             a 1:1 mirror of Src/
 ```
 
 The vocabulary under `Features/<F>/` is closed, and
-`LayoutConventionTests.EveryFeatureFolder_IsNamedFromItsLayersVocabulary` holds it for all five
-projects above — including `AppTemplate.Worker`, whose list is deliberately empty: its features
+`LayoutConventionTests.EveryFeatureFolder_IsNamedFromItsLayersVocabulary` holds it for all seven
+projects above that have a `Features/` directory — including `AppTemplate.Worker`, whose list is deliberately empty: its features
 hold their files side by side with no subfolder, so the first subfolder anyone adds has to be
-argued for in an ADR rather than created quietly.
+argued for in the pull request that adds it, and written into this file, rather than created
+quietly.
+
+**The first level of `Common/` is closed too**, per project, held by
+`EveryCommonFolder_IsNamedFromItsProjectsVocabulary` — and it is the newer of the two rules for a
+reason: nothing checked `Common/` in any layer, and that is where every layout defect of the last
+month appeared. Only the first level is checked; how a folder partitions itself below that is its
+own business, which is why `Saving/` may hold `Auditing/`, `DomainEvents/` and `Tracking/`.
 
 A folder is only present when it has content: a feature with no read-side projection has no
 `Queries/`, one with no domain-event consumer has no `Consumers/`. `UseCases/{Commands,Queries}/`
@@ -132,9 +143,12 @@ Rules that the architecture tests enforce, so you will find out anyway:
 - **A folder even for a single file.** No `.cs` at a project root except the `.csproj`, the DI module
   class, and `Program.cs`.
 - **No `Services/`, `Interfaces/`, `DTOs/`, `Helpers/`, `Managers/` at a project root.** Sorting by
-  technical type is banned; it is allowed only *inside* a feature. The one admitted exception is an
-  infrastructure module project, where the project itself is the feature boundary — so its first
-  level counts as "inside a feature".
+  technical type is banned; it is allowed only *inside* a feature.
+- **An infrastructure module takes `Common/` + `Features/` when it has both kinds of adapter**, and
+  names its folders after subjects when it does not. `Email` and `InMemory` have a transverse
+  adapter (`IEmailSender`) and a feature-scoped one (`IReminderNotifier`), so the tree says which
+  files leave with the example feature. `Identity` serves one feature entirely, so `Features/Auth/`
+  would hold every file it has and `Common/` would be empty; its folders name subjects instead.
 - **Namespaces follow folders.** No exceptions.
 - `Tests/` mirrors `Src/` one directory for one directory.
 
@@ -168,8 +182,44 @@ only for a lost update. Everything becomes an RFC 7807 `ProblemDetails` with tha
 tracker (identity map) and a flush interceptor assign domain state onto tracked rows, and EF computes
 the delta. The concurrency token is PostgreSQL's `xmin` and it round-trips in both directions. Domain
 events are drained from the tracker and published after a successful commit, exactly once. If you are
-changing any of that, read `docs/adr/0011` first and add tests for the *update* path, not just the
-insert path.
+changing any of that, add tests for the *update* path, not just the insert path: an insert that
+works proves nothing about a delta EF computed from a tracked row.
+
+## Naming
+
+**A type's name says what it is, not only what it is about.** Reading the file name alone has to
+answer "what nature of thing is this?", so the suffix is not decoration:
+
+| Suffix | What it names |
+|---|---|
+| `…UseCase`, `…Command`, `…Query` | one operation, its input, and its implementation |
+| `…Outcome` | the record an operation hands back — a use case's or a port's |
+| `…Status` | the closed enum of ways it went, carried by an `…Outcome` |
+| `…Repository`, `…Store`, `…Queries` | an aggregate, storage with no aggregate, a read-side projection |
+| `…Service` | an injected implementation that has dependencies |
+| `…Mapper` / `…Mapping` | a mapping, injected / static — and named for what comes **out** of it |
+| `…Extensions` | a static class of `AddX`/`UseX` composition methods |
+| `…Options`, `…Validator`, `…Policy`, `…Consumer`, `…Dto`, `…Controller`, `…Request`, `…Response` | as they read |
+
+Two rules follow from having been broken:
+
+- **A word names one notion in this repository.** `Outcome` once named both a use case's return
+  record and the enum inside a port's, and `Policies` named both a business rule under
+  `Features/<F>/Policies/` and the file holding an `AddApiX`. When a second meaning appears, one of
+  the two is wrong — find which and rename it, do not document the ambiguity.
+- **The port carries the nature word, and the adapter is the port without its `I`.**
+  `IUserAccountsService` is implemented by `UserAccountsService`; `ISecurityEventLog` by
+  `SecurityEventLog`, because `Log` already says what it is. The one exception is a port several
+  modules implement, where a qualifying prefix tells them apart: `MailKitEmailSender` and
+  `InMemoryEmailSender` both satisfy `IEmailSender`.
+  A port's *folder* keeps the capability name — `Ports/UserAccounts/IUserAccountsService.cs` — and
+  that is not cosmetic: a folder named for the interface would put a namespace and a class of the
+  same name in scope of each other, which is CS0118 at every consumer.
+
+Banned outright: `Manager`, `Helper`, `Utils`, `Processor`, a bare `Handler`, and `Composer`. Each
+of them names "code" rather than a thing, and each attracts whatever nobody could classify. There is
+no `Utils/` folder in this repository and there is not meant to be one; needing it means a name is
+missing, not a folder.
 
 ## Comments
 
@@ -285,8 +335,9 @@ signatures at each step, if this checklist is not enough on its own.
 
 Generate with `./tasks.ps1 migration-add <Name>`. The application applies migrations at startup
 **only in Development**; a deployment applies them as a separate step from a bundle
-(`./tasks.ps1 migration-bundle`). See `docs/adr/0009` for why, and `SECURITY.md` for what a
-deployment still owes.
+(`./tasks.ps1 migration-bundle`). Applying them at startup in production would give the
+application's own runtime credentials the right to alter the schema, and would race every replica
+against every other on a rolling deploy; `SECURITY.md` says what a deployment still owes.
 
 There are two, and the split is deliberate: `InitialCreate` carries the `identity` and `platform`
 schemas — what every project keeps — and `AddExampleFeatures` carries `todo` and `reminders` alone,
@@ -302,11 +353,72 @@ Whatever produced them, `PendingModelChangesTests` is what proves a migration ma
 it calls `HasPendingModelChanges()` and needs no database — and the integration suites are the only
 thing that ever executes an `Up()`.
 
-## Architecture decisions
+## Decisions already made, and the shape they impose
 
-`docs/adr/` holds one record per decision a reasonable person could have made differently, including
-the rejected options — usually the useful part. If one of them is wrong for your project, **supersede
-it with a new numbered record** rather than editing history; `0006` shows the shape.
+These are the choices a reasonable person could have made differently. They are written here, and
+where a test can hold one it does — a rule nothing verifies is re-derived and lost inside six
+months. If one of them is wrong for your project, change it deliberately: change the sentence here
+*and* the test that holds it, in the same commit.
+
+**Writes are named operations. There is no `PATCH`.** A partial update whose semantics depend on
+which keys the client happened to send cannot be validated against an invariant, because the
+invariant is a property of the whole aggregate. So an omitted field means *absent*, not *unchanged*,
+and every write says in its URL what it does. `NoEndpoint_AcceptsPatch` holds it.
+
+**Filtering is a closed set of typed parameters.** Not a filter expression language: a grammar the
+client composes is a query planner you now own, an injection surface, and a performance cliff no
+index can flatten. Adding a filter means adding a parameter and a test, which is the point.
+
+**Pagination metadata is in the body.** `PagedResult<TItem>` says whether there is a next page; no
+`Link` header duplicates it. One statement of the fact, in the place every client already parses.
+`NoResponse_CarriesALinkHeader` holds it.
+
+**No `Deprecation` or `Sunset` headers while one version ships.** They would announce a schedule
+nobody has committed to. `NoResponse_AnnouncesItsOwnDeprecation` holds it; delete it the day a
+second version exists.
+
+**No soft delete.** `DELETE` removes rows. A deleted flag makes every query carry a predicate that
+one forgotten `Where` turns into a data leak, and it answers a retention question the audit trail
+should answer instead. `NoPersistenceRecord_CarriesADeletedFlag` holds it.
+
+**Correctness does not depend on event delivery.** Domain events are dispatched in-process, after
+commit, at most once, with no outbox — so a consumer may simply not run. That is survivable only
+because no consumer is the *only* thing keeping a rule true: the effect re-derives its precondition
+when it runs, so running twice is the same as running once, and never running leaves the system
+consistent but stale. A counter makes the divergence observable
+(`apptemplate.reminders.missed_cancellations`, watched per `SECURITY.md`). **Any consumer you add
+has to have that shape**, or the missing outbox stops being a cost and becomes a bug.
+
+**Extract what two real cases prove identical, and nothing more.** A guessed abstraction is a worse
+defect than an assumed duplication: the duplication is visible and local, the wrong abstraction is
+neither. Measure first — `wc -l`, `diff` — and require two cases that do the same thing, not two
+that resemble each other. `AggregateTracker` is what that looked like when it succeeded: seven
+members that read nothing but what `IVersioned`, `IAuditable` and `AggregateRoot<Guid>` already
+name. `FlushTo` stayed abstract, and the two repositories were never touched.
+
+**Authorisation is default-deny.** The fallback policy requires an authenticated user, so a new
+endpoint is closed until someone opens it. `[AllowAnonymous]` is the visible exception and it is
+whitelisted by name in `DefaultDenyTests`; adding one is a line in that test.
+
+**Four words name the four ways this template reaches storage, and each one is checked.**
+`Repository` loads an aggregate, so its contract lives in `AppTemplate.Domain` beside the aggregate.
+`Queries` projects rows onto a DTO without materialising one. `Store` is an application port for
+storage with no aggregate behind it — `IIdempotencyStore`, which a use case depends on. `Table` is
+row access to one table, declared inside the persistence project and reached only by a sibling
+infrastructure module — `IRefreshTokenTable`, which no use case has ever heard of.
+`StorageVocabularyTests` holds all four: a `Store` or a `Table` naming a domain entity has become a
+`Repository`, a `Repository` declared outside the Domain is a promise it cannot keep, and a `Table`
+a use case depends on has become a port and needs declaring where ports are.
+The four-operation ceiling `PortConventionTests` enforces is a rule about **ports** — the façade a
+use case sees. A `Table` is not one, and `IRefreshTokenTable` has six operations deliberately: it is
+one table's whole surface, held narrow by having exactly one consumer rather than by a count.
+
+**No MediatR, no dispatcher, no pipeline behaviours.** A controller names the use case it calls, and
+`F12` reaches the implementation. `LayerDependencyTests` forbids the package by name.
+
+**A port never exposes `IQueryable`.** A contract that hands out a query tree has not abstracted the
+database, it has published it — and every caller becomes a place where a lazy load can happen.
+`NoApplicationPort_ExposesAQueryable` holds it.
 
 ## Pull requests
 

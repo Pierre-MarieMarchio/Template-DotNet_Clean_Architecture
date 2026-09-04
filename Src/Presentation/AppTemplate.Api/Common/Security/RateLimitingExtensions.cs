@@ -47,7 +47,7 @@ public static class RateLimitingExtensions
                 };
 
                 problem.Extensions["code"] = "rateLimit.exceeded";
-                ProblemDetailsDefaults.Normalise(problem, context.HttpContext);
+                ProblemDetailsNormaliser.Normalise(problem, context.HttpContext);
 
                 await context.HttpContext.Response.WriteAsJsonAsync(
                     problem,

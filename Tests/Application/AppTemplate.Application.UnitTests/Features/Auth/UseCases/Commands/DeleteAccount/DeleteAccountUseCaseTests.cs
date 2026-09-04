@@ -15,7 +15,7 @@ public sealed class DeleteAccountUseCaseTests
     private static readonly Guid _callerId = Guid.CreateVersion7();
     private static readonly Guid _targetId = Guid.CreateVersion7();
 
-    private readonly IAccountDeletion _accountDeletion = Substitute.For<IAccountDeletion>();
+    private readonly IAccountDeletionService _accountDeletion = Substitute.For<IAccountDeletionService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

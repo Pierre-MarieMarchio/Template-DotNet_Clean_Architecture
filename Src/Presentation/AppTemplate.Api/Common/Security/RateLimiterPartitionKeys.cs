@@ -16,7 +16,7 @@
 /// <c>UseAuthentication</c>: at that point <see cref="HttpContext.User"/> is the anonymous default
 /// for every request, whatever bearer token it carries. Moving authentication earlier would fix the
 /// key and break something worse. Validating a bearer costs a signature check <i>and</i> a database
-/// read of the security stamp (see <c>docs/adr/0023</c>), so every request the limiter was about to
+/// read of the security stamp, which is never cached, so every request the limiter was about to
 /// reject would first pay for a database round trip. A limiter exists to refuse traffic early and
 /// cheaply; under the volumetric attack it is there to absorb, that ordering turns it into an
 /// amplifier of the very load it should be shedding.

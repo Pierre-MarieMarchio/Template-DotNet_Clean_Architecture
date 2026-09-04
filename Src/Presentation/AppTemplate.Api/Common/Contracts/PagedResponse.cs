@@ -12,7 +12,7 @@ namespace AppTemplate.Api.Common.Contracts;
 /// re-derived them would be a second copy of a rule that must have exactly one — so the values are
 /// carried across rather than recomputed.
 /// <para>
-/// See <c>docs/adr/0016-pagination-metadata-in-the-body.md</c> for why the metadata travels in the
+/// The metadata travels in the
 /// body rather than in <c>Link</c> headers.
 /// </para>
 /// </remarks>

@@ -14,7 +14,6 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
 /// </summary>
 internal interface IReminderMapper
 {
-    /// <summary>Rebuilds an aggregate from a row.</summary>
     Reminder ToAggregate(ReminderRecord record);
 
     /// <summary>Builds the row for an aggregate that has never been stored.</summary>

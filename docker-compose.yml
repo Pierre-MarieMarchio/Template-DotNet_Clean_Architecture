@@ -224,11 +224,19 @@ services:
       ReminderWorker__Enabled: ${REMINDER_WORKER_ENABLED:-true}
 
       # --- Jwt, RefreshToken, EmailConfirmation, PasswordReset, EmailChange ----
-      # Composed only because IRefreshTokenMaintenance's sole adapter lives in
-      # AppTemplate.Infrastructure.Identity, which validates its own configuration surface at
-      # startup regardless of whether this host ever authenticates anybody. Same variables and
-      # same required values as the api service — see docs/CONFIGURATION.md.
-      Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env (min 32 bytes; openssl rand -base64 48)}
+      # AppTemplate.Infrastructure.Identity is composed for two things, and the smaller one used to
+      # be the only one written down: IRefreshTokenMaintenance's sole adapter. The one that decides
+      # it is IUserProfilesService, which EmailReminderNotifier resolves to find the address a due
+      # reminder is rung at — so the reminder loop needs this module whatever happens to the
+      # maintenance adapter. It validates its whole configuration surface at startup regardless of
+      # whether this host ever authenticates anybody. Same variables and same required values as
+      # the api service — see docs/CONFIGURATION.md.
+      # Not ${JWT_KEY}, on purpose: this host never signs or checks a token, so the api service's
+      # signing key has no business in this container's environment. JwtOptionsValidator only
+      # requires 32 non-blank bytes, and this value names itself in any stack trace it reaches.
+      # Issuer and audience DO match the api service — those two are what the two hosts have to
+      # agree about. See SECURITY.md.
+      Jwt__Key: "this-host-neither-signs-nor-verifies-a-token"
       Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
       Jwt__Audience: ${JWT_AUDIENCE:?set JWT_AUDIENCE in .env}
       RefreshToken__LifetimeInDays: ${REFRESH_TOKEN_LIFETIME_DAYS:-7}

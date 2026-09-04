@@ -78,7 +78,7 @@ public sealed class AccountAdministrationController(
     /// <summary>
     /// Deletes the account outright. Refused with a 403 when <paramref name="userId"/> names the
     /// caller — see <c>DeleteAccountUseCase</c>. Deleting a to-do list or a reminder this account
-    /// owns is not part of this call: see <c>IAccountDeletion</c> for why, and for what becomes of
+    /// owns is not part of this call: see <c>IAccountDeletionService</c> for why, and for what becomes of
     /// them.
     /// </summary>
     [HttpDelete("{userId:guid}")]

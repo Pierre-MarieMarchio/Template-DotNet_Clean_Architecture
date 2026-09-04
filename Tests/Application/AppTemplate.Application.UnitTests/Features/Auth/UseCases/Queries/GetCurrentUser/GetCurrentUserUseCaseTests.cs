@@ -13,7 +13,7 @@ public sealed class GetCurrentUserUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly IUserProfiles _profiles = Substitute.For<IUserProfiles>();
+    private readonly IUserProfilesService _profiles = Substitute.For<IUserProfilesService>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 

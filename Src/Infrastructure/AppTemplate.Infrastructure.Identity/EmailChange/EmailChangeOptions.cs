@@ -1,6 +1,9 @@
-﻿using Microsoft.Extensions.Options;
+﻿using AppTemplate.Infrastructure.Identity.Accounts;
+using AppTemplate.Infrastructure.Identity.EmailConfirmation;
+using AppTemplate.Infrastructure.Identity.PasswordReset;
+using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Options;
+namespace AppTemplate.Infrastructure.Identity.EmailChange;
 
 /// <summary>
 /// Where the email-change confirmation link points, and how long the token behind it stays valid.

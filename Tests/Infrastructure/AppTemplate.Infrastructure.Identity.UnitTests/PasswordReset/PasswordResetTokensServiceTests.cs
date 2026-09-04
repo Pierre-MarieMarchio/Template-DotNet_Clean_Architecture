@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Features.Auth.Ports.PasswordResetTokens;
-using AppTemplate.Infrastructure.Identity.Users;
+using AppTemplate.Infrastructure.Identity.PasswordReset;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,14 +8,14 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Users;
+namespace AppTemplate.Infrastructure.Identity.UnitTests.PasswordReset;
 
 /// <summary>
-/// <see cref="PasswordResetTokens"/> over a real <see cref="UserManager{TUser}"/>, standing in for the
+/// <see cref="PasswordResetTokensService"/> over a real <see cref="UserManager{TUser}"/>, standing in for the
 /// named <c>PasswordResetTokenProvider</c> with a trivial fake: what is under test is the adapter's
 /// translation of ASP.NET Identity's outcomes, not the token provider itself.
 /// </summary>
-public sealed class PasswordResetTokensTests
+public sealed class PasswordResetTokensServiceTests
 {
     private const string _knownEmail = "someone@example.test";
     private const string _newPassword = "correct horse battery";
@@ -108,7 +108,7 @@ public sealed class PasswordResetTokensTests
         return (store, user);
     }
 
-    private static PasswordResetTokens CreateTokens(
+    private static PasswordResetTokensService CreateTokens(
         IUserEmailStore<AppUser> store,
         out UserManager<AppUser> userManager,
         bool rejectNewPassword = false)
@@ -126,11 +126,11 @@ public sealed class PasswordResetTokensTests
             Substitute.For<IServiceProvider>(),
             NullLogger<UserManager<AppUser>>.Instance);
 
-        // Stands in for the module's named "PasswordResetOutcome" provider, registered under the same
+        // Stands in for the module's named "PasswordReset" provider, registered under the same
         // "Default" name IdentityOptions.Tokens.PasswordResetTokenProvider defaults to.
         userManager.RegisterTokenProvider("Default", new StubTokenProvider());
 
-        return new PasswordResetTokens(userManager);
+        return new PasswordResetTokensService(userManager);
     }
 
     private sealed class StubTokenProvider : IUserTwoFactorTokenProvider<AppUser>

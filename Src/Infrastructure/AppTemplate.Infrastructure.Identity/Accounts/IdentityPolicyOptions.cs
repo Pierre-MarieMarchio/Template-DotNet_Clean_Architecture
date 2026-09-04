@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Infrastructure.Identity.Options;
+namespace AppTemplate.Infrastructure.Identity.Accounts;
 
 /// <summary>
 /// Password, lockout and sign-in policy. Every member has a safe default, so a section that is

@@ -11,8 +11,8 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.ConfirmEmailChange;
 
 public sealed class ConfirmEmailChangeUseCase(
-    IEmailChangeTokens emailChangeTokens,
-    IRefreshTokenGrants refreshTokens,
+    IEmailChangeTokensService emailChangeTokens,
+    IRefreshTokenGrantsService refreshTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<ConfirmEmailChangeCommand> validator) : IConfirmEmailChangeUseCase
@@ -55,7 +55,7 @@ public sealed class ConfirmEmailChangeUseCase(
             return Result.Failure(AuthErrors.InvalidEmailChange);
         }
 
-        await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
 
         return Result.Success();
     }

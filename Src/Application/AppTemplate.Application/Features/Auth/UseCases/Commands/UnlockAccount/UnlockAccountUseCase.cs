@@ -8,13 +8,13 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.UnlockAccount;
 
 /// <summary>
-/// No caller-identity check and no <c>CredentialInvalidation</c> call, unlike
+/// No caller-identity check and no <c>CredentialInvalidationPolicy</c> call, unlike
 /// <see cref="LockAccount.LockAccountUseCase"/>: lifting a lockout grants access back rather than
 /// taking it away, so there is no session of the caller's own it could end, and no credential of the
 /// target's it needs to invalidate.
 /// </summary>
 public sealed class UnlockAccountUseCase(
-    IAccountLockouts lockouts,
+    IAccountLockoutsService lockouts,
     ISecurityEventLog securityEventLog,
     IValidator<UnlockAccountCommand> validator) : IUnlockAccountUseCase
 {

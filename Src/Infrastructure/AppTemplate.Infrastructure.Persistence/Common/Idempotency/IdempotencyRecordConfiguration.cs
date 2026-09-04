@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 
-/// <summary>Mapping for the idempotency-key claim table.</summary>
 internal sealed class IdempotencyRecordConfiguration : IEntityTypeConfiguration<IdempotencyRecord>
 {
     /// <summary>The largest header value <c>IdempotencyOptions.MaxKeyLength</c> may ever be configured to.</summary>

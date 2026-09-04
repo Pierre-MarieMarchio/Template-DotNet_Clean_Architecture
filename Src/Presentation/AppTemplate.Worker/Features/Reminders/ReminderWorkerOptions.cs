@@ -13,7 +13,6 @@ public sealed class ReminderWorkerOptions
 {
     public const string SectionName = "ReminderWorker";
 
-    /// <summary>How long to wait between passes over the due reminders.</summary>
     public TimeSpan Interval { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>

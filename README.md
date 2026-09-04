@@ -12,7 +12,6 @@ policy, without becoming an application you have to delete.
 > - Layer boundaries and the reasoning behind them: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 > - Every configuration key: [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
 > - Running it on Kubernetes: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
-> - Why each decision was made, one file per decision: [docs/adr/](docs/adr/README.md)
 > - Deleting the `TodoLists`/`Reminders` examples once you have read them: [docs/REMOVING-THE-EXAMPLE-FEATURES.md](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
 
 ## What is in the box
@@ -374,7 +373,7 @@ else has since changed — is refused with `412` instead of silently overwriting
 `If-Match: *` asserts that the resource exists, so a missing or someone-else's
 resource also answers `412`, not `404`. Sending no `If-Match` at all is accepted
 unless `Concurrency:IfMatch` is set to `Required`, in which case it is refused with
-`428` — see `docs/adr/0013`. `AppTemplate.Api.http` walks through the whole round trip.
+`428`. `AppTemplate.Api.http` walks through the whole round trip.
 
 ### Collection queries — sorting, filtering, paging
 
@@ -448,7 +447,7 @@ and never another user's rows.
 
 **Pagination metadata lives in the body**, in the `PagedResult` envelope — there are no
 RFC 8288 `Link` headers, so there is exactly one statement of where the next page is.
-See `docs/adr/0016`.
+One statement of "is there a next page", in the body every client already parses.
 
 Every bound above is a `400` carrying its own code — `paging.invalid`, `sort.invalid`,
 `filter.invalid`, `cursor.invalid` — so a client can tell which rule it broke. A value
@@ -457,7 +456,7 @@ vocabulary for a malformed request, one for a broken rule.
 
 To give a new feature this contract, it declares an `ICollectionPolicy` — see
 `docs/ADDING-A-FEATURE.md`. Why the filter surface is typed rather than an expression
-language is `docs/adr/0015`.
+language is that a grammar the client composes is a query planner you then own.
 
 ### Retrying a `POST` safely — `Idempotency-Key`
 
@@ -656,7 +655,7 @@ the API starts without touching the schema: migrating from the process that serv
 requests needs DDL rights at runtime and races between replicas on
 `__EFMigrationsHistory`. Apply them as a deliberate deployment step —
 `dotnet ef database update`, or a migration bundle. See
-[ADR 0009](docs/adr/0009-no-migrations-at-startup-in-production.md).
+`CONTRIBUTING.md`.
 
 ### One migration set
 
@@ -757,7 +756,7 @@ Tests/
   Integration/AppTemplate.Infrastructure.Identity.IntegrationTests/
                                         the refresh-token rotation race, two contexts against real PostgreSQL
 
-docs/                          ARCHITECTURE.md, CONFIGURATION.md, DEPLOYMENT.md, adr/
+docs/                          ARCHITECTURE.md, CONFIGURATION.md, DEPLOYMENT.md
 
 deploy/
   kubernetes/                  Deployment, Service, Ingress, migration Job — see docs/DEPLOYMENT.md
@@ -785,7 +784,7 @@ AppTemplate.Application/
       Ports/TodoListQueries/    ITodoListQueries, TodoListFilter, TodoListPageRequest
       Services/                 ITodoListAccess — the one gate every command loads its aggregate through
       Extensions/               TodoListItemExtensions — a known-item id turned into the same 404 everywhere
-      Mapping/                  TodoListProjection — the aggregate a write just staged, read back as a DTO
+      Mapping/                  TodoListDtoMapping — the aggregate a write just staged, read back as a DTO
       Consumers/TodoItemCompleted/  a worked example of a domain-event consumer
       UseCases/Commands/<Operation>/   CreateTodoList, RenameTodoList, DeleteTodoList, AddTodoItem,
                                 UpdateTodoItem, RemoveTodoItem, CompleteTodoItem, ReopenTodoItem,
@@ -800,7 +799,7 @@ AppTemplate.Application/
       Ports/<Port>/             ReminderNotifier, ReminderTargets (is the target still outstanding?),
                                 ReminderDiagnostics (the missed-cancellation counter)
       Services/                 IReminderAccess — identity, ownership and precondition in one gate
-      Mapping/                  ReminderProjection
+      Mapping/                  ReminderDtoMapping
       Consumers/TodoItemCompleted/  cancels an item's reminders — a fast path, not the guarantee
       UseCases/Commands/<Operation>/   ScheduleReminder, RescheduleReminder, CancelReminder, and
                                 FireDueReminders, which the worker runs and which re-reads its
@@ -809,10 +808,11 @@ AppTemplate.Application/
       Dtos/                     ReminderDto
     Auth/
       Errors/                   AuthErrors.cs — the vertical's failure vocabulary
-      Policies/                 CredentialInvalidation, PasswordRules
+      Policies/                 CredentialInvalidationPolicy, PasswordPolicy,
+                                SelfAdministrationPolicy
       Ports/<Port>/             UserAccounts, EmailConfirmationTokens, AccessTokenIssuer,
-                                RefreshTokenGrants, RefreshTokenMaintenance, ConfirmationEmailComposer,
-                                PasswordResetTokens, PasswordResetEmailComposer, SecurityEventLog,
+                                RefreshTokenGrants, RefreshTokenMaintenance, ConfirmationEmailFactory,
+                                PasswordResetTokens, PasswordResetEmailFactory, SecurityEventLog,
                                 UserProfiles, and others — one port per capability, in place of
                                 one IAuthService
       UseCases/Commands/<Operation>/   Register, Login, Logout, LogoutEverywhere,
@@ -837,10 +837,15 @@ was ever local and no folder ever told you what the application does. A responsi
 folder is legitimate only *inside* a feature, where it partitions something that is already
 cohesive.
 
-A single-capability infrastructure module is the exception, because it *is* one
-responsibility: it has no features to partition, so its root folders name the parts of that
-one capability (`Bearer/`, `Notifications/`, `Options/`, `Tokens/`, `Users/`, `Templates/` in
-`AppTemplate.Infrastructure.Identity`; `Options/` and `Services/` in `AppTemplate.Infrastructure.Email`).
+An infrastructure module is partitioned by whether it has both kinds of adapter. `Email` and
+`InMemory` do — a transverse `IEmailSender` and a feature-scoped `IReminderNotifier` — so
+they take `Common/` and `Features/` like the inner layers, and the tree says which of their
+files leave with the reminders example. `Identity` does not: every one of its adapters
+serves the one `Auth` feature, so `Features/Auth/` would hold the whole project and
+`Common/` would be empty. Its folders name subjects instead — `Accounts/`, `AccessTokens/`,
+`RefreshTokens/`, `EmailConfirmation/`, `EmailChange/`, `PasswordReset/`, `TwoFactor/`,
+`SecurityEvents/` — each holding a service, the options that configure it, and whatever else
+belongs to that subject alone.
 
 `AppTemplate.Infrastructure.Persistence` holds more than one capability, so it is partitioned the same
 way the inner layers are — feature first:
@@ -850,13 +855,14 @@ AppTemplate.Infrastructure.Persistence/
   Common/                       the cross-cutting mechanisms, which name no feature
     Contexts/                   AppDbContext (the model's composition root), design-time
                                 factory, connection-string helper
-    Auditing/                   the audit interceptor
-    DomainEvents/               dispatcher, dispatch interceptor, consumer + source contracts
-    Mapping/                    IAggregateFlusher and the flush interceptor
-    Time/                       the system clock
-    UnitOfWork/                 EfUnitOfWork, and the EF -> ConcurrencyConflictException
-                                translation
+    Saving/                     everything one SaveChangesAsync does: EfUnitOfWork and the
+                                EF -> ConcurrencyConflictException translation, then
+      Auditing/                 the audit interceptor
+      DomainEvents/             dispatcher, dispatch interceptor, consumer + source contracts
+      Tracking/                 the shared tracker core, IAggregateFlusher, the flush
+                                interceptor and the stored audit stamps
     Idempotency/                the idempotency-key record, its store and its EF configuration
+    Time/                       the system clock
   Features/
     TodoLists/
       Models/                   TodoListRecord, TodoItemRecord, TodoItemTagRecord
@@ -868,7 +874,7 @@ AppTemplate.Infrastructure.Persistence/
     Identity/
       Models/                   AppUser, AppRole, RefreshToken
       Configurations/           table and index mapping, one schema per feature
-      Stores/                   IRefreshTokenStore — a technical port, not an aggregate repository
+      Tables/                   IRefreshTokenTable — rows in one table, not an aggregate repository
       Seeding/                  IIdentitySeeder and its options
   Migrations/                   one history
   PersistenceModule.cs
@@ -1011,7 +1017,6 @@ migration bundle built from the same commit. It needs no secret beyond the autom
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | how the layers fit together |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | every configuration key, its default, and what happens when it is wrong |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | running it on Kubernetes: the raw manifests in `deploy/kubernetes/`, and why their numbers are what they are |
-| [docs/adr/](docs/adr/) | one record per decision you could reasonably have made differently, including the rejected options |
 | [AppTemplate.Api.http](AppTemplate.Api.http) | the whole API walkthrough, executable |
 | [tasks.ps1](tasks.ps1) | thin wrappers over the real `dotnet` commands — it prints each one before running it |
 

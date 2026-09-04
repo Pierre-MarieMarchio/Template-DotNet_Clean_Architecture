@@ -26,7 +26,7 @@ that shows up as real code, not just a shared theme:
   `TodoItemCompletedDomainEvent`, a type owned by `TodoLists`.
 - `ScheduleReminderUseCase` calls `ITodoListQueries.GetDetailAsync` to confirm the item it is
   scheduling against is real and belongs to the caller before it lets `Reminder.Schedule` run.
-- `ReminderTargets` (the persistence adapter behind `IReminderTargets`) queries
+- `ReminderTargetQueries` (the persistence adapter behind `IReminderTargetQueries`) queries
   `context.TodoLists.SelectMany(list => list.Items)` to read completion state.
 
 **Consequence:** you can remove `Reminders` on its own — nothing in `TodoLists` references it back
@@ -49,9 +49,9 @@ directory, not file-by-file.
 | Application | `Src/Application/AppTemplate.Application/Features/TodoLists/` | `Src/Application/AppTemplate.Application/Features/Reminders/` |
 | Persistence | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/` |
 | API | `Src/Presentation/AppTemplate.Api/Features/TodoLists/` | `Src/Presentation/AppTemplate.Api/Features/Reminders/` |
-| In-memory test doubles | — | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Reminders/` |
+| In-memory test doubles | — | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Features/Reminders/` |
 | Worker | — | `Src/Presentation/AppTemplate.Worker/Features/Reminders/` |
-| Email adapter | — | `Src/Infrastructure/AppTemplate.Infrastructure.Email/Services/EmailReminderNotifier.cs` (one file, not a folder) |
+| Email adapter | — | `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/EmailReminderNotifier.cs` (one file, not a folder) |
 
 And their test mirrors — same shape, under `Tests/` instead of `Src/`:
 
@@ -79,7 +79,7 @@ behind after everything inside it is gone, so it will name any that were missed.
 `IDE0005`, which `TreatWarningsAsErrors` turns into an error — expect them in
 `PersistenceModule.cs`, `AppDbContext.cs`, `EmailModule.cs`, `InMemoryModule.cs`, `ApiFactory.cs`
 and `IntegrationTestBase.cs`, not only in `ServiceRegistration.cs`. Remove them one at a time and
-rebuild: `…Persistence.Common.Mapping` looks like it belongs to the deleted mappers but also holds
+rebuild: `…Persistence.Common.Tracking` looks like it belongs to the deleted mappers but also holds
 `StoredStamps`, which stays. And a `<see cref="…"/>` naming a deleted type
 is a build error too — `InMemoryModule.cs`'s class summary names `IReminderNotifier`, so its
 comment has to change along with its code.
@@ -163,8 +163,11 @@ publish step, several minutes in.
 Yes — `MaintenanceBackgroundService` runs two purges (`PurgeExpiredIdempotencyKeys`,
 `PurgeExpiredRefreshTokens`) on a timer, and neither depends on either example feature. Once
 `Reminders` is gone the Worker composes `AppTemplate.Application`, `AppTemplate.Infrastructure.Persistence`
-and `AppTemplate.Infrastructure.Identity` — the last one only because `IRefreshTokenMaintenance`'s
-sole adapter lives there — and nothing else. It still proves the template's actual claim: the same
+and `AppTemplate.Infrastructure.Identity` — and nothing else. Removing `Reminders` does take away
+one of the two reasons the last of those is there, since `EmailReminderNotifier` and its
+`IUserProfilesService` dependency leave with the feature; it does not take away the module, because
+`AddApplicationLayer` still registers every `Auth` use case and `ValidateOnBuild` still requires
+each of their ports to resolve. It still proves the template's actual claim: the same
 application layer, answering an HTTP request in one host and a background loop in another, with no
 use case and no domain type touched to make it work in either.
 
@@ -240,7 +243,7 @@ following has a substitute anywhere else in the template once both example featu
 
 - **`IUnitOfWork`.** The port a use case calls to commit its work. `Auth`'s use cases commit through
   ASP.NET Identity's own `UserManager`, and `Maintenance`'s purges commit through
-  `IIdempotencyStore` / `IRefreshTokenMaintenance` — neither ever calls `IUnitOfWork` directly. It
+  `IIdempotencyStore` / `IRefreshTokenMaintenanceService` — neither ever calls `IUnitOfWork` directly. It
   was consumed **only** by the to-do list and reminder use cases and their domain-event consumers.
   `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` catches exactly this:
   with both examples gone, this fundamental cross-cutting abstraction has zero callers in the
@@ -314,7 +317,7 @@ by name rather than by missing mechanism. In the order they were hit:
   comment updated together — the number alone, without the comment explaining what it now counts,
   is exactly the kind of assertion this template's own conventions warn against.
 - **`ServiceRegistrationTests.TodoListAccess_IsRegisteredAsScoped`** and its `BuildProvider` fixture's
-  `ITodoListRepository`/`IReminderRepository`/`IReminderNotifier`/`IReminderTargets`/`IReminderDiagnostics`
+  `ITodoListRepository`/`IReminderRepository`/`IReminderNotifier`/`IReminderTargetQueries`/`IReminderDiagnostics`
   substitutes — deleted outright; there is no vertical left for the first to assert about, and the
   fixture no longer needs to satisfy ports that no use case takes.
 - **`ContainerCompositionTests`, `AdapterVisibilityTests`** — drop `ITodoListRepository` and
@@ -370,9 +373,9 @@ use cases" comments need updating.
 
 **Removing `TodoLists`, keeping `Reminders`:** not a smaller version of the full removal — it does
 not compile. `Reminders` calls `ITodoListQueries` and consumes `TodoItemCompletedDomainEvent`
-directly, and `ReminderTargets` queries `context.TodoLists`. Either bring `TodoLists` back, or accept
+directly, and `ReminderTargetQueries` queries `context.TodoLists`. Either bring `TodoLists` back, or accept
 that removing it means removing `Reminders` too and rewrite `Reminders`' three touch points
-(`ScheduleReminderUseCase`, `CancelRemindersOnTodoItemCompletedConsumer`, `ReminderTargets`) against
+(`ScheduleReminderUseCase`, `CancelRemindersOnTodoItemCompletedConsumer`, `ReminderTargetQueries`) against
 whatever replaces the to-do item as the thing a reminder is scheduled against — which is no longer
 "removing the example", it is redesigning the second one.
 

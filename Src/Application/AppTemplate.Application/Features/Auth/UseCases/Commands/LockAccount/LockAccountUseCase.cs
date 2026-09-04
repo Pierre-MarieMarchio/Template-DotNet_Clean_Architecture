@@ -1,0 +1,66 @@
+﻿using AppTemplate.Application.Common.Ports;
+using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Common.Validation;
+using AppTemplate.Application.Features.Auth.Errors;
+using AppTemplate.Application.Features.Auth.Policies;
+using AppTemplate.Application.Features.Auth.Ports.AccountLockouts;
+using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+using FluentValidation;
+
+namespace AppTemplate.Application.Features.Auth.UseCases.Commands.LockAccount;
+
+public sealed class LockAccountUseCase(
+    IAccountLockoutsService lockouts,
+    IRefreshTokenGrantsService refreshTokens,
+    ISecurityEventLog securityEventLog,
+    ICurrentUser currentUser,
+    IValidator<LockAccountCommand> validator) : ILockAccountUseCase
+{
+    public async Task<Result> ExecuteAsync(LockAccountCommand request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var validation = await validator.EnsureValidAsync(request, cancellationToken);
+
+        if (validation.IsFailure)
+        {
+            return validation;
+        }
+
+        var callerId = currentUser.RequireUserId();
+
+        if (callerId.IsFailure)
+        {
+            return callerId;
+        }
+
+        var guard = SelfAdministrationPolicy.EnsureNotSelf(
+            callerId.Value,
+            request.UserId,
+            AuthErrors.CannotLockOwnAccount);
+
+        if (guard.IsFailure)
+        {
+            return guard;
+        }
+
+        var outcome = await lockouts.LockAsync(request.UserId, cancellationToken);
+
+        if (outcome is not LockoutChangeStatus.Applied)
+        {
+            return Result.Failure(ToError(outcome));
+        }
+
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
+        securityEventLog.Record(SecurityEvent.AccountLockedByAdministrator(request.UserId));
+
+        return Result.Success();
+    }
+
+    private static Error ToError(LockoutChangeStatus outcome) => outcome switch
+    {
+        LockoutChangeStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
+        _ => AuthErrors.AccountLockoutRejected,
+    };
+}

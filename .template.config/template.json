@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "AppTemplate contributors",
+  "classifications": [
+    "Web API",
+    "Clean Architecture",
+    "DDD"
+  ],
+  "identity": "AppTemplate.Templates.CleanArchitectureApi",
+  "name": ".NET Clean Architecture API",
+  "shortName": "cleanarch-webapi",
+  "description": "A .NET 10 Web API scaffolded on Clean Architecture: Domain, Application, per-module Infrastructure, and a thin Presentation layer, with JWT auth, EF Core/PostgreSQL persistence and an architecture-rule test suite.",
+  "sourceName": "AppTemplate",
+  "defaultName": "MyCompany.MyProject",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "solution"
+  },
+  "symbols": {
+    "nameLower": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": {
+        "source": "name",
+        "toLowerCase": true
+      }
+    },
+    "kebabName": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "nameLower",
+        "steps": [
+          {
+            "regex": "[.\\s_]+",
+            "replacement": "-"
+          }
+        ]
+      },
+      "replaces": "app-template"
+    }
+  },
+  "guids": [
+    "827E0CD3-B72D-47B6-A68D-7590B98EB39B",
+    "8B290487-4C16-E85E-E807-F579CBE9FC4D",
+    "22BAF98C-8415-17C4-B26A-D537657BC863",
+    "9048EB7F-3875-A59E-E36B-5BD4C6F2A282",
+    "6996BBF7-DB31-59BC-C7DD-9A7CCC6138C4",
+    "0AB3BF05-4346-4AA6-1389-037BE0695223",
+    "807423A9-76D4-4990-8E93-3E0305FB8827",
+    "D5A7470B-89BC-4F46-A21B-A81C03CCA86D",
+    "4E3A92CC-E179-4BD2-AF0F-5BCAFD37FD54",
+    "82BE0110-2A7E-42E5-BD85-12D7F94AF01F",
+    "8162CD3D-C8B1-43AC-884C-84B700E5CDEF",
+    "35E6820E-2E42-4330-BCBF-EB5A89E08AEC",
+    "486E2063-6ACE-43A1-8BDD-46BAB6FEBB95",
+    "952D43FC-9FC2-4795-A1FF-03CC6AF61E80",
+    "3D38482F-A87A-436E-B15B-54BA9966486A",
+    "2F4EB9D4-96F0-4174-AC65-457A465613D1",
+    "940FD941-1D9C-4451-B84B-A3CF521A1824",
+    "69394BB0-C501-466D-B2BC-05F99D1DC92F",
+    "0EE33EEE-8DDA-4D8C-B30F-6B28A43600FA",
+    "FA823C16-564E-4AB3-9645-9DA1BB387CE4",
+    "2D3D5062-3FA0-432B-A08C-A2D029B5B4CF",
+    "06CFFD70-14AA-A959-A3BA-1B15D094E3B1",
+    "F52C267D-47BB-4422-9B18-6133A6C34EBE",
+    "609A0E67-8706-4481-BF62-B6EECFED3E2B",
+    "A63B96E9-70FC-0FDC-3588-905A57B46513",
+    "14408293-E279-41AA-8D03-AE489B1EBC94",
+    "28A6993C-471E-82FE-7D9E-AD3B1EC22BD9",
+    "6A63B1ED-8153-44F3-9E5C-C0576B0890B0",
+    "B4FE3D28-553C-4B09-B4E6-95E66D33A973",
+    "D3F03246-17BA-4CCE-BC2F-3C8E85DE2339"
+  ],
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            ".template.config/**",
+            ".git/**",
+            "**/bin/**",
+            "**/obj/**",
+            ".env",
+            ".vs/**"
+          ]
+        }
+      ]
+    }
+  ],
+  "primaryOutputs": [
+    {
+      "path": "AppTemplate.sln"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+# Line-coverage floor, in percent. Read by .github/workflows/ci.yml and by Tools/Tasks.cs, so the
+# gate a developer runs locally is the gate CI runs. One value, one file, no second copy to drift.
+#
+# Set from measurement, never invented. A threshold above the real number fails on day one and gets
+# deleted; a threshold far below it lets coverage rot unnoticed, which is the same as having none.
+# The rule here is: a few points under the measured value, so an honest refactor has room but a
+# real regression trips it.
+#
+# Measured history — `dotnet run Tools/Tasks.cs coverage` prints the current value:
+#   2026-08-05   83.80%  (2261/2698)  715 tests
+#   2026-08-05   86.53%  (2750/3178)  974 tests
+#   2026-08-05   87.84%  (3562/4055)  1187 tests
+#   2026-08-10   85.34%  (9186/10764) 3089 tests
+#   2026-09-04   90.46%  (7874/8704)  3259 tests
+#
+# The weakest assembly is AppTemplate.Infrastructure.Email at 64.52%; then
+# AppTemplate.Infrastructure.Storage at 81.89% and AppTemplate.Worker at 82.26%. Every other one is
+# above the floor, AppTemplate.Infrastructure.Identity highest among the adapters at 93.69%. The
+# total is what the gate enforces, so a large new project with no tests can pull it down even while
+# every other one improves. Read this list as of the last dated measurement above and no later: it
+# is written by hand, and nothing makes it fall out of step loudly.
+#
+# THE 68.22% ABOVE WAS MEASURED WITHOUT A SINGLE IDENTITY UNIT TEST IN IT. coverage.runsettings named
+# GeneratedCodeAttribute in ExcludeByAttribute, and coverlet 10.0.1 drops a whole assembly from the
+# report when one of its classes is a source-generated partial — which SecurityEventLog is, being a
+# LoggerMessage class. So the report from AppTemplate.Infrastructure.Identity.UnitTests held no
+# AppTemplate.Infrastructure.Identity package at all: 187 passing tests, scored zero, and the 68.22%
+# came entirely from the two integration suites. The exclusion is now written as an ExcludeByFile
+# glob over obj/, which covers the same generated code — every other assembly's line counts are
+# identical to the digit — and does not lose the module.
+#
+# What that is worth, measured on this machine, where Docker is absent so both integration suites
+# contribute nothing and neither figure is comparable to the four above:
+#   before   59.96%  (6472/10793)   AppTemplate.Infrastructure.Identity absent from the report
+#   after    68.08%  (7326/10761)   AppTemplate.Infrastructure.Identity 58.13% (854/1469)
+#   then     69.33%  (7461/10761)   AppTemplate.Worker 57.22% -> 81.28% (321 -> 456 lines)
+# Eight points from tests that were already written and already passing, and one more from the two
+# worker files nothing had ever executed: Common/Observability/WorkerObservabilityExtensions.cs and
+# Common/Outbound/OutboundHttpExtensions.cs, both at 0 of 70 and 0 of 67 lines. What is left in that
+# assembly is Program.cs at 0/28, which a unit test cannot reach, and the uncovered halves of the
+# three loops.
+#
+# The Docker-present total has not been re-measured since — Docker is unavailable on the machine
+# these three lines were taken on, so both integration suites contributed nothing to all three — and
+# the 85.34% below is therefore still the last honest figure for the gate, now an understatement of
+# unknown size. Re-measure on a machine with Docker before touching the floor either way.
+#
+# READ THIS BEFORE TRUSTING THE MARGIN. The measured total is 85.34% against a floor of 85, which is
+# 0.34 points, not the "few points" this file's own rule asks for: the gate will now trip on an honest
+# refactor. Two ways out and they are not equivalent — cover AppTemplate.Worker, which is the cheapest
+# real coverage left on the table, or lower the floor and accept that it protects less. The number
+# below is deliberately left where it is rather than adjusted by whoever noticed, because loosening a
+# gate is a decision and not a chore.
+85

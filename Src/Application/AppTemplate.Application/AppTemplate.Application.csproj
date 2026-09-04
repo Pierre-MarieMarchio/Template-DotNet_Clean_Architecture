@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Domain\AppTemplate.Domain\AppTemplate.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- Cursor.Decode, SearchTerm.Create and the other validating factories in Common/Collections/ are
+       internal on purpose: nothing outside this assembly may construct one that skipped validation.
+       A test restricted to the public surface could reach their failure branches only through a use
+       case, which would prove a request is refused without showing which of a dozen branches refused
+       it. Granted to exactly one assembly — the layer's own unit tests — for the same reason
+       AppTemplate.Infrastructure.Persistence grants its mapper's internals to exactly one.
+
+       Deliberately NOT granted to AppTemplate.Infrastructure.Persistence.UnitTests: a persistence
+       test that could build an unvalidated SortOrder or Cursor would be asserting on SQL no request
+       can produce. Those tests use the public Cursor.After and SortOrder.Parse instead. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Application.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,47 @@
+# TLS termination and HSTS both belong here, not in the application — docs/DEPLOYMENT.md's "HSTS
+# is the Ingress's responsibility" is the record of why, and SECURITY.md makes sending it a
+# deployment obligation. The annotations below are the nginx ingress controller's own vocabulary
+# (nginx.ingress.kubernetes.io/*); if you deploy behind a different controller, translate the
+# intent (redirect to HTTPS, send Strict-Transport-Security) into that controller's own
+# annotations or CRDs rather than copying these verbatim — they will be silently ignored by a
+# controller that does not recognise the nginx.ingress.kubernetes.io/ prefix, not rejected, which
+# is the dangerous failure mode: the Ingress applies, HSTS just never gets sent.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-template-api
+  labels:
+    app.kubernetes.io/name: app-template-api
+    app.kubernetes.io/part-of: app-template
+    app.kubernetes.io/component: api
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # docs/DEPLOYMENT.md's own recommendation: start with a short max-age, confirm every host under
+    # the name serves TLS, then raise it. Do not copy a one-year max-age from another project
+    # into this file — that promise is being made about THIS domain, and it cannot be shortened
+    # retroactively.
+    nginx.ingress.kubernetes.io/hsts: "true"
+    nginx.ingress.kubernetes.io/hsts-max-age: "300"
+    nginx.ingress.kubernetes.io/hsts-include-subdomains: "false"
+    nginx.ingress.kubernetes.io/hsts-preload: "false"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.example.com
+      # Provisioned by cert-manager, or any other means that lands a TLS keypair in a Secret of
+      # this name and shape (tls.crt / tls.key). Not created by any manifest here — a certificate
+      # is a lifecycle of its own (issuance, renewal) that does not belong next to a Deployment.
+      secretName: app-template-api-tls
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-template-api
+                port:
+                  name: http

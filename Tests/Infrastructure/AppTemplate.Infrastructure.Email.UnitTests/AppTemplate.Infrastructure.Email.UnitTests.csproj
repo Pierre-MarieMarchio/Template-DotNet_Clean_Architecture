@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the email module's own decisions, which are two: what a relay configuration is
+       allowed to be, and what the adapter refuses to send.
+
+       The first is the reason this project exists. EmailOptionsValidator runs under ValidateOnStart,
+       so what it rejects is what stops the process from booting — and the rule it enforces is that a
+       transport able to fall back to plaintext is not acceptable against a host that is not
+       loopback. That rule is a single boolean expression over an enum, which is exactly the kind of
+       thing somebody simplifies while tidying up. Nothing else in the repository would notice: the
+       downgrade is silent, the mail still arrives, and it arrives in the clear.
+
+       No socket is opened here. The adapter's guards all run while composing the MimeMessage, before
+       ConnectAsync is reached, so a rejected recipient is observable as a parse or argument failure
+       rather than as a connection failure — which is what the sender tests assert on. Everything that
+       needs a real SMTP conversation is out of scope for a unit test and is not simulated with a
+       stub server: a fake relay would only prove that MailKit talks to the fake.
+
+       Internals are shared from AppTemplate.Infrastructure.Email for the validator alone. It is internal, as
+       every non-contract type in that assembly is, and the alternative seam — binding configuration
+       and resolving IOptions so ValidateOnStart throws — turns each of two dozen cases into a
+       dictionary of strings and an exception message, which obscures the one thing under test.
+       Shared with exactly one assembly. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />
+  </ItemGroup>
+
+</Project>

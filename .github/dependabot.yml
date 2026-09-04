@@ -1,0 +1,173 @@
+version: 2
+
+# Dependabot rather than Renovate.
+#
+# Renovate is the more expressive of the two — regex managers, dependency dashboards,
+# per-package merge policies — but it is a third-party GitHub App that somebody with org
+# admin rights has to install before a single PR appears. A template is cloned by people
+# who do not have that right and would end up with a dependency bot that silently does
+# nothing. Dependabot is built into GitHub, needs no install and no secret, and its
+# `groups` key is enough to keep the 10.0.x band down to one pull request. Swap in
+# Renovate if this repository ever needs a monorepo-wide policy engine.
+#
+# What is deliberately NOT here: `open-pull-requests-limit: 0` anywhere, and no blanket
+# `ignore` on a package the template pins for security reasons. See the NuGet block.
+
+updates:
+  # ---------------------------------------------------------------------------
+  # NuGet. Every version in this repository lives in Directory.Packages.props
+  # (Central Package Management), so that is the only file Dependabot edits.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - nuget
+    commit-message:
+      prefix: "build(deps)"
+      prefix-development: "build(deps-dev)"
+
+    groups:
+      # FIRST, on purpose: Dependabot puts a dependency in the first group whose
+      # patterns match it, and this entry must win over `microsoft-runtime` below.
+      #
+      # Microsoft.OpenApi is a transitive security pin, not a package this solution
+      # references. Microsoft.AspNetCore.OpenApi 10.0.10 resolves 2.0.0, which carries
+      # the high-severity GHSA-v5pm-xwqc-g5wc; CentralPackageTransitivePinningEnabled
+      # plus NuGetAuditLevel=low is what forces 2.7.6 instead. It is pinned to the 2.x
+      # line deliberately: 3.x is a different major than the one the ASP.NET Core
+      # package was compiled against.
+      #
+      # It gets a group of its own so that a proposal to move it can never be folded
+      # into a ten-package runtime PR and merged unread. It is NOT in `ignore`, because
+      # an ignored pin is a pin nobody is ever told to revisit — including when the
+      # patched 2.x that finally lets the pin go is released.
+      #
+      # The backstop underneath all of this is indirect but real, and worth stating
+      # precisely rather than generously: nothing asserts "the pin exists and is >= 2.7.6".
+      # What happens is that removing or lowering it lets the transitive resolution fall
+      # back to 2.0.0, and NuGetAuditLevel=low then fails `dotnet restore` outright — so
+      # the build breaks locally and the "Vulnerable packages" CI job reports it. A PR that
+      # drops the pin cannot merge green; it just fails for a reason one step removed.
+      microsoft-openapi-security-pin:
+        applies-to: version-updates
+        patterns:
+          - Microsoft.OpenApi
+
+      # The 10.0.x runtime band. These ship together and are expected to move together;
+      # one PR per package would be ten PRs a month for a single servicing release.
+      # Microsoft.IdentityModel.* (8.x) and Microsoft.NET.Test.Sdk (18.x) are on their
+      # own release trains and are excluded so a PR never mixes two bands.
+      microsoft-runtime:
+        applies-to: version-updates
+        patterns:
+          - Microsoft.*
+        exclude-patterns:
+          - Microsoft.OpenApi
+          - Microsoft.IdentityModel.*
+          - Microsoft.NET.Test.Sdk
+
+      identity-model:
+        applies-to: version-updates
+        patterns:
+          - Microsoft.IdentityModel.*
+
+      test-tooling:
+        applies-to: version-updates
+        patterns:
+          - Microsoft.NET.Test.Sdk
+          - coverlet.*
+          - xunit*
+          - NSubstitute
+          - Shouldly
+          - NetArchTest.*
+          - Testcontainers.*
+
+      third-party-runtime:
+        applies-to: version-updates
+        patterns:
+          - Asp.Versioning.*
+          - FluentValidation*
+          - MailKit
+          - Npgsql.*
+          - Scalar.*
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions. Every `uses:` in this repository is pinned to a commit SHA with the
+  # human-readable tag in a trailing comment; Dependabot rewrites both, which is the only
+  # sustainable way to keep SHA pinning from rotting into never-updated actions.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      actions:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  # ---------------------------------------------------------------------------
+  # Container base images in the Dockerfile: the SDK and runtime bases.
+  #
+  # `docker` and `docker-compose` are two distinct ecosystems in GitHub's supported list,
+  # and `docker` does NOT read docker-compose.yml — so compose needs the separate block
+  # below, and listing `/` here would watch nothing while looking like it watched something.
+  - package-ecosystem: docker
+    directory: /Src/Presentation/AppTemplate.Api
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - docker
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      container-images:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  # ---------------------------------------------------------------------------
+  # docker-compose.yml: postgres and mailpit. Development dependencies, but an unpatched
+  # local database is still an unpatched database, and the compose file is where a
+  # contributor's first `docker compose up` gets its images from.
+  #
+  # Neither this ecosystem nor `docker` supports Dependabot *security* updates — version
+  # updates only. So a compose image with an advisory is not raised as an alert here; the
+  # weekly bump is the whole mechanism.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - docker
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      compose-images:
+        applies-to: version-updates
+        patterns:
+          - "*"

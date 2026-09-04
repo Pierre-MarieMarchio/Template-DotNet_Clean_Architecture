@@ -1,0 +1,154 @@
+﻿using System.Data;
+using System.Data.Common;
+using System.Globalization;
+using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace AppTemplate.Api.IntegrationTests.Infrastructure;
+
+/// <summary>
+/// Direct access to the container's database, for the handful of assertions that have to look at
+/// what was actually stored rather than at what an endpoint said.
+/// </summary>
+/// <remarks>
+/// <para>
+/// It borrows a connection from a <see cref="DbContext"/> instead of opening one of its own, so the
+/// suite needs no Npgsql dependency and cannot drift from the connection string the host is using.
+/// Commands go through <see cref="DbCommand"/> rather than <c>ExecuteSqlRaw</c>: the statements here
+/// are assembled from schema metadata, and EF's analyser is right to object to that shape.
+/// </para>
+/// <para>
+/// The reset strategy is <b>truncate, not transaction-rollback</b>. Each test drives several HTTP
+/// requests, each of which gets its own scope, its own context and — for identity writes — its own
+/// commit, so there is no single ambient transaction a test could roll back. Truncating every table
+/// in the module schemas between tests is the only reset that matches how the system actually
+/// commits, and it also clears rows written by <c>SaveChanges</c> calls the test never saw.
+/// </para>
+/// <para>
+/// Those schemas are the five <see cref="AppDbContext"/> declares — <c>identity</c>, <c>todo</c>,
+/// <c>reminders</c>, <c>files</c> and <c>platform</c>. They are named one by one in
+/// <see cref="PrepareAsync"/> rather than discovered, so a module that adds a schema of its own has
+/// to be named there too: until it is, its rows survive from one test into the next.
+/// </para>
+/// </remarks>
+public sealed class TestDatabase(IServiceProvider rootServices)
+{
+    /// <summary>
+    /// Excluded from the reset: the host builds its Data Protection key ring once and keeps it in
+    /// memory for as long as it runs. Truncating this table between tests is invisible today because
+    /// the suite never asks two hosts to read the same protected payload, but it would silently break
+    /// the day a multi-instance test does — the second host's ring would no longer agree with the
+    /// first's, and that would look like a sharing defect rather than what it actually is: a table
+    /// this reset wiped out from under a ring that was never supposed to be reset per test.
+    /// </summary>
+    private const string _dataProtectionKeysTableName = "DataProtectionKeys";
+
+    private string? _truncateStatement;
+
+    /// <summary>
+    /// Builds the reset statement once, from <c>information_schema</c>. The <em>tables</em> are
+    /// discovered rather than hard-coded, so a table added to one of the schemas named below is
+    /// truncated too without anybody listing it. The <em>schemas</em> are the hand-written list itself:
+    /// one that is missing from it is never reset at all, and its rows leak silently from one test into
+    /// the next. Every schema <see cref="AppDbContext"/> declares is named here.
+    /// <para>
+    /// The migrations history table is excluded by being outside every module schema: it lives in the
+    /// connection's default schema because it belongs to none of them. Truncating it would make the
+    /// next test run re-apply every migration.
+    /// </para>
+    /// </summary>
+    public async Task PrepareAsync(CancellationToken cancellationToken)
+    {
+        var tables = await QueryAsync(
+            $"""
+            SELECT '"' || table_schema || '"."' || table_name || '"'
+            FROM information_schema.tables
+            WHERE table_schema IN (
+                '{AppDbContext.IdentitySchema}', '{AppDbContext.TodoSchema}',
+                '{AppDbContext.RemindersSchema}', '{AppDbContext.FilesSchema}',
+                '{AppDbContext.PlatformSchema}')
+              AND table_type = 'BASE TABLE'
+              AND table_name NOT IN ('{AppDbContext.MigrationsHistoryTableName}', '{_dataProtectionKeysTableName}')
+            ORDER BY table_schema, table_name
+            """,
+            cancellationToken);
+
+        if (tables.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "No feature tables were found. The migrations did not run against the container.");
+        }
+
+        _truncateStatement =
+            $"TRUNCATE TABLE {string.Join(", ", tables)} RESTART IDENTITY CASCADE";
+    }
+
+    public async Task ResetAsync(CancellationToken cancellationToken)
+    {
+        string statement = _truncateStatement
+            ?? throw new InvalidOperationException($"{nameof(PrepareAsync)} has not been called.");
+
+        await ExecuteAsync(statement, cancellationToken);
+    }
+
+    /// <summary>Every value of the first column of a result set, as text.</summary>
+    public async Task<IReadOnlyList<string>> QueryAsync(string sql, CancellationToken cancellationToken)
+    {
+        await using var scope = rootServices.CreateAsyncScope();
+        await using var command = await CreateCommandAsync(scope.ServiceProvider, sql, cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var values = new List<string>();
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            values.Add(reader.IsDBNull(0)
+                ? string.Empty
+                : Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture) ?? string.Empty);
+        }
+
+        return values;
+    }
+
+    public async Task<int> CountAsync(string sql, CancellationToken cancellationToken)
+    {
+        var values = await QueryAsync(sql, cancellationToken);
+
+        return values.Count == 0 ? 0 : int.Parse(values[0], CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Runs a statement with no result set — for the handful of test fixtures that have to put a row
+    /// in place rather than only look at what is already there. Seeding the <c>Admin</c> role for the
+    /// administration tests is the reason this exists: this test host seeds no identity data at all
+    /// (<c>IdentitySeed:Enabled</c> is <c>false</c> for the whole suite), and the row that names the
+    /// role is otherwise nowhere for a test to put it without naming <c>AppRole</c>, the persistence
+    /// module's internal type, which this project's own convention keeps out of an integration test.
+    /// </summary>
+    public async Task ExecuteAsync(string sql, CancellationToken cancellationToken)
+    {
+        await using var scope = rootServices.CreateAsyncScope();
+        await using var command = await CreateCommandAsync(scope.ServiceProvider, sql, cancellationToken);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<DbCommand> CreateCommandAsync(
+        IServiceProvider services,
+        string sql,
+        CancellationToken cancellationToken)
+    {
+        var connection = services.GetRequiredService<AppDbContext>().Database.GetDbConnection();
+
+        if (connection.State != ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        var command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        return command;
+    }
+}

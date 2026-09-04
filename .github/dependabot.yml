@@ -10,8 +10,10 @@ version: 2
 # `groups` key is enough to keep the 10.0.x band down to one pull request. Swap in
 # Renovate if this repository ever needs a monorepo-wide policy engine.
 #
-# What is deliberately NOT here: `open-pull-requests-limit: 0` anywhere, and no blanket
-# `ignore` on a package the template pins for security reasons. See the NuGet block.
+# What is deliberately NOT here: `open-pull-requests-limit: 0` anywhere, and no `ignore`
+# entry on any package. An ignored dependency is one nobody is ever told to revisit, and
+# a transitive security pin is exactly the kind of entry that has to be revisited — the
+# release that finally makes it unnecessary is the release nobody would hear about.
 
 updates:
   # ---------------------------------------------------------------------------
@@ -33,31 +35,19 @@ updates:
       prefix-development: "build(deps-dev)"
 
     groups:
-      # FIRST, on purpose: Dependabot puts a dependency in the first group whose
-      # patterns match it, and this entry must win over `microsoft-runtime` below.
+      # A transitive security pin, should this repository need one again, belongs in a group
+      # of its own placed FIRST — Dependabot puts a dependency in the first group whose
+      # patterns match it, so an entry after `microsoft-runtime` below would be swallowed by
+      # its `Microsoft.*`, and a proposal to move a pin would arrive folded into a
+      # ten-package runtime PR and get merged unread.
       #
-      # Microsoft.OpenApi is a transitive security pin, not a package this solution
-      # references. Microsoft.AspNetCore.OpenApi 10.0.10 resolves 2.0.0, which carries
-      # the high-severity GHSA-v5pm-xwqc-g5wc; CentralPackageTransitivePinningEnabled
-      # plus NuGetAuditLevel=low is what forces 2.7.6 instead. It is pinned to the 2.x
-      # line deliberately: 3.x is a different major than the one the ASP.NET Core
-      # package was compiled against.
-      #
-      # It gets a group of its own so that a proposal to move it can never be folded
-      # into a ten-package runtime PR and merged unread. It is NOT in `ignore`, because
-      # an ignored pin is a pin nobody is ever told to revisit — including when the
-      # patched 2.x that finally lets the pin go is released.
-      #
-      # The backstop underneath all of this is indirect but real, and worth stating
-      # precisely rather than generously: nothing asserts "the pin exists and is >= 2.7.6".
-      # What happens is that removing or lowering it lets the transitive resolution fall
-      # back to 2.0.0, and NuGetAuditLevel=low then fails `dotnet restore` outright — so
-      # the build breaks locally and the "Vulnerable packages" CI job reports it. A PR that
-      # drops the pin cannot merge green; it just fails for a reason one step removed.
-      microsoft-openapi-security-pin:
-        applies-to: version-updates
-        patterns:
-          - Microsoft.OpenApi
+      # The backstop under such a pin is indirect but real, and worth stating precisely
+      # rather than generously: nothing asserts that a given pin exists. What happens is that
+      # removing or lowering it lets the transitive resolution fall back to the version that
+      # carries the advisory, and NuGetAuditLevel=low then fails `dotnet restore` outright —
+      # so the build breaks locally and the "Vulnerable packages" CI job reports it. A PR that
+      # drops a load-bearing pin cannot merge green; it just fails for a reason one step
+      # removed.
 
       # The 10.0.x runtime band. These ship together and are expected to move together;
       # one PR per package would be ten PRs a month for a single servicing release.
@@ -68,7 +58,6 @@ updates:
         patterns:
           - Microsoft.*
         exclude-patterns:
-          - Microsoft.OpenApi
           - Microsoft.IdentityModel.*
           - Microsoft.NET.Test.Sdk
 

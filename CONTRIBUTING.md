@@ -331,6 +331,11 @@ coming back.
 - `TestContext.Current.CancellationToken` in async calls. xUnit1051 is an error here.
 - `Arg.Any<CancellationToken>()` for NSubstitute placeholders, never `default`.
 - The tree mirrors `Src/` exactly.
+- A new test project needs `<IsTestProject>true</IsTestProject>` and to be added to
+  `AppTemplate.sln`. The first is what makes `Directory.Build.targets` mark it executable, without
+  which xunit.v3 refuses to build it; the second is what makes it run at all, and CI asserts on it.
+  It needs no runner package: `xunit.v3` brings the in-process runner, and `dotnet test` drives it
+  because `global.json` names Microsoft.Testing.Platform.
 
 **A test that buys a guarantee must be able to fail.** For anything about security or correctness:
 break the production code, *watch the test go red*, restore it, and check the failure named what you
@@ -376,13 +381,17 @@ docker compose up -d --build
 k6 run -e BASE_URL=http://localhost:8080 Tests/Load/smoke.js
 ```
 
-### Known sharp edge: coverage and the architecture tests
+### Coverage and the architecture tests
 
-NetArchTest resolves each type through `Type.GetType(name, throwOnError: true)`, and that fails
-against a Coverlet-instrumented assembly. Running `AppTemplate.Architecture.Tests` under
-`--collect:"XPlat Code Coverage"` makes its NetArchTest-based rules throw; without the collector the
-project passes whole. So coverage is collected over every project **except** that one, in CI and in
-`dotnet run Tools/Tasks.cs coverage` alike. Do not merge those runs back together.
+NetArchTest resolves each type through `Type.GetType(name, throwOnError: true)`, and that
+resolution is sensitive to how the assembly it is looking in was instrumented — it fails outright
+against a Coverlet-instrumented one. The collector the platform uses does not break it: all 125
+rules in `AppTemplate.Architecture.Tests` pass with the seven product assemblies they inspect
+instrumented, which is why coverage is collected over the whole solution in one invocation.
+
+If you change collector or its settings, re-run that suite under coverage before trusting a green
+elsewhere. It is the one project whose failure mode is a thrown resolution rather than a wrong
+number.
 
 ### Sharp edges worth knowing before they cost you an afternoon
 

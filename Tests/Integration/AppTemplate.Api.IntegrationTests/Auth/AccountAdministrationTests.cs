@@ -15,7 +15,7 @@ namespace AppTemplate.Api.IntegrationTests.Auth;
 
 /// <summary>
 /// Locking, unlocking, granting a role, revoking a role, deleting an account outright — every one of
-/// them restricted to <c>Policies.Administrator</c>, and three of them (lock, grant, revoke) proved
+/// them restricted to <c>AuthorizationPolicies.Administrator</c>, and three of them (lock, grant, revoke) proved
 /// here to rotate the security stamp: <c>SetLockoutEndDateAsync</c>, <c>AddToRoleAsync</c> and
 /// <c>RemoveFromRoleAsync</c> do not do that on their own, so an access token issued just before one
 /// of these calls would otherwise keep validating for as long as it has left to live.
@@ -371,10 +371,10 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         var roles = scope.ServiceProvider.GetRequiredService<IRoleAssignments>();
         var change = await roles.AddRoleAsync(userId, role, TestToken);
 
-        if (change.Outcome != RoleAssignmentChangeOutcome.Applied)
+        if (change.Status != RoleAssignmentChangeStatus.Applied)
         {
             throw new InvalidOperationException(
-                $"Granting role '{role}' to '{userId}' failed with {change.Outcome}: {change.RejectionMessage}");
+                $"Granting role '{role}' to '{userId}' failed with {change.Status}: {change.RejectionMessage}");
         }
     }
 

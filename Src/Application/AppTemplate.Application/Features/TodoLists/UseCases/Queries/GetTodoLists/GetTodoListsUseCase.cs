@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 
@@ -20,7 +20,7 @@ public sealed class GetTodoListsUseCase(ITodoListQueries queries, ICurrentUser c
             return userId.To<PagedResult<TodoListSummaryDto>>();
         }
 
-        var bound = TodoListRequestBinder.Bind(query);
+        var bound = GetTodoListsRequestBinder.Bind(query);
 
         if (bound.IsFailure)
         {

@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Common.Results;
+
+namespace AppTemplate.Application.Common.Collections;
 
 /// <summary>A caller's <c>sort</c> string, parsed and checked against a feature's whitelist.</summary>
 public sealed record SortOrder

@@ -89,8 +89,8 @@ internal static class HostComposition
 
             ["EmailChange:ConfirmEmailChangeUrl"] = "https://localhost:5001/confirm-email-change",
             ["EmailChange:Subject"] = "Confirm your new email address",
-            ["PasswordReset:ResetPasswordUrl"] = "https://localhost:5001/reset-password",
-            ["PasswordReset:Subject"] = "Reset your password",
+            ["PasswordResetOutcome:ResetPasswordUrl"] = "https://localhost:5001/reset-password",
+            ["PasswordResetOutcome:Subject"] = "Reset your password",
 
             ["Email:Host"] = "smtp.example.invalid",
             ["Email:Port"] = "587",
@@ -134,6 +134,37 @@ internal static class HostComposition
         services.AddEmailModule(configuration);
 
         AddHostSuppliedAdapters(services);
+
+        return services;
+    }
+
+    /// <summary>
+    /// The worker's composition: the same four modules, and deliberately <em>without</em>
+    /// <c>AddHttpContextAccessor</c>, because that is the one difference between the two hosts that
+    /// can break a graph. A module gaining a dependency on <c>IHttpContextAccessor</c> would leave
+    /// the API's container green and stop the worker at start-up; nothing used to notice, because
+    /// the word "Worker" did not appear anywhere in this project.
+    /// <para>
+    /// The worker registers <c>BackgroundCurrentUser</c> for <see cref="ICurrentUser"/>, a class
+    /// that throws rather than invent a principal. This composition stands in for it the same way
+    /// <see cref="ComposeApi"/> stands in for the API's <c>CurrentUser</c>: what is under test is
+    /// whether the graph resolves, not what the adapter returns. Nothing here references
+    /// <c>AppTemplate.Worker</c> — its own hosted services, options and telemetry stay outside this
+    /// check, and <c>AppTemplate.Worker.UnitTests</c> covers them.
+    /// </para>
+    /// </summary>
+    internal static ServiceCollection ComposeWorker(IConfiguration configuration)
+    {
+        var services = new ServiceCollection();
+
+        AddHostSuppliedServices(services, configuration);
+
+        services.AddApplicationLayer();
+        services.AddPersistenceModule(configuration);
+        services.AddIdentityModule(configuration);
+        services.AddEmailModule(configuration);
+
+        services.AddScoped<ICurrentUser, ArchitectureTestCurrentUser>();
 
         return services;
     }

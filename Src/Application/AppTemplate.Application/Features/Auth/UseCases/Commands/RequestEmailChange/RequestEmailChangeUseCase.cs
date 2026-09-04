@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailComposer;
@@ -43,7 +43,7 @@ public sealed class RequestEmailChangeUseCase(
             request.NewEmail,
             cancellationToken);
 
-        if (issued.Outcome is EmailChangeRequestOutcome.IncorrectCurrentPassword)
+        if (issued.Status is EmailChangeRequestStatus.IncorrectCurrentPassword)
         {
             return Result.Failure(AuthErrors.IncorrectCurrentPassword);
         }

@@ -774,15 +774,17 @@ and only inside a feature is code grouped by what it does:
 
 ```
 AppTemplate.Application/
-  Common/                       Result, Error, PagedResult, Abstractions/ (cross-feature ports),
-                                 Validation/, Idempotency/, Collections/, Concurrency/
+  Common/                       Results/ (Result, Error, ErrorType, PagedResult),
+                                 Abstractions/ (cross-feature ports), Validation/,
+                                 Idempotency/, Collections/, Concurrency/ — one folder per
+                                 subject, nothing loose at the root
   Features/
     TodoLists/
       Errors/                   TodoListErrors.cs — the feature's failure vocabulary
       Policies/                 TodoListCollectionPolicy — the sortable whitelist
       Ports/TodoListQueries/    ITodoListQueries, TodoListFilter, TodoListPageRequest
       Services/                 ITodoListAccess — the one gate every command loads its aggregate through
-      Extensions/               TodoListItemLookup — a known-item id turned into the same 404 everywhere
+      Extensions/               TodoListItemExtensions — a known-item id turned into the same 404 everywhere
       Mapping/                  TodoListProjection — the aggregate a write just staged, read back as a DTO
       Consumers/TodoItemCompleted/  a worked example of a domain-event consumer
       UseCases/Commands/<Operation>/   CreateTodoList, RenameTodoList, DeleteTodoList, AddTodoItem,

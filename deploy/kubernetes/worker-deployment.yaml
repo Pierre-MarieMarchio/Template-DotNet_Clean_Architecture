@@ -1,7 +1,7 @@
 # AppTemplate.Worker — a second host, not a sidecar of the API. It answers no HTTP request:
 # MaintenanceBackgroundService and ReminderBackgroundService are the only two things running
-# inside it, on their own timers (MaintenanceWorker__Interval and the reminder loop's own
-# schedule). Deliberately no Service, no Ingress, and no readiness probe here:
+# inside it, on their own timers (MaintenanceWorker__Interval and ReminderWorker__Interval, both
+# in configmap-worker.yaml). Deliberately no Service, no Ingress, and no readiness probe here:
 #   - No Service/Ingress because nothing calls this process. A ClusterIP with no listener behind
 #     it is not harmless boilerplate, it is a Service that fails every connection it accepts.
 #   - No readiness probe because "ready" means "safe to route traffic to", and there is no
@@ -49,11 +49,12 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: worker
-          # Built from Src/Presentation/AppTemplate.Worker/Dockerfile. At the time of writing,
-          # .github/workflows/release.yml only builds and publishes the api image (job `image`)
-          # — there is no equivalent job for the worker yet. This manifest names the image that
-          # workflow needs to produce; building it is a release-pipeline change, not something a
-          # Kubernetes manifest can supply on its own.
+          # Built from Src/Presentation/AppTemplate.Worker/Dockerfile and published by
+          # .github/workflows/release.yml's `image` job, whose matrix carries this component
+          # alongside the api's: both hosts ship their own image on every release, under
+          # ghcr.io/<owner>/<repo>/worker, tagged from the release's semver. OWNER/REPO and the
+          # version below are the placeholders a deployment substitutes — the tag has to name a
+          # version that workflow has actually released, which no Kubernetes manifest can check.
           image: ghcr.io/OWNER/REPO/worker:1.0.0
           imagePullPolicy: IfNotPresent
           envFrom:

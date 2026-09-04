@@ -28,9 +28,15 @@ public sealed class LayoutConventionTests
         ["Src/Domain/AppTemplate.Domain"] =
             ["Entities", "Events", "Repositories", "ValueObjects"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
-            ["Configurations", "Mapping", "Models", "Queries", "Repositories", "Seeding", "Stores", "Tracking"],
+            ["Configurations", "Mapping", "Models", "Observability", "Queries", "Repositories", "Seeding", "Stores", "Tracking"],
         ["Src/Presentation/AppTemplate.Api"] =
             ["Contracts", "Controllers", "Mapping"],
+
+        // Empty on purpose, and checked rather than skipped. AppTemplate.Worker's features hold a
+        // BackgroundService, its options and its metrics side by side, with no subfolder — so the
+        // correct vocabulary today is "none", and the first subfolder anyone adds fails this test
+        // instead of quietly inventing a word the other hosts do not use.
+        ["Src/Presentation/AppTemplate.Worker"] = [],
     };
 
     /// <summary>

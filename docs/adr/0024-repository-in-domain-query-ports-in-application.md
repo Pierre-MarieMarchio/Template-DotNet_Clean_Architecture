@@ -1,6 +1,31 @@
 # 0024 — A repository contract lives in the Domain; every other port lives in Application
 
-Status: Accepted
+Status: Accepted — **amended below on the meaning of `Store`**
+
+> **Amendment.** The record says "one word per notion" and then gives `Store` two, without noticing.
+> Its *Revisit when* asks for a second `Store` contract before revisiting; there already was one when
+> this was written — `IIdempotencyStore` landed on 2026-08-07, this record on 2026-08-08.
+>
+> **`Store` names what is behind the contract, not where the contract is declared.** It means
+> "storage with no aggregate behind it", as opposed to `Repository` (an aggregate) and `Queries` (a
+> projection). That is the word's whole job, and both contracts using it are honest by that measure:
+> neither a refresh token nor an idempotency key is an aggregate.
+>
+> What separates them is **position**, and position follows the consumer, not the noun:
+>
+> - `IRefreshTokenStore` is consumed only by `AppTemplate.Infrastructure.Identity`, one module
+>   reaching another's table. No use case names it, so no Application declaration would have a
+>   reader. It is declared beside its one implementation.
+> - `IIdempotencyStore` is consumed by `PurgeExpiredIdempotencyKeysUseCase` and by the Api's
+>   `IdempotencyFilter`. A use case depends on it, so it is declared in Application under
+>   `Common/Idempotency/`, exactly like every other port.
+>
+> So the rule below is unchanged in substance — a contract a use case depends on is declared in
+> Application — and the sentence "`Store` always means there is no Domain or Application project in
+> between" is withdrawn. It described the one example that existed rather than the notion.
+> `AdapterVisibilityTests` and `PortConventionTests` now discover `IIdempotencyStore` along with
+> every other port, through `ApplicationPorts`, so its placement is checked rather than assumed;
+> `IRefreshTokenStore` stays outside that set, crossing no boundary for a rule to guard.
 
 ## Context
 
@@ -108,6 +133,7 @@ gap to eventually fill with a domain entity.
 
 ## Revisit when
 
-A second `Store` contract appears with a shape unlike `IRefreshTokenStore`'s. One example
-generalises to nothing; "declared beside its one implementation" needs a real rule once there
-are two.
+A third `Store` contract appears. Two examples gave the word its meaning — storage with no
+aggregate behind it — and showed that where it is declared follows its consumer rather than the
+noun. A third that is consumed by neither a use case nor a single sibling module would break that
+pairing, and the rule would need stating again rather than amending.

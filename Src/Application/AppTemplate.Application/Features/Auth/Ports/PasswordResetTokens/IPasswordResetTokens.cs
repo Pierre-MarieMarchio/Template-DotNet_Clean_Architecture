@@ -29,7 +29,7 @@ public interface IPasswordResetTokens
     /// short-circuited to failure ahead of the store, for the reason given on
     /// <see cref="IEmailConfirmationTokens.RedeemAsync"/>.
     /// </summary>
-    Task<PasswordReset> RedeemAsync(
+    Task<PasswordResetOutcome> RedeemAsync(
         string email,
         string token,
         string newPassword,

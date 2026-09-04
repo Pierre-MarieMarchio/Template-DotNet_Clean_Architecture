@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
 
 namespace AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser;
@@ -8,13 +8,13 @@ public sealed class GetCurrentUserUseCase(
     IUserProfiles profiles,
     ICurrentUser currentUser) : IGetCurrentUserUseCase
 {
-    public async Task<Result<CurrentUserResponse>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<GetCurrentUserOutcome>> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         var userId = currentUser.RequireUserId();
 
         if (userId.IsFailure)
         {
-            return userId.To<CurrentUserResponse>();
+            return userId.To<GetCurrentUserOutcome>();
         }
 
         // Read from the store rather than from the principal's claims — see IUserProfiles for why a
@@ -23,10 +23,10 @@ public sealed class GetCurrentUserUseCase(
 
         if (profile is null)
         {
-            return Result.Failure<CurrentUserResponse>(CommonErrors.NotAuthenticated);
+            return Result.Failure<GetCurrentUserOutcome>(CommonErrors.NotAuthenticated);
         }
 
-        return Result.Success(new CurrentUserResponse(
+        return Result.Success(new GetCurrentUserOutcome(
             profile.UserId,
             profile.UserName,
             profile.Email,

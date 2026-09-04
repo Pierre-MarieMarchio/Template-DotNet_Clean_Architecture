@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Policies;
@@ -51,7 +51,7 @@ public sealed class DeleteAccountUseCase(
 
         var outcome = await accountDeletion.DeleteAsync(request.UserId, cancellationToken);
 
-        if (outcome is not AccountDeletionOutcome.Deleted)
+        if (outcome is not AccountDeletionStatus.Deleted)
         {
             return Result.Failure(ToError(outcome));
         }
@@ -61,9 +61,9 @@ public sealed class DeleteAccountUseCase(
         return Result.Success();
     }
 
-    private static Error ToError(AccountDeletionOutcome outcome) => outcome switch
+    private static Error ToError(AccountDeletionStatus outcome) => outcome switch
     {
-        AccountDeletionOutcome.NoSuchAccount => AuthErrors.NoSuchAccount,
+        AccountDeletionStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
         _ => AuthErrors.AccountDeletionRejected,
     };
 }

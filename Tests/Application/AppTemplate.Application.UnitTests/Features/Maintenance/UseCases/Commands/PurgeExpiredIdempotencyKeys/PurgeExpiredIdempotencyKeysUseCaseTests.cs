@@ -10,7 +10,7 @@ namespace AppTemplate.Application.UnitTests.Features.Maintenance.UseCases.Comman
 public sealed class PurgeExpiredIdempotencyKeysUseCaseTests
 {
     private readonly IIdempotencyStore _store = Substitute.For<IIdempotencyStore>();
-    private readonly FixedDateTimeProvider _clock = new();
+    private readonly StubDateTimeProvider _clock = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -21,7 +21,7 @@ public sealed class PurgeExpiredIdempotencyKeysUseCaseTests
     {
         await UseCase().ExecuteAsync(TestToken);
 
-        await _store.Received(1).PurgeExpiredAsync(FixedDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
+        await _store.Received(1).PurgeExpiredAsync(StubDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
     }
 
     [Fact]

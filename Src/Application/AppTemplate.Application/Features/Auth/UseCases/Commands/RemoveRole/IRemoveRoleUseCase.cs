@@ -1,7 +1,7 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 
 namespace AppTemplate.Application.Features.Auth.UseCases.Commands.RemoveRole;
 
-/// <summary>Administrator-only: see <c>Policies.Administrator</c> on the endpoint that exposes this.</summary>
+/// <summary>Administrator-only: see <c>AuthorizationPolicies.Administrator</c> on the endpoint that exposes this.</summary>
 public interface IRemoveRoleUseCase : IUseCase<RemoveRoleCommand, Result>;

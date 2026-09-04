@@ -22,13 +22,13 @@ public sealed class IdempotencyLeaseTests(ApiFixture fixture) : IntegrationTestB
         var key = AKey("still-leased");
         var now = Clock.UtcNow;
 
-        (await store.ClaimAsync(key, now.AddHours(24), now.AddMinutes(15), TestToken)).Outcome
-            .ShouldBe(IdempotencyOutcome.Claimed);
+        (await store.ClaimAsync(key, now.AddHours(24), now.AddMinutes(15), TestToken)).Status
+            .ShouldBe(IdempotencyStatus.Claimed);
 
         // Nobody ever calls CompleteAsync or ReleaseAsync: the process behind the claim died.
         var retry = await store.ClaimAsync(key, now.AddHours(24), now.AddMinutes(15), TestToken);
 
-        retry.Outcome.ShouldBe(IdempotencyOutcome.InProgress, "the lease has not run out yet");
+        retry.Status.ShouldBe(IdempotencyStatus.InProgress, "the lease has not run out yet");
     }
 
     [Fact]
@@ -39,16 +39,16 @@ public sealed class IdempotencyLeaseTests(ApiFixture fixture) : IntegrationTestB
         var key = AKey("abandoned");
         var claimedAt = Clock.UtcNow;
 
-        (await store.ClaimAsync(key, claimedAt.AddHours(24), claimedAt.AddMinutes(15), TestToken)).Outcome
-            .ShouldBe(IdempotencyOutcome.Claimed);
+        (await store.ClaimAsync(key, claimedAt.AddHours(24), claimedAt.AddMinutes(15), TestToken)).Status
+            .ShouldBe(IdempotencyStatus.Claimed);
 
         Clock.Advance(TimeSpan.FromMinutes(16));
         var now = Clock.UtcNow;
 
         var reclaimed = await store.ClaimAsync(key, now.AddHours(24), now.AddMinutes(15), TestToken);
 
-        reclaimed.Outcome.ShouldBe(
-            IdempotencyOutcome.Claimed,
+        reclaimed.Status.ShouldBe(
+            IdempotencyStatus.Claimed,
             "past its lease, an unfinished claim must not block a retry for the rest of its 24-hour retention");
     }
 
@@ -67,8 +67,8 @@ public sealed class IdempotencyLeaseTests(ApiFixture fixture) : IntegrationTestB
         var key = AKey("raced");
         var claimedAt = Clock.UtcNow;
 
-        (await store.ClaimAsync(key, claimedAt.AddHours(24), claimedAt.AddMinutes(15), TestToken)).Outcome
-            .ShouldBe(IdempotencyOutcome.Claimed);
+        (await store.ClaimAsync(key, claimedAt.AddHours(24), claimedAt.AddMinutes(15), TestToken)).Status
+            .ShouldBe(IdempotencyStatus.Claimed);
 
         Clock.Advance(TimeSpan.FromMinutes(16));
         var now = Clock.UtcNow;
@@ -77,10 +77,10 @@ public sealed class IdempotencyLeaseTests(ApiFixture fixture) : IntegrationTestB
             store.ClaimAsync(key, now.AddHours(24), now.AddMinutes(15), TestToken),
             otherStore.ClaimAsync(key, now.AddHours(24), now.AddMinutes(15), TestToken));
 
-        results.Count(claim => claim.Outcome == IdempotencyOutcome.Claimed).ShouldBe(
+        results.Count(claim => claim.Status == IdempotencyStatus.Claimed).ShouldBe(
             1,
             "exactly one of two concurrent retries may reclaim an abandoned key");
-        results.Count(claim => claim.Outcome == IdempotencyOutcome.InProgress).ShouldBe(1);
+        results.Count(claim => claim.Status == IdempotencyStatus.InProgress).ShouldBe(1);
     }
 
     private static IdempotencyKey AKey(string key) =>

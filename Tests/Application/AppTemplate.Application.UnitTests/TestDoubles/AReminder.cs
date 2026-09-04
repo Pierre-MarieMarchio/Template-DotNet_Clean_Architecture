@@ -9,7 +9,7 @@ namespace AppTemplate.Application.UnitTests.TestDoubles;
 /// </summary>
 internal static class AReminder
 {
-    /// <summary>A reminder scheduled the normal way, due after <see cref="FixedDateTimeProvider.DefaultInstant"/>.</summary>
+    /// <summary>A reminder scheduled the normal way, due after <see cref="StubDateTimeProvider.DefaultInstant"/>.</summary>
     internal static Reminder OwnedBy(
         Guid ownerId,
         DateTimeOffset? dueAt = null,
@@ -20,8 +20,8 @@ internal static class AReminder
             ownerId,
             todoListId ?? Guid.CreateVersion7(),
             todoItemId ?? Guid.CreateVersion7(),
-            dueAt ?? FixedDateTimeProvider.DefaultInstant.AddHours(1),
-            FixedDateTimeProvider.DefaultInstant);
+            dueAt ?? StubDateTimeProvider.DefaultInstant.AddHours(1),
+            StubDateTimeProvider.DefaultInstant);
 
         reminder.ClearDomainEvents();
 

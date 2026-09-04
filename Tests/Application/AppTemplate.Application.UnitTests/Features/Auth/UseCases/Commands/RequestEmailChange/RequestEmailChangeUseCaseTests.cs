@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailComposer;
 using AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.RequestEmailChange;
@@ -48,7 +48,7 @@ public sealed class RequestEmailChangeUseCaseTests
     [Fact]
     public async Task AWrongCurrentPassword_IsRefused()
     {
-        GivenTheOutcomeIs(EmailChangeRequest.IncorrectCurrentPassword);
+        GivenTheOutcomeIs(EmailChangeRequestOutcome.IncorrectCurrentPassword);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -62,7 +62,7 @@ public sealed class RequestEmailChangeUseCaseTests
     [Fact]
     public async Task AnAvailableAddress_IsSentAConfirmationLink()
     {
-        GivenTheOutcomeIs(EmailChangeRequest.Issued("someone", "the-token"));
+        GivenTheOutcomeIs(EmailChangeRequestOutcome.Issued("someone", "the-token"));
         _composer.ComposeAsync("someone", "new@example.com", "the-token", Arg.Any<CancellationToken>())
             .Returns(new EmailChangeEmail("Confirm your new email address", "<html>the body</html>"));
 
@@ -85,7 +85,7 @@ public sealed class RequestEmailChangeUseCaseTests
     [Fact]
     public async Task AnAlreadyTakenAddress_SendsNothingAndStillSucceeds()
     {
-        GivenTheOutcomeIs(EmailChangeRequest.Suppressed);
+        GivenTheOutcomeIs(EmailChangeRequestOutcome.Suppressed);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -98,12 +98,12 @@ public sealed class RequestEmailChangeUseCaseTests
     [Fact]
     public async Task AnIssuedTokenAndASuppressedOne_AreAnsweredIdentically()
     {
-        GivenTheOutcomeIs(EmailChangeRequest.Issued("someone", "the-token"));
+        GivenTheOutcomeIs(EmailChangeRequestOutcome.Issued("someone", "the-token"));
         _composer.ComposeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new EmailChangeEmail("Confirm your new email address", "<html>the body</html>"));
         var forIssued = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        GivenTheOutcomeIs(EmailChangeRequest.Suppressed);
+        GivenTheOutcomeIs(EmailChangeRequestOutcome.Suppressed);
         var forSuppressed = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
         forSuppressed.IsSuccess.ShouldBe(forIssued.IsSuccess);
@@ -113,7 +113,7 @@ public sealed class RequestEmailChangeUseCaseTests
     [Fact]
     public async Task AnUnreachableRelay_StillSucceeds()
     {
-        GivenTheOutcomeIs(EmailChangeRequest.Issued("someone", "the-token"));
+        GivenTheOutcomeIs(EmailChangeRequestOutcome.Issued("someone", "the-token"));
         _composer.ComposeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new EmailChangeEmail("Confirm your new email address", "<html>the body</html>"));
         _emailSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -127,7 +127,7 @@ public sealed class RequestEmailChangeUseCaseTests
     [Fact]
     public async Task ACancelledDelivery_Propagates()
     {
-        GivenTheOutcomeIs(EmailChangeRequest.Issued("someone", "the-token"));
+        GivenTheOutcomeIs(EmailChangeRequestOutcome.Issued("someone", "the-token"));
         _composer.ComposeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new EmailChangeEmail("Confirm your new email address", "<html>the body</html>"));
         _emailSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -138,7 +138,7 @@ public sealed class RequestEmailChangeUseCaseTests
 
     private static RequestEmailChangeCommand ARequest() => new("correct horse battery", "new@example.com");
 
-    private void GivenTheOutcomeIs(EmailChangeRequest request) =>
+    private void GivenTheOutcomeIs(EmailChangeRequestOutcome request) =>
         _emailChangeTokens.IssueAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(request);
 

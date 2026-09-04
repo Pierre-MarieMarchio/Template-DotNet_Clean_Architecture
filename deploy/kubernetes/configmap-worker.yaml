@@ -56,3 +56,10 @@ data:
   MaintenanceWorker__Interval: "01:00:00"
   MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: "true"
   MaintenanceWorker__PurgeExpiredRefreshTokensEnabled: "true"
+
+  # AppTemplate.Worker's second loop, restated at its shipped default for the same reason. Enabled
+  # is the off switch an operator reaches for during a maintenance window, or while a deployment is
+  # still validating the IReminderNotifier it wired in: the reminder loop stops, everything else in
+  # this host keeps running.
+  ReminderWorker__Interval: "00:01:00"
+  ReminderWorker__Enabled: "true"

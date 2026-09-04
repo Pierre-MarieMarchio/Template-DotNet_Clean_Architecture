@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
@@ -36,7 +36,7 @@ public sealed class ConfirmEmailUseCase(
 
         // One error for every refusal. An unknown address and a wrong token must be indistinguishable,
         // or the endpoint answers "is this address registered?" for anybody holding a junk token.
-        return outcome is EmailConfirmationOutcome.Confirmed
+        return outcome is EmailConfirmationStatus.Confirmed
             ? Result.Success()
             : Result.Failure(AuthErrors.InvalidEmailConfirmation);
     }

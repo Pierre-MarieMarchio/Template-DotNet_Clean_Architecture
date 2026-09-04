@@ -49,7 +49,7 @@ be filled from user secrets or environment variables.
 > | `Email` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Options/` |
 > | `Database` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/PersistenceModule.cs` |
 > | `IdempotencyPurge` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Idempotency/IdempotencyStore.cs` |
-> | `MaintenanceWorker` | `AppTemplate.Worker`'s own `Program.cs` | `AppTemplate.Worker/Common/Maintenance/` |
+> | `MaintenanceWorker` | `AppTemplate.Worker`'s own `Program.cs` | `AppTemplate.Worker/Features/Maintenance/` |
 >
 > `IdentitySeed` sits with the seeder because seeding is a persistence concern, not an
 > authentication policy. **The configuration keys and their validation do not change** —
@@ -350,7 +350,7 @@ environment fails at that call site rather than being quietly ignored.
 |---|---|---|---|
 | `AllowedOrigins` | string[] | `[]` | Exact origins. Bind by index from the environment: `Cors__AllowedOrigins__0`, `…__1`, … |
 
-Reconciled against `Src/Presentation/AppTemplate.Api/Common/Security/CorsPolicies.cs`, which reads the key
+Reconciled against `Src/Presentation/AppTemplate.Api/Common/Security/CorsExtensions.cs`, which reads the key
 `Cors:AllowedOrigins`:
 
 - **An empty or absent array allows nothing**, rather than silently allowing
@@ -374,7 +374,7 @@ Reconciled against `Src/Presentation/AppTemplate.Api/Common/Security/CorsPolicie
 | `KnownNetworks` | string[] | `[]` | CIDR blocks, e.g. `10.0.0.0/8`. The address must be the network address: `10.0.0.1/8` is rejected, not silently masked. |
 | `ForwardLimit` | int | `1` | How many entries to consume from the right of `X-Forwarded-For`. Must equal the number of proxies actually in front of the app. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Security/ForwardedHeadersPolicies.cs`. This is the
+Read by `Src/Presentation/AppTemplate.Api/Common/Security/ForwardedHeadersExtensions.cs`. This is the
 section that decides whether rate limiting works, so it is worth reading twice.
 
 - **Leave it off and the rate limiter partitions on the proxy's address**, which means every
@@ -400,7 +400,7 @@ anything that reads the address or the scheme.
 |---|---|---|---|
 | `ContentSecurityPolicy` | string | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | The policy sent on API responses. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Security/SecurityHeadersPolicies.cs`. Alongside the CSP,
+Read by `Src/Presentation/AppTemplate.Api/Common/Security/SecurityHeadersExtensions.cs`. Alongside the CSP,
 every response also carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`
 and `X-Frame-Options: DENY`; `Server` and `X-Powered-By` are suppressed.
 
@@ -426,7 +426,7 @@ terminating TLS is required to send it.
 | `OtlpProtocol` | string | `Grpc` | `Grpc` or `HttpProtobuf`. |
 | `ServiceName` | string? | `null` | Falls back to the assembly name and informational version. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Observability/ObservabilityPolicies.cs`. Traces cover
+Read by `Src/Presentation/AppTemplate.Api/Common/Observability/ObservabilityExtensions.cs`. Traces cover
 ASP.NET Core, `HttpClient` and Npgsql; metrics cover ASP.NET Core and `HttpClient`. `/health*` is
 excluded from both traces and the request log.
 
@@ -448,7 +448,7 @@ excluded from both traces and the request log.
 |---|---|---|---|
 | `IfMatch` | `Optional` \| `Required` | `Optional` | `Required` refuses a mutating request with no `If-Match` header with `428`. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Concurrency/ConcurrencyPolicies.cs`. Every read of a
+Read by `Src/Presentation/AppTemplate.Api/Common/Concurrency/ConcurrencyExtensions.cs`. Every read of a
 `TodoList` or `TodoItem` publishes a strong `ETag` regardless of this setting, and every write
 already honours `If-Match` when one is sent — a stale, malformed or unrecognised version is
 refused with `412` either way. This setting only decides what happens when a write names **no**
@@ -473,7 +473,7 @@ version at all.
 | `MaxKeyLength` | int | `128` | Must be 1…512. A longer key is `400` `idempotency.keyInvalid`. |
 | `MaxStoredResponseBytes` | int | `8192` | Must be ≥ 1. A larger response is stored without its body, and a replay then answers `409` `idempotency.notReplayable` rather than a truncated body. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Idempotency/IdempotencyPolicies.cs`. The filter is
+Read by `Src/Presentation/AppTemplate.Api/Common/Idempotency/IdempotencyExtensions.cs`. The filter is
 registered globally but is **inert unless the action carries `[Idempotent]`** — only
 `POST /api/v1/todo-lists` and `POST /api/v1/todo-lists/{id}/items` do. Sending no
 `Idempotency-Key` is always allowed: the capability is available, not compulsory.
@@ -507,7 +507,7 @@ What each setting does when it is wrong:
 |---|---|---|---|
 | `MaxRequestBodyBytes` | long | `65536` | Must be between 1024 and 31457280 (30 MB). |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Http/RequestLimitsPolicies.cs`. It replaces
+Read by `Src/Presentation/AppTemplate.Api/Common/Http/RequestLimitsExtensions.cs`. It replaces
 Kestrel's 30 MB default, which is a free denial-of-service against an API whose largest legitimate
 body is a few kilobytes.
 
@@ -526,7 +526,7 @@ body is a few kilobytes.
 |---|---|---|---|
 | `Timeout` | timespan | `00:00:30` | Must be greater than zero and at most 10 minutes. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Lifecycle/LifecyclePolicies.cs`, which applies it to
+Read by `Src/Presentation/AppTemplate.Api/Common/Lifecycle/HostLifecycleExtensions.cs`, which applies it to
 the framework's own `HostOptions.ShutdownTimeout` — how long the host waits for in-flight requests
 to drain once it starts stopping. 30 seconds matches the grace period Kubernetes gives a pod
 (`terminationGracePeriodSeconds`) before sending SIGKILL, so this host is not still draining when
@@ -550,7 +550,7 @@ crash would. **Set outside its range**, the host fails `ValidateOnStart()` and d
 | `Default` | timespan | `00:05:00` | Applied to every endpoint that names no other policy. Must be 1 second – 1 hour. |
 | `Extended` | timespan | `00:10:00` | Reachable only through the `long` named policy. Must be 1 second – 1 hour, and greater than `Default`. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Lifecycle/LifecyclePolicies.cs`, which installs
+Read by `Src/Presentation/AppTemplate.Api/Common/Lifecycle/HostLifecycleExtensions.cs`, which installs
 `AddRequestTimeouts`/`UseRequestTimeouts` with these two policies. A response still not started when
 the deadline hits gets a `504` `ProblemDetails` with `code: "request.timeout"`; a response already
 under way (headers or a first body chunk already sent) cannot be rewritten, so the connection is cut
@@ -587,7 +587,7 @@ not boot.
 | `PurgeExpiredIdempotencyKeysEnabled` | bool | `true` | Runs `IPurgeExpiredIdempotencyKeysUseCase` each iteration when `true`. |
 | `PurgeExpiredRefreshTokensEnabled` | bool | `true` | Runs `IPurgeExpiredRefreshTokensUseCase` each iteration when `true`. |
 
-Read by `AppTemplate.Worker/Common/Maintenance/MaintenanceWorkerOptions.cs`. Each task can be
+Read by `AppTemplate.Worker/Features/Maintenance/MaintenanceWorkerOptions.cs`. Each task can be
 switched off independently — an operator running the idempotency purge here but the refresh-token
 purge some other way is not forced into both.
 
@@ -605,7 +605,7 @@ purge some other way is not forced into both.
 
 | Behaviour | Value | Where |
 |---|---|---|
-| Auth rate limit | 10 requests/minute per client address | `Src/Presentation/AppTemplate.Api/Common/Security/RateLimitingPolicies.cs` |
+| Auth rate limit | 10 requests/minute per client address | `Src/Presentation/AppTemplate.Api/Common/Security/RateLimitingExtensions.cs` |
 | Global rate limit | 300 requests/minute per client address | same |
 | Refresh token size / hash | 32 bytes CSPRNG / SHA-256 | `RefreshTokenGrants` |
 | Aggregate item cap | 500 items per list | `TodoList.MaxItems` |
@@ -617,7 +617,7 @@ purge some other way is not forced into both.
 | Sortable fields | `name`, `createdAt`, `lastModifiedAt` | `TodoListCollectionPolicy.SortableFields` |
 | Max `search` length | 100 characters | `SearchTerm.MaxLength` |
 | Max cursor length | 512 characters | `Cursor.MaxEncodedLength` |
-| `Cache-Control` on reads | `private, no-cache` | `Src/Presentation/AppTemplate.Api/Common/Caching/CachePolicies.cs` |
+| `Cache-Control` on reads | `private, no-cache` | `Src/Presentation/AppTemplate.Api/Common/Caching/CacheHeaderExtensions.cs` |
 
 `Cache-Control` has no setting because there is only one defensible value for a per-user
 authenticated response — see `docs/adr/0019`. An endpoint whose response is identical for every

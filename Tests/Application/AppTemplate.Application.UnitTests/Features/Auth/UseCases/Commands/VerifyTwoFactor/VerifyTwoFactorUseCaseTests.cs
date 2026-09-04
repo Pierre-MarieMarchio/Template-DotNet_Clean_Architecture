@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
@@ -56,7 +56,7 @@ public sealed class VerifyTwoFactorUseCaseTests
     public async Task AnUnknownOrExpiredChallenge_IsRefused()
     {
         _challenges.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(TwoFactorRedemption.InvalidChallenge);
+            .Returns(TwoFactorRedemptionOutcome.InvalidChallenge);
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -76,7 +76,7 @@ public sealed class VerifyTwoFactorUseCaseTests
         var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", true);
 
         _challenges.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(TwoFactorRedemption.InvalidCode(account));
+            .Returns(TwoFactorRedemptionOutcome.InvalidCode(account));
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -91,7 +91,7 @@ public sealed class VerifyTwoFactorUseCaseTests
         var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", true);
 
         _challenges.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(TwoFactorRedemption.InvalidCode(account));
+            .Returns(TwoFactorRedemptionOutcome.InvalidCode(account));
 
         await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -102,7 +102,7 @@ public sealed class VerifyTwoFactorUseCaseTests
     public async Task AnUnknownChallenge_MintsNoTokenAndRecordsNothing()
     {
         _challenges.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(TwoFactorRedemption.InvalidChallenge);
+            .Returns(TwoFactorRedemptionOutcome.InvalidChallenge);
 
         await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -185,7 +185,7 @@ public sealed class VerifyTwoFactorUseCaseTests
         var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", true);
 
         _challenges.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(TwoFactorRedemption.Verified(account, usedRecoveryCode));
+            .Returns(TwoFactorRedemptionOutcome.Verified(account, usedRecoveryCode));
 
         _accounts.CanSignInAsync(account.UserId, Arg.Any<CancellationToken>()).Returns(true);
 

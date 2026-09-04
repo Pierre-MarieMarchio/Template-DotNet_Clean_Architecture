@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Policies;
@@ -37,14 +37,13 @@ public sealed class DisableTwoFactorUseCase(
 
         var disabled = await enrollment.DisableAsync(userId.Value, request.CurrentPassword, cancellationToken);
 
-        if (disabled.Outcome is TwoFactorDisableOutcome.IncorrectPassword)
+        if (disabled.Status is TwoFactorDisableStatus.IncorrectPassword)
         {
             return Result.Failure(AuthErrors.IncorrectCurrentPassword);
         }
 
         securityEventLog.Record(SecurityEvent.TwoFactorDisabled(userId.Value));
 
-        // The security stamp already rotated inside DisableAsync.
         await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
 
         return Result.Success();

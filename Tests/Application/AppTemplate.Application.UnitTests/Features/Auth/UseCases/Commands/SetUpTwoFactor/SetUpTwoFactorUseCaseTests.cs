@@ -30,7 +30,7 @@ public sealed class SetUpTwoFactorUseCaseTests
     public async Task AFreshEnrollment_AnswersWithTheSharedKeyAndTheAuthenticatorUri()
     {
         _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>())
-            .Returns(TwoFactorSetup.Started(
+            .Returns(TwoFactorSetupOutcome.Started(
                 "ABCDEFGH",
                 "otpauth://totp/AppTemplate:someone@example.com?secret=ABCDEFGH&issuer=AppTemplate&digits=6"));
 
@@ -50,7 +50,7 @@ public sealed class SetUpTwoFactorUseCaseTests
     [Fact]
     public async Task AnAlreadyEnabledAccount_IsRefused()
     {
-        _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetup.AlreadyEnabled);
+        _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.AlreadyEnabled);
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -63,7 +63,7 @@ public sealed class SetUpTwoFactorUseCaseTests
     {
         using var cancellation = new CancellationTokenSource();
 
-        _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetup.Started("key", "uri"));
+        _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.Started("key", "uri"));
 
         await UseCase().ExecuteAsync(cancellation.Token);
 

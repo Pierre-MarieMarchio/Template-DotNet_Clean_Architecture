@@ -1,5 +1,6 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Reminders.Dtos;
 using AppTemplate.Application.Features.Reminders.Mapping;
@@ -47,6 +48,6 @@ public sealed class RescheduleReminderUseCase(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return ReminderProjection.ToVersioned(reminder);
+        return ReminderDtoMapping.ToVersioned(reminder);
     }
 }

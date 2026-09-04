@@ -49,6 +49,15 @@ internal static class ArchitectureAssemblies
     /// <summary>The business entities the cross-cutting mechanisms must stay free of.</summary>
     internal const string TodoListsDomainNamespace = "AppTemplate.Domain.Features.TodoLists";
 
+    /// <summary>
+    /// Every feature's application-layer surface: its ports, its DTOs, its errors. A cross-cutting
+    /// persistence mechanism that names one of these is a feature adapter wearing the shared
+    /// mechanisms' clothes — which is exactly how <c>ReminderDiagnostics</c>, an OpenTelemetry counter
+    /// with no connection to the database at all, spent a while under <c>Common/Observability/</c>.
+    /// The two namespaces above could not catch it: it depended on neither.
+    /// </summary>
+    internal const string ApplicationFeaturesNamespace = "AppTemplate.Application.Features";
+
     internal static Assembly Domain { get; } = Anchor(typeof(IAggregateRoot), DomainNamespace);
 
     internal static Assembly Application { get; } = Anchor(typeof(ServiceRegistration), ApplicationNamespace);

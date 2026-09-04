@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Results;
+
+namespace AppTemplate.Application.Common.Abstractions;
 
 public static class CurrentUserExtensions
 {

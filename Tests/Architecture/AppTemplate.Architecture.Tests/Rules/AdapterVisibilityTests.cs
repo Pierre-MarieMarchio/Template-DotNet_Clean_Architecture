@@ -1,12 +1,5 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
-using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
-using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
-using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
-using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Architecture.Tests.Fixtures;
-using AppTemplate.Domain.Features.TodoLists.Repositories;
 using NetArchTest.Rules;
 using Shouldly;
 using Xunit;
@@ -24,21 +17,11 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// </summary>
 public sealed class AdapterVisibilityTests
 {
-    /// <summary>Every port AppTemplate.Application declares for an infrastructure module to implement.</summary>
-    private static readonly Type[] _applicationPorts =
-    [
-        typeof(IUnitOfWork),
-        typeof(IDateTimeProvider),
-        typeof(IEmailSender),
-        typeof(ICurrentUser),
-        typeof(ITodoListRepository),
-        typeof(ITodoListQueries),
-        typeof(IUserAccounts),
-        typeof(IEmailConfirmationTokens),
-        typeof(IAccessTokenIssuer),
-        typeof(IRefreshTokenGrants),
-        typeof(IConfirmationEmailComposer),
-    ];
+    /// <summary>
+    /// Every port an infrastructure module implements, discovered rather than listed —
+    /// see <see cref="ApplicationPorts"/> for what a hand-kept list was missing.
+    /// </summary>
+    private static IReadOnlyList<Type> ApplicationPortContracts => ApplicationPorts.All;
 
     [Fact]
     public void Adapters_ImplementingAnApplicationPort_AreInternalToTheirModule()
@@ -50,7 +33,7 @@ public sealed class AdapterVisibilityTests
         {
             RuleAssertions.RequireTypes(assembly);
 
-            foreach (var port in _applicationPorts)
+            foreach (var port in ApplicationPortContracts)
             {
                 var adapters = Types.InAssembly(assembly)
                     .That()
@@ -146,9 +129,9 @@ public sealed class AdapterVisibilityTests
     [Fact]
     public void ApplicationPorts_ArePublicInterfaces()
     {
-        _applicationPorts.ShouldNotBeEmpty();
+        ApplicationPortContracts.ShouldNotBeEmpty();
 
-        foreach (var port in _applicationPorts)
+        foreach (var port in ApplicationPortContracts)
         {
             port.IsInterface.ShouldBeTrue($"{port.FullName} is listed as a port but is not an interface.");
             port.IsPublic.ShouldBeTrue($"{port.FullName} is a port and must be public.");

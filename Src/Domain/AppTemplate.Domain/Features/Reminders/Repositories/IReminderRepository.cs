@@ -6,6 +6,9 @@ namespace AppTemplate.Domain.Features.Reminders.Repositories;
 /// Deliberately not generic, for the same reason as every repository here: one method per thing a
 /// use case actually needs. Two of these have no counterpart on the to-do list's repository, which
 /// is what an aggregate-shaped contract looks like once there is more than one aggregate.
+/// <para>
+/// Nothing here writes: <c>Add</c> and <c>Remove</c> stage, and <c>IUnitOfWork</c> is what commits.
+/// </para>
 /// </summary>
 public interface IReminderRepository
 {
@@ -32,9 +35,7 @@ public interface IReminderRepository
         int batchSize,
         CancellationToken cancellationToken);
 
-    /// <summary>Stages a new reminder for insertion.</summary>
     void Add(Reminder reminder);
 
-    /// <summary>Stages a reminder for deletion.</summary>
     void Remove(Reminder reminder);
 }

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 
 namespace AppTemplate.Application.Features.Auth.Errors;

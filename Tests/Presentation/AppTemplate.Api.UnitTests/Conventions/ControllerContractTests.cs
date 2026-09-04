@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Application;
-using AppTemplate.Application.Common;
+using AppTemplate.Application.Common.Concurrency;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

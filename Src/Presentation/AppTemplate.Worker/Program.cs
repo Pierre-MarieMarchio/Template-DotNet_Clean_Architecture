@@ -3,10 +3,10 @@ using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.Persistence;
-using AppTemplate.Worker.Common.Maintenance;
 using AppTemplate.Worker.Common.Observability;
-using AppTemplate.Worker.Common.Reminders;
 using AppTemplate.Worker.Common.Security;
+using AppTemplate.Worker.Features.Maintenance;
+using AppTemplate.Worker.Features.Reminders;
 using Microsoft.Extensions.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -44,7 +44,7 @@ builder.Services.AddOptions<ReminderWorkerOptions>()
 builder.Services.AddSingleton<IValidateOptions<ReminderWorkerOptions>, ReminderWorkerOptionsValidator>();
 
 // The JSON log alone is not enough: the maintenance loop only logs when a purge removes something,
-// so a purge broken for weeks would otherwise be invisible. See WorkerObservability and
+// so a purge broken for weeks would otherwise be invisible. See WorkerObservabilityExtensions and
 // MaintenanceDiagnostics. The reminder loop logs every pass unconditionally instead — see
 // ReminderBackgroundService — so it needs no such note here.
 builder.Services.AddWorkerObservability(builder.Configuration);

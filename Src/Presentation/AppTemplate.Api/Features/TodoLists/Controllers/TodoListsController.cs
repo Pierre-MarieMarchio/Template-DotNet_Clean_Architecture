@@ -52,7 +52,7 @@ namespace AppTemplate.Api.Features.TodoLists.Controllers;
 /// <para>
 /// <b>Bodies.</b> Every write answers with the representation it produced and that representation's
 /// new <c>ETag</c>, so a caller never has to re-read what it just changed to keep writing. Nothing
-/// here serialises an application DTO: <see cref="TodoListMapping"/> projects onto this feature's own
+/// here serialises an application DTO: <see cref="TodoListResponseMapping"/> projects onto this feature's own
 /// contracts.
 /// </para>
 /// </remarks>
@@ -109,7 +109,7 @@ public sealed class TodoListsController(
             request.CreatedAfter,
             request.CreatedBefore);
 
-        return OkOrProblem(TodoListMapping.ToPageResponse(await getTodoLists.ExecuteAsync(query, cancellationToken)));
+        return OkOrProblem(TodoListResponseMapping.ToPageResponse(await getTodoLists.ExecuteAsync(query, cancellationToken)));
     }
 
     /// <summary>Gets one todo list with its items, and the <c>ETag</c> needed to change it.</summary>
@@ -124,7 +124,7 @@ public sealed class TodoListsController(
     {
         var query = new GetTodoListQuery(todoListId);
 
-        return OkOrProblem(TodoListMapping.ToListResponse(await getTodoList.ExecuteAsync(query, cancellationToken)));
+        return OkOrProblem(TodoListResponseMapping.ToListResponse(await getTodoList.ExecuteAsync(query, cancellationToken)));
     }
 
     /// <summary>Gets every item of a todo list.</summary>
@@ -147,7 +147,7 @@ public sealed class TodoListsController(
     {
         var query = new GetTodoItemsQuery(todoListId);
 
-        return OkOrProblem(TodoListMapping.ToItemsResponse(await getTodoItems.ExecuteAsync(query, cancellationToken)));
+        return OkOrProblem(TodoListResponseMapping.ToItemsResponse(await getTodoItems.ExecuteAsync(query, cancellationToken)));
     }
 
     /// <summary>Gets one item of a todo list.</summary>
@@ -167,7 +167,7 @@ public sealed class TodoListsController(
     {
         var query = new GetTodoItemQuery(todoListId, todoItemId);
 
-        return OkOrProblem(TodoListMapping.ToItemResponse(await getTodoItem.ExecuteAsync(query, cancellationToken)));
+        return OkOrProblem(TodoListResponseMapping.ToItemResponse(await getTodoItem.ExecuteAsync(query, cancellationToken)));
     }
 
     /// <summary>Creates a todo list owned by the caller.</summary>
@@ -193,7 +193,7 @@ public sealed class TodoListsController(
         ArgumentNullException.ThrowIfNull(request);
 
         var command = new CreateTodoListCommand(request.Name);
-        var result = TodoListMapping.ToListResponse(await createTodoList.ExecuteAsync(command, cancellationToken));
+        var result = TodoListResponseMapping.ToListResponse(await createTodoList.ExecuteAsync(command, cancellationToken));
 
         return CreatedOrProblem(result, nameof(GetById), list => new { todoListId = list.Id });
     }
@@ -224,7 +224,7 @@ public sealed class TodoListsController(
             requiresExistence,
             await renameTodoList.ExecuteAsync(command, cancellationToken));
 
-        return UpdatedOrProblem(TodoListMapping.ToListResponse(result));
+        return UpdatedOrProblem(TodoListResponseMapping.ToListResponse(result));
     }
 
     /// <summary>Deletes a todo list and its items.</summary>
@@ -283,7 +283,7 @@ public sealed class TodoListsController(
             request.Tags,
             precondition);
 
-        var result = TodoListMapping.ToItemResponse(
+        var result = TodoListResponseMapping.ToItemResponse(
             RequiringExistence(requiresExistence, await addTodoItem.ExecuteAsync(command, cancellationToken)));
 
         // Location addresses the item that was created, which is what the body carries.
@@ -327,7 +327,7 @@ public sealed class TodoListsController(
             requiresExistence,
             await updateTodoItem.ExecuteAsync(command, cancellationToken));
 
-        return UpdatedOrProblem(TodoListMapping.ToItemResponse(result));
+        return UpdatedOrProblem(TodoListResponseMapping.ToItemResponse(result));
     }
 
     /// <summary>Marks an item as completed.</summary>
@@ -353,7 +353,7 @@ public sealed class TodoListsController(
             requiresExistence,
             await completeTodoItem.ExecuteAsync(command, cancellationToken));
 
-        return UpdatedOrProblem(TodoListMapping.ToItemResponse(result));
+        return UpdatedOrProblem(TodoListResponseMapping.ToItemResponse(result));
     }
 
     /// <summary>Marks a completed item as not completed again.</summary>
@@ -379,7 +379,7 @@ public sealed class TodoListsController(
             requiresExistence,
             await reopenTodoItem.ExecuteAsync(command, cancellationToken));
 
-        return UpdatedOrProblem(TodoListMapping.ToItemResponse(result));
+        return UpdatedOrProblem(TodoListResponseMapping.ToItemResponse(result));
     }
 
     /// <summary>Removes an item from a todo list.</summary>
@@ -410,7 +410,7 @@ public sealed class TodoListsController(
             requiresExistence,
             await removeTodoItem.ExecuteAsync(command, cancellationToken));
 
-        return UpdatedOrProblem(TodoListMapping.ToListResponse(result));
+        return UpdatedOrProblem(TodoListResponseMapping.ToListResponse(result));
     }
 
     /// <summary>Adds one tag to an item.</summary>
@@ -444,7 +444,7 @@ public sealed class TodoListsController(
             requiresExistence,
             await addTagToTodoItem.ExecuteAsync(command, cancellationToken));
 
-        return UpdatedOrProblem(TodoListMapping.ToItemResponse(result));
+        return UpdatedOrProblem(TodoListResponseMapping.ToItemResponse(result));
     }
 
     /// <summary>Replaces an item's whole tag set.</summary>
@@ -477,7 +477,7 @@ public sealed class TodoListsController(
             requiresExistence,
             await replaceTodoItemTags.ExecuteAsync(command, cancellationToken));
 
-        return UpdatedOrProblem(TodoListMapping.ToItemResponse(result));
+        return UpdatedOrProblem(TodoListResponseMapping.ToItemResponse(result));
     }
 
     /// <summary>Removes one tag from an item.</summary>
@@ -513,6 +513,6 @@ public sealed class TodoListsController(
             requiresExistence,
             await removeTagFromTodoItem.ExecuteAsync(command, cancellationToken));
 
-        return UpdatedOrProblem(TodoListMapping.ToItemResponse(result));
+        return UpdatedOrProblem(TodoListResponseMapping.ToItemResponse(result));
     }
 }

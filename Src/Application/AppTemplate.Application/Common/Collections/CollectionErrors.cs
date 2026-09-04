@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Common.Results;
+
+namespace AppTemplate.Application.Common.Collections;
 
 /// <summary>
 /// The catalogue of failures every feature's collection endpoint can produce. A feature's own errors

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
@@ -39,9 +39,9 @@ public sealed class LoginUseCase(
         // Every refusal collapses to one error, whatever the reason: an unknown address, a wrong
         // password, an unconfirmed address and a locked-out account are exactly what a probe is
         // trying to tell apart. Branching on the outcome here is what would let it.
-        if (credential is not { Outcome: CredentialCheckOutcome.Verified, Account: { } account })
+        if (credential is not { Status: CredentialCheckStatus.Verified, Account: { } account })
         {
-            securityEventLog.Record(SecurityEvent.AuthenticationFailed(credential.Account?.UserId, credential.Outcome));
+            securityEventLog.Record(SecurityEvent.AuthenticationFailed(credential.Account?.UserId, credential.Status));
 
             return Result.Failure<LoginOutcome>(AuthErrors.InvalidCredentials);
         }

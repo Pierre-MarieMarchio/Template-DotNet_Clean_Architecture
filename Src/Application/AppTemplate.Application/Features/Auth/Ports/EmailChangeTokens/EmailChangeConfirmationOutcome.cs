@@ -1,19 +1,17 @@
 ﻿namespace AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
 
-public enum EmailChangeConfirmationOutcome
+/// <param name="RejectionMessage">
+/// Describes the submitted address, never the account store, so it is safe to return verbatim. Set
+/// only for <see cref="EmailChangeConfirmationStatus.Rejected"/>.
+/// </param>
+public sealed record EmailChangeConfirmationOutcome(EmailChangeConfirmationStatus Status, string? RejectionMessage = null)
 {
-    Changed,
+    public static EmailChangeConfirmationOutcome Changed { get; } = new(EmailChangeConfirmationStatus.Changed);
 
-    /// <summary>
-    /// The caller already authenticated as this id, so an absent account is not an enumeration
-    /// concern here — see <see cref="IEmailChangeTokens"/>. It only means the account was deleted
-    /// after the token was issued.
-    /// </summary>
-    NoSuchAccount,
+    public static EmailChangeConfirmationOutcome NoSuchAccount { get; } = new(EmailChangeConfirmationStatus.NoSuchAccount);
 
-    /// <summary>Unknown, expired, already used, or issued for a different address.</summary>
-    InvalidToken,
+    public static EmailChangeConfirmationOutcome InvalidToken { get; } = new(EmailChangeConfirmationStatus.InvalidToken);
 
-    /// <summary>The token was valid; the store refused the new address itself.</summary>
-    Rejected,
+    public static EmailChangeConfirmationOutcome Rejected(string message) =>
+        new(EmailChangeConfirmationStatus.Rejected, message);
 }

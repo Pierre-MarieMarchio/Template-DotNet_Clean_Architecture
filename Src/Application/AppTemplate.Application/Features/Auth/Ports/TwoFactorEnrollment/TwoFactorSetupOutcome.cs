@@ -1,13 +1,20 @@
 ﻿namespace AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
 
-public enum TwoFactorSetupOutcome
+/// <param name="SharedKey">
+/// The raw secret, base32-encoded for an authenticator app to type in by hand. Set only for
+/// <see cref="TwoFactorSetupStatus.Started"/>.
+/// </param>
+/// <param name="AuthenticatorUri">
+/// The same secret as an <c>otpauth://</c> URI, for a QR code. Set only alongside
+/// <paramref name="SharedKey"/>.
+/// </param>
+public sealed record TwoFactorSetupOutcome(
+    TwoFactorSetupStatus Status,
+    string? SharedKey = null,
+    string? AuthenticatorUri = null)
 {
-    Started,
+    public static TwoFactorSetupOutcome AlreadyEnabled { get; } = new(TwoFactorSetupStatus.AlreadyEnabled);
 
-    /// <summary>
-    /// Two-factor sign-in is already active. Provisioning a second secret on top of a live one would
-    /// hand back a key none of the account's existing authenticator apps were built from, with no
-    /// warning that the old one is about to stop being checked.
-    /// </summary>
-    AlreadyEnabled,
+    public static TwoFactorSetupOutcome Started(string sharedKey, string authenticatorUri) =>
+        new(TwoFactorSetupStatus.Started, sharedKey, authenticatorUri);
 }

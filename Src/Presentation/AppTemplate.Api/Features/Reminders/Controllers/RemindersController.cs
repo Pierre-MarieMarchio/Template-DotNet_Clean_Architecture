@@ -63,7 +63,7 @@ public sealed class RemindersController(
     {
         var query = new GetRemindersQuery(todoListId, todoItemId);
 
-        return OkOrProblem(ReminderMapping.ToRemindersResponse(await getReminders.ExecuteAsync(query, cancellationToken)));
+        return OkOrProblem(ReminderResponseMapping.ToRemindersResponse(await getReminders.ExecuteAsync(query, cancellationToken)));
     }
 
     /// <summary>Schedules a reminder for one item.</summary>
@@ -86,7 +86,7 @@ public sealed class RemindersController(
         ArgumentNullException.ThrowIfNull(request);
 
         var command = new ScheduleReminderCommand(todoListId, todoItemId, request.DueAt);
-        var result = ReminderMapping.ToReminderResponse(await scheduleReminder.ExecuteAsync(command, cancellationToken));
+        var result = ReminderResponseMapping.ToReminderResponse(await scheduleReminder.ExecuteAsync(command, cancellationToken));
 
         // No get-by-id to name (see the class remarks): Location addresses the collection this
         // reminder now appears in.
@@ -118,7 +118,7 @@ public sealed class RemindersController(
             requiresExistence,
             await rescheduleReminder.ExecuteAsync(command, cancellationToken));
 
-        return UpdatedOrProblem(ReminderMapping.ToReminderResponse(result));
+        return UpdatedOrProblem(ReminderResponseMapping.ToReminderResponse(result));
     }
 
     /// <summary>Cancels a reminder before it fires.</summary>

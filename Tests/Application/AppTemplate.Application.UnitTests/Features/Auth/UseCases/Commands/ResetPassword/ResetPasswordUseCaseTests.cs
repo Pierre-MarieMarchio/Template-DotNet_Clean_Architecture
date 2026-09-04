@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.PasswordResetTokens;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
@@ -42,7 +42,7 @@ public sealed class ResetPasswordUseCaseTests
     public async Task ASuccessfulReset_Succeeds()
     {
         var userId = Guid.CreateVersion7();
-        GivenTheOutcomeIs(PasswordReset.Succeeded(userId));
+        GivenTheOutcomeIs(PasswordResetOutcome.Succeeded(userId));
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -52,9 +52,9 @@ public sealed class ResetPasswordUseCaseTests
     /// <summary>An unknown address and an invalid or expired token must not be distinguishable.</summary>
     [Theory]
     [MemberData(nameof(EnumerationRefusals))]
-    public async Task AnUnknownAddressOrABadToken_AnswerWithTheSameError(PasswordResetOutcome outcome)
+    public async Task AnUnknownAddressOrABadToken_AnswerWithTheSameError(PasswordResetStatus outcome)
     {
-        GivenTheOutcomeIs(new PasswordReset(outcome, null, null));
+        GivenTheOutcomeIs(new PasswordResetOutcome(outcome, null, null));
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -64,13 +64,13 @@ public sealed class ResetPasswordUseCaseTests
             "The password reset link is invalid or has expired."));
     }
 
-    public static TheoryData<PasswordResetOutcome> EnumerationRefusals =>
-        [PasswordResetOutcome.NoSuchAccount, PasswordResetOutcome.InvalidToken];
+    public static TheoryData<PasswordResetStatus> EnumerationRefusals =>
+        [PasswordResetStatus.NoSuchAccount, PasswordResetStatus.InvalidToken];
 
     [Fact]
     public async Task ARejectedNewPassword_ReportsTheStoresMessage()
     {
-        GivenTheOutcomeIs(PasswordReset.Rejected("Passwords must have at least one digit."));
+        GivenTheOutcomeIs(PasswordResetOutcome.Rejected("Passwords must have at least one digit."));
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -86,7 +86,7 @@ public sealed class ResetPasswordUseCaseTests
     public async Task ASuccessfulReset_RevokesEveryRefreshTokenForTheAccount()
     {
         var userId = Guid.CreateVersion7();
-        GivenTheOutcomeIs(PasswordReset.Succeeded(userId));
+        GivenTheOutcomeIs(PasswordResetOutcome.Succeeded(userId));
 
         await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -97,7 +97,7 @@ public sealed class ResetPasswordUseCaseTests
     public async Task ASuccessfulReset_RecordsTheSecurityStampRotation()
     {
         var userId = Guid.CreateVersion7();
-        GivenTheOutcomeIs(PasswordReset.Succeeded(userId));
+        GivenTheOutcomeIs(PasswordResetOutcome.Succeeded(userId));
 
         await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -107,7 +107,7 @@ public sealed class ResetPasswordUseCaseTests
     [Fact]
     public async Task AFailedReset_RevokesNothing()
     {
-        GivenTheOutcomeIs(PasswordReset.InvalidToken);
+        GivenTheOutcomeIs(PasswordResetOutcome.InvalidToken);
 
         await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -117,7 +117,7 @@ public sealed class ResetPasswordUseCaseTests
 
     private static ResetPasswordCommand ARequest() => new("someone@example.com", "a-token", "correct horse battery");
 
-    private void GivenTheOutcomeIs(PasswordReset reset) =>
+    private void GivenTheOutcomeIs(PasswordResetOutcome reset) =>
         _resetTokens.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(reset);
 }

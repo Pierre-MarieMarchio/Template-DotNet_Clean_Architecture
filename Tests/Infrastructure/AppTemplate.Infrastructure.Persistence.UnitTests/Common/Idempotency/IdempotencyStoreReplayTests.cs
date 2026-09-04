@@ -25,7 +25,7 @@ public sealed class IdempotencyStoreReplayTests
     {
         IdempotencyClaim claim = IdempotencyStore.Decide(AKey(), ACompletedRecord(eTag: "\"AAAwOQ\""));
 
-        claim.Outcome.ShouldBe(IdempotencyOutcome.Replay);
+        claim.Status.ShouldBe(IdempotencyStatus.Replay);
         claim.Response!.ETag.ShouldBe(
             "\"AAAwOQ\"",
             "a replayed representation is the same representation, so it carries the same validator");
@@ -41,7 +41,7 @@ public sealed class IdempotencyStoreReplayTests
     {
         IdempotencyClaim claim = IdempotencyStore.Decide(AKey(), ACompletedRecord(eTag: null));
 
-        claim.Outcome.ShouldBe(IdempotencyOutcome.Replay);
+        claim.Status.ShouldBe(IdempotencyStatus.Replay);
         claim.Response!.ETag.ShouldBeNull();
     }
 
@@ -62,7 +62,7 @@ public sealed class IdempotencyStoreReplayTests
         IdempotencyRecord record = ACompletedRecord(eTag: "\"AAAwOQ\"");
         record.Fingerprint = new string('0', 64);
 
-        IdempotencyStore.Decide(AKey(), record).Outcome.ShouldBe(IdempotencyOutcome.KeyReused);
+        IdempotencyStore.Decide(AKey(), record).Status.ShouldBe(IdempotencyStatus.KeyReused);
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public sealed class IdempotencyStoreReplayTests
         IdempotencyRecord record = ACompletedRecord(eTag: null);
         record.IsCompleted = false;
 
-        IdempotencyStore.Decide(AKey(), record).Outcome.ShouldBe(IdempotencyOutcome.InProgress);
+        IdempotencyStore.Decide(AKey(), record).Status.ShouldBe(IdempotencyStatus.InProgress);
     }
 
     /// <summary>A dropped body cannot be replayed even when the validator survived it.</summary>
@@ -81,7 +81,7 @@ public sealed class IdempotencyStoreReplayTests
         IdempotencyRecord record = ACompletedRecord(eTag: "\"AAAwOQ\"");
         record.ResponseBody = null;
 
-        IdempotencyStore.Decide(AKey(), record).Outcome.ShouldBe(IdempotencyOutcome.NotReplayable);
+        IdempotencyStore.Decide(AKey(), record).Status.ShouldBe(IdempotencyStatus.NotReplayable);
     }
 
     private static IdempotencyKey AKey() =>

@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Reminders.Services;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.CancelReminder;
 using AppTemplate.Application.UnitTests.TestDoubles;
@@ -106,7 +106,7 @@ public sealed class CancelReminderUseCaseTests
     public async Task AnAlreadyFiredReminder_CannotBeCancelled()
     {
         var reminder = AReminder.Rehydrated(
-            _callerId, FixedDateTimeProvider.DefaultInstant, ReminderState.Fired, notifiedAt: FixedDateTimeProvider.DefaultInstant);
+            _callerId, StubDateTimeProvider.DefaultInstant, ReminderState.Fired, notifiedAt: StubDateTimeProvider.DefaultInstant);
         _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
 
         var result = await UseCase().ExecuteAsync(new CancelReminderCommand(reminder.Id), TestToken);
@@ -121,7 +121,7 @@ public sealed class CancelReminderUseCaseTests
     public async Task AnAlreadyCancelledReminder_CancelsAgainWithoutError()
     {
         var reminder = AReminder.Rehydrated(
-            _callerId, FixedDateTimeProvider.DefaultInstant, ReminderState.Cancelled);
+            _callerId, StubDateTimeProvider.DefaultInstant, ReminderState.Cancelled);
         _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
 
         var result = await UseCase().ExecuteAsync(new CancelReminderCommand(reminder.Id), TestToken);

@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Policies;
@@ -58,21 +58,20 @@ public sealed class RemoveRoleUseCase(
 
         var change = await roles.RemoveRoleAsync(request.UserId, request.Role, cancellationToken);
 
-        if (change.Outcome is not RoleAssignmentChangeOutcome.Applied)
+        if (change.Status is not RoleAssignmentChangeStatus.Applied)
         {
             return Result.Failure(ToError(change));
         }
 
-        // The security stamp already rotated inside RemoveRoleAsync.
         await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
         securityEventLog.Record(SecurityEvent.RoleRevoked(request.UserId, request.Role));
 
         return Result.Success();
     }
 
-    private static Error ToError(RoleAssignmentChange change) => change.Outcome switch
+    private static Error ToError(RoleAssignmentChangeOutcome change) => change.Status switch
     {
-        RoleAssignmentChangeOutcome.NoSuchAccount => AuthErrors.NoSuchAccount,
+        RoleAssignmentChangeStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
         _ => AuthErrors.RoleAssignmentRejected(
             change.RejectionMessage ?? "The role could not be revoked."),
     };

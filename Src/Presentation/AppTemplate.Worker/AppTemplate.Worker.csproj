@@ -2,8 +2,9 @@
 
   <!-- The template's proof that Clean Architecture pays for itself: a second entry point that
        calls the same application-layer use cases as AppTemplate.Api, through the same
-       infrastructure modules, with no use case and no domain type changed. It hosts one
-       BackgroundService and nothing business-shaped lives here. -->
+       infrastructure modules, with no use case and no domain type changed. It hosts two
+       BackgroundServices — one per feature under Features/ — and nothing business-shaped lives
+       here. -->
 
   <PropertyGroup>
     <UserSecretsId>74620b17-71c0-43e0-a45a-69dae1e68a32</UserSecretsId>

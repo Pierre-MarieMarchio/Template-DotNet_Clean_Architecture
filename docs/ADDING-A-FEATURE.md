@@ -271,7 +271,7 @@ Mapping/<Feature>Mapping.cs                       request/response <-> applicati
 ```
 
 The controller depends on named use-case interfaces only, maps requests to
-commands, and turns `Result`/`Error` into the right status via `ErrorResults` (see
+commands, and turns `Result`/`Error` into the right status via `ErrorMapping` (see
 `ApiControllerBase`). Every endpoint is authenticated by default — `Program.cs`
 installs a default-deny fallback policy — so an anonymous endpoint needs an
 explicit `[AllowAnonymous]`, not the absence of an attribute.

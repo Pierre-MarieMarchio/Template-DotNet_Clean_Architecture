@@ -1,5 +1,6 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Extensions;
@@ -49,6 +50,6 @@ public sealed class ReopenTodoItemUseCase(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return TodoListProjection.Item(todoList, command.TodoItemId);
+        return TodoListDtoMapping.Item(todoList, command.TodoItemId);
     }
 }

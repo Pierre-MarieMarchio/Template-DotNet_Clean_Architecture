@@ -23,7 +23,7 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 /// </remarks>
 public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    private const int _permitsPerMinute = RateLimitingPolicies.AuthenticationPermitLimit;
+    private const int _permitsPerMinute = RateLimitingExtensions.AuthenticationPermitLimit;
 
     [Fact]
     public async Task OnceThePerCallerLimitIsExceeded_TheNextRequestIs429()

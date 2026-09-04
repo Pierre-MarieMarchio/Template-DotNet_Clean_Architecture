@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Reminders.Dtos;
 using AppTemplate.Application.Features.Reminders.Mapping;
@@ -46,7 +46,7 @@ public sealed class GetRemindersUseCase(
                 .Where(reminder => reminder.OwnerId == userId.Value)
                 .Where(reminder => reminder.TodoListId == query.TodoListId)
                 .OrderBy(reminder => reminder.DueAt)
-                .Select(ReminderProjection.ToDto),
+                .Select(ReminderDtoMapping.ToDto),
         ];
 
         // Result<TValue>'s implicit operator does not apply here: TValue is an interface type,

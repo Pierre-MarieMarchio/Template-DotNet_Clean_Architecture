@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Common.Collections;
+using AppTemplate.Application.Common.Results;
 using Shouldly;
 using Xunit;
 

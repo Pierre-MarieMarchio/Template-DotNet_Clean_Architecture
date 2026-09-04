@@ -2,9 +2,9 @@
 using System.Text;
 using System.Text.Json;
 using AppTemplate.Api.Common.Errors;
-using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Idempotency;
+using AppTemplate.Application.Common.Results;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Options;
@@ -100,25 +100,25 @@ internal sealed class IdempotencyFilter(
         var now = dateTimeProvider.UtcNow;
         var claim = await store.ClaimAsync(key, now + settings.Retention, now + settings.ClaimLease, httpContext.RequestAborted);
 
-        switch (claim.Outcome)
+        switch (claim.Status)
         {
-            case IdempotencyOutcome.Replay:
+            case IdempotencyStatus.Replay:
                 ShortCircuitReplay(context, claim.Response!);
                 return;
 
-            case IdempotencyOutcome.InProgress:
+            case IdempotencyStatus.InProgress:
                 context.Result = IdempotencyErrors.InProgress.ToActionResult(httpContext);
                 return;
 
-            case IdempotencyOutcome.KeyReused:
+            case IdempotencyStatus.KeyReused:
                 context.Result = IdempotencyErrors.KeyReused.ToActionResult(httpContext);
                 return;
 
-            case IdempotencyOutcome.NotReplayable:
+            case IdempotencyStatus.NotReplayable:
                 context.Result = IdempotencyErrors.NotReplayable.ToActionResult(httpContext);
                 return;
 
-            case IdempotencyOutcome.Claimed:
+            case IdempotencyStatus.Claimed:
             default:
                 break;
         }

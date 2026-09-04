@@ -27,5 +27,5 @@
 /// </summary>
 public interface IAccountDeletion
 {
-    Task<AccountDeletionOutcome> DeleteAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<AccountDeletionStatus> DeleteAsync(Guid userId, CancellationToken cancellationToken = default);
 }

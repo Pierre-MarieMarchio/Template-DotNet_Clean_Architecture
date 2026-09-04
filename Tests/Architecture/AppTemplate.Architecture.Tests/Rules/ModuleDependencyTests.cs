@@ -39,6 +39,7 @@ public sealed class ModuleDependencyTests
     [
         ArchitectureAssemblies.TodoListsDomainNamespace,
         ArchitectureAssemblies.PersistenceFeaturesNamespace,
+        ArchitectureAssemblies.ApplicationFeaturesNamespace,
     ];
 
     [Fact]

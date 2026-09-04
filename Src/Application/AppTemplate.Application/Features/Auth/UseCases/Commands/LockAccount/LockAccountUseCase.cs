@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Policies;
@@ -47,21 +47,20 @@ public sealed class LockAccountUseCase(
 
         var outcome = await lockouts.LockAsync(request.UserId, cancellationToken);
 
-        if (outcome is not LockoutChangeOutcome.Applied)
+        if (outcome is not LockoutChangeStatus.Applied)
         {
             return Result.Failure(ToError(outcome));
         }
 
-        // The security stamp already rotated inside LockAsync.
         await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
         securityEventLog.Record(SecurityEvent.AccountLockedByAdministrator(request.UserId));
 
         return Result.Success();
     }
 
-    private static Error ToError(LockoutChangeOutcome outcome) => outcome switch
+    private static Error ToError(LockoutChangeStatus outcome) => outcome switch
     {
-        LockoutChangeOutcome.NoSuchAccount => AuthErrors.NoSuchAccount,
+        LockoutChangeStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
         _ => AuthErrors.AccountLockoutRejected,
     };
 }

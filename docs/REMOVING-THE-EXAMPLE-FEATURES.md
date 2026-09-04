@@ -50,7 +50,7 @@ directory, not file-by-file.
 | Persistence | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/` |
 | API | `Src/Presentation/AppTemplate.Api/Features/TodoLists/` | `Src/Presentation/AppTemplate.Api/Features/Reminders/` |
 | In-memory test doubles | — | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Reminders/` |
-| Worker | — | `Src/Presentation/AppTemplate.Worker/Common/Reminders/` |
+| Worker | — | `Src/Presentation/AppTemplate.Worker/Features/Reminders/` |
 | Email adapter | — | `Src/Infrastructure/AppTemplate.Infrastructure.Email/Services/EmailReminderNotifier.cs` (one file, not a folder) |
 
 And their test mirrors — same shape, under `Tests/` instead of `Src/`:
@@ -60,17 +60,17 @@ And their test mirrors — same shape, under `Tests/` instead of `Src/`:
 - `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/{TodoLists,Reminders}/`
 - `Tests/Presentation/AppTemplate.Api.UnitTests/Features/{TodoLists,Reminders}/`
 - `Tests/Integration/AppTemplate.Api.IntegrationTests/{TodoLists,Reminders}/`
-- `Tests/Presentation/AppTemplate.Worker.UnitTests/Common/Reminders/` (Reminders only)
+- `Tests/Presentation/AppTemplate.Worker.UnitTests/Features/Reminders/` (Reminders only)
 
-One more file that is easy to miss because it sits under `Common/`, not under a feature folder —
-it is the adapter behind `IReminderDiagnostics`, and it is Reminders' only file outside a `Features/`
-directory anywhere in the repository:
+One more file that is easy to miss because it sits in the persistence layer without touching the
+database — it is the adapter behind `IReminderDiagnostics`, an OpenTelemetry counter filed under
+`Observability/` rather than among the feature's mappers and repositories:
 
-- `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Observability/ReminderDiagnostics.cs` (Reminders only)
+- `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/Observability/ReminderDiagnostics.cs` (Reminders only)
 
 After deleting a feature's directories, **delete the parent directory too if it is now empty.**
 Removing both examples empties `Src/Domain/AppTemplate.Domain/Features/`,
-`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Observability/`, and the mirror
+`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/Observability/`, and the mirror
 `Features` directories under the domain and persistence unit-test projects. An architecture test —
 `LayoutConventionTests.NoFolderInTheSourceTree_IsEmpty` — exists specifically to catch a folder left
 behind after everything inside it is gone, so it will name any that were missed.
@@ -80,7 +80,7 @@ behind after everything inside it is gone, so it will name any that were missed.
 `PersistenceModule.cs`, `AppDbContext.cs`, `EmailModule.cs`, `InMemoryModule.cs`, `ApiFactory.cs`
 and `IntegrationTestBase.cs`, not only in `ServiceRegistration.cs`. Remove them one at a time and
 rebuild: `…Persistence.Common.Mapping` looks like it belongs to the deleted mappers but also holds
-`AggregateFlushSaveChangesInterceptor`, which stays. And a `<see cref="…"/>` naming a deleted type
+`StoredStamps`, which stays. And a `<see cref="…"/>` naming a deleted type
 is a build error too — `InMemoryModule.cs`'s class summary names `IReminderNotifier`, so its
 comment has to change along with its code.
 
@@ -137,7 +137,7 @@ module for exactly one reason, stated in its own comment — `IReminderNotifier`
 there, and a reminder that comes due is rung by mail. With `Reminders` gone the Worker calls
 `IEmailSender` from nowhere, and the module has nothing left to do in that process.
 
-**`Src/Presentation/AppTemplate.Worker/Common/Observability/WorkerObservability.cs`**
+**`Src/Presentation/AppTemplate.Worker/Common/Observability/WorkerObservabilityExtensions.cs`**
 Remove the `.AddMeter("AppTemplate.Reminders")` call (and its comment) from the metrics pipeline —
 that string names `ReminderDiagnostics`'s meter, in a different project, by a literal rather than a
 shared constant (the class is internal), so nothing else will tell you it is now naming a meter that

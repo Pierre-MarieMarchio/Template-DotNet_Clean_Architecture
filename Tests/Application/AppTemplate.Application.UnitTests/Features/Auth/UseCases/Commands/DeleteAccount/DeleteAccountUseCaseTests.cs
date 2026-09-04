@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.AccountDeletion;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.DeleteAccount;
@@ -56,7 +56,7 @@ public sealed class DeleteAccountUseCaseTests
     [Fact]
     public async Task AnUnknownAccount_IsReportedAsNotFound()
     {
-        GivenTheOutcomeIs(AccountDeletionOutcome.NoSuchAccount);
+        GivenTheOutcomeIs(AccountDeletionStatus.NoSuchAccount);
 
         var result = await UseCase().ExecuteAsync(new DeleteAccountCommand(_targetId), TestToken);
 
@@ -67,7 +67,7 @@ public sealed class DeleteAccountUseCaseTests
     [Fact]
     public async Task AKnownAccount_Succeeds()
     {
-        GivenTheOutcomeIs(AccountDeletionOutcome.Deleted);
+        GivenTheOutcomeIs(AccountDeletionStatus.Deleted);
 
         var result = await UseCase().ExecuteAsync(new DeleteAccountCommand(_targetId), TestToken);
 
@@ -77,7 +77,7 @@ public sealed class DeleteAccountUseCaseTests
     [Fact]
     public async Task ASuccessfulDeletion_RecordsTheAdministrativeAction()
     {
-        GivenTheOutcomeIs(AccountDeletionOutcome.Deleted);
+        GivenTheOutcomeIs(AccountDeletionStatus.Deleted);
 
         await UseCase().ExecuteAsync(new DeleteAccountCommand(_targetId), TestToken);
 
@@ -87,7 +87,7 @@ public sealed class DeleteAccountUseCaseTests
     [Fact]
     public async Task AStoreRefusal_RecordsNothing()
     {
-        GivenTheOutcomeIs(AccountDeletionOutcome.Rejected);
+        GivenTheOutcomeIs(AccountDeletionStatus.Rejected);
 
         var result = await UseCase().ExecuteAsync(new DeleteAccountCommand(_targetId), TestToken);
 
@@ -95,7 +95,7 @@ public sealed class DeleteAccountUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    private void GivenTheOutcomeIs(AccountDeletionOutcome outcome) =>
+    private void GivenTheOutcomeIs(AccountDeletionStatus outcome) =>
         _accountDeletion.DeleteAsync(_targetId, Arg.Any<CancellationToken>()).Returns(outcome);
 
     private DeleteAccountUseCase UseCaseFor(ICurrentUser currentUser) =>

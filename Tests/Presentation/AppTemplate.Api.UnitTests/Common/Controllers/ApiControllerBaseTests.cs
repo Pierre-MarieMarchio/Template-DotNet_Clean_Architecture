@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.UnitTests.TestSupport;
-using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Shouldly;
@@ -35,7 +35,7 @@ public sealed class ApiControllerBaseTests
         var result = controller.CallOkOrProblem(Result.Success(new Versioned<string>("value", 3)));
 
         result.Result.ShouldBeOfType<OkObjectResult>().DeclaredType.ShouldBe(typeof(string));
-        controller.Response.Headers.ETag.ToString().ShouldBe(EntityTagValue.From(3));
+        controller.Response.Headers.ETag.ToString().ShouldBe(EntityTagMapping.From(3));
     }
 
     /// <summary>
@@ -45,7 +45,7 @@ public sealed class ApiControllerBaseTests
     [Fact]
     public void OkOrProblem_Versioned_PublishesTheEtag_EvenWhenAnsweringNotModified()
     {
-        string tag = EntityTagValue.From(5);
+        string tag = EntityTagMapping.From(5);
         var controller = AController();
         controller.Request.Headers.IfNoneMatch = tag;
 
@@ -74,7 +74,7 @@ public sealed class ApiControllerBaseTests
         var result = controller.CallUpdatedOrProblem(Result.Success(new Versioned<string>("value", 9)));
 
         result.Result.ShouldBeOfType<OkObjectResult>().DeclaredType.ShouldBe(typeof(string));
-        controller.Response.Headers.ETag.ToString().ShouldBe(EntityTagValue.From(9));
+        controller.Response.Headers.ETag.ToString().ShouldBe(EntityTagMapping.From(9));
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public sealed class ApiControllerBaseTests
         var created = result.Result.ShouldBeOfType<CreatedAtRouteResult>();
         created.RouteValues!["id"].ShouldBe("the-id");
         created.DeclaredType.ShouldBe(typeof(string));
-        controller.Response.Headers.ETag.ToString().ShouldBe(EntityTagValue.From(1));
+        controller.Response.Headers.ETag.ToString().ShouldBe(EntityTagMapping.From(1));
     }
 
     /// <summary>
@@ -174,7 +174,7 @@ public sealed class ApiControllerBaseTests
     public void ReadPrecondition_NamesTheVersion_ForAKnownTag()
     {
         var controller = AController();
-        controller.Request.Headers.IfMatch = EntityTagValue.From(4);
+        controller.Request.Headers.IfMatch = EntityTagMapping.From(4);
 
         controller.CallReadPrecondition(out var precondition, out bool requiresExistence);
 

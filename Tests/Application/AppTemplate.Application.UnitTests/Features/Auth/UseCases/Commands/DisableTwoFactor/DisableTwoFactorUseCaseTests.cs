@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
@@ -44,7 +44,7 @@ public sealed class DisableTwoFactorUseCaseTests
     [Fact]
     public async Task AWrongPassword_IsRefused()
     {
-        GivenTheOutcomeIs(TwoFactorDisable.IncorrectPassword);
+        GivenTheOutcomeIs(TwoFactorDisableOutcome.IncorrectPassword);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -55,7 +55,7 @@ public sealed class DisableTwoFactorUseCaseTests
     [Fact]
     public async Task AWrongPassword_RevokesNoRefreshTokenAndRecordsNoEvent()
     {
-        GivenTheOutcomeIs(TwoFactorDisable.IncorrectPassword);
+        GivenTheOutcomeIs(TwoFactorDisableOutcome.IncorrectPassword);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -66,7 +66,7 @@ public sealed class DisableTwoFactorUseCaseTests
     [Fact]
     public async Task ARightPassword_Succeeds()
     {
-        GivenTheOutcomeIs(TwoFactorDisable.Disabled);
+        GivenTheOutcomeIs(TwoFactorDisableOutcome.Disabled);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -76,7 +76,7 @@ public sealed class DisableTwoFactorUseCaseTests
     [Fact]
     public async Task ARightPassword_RecordsThatTwoFactorSignInIsNowOff()
     {
-        GivenTheOutcomeIs(TwoFactorDisable.Disabled);
+        GivenTheOutcomeIs(TwoFactorDisableOutcome.Disabled);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -90,7 +90,7 @@ public sealed class DisableTwoFactorUseCaseTests
     [Fact]
     public async Task ARightPassword_RevokesEveryRefreshTokenForTheAccount()
     {
-        GivenTheOutcomeIs(TwoFactorDisable.Disabled);
+        GivenTheOutcomeIs(TwoFactorDisableOutcome.Disabled);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -100,7 +100,7 @@ public sealed class DisableTwoFactorUseCaseTests
 
     private static DisableTwoFactorCommand ARequest() => new("correct horse battery");
 
-    private void GivenTheOutcomeIs(TwoFactorDisable disable) =>
+    private void GivenTheOutcomeIs(TwoFactorDisableOutcome disable) =>
         _enrollment.DisableAsync(_callerId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(disable);
 
     private DisableTwoFactorUseCase UseCaseFor(ICurrentUser currentUser) =>

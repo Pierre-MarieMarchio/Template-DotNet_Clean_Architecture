@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Reminders.Services;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.RescheduleReminder;
 using AppTemplate.Application.UnitTests.TestDoubles;
@@ -16,7 +16,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands
 public sealed class RescheduleReminderUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
-    private static readonly DateTimeOffset _now = FixedDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
 
     private readonly IReminderRepository _repository = Substitute.For<IReminderRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
@@ -141,7 +141,7 @@ public sealed class RescheduleReminderUseCaseTests
     private RescheduleReminderUseCase UseCaseFor(ICurrentUser currentUser) => new(
         new ReminderAccess(_repository, currentUser),
         _unitOfWork,
-        new FixedDateTimeProvider(),
+        new StubDateTimeProvider(),
         _validator);
 
     private RescheduleReminderUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));

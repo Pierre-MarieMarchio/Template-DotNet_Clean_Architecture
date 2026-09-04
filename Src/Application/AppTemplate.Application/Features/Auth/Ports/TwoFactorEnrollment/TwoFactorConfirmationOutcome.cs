@@ -1,15 +1,19 @@
 ﻿namespace AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
 
-public enum TwoFactorConfirmationOutcome
+/// <param name="RecoveryCodes">
+/// Ten single-use codes, generated the moment two-factor sign-in actually turns on — not at
+/// <c>BeginAsync</c>, where enrollment might never be confirmed at all. Shown once; the store never
+/// hands the plain codes back after this. Set only for <see cref="TwoFactorConfirmationStatus.Confirmed"/>.
+/// </param>
+public sealed record TwoFactorConfirmationOutcome(
+    TwoFactorConfirmationStatus Status,
+    IReadOnlyList<string>? RecoveryCodes = null)
 {
-    Confirmed,
+    public static TwoFactorConfirmationOutcome InvalidCode { get; } = new(TwoFactorConfirmationStatus.InvalidCode);
 
-    /// <summary>
-    /// The code did not match — including when no pending secret exists at all, which
-    /// <c>BeginAsync</c> should have been called to provision first.
-    /// </summary>
-    InvalidCode,
+    public static TwoFactorConfirmationOutcome IncorrectPassword { get; } =
+        new(TwoFactorConfirmationStatus.IncorrectPassword);
 
-    /// <summary>The supplied current password did not match the one on file.</summary>
-    IncorrectPassword,
+    public static TwoFactorConfirmationOutcome Confirmed(IReadOnlyList<string> recoveryCodes) =>
+        new(TwoFactorConfirmationStatus.Confirmed, recoveryCodes);
 }

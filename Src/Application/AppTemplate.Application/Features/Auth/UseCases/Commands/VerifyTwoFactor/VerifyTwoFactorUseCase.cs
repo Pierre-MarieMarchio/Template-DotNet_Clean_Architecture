@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
@@ -34,14 +34,14 @@ public sealed class VerifyTwoFactorUseCase(
 
         var redemption = await challenges.RedeemAsync(request.ChallengeToken, request.Code, cancellationToken);
 
-        if (redemption is { Outcome: TwoFactorRedemptionOutcome.InvalidCode, Account: { } failedAccount })
+        if (redemption is { Status: TwoFactorRedemptionStatus.InvalidCode, Account: { } failedAccount })
         {
             securityEventLog.Record(SecurityEvent.TwoFactorChallengeFailed(failedAccount.UserId));
         }
 
         // Both refusals answer identically — see AuthErrors.InvalidTwoFactorChallenge — so nothing
         // beyond the audit trail above distinguishes a spent challenge from a wrong code.
-        if (redemption is not { Outcome: TwoFactorRedemptionOutcome.Verified, Account: { } account })
+        if (redemption is not { Status: TwoFactorRedemptionStatus.Verified, Account: { } account })
         {
             return Result.Failure<LoginOutcome>(AuthErrors.InvalidTwoFactorChallenge);
         }

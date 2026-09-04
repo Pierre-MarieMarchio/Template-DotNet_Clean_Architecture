@@ -6,13 +6,11 @@ public enum SecurityEventKind
     /// <summary>A credential check succeeded and the caller is about to be issued tokens.</summary>
     LoginSucceeded,
 
-    /// <summary>A credential check failed.</summary>
     AuthenticationFailed,
 
     /// <summary>The failed-attempt threshold was crossed and the account is now locked out.</summary>
     AccountLockedOut,
 
-    /// <summary>An account was created.</summary>
     Registered,
 
     /// <summary>A refresh token was revoked as part of an explicit sign-out.</summary>
@@ -37,16 +35,12 @@ public enum SecurityEventKind
     /// <summary>An administrator locked an account out, indefinitely, outside the automatic threshold above.</summary>
     AccountLockedByAdministrator,
 
-    /// <summary>An administrator lifted an administrative lockout.</summary>
     AccountUnlockedByAdministrator,
 
-    /// <summary>An administrator granted a role.</summary>
     RoleGranted,
 
-    /// <summary>An administrator revoked a role.</summary>
     RoleRevoked,
 
-    /// <summary>An administrator deleted an account.</summary>
     AccountDeleted,
 
     /// <summary>

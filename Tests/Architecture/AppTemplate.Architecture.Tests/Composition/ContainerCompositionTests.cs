@@ -1,15 +1,9 @@
 ﻿using System.Collections;
 using AppTemplate.Application;
-using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
-using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
-using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
-using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
-using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Architecture.Tests.Fixtures;
-using AppTemplate.Domain.Features.TodoLists.Repositories;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -31,22 +25,10 @@ public sealed class ContainerCompositionTests
 {
     /// <summary>
     /// The ports the application layer declares. Each is satisfied by exactly one adapter in
-    /// exactly one module, and none of them may be missing from the composed host.
+    /// exactly one module, and none of them may be missing from a composed host. Discovered rather
+    /// than listed: the eleven written out here by hand were a third of the real number.
     /// </summary>
-    private static readonly Type[] _applicationPorts =
-    [
-        typeof(ICurrentUser),
-        typeof(IUnitOfWork),
-        typeof(ITodoListRepository),
-        typeof(ITodoListQueries),
-        typeof(IEmailSender),
-        typeof(IDateTimeProvider),
-        typeof(IUserAccounts),
-        typeof(IEmailConfirmationTokens),
-        typeof(IAccessTokenIssuer),
-        typeof(IRefreshTokenGrants),
-        typeof(IConfirmationEmailComposer),
-    ];
+    private static IReadOnlyList<Type> ApplicationPortContracts => ApplicationPorts.All;
 
     [Fact]
     public void TheApiContainer_BuildsUnderStrictValidation()
@@ -137,10 +119,53 @@ public sealed class ContainerCompositionTests
     public void TheApiContainer_ResolvesEveryApplicationPort()
     {
         AssertResolvable(
-            _applicationPorts,
+            ApplicationPortContracts,
             "Each port has exactly one adapter in exactly one module. A port with no registration " +
             "is a hole the compiler cannot see, because the port and the adapter live in different " +
             "assemblies and only the host puts them together.");
+    }
+
+    /// <summary>
+    /// Non-vacuity for the discovery that replaced two hand-written arrays. If
+    /// <see cref="ApplicationPorts"/> ever stopped matching — a renamed folder, a namespace that no
+    /// longer starts the way the convention says — every rule reading it would pass by inspecting
+    /// nothing, which is precisely the failure the hand-written lists were suffering from silently.
+    /// </summary>
+    [Fact]
+    public void ThePortDiscovery_FindsEveryPortTheRepositoryHas()
+    {
+        ApplicationPorts.DomainRepositories.Count.ShouldBe(
+            2,
+            "One repository contract per aggregate, in the Domain: ITodoListRepository and " +
+            "IReminderRepository.");
+
+        ApplicationPorts.Declared.Count.ShouldBeGreaterThanOrEqualTo(
+            25,
+            "The application layer declares far more ports than this — eighteen for Auth alone, " +
+            "three for Reminders, one for TodoLists, and five cross-cutting. Finding fewer means " +
+            "the namespace match has stopped following the convention.");
+    }
+
+    [Fact]
+    public void TheWorkerContainer_BuildsUnderStrictValidation()
+    {
+        var services = HostComposition.ComposeWorker(HostComposition.Configuration());
+
+        Should.NotThrow(
+            () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose(),
+            "The worker composes the same four modules as the API but supplies no " +
+            "IHttpContextAccessor. A module that grew a dependency on one would start the API and " +
+            "stop this host, and only this test would say so.");
+    }
+
+    [Fact]
+    public void TheWorkerContainer_ResolvesEveryApplicationPort()
+    {
+        AssertResolvable(
+            ApplicationPortContracts,
+            "The worker runs FireDueReminders and both purges through the same ports the API uses. " +
+            "A port only the API's own composition could satisfy would fail here.",
+            HostComposition.ComposeWorker);
     }
 
     // ---- Proof that the checks above can fail -------------------------------------------------
@@ -301,11 +326,14 @@ public sealed class ContainerCompositionTests
             string.Join($"{Environment.NewLine}  ", failures));
     }
 
-    private static void AssertResolvable(IReadOnlyList<Type> serviceTypes, string because)
+    private static void AssertResolvable(
+        IReadOnlyList<Type> serviceTypes,
+        string because,
+        Func<IConfiguration, ServiceCollection>? compose = null)
     {
         serviceTypes.ShouldNotBeEmpty();
 
-        var services = HostComposition.ComposeApi(HostComposition.Configuration());
+        var services = (compose ?? HostComposition.ComposeApi)(HostComposition.Configuration());
 
         using var provider = services.BuildServiceProvider(HostComposition.StrictValidation);
         using var scope = provider.CreateScope();

@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Features.Auth.Ports.RoleAssignments;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
@@ -63,7 +63,7 @@ public sealed class RemoveRoleUseCaseTests
     [Fact]
     public async Task AnUnknownAccount_IsReportedAsNotFound()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.NoSuchAccount);
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.NoSuchAccount);
 
         var result = await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
@@ -74,7 +74,7 @@ public sealed class RemoveRoleUseCaseTests
     [Fact]
     public async Task AKnownAccount_Succeeds()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.Applied);
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
 
         var result = await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
@@ -84,7 +84,7 @@ public sealed class RemoveRoleUseCaseTests
     [Fact]
     public async Task ARoleTheAccountDoesNotCarry_ReportsTheStoresMessage()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.Rejected("User is not in role 'Admin'."));
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Rejected("User is not in role 'Admin'."));
 
         var result = await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
@@ -96,7 +96,7 @@ public sealed class RemoveRoleUseCaseTests
     [Fact]
     public async Task ASuccessfulRevocation_RevokesEveryRefreshTokenForTheTarget()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.Applied);
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
 
         await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
@@ -106,7 +106,7 @@ public sealed class RemoveRoleUseCaseTests
     [Fact]
     public async Task ASuccessfulRevocation_RecordsBothTheAdministrativeActionAndTheStampRotation()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.Applied);
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
 
         await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
@@ -117,7 +117,7 @@ public sealed class RemoveRoleUseCaseTests
     [Fact]
     public async Task AStoreRefusal_RevokesNothing()
     {
-        GivenTheOutcomeIs(RoleAssignmentChange.Rejected("not in role"));
+        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Rejected("not in role"));
 
         await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
@@ -125,7 +125,7 @@ public sealed class RemoveRoleUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    private void GivenTheOutcomeIs(RoleAssignmentChange change) =>
+    private void GivenTheOutcomeIs(RoleAssignmentChangeOutcome change) =>
         _roles.RemoveRoleAsync(_targetId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(change);
 
     private RemoveRoleUseCase UseCaseFor(ICurrentUser currentUser) =>

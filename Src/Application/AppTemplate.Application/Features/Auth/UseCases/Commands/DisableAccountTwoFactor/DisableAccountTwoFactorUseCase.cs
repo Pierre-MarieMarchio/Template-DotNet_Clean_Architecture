@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
 using AppTemplate.Application.Features.Auth.Policies;
@@ -59,21 +59,20 @@ public sealed class DisableAccountTwoFactorUseCase(
 
         var outcome = await administration.DisableAsync(request.UserId, cancellationToken);
 
-        if (outcome is not TwoFactorAdministrativeDisableOutcome.Disabled)
+        if (outcome is not TwoFactorAdministrativeDisableStatus.Disabled)
         {
             return Result.Failure(ToError(outcome));
         }
 
-        // The security stamp already rotated inside DisableAsync.
         await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
         securityEventLog.Record(SecurityEvent.TwoFactorDisabledByAdministrator(request.UserId));
 
         return Result.Success();
     }
 
-    private static Error ToError(TwoFactorAdministrativeDisableOutcome outcome) => outcome switch
+    private static Error ToError(TwoFactorAdministrativeDisableStatus outcome) => outcome switch
     {
-        TwoFactorAdministrativeDisableOutcome.NoSuchAccount => AuthErrors.NoSuchAccount,
+        TwoFactorAdministrativeDisableStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
         _ => AuthErrors.TwoFactorAdministrativeDisableRejected,
     };
 }

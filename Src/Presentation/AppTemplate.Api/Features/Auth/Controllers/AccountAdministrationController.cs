@@ -13,18 +13,18 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 
 /// <summary>
 /// Acting on somebody else's account: locking it out, granting or revoking a role, deleting it
-/// outright. Everything here is restricted to <see cref="Policies.Administrator"/>, on the class —
+/// outright. Everything here is restricted to <see cref="AuthorizationPolicies.Administrator"/>, on the class —
 /// unlike <see cref="AuthController"/>, nothing on this surface has an anonymous or self-service
 /// counterpart, so there is no accidental <c>[AllowAnonymous]</c> for a class-level policy to defeat.
 /// </summary>
 /// <remarks>
-/// No <see cref="RateLimitingPolicies.Authentication"/> budget: nothing here handles a credential,
+/// No <see cref="RateLimitingExtensions.Authentication"/> budget: nothing here handles a credential,
 /// so none of it belongs on the allowance that exists to slow brute-force login guessing down. An
 /// administrator's own request is already behind a valid access token and the Administrator policy.
 /// </remarks>
 [Route("api/v{version:apiVersion}/auth/accounts")]
 [Asp.Versioning.ApiVersion("1.0")]
-[Authorize(Policy = Policies.Administrator)]
+[Authorize(Policy = AuthorizationPolicies.Administrator)]
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
 public sealed class AccountAdministrationController(

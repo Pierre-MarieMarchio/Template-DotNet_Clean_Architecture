@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common;
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailComposer;
 using AppTemplate.Application.Features.Auth.Ports.EmailConfirmationTokens;
 using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
@@ -154,7 +154,7 @@ public sealed class RegisterUseCaseTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
-            .Returns(AccountCreation.Conflict);
+            .Returns(AccountCreationOutcome.Conflict);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -177,7 +177,7 @@ public sealed class RegisterUseCaseTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
-            .Returns(AccountCreation.Rejected("Passwords must have at least one digit."));
+            .Returns(AccountCreationOutcome.Rejected("Passwords must have at least one digit."));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -225,7 +225,7 @@ public sealed class RegisterUseCaseTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
-            .Returns(AccountCreation.Conflict);
+            .Returns(AccountCreationOutcome.Conflict);
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -433,7 +433,7 @@ public sealed class RegisterUseCaseTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
-            .Returns(AccountCreation.Created(userId));
+            .Returns(AccountCreationOutcome.Created(userId));
 
         return userId;
     }

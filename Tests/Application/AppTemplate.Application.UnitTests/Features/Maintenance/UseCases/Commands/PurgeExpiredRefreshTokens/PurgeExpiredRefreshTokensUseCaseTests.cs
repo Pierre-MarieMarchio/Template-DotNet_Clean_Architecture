@@ -10,7 +10,7 @@ namespace AppTemplate.Application.UnitTests.Features.Maintenance.UseCases.Comman
 public sealed class PurgeExpiredRefreshTokensUseCaseTests
 {
     private readonly IRefreshTokenMaintenance _maintenance = Substitute.For<IRefreshTokenMaintenance>();
-    private readonly FixedDateTimeProvider _clock = new();
+    private readonly StubDateTimeProvider _clock = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -22,7 +22,7 @@ public sealed class PurgeExpiredRefreshTokensUseCaseTests
         await UseCase().ExecuteAsync(TestToken);
 
         await _maintenance.Received(1)
-            .PurgeExpiredAsync(FixedDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
+            .PurgeExpiredAsync(StubDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
     }
 
     [Fact]

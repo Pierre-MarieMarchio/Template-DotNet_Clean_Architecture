@@ -21,6 +21,16 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md**, for the case the generator does not cover: a
+  repository that already exists and already has root files of its own. Two shapes, measured against
+  each other. Putting the generated tree at the repository root keeps every tool working as
+  documented, because each one assumes the solution and the repository root are the same directory.
+  Putting it in a subdirectory keeps the host's root untouched and costs six repairs instead, all of
+  them listed with the failure and the exit code that produced it. The two that surprise: `dotnet test`
+  run from the host's root fails on every test project until the host's `global.json` names the test
+  runner, and two hygiene gates go red the moment the workflows move to the git root, where GitHub is
+  the only thing that will read them.
+
 - **Mail is written in the reader's language.** Every mail ships one template per language — English
   and French — and the subject is that template's `<title>`, so a subject and a body can no longer
   end up in different languages. `AppTemplate.Api` takes the language from `Accept-Language`;
@@ -269,6 +279,14 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   binder, and leaves the default in place with no sign that it did.
 
 ### Fixed
+
+- **Generating from a working clone no longer copies its build output into the new project.** The
+  generator's exclude list named `bin/` and `obj/` but not the two directories a test run leaves at
+  the root, so a project generated from a clone where the suite had been run arrived with 11 MB of
+  coverage reports in it. Both are git-ignored, which is why nothing noticed: the generator copies
+  the filesystem, not the index, and the CI job that rehearses generation works from a fresh
+  checkout where neither directory exists. Measured before and after: present in the template,
+  absent from the output.
 
 - **`AppTemplate.Worker` could not commit anything, so two features were dead.**
   `AuditingSaveChangesInterceptor` read `ICurrentUser.UserId` unconditionally on every save, and that

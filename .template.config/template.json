@@ -82,6 +82,8 @@
             ".git/**",
             "**/bin/**",
             "**/obj/**",
+            "artifacts/**",
+            "TestResults/**",
             ".env",
             ".vs/**"
           ]

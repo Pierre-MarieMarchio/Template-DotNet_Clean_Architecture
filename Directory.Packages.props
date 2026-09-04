@@ -94,7 +94,7 @@
        AppTemplate.Infrastructure.Storage/Buckets/BucketBudget.cs for what that costs and what is
        done about it. -->
   <ItemGroup Label="Object storage">
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.102" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.102.4" />
   </ItemGroup>
 
   <ItemGroup Label="Third-party runtime">

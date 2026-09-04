@@ -2,8 +2,8 @@
 <!--
   Coverage settings for `dotnet test /collect:"XPlat Code Coverage"` (coverlet.collector).
 
-  Passed explicitly with the `settings` switch, by CI and by tasks.ps1 alike, so the number the
-  gate enforces is the same number a developer sees locally. Without this file coverlet also
+  Passed explicitly with the `settings` switch, by CI and by Tools/Tasks.cs alike, so the number
+  the gate enforces is the same a developer sees locally. Without this file coverlet also
   instruments the test assemblies themselves and the generated EF migrations, which moves the
   percentage for reasons that have nothing to do with the code under test.
 

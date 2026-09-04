@@ -2,8 +2,11 @@
 # End-to-end walkthrough of the API, in dependency order.
 #
 # Prerequisites
-#   docker compose up -d db mailpit
+#   docker compose up -d db mailpit minio minio-bucket
 #   dotnet run --project Src/Presentation/AppTemplate.Api
+#
+# minio and minio-bucket are only needed from request 39 onwards: the Files feature signs URLs the
+# client sends bytes to, so there has to be an object store to send them to, with its bucket made.
 #
 # Run the requests top to bottom. Every value a later request needs is captured from an earlier
 # response, except the email confirmation token: it arrives by mail, and this file format has no way
@@ -62,7 +65,7 @@ Content-Type: application/json
 }
 
 ###
-# 4. MANUAL STEP. Read the confirmation mail out of mailpit and copy the `token` query
+# 4. MANUAL STEP. Read the confirmation mail out of mailpit and copy the `token` fragment
 #    parameter of the confirm-email link into @confirmationToken below.
 #    The browser UI at http://localhost:8025 shows the same message.
 # @name confirmationMail
@@ -739,10 +742,10 @@ Content-Type: application/json
 Idempotency-Key: {{$guid}}
 
 {
-  "name": "photo.png",
-  "mediaType": "image/png",
+  "name": "hello.txt",
+  "declaredMediaType": "text/plain",
   "sizeInBytes": 12,
-  "checksum": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+  "checksum": "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447"
 }
 
 ###
@@ -751,9 +754,19 @@ Idempotency-Key: {{$guid}}
 
 # 40. Step two happens OUTSIDE this file and outside the API: the client PUTs the bytes straight at
 #      {{uploadUrl}}. Against the docker-compose stack that is MinIO on http://localhost:9000, and
-#      the API never sees a byte of it. Do it with curl:
+#      the API never sees a byte of it.
 #
-#        printf 'hello world\n' | curl -X PUT --data-binary @- "<the upload url>"
+#      Send `upload.requiredHeaders` back verbatim. They are covered by the signature, so a deposit
+#      missing any of them is refused by the store with AccessDenied "There were headers present in
+#      the request which were not signed" — nothing is written and the file stays Pending:
+#
+#        printf 'hello world\n' | curl -X PUT --data-binary @- "<the upload url>" \
+#          -H 'Content-Type: text/plain' \
+#          -H 'Content-Length: 12' \
+#          -H 'x-amz-checksum-sha256: qUiQTy8PR5uPgZdpSzAYSw0u0cHNKh7A+4XSmaGSpEc='
+#
+#      The checksum header is the same digest as `checksum` above, base64 of the raw bytes rather
+#      than hex. Read all three out of request 39's response rather than copying them from here.
 
 ###
 # 41. Confirm the upload. The store is asked what it actually holds, and the aggregate refuses the
@@ -764,7 +777,9 @@ POST {{api}}/files/{{storedFileId}}/confirm
 Authorization: Bearer {{accessToken}}
 
 ###
-# 42. Read the metadata. Never the bytes.
+# 42. Read the metadata. Never the bytes. `status` reads `deposited` at this point, not `available`:
+#      confirming says the bytes arrived intact, not what they are. The worker's inspection pass is
+#      what reaches a verdict, on FileWorker:InspectDepositedFilesInterval — one minute by default.
 GET {{api}}/files/{{storedFileId}}
 Authorization: Bearer {{accessToken}}
 
@@ -774,7 +789,10 @@ GET {{api}}/files?pageSize=20
 Authorization: Bearer {{accessToken}}
 
 ###
-# 44. Download. Answers 302 to a short-lived signed URL rather than streaming the object: serving
+# 44. Download. Answers 409 storedFile.notAvailable until the inspection pass has run — wait out
+#      FileWorker:InspectDepositedFilesInterval and send it again, or shorten that interval with
+#      FILE_WORKER_INSPECT_INTERVAL in .env.
+#      Then answers 302 to a short-lived signed URL rather than streaming the object: serving
 #      bytes is not this API's job, issuing the right to read them is. Note that the signed URL is a
 #      BEARER right — anyone holding it can read the object until it expires — which is why
 #      Storage:MaxGrantLifetime is short and why the redirect must not be cached beyond it.

@@ -11,7 +11,7 @@
 /// Comma-separated sort terms, e.g. <c>name:asc,registeredAt:desc</c>. Cursor mode allows at most one.
 /// </param>
 /// <param name="Search">Matches the file name, case-insensitively, as a contains.</param>
-/// <param name="State">"pending" or "available". Blank means both.</param>
+/// <param name="State">One of the four <c>StoredFileState</c> names. Blank means all of them.</param>
 public sealed record GetStoredFilesQuery(
     string? Paging,
     int? Page,

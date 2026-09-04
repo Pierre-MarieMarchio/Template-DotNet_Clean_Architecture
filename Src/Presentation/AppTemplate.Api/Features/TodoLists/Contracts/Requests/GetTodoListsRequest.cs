@@ -5,12 +5,13 @@
 /// </summary>
 /// <remarks>
 /// <c>page</c> and <c>pageSize</c> are typed as <see cref="int"/>?, so a value that is not a number
-/// never reaches the controller: model binding answers 400 with the framework's own
-/// <c>request.malformed</c> code, because that failure is about the shape of the request, not its
-/// content. Everything else named here — an unknown sort field, a filter out of bounds, a bad
-/// cursor, a page past the ceiling — is a contract violation the Application layer decides on, and
-/// comes back as its own specific code. One vocabulary for a type error, one for a rule the caller
-/// broke.
+/// never reaches the controller: model binding answers 400 with <c>request.validationFailed</c> and
+/// names the offending field in <c>errors</c>. That is the same code an Application-layer validation
+/// failure carries, deliberately — see <c>ModelStateProblemExtensions</c>, which argues that a
+/// client should not have to tell a rejected shape from a rejected value to know what to do.
+/// Everything else named here — an unknown sort field, a filter out of bounds, a bad cursor, a page
+/// past the ceiling — is a contract violation the Application layer decides on, and comes back under
+/// its own specific code, because those a client can act on differently.
 /// </remarks>
 public sealed record GetTodoListsRequest(
     string? Paging,

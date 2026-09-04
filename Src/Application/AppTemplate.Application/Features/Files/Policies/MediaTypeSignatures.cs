@@ -122,4 +122,87 @@ internal static class MediaTypeSignatures
 
         return Array.Exists(_scriptContainerMarkup, markup => text.Contains(markup, StringComparison.Ordinal));
     }
+
+    /// <summary>
+    /// Whether the very first thing in <paramref name="head"/> is a markup tag.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>This is what makes the search above unevadable, and it is why the two exist together.</b>
+    /// <see cref="IsScriptContainer"/> reads a bounded prefix — <c>ContentInspectionOutcome.MaxHeadBytes</c>
+    /// — so an author who puts a kibibyte of XML comment in front of <c>&lt;svg</c> pushes the marker
+    /// past the end of what anything ever reads, and the file is released. Raising the bound only
+    /// moves the boundary; there is always one more byte of padding.
+    /// </para>
+    /// <para>
+    /// Offset zero cannot be padded. An SVG has to be well-formed XML, so everything that may precede
+    /// its root element — a byte-order mark, whitespace, an <c>&lt;?xml?&gt;</c> declaration, a
+    /// doctype, a comment — is either whitespace or itself begins with <c>&lt;</c>. So the first
+    /// meaningful byte of any padded SVG is still <c>&lt;</c>, however much comes after it.
+    /// </para>
+    /// <para>
+    /// <b>It refuses more than SVG, deliberately.</b> Any document that starts as XML or HTML is
+    /// refused whatever it was declared as, including an honest XML data file. That is the same trade
+    /// <see cref="_scriptContainerMarkup"/> already makes and for the same reason: nothing here
+    /// sanitises markup, and the download path hands out a URL to an origin this application does not
+    /// control. A project that has to accept XML changes this, and owes a sanitiser and a serving path
+    /// that cannot execute what it stores.
+    /// </para>
+    /// </remarks>
+    internal static bool BeginsAsMarkup(ReadOnlySpan<byte> head)
+    {
+        foreach (byte value in WithoutByteOrderMark(head))
+        {
+            // A null is UTF-16 padding rather than content, for the reason IsScriptContainer gives.
+            if (value == 0)
+            {
+                continue;
+            }
+
+            if (value is _tab or _lineFeed or _carriageReturn or _space)
+            {
+                continue;
+            }
+
+            return value == _lessThan;
+        }
+
+        return false;
+    }
+
+    private const byte _tab = 0x09;
+    private const byte _lineFeed = 0x0A;
+    private const byte _carriageReturn = 0x0D;
+    private const byte _space = 0x20;
+    private const byte _lessThan = (byte)'<';
+
+    /// <summary>
+    /// <paramref name="head"/> past whichever byte-order mark it opens with, if any.
+    /// </summary>
+    /// <remarks>
+    /// Stripped from the bytes rather than from a decoded string: an ASCII decode turns each byte of a
+    /// UTF-8 mark into a placeholder that is neither whitespace nor <c>&lt;</c>, so the scan above
+    /// would stop on it and report every marked document as not being markup — which is the one
+    /// document an author who wants to hide markup would reach for.
+    /// </remarks>
+    private static ReadOnlySpan<byte> WithoutByteOrderMark(ReadOnlySpan<byte> head)
+    {
+        foreach (byte[] mark in _byteOrderMarks)
+        {
+            if (head.StartsWith(mark))
+            {
+                return head[mark.Length..];
+            }
+        }
+
+        return head;
+    }
+
+    /// <summary>UTF-8, UTF-16 little-endian and UTF-16 big-endian, the encodings XML may use.</summary>
+    private static readonly byte[][] _byteOrderMarks =
+    [
+        [0xEF, 0xBB, 0xBF],
+        [0xFF, 0xFE],
+        [0xFE, 0xFF],
+    ];
 }

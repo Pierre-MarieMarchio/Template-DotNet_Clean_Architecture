@@ -33,6 +33,15 @@ public sealed class LayoutConventionTests
         ["Src/Presentation/AppTemplate.Api"] =
             ["Contracts", "Controllers", "Mapping"],
 
+        // Every word here is the plural of a nature word the file names already carry — the rule the
+        // rest of the repository follows, where a …Repository is in Repositories/ and a …Tracker in
+        // Tracking/. Which is what makes a folder findable from a type name alone and back again: a
+        // …Service is in Services/ and nowhere else, and Services/ holds nothing that is not one.
+        ["Src/Infrastructure/AppTemplate.Infrastructure.Identity"] =
+            ["Directories", "Factories", "Issuers", "Logs", "Options", "Providers", "Services", "Verifiers"],
+        ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
+            ["Inspectors", "Inventories", "Options", "Scanners", "Stores"],
+
         // Empty on purpose, and checked rather than skipped. AppTemplate.Worker's features hold a
         // BackgroundService, its options and its metrics side by side, with no subfolder — so the
         // correct vocabulary today is "none", and the first subfolder anyone adds fails this test
@@ -70,8 +79,12 @@ public sealed class LayoutConventionTests
             ["Http", "Smtp"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] =
             ["Email", "Time"],
+        ["Src/Infrastructure/AppTemplate.Infrastructure.Identity"] =
+            ["Directories", "Options"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
             ["Contexts", "Idempotency", "Leases", "Saving", "Time"],
+        ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
+            ["Budgets", "Factories", "Options"],
         ["Src/Presentation/AppTemplate.Api"] =
             ["Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
              "Idempotency", "Observability", "OpenApi", "Outbound", "Security"],
@@ -161,6 +174,47 @@ public sealed class LayoutConventionTests
         offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
             "A folder outside its layer's vocabulary makes the reader infer a concept from the files " +
             "inside it, and lets one feature be organised unlike every other.");
+    }
+
+    /// <summary>
+    /// The two vocabularies above, against the infrastructure modules that actually exist on disk.
+    /// </summary>
+    /// <remarks>
+    /// Both dictionaries are maintained by hand, and the guards on the two rules above cannot catch
+    /// what went wrong here: <c>checkedLayers.ShouldBe(_vocabulary.Count)</c> fails on a project
+    /// <em>listed without</em> the folder it names, and never on a project <em>on disk and not
+    /// listed</em>. So the identity and storage modules sat outside both lists while their layout
+    /// drifted — forty files in ten root folders in one of them — and the rule whose whole business
+    /// is that a layout is an index reported success without reading either.
+    /// <para>
+    /// This is the same hole <c>ModuleDependencyTests</c> closed for
+    /// <c>ArchitectureAssemblies</c>, and it is closed the same way: by asking the disk, which is
+    /// where <c>ProjectReferenceGraph</c> was already looking.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn()
+    {
+        var onDisk = ProjectReferenceGraph.InfrastructureModules
+            .Select(project => Path.GetDirectoryName(project.RelativePath)!.Replace('\\', '/'))
+            .ToHashSet(StringComparer.Ordinal);
+
+        onDisk.Count.ShouldBeGreaterThanOrEqualTo(
+            5,
+            "Far fewer infrastructure modules were found under Src than this template holds, so the " +
+            "project walk is not reading the tree it is meant to describe and every module in it " +
+            "would read as listed.");
+
+        var unlisted = onDisk
+            .Where(project => !_vocabulary.ContainsKey(project) || !_commonVocabulary.ContainsKey(project))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        unlisted.ShouldBeEmpty(
+            "An infrastructure module exists that neither vocabulary names, so both rules above walk " +
+            "past it and pass. Give it an entry in each — empty when its features hold their files " +
+            "side by side, as Email and InMemory do — and write the words into CONTRIBUTING.md's " +
+            "Layout section.");
     }
 
     /// <summary>

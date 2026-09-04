@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Security.Cryptography;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,6 +40,12 @@ public sealed class PublicEndpointTests(ObjectStoreFixture fixture)
     private const string _mediaType = "application/octet-stream";
 
     private static readonly byte[] _payload = "Signed for one name, presented under another."u8.ToArray();
+
+    /// <summary>
+    /// The digest of <see cref="_payload"/>, computed rather than written down. A grant binds it, so a
+    /// constant that drifted from the bytes would mint a grant no honest deposit could satisfy.
+    /// </summary>
+    private static readonly string _checksum = Convert.ToHexStringLower(SHA256.HashData(_payload));
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -113,6 +120,7 @@ public sealed class PublicEndpointTests(ObjectStoreFixture fixture)
             objectKey,
             _mediaType,
             _payload.Length,
+            _checksum,
             TimeSpan.FromMinutes(10),
             TestToken);
 
@@ -125,7 +133,6 @@ public sealed class PublicEndpointTests(ObjectStoreFixture fixture)
             upload with { Url = RoutedToTheStore(upload.Url) },
             _payload,
             TestToken,
-            extraHeaders: null,
             hostHeader: _publicName);
 
         deposit.StatusCode.ShouldBe(
@@ -177,6 +184,7 @@ public sealed class PublicEndpointTests(ObjectStoreFixture fixture)
             objectKey,
             _mediaType,
             _payload.Length,
+            _checksum,
             TimeSpan.FromMinutes(10),
             TestToken);
 

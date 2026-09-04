@@ -2,9 +2,12 @@
 using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
-using AppTemplate.Infrastructure.Storage.Buckets;
-using AppTemplate.Infrastructure.Storage.Inspection;
-using AppTemplate.Infrastructure.Storage.Objects;
+using AppTemplate.Infrastructure.Storage.Common.Factories;
+using AppTemplate.Infrastructure.Storage.Common.Options;
+using AppTemplate.Infrastructure.Storage.Features.Files.Inspectors;
+using AppTemplate.Infrastructure.Storage.Features.Files.Inventories;
+using AppTemplate.Infrastructure.Storage.Features.Files.Options;
+using AppTemplate.Infrastructure.Storage.Features.Files.Stores;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

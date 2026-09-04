@@ -97,6 +97,11 @@ public sealed class RegisterFileUseCase(
             storedFile.ObjectKey.Value,
             storedFile.DeclaredMediaType.Value,
             storedFile.Size.Bytes,
+
+            // The digest the client declared, bound into the grant so the store refuses any other
+            // bytes. Taken from the aggregate rather than from the command: the value object is what
+            // guarantees it is a SHA-256 at all.
+            storedFile.Checksum.Value,
             _uploadWindow,
             cancellationToken);
 

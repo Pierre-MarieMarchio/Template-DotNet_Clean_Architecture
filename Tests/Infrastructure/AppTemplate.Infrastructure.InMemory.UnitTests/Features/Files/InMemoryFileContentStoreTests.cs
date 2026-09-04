@@ -27,6 +27,12 @@ public sealed class InMemoryFileContentStoreTests
 
     private static readonly byte[] _content = Encoding.UTF8.GetBytes("the deposited bytes");
 
+    /// <summary>
+    /// The digest of <see cref="_content"/>, computed rather than written down: a grant binds it, so a
+    /// constant that drifted from the bytes would mint a grant no honest deposit could satisfy.
+    /// </summary>
+    private static readonly string _checksum = Convert.ToHexStringLower(SHA256.HashData(_content));
+
     [Fact]
     public async Task CreateUploadGrantAsync_MintsAWriteRightThatExpires()
     {
@@ -39,6 +45,7 @@ public sealed class InMemoryFileContentStoreTests
             _objectKey,
             _mediaType,
             _content.Length,
+            _checksum,
             TimeSpan.FromMinutes(30),
             TestContext.Current.CancellationToken);
 
@@ -64,6 +71,7 @@ public sealed class InMemoryFileContentStoreTests
             _objectKey,
             _mediaType,
             _content.Length,
+            _checksum,
             TimeSpan.FromMinutes(30),
             TestContext.Current.CancellationToken);
 
@@ -86,6 +94,7 @@ public sealed class InMemoryFileContentStoreTests
             _objectKey,
             _mediaType,
             4096,
+            _checksum,
             TimeSpan.FromMinutes(30),
             TestContext.Current.CancellationToken);
 
@@ -150,6 +159,7 @@ public sealed class InMemoryFileContentStoreTests
             _objectKey,
             _mediaType,
             _content.Length,
+            _checksum,
             TimeSpan.FromMinutes(30),
             TestContext.Current.CancellationToken);
 

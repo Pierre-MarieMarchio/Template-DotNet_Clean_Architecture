@@ -5,7 +5,7 @@ using Amazon.S3.Model;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Infrastructure.Storage;
-using AppTemplate.Infrastructure.Storage.Buckets;
+using AppTemplate.Infrastructure.Storage.Common.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.Minio;
@@ -117,11 +117,13 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
     /// one has to: the URL it names, the method it names, and every header it lists sent back
     /// verbatim.
     /// </summary>
-    /// <param name="extraHeaders">
-    /// Headers the grant did <em>not</em> ask for. Present for one case only — a deposit that carries
-    /// its own digest — and it is not a client the application has: see
-    /// <c>StoredObjectTests</c> for why that case is worth depositing at all.
-    /// </param>
+    /// <remarks>
+    /// <b>Every header, and no others.</b> There used to be a parameter here for headers the grant did
+    /// not ask for, which existed for one caller: a deposit that supplied its own digest, because the
+    /// grant asked only for an algorithm's name and the store therefore recorded nothing. The grant now
+    /// carries the digest itself, so that caller is gone — and a deposit that added the header a second
+    /// time would be refused, since the signature covers it.
+    /// </remarks>
     /// <param name="hostHeader">
     /// As on <see cref="FetchAsync"/>: the name to present the deposit under when it is not the one
     /// the URL names.
@@ -130,7 +132,6 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
         IssuedUploadGrant grant,
         byte[] payload,
         CancellationToken cancellationToken,
-        IReadOnlyDictionary<string, string>? extraHeaders = null,
         string? hostHeader = null)
     {
         ArgumentNullException.ThrowIfNull(grant);
@@ -138,11 +139,6 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
         using var content = new ByteArrayContent(payload);
 
         foreach (var header in grant.RequiredHeaders)
-        {
-            Apply(content, header.Key, header.Value);
-        }
-
-        foreach (var header in extraHeaders ?? new Dictionary<string, string>(StringComparer.Ordinal))
         {
             Apply(content, header.Key, header.Value);
         }

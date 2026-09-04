@@ -28,68 +28,102 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
     /// <summary>
-    /// <b>This test documents a defect, and it is written to fail the day the defect is fixed.</b>
+    /// A file deposited under the grant this module mints can be described — which is what
+    /// confirmation needs, and what it could not do.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// The grant this module mints signs <c>x-amz-sdk-checksum-algorithm: SHA256</c> and nothing
-    /// else, and that header names an algorithm without supplying a value. A store has nothing to
-    /// record from it — MinIO accepts the deposit and stores no digest — so
-    /// <see cref="IFileContentStore.DescribeAsync"/> reaches its own guard and throws, and every file
-    /// deposited through the two-step upload is left unconfirmable.
-    /// </para>
-    /// <para>
-    /// The next test shows the store does record a SHA-256 when it is given one, so the gap is in
-    /// what the grant asks for rather than in what MinIO can do. The fix belongs in the adapter:
-    /// <c>RegisterFileUseCase</c> already holds the client's declared checksum
-    /// (<c>Sha256Checksum.Create(command.Checksum)</c>), so the grant can sign
-    /// <c>x-amz-checksum-sha256</c> with that value — which also makes the store refuse a deposit of
-    /// the wrong bytes outright, exactly as it already refuses one of the wrong length.
-    /// </para>
-    /// <para>
-    /// <b>Replace this test with its opposite in the change that fixes the adapter.</b> A
-    /// characterisation test outlives its subject silently otherwise, and this one would then be
-    /// holding the defect in place.
-    /// </para>
+    /// <b>This is the opposite of the test that used to stand here.</b> The grant signed
+    /// <c>x-amz-sdk-checksum-algorithm: SHA256</c>, which names an algorithm and supplies nothing to
+    /// check against: MinIO accepted the deposit, recorded no digest, and this call threw for want of
+    /// one — so every file deposited through the two-step upload was left unconfirmable, and the
+    /// feature could not complete against a real store at all. The old test characterised that and
+    /// said in its own remarks to replace it with this one rather than delete it, so that the defect
+    /// could not outlive its description in silence.
     /// </remarks>
     [Fact]
-    public async Task Describing_AnObjectDepositedUnderTheGrantThisModuleMints_FailsForWantOfADigest()
+    public async Task Describing_AnObjectDepositedUnderTheGrantThisModuleMints_ReportsItsRealDigest()
     {
-        string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("no-digest"));
+        string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("described"));
 
         await DepositAsync(objectKey);
 
-        var thrown = await Should.ThrowAsync<InvalidOperationException>(() =>
-            fixture.Content.DescribeAsync(objectKey, TestToken));
+        var description = await fixture.Content.DescribeAsync(objectKey, TestToken);
 
-        // The adapter refuses to answer with anything else, deliberately: an entity tag is not a
-        // SHA-256, and passing one through would fail every confirmation with a mismatch that names
-        // nothing.
-        thrown.Message.ShouldContain("carries no SHA-256 checksum", Case.Sensitive);
+        description.ShouldNotBeNull();
+
+        description.SizeInBytes.ShouldBe(_payload.Length);
+
+        description.Checksum.ShouldBe(
+            Convert.ToHexStringLower(SHA256.HashData(_payload)),
+            "the digest is the store's own, computed as it wrote the bytes. Confirmation compares it " +
+            "against what the client declared, so an adapter that could not obtain one refused every " +
+            "upload that had actually arrived.");
     }
 
     /// <summary>
-    /// The half that works, and the proof that the store is not what is missing.
+    /// The grant binds the digest, so it authorises one body and not merely one of the right length.
     /// </summary>
     /// <remarks>
-    /// The deposit here carries <c>x-amz-checksum-sha256</c>, which no grant this module mints asks
-    /// for — see the test above. It is deposited that way to separate two questions the failing case
-    /// cannot: whether the store can record and report a SHA-256 at all, and whether this module
-    /// asks it to. The answers are yes and no.
+    /// <b>This is what stops content being swapped after inspection.</b> An upload grant lives
+    /// <c>Storage:MaxGrantLifetime</c> — thirty minutes by default — while the inspection pass runs
+    /// every minute, so for most of a grant's life the file it belongs to has already been examined
+    /// and released. Measured before the digest was bound: a second deposit of different bytes of the
+    /// same length answered <c>200</c>, and the file went on being served as inspected content.
     /// </remarks>
     [Fact]
-    public async Task Describing_AnObjectWhoseDigestTheStoreWasGiven_ReportsTheRealLengthAndDigest()
+    public async Task ASecondDepositOfDifferentBytes_IsRefusedByTheStore()
+    {
+        string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("swap"));
+
+        var grant = await fixture.Content.CreateUploadGrantAsync(
+            objectKey,
+            _mediaType,
+            _payload.Length,
+            Convert.ToHexStringLower(SHA256.HashData(_payload)),
+            TimeSpan.FromMinutes(10),
+            TestToken);
+
+        using var honest = await fixture.DepositAsync(grant, _payload, TestToken);
+
+        honest.IsSuccessStatusCode.ShouldBeTrue(
+            $"a precondition rather than the assertion; the store answered {(int)honest.StatusCode}.");
+
+        // The same length, so the signature's Content-Length still matches: the digest is the only
+        // thing standing between this grant and any body the holder cares to send.
+        byte[] swapped = [.. Enumerable.Repeat((byte)'Z', _payload.Length)];
+
+        using var swap = await fixture.DepositAsync(grant, swapped, TestToken);
+
+        swap.IsSuccessStatusCode.ShouldBeFalse(
+            $"the store answered {(int)swap.StatusCode} to bytes whose digest is not the one the " +
+            "grant was signed for. Accepting them would let a holder replace the content of a file " +
+            $"that has already been inspected and released: " +
+            await swap.Content.ReadAsStringAsync(TestToken));
+
+        // And the object still holds what was honestly deposited, rather than a partial write.
+        var description = await fixture.Content.DescribeAsync(objectKey, TestToken);
+
+        description.ShouldNotBeNull();
+        description.Checksum.ShouldBe(Convert.ToHexStringLower(SHA256.HashData(_payload)));
+    }
+
+    /// <summary>
+    /// The encoding boundary, which is where two correct implementations disagree silently.
+    /// </summary>
+    /// <remarks>
+    /// The store speaks base64 and the port asks for lower-case hexadecimal — the same thirty-two
+    /// bytes written two ways. Nothing in process would notice a mix-up: the adapter would hand
+    /// confirmation a well-formed string that never equals the declared digest, and every upload that
+    /// had actually arrived would be refused for a mismatch naming nothing.
+    /// </remarks>
+    [Fact]
+    public async Task Describing_ReportsTheDigestInTheEncodingThePortAsksFor()
     {
         string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("with-digest"));
 
         byte[] digest = SHA256.HashData(_payload);
 
-        await DepositAsync(
-            objectKey,
-            new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["x-amz-checksum-sha256"] = Convert.ToBase64String(digest),
-            });
+        await DepositAsync(objectKey);
 
         var description = await fixture.Content.DescribeAsync(objectKey, TestToken);
 
@@ -125,14 +159,7 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
     {
         string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("deleted"));
 
-        byte[] digest = SHA256.HashData(_payload);
-
-        await DepositAsync(
-            objectKey,
-            new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["x-amz-checksum-sha256"] = Convert.ToBase64String(digest),
-            });
+        await DepositAsync(objectKey);
 
         var before = await fixture.Content.DescribeAsync(objectKey, TestToken);
 
@@ -178,16 +205,17 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
         await Should.NotThrowAsync(() => fixture.Content.DeleteAsync(objectKey, TestToken));
     }
 
-    private async Task DepositAsync(string objectKey, IReadOnlyDictionary<string, string>? extraHeaders = null)
+    private async Task DepositAsync(string objectKey)
     {
         var grant = await fixture.Content.CreateUploadGrantAsync(
             objectKey,
             _mediaType,
             _payload.Length,
+            Convert.ToHexStringLower(SHA256.HashData(_payload)),
             TimeSpan.FromMinutes(10),
             TestToken);
 
-        using var deposit = await fixture.DepositAsync(grant, _payload, TestToken, extraHeaders);
+        using var deposit = await fixture.DepositAsync(grant, _payload, TestToken);
 
         deposit.IsSuccessStatusCode.ShouldBeTrue(
             $"this deposit is a precondition rather than the assertion; the store answered " +

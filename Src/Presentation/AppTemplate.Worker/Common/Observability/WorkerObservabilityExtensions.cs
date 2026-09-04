@@ -1,5 +1,7 @@
 ﻿using System.Reflection;
+using AppTemplate.Worker.Features.Files;
 using AppTemplate.Worker.Features.Maintenance;
+using AppTemplate.Worker.Features.Reminders;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using OpenTelemetry.Metrics;
@@ -50,9 +52,14 @@ public static class WorkerObservabilityExtensions
                 serviceVersion: ServiceVersion,
                 serviceInstanceId: Environment.MachineName))
             .WithTracing(tracing => tracing
-                // The maintenance loop's own span per task, plus the Npgsql span for the delete it
-                // issues — the same pairing AppTemplate.Api gets for a request and its query.
+                // Each loop's own span per task, plus the Npgsql span for the statements it issues —
+                // the same pairing AppTemplate.Api gets for a request and its query. One AddSource
+                // per host-owned ActivitySource, and
+                // ObservabilityRegistrationTests.EveryDiagnosticsNameAHostDeclares_IsRegisteredByThatHost
+                // fails the build for one that is missing.
+                .AddSource(FileDiagnostics.Name)
                 .AddSource(MaintenanceDiagnostics.Name)
+                .AddSource(ReminderDiagnostics.Name)
                 .AddNpgsql()
                 .AddHttpClientInstrumentation()
                 .AddOtlpExporter(exporter =>
@@ -61,7 +68,12 @@ public static class WorkerObservabilityExtensions
                     exporter.Protocol = telemetry.OtlpProtocol;
                 }))
             .WithMetrics(metrics => metrics
+                // The three loops' iteration counters and volume counters. All three are the
+                // heartbeat an alert watches, and a meter this host declares but does not name here
+                // is measured and thrown away — which is what happened to the Files loop.
+                .AddMeter(FileDiagnostics.Name)
                 .AddMeter(MaintenanceDiagnostics.Name)
+                .AddMeter(ReminderDiagnostics.Name)
                 .AddHttpClientInstrumentation()
                 // "AppTemplate.Reminders": AppTemplate.Infrastructure.Persistence.Features
                 // .Reminders.Observability.ReminderDiagnostics's own missed-cancellation counter. A

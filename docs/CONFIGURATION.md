@@ -507,10 +507,17 @@ validates cleanly and behaves exactly as the tracked `appsettings.json` states.
 |---|---|---|---|
 | `ChallengeLifetime` | timespan | `00:05:00` | Must be between **1 and 30 minutes**. This is what stands between a verified password and a token pair, and unlike a refresh token nobody is expected to hold on to it. |
 | `RecoveryCodeCount` | int | `10` | Must be **1–20**. How many single-use codes confirmation mints, shown once and never again. |
+| `MaxChallengeAttempts` | int | `5` | Must be **1–20**. Wrong codes one challenge tolerates before it is destroyed and the password has to be presented again. **This is the only bound on guessing a code:** account lockout counts failed *password* checks and presenting a code is not one, so raising this is a security decision, not a convenience. |
 | `Issuer` | string | `AppTemplate` | Must not be blank. **The label an authenticator app shows next to the account** — a user-visible string, so rename it with every other `AppTemplate` occurrence a fork replaces. |
 
 `SECURITY.md` describes the challenge as short-lived and the codes as ten; both of those are
 this section, not constants.
+
+**The three values are one budget.** A challenge lives `ChallengeLifetime` and tolerates
+`MaxChallengeAttempts` wrong codes, and the rate limiter admits 10 requests a minute per client
+address — per process, so times your replica count. Multiply the three before raising any of them:
+what they bound together is how many six-digit codes somebody who already has the password may
+offer.
 
 ### `ProblemTypes`
 

@@ -35,13 +35,36 @@
                project, which would otherwise be measured as if it were product code. -->
           <Exclude>[*Tests]*</Exclude>
 
-          <!-- EF Core writes these files; they are asserted on by being applied, not by line
-               coverage, and their size would otherwise dominate the total. -->
-          <ExcludeByFile>**/Migrations/*.cs</ExcludeByFile>
+          <!-- Code a tool wrote, excluded by where it lives rather than by the attribute it
+               carries.
+
+               Migrations: EF Core writes them, they are asserted on by being applied rather than
+               by line coverage, and their size would otherwise dominate the total.
+
+               Anything under obj/: every source generator writes there and nowhere else, so the
+               path is an unambiguous statement that nobody typed the file. In this repository that
+               is one 7,580-line file from the OpenAPI XML-comment generator in AppTemplate.Api,
+               and the logging partial the LoggerMessage generator writes for
+               AppTemplate.Infrastructure.Identity's SecurityEventLog.
+
+               This replaces GeneratedCodeAttribute in the attribute list below, and the swap was
+               measured rather than assumed: every assembly's covered and total line counts are
+               identical either way, except the one the attribute was silently losing. -->
+          <ExcludeByFile>**/Migrations/*.cs,**/obj/**/*.cs</ExcludeByFile>
 
           <!-- Compiler-synthesised members: record Equals/GetHashCode/ToString/Deconstruct,
-               iterator and async state machines. Not code anybody wrote or can test directly. -->
-          <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+               iterator and async state machines. Not code anybody wrote or can test directly.
+
+               GeneratedCodeAttribute is deliberately NOT in this list. With coverlet 10.0.1, an
+               assembly holding a source-generated partial class is dropped from the report
+               entirely — not the generated half, the whole module — so
+               AppTemplate.Infrastructure.Identity was absent from the coverage of its own 187 unit
+               tests, and the gate scored it 0 while every one of them passed. The ExcludeByFile
+               glob above covers the same code without losing the module. Adding the attribute back
+               reintroduces the loss; verify against a run of
+               Tests/Infrastructure/AppTemplate.Infrastructure.Identity.UnitTests alone, whose
+               report must contain an AppTemplate.Infrastructure.Identity package. -->
+          <ExcludeByAttribute>CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
 
           <!-- Trivial `{ get; set; }` accessors. Counting them rewards DTOs and dilutes the
                signal from the branches that hold real decisions. -->

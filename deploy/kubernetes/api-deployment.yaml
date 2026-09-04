@@ -78,6 +78,16 @@ spec:
                 secretKeyRef:
                   name: app-template-secrets
                   key: Email__Password
+            - name: Storage__AccessKeyId
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Storage__AccessKeyId
+            - name: Storage__SecretAccessKey
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Storage__SecretAccessKey
           # Liveness answers "is the process up", nothing else. /health runs zero checks
           # (Program.cs maps it with Predicate = _ => false) so it stays true while a clean
           # shutdown drains — see Src/Presentation/AppTemplate.Api/Common/Lifecycle/ShutdownHealthCheck.cs

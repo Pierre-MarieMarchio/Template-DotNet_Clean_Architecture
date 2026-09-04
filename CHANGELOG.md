@@ -242,12 +242,53 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Fixed
 
+- **The coverage gate was scoring the identity module's 187 unit tests as zero.**
+  `coverage.runsettings` named `GeneratedCodeAttribute` in `ExcludeByAttribute`, and coverlet 10.0.1
+  does not exclude a source-generated class with that — it drops the whole assembly holding one from
+  the report. `AppTemplate.Infrastructure.Identity` holds `SecurityEventLog`, a `LoggerMessage`
+  partial, so its own coverage report contained no entry for it at all, and the 68.22% recorded for
+  the module came entirely from the two integration suites. The exclusion is now an `ExcludeByFile`
+  glob over `obj/`, which is where every source generator writes: measured to give every other
+  assembly identical line counts, to the digit, and not to lose the module. Worth eight points of
+  total coverage on tests that were already written and already passing. **The floor stays at 85.**
+- **The Files loop's metrics and spans were produced and thrown away, and its own documentation said
+  otherwise.** `FileDiagnostics` declared a `Meter` and an `ActivitySource`, and
+  `WorkerObservabilityExtensions` named neither — so
+  `apptemplate.worker.files.{iterations,registrations_purged,objects_reclaimed,deposits_inspected}`
+  and every span of that source reached no collector, at full recording cost. Nothing caught it:
+  `FileDiagnosticsTests` listens with an in-process `MeterListener`, which sees a measurement whether
+  or not anything exports it. This is the loop that decides whether a deposited file ever becomes
+  readable.
+  The reminder loop, meanwhile, had no diagnostics class at all — its own comments argued in prose
+  for exactly the counter the other two loops have, and settled for a log line. It now has
+  `apptemplate.worker.reminders.{iterations,notified}` and a span per pass, with `disabled` as one of
+  the iteration outcomes so that a loop switched off by configuration reads differently from one that
+  died.
+  `ObservabilityRegistrationTests` is what stops this recurring: every `Meter` and `ActivitySource` a
+  host declares must be named by that host's own `Common/Observability/` registration, `AddMeter` for
+  one and `AddSource` for the other, and a host is discovered from the disk so a third one is covered
+  the day it exists. Broken and watched to redden by removing the two calls again.
+  **`SECURITY.md` accordingly stops advising an alert on the absence of
+  `apptemplate.reminders.missed_cancellations` samples** — that counter fires only on a missed
+  cancellation, so silence is its healthy state and it could never have been a heartbeat. The three
+  iteration counters are, and are now exported.
+
 - **An idempotency claim now carries a lease.** A process dying between claiming a key and completing
   it left the row in progress, and every retry got `409` until the 24-hour retention purge — an
   interrupted write was unretryable for a day, for an operation that may never have happened.
   `IdempotencyOptions:ClaimLease` bounds it, an expired claim is taken over by a conditional update
   whose zero-row result is the signal, and the filter no longer releases a claim whose write had
   already committed.
+- **The two-step upload can complete against a real object store.** The upload grant signed
+  `x-amz-sdk-checksum-algorithm: SHA256`, which names an algorithm and supplies nothing to check
+  against: MinIO accepted the deposit, recorded no digest, and `IFileContentStore.DescribeAsync` then
+  threw for want of one — so **every** file deposited through the two-step upload was unconfirmable and
+  the Files feature could not work outside the in-memory double. The grant now carries
+  `x-amz-checksum-sha256` with the digest the client declared at registration.
+  **Breaking for a derived project:** `IFileContentStore.CreateUploadGrantAsync` takes the declared
+  SHA-256 as a new parameter. It also closes a second hole for free — the store refuses content whose
+  digest disagrees, so a grant authorises one body rather than any body of the right length and cannot
+  be replayed to swap content after a file has been inspected and released.
 - **Eleven configuration keys the application reads are now in the configuration guide**, which had
   promised since its first line that all of them were. Four sections had no table at all —
   `IdentityTokens`, `TwoFactor`, `ProblemTypes` and `ReminderWorker`, the last of which
@@ -311,6 +352,27 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **Every infrastructure module now has the same shape: `Common/<Responsibility>/` plus
+  `Features/<Feature>/<Responsibility>/`.** `AppTemplate.Infrastructure.Identity` had forty files in
+  ten subject folders at its root and `AppTemplate.Infrastructure.Storage` nine in three, with
+  neither a `Common/` nor a `Features/`, while the other three modules had both. A folder under
+  `Features/` is the plural of the nature word its files carry — a `…Service` is in `Services/` and
+  `Services/` holds nothing else, as a `…Repository` has always been in `Repositories/` — so a type
+  name tells you its folder and a folder tells you what is in it. Uniformity beats local logic here
+  on purpose: several folders hold a single file, and reading one infrastructure module now teaches
+  you how to read the next. No type was renamed and no port was touched; the two modules' public
+  surface is the same set of classes at new namespaces. It also puts `BucketBudget` and
+  `ScannerBudget` side by side in `Common/Budgets/` — they say the same thing about two
+  dependencies the outbound HTTP policy cannot reach, and each already cited the other — and moves
+  `IdentityTokenOptions` to `Common/Options/`, since it sets one lifespan for every provider
+  `AddDefaultTokenProviders` registers rather than belonging to any one subject.
+  **Migration for a derived project:** every namespace under
+  `AppTemplate.Infrastructure.{Identity,Storage}` changed, so a `using` of one will not compile.
+  Fifty-one files moved and fifty-five referenced them. There is no configuration key, database
+  column or wire format involved — it is a rename, and the compiler names every site.
+  `LayoutConventionTests` now also fails the build for an infrastructure module absent from its two
+  vocabulary dictionaries, which is what let these two drift: the previous guard could only catch a
+  project listed *without* the folder it named, never one on disk that nobody listed.
 - **`AppTemplate.Worker` no longer receives the API's `Jwt:Key`.** It still needs the `Jwt` section
   — it composes the identity module, and `JwtOptionsValidator` runs at startup — but it signs and
   verifies nothing, so `docker-compose.yml` and `deploy/kubernetes/configmap-worker.yaml` now give

@@ -72,22 +72,64 @@ data:
   MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: "true"
   MaintenanceWorker__PurgeExpiredRefreshTokensEnabled: "true"
 
-  # The Files feature's two sweeps. ReclaimOrphanedContent is not housekeeping: with no soft
-  # delete, it is the only thing that ever removes the bytes of a deleted file, so disabling it
-  # leaks storage quietly.
-  # Neither takes the leader lease, and neither needs it for correctness — both are idempotent, and
-  # the reclamation's safety comes from listing the store before reading the rows, not from being
-  # alone. At replicas: 2 the reclamation does cost a second full walk of the store every cycle;
-  # that is a price, not a bug, and the day it stops being worth paying the lease belongs in the
-  # use case rather than in the loop. See CONTRIBUTING.md.
+  # The Files feature's three passes: two sweeps and the inspection. ReclaimOrphanedContent is not
+  # housekeeping: with no soft delete, it is the only thing that ever removes the bytes of a deleted
+  # file, so disabling it leaks storage quietly.
+  # None of the three takes the leader lease, and none needs it for correctness — all are
+  # idempotent, and the reclamation's safety comes from listing the store before reading the rows,
+  # not from being alone. At replicas: 2 the reclamation does cost a second full walk of the store
+  # every cycle; that is a price, not a bug, and the day it stops being worth paying the lease
+  # belongs in the use case rather than in the loop. See CONTRIBUTING.md.
   FileWorker__PurgeAbandonedRegistrationsInterval: "01:00:00"
   FileWorker__PurgeAbandonedRegistrationsEnabled: "true"
   FileWorker__ReclaimOrphanedContentInterval: "12:00:00"
   FileWorker__ReclaimOrphanedContentEnabled: "true"
 
-  # AppTemplate.Worker's second loop, restated at its shipped default for the same reason. Enabled
+  # The third pass, and the only one a user feels: nothing else moves a file from deposited to
+  # available, so this interval is an upload's time-to-readable and Enabled: "false" stops the
+  # Files feature rather than degrading it. Restated here because it was the one FileWorker key no
+  # manifest mentioned, which read as a feature this deployment had switched off.
+  FileWorker__InspectDepositedFilesInterval: "00:01:00"
+  FileWorker__InspectDepositedFilesEnabled: "true"
+
+  # AppTemplate.Worker's third BackgroundService — the other two being maintenance and files —
+  # restated at its shipped default for the same reason. Enabled
   # is the off switch an operator reaches for during a maintenance window, or while a deployment is
   # still validating the IReminderNotifier it wired in: the reminder loop stops, everything else in
   # this host keeps running.
   ReminderWorker__Interval: "00:01:00"
   ReminderWorker__Enabled: "true"
+
+  # --- Storage: the object store the Files feature keeps file content in. REQUIRED, and the -------
+  # reason this block exists at all: BucketName is blank in the tracked appsettings.json and
+  # StorageOptionsValidator refuses a blank one, so a deployment without it does not start. Both
+  # hosts compose AddStorageModule (see each Program.cs), so both ConfigMaps carry this block —
+  # the worker reaches the store to reclaim orphaned objects and to read the bytes it inspects.
+  #
+  # Endpoint is the one key that is legitimately blank: absent means Amazon S3 itself. Set it only
+  # for an S3-compatible store (MinIO, Ceph, R2), and then set ForcePathStyle too — virtual-host
+  # addressing would resolve <bucket>.<host>, which such a store rarely serves.
+  Storage__BucketName: "app-template-files"
+  Storage__Region: "eu-west-3"
+  Storage__Endpoint: ""
+  Storage__ForcePathStyle: "false"
+
+  # The name a CLIENT resolves, which is not always the one this pod uses. A presigned URL covers
+  # the host it was signed for, so a deployment reaching the store under an in-cluster Service name
+  # while browsers reach it under a public one MUST set this to the public one or every grant it
+  # mints answers 403 SignatureDoesNotMatch. Blank means "sign for Endpoint", which is correct
+  # whenever the two names are the same — as they are against Amazon S3.
+  Storage__PublicEndpoint: ""
+
+  # --- ContentInspection: blank ScannerHost is a DECISION, and it is the shipped one. -------------
+  # With no host, the file's leading bytes are still read and the media-type check still runs — a
+  # PNG whose bytes are an SVG is refused in every deployment — but nothing looks for malware, and
+  # SECURITY.md is where that is written down for whoever inherits this cluster. Point it at a
+  # clamd Service to close that gap.
+  #
+  # Do NOT set a host you are not sure is reachable: an unreachable scanner is reported as "no
+  # verdict", which is deliberately not a pass, so every upload stays unreadable until it answers.
+  # That is the correct behaviour and it is also an outage.
+  ContentInspection__ScannerHost: ""
+  ContentInspection__ScannerPort: "3310"
+  ContentInspection__MaxScannableBytes: "26214400"

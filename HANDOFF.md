@@ -5,8 +5,9 @@
 >
 > Branche `chore/modernise-template`
 >
-> **Les vagues 4 et 5 sont livrées pour l'essentiel**, et la suite passe à 1649 tests, cinq
-> exécutions consécutives. Ce qui a été arbitré, écarté ou reporté est au §11 — à lire avant le §6.
+> **Les vagues 4 et 5 sont livrées pour l'essentiel**, la refonte d'arborescence et Reminders aussi,
+> et la suite passe à 1829 tests, cinq exécutions consécutives. Ce qui a été arbitré, écarté ou
+> reporté est au §11 — à lire avant le §6.
 
 Ce fichier existe pour qu'on puisse reprendre depuis un autre poste sans relire la conversation
 qui a produit ce travail. Il contient les décisions déjà tranchées et leur raison, l'état réel du
@@ -48,17 +49,17 @@ il faut activer l'intégration WSL dans les réglages de Docker Desktop, sans qu
 « The command 'docker' could not be found in this WSL 2 distro ».
 
 ```
-Tests/Application/AppTemplate.Application.UnitTests             726
-Tests/Domain/AppTemplate.Domain.UnitTests                       238
-Tests/Architecture/AppTemplate.Architecture.Tests                51
-Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests   103
+Tests/Application/AppTemplate.Application.UnitTests             804
+Tests/Domain/AppTemplate.Domain.UnitTests                       280
+Tests/Architecture/AppTemplate.Architecture.Tests                55
+Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests   126
 Tests/Infrastructure/AppTemplate.Infrastructure.Identity.UnitTests       29   ← 3 exigent Docker
 Tests/Infrastructure/AppTemplate.Infrastructure.Email.UnitTests          50
 Tests/Infrastructure/AppTemplate.Infrastructure.InMemory.UnitTests       30
-Tests/Presentation/AppTemplate.Api.UnitTests                    137
-Tests/Presentation/AppTemplate.Worker.UnitTests                  21
-Tests/Integration/AppTemplate.Api.IntegrationTests              265   ← exige Docker
-                                                         total 1650
+Tests/Presentation/AppTemplate.Api.UnitTests                    148
+Tests/Presentation/AppTemplate.Worker.UnitTests                  31
+Tests/Integration/AppTemplate.Api.IntegrationTests              276   ← exige Docker
+                                                         total 1829
 ```
 
 `TreatWarningsAsErrors` est actif : un avertissement est une erreur.
@@ -205,6 +206,26 @@ sur cinq.
   `EverythingInAUseCasesFolder_IsAUseCaseOrItsInputContract` qui **interdisait l'arborescence
   cible** : remplacé par `EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt`, plus mordant, dont la
   sensibilité a été prouvée en y glissant un second use case.
+
+- **Vague 7 — Reminders** (commit `3e1a43f`). Agrégat **plat**, deuxième feature d'exemple. Ce
+  qu'elle a mesuré, et qui commande le refactor du commun : tracker **−31 %**, mapper **−48 %**,
+  mais repository **+23 %** (deux méthodes de plus). L'hypothèse « les repositories se ressemblent »
+  est donc fausse dès le second cas, et un `AggregateRepository<>` générique ne pourrait offrir que
+  la surface CRUD que l'ADR 0003 refuse — **ne pas l'extraire**. Le noyau du tracker, lui, a bien
+  deux cas qui le démontrent.
+  Deux instants `ClaimedAt`/`NotifiedAt` plutôt qu'un booléen : sans état intermédiaire en base,
+  « réclamé mais jamais notifié » n'existe pas et la garantie est indémontrable.
+  Décision de domaine à retenir : **« `DueAt` dans le futur » n'est PAS un invariant d'état.** C'est
+  une précondition de commande ; l'imposer dans `Rehydrate` ferait refuser exactement les lignes que
+  la requête de déclenchement cherche, et la feature s'auto-bloquerait au premier tick.
+  `docs/adr/0026` amende `0017` : la correction ne dépend pas de la livraison (revérification au
+  point d'effet + annulation idempotente + compteur `apptemplate.reminders.missed_cancellations`,
+  qui **est** le nombre d'événements perdus). Deux défauts de rédaction de `0017` corrigés au
+  passage : sa condition de révision était contournable par la solution même qu'elle déclenche, et
+  elle préemptait sa propre conclusion.
+  Conséquence non anticipée : **la suppression se propage sans aucun événement de domaine** — un id
+  absent de la projection est un item supprimé. Les deux événements que l'analyse jugeait
+  nécessaires ne l'étaient pas.
 
 **Non fait** — voir §6 et §11.
 

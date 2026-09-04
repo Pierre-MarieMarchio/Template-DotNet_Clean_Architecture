@@ -55,7 +55,12 @@
     "69394BB0-C501-466D-B2BC-05F99D1DC92F",
     "0EE33EEE-8DDA-4D8C-B30F-6B28A43600FA",
     "FA823C16-564E-4AB3-9645-9DA1BB387CE4",
-    "2D3D5062-3FA0-432B-A08C-A2D029B5B4CF"
+    "2D3D5062-3FA0-432B-A08C-A2D029B5B4CF",
+    "06CFFD70-14AA-A959-A3BA-1B15D094E3B1",
+    "F52C267D-47BB-4422-9B18-6133A6C34EBE",
+    "609A0E67-8706-4481-BF62-B6EECFED3E2B",
+    "A63B96E9-70FC-0FDC-3588-905A57B46513",
+    "14408293-E279-41AA-8D03-AE489B1EBC94"
   ],
   "sources": [
     {
@@ -66,7 +71,9 @@
             ".git/**",
             "**/bin/**",
             "**/obj/**",
-            ".env"
+            ".env",
+            ".vs/**",
+            "HANDOFF.md"
           ]
         }
       ]

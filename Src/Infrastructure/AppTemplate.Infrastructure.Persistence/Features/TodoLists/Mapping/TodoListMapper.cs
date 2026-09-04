@@ -1,5 +1,5 @@
-﻿using AppTemplate.Domain.Common.Abstractions;
-using AppTemplate.Domain.Features.TodoLists.Entities;
+﻿using AppTemplate.Domain.Features.TodoLists.Entities;
+using AppTemplate.Infrastructure.Persistence.Common.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
@@ -39,25 +39,11 @@ internal sealed class TodoListMapper : ITodoListMapper
 
         var aggregate = TodoList.Rehydrate(record.Id, record.OwnerId, record.Name, items);
 
-        // Through the explicit interfaces, which is the only way in: the aggregate exposes these four
-        // values and the token as read-only properties, and refuses assignment to anything that has
-        // not declared itself to be the persistence layer.
-        ((IVersioned)aggregate).SetVersion(record.Version);
-        ((IAuditable)aggregate).SetCreated(record.CreatedAt, record.CreatedBy);
-
-        if (record.LastModifiedAt is { } lastModifiedAt)
-        {
-            ((IAuditable)aggregate).SetLastModified(lastModifiedAt, record.LastModifiedBy);
-        }
-        else if (record.LastModifiedBy is not null)
-        {
-            // The two stamps move together, written by the audit interceptor and by nothing else, and
-            // the domain has no state for "modified by somebody at no time". A row in that shape is
-            // refused rather than half-read, which would drop the modifier without a sound.
-            throw new InvalidOperationException(
-                $"To-do list '{record.Id}' records a last modifier but no modification time. The audit "
-                + "columns are written as a pair, so this row was changed by something else.");
-        }
+        // The version and the audit stamps are read back through StoredStamps, not assigned here: the
+        // aggregate exposes them as read-only properties, settable only through the explicit interfaces
+        // that mark this as the persistence layer, and the four-line tail that does that is identical
+        // to ReminderMapper's — see StoredStamps for why it lives there instead of in a base class.
+        StoredStamps.ApplyTo(aggregate, record, record.Version, record.Id, "To-do list");
 
         return aggregate;
     }

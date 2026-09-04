@@ -20,6 +20,9 @@ using AppTemplate.Application.Features.Auth.UseCases.Commands.Register;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.RequestPasswordReset;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.ResendConfirmationEmail;
 using AppTemplate.Application.Features.Auth.UseCases.Commands.ResetPassword;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderTargets;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.AddTagToTodoItem;
@@ -36,6 +39,7 @@ using AppTemplate.Application.Features.TodoLists.UseCases.Commands.UpdateTodoIte
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItem;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItems;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoList;
+using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -50,9 +54,10 @@ namespace AppTemplate.Application.UnitTests;
 public sealed class ServiceRegistrationTests
 {
     /// <summary>
-    /// Fifteen to-do list operations, eleven authentication ones, and two maintenance operations.
+    /// Fifteen to-do list operations, eleven authentication ones, two maintenance operations, and
+    /// five reminder ones.
     /// </summary>
-    private const int _knownUseCaseCount = 28;
+    private const int _knownUseCaseCount = 33;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
@@ -225,6 +230,10 @@ public sealed class ServiceRegistrationTests
 
         services.AddScoped(_ => Substitute.For<ITodoListRepository>());
         services.AddScoped(_ => Substitute.For<ITodoListQueries>());
+        services.AddScoped(_ => Substitute.For<IReminderRepository>());
+        services.AddScoped(_ => Substitute.For<IReminderNotifier>());
+        services.AddScoped(_ => Substitute.For<IReminderTargets>());
+        services.AddScoped(_ => Substitute.For<IReminderDiagnostics>());
         services.AddScoped(_ => Substitute.For<IUnitOfWork>());
         services.AddScoped(_ => Substitute.For<ICurrentUser>());
         services.AddScoped(_ => Substitute.For<IDateTimeProvider>());

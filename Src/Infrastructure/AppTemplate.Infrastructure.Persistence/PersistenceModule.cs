@@ -1,16 +1,24 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Idempotency;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderTargets;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
+using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using AppTemplate.Infrastructure.Persistence.Common.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.DomainEvents;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Mapping;
+using AppTemplate.Infrastructure.Persistence.Common.Observability;
 using AppTemplate.Infrastructure.Persistence.Common.Time;
 using AppTemplate.Infrastructure.Persistence.Common.UnitOfWork;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Stores;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Queries;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Repositories;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Repositories;
@@ -66,6 +74,7 @@ public static class PersistenceModule
         AddDatabaseOptions(services, configuration);
         AddSharedServices(services);
         AddTodoListsFeature(services);
+        AddRemindersFeature(services);
         AddIdentityFeature(services);
         AddIdempotencyFeature(services, configuration);
         AddContext(services, connectionString);
@@ -123,6 +132,27 @@ public static class PersistenceModule
 
         services.TryAddScoped<ITodoListRepository, TodoListRepository>();
         services.TryAddScoped<ITodoListQueries, TodoListQueries>();
+    }
+
+    private static void AddRemindersFeature(IServiceCollection services)
+    {
+        services.TryAddSingleton<IReminderMapper, ReminderMapper>();
+
+        // See AddTodoListsFeature for why this is a factory over one scoped instance rather than three
+        // separate registrations: the repository, the flush interceptor and the dispatch interceptor
+        // must all resolve the very same tracker, or each would hold its own empty identity map.
+        services.TryAddScoped<ReminderTracker>();
+        services.TryAddScoped<IReminderTracker>(provider => provider.GetRequiredService<ReminderTracker>());
+        services.AddScoped<IAggregateFlusher>(provider => provider.GetRequiredService<ReminderTracker>());
+        services.AddScoped<IDomainEventSource>(provider => provider.GetRequiredService<ReminderTracker>());
+
+        services.TryAddScoped<IReminderRepository, ReminderRepository>();
+        services.TryAddScoped<IReminderTargets, ReminderTargets>();
+
+        // Wraps a static Meter/Counter pair (see ReminderDiagnostics), so one instance per process
+        // is a choice made for clarity, not a requirement: a scoped registration would have been
+        // just as correct.
+        services.TryAddSingleton<IReminderDiagnostics, ReminderDiagnostics>();
     }
 
     private static void AddIdentityFeature(IServiceCollection services)

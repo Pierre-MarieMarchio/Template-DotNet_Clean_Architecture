@@ -9,7 +9,7 @@ namespace AppTemplate.Architecture.Tests.Composition;
 /// Guards the types that must resolve as ONE instance under several contracts.
 /// </summary>
 /// <remarks>
-/// The aggregate tracker is reached three ways: the repository fills its identity map through one
+/// An aggregate tracker is reached three ways: the repository fills its identity map through one
 /// contract, the flush interceptor drains it through another, and the dispatcher takes domain events
 /// off it through a third. Registered as three independent descriptors it would resolve as three
 /// objects, the repository would fill one map and the interceptor would flush a different empty one,
@@ -19,33 +19,52 @@ namespace AppTemplate.Architecture.Tests.Composition;
 public sealed class SharedInstanceRegistrationTests
 {
     /// <summary>
-    /// Turns red if any of the three registrations stops delegating to the same descriptor — for
+    /// Turns red if any of a tracker's registrations stops delegating to the same descriptor — for
     /// example by becoming its own <c>AddScoped&lt;IAggregateFlusher, TodoListTracker&gt;()</c>.
+    /// <para>
+    /// Asserted per tracker, not across all of them: each aggregate has its own, and the contracts
+    /// they share are collection contracts — the flush interceptor takes
+    /// <c>IEnumerable&lt;IAggregateFlusher&gt;</c> precisely so that every aggregate's map is
+    /// drained. What must hold is that a given tracker appears in those collections **as the same
+    /// object** the repository filled, once each.
+    /// </para>
     /// </summary>
     [Fact]
-    public void TheAggregateTracker_ResolvesAsOneInstanceUnderEveryContractItServes()
+    public void EveryAggregateTracker_ResolvesAsOneInstanceUnderEveryContractItServes()
     {
         var services = HostComposition.ComposeApi(HostComposition.Configuration());
         using var provider = services.BuildServiceProvider(HostComposition.StrictValidation);
         using var scope = provider.CreateScope();
 
-        var contracts = TrackerContracts(services).ToArray();
+        var trackers = TrackerTypes(services);
 
-        contracts.Length.ShouldBeGreaterThanOrEqualTo(
+        trackers.Length.ShouldBeGreaterThanOrEqualTo(
             2,
-            "the guarantee is meaningless unless the tracker is reachable through several contracts; " +
-            "if this fails, the registration was restructured and this test needs revisiting.");
+            "fewer aggregate trackers were found than this template registers, so the discovery " +
+            "here has stopped reading the composition.");
 
-        var resolved = contracts
-            .Select(contract => scope.ServiceProvider.GetRequiredService(contract))
-            .ToArray();
-
-        foreach (var instance in resolved)
+        foreach (var tracker in trackers)
         {
-            ReferenceEquals(instance, resolved[0]).ShouldBeTrue(
-                $"every contract the tracker serves must resolve to the same object; " +
-                $"{string.Join(", ", contracts.Select(contract => contract.Name))} did not. " +
-                "Register it once and have the other contracts delegate to that registration.");
+            object instance = scope.ServiceProvider.GetRequiredService(tracker);
+            var contracts = ContractsServedBy(services, tracker);
+
+            contracts.Length.ShouldBeGreaterThanOrEqualTo(
+                2,
+                $"{tracker.Name} is reachable through fewer contracts than the guarantee needs to " +
+                "be meaningful; the registration was restructured and this test needs revisiting.");
+
+            foreach (var contract in contracts)
+            {
+                scope.ServiceProvider
+                    .GetServices(contract)
+                    .Count(resolved => ReferenceEquals(resolved, instance))
+                    .ShouldBe(
+                        1,
+                        $"{tracker.Name} must appear exactly once behind {contract.Name}, as the " +
+                        "same object the repository fills. A second instance means the repository " +
+                        "fills one identity map while the interceptor flushes another — every " +
+                        "write would report success and persist nothing.");
+            }
         }
     }
 
@@ -59,8 +78,11 @@ public sealed class SharedInstanceRegistrationTests
         var services = HostComposition.ComposeApi(HostComposition.Configuration());
         using var provider = services.BuildServiceProvider(HostComposition.StrictValidation);
 
-        var contract = TrackerContracts(services).FirstOrDefault();
-        contract.ShouldNotBeNull("no contract served by the aggregate tracker was found.");
+        var tracker = TrackerTypes(services).FirstOrDefault();
+        tracker.ShouldNotBeNull("no aggregate tracker was found in the composition.");
+
+        var contract = ContractsServedBy(services, tracker).FirstOrDefault();
+        contract.ShouldNotBeNull($"no contract served by {tracker.Name} was found.");
 
         using var first = provider.CreateScope();
         using var second = provider.CreateScope();
@@ -74,37 +96,27 @@ public sealed class SharedInstanceRegistrationTests
     }
 
     /// <summary>
-    /// Every contract whose implementation type is the aggregate tracker, discovered from the
-    /// descriptors rather than hard-coded, so a tracker added for a second aggregate is covered too.
+    /// Every aggregate tracker, discovered from the descriptors rather than hard-coded, so one
+    /// added for a further aggregate is covered without this test being touched.
     /// </summary>
-    private static IEnumerable<Type> TrackerContracts(IServiceCollection services)
-    {
-        var trackerTypes = services
+    private static Type[] TrackerTypes(IServiceCollection services) =>
+        [.. services
             .Select(descriptor => descriptor.ImplementationType)
             .Where(type => type is not null && type.Name.EndsWith("Tracker", StringComparison.Ordinal))
             .Distinct()
-            .ToArray();
-
-        return services
-            .Where(descriptor => descriptor.ServiceType != typeof(IDomainEventConsumer)
-                && (Array.IndexOf(trackerTypes, descriptor.ImplementationType) >= 0
-                    || IsFactoryForATracker(descriptor, trackerTypes)))
-            .Select(descriptor => descriptor.ServiceType)
-            .Distinct();
-    }
+            .Cast<Type>()
+            .OrderBy(type => type.Name, StringComparer.Ordinal)];
 
     /// <summary>
-    /// A delegating registration carries no <c>ImplementationType</c>, so it is recognised by the
-    /// contracts the tracker's own type declares.
+    /// The contracts one tracker answers to. A delegating registration carries no
+    /// <c>ImplementationType</c>, so it is recognised by what the tracker's own type can satisfy.
     /// </summary>
-    private static bool IsFactoryForATracker(ServiceDescriptor descriptor, Type?[] trackerTypes)
-    {
-        if (descriptor.ImplementationFactory is null)
-        {
-            return false;
-        }
-
-        return trackerTypes.Any(tracker =>
-            tracker is not null && descriptor.ServiceType.IsAssignableFrom(tracker));
-    }
+    private static Type[] ContractsServedBy(IServiceCollection services, Type tracker) =>
+        [.. services
+            .Where(descriptor => descriptor.ServiceType != typeof(IDomainEventConsumer))
+            .Where(descriptor => descriptor.ImplementationType == tracker
+                || (descriptor.ImplementationFactory is not null
+                    && descriptor.ServiceType.IsAssignableFrom(tracker)))
+            .Select(descriptor => descriptor.ServiceType)
+            .Distinct()];
 }

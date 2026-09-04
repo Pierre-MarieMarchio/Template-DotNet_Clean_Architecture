@@ -14,6 +14,15 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// that are supposed to be unique per generation — a collision that surfaces far from its cause, in
 /// a NuGet cache key or two solutions opened side by side.
 /// </para>
+/// <para>
+/// <b>These three rules only have a subject in the template repository.</b> <c>dotnet new</c> does
+/// not copy <c>.template.config/</c> — it is the template's own metadata, not the generated
+/// project's — and CI runs this suite inside a generated project too, to prove that project is what
+/// it claims to be. There the manifest does not exist, so the rules report themselves
+/// <em>skipped</em> rather than passing: a rule that quietly succeeds where it checked nothing is
+/// the failure mode this whole project exists to prevent, and a skip is visible in the run summary
+/// where a pass is not.
+/// </para>
 /// </summary>
 public sealed class TemplatePackagingTests
 {
@@ -35,6 +44,11 @@ public sealed class TemplatePackagingTests
     [Fact]
     public void EveryGuidInTheSolution_IsRegeneratedOnGeneration()
     {
+        if (ManifestPath() is null)
+        {
+            Assert.Skip("No .template.config/: this is a project generated from the template, not the template.");
+        }
+
         var declared = DeclaredGuids();
         var inSolution = SolutionGuids();
 
@@ -59,6 +73,11 @@ public sealed class TemplatePackagingTests
     [Fact]
     public void NoDeclaredGuid_IsAbsentFromTheSolution()
     {
+        if (ManifestPath() is null)
+        {
+            Assert.Skip("No .template.config/: this is a project generated from the template, not the template.");
+        }
+
         var declared = DeclaredGuids();
 
         declared.ShouldNotBeEmpty("The manifest declares no guids, which cannot be right.");
@@ -78,6 +97,11 @@ public sealed class TemplatePackagingTests
     [Fact]
     public void TheProjectTypeGuids_AreNotRegenerated()
     {
+        if (ManifestPath() is null)
+        {
+            Assert.Skip("No .template.config/: this is a project generated from the template, not the template.");
+        }
+
         var declared = DeclaredGuids();
 
         foreach (string typeGuid in _projectTypeGuids)
@@ -89,14 +113,33 @@ public sealed class TemplatePackagingTests
         }
     }
 
+    /// <summary>
+    /// The manifest, or <c>null</c> in a project generated from this template. The directory is the
+    /// discriminator rather than the file: <c>dotnet new</c> leaves neither behind, so its absence
+    /// says "generated project", while a missing file inside a directory that does exist would be a
+    /// template whose manifest someone deleted — which must still fail.
+    /// </summary>
+    private static string? ManifestPath()
+    {
+        string directory = Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config");
+
+        if (!Directory.Exists(directory))
+        {
+            return null;
+        }
+
+        string manifest = Path.Combine(directory, "template.json");
+
+        File.Exists(manifest).ShouldBeTrue(
+            $"'{directory}' exists but holds no template.json, so this repository packages a "
+            + "template `dotnet new` cannot read.");
+
+        return manifest;
+    }
+
     private static HashSet<string> DeclaredGuids()
     {
-        string manifest = Path.Combine(
-            ProjectReferenceGraph.RepositoryRoot,
-            ".template.config",
-            "template.json");
-
-        File.Exists(manifest).ShouldBeTrue($"The template manifest was not found at '{manifest}'.");
+        string manifest = ManifestPath()!;
 
         using var document = JsonDocument.Parse(File.ReadAllText(manifest));
 

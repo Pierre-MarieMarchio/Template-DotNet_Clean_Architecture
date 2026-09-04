@@ -151,9 +151,14 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   side effect is lost and never retried, and a process that dies between the commit and the dispatch
   loop loses every consumer for that save, because nothing durable recorded that the event was
   raised. Closing that needs an outbox, plus a dispatcher, a dead-letter path and idempotent
-  consumers; `docs/adr/0017` records why this template refuses to ship half of it. If a consumer
-  does anything a user would notice missing — money, mail, anything visible outside the process —
-  add one before you rely on this.
+  consumers; `docs/adr/0017` records why this template refuses to ship half of it.
+  The reminder feature shows the alternative, and it is the pattern to copy: the effect re-reads
+  the state it depends on at the moment it acts, so a lost cancellation delays a reminder's
+  retirement instead of firing it wrongly, and the reminder worker counts every such divergence —
+  a non-zero `apptemplate.reminders.missed_cancellations` is the number of events that went missing. A
+  consumer whose effect *cannot* be re-derived, because nothing re-reads the state later — mail,
+  money, a call to a third party — still needs an outbox before you rely on it.
+  See `docs/adr/0026`.
 - **Idempotency keys expire only when something purges them.** `Idempotency:Retention` stamps each
   row's `ExpiresAt`; it does not delete anything. Expiry is enforced by
   `DELETE /api/v1/maintenance/idempotency-keys/expired`, which requires the `Administrator` policy

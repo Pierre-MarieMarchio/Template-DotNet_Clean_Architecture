@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Infrastructure.Email.Options;
 using AppTemplate.Infrastructure.Email.Services;
 using Microsoft.Extensions.Configuration;
@@ -37,6 +38,7 @@ public static class EmailModule
         services.AddSingleton<IValidateOptions<EmailOptions>, EmailOptionsValidator>();
 
         services.AddScoped<IEmailSender, MailKitEmailSender>();
+        services.AddScoped<IReminderNotifier, EmailReminderNotifier>();
 
         return services;
     }

@@ -65,3 +65,9 @@ A consumer performs a side effect a user would notice missing — moving money, 
 mail, or anything visible outside the process. At that point the residual gap this record
 describes stops being acceptable for that specific consumer, and it is the point to add
 the outbox rather than tolerate best-effort delivery.
+
+[0026](0026-correctness-does-not-depend-on-event-delivery.md) amends this clause. Reaching it
+means reopening the question, not that the outbox is the answer: restructuring so that the
+effect re-derives its own precondition removes the dependency on delivery altogether, and is
+cheaper wherever the effect is produced by something that re-reads state when it acts. That
+record also restates the trigger in a form that can be observed rather than judged.

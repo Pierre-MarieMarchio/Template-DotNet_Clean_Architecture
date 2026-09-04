@@ -1,5 +1,7 @@
 ﻿using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Infrastructure.InMemory.Email;
+using AppTemplate.Infrastructure.InMemory.Reminders;
 using AppTemplate.Infrastructure.InMemory.Time;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -18,7 +20,10 @@ namespace AppTemplate.Infrastructure.InMemory;
 public static class InMemoryModule
 {
     /// <summary>
-    /// Replaces the clock and the email sender with controllable, recording doubles.
+    /// Replaces the clock, the email sender and the reminder notifier with controllable, recording
+    /// doubles. <see cref="IReminderNotifier"/>'s real adapter (<c>EmailReminderNotifier</c>, in
+    /// <c>AppTemplate.Infrastructure.Email</c>) sends actual mail, exactly like
+    /// <see cref="IEmailSender"/>'s, so it gets the same treatment here.
     /// <para>
     /// It <b>removes and re-adds</b> rather than relying on last-registration-wins, and it
     /// takes no <c>IConfiguration</c> because there is nothing to configure. Replacement is
@@ -49,6 +54,26 @@ public static class InMemoryModule
         services.RemoveAll<RecordedEmails>();
         services.AddSingleton<RecordedEmails>();
         services.AddScoped<IEmailSender, InMemoryEmailSender>();
+
+        services.AddInMemoryReminderNotifications();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the recording <see cref="IReminderNotifier"/> on its own, without the clock and
+    /// email-sender swaps <see cref="AddInMemoryModule"/> also makes — useful to a test that wants
+    /// reminders recorded without also freezing the clock or rerouting every other mail the host
+    /// sends.
+    /// </summary>
+    public static IServiceCollection AddInMemoryReminderNotifications(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.RemoveAll<IReminderNotifier>();
+        services.RemoveAll<RecordedReminderNotifications>();
+        services.AddSingleton<RecordedReminderNotifications>();
+        services.AddScoped<IReminderNotifier, InMemoryReminderNotifier>();
 
         return services;
     }

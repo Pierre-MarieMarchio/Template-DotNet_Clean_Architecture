@@ -1,0 +1,87 @@
+# AppTemplate.Worker — a second host, not a sidecar of the API. It answers no HTTP request:
+# MaintenanceBackgroundService and ReminderBackgroundService are the only two things running
+# inside it, on their own timers (MaintenanceWorker__Interval and the reminder loop's own
+# schedule). Deliberately no Service, no Ingress, and no readiness probe here:
+#   - No Service/Ingress because nothing calls this process. A ClusterIP with no listener behind
+#     it is not harmless boilerplate, it is a Service that fails every connection it accepts.
+#   - No readiness probe because "ready" means "safe to route traffic to", and there is no
+#     traffic to route. A liveness probe would also need an HTTP endpoint this host does not
+#     have; watch the container's own exit code and restart policy instead — the same signal an
+#     orchestrator already uses for any plain background process.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-template-worker
+  labels:
+    app.kubernetes.io/name: app-template-worker
+    app.kubernetes.io/part-of: app-template
+    app.kubernetes.io/component: worker
+spec:
+  # One, deliberately. MaintenanceWorkerOptions has no leader election and no locking between
+  # replicas — a second one would run the exact same purge on the exact same schedule, wasting a
+  # connection from this same Database__MaxPoolSize budget for no benefit (both purges are
+  # idempotent deletes against an already-covered range, not a correctness problem). Raise this
+  # only if you have an actual reason to, and remember it counts against the same pool budget as
+  # every API replica — see docs/DEPLOYMENT.md.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-template-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app-template-worker
+        app.kubernetes.io/part-of: app-template
+        app.kubernetes.io/component: worker
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      # No preStop here — there is no load balancer routing traffic to this pod to drain first,
+      # so the race api-deployment.yaml's preStop guards against does not exist for this host.
+      # 30 s leaves headroom above the .NET Generic Host's own default shutdown timeout (5 s):
+      # this host does not configure HostOptions.ShutdownTimeout the way AppTemplate.Api does
+      # (that override lives in AppTemplate.Api's own Common/Lifecycle module and is not shared),
+      # so its background loops get whatever time is left inside this window to finish their
+      # current batch and honour cancellation before SIGKILL.
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: worker
+          # Built from Src/Presentation/AppTemplate.Worker/Dockerfile. At the time of writing,
+          # .github/workflows/release.yml only builds and publishes the api image (job `image`)
+          # — there is no equivalent job for the worker yet. This manifest names the image that
+          # workflow needs to produce; building it is a release-pipeline change, not something a
+          # Kubernetes manifest can supply on its own.
+          image: ghcr.io/OWNER/REPO/worker:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: app-template-worker-config
+          env:
+            - name: ConnectionStrings__Default
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: ConnectionStrings__Default
+            - name: Jwt__Key
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Jwt__Key
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            # Lighter than the API's: this process serves no concurrent request load, it wakes up
+            # on an interval, does a bounded batch of work, and goes back to sleep. Still a
+            # starting point, not a measured optimum — see docs/DEPLOYMENT.md.
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi

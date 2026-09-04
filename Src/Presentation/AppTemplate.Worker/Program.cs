@@ -1,9 +1,11 @@
 ﻿using AppTemplate.Application;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Worker.Common.Maintenance;
 using AppTemplate.Worker.Common.Observability;
+using AppTemplate.Worker.Common.Reminders;
 using AppTemplate.Worker.Common.Security;
 using Microsoft.Extensions.Options;
 
@@ -20,10 +22,11 @@ builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 //
 // AppTemplate.Infrastructure.Identity is composed only because IRefreshTokenMaintenance's sole
 // adapter lives there — see AppTemplate.Worker.csproj for what that costs in configuration surface.
-// There is no AddEmailModule: neither maintenance task sends mail.
+// AddEmailModule is here for one port: a reminder that comes due is rung by mail.
 builder.Services.AddApplicationLayer();
 builder.Services.AddPersistenceModule(builder.Configuration);
 builder.Services.AddIdentityModule(builder.Configuration);
+builder.Services.AddEmailModule(builder.Configuration);
 
 // This host has no request and no principal — see BackgroundCurrentUser for what that means for
 // a use case that reads ICurrentUser.UserId. Scoped, matching AppTemplate.Api's own registration
@@ -35,12 +38,19 @@ builder.Services.AddOptions<MaintenanceWorkerOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<MaintenanceWorkerOptions>, MaintenanceWorkerOptionsValidator>();
 
+builder.Services.AddOptions<ReminderWorkerOptions>()
+    .Bind(builder.Configuration.GetSection(ReminderWorkerOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<ReminderWorkerOptions>, ReminderWorkerOptionsValidator>();
+
 // The JSON log alone is not enough: the maintenance loop only logs when a purge removes something,
 // so a purge broken for weeks would otherwise be invisible. See WorkerObservability and
-// MaintenanceDiagnostics.
+// MaintenanceDiagnostics. The reminder loop logs every pass unconditionally instead — see
+// ReminderBackgroundService — so it needs no such note here.
 builder.Services.AddWorkerObservability(builder.Configuration);
 
 builder.Services.AddHostedService<MaintenanceBackgroundService>();
+builder.Services.AddHostedService<ReminderBackgroundService>();
 
 var host = builder.Build();
 

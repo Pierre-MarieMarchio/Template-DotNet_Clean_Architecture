@@ -1,0 +1,135 @@
+# AppTemplate.Api. Read docs/DEPLOYMENT.md before changing terminationGracePeriodSeconds,
+# preStop's sleep, or Shutdown__Timeout in configmap-api.yaml — the three are one arithmetic, not
+# three independent knobs.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-template-api
+  labels:
+    app.kubernetes.io/name: app-template-api
+    app.kubernetes.io/part-of: app-template
+    app.kubernetes.io/component: api
+spec:
+  # Two, so the connection-pool math in docs/DEPLOYMENT.md and configmap-api.yaml's
+  # Database__MaxPoolSize is not a comment describing a number that does not match reality.
+  # Raising this multiplies Database__MaxPoolSize by the new count against PostgreSQL's
+  # max_connections — see docs/CONFIGURATION.md#database before changing either number alone.
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-template-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app-template-api
+        app.kubernetes.io/part-of: app-template
+        app.kubernetes.io/component: api
+    spec:
+      # This process never calls the Kubernetes API; a mounted token would be a credential with
+      # no user.
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      # See docs/DEPLOYMENT.md for the arithmetic this number is the answer to: preStop's sleep
+      # (5 s, below) plus Shutdown__Timeout (30 s, configmap-api.yaml) plus a margin for SIGTERM
+      # delivery and process exit itself. Raise it if you raise either of those; do not raise it
+      # alone and assume the other two follow.
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: api
+          # Built by .github/workflows/release.yml's `image` job from
+          # Src/Presentation/AppTemplate.Api/Dockerfile. Replace OWNER/REPO and pin to a tag this
+          # deployment actually wants — never `latest` outside a throwaway environment, for the
+          # usual reason: it is not possible to tell which build is running, or to roll back to it
+          # by name.
+          image: ghcr.io/OWNER/REPO/api:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: app-template-api-config
+          env:
+            # HTTP only, on 8080 — see Src/Presentation/AppTemplate.Api/Dockerfile for why
+            # ASPNETCORE_URLS must never be set alongside this.
+            - name: ASPNETCORE_HTTP_PORTS
+              value: "8080"
+            - name: ConnectionStrings__Default
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: ConnectionStrings__Default
+            - name: Jwt__Key
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Jwt__Key
+            - name: Email__UserName
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Email__UserName
+            - name: Email__Password
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Email__Password
+          # Liveness answers "is the process up", nothing else. /health runs zero checks
+          # (Program.cs maps it with Predicate = _ => false) so it stays true while a clean
+          # shutdown drains — see Src/Presentation/AppTemplate.Api/Common/Lifecycle/ShutdownHealthCheck.cs
+          # for why that check must never reach this probe. It is deliberately NOT the same path
+          # as readiness below.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # Readiness carries both the database check and ShutdownHealthCheck (tagged "ready"),
+          # so this probe answers two different questions with one status: "can it reach
+          # PostgreSQL" and "has graceful shutdown begun". A short periodSeconds here is mostly
+          # for the ordinary case (route traffic away from a pod whose database just became
+          # unreachable) and for any active-health-check dataplane in front of this Service (a
+          # service-mesh sidecar, an ingress controller with its own upstream health checks) —
+          # it is NOT what closes the shutdown race described in docs/DEPLOYMENT.md. Kubernetes
+          # removes a Terminating pod from this Service's Endpoints unconditionally, before this
+          # probe's next failure would even be observed; preStop's sleep is what buys that removal
+          # time to propagate before SIGTERM stops the listener.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
+          lifecycle:
+            preStop:
+              # Runs BEFORE SIGTERM is sent — see docs/DEPLOYMENT.md. 5 s is a starting point,
+              # not a measured value for your cluster: it has to cover however long your actual
+              # ingress controller and kube-proxy take to stop sending this pod traffic once it is
+              # marked Terminating. Measure it (watch when the ingress controller's own endpoint
+              # list drops the pod) rather than trust the number shipped here.
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            # A starting point, not a measured optimum for your traffic — see
+            # docs/DEPLOYMENT.md. Watch actual usage and adjust; do not ship these unchanged and
+            # call the job done.
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

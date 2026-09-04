@@ -209,6 +209,61 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("RefreshTokens", "identity");
                 });
 
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Reminders.Models.ReminderRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ClaimedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("DueAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("NotifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TodoItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TodoListId")
+                        .HasColumnType("uuid");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("State", "DueAt")
+                        .HasDatabaseName("IX_Reminders_State_DueAt");
+
+                    b.HasIndex("TodoItemId")
+                        .HasDatabaseName("IX_Reminders_TodoItemId");
+
+                    b.ToTable("Reminders", "reminders");
+                });
+
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
                 {
                     b.Property<Guid>("Id")

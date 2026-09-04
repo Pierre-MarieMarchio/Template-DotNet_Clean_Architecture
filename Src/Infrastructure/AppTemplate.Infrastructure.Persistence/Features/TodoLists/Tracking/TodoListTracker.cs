@@ -1,6 +1,5 @@
-﻿using AppTemplate.Domain.Common.Abstractions;
-using AppTemplate.Domain.Common.Events;
-using AppTemplate.Domain.Features.TodoLists.Entities;
+﻿using AppTemplate.Domain.Features.TodoLists.Entities;
+using AppTemplate.Infrastructure.Persistence.Common.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 using Microsoft.EntityFrameworkCore;
@@ -8,8 +7,10 @@ using Microsoft.EntityFrameworkCore;
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;
 
 /// <summary>
-/// Holds the to-do list aggregates in flight during one request, together with the rows they came from,
-/// and reconciles the two whenever the context is saved.
+/// The reconciliation half of <see cref="AggregateTracker{TAggregate,TRecord}"/> for
+/// <see cref="TodoList"/>: how its aggregate's state — including its item and tag children — is written
+/// onto the row EF is already tracking. The identity map, the drain and the restore path that make up
+/// the other half are inherited unchanged; see the base class for those.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,7 +26,11 @@ namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;
 /// in the write even when none of its own columns moved. That is what makes the root's <c>xmin</c> the
 /// arbiter for every write anywhere in the aggregate, and what moves its <c>LastModifiedAt</c> when an
 /// item is added. Without it two callers could add items to the same list concurrently and the list
-/// would claim it had not changed since it was created.
+/// would claim it had not changed since it was created. This is also the reason
+/// <c>AggregateTracker{TAggregate,TRecord}.FlushTo</c> is not shared:
+/// <see cref="AppTemplate.Infrastructure.Persistence.Features.Reminders.Tracking.ReminderTracker"/>
+/// has no child row to enrol a root for, so it has nothing resembling this method beyond its first few
+/// lines.
 /// </para>
 /// <para>
 /// <b>Concurrency.</b> The version the aggregate is carrying is pushed into the row's <em>original</em>
@@ -35,51 +40,16 @@ namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;
 /// query that produced it.
 /// </para>
 /// </remarks>
-internal sealed class TodoListTracker(ITodoListMapper mapper) : ITodoListTracker
+internal sealed class TodoListTracker(ITodoListMapper mapper)
+    : AggregateTracker<TodoList, TodoListRecord>(record => record.Version), ITodoListTracker
 {
-    private readonly Dictionary<Guid, TrackedAggregate> _tracked = [];
-
-    /// <summary>Events drained for a save that then failed, waiting to be handed out again.</summary>
-    private readonly List<IDomainEvent> _restored = [];
-
-    public TodoList? Find(Guid id) =>
-        _tracked.TryGetValue(id, out var tracked) && !tracked.IsRemoved ? tracked.Aggregate : null;
-
-    public TodoListRecord? FindRecord(Guid id) =>
-        _tracked.TryGetValue(id, out var tracked) ? tracked.Record : null;
-
-    public void Track(TodoList aggregate, TodoListRecord record)
-    {
-        ArgumentNullException.ThrowIfNull(aggregate);
-        ArgumentNullException.ThrowIfNull(record);
-
-        _tracked[aggregate.Id] = new TrackedAggregate(aggregate, record);
-    }
-
-    public void MarkRemoved(TodoList aggregate, TodoListRecord record)
-    {
-        ArgumentNullException.ThrowIfNull(aggregate);
-        ArgumentNullException.ThrowIfNull(record);
-
-        if (_tracked.TryGetValue(aggregate.Id, out var tracked) && ReferenceEquals(tracked.Aggregate, aggregate))
-        {
-            tracked.IsRemoved = true;
-
-            return;
-        }
-
-        // An aggregate reconstructed outside this request is in no identity map, and an aggregate that
-        // is not tracked is never drained: the events its own deletion raised would be undeliverable.
-        _tracked[aggregate.Id] = new TrackedAggregate(aggregate, record) { IsRemoved = true };
-    }
-
-    public void FlushTo(DbContext context)
+    public override void FlushTo(DbContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         var rootsNeedingATouch = new HashSet<Guid>();
 
-        foreach (var tracked in _tracked.Values)
+        foreach (var tracked in TrackedAggregates)
         {
             var entry = context.Entry(tracked.Record);
 
@@ -110,72 +80,6 @@ internal sealed class TodoListTracker(ITodoListMapper mapper) : ITodoListTracker
 
         CollectRootsWithDirtyChildren(context, rootsNeedingATouch);
         TouchRoots(context, rootsNeedingATouch);
-    }
-
-    public void RefreshFromStore()
-    {
-        foreach (var tracked in _tracked.Values)
-        {
-            if (tracked.IsRemoved)
-            {
-                continue;
-            }
-
-            var record = tracked.Record;
-
-            // The token PostgreSQL just assigned. Without this the aggregate a use case is still
-            // holding would carry the version it was loaded at, and a second write in the same request
-            // would fail against a token it had itself moved.
-            ((IVersioned)tracked.Aggregate).SetVersion(record.Version);
-
-            // The stamps the audit interceptor decided. The aggregate is told rather than asked: the
-            // interceptor is the only writer, and this is how its decision reaches the domain object.
-            ((IAuditable)tracked.Aggregate).SetCreated(record.CreatedAt, record.CreatedBy);
-
-            if (record.LastModifiedAt is { } lastModifiedAt)
-            {
-                ((IAuditable)tracked.Aggregate).SetLastModified(lastModifiedAt, record.LastModifiedBy);
-            }
-        }
-    }
-
-    public IReadOnlyCollection<IDomainEvent> DrainDomainEvents()
-    {
-        List<IDomainEvent>? drained = null;
-
-        if (_restored.Count > 0)
-        {
-            // First, because they were raised first: a save that failed does not reorder history.
-            drained = [.. _restored];
-            _restored.Clear();
-        }
-
-        foreach (var tracked in _tracked.Values)
-        {
-            if (tracked.Aggregate.DomainEvents.Count == 0)
-            {
-                continue;
-            }
-
-            drained ??= [];
-            drained.AddRange(tracked.Aggregate.DomainEvents);
-
-            // Drained, not read. An event that has been taken cannot be taken again by a later save of
-            // the same aggregate in the same request, which is what makes delivery exactly-once.
-            tracked.Aggregate.ClearDomainEvents();
-        }
-
-        return drained ?? [];
-    }
-
-    public void Restore(IEnumerable<IDomainEvent> domainEvents)
-    {
-        ArgumentNullException.ThrowIfNull(domainEvents);
-
-        // Held here rather than pushed back into the aggregates: raising an event is the domain's own
-        // act and the persistence layer has no way to perform it a second time. The next drain returns
-        // them, so a retried save publishes them exactly once.
-        _restored.AddRange(domainEvents);
     }
 
     /// <summary>
@@ -213,7 +117,7 @@ internal sealed class TodoListTracker(ITodoListMapper mapper) : ITodoListTracker
             return;
         }
 
-        foreach (var tracked in _tracked.Values)
+        foreach (var tracked in TrackedAggregates)
         {
             if (tracked.IsRemoved || !rootIds.Contains(tracked.Aggregate.Id))
             {
@@ -235,14 +139,4 @@ internal sealed class TodoListTracker(ITodoListMapper mapper) : ITodoListTracker
 
     private static bool IsDirty(EntityState state) =>
         state is EntityState.Added or EntityState.Modified or EntityState.Deleted;
-
-    /// <summary>One aggregate, the row it is stored in, and whether that row is on its way out.</summary>
-    private sealed class TrackedAggregate(TodoList aggregate, TodoListRecord record)
-    {
-        internal TodoList Aggregate { get; } = aggregate;
-
-        internal TodoListRecord Record { get; } = record;
-
-        internal bool IsRemoved { get; set; }
-    }
 }

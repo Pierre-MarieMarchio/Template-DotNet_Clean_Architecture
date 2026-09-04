@@ -59,6 +59,12 @@ public static class WorkerObservability
                 }))
             .WithMetrics(metrics => metrics
                 .AddMeter(MaintenanceDiagnostics.Name)
+                // "AppTemplate.Reminders": AppTemplate.Infrastructure.Persistence.Features
+                // .Common.Observability.ReminderDiagnostics's own missed-cancellation counter. A
+                // literal rather than a shared constant because that class is internal to a
+                // different project — see its own doc for why — the same way "Npgsql" below names
+                // a meter this host does not own either.
+                .AddMeter("AppTemplate.Reminders")
                 // Built into the runtime and Npgsql — no extra package, same as the Api host.
                 .AddMeter("System.Runtime")
                 .AddMeter("Npgsql")

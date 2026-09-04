@@ -25,7 +25,7 @@ with a new numbered record rather than editing history.
 | [0014](0014-packaging-as-a-dotnet-new-template.md) | Packaging as a `dotnet new` template | Accepted |
 | [0015](0015-typed-filters-not-a-filter-expression-language.md) | A typed filter surface, not a filter expression language | Accepted |
 | [0016](0016-pagination-metadata-in-the-body.md) | Pagination metadata lives in the body, not in `Link` headers | Accepted |
-| [0017](0017-no-outbox-for-domain-events.md) | No outbox for domain events | Accepted |
+| [0017](0017-no-outbox-for-domain-events.md) | No outbox for domain events | Accepted (amended by 0026) |
 | [0018](0018-no-patch.md) | No `PATCH`: writes are named operations | Accepted |
 | [0019](0019-caching-is-revalidation-not-storage.md) | Caching is revalidation, not storage | Accepted |
 | [0020](0020-no-deprecation-or-sunset-headers.md) | No `Deprecation`/`Sunset` headers while one version ships | Accepted |
@@ -34,6 +34,8 @@ with a new numbered record rather than editing history.
 | [0023](0023-no-security-stamp-cache.md) | No security stamp cache | Accepted |
 | [0024](0024-repository-in-domain-query-ports-in-application.md) | A repository contract lives in the Domain; every other port lives in Application | Accepted |
 | [0025](0025-closed-folder-vocabulary-per-layer.md) | A closed folder vocabulary per layer | Accepted |
+| [0026](0026-correctness-does-not-depend-on-event-delivery.md) | Correctness does not depend on event delivery | Accepted |
+| [0027](0027-shared-tracker-core-repository-and-mapper-stay-duplicated.md) | A shared tracker core; the repository and the mapper stay duplicated | Accepted |
 
 ## Format
 

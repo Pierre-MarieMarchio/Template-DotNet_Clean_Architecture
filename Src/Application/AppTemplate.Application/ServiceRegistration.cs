@@ -1,5 +1,7 @@
 ﻿using System.Reflection;
 using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted;
+using AppTemplate.Application.Features.Reminders.Services;
 using AppTemplate.Application.Features.TodoLists.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CreateTodoList;
@@ -27,10 +29,16 @@ public static class ServiceRegistration
         services.AddUseCasesFrom(typeof(ServiceRegistration).Assembly);
 
         // Not a use case: it has no request/response shape of its own, so the marker-based
-        // discovery above never sees it. Bound explicitly, like the domain-event consumer below.
+        // discovery above never sees it. Bound explicitly, like the domain-event consumers below.
         services.AddScoped<ITodoListAccess, TodoListAccess>();
+        services.AddScoped<IReminderAccess, ReminderAccess>();
 
         services.AddDomainEventConsumer<TodoItemCompletedDomainEvent, LogTodoItemCompletedConsumer>();
+
+        // A second consumer of the same event: both run when an item is completed, neither aware
+        // of the other.
+        services.AddDomainEventConsumer<
+            TodoItemCompletedDomainEvent, CancelRemindersOnTodoItemCompletedConsumer>();
 
         return services;
     }

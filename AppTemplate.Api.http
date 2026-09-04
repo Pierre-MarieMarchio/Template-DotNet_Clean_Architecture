@@ -259,6 +259,49 @@ DELETE {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/tags/urgent
 Authorization: Bearer {{accessToken}}
 
 ###
+# 16h. Schedule a reminder for the item. 201, with the reminder and its own ETag — a reminder is
+#      versioned independently of the list. Location has no reminder id to name: there is no
+#      single-reminder GET, only the per-item list below, so it points there instead.
+# @name scheduleReminder
+POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/reminders
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "dueAt": "2026-12-31T09:00:00Z"
+}
+
+###
+@reminderId = {{scheduleReminder.response.body.$.id}}
+@reminderETag = {{scheduleReminder.response.headers.ETag}}
+
+###
+# 16i. Every reminder scheduled for the item, wrapped in an object for the same reason the item
+#      list above is. No ETag here: the underlying query answers a plain list with no per-reminder
+#      version attached.
+GET {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/reminders
+Authorization: Bearer {{accessToken}}
+
+###
+# 16j. Reschedule it conditionally, naming the version from request 16h. 200, with the rescheduled
+#      reminder and the ETag it is now at. Addressed by the reminder's own id, not by list/item —
+#      a reminder is its own aggregate root.
+PUT {{api}}/reminders/{{reminderId}}
+Authorization: Bearer {{accessToken}}
+If-Match: {{reminderETag}}
+Content-Type: application/json
+
+{
+  "dueAt": "2027-01-15T09:00:00Z"
+}
+
+###
+# 16k. Cancel it. 204: DELETE, not POST .../cancel — cancelling is a one-way terminal transition,
+#      the same shape as deleting a resource, and needs no request body.
+DELETE {{api}}/reminders/{{reminderId}}
+Authorization: Bearer {{accessToken}}
+
+###
 # 17. First page of the caller's lists. Only lists the caller owns are visible: ownership is a
 #     filter inside the read query, so somebody else's list is 404, never 403.
 GET {{api}}/todo-lists?page=1&pageSize=10

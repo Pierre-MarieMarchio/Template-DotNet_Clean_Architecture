@@ -35,12 +35,13 @@ WORKDIR /src
 COPY ["global.json", "Directory.Build.props", "Directory.Packages.props", "./"]
 
 # 2. Project files. Every project the worker references transitively must appear here, at its
-#    real path. AppTemplate.Infrastructure.Email is deliberately absent: neither maintenance task
-#    sends mail, and this host does not compose that module.
+#    real path. A missing one does not fail restore loudly — it logs "Skipping project ... because
+#    it was not found" and the build dies later at publish, on a missing assets file.
 COPY ["Src/Domain/AppTemplate.Domain/AppTemplate.Domain.csproj",                                                     "Src/Domain/AppTemplate.Domain/"]
 COPY ["Src/Application/AppTemplate.Application/AppTemplate.Application.csproj",                                      "Src/Application/AppTemplate.Application/"]
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence/AppTemplate.Infrastructure.Persistence.csproj",     "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/"]
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Identity/AppTemplate.Infrastructure.Identity.csproj",           "Src/Infrastructure/AppTemplate.Infrastructure.Identity/"]
+COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Email/AppTemplate.Infrastructure.Email.csproj",                 "Src/Infrastructure/AppTemplate.Infrastructure.Email/"]
 COPY ["Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj",                                               "Src/Presentation/AppTemplate.Worker/"]
 
 RUN dotnet restore "Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj"

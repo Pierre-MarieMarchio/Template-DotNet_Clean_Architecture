@@ -1,6 +1,8 @@
 ﻿using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Configurations;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -53,6 +55,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     /// <summary>The schema the to-do list feature's tables live in.</summary>
     public const string TodoSchema = "todo";
 
+    /// <summary>The schema the reminders feature's tables live in.</summary>
+    public const string RemindersSchema = "reminders";
+
     /// <summary>
     /// The schema for tables that are cross-cutting rather than owned by a feature — the idempotency
     /// key store is the first of these. Neither <see cref="IdentitySchema"/> nor
@@ -78,6 +83,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     /// because nothing outside this assembly has any business naming a storage shape.
     /// </summary>
     internal DbSet<TodoListRecord> TodoLists => Set<TodoListRecord>();
+
+    /// <summary>
+    /// The reminder aggregate's table. Also a persistence model rather than the domain aggregate,
+    /// mapped by <see cref="Features.Reminders.Mapping.IReminderMapper"/> and never tracked by EF.
+    /// </summary>
+    internal DbSet<ReminderRecord> Reminders => Set<ReminderRecord>();
 
     /// <summary>
     /// Refresh-token grants. Internal, like <see cref="RefreshToken"/> itself: the grant table is
@@ -124,6 +135,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.ApplyConfiguration(new TodoListRecordConfiguration());
         builder.ApplyConfiguration(new TodoItemRecordConfiguration());
         builder.ApplyConfiguration(new TodoItemTagRecordConfiguration());
+
+        builder.ApplyConfiguration(new ReminderRecordConfiguration());
 
         builder.ApplyConfiguration(new IdempotencyRecordConfiguration());
     }

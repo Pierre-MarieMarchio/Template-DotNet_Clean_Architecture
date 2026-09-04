@@ -11,6 +11,7 @@ policy, without becoming an application you have to delete.
 
 > - Layer boundaries and the reasoning behind them: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 > - Every configuration key: [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
+> - Running it on Kubernetes: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 > - Why each decision was made, one file per decision: [docs/adr/](docs/adr/README.md)
 
 ## What is in the box
@@ -693,7 +694,10 @@ Tests/
   Architecture/AppTemplate.Architecture.Tests/   layer/module rules + container composition
   Integration/AppTemplate.Api.IntegrationTests/  the real host over HTTP, real PostgreSQL
 
-docs/                          ARCHITECTURE.md, CONFIGURATION.md, adr/
+docs/                          ARCHITECTURE.md, CONFIGURATION.md, DEPLOYMENT.md, adr/
+
+deploy/
+  kubernetes/                  Deployment, Service, Ingress, migration Job — see docs/DEPLOYMENT.md
 ```
 
 The directory under `Src/` names the **layer**; the project inside it keeps its own name
@@ -925,6 +929,7 @@ migration bundle built from the same commit. It needs no secret beyond the autom
 | [CHANGELOG.md](CHANGELOG.md) | what has changed, and what "breaking" means for a template |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | how the layers fit together |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | every configuration key, its default, and what happens when it is wrong |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | running it on Kubernetes: the raw manifests in `deploy/kubernetes/`, and why their numbers are what they are |
 | [docs/adr/](docs/adr/) | one record per decision you could reasonably have made differently, including the rejected options |
 | [AppTemplate.Api.http](AppTemplate.Api.http) | the whole API walkthrough, executable |
 | [tasks.ps1](tasks.ps1) | thin wrappers over the real `dotnet` commands — it prints each one before running it |

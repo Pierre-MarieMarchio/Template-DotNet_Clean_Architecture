@@ -2,6 +2,7 @@
 using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Features.Auth.Controllers;
 using AppTemplate.Api.Features.Maintenance.Controllers;
+using AppTemplate.Api.Features.Reminders.Controllers;
 using AppTemplate.Api.Features.TodoLists.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Shouldly;
@@ -30,6 +31,7 @@ public sealed class IdempotentActionsAreAlwaysPostTests
     [
         typeof(AuthController),
         typeof(MaintenanceController),
+        typeof(RemindersController),
         typeof(TodoListsController),
     ];
 
@@ -47,9 +49,10 @@ public sealed class IdempotentActionsAreAlwaysPostTests
             "rule is guarding nothing. Either the attribute was renamed, or the controller list above " +
             "has gone stale.");
 
-        // Today: TodoListsController.Create and TodoListsController.AddItem.
+        // Today: TodoListsController.Create, TodoListsController.AddItem, and
+        // RemindersController.Schedule.
         idempotentActions.Count.ShouldBe(
-            2,
+            3,
             "A different number of [Idempotent] actions was found than this template is known to " +
             "declare. Update this rule's expectation alongside whichever action was added or removed.");
 

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Domain has no dependencies at all — not on EF Core, not on ASP.NET,
+       not on a DI container. Architecture.Tests asserts that this stays true. -->
+
+</Project>

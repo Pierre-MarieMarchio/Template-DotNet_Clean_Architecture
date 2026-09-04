@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- All persistence, and nothing else. One project, one DbContext, one migrations history.
+       Organised as Common/ (the cross-cutting mechanisms: the context, the interceptor pipeline,
+       the unit of work, the clock, the mapping seam) plus Features/<Feature>/ (models,
+       configurations, mappers, repositories, queries, stores). An architecture test asserts that
+       the mechanisms in Common/ name no feature; only the context does, because it is the model's
+       composition root. -->
+  <ItemGroup>
+    <!-- IdentityDbContext and the Identity entity base types. This project owns the identity
+         *store*; AppTemplate.Infrastructure.Identity owns authentication policy and composes UserManager. -->
+    <!-- IDataProtectionKeyContext, so AppDbContext can host the DataProtectionKeys table the
+         identity module persists its key ring to. -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <!-- IncludeAssets is widened because this project contains an IDesignTimeDbContextFactory,
+         which is a compile-time reference. The package's default excludes compile assets, since it
+         is normally only a tooling dependency. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" IncludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <!-- IHostEnvironment, for the seeder's Development-only guard. It also brings the logging and
+         options abstractions this project uses, which is why there is no PackageReference for
+         either — NuGet rejects a redundant one (NU1510). -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+  </ItemGroup>
+
+  <!-- The mapper between the domain aggregate and its persistence model is the one place in this
+       repository where forgetting a line loses data without failing anything. Its fidelity test
+       therefore has to reach the internal mapper and the internal record types directly; a test
+       written only against the public surface could not tell a complete mapper from one with a hole
+       in it. This is the sole reason internals are shared, and they are shared with exactly one
+       assembly. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Infrastructure.Persistence.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

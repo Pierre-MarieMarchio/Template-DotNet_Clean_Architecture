@@ -1,0 +1,86 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <!-- The template's proof that Clean Architecture pays for itself: a second entry point that
+       calls the same application-layer use cases as AppTemplate.Api, through the same
+       infrastructure modules, with no use case and no domain type changed. It hosts two
+       BackgroundServices — one per feature under Features/ — and nothing business-shaped lives
+       here. -->
+
+  <PropertyGroup>
+    <UserSecretsId>74620b17-71c0-43e0-a45a-69dae1e68a32</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>..\..\..</DockerfileContext>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <!-- Not pulled in transitively: unlike AppTemplate.Api, this host does not reference the
+         ASP.NET Core shared framework, so the console logging provider needs its own reference. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <!-- Referenced by the host, not by any module: the outbound policy is installed once on the
+         factory's defaults in Common/Outbound/, so no infrastructure module needs the package to
+         benefit from it. It is here as well as in AppTemplate.Api because the modules that make
+         outbound calls are composed by both hosts. -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+  </ItemGroup>
+
+  <!-- Same OpenTelemetry SDK band as AppTemplate.Api (Directory.Packages.props), minus the ASP.NET
+       Core instrumentation: this host has no inbound request to instrument. The outbound HTTP
+       instrumentation is here, because the modules this host composes do call out — the same calls
+       Common/Outbound/ installs the resilience policy for. Npgsql.OpenTelemetry supplies the
+       .AddNpgsql() tracing extension the same way it does for the Api host. -->
+  <ItemGroup>
+    <PackageReference Include="Npgsql.OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+  </ItemGroup>
+
+  <!-- The same modules AppTemplate.Api composes for these use cases, and no reference to
+       AppTemplate.Api itself — the whole point is that this host needs none of it.
+       AppTemplate.Infrastructure.Email is composed for one port: a reminder that comes due is
+       rung by mail, and IReminderNotifier's adapter lives there. Composing it also pulls in the
+       whole Email (SMTP) configuration surface, which is why this project's appsettings.json
+       carries a required Email section even though this host never renders or triggers a
+       confirmation mail of its own — a deployment that never uses reminders still has to point
+       this host at a working SMTP relay for it to start. Same shape of cost as the paragraph
+       below, just one module over.
+       AppTemplate.Infrastructure.Identity is NOT here only because IRefreshTokenMaintenance's sole
+       adapter lives there, which is what this comment used to say. EmailReminderNotifier, one
+       module over, resolves IUserProfilesService to find the address a due reminder is rung at, so
+       the reminder loop — this host's own feature — needs the identity module whatever happens to
+       the maintenance adapter. Composing it pulls in JWT and ASP.NET Identity's own configuration
+       surface, which is why this project's appsettings.json carries the same
+       Jwt/Identity/RefreshToken/EmailConfirmation/PasswordReset/EmailChange sections as the API
+       even though this host never authenticates anybody. The reason is pinned by
+       TheWorkerContainer_NeedsIdentityForItsReminderLoop_NotOnlyForThePurgeAdapter. See
+       docs/CONFIGURATION.md. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Identity\AppTemplate.Infrastructure.Identity.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
+  </ItemGroup>
+
+  <!-- The loop's resilience and its use of the stopping token are the whole point of this
+       project; testing them from outside would mean testing Program.cs's composition instead
+       of the behaviour itself. Shared with exactly one assembly, same as the persistence
+       project's InternalsVisibleTo. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Worker.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.Development.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <DependentUpon>appsettings.json</DependentUpon>
+    </None>
+  </ItemGroup>
+
+</Project>

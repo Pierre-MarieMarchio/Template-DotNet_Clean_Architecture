@@ -1,0 +1,118 @@
+# AppTemplate.Worker — a second host, not a sidecar of the API. It answers no HTTP request:
+# MaintenanceBackgroundService and ReminderBackgroundService are the only two things running
+# inside it, on their own timers (MaintenanceWorker__Interval and ReminderWorker__Interval, both
+# in configmap-worker.yaml). Deliberately no Service, no Ingress, and no readiness probe here:
+#   - No Service/Ingress because nothing calls this process. A ClusterIP with no listener behind
+#     it is not harmless boilerplate, it is a Service that fails every connection it accepts.
+#   - No readiness probe because "ready" means "safe to route traffic to", and there is no
+#     traffic to route. A liveness probe would also need an HTTP endpoint this host does not
+#     have; watch the container's own exit code and restart policy instead — the same signal an
+#     orchestrator already uses for any plain background process.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-template-worker
+  labels:
+    app.kubernetes.io/name: app-template-worker
+    app.kubernetes.io/part-of: app-template
+    app.kubernetes.io/component: worker
+spec:
+  # One by default, and raising it is now a supported choice rather than a bug.
+  #
+  # The two purges were always safe to double up: idempotent deletes over an already-covered range,
+  # so a second replica costs a connection and nothing else. The reminder loop was not, and that is
+  # what changed. FireDueRemindersUseCase claims a reminder in memory with Reminder.TryClaim,
+  # notifies, and commits the whole batch at the end — so two replicas ticking in the same second
+  # both saw ClaimedAt as null, both took the claim, and both sent the mail before either commit
+  # happened and one of them lost on xmin. The pass now runs under ILeaderLease, a PostgreSQL
+  # session-level advisory lock, so exactly one host runs it and losing that host releases the lock
+  # rather than stranding it.
+  #
+  # Two things to know before raising it. Each replica costs its own Database__MaxPoolSize budget
+  # PLUS one unpooled connection for the lease while a leased loop runs — see docs/CONFIGURATION.md,
+  # and size it in rather than around. And availability is still not free: at any replica count,
+  # nothing yet alerts when the loops stop, which is why SECURITY.md's Known gaps keeps this open
+  # and says what to watch.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-template-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app-template-worker
+        app.kubernetes.io/part-of: app-template
+        app.kubernetes.io/component: worker
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      # No preStop here — there is no load balancer routing traffic to this pod to drain first,
+      # so the race api-deployment.yaml's preStop guards against does not exist for this host.
+      # 30 s leaves headroom above the .NET Generic Host's own default shutdown timeout (5 s):
+      # this host does not configure HostOptions.ShutdownTimeout the way AppTemplate.Api does
+      # (that override lives in AppTemplate.Api's own Common/Lifecycle module and is not shared),
+      # so its background loops get whatever time is left inside this window to finish their
+      # current batch and honour cancellation before SIGKILL.
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: worker
+          # Built from Src/Presentation/AppTemplate.Worker/Dockerfile and published by
+          # .github/workflows/release.yml's `image` job, whose matrix carries this component
+          # alongside the api's: both hosts ship their own image on every release, under
+          # ghcr.io/<owner>/<repo>/worker, tagged from the release's semver. OWNER/REPO and the
+          # version below are the placeholders a deployment substitutes — the tag has to name a
+          # version that workflow has actually released, which no Kubernetes manifest can check.
+          image: ghcr.io/OWNER/REPO/worker:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: app-template-worker-config
+          env:
+            - name: ConnectionStrings__Default
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: ConnectionStrings__Default
+            # Jwt__Key is deliberately absent here. It comes from configmap-worker.yaml as a
+            # meaningless placeholder, because this host signs and verifies nothing — see that
+            # file, and SECURITY.md. It is the one secretKeyRef the API has that this pod does not.
+            # This host composes AppTemplate.Infrastructure.Email too (see configmap-worker.yaml
+            # and AppTemplate.Worker.csproj), so it needs the same SMTP credentials as the API.
+            - name: Email__UserName
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Email__UserName
+            - name: Email__Password
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Email__Password
+            - name: Storage__AccessKeyId
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Storage__AccessKeyId
+            - name: Storage__SecretAccessKey
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-secrets
+                  key: Storage__SecretAccessKey
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            # Lighter than the API's: this process serves no concurrent request load, it wakes up
+            # on an interval, does a bounded batch of work, and goes back to sleep. Still a
+            # starting point, not a measured optimum — see docs/DEPLOYMENT.md.
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi

@@ -128,11 +128,15 @@ storage — one DbContext in one schema:
 | `AppTemplate.Infrastructure.Storage` | `IFileContentStore`, `IFileContentInventory`, storage options | one S3-compatible bucket |
 | `AppTemplate.Infrastructure.InMemory` | in-memory port implementations for tests and demos | — |
 
-**Persistence is the one module that holds more than one capability**, and that is
+**Persistence is the one module that serves more than one feature**, and that is
 deliberate. It is partitioned internally as `Common/` (the mechanisms) plus
 `Features/<Feature>/` (models, configurations, mapping, tracking, repositories, queries,
 and — for row access to one table rather than an aggregate, such as `IRefreshTokenTable` —
-stores), and an architecture test asserts that nothing under `Common/` depends on a
+stores). Every infrastructure module is partitioned that same way, whether or not it
+serves more than one feature: `Identity` serves `Auth` alone and `Storage` serves `Files`
+alone, and both still read `Common/` plus `Features/<Feature>/`, because a reader who has
+learned one module should not have to learn a second filing system for the next. An
+architecture test asserts that nothing under `Common/` depends on a
 feature's domain or persistence types, nor on a feature's application-layer surface.
 `AppDbContext` is the one exception, because it applies every feature's configuration and
 is therefore the model's composition root. There used to be a second:

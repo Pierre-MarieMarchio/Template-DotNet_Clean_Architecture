@@ -38,6 +38,7 @@ public sealed class RegisterFileUseCaseTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<long>(),
+                Arg.Any<string>(),
                 Arg.Any<TimeSpan>(),
                 Arg.Any<CancellationToken>())
             .Returns(_grant);
@@ -69,7 +70,12 @@ public sealed class RegisterFileUseCaseTests
         _repository.DidNotReceive().Add(Arg.Any<StoredFile>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
         await _content.DidNotReceive().CreateUploadGrantAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<long>(),
+            Arg.Any<string>(),
+            Arg.Any<TimeSpan>(),
+            Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -101,7 +107,12 @@ public sealed class RegisterFileUseCaseTests
         await UseCase().ExecuteAsync(ACommand(), TestToken);
 
         await _content.DidNotReceive().CreateUploadGrantAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<long>(),
+            Arg.Any<string>(),
+            Arg.Any<TimeSpan>(),
+            Arg.Any<CancellationToken>());
         _repository.DidNotReceive().Add(Arg.Any<StoredFile>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
@@ -245,6 +256,7 @@ public sealed class RegisterFileUseCaseTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<long>(),
+                Arg.Any<string>(),
                 Arg.Any<TimeSpan>(),
                 Arg.Any<CancellationToken>())
             .Returns(_ =>
@@ -277,6 +289,11 @@ public sealed class RegisterFileUseCaseTests
             staged.ObjectKey.Value,
             AStoredFile.MediaType,
             AStoredFile.SizeInBytes,
+
+            // The digest the client declared, which the grant has to bind so the store refuses any
+            // other bytes. Asserted by value rather than with Arg.Any: passing the wrong one here
+            // would mint a grant no honest deposit could satisfy, and nothing else would notice.
+            AStoredFile.Checksum,
             Arg.Any<TimeSpan>(),
             Arg.Any<CancellationToken>());
     }
@@ -301,6 +318,7 @@ public sealed class RegisterFileUseCaseTests
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<long>(),
+            Arg.Any<string>(),
             Arg.Is<TimeSpan>(lifetime => lifetime > TimeSpan.Zero && lifetime <= TimeSpan.FromHours(1)),
             Arg.Any<CancellationToken>());
     }

@@ -35,23 +35,28 @@ internal sealed class InMemoryFileContentStore(StoredObjects objects, IDateTimeP
         string objectKey,
         string declaredMediaType,
         long sizeInBytes,
+        string declaredSha256,
         TimeSpan lifetime,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(declaredMediaType);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sizeInBytes);
+        ArgumentException.ThrowIfNullOrWhiteSpace(declaredSha256);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(lifetime, TimeSpan.Zero);
         cancellationToken.ThrowIfCancellationRequested();
 
         var expiresAt = dateTimeProvider.UtcNow.Add(lifetime);
 
-        // The same two headers a signed PUT against a real store covers, so a client written against
-        // the double sends what the real adapter will require of it.
+        // The same three headers a signed PUT against a real store covers, so a client written
+        // against the double sends what the real adapter will require of it — the digest included,
+        // since that is what makes a grant authorise one body rather than any body of the right
+        // length.
         var required = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["Content-Type"] = declaredMediaType,
             ["Content-Length"] = sizeInBytes.ToString(CultureInfo.InvariantCulture),
+            ["x-amz-checksum-sha256"] = Convert.ToBase64String(Convert.FromHexString(declaredSha256)),
         };
 
         return Task.FromResult(new IssuedUploadGrant(

@@ -76,7 +76,11 @@ public static class StoredFileContentPolicy
         //
         // A project that genuinely needs SVG changes this deliberately, and owes a sanitiser and a
         // serving path that cannot execute what it stores.
-        if (MediaTypeSignatures.IsScriptContainer(head))
+        // Two checks, because one of them is bounded and the other cannot be. The search reads a
+        // prefix, so markup pushed past it is markup nothing sees; what an author cannot push is the
+        // start of the document, and a well-formed SVG's first meaningful byte is '<' however much
+        // comment sits between that and its root element. See MediaTypeSignatures.BeginsAsMarkup.
+        if (MediaTypeSignatures.IsScriptContainer(head) || MediaTypeSignatures.BeginsAsMarkup(head))
         {
             return ContentVerdict.Quarantine;
         }

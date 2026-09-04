@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Common.Results;
+﻿using System.Diagnostics;
+using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 using Microsoft.Extensions.Options;
 
@@ -61,9 +62,12 @@ internal sealed class ReminderBackgroundService(
     {
         if (!settings.Enabled)
         {
-            // Logged every time, not once: a loop that silently skips every pass forever must look
-            // different from one that is merely quiet because nothing was due — see the log inside
-            // the try block below for the other half of that same requirement.
+            // Counted, not skipped: a loop switched off by configuration is a running loop that
+            // decided to do nothing, and it has to look different both from a healthy quiet pass and
+            // from a loop that died. Logged every time for the same reason — see the log inside the
+            // try block below for the other half of that requirement.
+            ReminderDiagnostics.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "disabled"));
+
             if (logger.IsEnabled(LogLevel.Information))
             {
                 logger.LogInformation("Reminder firing is disabled; skipping this pass.");
@@ -73,6 +77,8 @@ internal sealed class ReminderBackgroundService(
         }
 
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+
+        using Activity? activity = ReminderDiagnostics.ActivitySource.StartActivity("reminders.fire");
 
         try
         {
@@ -85,6 +91,10 @@ internal sealed class ReminderBackgroundService(
                 // silently stopped matching anything must look different from a healthy pass that
                 // simply had nothing due, and only this line — logged every time, count included —
                 // makes that visible.
+                ReminderDiagnostics.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "success"));
+                ReminderDiagnostics.Notified.Add(result.Value);
+                activity?.SetTag("reminders.notified", result.Value);
+
                 if (logger.IsEnabled(LogLevel.Information))
                 {
                     logger.LogInformation("Reminder pass completed: {Count} notified.", result.Value);
@@ -93,6 +103,8 @@ internal sealed class ReminderBackgroundService(
             else
             {
                 Error error = result.Error!;
+                ReminderDiagnostics.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "failure"));
+                activity?.SetStatus(ActivityStatusCode.Error, error.Code);
                 logger.LogWarning(
                     "Firing due reminders reported a failure: {ErrorCode} — {ErrorMessage}.",
                     error.Code,
@@ -107,6 +119,8 @@ internal sealed class ReminderBackgroundService(
         }
         catch (Exception exception)
         {
+            ReminderDiagnostics.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "exception"));
+            activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
             logger.LogError(exception, "Firing due reminders failed unexpectedly; will retry at the next interval.");
         }
     }

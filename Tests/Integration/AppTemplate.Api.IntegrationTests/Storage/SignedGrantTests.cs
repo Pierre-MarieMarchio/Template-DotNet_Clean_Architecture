@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Net;
+using System.Security.Cryptography;
 using Shouldly;
 using Xunit;
 
@@ -29,6 +30,12 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 
     private static readonly byte[] _payload =
         "The quick brown fox jumps over the lazy dog, and then deposits itself in a bucket."u8.ToArray();
+
+    /// <summary>
+    /// The digest of <see cref="_payload"/>, computed rather than written down. A grant binds it, so a
+    /// constant that drifted from the bytes would mint a grant no honest deposit could satisfy.
+    /// </summary>
+    private static readonly string _checksum = Convert.ToHexStringLower(SHA256.HashData(_payload));
 
     /// <summary>
     /// How long a grant is given to stop working before the wait is called a failure.
@@ -78,6 +85,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
             objectKey,
             _mediaType,
             _payload.Length,
+            _checksum,
             TimeSpan.FromMinutes(10),
             TestToken);
 
@@ -171,6 +179,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
             objectKey,
             _mediaType,
             _payload.Length,
+            _checksum,
             TimeSpan.FromMinutes(10),
             TestToken);
 
@@ -200,6 +209,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
             objectKey,
             _mediaType,
             _payload.Length,
+            _checksum,
             TimeSpan.FromMinutes(10),
             TestToken);
 
@@ -349,6 +359,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
             objectKey,
             _mediaType,
             _payload.Length,
+            _checksum,
             TimeSpan.FromMinutes(10),
             TestToken);
 

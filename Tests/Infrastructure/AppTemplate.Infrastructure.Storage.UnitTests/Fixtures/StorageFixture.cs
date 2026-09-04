@@ -1,5 +1,6 @@
 ﻿using Amazon.S3;
-using AppTemplate.Infrastructure.Storage.Buckets;
+using AppTemplate.Infrastructure.Storage.Common.Factories;
+using AppTemplate.Infrastructure.Storage.Common.Options;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Fixtures;

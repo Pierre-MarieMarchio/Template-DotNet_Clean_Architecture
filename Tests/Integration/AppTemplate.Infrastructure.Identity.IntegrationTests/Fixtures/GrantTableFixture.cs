@@ -68,9 +68,13 @@ public sealed class GrantTableFixture : IAsyncLifetime
         _services = services.BuildServiceProvider();
 
         await using var scope = _services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database
-            .MigrateAsync(TestContext.Current.CancellationToken);
+        // Before migrating, not instead of checking: see DatabaseReadiness for the failure this
+        // removes and for why waiting here cannot hide one.
+        await DatabaseReadiness.WaitAsync(context, TestContext.Current.CancellationToken);
+
+        await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
     }
 
     public async ValueTask DisposeAsync()

@@ -109,18 +109,35 @@ AppTemplate.Worker/         Common/{Observability,Outbound,Security}
                    Features/<F>/            one BackgroundService, its options, its metrics
 AppTemplate.Infrastructure.Email/       Common/{Http,Smtp}       Features/<F>/
 AppTemplate.Infrastructure.InMemory/    Common/{Email,Time}      Features/<F>/
-AppTemplate.Infrastructure.Identity/    by subject: Accounts, AccessTokens, RefreshTokens,
-                                        EmailConfirmation, EmailChange, PasswordReset,
-                                        TwoFactor, SecurityEvents
+AppTemplate.Infrastructure.Identity/    Common/{Directories,Options}
+                   Features/Auth/{Directories,Factories,Issuers,Logs,Options,Providers,
+                                  Services,Verifiers}
+AppTemplate.Infrastructure.Storage/     Common/{Budgets,Factories,Options}
+                   Features/Files/{Inspectors,Inventories,Options,Scanners,Stores}
 Tests/             a 1:1 mirror of Src/
 ```
 
+**A folder under `Features/<F>/` is the plural of the nature word its files carry.** A
+`…Repository` is in `Repositories/`, a `…Mapper` in `Mapping/`, a `…Tracker` in `Tracking/`, a
+`…Service` in `Services/` — and `Services/` holds nothing that is not one. That is what makes the
+tree navigable in both directions: a type name tells you its folder, and a folder tells you what
+nature of thing is in it. It is also why the two youngest infrastructure modules have eight and
+five words rather than one list shared between them; the *rule* is uniform, the word list is
+whatever each module's files need. Several of those folders hold one file, which is the price of
+the rule and worth paying.
+
 The vocabulary under `Features/<F>/` is closed, and
-`LayoutConventionTests.EveryFeatureFolder_IsNamedFromItsLayersVocabulary` holds it for all seven
+`LayoutConventionTests.EveryFeatureFolder_IsNamedFromItsLayersVocabulary` holds it for all nine
 projects above that have a `Features/` directory — including `AppTemplate.Worker`, whose list is deliberately empty: its features
 hold their files side by side with no subfolder, so the first subfolder anyone adds has to be
 argued for in the pull request that adds it, and written into this file, rather than created
 quietly.
+
+Neither of those two rules can catch a project nobody listed, because a project absent from the
+dictionary is absent from the loop — which is how two modules drifted for a month while the rules
+passed. `EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn` reads the modules off the disk and
+requires an entry in both lists, so **a new infrastructure module fails the build until its layout
+is described here and there.**
 
 **The first level of `Common/` is closed too**, per project, held by
 `EveryCommonFolder_IsNamedFromItsProjectsVocabulary` — and it is the newer of the two rules for a
@@ -144,11 +161,14 @@ Rules that the architecture tests enforce, so you will find out anyway:
   class, and `Program.cs`.
 - **No `Services/`, `Interfaces/`, `DTOs/`, `Helpers/`, `Managers/` at a project root.** Sorting by
   technical type is banned; it is allowed only *inside* a feature.
-- **An infrastructure module takes `Common/` + `Features/` when it has both kinds of adapter**, and
-  names its folders after subjects when it does not. `Email` and `InMemory` have a transverse
-  adapter (`IEmailSender`) and a feature-scoped one (`IReminderNotifier`), so the tree says which
-  files leave with the example feature. `Identity` serves one feature entirely, so `Features/Auth/`
-  would hold every file it has and `Common/` would be empty; its folders name subjects instead.
+- **Every infrastructure module takes `Common/` + `Features/`**, whether or not it serves more than
+  one feature. `Email` and `InMemory` have a transverse adapter (`IEmailSender`) and a
+  feature-scoped one (`IReminderNotifier`), so the tree says which files leave with the example
+  feature. `Identity` serves `Auth` alone and `Storage` serves `Files` alone, and they are filed the
+  same way regardless: `Common/` holds what no single subject owns — the user directory every
+  service reads, the module-wide options, the two dependency budgets — and `Features/<F>/` holds the
+  rest. Local logic loses to uniformity here on purpose, so that reading one infrastructure module
+  teaches you how to read the next.
 - **Namespaces follow folders.** No exceptions.
 - `Tests/` mirrors `Src/` one directory for one directory.
 
@@ -309,6 +329,11 @@ Each of these has been paid for at least once in this repository.
   (`RateLimiterWindow`) so a test host can widen it.
 - **Never name a folder after the type it contains.** A namespace and a type sharing a name make
   name resolution ambiguous for consumers (CS0118), because lookup walks the enclosing namespaces.
+- **An `Options/` folder shadows `Microsoft.Extensions.Options.Options`** for every file under the
+  namespace that encloses it — the same enclosing-namespace lookup as above, one word at a time. So
+  inside the identity and storage modules and their mirrors, `Options.Create(…)` does not compile:
+  use `new OptionsWrapper<T>(…)`, or qualify it in full. Only the bare name is affected;
+  `IOptions<T>` and `IValidateOptions<T>` resolve as usual.
 - **`.cs` files are UTF-8 *with* BOM** (`.editorconfig`), and a file written without one fails the
   formatting gate. Detecting a BOM by piping bytes through `grep` does not work reliably — it will
   happily add a second one.

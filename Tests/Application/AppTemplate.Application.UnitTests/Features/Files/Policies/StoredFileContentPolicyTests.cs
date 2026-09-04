@@ -125,6 +125,77 @@ public sealed class StoredFileContentPolicyTests
         Decide("text/plain", Encoding.ASCII.GetBytes(markup)).ShouldBe(ContentVerdict.Quarantine);
 
     /// <summary>
+    /// The evasion the markup search cannot catch, and the reason a second check exists.
+    /// </summary>
+    /// <remarks>
+    /// The search reads at most <c>ContentInspectionOutcome.MaxHeadBytes</c>, so a kibibyte of XML
+    /// comment in front of <c>&lt;svg</c> pushes the marker past everything anything ever reads —
+    /// and raising the bound only moves the boundary. The head is truncated here exactly as the
+    /// adapter truncates it, because a test that handed the policy the whole file would be asserting
+    /// against an inspection no deployment performs.
+    /// </remarks>
+    [Fact]
+    public void AnSvgWithItsMarkupPaddedPastTheInspectedPrefix_IsStillQuarantined()
+    {
+        byte[] padded = Encoding.ASCII.GetBytes(
+            "<?xml version=\"1.0\"?><!--"
+            + new string('p', ContentInspectionOutcome.MaxHeadBytes * 2)
+            + "--><svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>");
+
+        var inspected = padded.AsMemory(0, ContentInspectionOutcome.MaxHeadBytes);
+
+        MediaTypeSignatures.IsScriptContainer(inspected.Span).ShouldBeFalse(
+            "the premise of this test: within the prefix an adapter actually reads there is no " +
+            "markup marker left to find. If this ever becomes true the test below stops proving " +
+            "anything and should be rewritten rather than deleted.");
+
+        Decide("text/plain", inspected).ShouldBe(
+            ContentVerdict.Quarantine,
+            "the document still begins as markup, and offset zero is the one thing padding cannot " +
+            "move. Releasing it would store a program and serve it under a type of the uploader's " +
+            "choosing.");
+    }
+
+    /// <summary>
+    /// The breadth of that second check, pinned rather than discovered: an honest XML data file is
+    /// refused too.
+    /// </summary>
+    /// <remarks>
+    /// The same trade the script-container list already makes. Nothing here sanitises markup and the
+    /// download path hands out a URL to an origin this application does not control, so the format is
+    /// refused whatever it was called. A project that has to accept XML changes this deliberately and
+    /// owes a sanitiser — which is the sentence this test exists to make somebody read.
+    /// </remarks>
+    [Fact]
+    public void AnHonestXmlDocument_IsRefusedToo_BecauseNothingHereSanitisesMarkup() =>
+        Decide("application/xml", Encoding.ASCII.GetBytes("<?xml version=\"1.0\"?><invoice total=\"9.99\"/>"))
+            .ShouldBe(ContentVerdict.Quarantine);
+
+    /// <summary>
+    /// A byte-order mark must not hide the tag behind it — which it would if the check read a decoded
+    /// ASCII string, where each byte of the mark becomes a placeholder that is neither whitespace nor
+    /// a tag.
+    /// </summary>
+    [Theory]
+    [InlineData(0xEF, 0xBB, 0xBF)]
+    [InlineData(0xFF, 0xFE, 0x00)]
+    public void MarkupBehindAByteOrderMark_IsStillMarkup(byte first, byte second, byte third)
+    {
+        byte[] marked = [first, second, third, .. Encoding.ASCII.GetBytes("<svg/>")];
+
+        Decide("text/plain", marked).ShouldBe(ContentVerdict.Quarantine);
+    }
+
+    /// <summary>
+    /// The other direction, so the check cannot be satisfied by refusing everything: a document that
+    /// merely mentions a tag later on is not one that begins as markup, and CSV still travels.
+    /// </summary>
+    [Fact]
+    public void ADocumentThatOnlyMentionsATagLaterOn_IsNotRefusedForBeginningAsMarkup() =>
+        Decide("text/csv", Encoding.ASCII.GetBytes("id,note\n1,\"see <the appendix>\"\n"))
+            .ShouldBe(ContentVerdict.Release);
+
+    /// <summary>
     /// The cheapest evasion there is, and the reason null bytes are dropped before the search. Encoded
     /// as UTF-16 an SVG is the same characters with a null between each; a browser renders it, and a
     /// search that did not drop them would see nothing.

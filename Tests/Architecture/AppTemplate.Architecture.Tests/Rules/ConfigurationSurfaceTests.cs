@@ -186,7 +186,7 @@ public sealed class ConfigurationSurfaceTests
         // One section named explicitly, so that a scan which found sections but no keys — or keys
         // under the wrong section — cannot satisfy the counts above.
         bound["TwoFactor"].Keys.ShouldBe(
-            ["ChallengeLifetime", "Issuer", "RecoveryCodeCount"],
+            ["ChallengeLifetime", "Issuer", "MaxChallengeAttempts", "RecoveryCodeCount"],
             ignoreOrder: true,
             "TwoFactor is the section this rule was written for: it was bound, validated, described " +
             "in SECURITY.md's prose, and absent from the configuration guide entirely.");

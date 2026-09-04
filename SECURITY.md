@@ -1,4 +1,4 @@
-# Security
+﻿# Security
 
 This is a **template**. It is cloned, renamed and modified, so it has no released versions and no
 patch stream: there is nothing here to which a CVE could be assigned, and nothing that reaches your
@@ -47,9 +47,16 @@ against your production system.
 - **Two-factor sign-in via an authenticator app (TOTP)**, built entirely on ASP.NET Core Identity's
   own primitives — no hand-rolled RFC 6238. A confirmed second factor mints ten single-use recovery
   codes, shown once. A password that matches a two-factor account still does not sign in on its own:
-  `/login` answers with a short-lived, single-use challenge token instead of a token pair, and a
-  second call exchanges that token plus a code — from the authenticator app or a recovery code — for
-  the pair. The challenge is never a bearer credential by itself and is stored server-side, keyed by
+  `/login` answers with a short-lived challenge token instead of a token pair, and a second call
+  exchanges that token plus a code — from the authenticator app or a recovery code — for the pair.
+  The challenge is spent by a successful redemption, and **bounded on failure**: it tolerates
+  `TwoFactor:MaxChallengeAttempts` wrong codes (five by default) and is then destroyed, so the
+  password has to be presented again. That counter is the only thing that bounds guessing a code —
+  account lockout counts failed *password* checks and presenting a code is not one — and without it
+  a caller who already had the password could offer codes for the whole challenge lifetime, stopped
+  only by a rate limiter that is per process and therefore per replica. Spending an attempt rewrites
+  the challenge without moving its deadline, so guessing cannot keep one alive. The challenge is
+  never a bearer credential by itself and is stored server-side, keyed by
   account, so it is redeemable by any replica behind the load balancer and survives a redeploy.
   Enabling or disabling the second factor rotates the security stamp and revokes every refresh token
   for the account, exactly like a password change — **and requires the current password on both
@@ -165,8 +172,24 @@ says otherwise.
 - **The declared media type is a claim, and it is now checked against the bytes.** A deposited file
   is inspected before it becomes readable: the leading bytes are matched against the declared type,
   and the content is scanned. A file whose real type disagrees with its declaration is
-  **quarantined**, not served. SVG is refused outright when declared as an image — an SVG is a
-  script container, and there is no version of "serve it inline" that is safe.
+  **quarantined**, not served. **Markup is refused outright, whatever it was declared as** — an SVG
+  is a script container, and there is no version of "serve it inline" that is safe. Two checks do
+  that, and the second is the one that cannot be walked past: the first searches the inspected
+  prefix for `<svg`, `<html`, `<script` and a doctype, which an author can evade by padding with a
+  kibibyte of XML comment, and the second refuses any document whose *first* meaningful byte is
+  `<` — offset zero being the one thing padding cannot move, since everything XML allows before a
+  root element is either whitespace or itself a tag. A byte-order mark does not hide it and neither
+  does UTF-16.
+  **This refuses honest XML too**, deliberately: nothing here sanitises markup, and the download
+  path hands out a URL to an origin this application does not control. A project that has to accept
+  XML changes `MediaTypeSignatures` and owes a sanitiser and a serving path that cannot execute what
+  it stores.
+- **An upload grant authorises one body, not one length.** The SHA-256 the client declared at
+  registration is bound into the signature, so the store refuses content whose digest disagrees. That
+  is what stops the grant being replayed to swap content *after* the file has been inspected and
+  released — a grant lives `Storage:MaxGrantLifetime` (thirty minutes) while inspection runs every
+  minute, so for most of its life the file it belongs to has already been examined. Measured before
+  the digest was bound: a second deposit of different bytes of the same length answered `200`.
 - **Inspection happens in the worker, not in the request.** Scanning 200 MiB inside an HTTP request
   is the same CPU-denial problem as resizing an image there, which this template refuses by name.
   The consequence is a state a client can observe: a confirmed upload is `deposited`, not
@@ -295,10 +318,14 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   `deploy/kubernetes/worker-deployment.yaml` fixes `replicas: 1` and argues only against *two*.
   It says nothing about **zero**, which is the interesting number: with that pod down, no reminder
   is rung, no expired refresh-token grant is deleted and no idempotency key is reclaimed, and
-  nothing alerts on any of it — the host serves no traffic, so it has no readiness probe, and the
-  loops log a healthy pass rather than emitting a heartbeat anything watches. A deployment should
-  alert on the absence of `apptemplate.reminders.missed_cancellations` samples, or on the pod's
-  restart count, until something better exists.
+  nothing alerts on any of it — the host serves no traffic, so it has no readiness probe. Each of
+  the three loops does now emit a heartbeat, and it is what a deployment should alert on going flat:
+  `apptemplate.worker.{maintenance,files,reminders}.iterations`, counted once per pass and never
+  gated on how much the pass found, so a healthy quiet system still produces samples. Alert on the
+  pod's restart count alongside them.
+  Do **not** alert on the absence of `apptemplate.reminders.missed_cancellations`, which this
+  paragraph used to advise: that counter increments only when a cancellation was missed, so silence
+  is its healthy state and it cannot tell a working loop from a dead one.
   Raising the count is now **safe**, and it was not before. The manifest's own comment reasoned
   about the two purges — idempotent deletes over an already-covered range, so a second replica
   wastes a connection and nothing more — and was silent about the loop where it mattered.

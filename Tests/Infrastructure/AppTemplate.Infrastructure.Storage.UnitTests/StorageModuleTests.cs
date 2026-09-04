@@ -1,7 +1,8 @@
 ﻿using Amazon.S3;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
-using AppTemplate.Infrastructure.Storage.Buckets;
+using AppTemplate.Infrastructure.Storage.Common.Factories;
+using AppTemplate.Infrastructure.Storage.Common.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

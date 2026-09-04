@@ -38,10 +38,19 @@ public interface IFileContentStore
     /// one. It is still only a claim about the bytes — nothing here reads them.</param>
     /// <param name="sizeInBytes">Bound into the grant as well, so a client that declared one size
     /// and deposits another is refused by the store rather than at confirmation.</param>
+    /// <param name="declaredSha256">
+    /// The SHA-256 the client said the content has, as 64 hexadecimal characters. Bound into the
+    /// grant, which is what makes it authorise <em>one</em> deposit of <em>one</em> body: a store that
+    /// is told the digest refuses content that does not match it, so a grant cannot be replayed with
+    /// different bytes after the file has been inspected and released. It is also what lets
+    /// <see cref="DescribeAsync"/> answer with a digest at all — a store asked only for an algorithm
+    /// records nothing.
+    /// </param>
     Task<IssuedUploadGrant> CreateUploadGrantAsync(
         string objectKey,
         string declaredMediaType,
         long sizeInBytes,
+        string declaredSha256,
         TimeSpan lifetime,
         CancellationToken cancellationToken = default);
 

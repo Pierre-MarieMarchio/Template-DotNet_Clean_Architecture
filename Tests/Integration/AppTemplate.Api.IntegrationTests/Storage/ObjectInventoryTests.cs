@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Security.Cryptography;
 using Shouldly;
 using Xunit;
 
@@ -36,6 +37,12 @@ public sealed class ObjectInventoryTests(ObjectStoreFixture fixture)
     private const int _pageSize = 2;
 
     private static readonly byte[] _payload = "one small object"u8.ToArray();
+
+    /// <summary>
+    /// The digest of <see cref="_payload"/>, computed rather than written down. A grant binds it, so a
+    /// constant that drifted from the bytes would mint a grant no honest deposit could satisfy.
+    /// </summary>
+    private static readonly string _checksum = Convert.ToHexStringLower(SHA256.HashData(_payload));
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -151,6 +158,7 @@ public sealed class ObjectInventoryTests(ObjectStoreFixture fixture)
                 objectKey,
                 _mediaType,
                 _payload.Length,
+                _checksum,
                 TimeSpan.FromMinutes(10),
                 TestToken);
 

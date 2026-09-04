@@ -77,3 +77,37 @@ data:
   EmailConfirmation__ConfirmEmailUrl: "https://app.example.com/confirm-email"
   PasswordReset__ResetPasswordUrl: "https://app.example.com/reset-password"
   EmailChange__ConfirmEmailChangeUrl: "https://app.example.com/confirm-email-change"
+
+  # --- Storage: the object store the Files feature keeps file content in. REQUIRED, and the -------
+  # reason this block exists at all: BucketName is blank in the tracked appsettings.json and
+  # StorageOptionsValidator refuses a blank one, so a deployment without it does not start. Both
+  # hosts compose AddStorageModule (see each Program.cs), so both ConfigMaps carry this block —
+  # the worker reaches the store to reclaim orphaned objects and to read the bytes it inspects.
+  #
+  # Endpoint is the one key that is legitimately blank: absent means Amazon S3 itself. Set it only
+  # for an S3-compatible store (MinIO, Ceph, R2), and then set ForcePathStyle too — virtual-host
+  # addressing would resolve <bucket>.<host>, which such a store rarely serves.
+  Storage__BucketName: "app-template-files"
+  Storage__Region: "eu-west-3"
+  Storage__Endpoint: ""
+  Storage__ForcePathStyle: "false"
+
+  # The name a CLIENT resolves, which is not always the one this pod uses. A presigned URL covers
+  # the host it was signed for, so a deployment reaching the store under an in-cluster Service name
+  # while browsers reach it under a public one MUST set this to the public one or every grant it
+  # mints answers 403 SignatureDoesNotMatch. Blank means "sign for Endpoint", which is correct
+  # whenever the two names are the same — as they are against Amazon S3.
+  Storage__PublicEndpoint: ""
+
+  # --- ContentInspection: blank ScannerHost is a DECISION, and it is the shipped one. -------------
+  # With no host, the file's leading bytes are still read and the media-type check still runs — a
+  # PNG whose bytes are an SVG is refused in every deployment — but nothing looks for malware, and
+  # SECURITY.md is where that is written down for whoever inherits this cluster. Point it at a
+  # clamd Service to close that gap.
+  #
+  # Do NOT set a host you are not sure is reachable: an unreachable scanner is reported as "no
+  # verdict", which is deliberately not a pass, so every upload stays unreadable until it answers.
+  # That is the correct behaviour and it is also an outage.
+  ContentInspection__ScannerHost: ""
+  ContentInspection__ScannerPort: "3310"
+  ContentInspection__MaxScannableBytes: "26214400"

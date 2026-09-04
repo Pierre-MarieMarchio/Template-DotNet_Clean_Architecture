@@ -295,9 +295,10 @@ jobs:
 
       # `dotnet list package --vulnerable` exits 0 even when it finds something,
       # so the report has to be inspected explicitly. --include-transitive matters:
-      # most real advisories arrive through a dependency nobody referenced directly
-      # — which is exactly why Directory.Packages.props pins Microsoft.OpenApi
-      # 2.7.6 under "Security pins". Do not remove that pin to make this pass.
+      # most real advisories arrive through a dependency nobody referenced directly,
+      # and CentralPackageTransitivePinningEnabled is what lets Directory.Packages.props
+      # pin a patched version of one. Answer this job by pinning, never by relaxing
+      # NuGetAuditLevel.
       - name: Audit direct and transitive dependencies
         run: |
           set -o pipefail

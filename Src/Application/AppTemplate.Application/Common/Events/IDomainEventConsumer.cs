@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Domain.Common.Events;
 
-namespace AppTemplate.Application.Common.Abstractions;
+namespace AppTemplate.Application.Common.Events;
 
 /// <summary>
 /// Non-generic entry point used by the dispatcher, so dispatching a heterogeneous batch needs no

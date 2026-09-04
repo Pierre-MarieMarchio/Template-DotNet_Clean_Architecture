@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Common.Results;
 
-namespace AppTemplate.Application.Common.Abstractions;
+namespace AppTemplate.Application.Common.Ports;
 
 public static class CurrentUserExtensions
 {

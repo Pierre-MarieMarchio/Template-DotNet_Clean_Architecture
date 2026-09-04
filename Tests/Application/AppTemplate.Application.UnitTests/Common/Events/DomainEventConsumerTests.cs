@@ -1,9 +1,9 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Events;
 using AppTemplate.Domain.Common.Events;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Application.UnitTests.Common.Abstractions;
+namespace AppTemplate.Application.UnitTests.Common.Events;
 
 /// <summary>
 /// Covers the bridge from the non-generic <see cref="IDomainEventConsumer"/> the dispatcher calls to

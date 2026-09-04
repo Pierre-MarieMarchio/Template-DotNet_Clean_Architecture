@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Files.Dtos;
@@ -11,7 +11,7 @@ namespace AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 
 /// <summary>
 /// Reads one file's metadata through the read port rather than through
-/// <c>IStoredFileAccess</c>, because there is no aggregate to load: the projection answers with the
+/// <c>IStoredFileService</c>, because there is no aggregate to load: the projection answers with the
 /// version alongside the representation, from the same query, so the validator a caller is handed
 /// describes the body it came with.
 /// <para>

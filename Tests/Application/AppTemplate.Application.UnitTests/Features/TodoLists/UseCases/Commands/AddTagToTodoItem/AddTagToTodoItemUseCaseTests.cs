@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.AddTagToTodoItem;
@@ -93,7 +93,7 @@ public sealed class AddTagToTodoItemUseCaseTests
     }
 
     private AddTagToTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(new TodoListAccess(_repository, currentUser), _unitOfWork, new AddTagToTodoItemCommandValidator());
+        new(new TodoListService(_repository, currentUser), _unitOfWork, new AddTagToTodoItemCommandValidator());
 
     private AddTagToTodoItemUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

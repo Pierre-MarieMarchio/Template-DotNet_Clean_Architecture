@@ -2,8 +2,8 @@
 using System.Text;
 using System.Text.Json;
 using AppTemplate.Api.Common.Errors;
-using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Idempotency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;

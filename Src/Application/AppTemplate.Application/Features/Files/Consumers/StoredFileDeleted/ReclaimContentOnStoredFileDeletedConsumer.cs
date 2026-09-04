@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Events;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Domain.Features.Files.Events;
 using Microsoft.Extensions.Logging;

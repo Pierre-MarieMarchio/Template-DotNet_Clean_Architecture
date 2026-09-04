@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Auth.Ports.AccessTokenIssuer;
 using AppTemplate.Application.Features.Auth.Ports.AccountDeletion;
 using AppTemplate.Application.Features.Auth.Ports.AccountLockouts;

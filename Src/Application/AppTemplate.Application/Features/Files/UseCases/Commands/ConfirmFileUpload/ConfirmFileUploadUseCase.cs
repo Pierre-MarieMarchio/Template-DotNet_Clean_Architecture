@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Files.Dtos;
@@ -39,7 +39,7 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUp
 /// </para>
 /// </summary>
 public sealed class ConfirmFileUploadUseCase(
-    IStoredFileAccess files,
+    IStoredFileService files,
     IFileContentStore content,
     IUnitOfWork unitOfWork,
     IValidator<ConfirmFileUploadCommand> validator) : IConfirmFileUploadUseCase

@@ -16,7 +16,7 @@ namespace AppTemplate.Application.UnitTests.Features.TodoLists.Services;
 /// where the identity/ownership/precondition matrix is proven exhaustively rather than
 /// re-proven, slightly differently, in every use case's test file.
 /// </summary>
-public sealed class TodoListAccessTests
+public sealed class TodoListServiceTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
@@ -145,8 +145,8 @@ public sealed class TodoListAccessTests
         result.Error!.Code.ShouldBe(TodoListErrors.ListNotFound(foreign.Id).Code);
     }
 
-    private TodoListAccess AccessFor(AppTemplate.Application.Common.Abstractions.ICurrentUser currentUser) =>
+    private TodoListService AccessFor(AppTemplate.Application.Common.Ports.ICurrentUser currentUser) =>
         new(_repository, currentUser);
 
-    private TodoListAccess Access() => AccessFor(StubCurrentUser.WithId(_callerId));
+    private TodoListService Access() => AccessFor(StubCurrentUser.WithId(_callerId));
 }

@@ -1,5 +1,5 @@
 ﻿using System.Text;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
 using AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
 using AppTemplate.Application.UnitTests.TestDoubles;

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.UpdateTodoItem;
@@ -110,7 +110,7 @@ public sealed class UpdateTodoItemUseCaseTests
     }
 
     private UpdateTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(new TodoListAccess(_repository, currentUser), _unitOfWork, new UpdateTodoItemCommandValidator());
+        new(new TodoListService(_repository, currentUser), _unitOfWork, new UpdateTodoItemCommandValidator());
 
     private UpdateTodoItemUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

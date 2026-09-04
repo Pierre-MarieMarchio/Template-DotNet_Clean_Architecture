@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.TodoLists.Services;
@@ -8,7 +8,7 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands.DeleteTodoList;
 
 public sealed class DeleteTodoListUseCase(
-    ITodoListAccess lists,
+    ITodoListService lists,
     ITodoListRepository repository,
     IUnitOfWork unitOfWork,
     IValidator<DeleteTodoListCommand> validator) : IDeleteTodoListUseCase

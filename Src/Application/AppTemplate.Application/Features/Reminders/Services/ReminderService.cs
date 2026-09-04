@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Reminders.Errors;
 using AppTemplate.Domain.Features.Reminders.Entities;
@@ -7,7 +7,7 @@ using AppTemplate.Domain.Features.Reminders.Repositories;
 
 namespace AppTemplate.Application.Features.Reminders.Services;
 
-internal sealed class ReminderAccess(IReminderRepository repository, ICurrentUser currentUser) : IReminderAccess
+internal sealed class ReminderService(IReminderRepository repository, ICurrentUser currentUser) : IReminderService
 {
     public async Task<Result<Reminder>> LoadOwnedAsync(
         Guid reminderId,

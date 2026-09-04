@@ -6,7 +6,7 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Api.UnitTests.Common.Lifecycle;
+namespace AppTemplate.Api.UnitTests.Common.Hosting;
 
 public sealed class ShutdownHealthCheckTests
 {

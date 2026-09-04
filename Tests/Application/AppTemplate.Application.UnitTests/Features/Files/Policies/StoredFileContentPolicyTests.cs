@@ -33,7 +33,7 @@ public sealed class StoredFileContentPolicyTests
     [InlineData("image/gif")]
     [InlineData("application/pdf")]
     public void ContentThatIsWhatItSaysItIs_IsReleased(string declared) =>
-        Decide(declared, HeadFor(declared)).ShouldBe(ContentVerdict.Release);
+        Decide(declared, HeadFor(declared)).ShouldBe(ContentDecision.Release);
 
     /// <summary>
     /// The claim, refused. This is the gap <c>SECURITY.md</c> names — "the declared media type is a
@@ -42,7 +42,7 @@ public sealed class StoredFileContentPolicyTests
     /// </summary>
     [Fact]
     public void ContentThatNamesADifferentTypeThanWasDeclared_IsQuarantined() =>
-        Decide("image/png", _jpeg).ShouldBe(ContentVerdict.Quarantine);
+        Decide("image/png", _jpeg).ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
     /// The other direction, and the one that would otherwise be the way round it: the content matches
@@ -51,7 +51,7 @@ public sealed class StoredFileContentPolicyTests
     /// </summary>
     [Fact]
     public void ContentThatNamesNothing_IsQuarantinedWhenTheDeclaredTypeShouldHaveASignature() =>
-        Decide("image/png", _csv).ShouldBe(ContentVerdict.Quarantine);
+        Decide("image/png", _csv).ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
     /// The deliberate limit of what leading bytes can decide, asserted so that nobody mistakes it for
@@ -62,7 +62,7 @@ public sealed class StoredFileContentPolicyTests
     /// </summary>
     [Fact]
     public void ContentDeclaredAsAFormatWithNoSignature_IsReleased() =>
-        Decide("text/csv", _csv).ShouldBe(ContentVerdict.Release);
+        Decide("text/csv", _csv).ShouldBe(ContentDecision.Release);
 
     /// <summary>
     /// A ZIP archive is what every Office document, every OpenDocument file and every EPUB starts
@@ -75,7 +75,7 @@ public sealed class StoredFileContentPolicyTests
         Decide(
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 _zip)
-            .ShouldBe(ContentVerdict.Release);
+            .ShouldBe(ContentDecision.Release);
 
     /// <summary>
     /// And the archive dressed as an image is still refused, by the other direction of the rule —
@@ -83,7 +83,7 @@ public sealed class StoredFileContentPolicyTests
     /// </summary>
     [Fact]
     public void AZipDeclaredAsAnImage_IsStillQuarantined() =>
-        Decide("image/png", _zip).ShouldBe(ContentVerdict.Quarantine);
+        Decide("image/png", _zip).ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
     /// No alias table, deliberately: a second place for the two sides to disagree. The consequence is
@@ -92,7 +92,7 @@ public sealed class StoredFileContentPolicyTests
     /// </summary>
     [Fact]
     public void ANonCanonicalSpellingOfARecognisedType_IsRefused() =>
-        Decide("image/jpg", _jpeg).ShouldBe(ContentVerdict.Quarantine);
+        Decide("image/jpg", _jpeg).ShouldBe(ContentDecision.Quarantine);
 
     #endregion
 
@@ -104,7 +104,7 @@ public sealed class StoredFileContentPolicyTests
     /// </summary>
     [Fact]
     public void AnSvgDeclaredAsAnImage_IsQuarantined() =>
-        Decide("image/png", _svg).ShouldBe(ContentVerdict.Quarantine);
+        Decide("image/png", _svg).ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
     /// <b>Even declared honestly.</b> Nothing in this template sanitises an SVG, and the download
@@ -114,7 +114,7 @@ public sealed class StoredFileContentPolicyTests
     /// </summary>
     [Fact]
     public void AnHonestlyDeclaredSvg_IsQuarantinedToo() =>
-        Decide("image/svg+xml", _svg).ShouldBe(ContentVerdict.Quarantine);
+        Decide("image/svg+xml", _svg).ShouldBe(ContentDecision.Quarantine);
 
     [Theory]
     [InlineData("<!DOCTYPE html><html><body><script>alert(1)</script></body></html>")]
@@ -122,7 +122,7 @@ public sealed class StoredFileContentPolicyTests
     [InlineData("   \n\n  <SVG xmlns=\"http://www.w3.org/2000/svg\"/>")]
     [InlineData("<?xml version=\"1.0\"?><!-- a comment long enough to push the markup along --><svg/>")]
     public void EveryShapeOfScriptContainer_IsQuarantined(string markup) =>
-        Decide("text/plain", Encoding.ASCII.GetBytes(markup)).ShouldBe(ContentVerdict.Quarantine);
+        Decide("text/plain", Encoding.ASCII.GetBytes(markup)).ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
     /// The evasion the markup search cannot catch, and the reason a second check exists.
@@ -150,7 +150,7 @@ public sealed class StoredFileContentPolicyTests
             "anything and should be rewritten rather than deleted.");
 
         Decide("text/plain", inspected).ShouldBe(
-            ContentVerdict.Quarantine,
+            ContentDecision.Quarantine,
             "the document still begins as markup, and offset zero is the one thing padding cannot " +
             "move. Releasing it would store a program and serve it under a type of the uploader's " +
             "choosing.");
@@ -169,7 +169,7 @@ public sealed class StoredFileContentPolicyTests
     [Fact]
     public void AnHonestXmlDocument_IsRefusedToo_BecauseNothingHereSanitisesMarkup() =>
         Decide("application/xml", Encoding.ASCII.GetBytes("<?xml version=\"1.0\"?><invoice total=\"9.99\"/>"))
-            .ShouldBe(ContentVerdict.Quarantine);
+            .ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
     /// A byte-order mark must not hide the tag behind it — which it would if the check read a decoded
@@ -183,7 +183,7 @@ public sealed class StoredFileContentPolicyTests
     {
         byte[] marked = [first, second, third, .. Encoding.ASCII.GetBytes("<svg/>")];
 
-        Decide("text/plain", marked).ShouldBe(ContentVerdict.Quarantine);
+        Decide("text/plain", marked).ShouldBe(ContentDecision.Quarantine);
     }
 
     /// <summary>
@@ -193,7 +193,7 @@ public sealed class StoredFileContentPolicyTests
     [Fact]
     public void ADocumentThatOnlyMentionsATagLaterOn_IsNotRefusedForBeginningAsMarkup() =>
         Decide("text/csv", Encoding.ASCII.GetBytes("id,note\n1,\"see <the appendix>\"\n"))
-            .ShouldBe(ContentVerdict.Release);
+            .ShouldBe(ContentDecision.Release);
 
     /// <summary>
     /// The cheapest evasion there is, and the reason null bytes are dropped before the search. Encoded
@@ -205,7 +205,7 @@ public sealed class StoredFileContentPolicyTests
     {
         byte[] utf16 = Encoding.Unicode.GetBytes("<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
 
-        Decide("text/plain", utf16).ShouldBe(ContentVerdict.Quarantine);
+        Decide("text/plain", utf16).ShouldBe(ContentDecision.Quarantine);
     }
 
     /// <summary>
@@ -216,7 +216,7 @@ public sealed class StoredFileContentPolicyTests
     [Fact]
     public void OrdinaryTextThatMentionsNoMarkup_IsNotMistakenForAScriptContainer() =>
         Decide("text/plain", Encoding.ASCII.GetBytes("Dear Sir, please find the invoice attached."))
-            .ShouldBe(ContentVerdict.Release);
+            .ShouldBe(ContentDecision.Release);
 
     #endregion
 
@@ -227,7 +227,7 @@ public sealed class StoredFileContentPolicyTests
         StoredFileContentPolicy.Decide(
                 DeclaredMediaType.Create("image/png"),
                 new ContentInspectionOutcome(ContentInspectionStatus.Infected, _png, "Eicar-Test-Signature"))
-            .ShouldBe(ContentVerdict.Quarantine);
+            .ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
     /// Content nothing will ever look at is refused rather than left waiting. The condition is
@@ -240,7 +240,7 @@ public sealed class StoredFileContentPolicyTests
         StoredFileContentPolicy.Decide(
                 DeclaredMediaType.Create("image/png"),
                 new ContentInspectionOutcome(ContentInspectionStatus.NotInspectable, _png, null))
-            .ShouldBe(ContentVerdict.Quarantine);
+            .ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
     /// <b>The arbitrage between fail-open and fail-closed, decided as neither.</b> No verdict is not
@@ -256,7 +256,7 @@ public sealed class StoredFileContentPolicyTests
                     ContentInspectionStatus.Unavailable,
                     ReadOnlyMemory<byte>.Empty,
                     null))
-            .ShouldBe(ContentVerdict.Retry);
+            .ShouldBe(ContentDecision.Retry);
 
     /// <summary>
     /// The order matters and this is what pins it: an outage is checked before anything else, so a
@@ -272,7 +272,7 @@ public sealed class StoredFileContentPolicyTests
                     ContentInspectionStatus.Unavailable,
                     ReadOnlyMemory<byte>.Empty,
                     null))
-            .ShouldNotBe(ContentVerdict.Quarantine);
+            .ShouldNotBe(ContentDecision.Quarantine);
 
     #endregion
 
@@ -290,7 +290,7 @@ public sealed class StoredFileContentPolicyTests
 
     #endregion
 
-    private static ContentVerdict Decide(string declaredMediaType, ReadOnlyMemory<byte> head) =>
+    private static ContentDecision Decide(string declaredMediaType, ReadOnlyMemory<byte> head) =>
         StoredFileContentPolicy.Decide(
             DeclaredMediaType.Create(declaredMediaType),
             new ContentInspectionOutcome(ContentInspectionStatus.Clean, head, null));

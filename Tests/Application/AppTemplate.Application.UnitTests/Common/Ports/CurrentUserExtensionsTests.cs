@@ -1,9 +1,9 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Application.UnitTests.Common.Abstractions;
+namespace AppTemplate.Application.UnitTests.Common.Ports;
 
 public sealed class CurrentUserExtensionsTests
 {

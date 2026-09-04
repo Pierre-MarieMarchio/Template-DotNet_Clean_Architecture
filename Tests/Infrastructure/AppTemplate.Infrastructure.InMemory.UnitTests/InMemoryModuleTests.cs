@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;

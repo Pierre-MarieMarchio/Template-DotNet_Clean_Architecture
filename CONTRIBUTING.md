@@ -130,7 +130,8 @@ filing system:
 ```
 AppTemplate.Domain/         Common/{Abstractions,Events,Exceptions,Primitives}
                    Features/<F>/{Entities,Events,ValueObjects,Repositories}
-AppTemplate.Application/    Common/{Abstractions,Validation,Idempotency,Collections,Concurrency}
+AppTemplate.Application/    Common/{Collections,Concurrency,Events,Idempotency,Localization,
+                                    Policies,Ports,Results,UseCases,Validation}
                    Features/<F>/{UseCases/{Commands,Queries}/<Operation>,Ports/<Port>,
                                  Consumers,Services,Policies,Extensions,Mapping,Dtos,Errors}
 AppTemplate.Infrastructure.Persistence/
@@ -161,6 +162,17 @@ nature of thing is in it. It is also why the two youngest infrastructure modules
 five words rather than one list shared between them; the *rule* is uniform, the word list is
 whatever each module's files need. Several of those folders hold one file, which is the price of
 the rule and worth paying.
+
+**The files are held to it too, not only the folder names.**
+`FeatureFolderVocabularyTests.EveryFileUnderAFeature_CarriesItsFoldersNatureWord` checks that a file
+under `Features/<F>/<Word>/` is named for that word — which is the half that was missing, and how an
+`…Access` came to sit in `Services/` and stay: the folder was legal, the type was reasonable, and the
+pair was the defect. Three kinds of file are exempt, each named with its reason in that test: a type
+in another thing's signature, which does not move away from the thing whose signature it is
+(`ContentDecision` beside the policy that returns it, for the reason `Ports/<Port>/` keeps a port's
+messages beside the port); a name a framework imposes (`AppUser`, `AppRole`); and the state an
+adapter holds (`CachedSigningKeys`). A fourth entry is the rule being dismantled one line at a time,
+so it needs its argument in the pull request that adds it.
 
 The vocabulary under `Features/<F>/` is closed, and
 `LayoutConventionTests.EveryFeatureFolder_IsNamedFromItsLayersVocabulary` holds it for all nine
@@ -252,10 +264,10 @@ answer "what nature of thing is this?", so the suffix is not decoration:
 | `…UseCase`, `…Command`, `…Query` | one operation, its input, and its implementation |
 | `…Outcome` | the record an operation hands back — a use case's or a port's |
 | `…Status` | the closed enum of ways it went, carried by an `…Outcome` |
-| `…Repository`, `…Store`, `…Queries` | an aggregate, storage with no aggregate, a read-side projection |
+| `…Repository`, `…Store`, `…Table`, `…Queries` | the four ways this template reaches storage — see [Decisions already made](#decisions-already-made-and-the-shape-they-impose) for which is which |
 | `…Service` | an injected implementation that has dependencies |
 | `…Mapper` / `…Mapping` | a mapping, injected / static — and named for what comes **out** of it |
-| `…Extensions` | a static class of `AddX`/`UseX` composition methods |
+| `…Extensions` | a static class of extension methods, filed with the type it extends — `ResultExtensions` in `Common/Results/`, `CurrentUserExtensions` in `Common/Ports/`. In a host's `Common/` it is the composition class holding that folder's `AddX`/`UseX` |
 | `…Options`, `…Validator`, `…Policy`, `…Consumer`, `…Dto`, `…Controller`, `…Request`, `…Response` | as they read |
 
 Two rules follow from having been broken:
@@ -263,7 +275,19 @@ Two rules follow from having been broken:
 - **A word names one notion in this repository.** `Outcome` once named both a use case's return
   record and the enum inside a port's, and `Policies` named both a business rule under
   `Features/<F>/Policies/` and the file holding an `AddApiX`. When a second meaning appears, one of
-  the two is wrong — find which and rename it, do not document the ambiguity.
+  the two is wrong — find which and rename it, do not document the ambiguity. Two more that were:
+  `Access` named what `Service` already named, and `Verdict` named what `Decision` already named —
+  a policy's chosen action, as opposed to the `Status` an observation reports.
+- **A port is a port at both scopes, and the word says so.** `Common/Ports/` holds the ones every
+  feature reaches for — the clock, the unit of work, the mail relay — and `Features/<F>/Ports/<Port>/`
+  the ones one feature does. There is no `Abstractions/` in the application layer: every interface
+  it declares is an abstraction, so the word sorted nothing, and it hid two interfaces the layer
+  *implements* rather than consumes among the ones infrastructure satisfies. Those two live with
+  their subject instead — `IUseCase` in `Common/UseCases/`, `IDomainEventConsumer` in
+  `Common/Events/` — which is what let `PortConventionTests` drop the exclusion list it needed to
+  tell them apart. `AppTemplate.Domain` keeps its `Common/Abstractions/`: `IAuditable` and
+  `IVersioned` are opt-in contracts a persistence row satisfies, not capabilities the domain calls
+  out for.
 - **The port carries the nature word, and the adapter is the port without its `I`.**
   `IUserAccountsService` is implemented by `UserAccountsService`; `ISecurityEventLog` by
   `SecurityEventLog`, because `Log` already says what it is. A qualifying prefix is right in two

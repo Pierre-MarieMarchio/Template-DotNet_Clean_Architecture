@@ -1,4 +1,5 @@
-﻿namespace AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Common.Policies;
+namespace AppTemplate.Application.Common.Collections;
 
 /// <summary>
 /// One entry of a feature's sortable whitelist: the name a caller may send, and whether a keyset

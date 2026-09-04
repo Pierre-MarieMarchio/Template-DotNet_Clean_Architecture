@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Files.Policies;
 using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
@@ -73,7 +73,7 @@ public sealed class InspectDepositedFilesUseCase(
             var inspection = await inspector.InspectAsync(storedFile.ObjectKey.Value, cancellationToken);
             var verdict = StoredFileContentPolicy.Decide(storedFile.DeclaredMediaType, inspection);
 
-            if (verdict == ContentVerdict.Retry)
+            if (verdict == ContentDecision.Retry)
             {
                 deferred++;
                 continue;
@@ -103,12 +103,12 @@ public sealed class InspectDepositedFilesUseCase(
     }
 
     private void Apply(
-        ContentVerdict verdict,
+        ContentDecision verdict,
         StoredFile storedFile,
         ContentInspectionOutcome inspection,
         DateTimeOffset now)
     {
-        if (verdict == ContentVerdict.Release)
+        if (verdict == ContentDecision.Release)
         {
             storedFile.MakeAvailable(now);
 

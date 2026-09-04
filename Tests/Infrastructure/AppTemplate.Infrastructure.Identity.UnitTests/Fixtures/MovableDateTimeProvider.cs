@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 
 namespace AppTemplate.Infrastructure.Identity.UnitTests.Fixtures;
 

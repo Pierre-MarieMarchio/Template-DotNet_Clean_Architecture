@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Events;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Features.Files.Entities;

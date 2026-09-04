@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
 using Microsoft.Extensions.DependencyInjection;

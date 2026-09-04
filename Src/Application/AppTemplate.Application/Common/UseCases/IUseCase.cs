@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.Application.Common.Abstractions;
+﻿namespace AppTemplate.Application.Common.UseCases;
 
 /// <summary>
 /// Registration discovers use cases through this marker rather than by name, so a rename cannot

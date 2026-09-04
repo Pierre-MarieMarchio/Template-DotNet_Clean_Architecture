@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Files.Services;
@@ -19,7 +19,7 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredF
 /// </para>
 /// </summary>
 public sealed class DeleteStoredFileUseCase(
-    IStoredFileAccess files,
+    IStoredFileService files,
     IStoredFileRepository repository,
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider,

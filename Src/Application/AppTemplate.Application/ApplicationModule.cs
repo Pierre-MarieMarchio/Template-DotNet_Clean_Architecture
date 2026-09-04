@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Events;
+using AppTemplate.Application.Common.UseCases;
 using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted;
@@ -33,9 +34,9 @@ public static class ApplicationModule
 
         // Not a use case: it has no request/response shape of its own, so the marker-based
         // discovery above never sees it. Bound explicitly, like the domain-event consumers below.
-        services.AddScoped<ITodoListAccess, TodoListAccess>();
-        services.AddScoped<IReminderAccess, ReminderAccess>();
-        services.AddScoped<IStoredFileAccess, StoredFileAccess>();
+        services.AddScoped<ITodoListService, TodoListService>();
+        services.AddScoped<IReminderService, ReminderService>();
+        services.AddScoped<IStoredFileService, StoredFileService>();
 
         services.AddDomainEventConsumer<TodoItemCompletedDomainEvent, LogTodoItemCompletedConsumer>();
 

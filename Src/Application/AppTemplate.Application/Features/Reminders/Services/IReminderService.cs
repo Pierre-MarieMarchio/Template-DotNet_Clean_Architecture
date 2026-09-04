@@ -7,9 +7,9 @@ namespace AppTemplate.Application.Features.Reminders.Services;
 
 /// <summary>
 /// The one gate every reminder command loads its aggregate through, on the same model as
-/// <c>ITodoListAccess</c>: identity, ownership and the version precondition, in that order.
+/// <c>ITodoListService</c>: identity, ownership and the version precondition, in that order.
 /// </summary>
-public interface IReminderAccess
+public interface IReminderService
 {
     /// <returns>
     /// The aggregate, or a failure — <see cref="ReminderErrors.ReminderNotFound"/> for an

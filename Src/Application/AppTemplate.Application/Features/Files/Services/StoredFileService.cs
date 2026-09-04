@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Files.Errors;
 using AppTemplate.Domain.Features.Files.Entities;
@@ -7,7 +7,7 @@ using AppTemplate.Domain.Features.Files.Repositories;
 
 namespace AppTemplate.Application.Features.Files.Services;
 
-internal sealed class StoredFileAccess(IStoredFileRepository repository, ICurrentUser currentUser) : IStoredFileAccess
+internal sealed class StoredFileService(IStoredFileRepository repository, ICurrentUser currentUser) : IStoredFileService
 {
     public async Task<Result<StoredFile>> LoadOwnedAsync(
         Guid storedFileId,

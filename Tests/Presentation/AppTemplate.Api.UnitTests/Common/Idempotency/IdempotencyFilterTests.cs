@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.UnitTests.TestSupport;
-using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Idempotency;
+using AppTemplate.Application.Common.Ports;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;

@@ -31,7 +31,7 @@ namespace AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownl
 /// </para>
 /// </summary>
 public sealed class IssueFileDownloadUseCase(
-    IStoredFileAccess files,
+    IStoredFileService files,
     IFileContentStore content,
     IValidator<IssueFileDownloadQuery> validator) : IIssueFileDownloadUseCase
 {

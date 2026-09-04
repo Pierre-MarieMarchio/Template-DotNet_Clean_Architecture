@@ -1,12 +1,16 @@
-﻿namespace AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Common.Collections;
+
+namespace AppTemplate.Application.Common.Policies;
 
 /// <summary>
 /// What a feature declares about its own collection endpoint: which fields may be sorted on, how it
 /// is ordered when nobody asks, and the ceilings on what a caller may request.
 /// <para>
-/// This is the whitelist. It lives with the feature rather than in <c>Common/</c> because only the
-/// feature knows which of its columns are indexed and cheap to order by; <c>Common/</c> owns the
-/// parsing and the enforcement, which are the same for every feature.
+/// The contract is here; every implementation is a <c>…CollectionPolicy</c> under that feature's own
+/// <c>Features/&lt;F&gt;/Policies/</c>, because only the feature knows which of its columns are
+/// indexed and cheap to order by. <c>Common/Collections/</c> owns the parsing and the enforcement,
+/// which are the same for every feature, and this interface is the one thing those mechanics ask a
+/// feature to declare — so it sits with the other policies rather than among them.
 /// </para>
 /// </summary>
 /// <remarks>

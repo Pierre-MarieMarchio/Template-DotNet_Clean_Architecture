@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.AddTodoItem;
@@ -174,7 +174,7 @@ public sealed class VersionPreconditionTests
         VersionPrecondition? precondition)
     {
         var currentUser = StubCurrentUser.WithId(_callerId);
-        var access = new TodoListAccess(_repository, currentUser);
+        var access = new TodoListService(_repository, currentUser);
 
         return operation switch
         {

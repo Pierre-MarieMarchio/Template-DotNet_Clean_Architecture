@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Idempotency;
+﻿using AppTemplate.Application.Common.Idempotency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;

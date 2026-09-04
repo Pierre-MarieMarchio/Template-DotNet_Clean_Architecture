@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.RemoveTagFromTodoItem;
@@ -73,7 +73,7 @@ public sealed class RemoveTagFromTodoItemUseCaseTests
     }
 
     private RemoveTagFromTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(new TodoListAccess(_repository, currentUser), _unitOfWork, new RemoveTagFromTodoItemCommandValidator());
+        new(new TodoListService(_repository, currentUser), _unitOfWork, new RemoveTagFromTodoItemCommandValidator());
 
     private RemoveTagFromTodoItemUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

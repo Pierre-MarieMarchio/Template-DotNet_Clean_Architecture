@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Reminders;

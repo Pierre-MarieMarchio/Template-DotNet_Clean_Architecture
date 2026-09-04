@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
-using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Common.UseCases;
 using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredRefreshTokens;
 using Microsoft.Extensions.Options;

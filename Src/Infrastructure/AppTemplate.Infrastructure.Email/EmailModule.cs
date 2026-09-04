@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Infrastructure.Email.Common.Http;
 using AppTemplate.Infrastructure.Email.Common.Smtp;

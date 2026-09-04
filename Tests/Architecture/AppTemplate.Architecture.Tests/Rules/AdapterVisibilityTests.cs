@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Architecture.Tests.Fixtures;
 using NetArchTest.Rules;
 using Shouldly;

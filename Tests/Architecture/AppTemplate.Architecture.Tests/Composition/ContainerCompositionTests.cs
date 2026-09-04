@@ -1,7 +1,8 @@
 ﻿using System.Collections;
 using AppTemplate.Application;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Common.UseCases;
 using AppTemplate.Application.Features.Auth.Ports.RefreshTokenMaintenance;
 using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Architecture.Tests.Fixtures;

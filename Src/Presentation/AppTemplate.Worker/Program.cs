@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application;
-using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Localization;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.Persistence;

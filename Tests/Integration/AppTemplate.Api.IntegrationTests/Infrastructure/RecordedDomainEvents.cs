@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Events;
 using AppTemplate.Domain.Features.TodoLists.Events;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;

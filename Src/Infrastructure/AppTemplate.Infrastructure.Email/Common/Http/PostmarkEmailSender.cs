@@ -2,7 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Infrastructure.Email.Common.Smtp;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

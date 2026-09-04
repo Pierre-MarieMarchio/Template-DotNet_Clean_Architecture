@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.Reminders.Errors;
 using AppTemplate.Application.Features.Reminders.Services;
@@ -15,9 +15,9 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.Services;
 /// <summary>
 /// The one gate every reminder command loads its aggregate through, so its own tests are where
 /// the identity/ownership/precondition matrix is proven exhaustively — same rationale as
-/// <c>TodoListAccessTests</c>.
+/// <c>TodoListServiceTests</c>.
 /// </summary>
-public sealed class ReminderAccessTests
+public sealed class ReminderServiceTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
@@ -129,7 +129,7 @@ public sealed class ReminderAccessTests
         result.Error!.Code.ShouldBe(ReminderErrors.ReminderNotFound(foreign.Id).Code);
     }
 
-    private ReminderAccess AccessFor(ICurrentUser currentUser) => new(_repository, currentUser);
+    private ReminderService AccessFor(ICurrentUser currentUser) => new(_repository, currentUser);
 
-    private ReminderAccess Access() => AccessFor(StubCurrentUser.WithId(_callerId));
+    private ReminderService Access() => AccessFor(StubCurrentUser.WithId(_callerId));
 }

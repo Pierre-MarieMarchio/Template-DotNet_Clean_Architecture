@@ -54,7 +54,7 @@ builder.Services.AddEmailModule(builder.Configuration);
 builder.Services.AddStorageModule(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<AppTemplate.Application.Common.Abstractions.ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<AppTemplate.Application.Common.Ports.ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing.IAuditActor, CurrentUserAuditActor>();
 
 // Global rather than per-controller: the filter is inert on any action without [Idempotent], so

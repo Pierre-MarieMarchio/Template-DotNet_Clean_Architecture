@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.RenameTodoList;
@@ -218,7 +218,7 @@ public sealed class RenameTodoListUseCaseTests
     #endregion
 
     private RenameTodoListUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(new TodoListAccess(_repository, currentUser), _unitOfWork, _validator);
+        new(new TodoListService(_repository, currentUser), _unitOfWork, _validator);
 
     private RenameTodoListUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 

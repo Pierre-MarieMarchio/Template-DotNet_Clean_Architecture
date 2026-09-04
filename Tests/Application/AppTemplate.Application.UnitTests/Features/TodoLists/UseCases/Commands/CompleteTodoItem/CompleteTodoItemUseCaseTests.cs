@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CompleteTodoItem;
@@ -238,7 +238,7 @@ public sealed class CompleteTodoItemUseCaseTests
         _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var useCase = new CompleteTodoItemUseCase(
-            new TodoListAccess(_repository, StubCurrentUser.WithId(_callerId)),
+            new TodoListService(_repository, StubCurrentUser.WithId(_callerId)),
             _unitOfWork,
             new StubDateTimeProvider(pinnedInstant),
             new CompleteTodoItemCommandValidator());
@@ -303,7 +303,7 @@ public sealed class CompleteTodoItemUseCaseTests
     #endregion
 
     private CompleteTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(new TodoListAccess(_repository, currentUser), _unitOfWork, _clock, new CompleteTodoItemCommandValidator());
+        new(new TodoListService(_repository, currentUser), _unitOfWork, _clock, new CompleteTodoItemCommandValidator());
 
     private CompleteTodoItemUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

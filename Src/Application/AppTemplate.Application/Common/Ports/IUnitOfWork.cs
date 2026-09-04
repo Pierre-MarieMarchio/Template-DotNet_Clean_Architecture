@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.Application.Common.Abstractions;
+﻿namespace AppTemplate.Application.Common.Ports;
 
 /// <summary>Repositories only stage changes; the use case decides when they commit.</summary>
 public interface IUnitOfWork

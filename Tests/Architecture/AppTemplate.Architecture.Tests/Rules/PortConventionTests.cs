@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 using System.Text.RegularExpressions;
-using AppTemplate.Application.Common.Abstractions;
+using AppTemplate.Application.Common.UseCases;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
@@ -31,7 +31,7 @@ public sealed class PortConventionTests
     private const string _featurePortNamespacePattern =
         @"^AppTemplate\.Application\.Features\.([^.]+)\.Ports(\.[^.]+)*$";
 
-    private const string _crossCuttingPortNamespace = "AppTemplate.Application.Common.Abstractions";
+    private const string _crossCuttingPortNamespace = "AppTemplate.Application.Common.Ports";
 
     /// <summary>
     /// The most operations one port may declare. Four is what the widest port here needs — issue,
@@ -41,28 +41,19 @@ public sealed class PortConventionTests
     private const int _maximumOperationsPerPort = 4;
 
     /// <summary>
-    /// Interfaces in the application layer that are not ports for a module to satisfy: the marker
-    /// registration discovers use cases through, the use-case contracts themselves, and the
-    /// domain-event consumer, which the application layer <em>implements</em> rather than consumes.
-    /// </summary>
-    private static readonly Type[] _notPorts =
-    [
-        typeof(IUseCase),
-        typeof(IUseCase<>),
-        typeof(IUseCase<,>),
-        typeof(IDomainEventConsumer),
-        typeof(IDomainEventConsumer<>),
-    ];
-
-    /// <summary>
     /// Every interface the application layer declares for something else to implement, discovered
     /// from the namespaces the convention puts them in rather than from a list a change could forget.
+    /// <para>
+    /// There is no exclusion list. <c>IUseCase</c> and <c>IDomainEventConsumer</c> are interfaces the
+    /// application layer implements rather than consumes, and they used to need naming here because
+    /// they shared a folder with the cross-cutting ports; they live under <c>Common/UseCases</c> and
+    /// <c>Common/Events</c> instead, so the namespace filter below is the whole rule again.
+    /// </para>
     /// </summary>
     private static IReadOnlyList<Type> Ports { get; } =
         [.. ArchitectureAssemblies.Application
             .GetTypes()
             .Where(type => type is { IsInterface: true, IsPublic: true, IsNested: false })
-            .Where(type => !_notPorts.Contains(type.IsGenericType ? type.GetGenericTypeDefinition() : type))
             .Where(type => type.Namespace is not null
                 && (IsFeaturePortNamespace(type.Namespace)
                     || string.Equals(type.Namespace, _crossCuttingPortNamespace, StringComparison.Ordinal)))

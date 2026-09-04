@@ -1,7 +1,7 @@
 ﻿namespace AppTemplate.Application.Features.Files.Policies;
 
 /// <summary>What <see cref="StoredFileContentPolicy"/> decided about one file's content.</summary>
-public enum ContentVerdict
+public enum ContentDecision
 {
     /// <summary>The content is acceptable and the file may be made available.</summary>
     Release,

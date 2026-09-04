@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Infrastructure.Persistence.Common.Options;
+﻿using Microsoft.Extensions.Options;
+
+namespace AppTemplate.Infrastructure.Persistence.Common.Options;
 
 /// <summary>
 /// Connection pooling and command-timeout policy for <see cref="Common.Contexts.AppDbContext"/>.
@@ -25,4 +27,26 @@ public sealed class DatabaseOptions
 
     /// <summary>Npgsql's per-command timeout. The driver's own default is also 30 seconds.</summary>
     public int CommandTimeoutSeconds { get; set; } = 30;
+}
+
+internal sealed class DatabaseOptionsValidator : IValidateOptions<DatabaseOptions>
+{
+    public ValidateOptionsResult Validate(string? name, DatabaseOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var failures = new List<string>();
+
+        if (options.MaxPoolSize is < 1 or > 500)
+        {
+            failures.Add($"'{DatabaseOptions.SectionName}:MaxPoolSize' must be between 1 and 500.");
+        }
+
+        if (options.CommandTimeoutSeconds is < 1 or > 300)
+        {
+            failures.Add($"'{DatabaseOptions.SectionName}:CommandTimeoutSeconds' must be between 1 and 300.");
+        }
+
+        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
 }

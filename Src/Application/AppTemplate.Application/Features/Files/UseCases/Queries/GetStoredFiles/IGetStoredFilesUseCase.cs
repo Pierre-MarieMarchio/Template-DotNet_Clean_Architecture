@@ -1,5 +1,6 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Common.UseCases;
 using AppTemplate.Application.Features.Files.Dtos;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;

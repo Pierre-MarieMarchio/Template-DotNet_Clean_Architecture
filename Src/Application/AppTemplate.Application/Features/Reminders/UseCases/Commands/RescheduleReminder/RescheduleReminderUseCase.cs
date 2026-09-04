@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Abstractions;
-using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Common.Results;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Reminders.Dtos;
@@ -10,7 +10,7 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.RescheduleReminder;
 
 public sealed class RescheduleReminderUseCase(
-    IReminderAccess reminders,
+    IReminderService reminders,
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider,
     IValidator<RescheduleReminderCommand> validator) : IRescheduleReminderUseCase

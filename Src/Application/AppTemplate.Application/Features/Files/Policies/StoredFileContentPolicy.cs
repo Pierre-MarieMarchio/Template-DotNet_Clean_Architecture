@@ -22,7 +22,7 @@ public static class StoredFileContentPolicy
     /// <param name="declared">What the client said the file is. Already normalised — lower-cased,
     /// no parameters — which is what makes the comparison below an ordinal string comparison rather
     /// than a media-type parser.</param>
-    public static ContentVerdict Decide(DeclaredMediaType declared, ContentInspectionOutcome inspection)
+    public static ContentDecision Decide(DeclaredMediaType declared, ContentInspectionOutcome inspection)
     {
         ArgumentNullException.ThrowIfNull(declared);
         ArgumentNullException.ThrowIfNull(inspection);
@@ -31,12 +31,12 @@ public static class StoredFileContentPolicy
         // below this line is a verdict about bytes somebody actually looked at.
         if (inspection.Status == ContentInspectionStatus.Unavailable)
         {
-            return ContentVerdict.Retry;
+            return ContentDecision.Retry;
         }
 
         if (inspection.Status == ContentInspectionStatus.Infected)
         {
-            return ContentVerdict.Quarantine;
+            return ContentDecision.Quarantine;
         }
 
         // Content no scanner will ever look at is refused rather than left waiting. The condition is
@@ -46,7 +46,7 @@ public static class StoredFileContentPolicy
         // strands the file nor rewards the size.
         if (inspection.Status == ContentInspectionStatus.NotInspectable)
         {
-            return ContentVerdict.Quarantine;
+            return ContentDecision.Quarantine;
         }
 
         return DecideFromContent(declared, inspection.Head.Span);
@@ -56,7 +56,7 @@ public static class StoredFileContentPolicy
     /// The three questions the leading bytes can answer, in the order that makes each one's answer
     /// final.
     /// </summary>
-    private static ContentVerdict DecideFromContent(DeclaredMediaType declared, ReadOnlySpan<byte> head)
+    private static ContentDecision DecideFromContent(DeclaredMediaType declared, ReadOnlySpan<byte> head)
     {
         // First, and regardless of what was declared. A script container is refused even when it is
         // declared honestly as one: nothing in this template sanitises an SVG, and the download path
@@ -74,7 +74,7 @@ public static class StoredFileContentPolicy
         // comment sits between that and its root element. See MediaTypeSignatures.BeginsAsMarkup.
         if (MediaTypeSignatures.IsScriptContainer(head) || MediaTypeSignatures.BeginsAsMarkup(head))
         {
-            return ContentVerdict.Quarantine;
+            return ContentDecision.Quarantine;
         }
 
         // Second: the content named itself. Deliberately exact — a spelling this template does not
@@ -83,8 +83,8 @@ public static class StoredFileContentPolicy
         if (MediaTypeSignatures.DetectedMediaTypeOf(head) is { } detected)
         {
             return string.Equals(detected, declared.Value, StringComparison.Ordinal)
-                ? ContentVerdict.Release
-                : ContentVerdict.Quarantine;
+                ? ContentDecision.Release
+                : ContentDecision.Quarantine;
         }
 
         // Third: the content named nothing, so the declaration is checked in the other direction. A
@@ -97,7 +97,7 @@ public static class StoredFileContentPolicy
         // of what leading bytes can decide, and it is why the rule above it exists: the one format
         // that is dangerous *because* it has no signature is recognised from its markup instead.
         return MediaTypeSignatures.IsRecognisable(declared.Value)
-            ? ContentVerdict.Quarantine
-            : ContentVerdict.Release;
+            ? ContentDecision.Quarantine
+            : ContentDecision.Release;
     }
 }

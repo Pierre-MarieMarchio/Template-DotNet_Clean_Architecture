@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Ports;
 using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
 using AppTemplate.Infrastructure.Identity.Common.Directories;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Options;

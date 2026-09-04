@@ -1,4 +1,4 @@
-using AppTemplate.Infrastructure.Identity.Users;
+﻿using AppTemplate.Infrastructure.Identity.Users;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;

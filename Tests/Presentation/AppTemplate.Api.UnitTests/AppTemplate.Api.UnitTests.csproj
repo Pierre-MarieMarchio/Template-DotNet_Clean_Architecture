@@ -2,8 +2,7 @@
 
   <!-- Unit tests for the API layer's own logic: ProblemDetails normalisation, ETag encoding,
        If-Match parsing, and the ApiControllerBase primitives — all pure or near-pure decisions that
-       run in microseconds and do not need a live HTTP pipeline to verify. Not registered in the
-       solution yet: build and run it directly by its .csproj path until it is added there. -->
+       run in microseconds and do not need a live HTTP pipeline to verify. -->
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>

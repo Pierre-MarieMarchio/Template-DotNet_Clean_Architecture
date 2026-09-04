@@ -1,4 +1,4 @@
-using AppTemplate.Application.Common.Abstractions;
+﻿using AppTemplate.Application.Common.Abstractions;
 
 namespace AppTemplate.Worker.Common.Security;
 

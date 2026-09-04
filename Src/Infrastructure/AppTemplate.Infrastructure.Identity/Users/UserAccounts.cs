@@ -103,6 +103,16 @@ internal sealed class UserAccounts(
             _ => CredentialCheckOutcome.IncorrectPassword,
         };
 
+        // CheckPasswordSignInAsync runs its lockout/confirmation check before deriving a key, so a
+        // locked-out or unconfirmed account answers without paying for PBKDF2 while a wrong password
+        // does. Burn the same key derivation here, result ignored, so the two refusals cost the same.
+        // Not userManager.CheckPasswordAsync: it rewrites the stored hash on a rehash-needed result,
+        // which would rotate the security stamp on a login that was just refused.
+        if (outcome is CredentialCheckOutcome.LockedOut or CredentialCheckOutcome.EmailNotConfirmed)
+        {
+            userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash ?? AbsentUserPasswordHash, password);
+        }
+
         // The lockout threshold itself is Identity's own state machine; nothing outside this adapter
         // can see it cross, so recording it here is not a decision moved out of the use case, it is
         // one the use case has no way to make.

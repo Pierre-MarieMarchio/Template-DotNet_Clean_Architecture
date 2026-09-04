@@ -2,12 +2,14 @@
 using System.Text;
 using System.Text.Json;
 using AppTemplate.Api.Common.Errors;
+using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Idempotency;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Common.Idempotency;
@@ -33,13 +35,23 @@ internal sealed class IdempotencyFilter(
     IIdempotencyStore store,
     IOptions<IdempotencyOptions> options,
     ICurrentUser currentUser,
-    IDateTimeProvider dateTimeProvider) : IAsyncResourceFilter
+    IDateTimeProvider dateTimeProvider,
+    ILogger<IdempotencyFilter> logger) : IAsyncResourceFilter
 {
     private const string _headerName = "Idempotency-Key";
     private const string _replayedHeaderName = "Idempotency-Replayed";
 
     /// <summary>Used only when MVC's own <see cref="JsonOptions"/> cannot be resolved.</summary>
     private static readonly JsonSerializerOptions _fallbackJsonOptions = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// <see cref="ErrorType.Validation"/> rather than a new type: the same family as
+    /// <see cref="IdempotencyErrors.KeyInvalid"/> — the header, as sent, cannot be honoured for this
+    /// request — not a statement about the resource or the caller's authorisation to reach it.
+    /// </summary>
+    private static readonly Error _callerNotIdentifiable = Error.Validation(
+        "idempotency.callerNotIdentifiable",
+        "The 'Idempotency-Key' header requires a caller this server can identify, and this request carries none.");
 
     public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
     {
@@ -59,11 +71,20 @@ internal sealed class IdempotencyFilter(
         }
 
         // No user to scope a key to. In practice the fallback authorisation policy has already
-        // refused an unauthenticated request before a resource filter runs; this is the defensive
-        // half of that decision, not the only thing enforcing it.
+        // refused an unauthenticated request before a resource filter runs, so nothing reaches this
+        // branch today — but a future caller ICurrentUser cannot resolve to a Guid (a machine caller
+        // with no such subject, say) would otherwise lose the guarantee on every single request it
+        // sends, silently, which is exactly backwards: that profile replays by design and needs this
+        // protection the most. Refuse rather than proceed unprotected, so the day such a caller
+        // exists its author has to decide how idempotency keys are scoped for it.
         if (currentUser.UserId is not { } userId)
         {
-            await next();
+            logger.LogWarning(
+                "Idempotency-Key on {Method} {Path} was refused: the caller carries no identity to scope the key to.",
+                httpContext.Request.Method,
+                httpContext.Request.Path);
+
+            context.Result = _callerNotIdentifiable.ToActionResult(httpContext);
             return;
         }
 
@@ -174,9 +195,12 @@ internal sealed class IdempotencyFilter(
             ?.Value.JsonSerializerOptions
             ?? _fallbackJsonOptions;
 
+        // The declared type, not the runtime type: a [JsonPolymorphic] discriminator is only written
+        // when serialisation starts at the polymorphic base, and the replay below hands this string
+        // straight to the client with no formatter left to fix it if the type were wrong here.
         string? body = result.Value is null
             ? null
-            : JsonSerializer.Serialize(result.Value, result.Value.GetType(), jsonOptions);
+            : JsonSerializer.Serialize(result.Value, result.DeclaredType ?? result.Value.GetType(), jsonOptions);
 
         if (body is not null && Encoding.UTF8.GetByteCount(body) > maxStoredResponseBytes)
         {

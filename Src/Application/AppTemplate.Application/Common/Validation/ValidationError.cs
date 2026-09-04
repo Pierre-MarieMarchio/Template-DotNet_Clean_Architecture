@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using FluentValidation.Results;
 
 namespace AppTemplate.Application.Common.Validation;
@@ -8,7 +8,7 @@ public static class ValidationError
 {
     public const string Code = "request.validationFailed";
 
-    private const string Message = "One or more fields are invalid.";
+    private const string _message = "One or more fields are invalid.";
 
     /// <summary>
     /// Groups <paramref name="validationResult"/>'s failures by field. The message is fixed rather
@@ -26,7 +26,7 @@ public static class ValidationError
                 group => (IReadOnlyList<string>)group.Select(failure => failure.ErrorMessage).ToList(),
                 StringComparer.Ordinal);
 
-        return Error.Validation(Code, Message, details);
+        return Error.Validation(Code, _message, details);
     }
 
     /// <summary>For a rule a validator cannot express, e.g. one the store owns.</summary>
@@ -40,7 +40,7 @@ public static class ValidationError
             [field] = [message],
         };
 
-        return Error.Validation(Code, Message, details);
+        return Error.Validation(Code, _message, details);
     }
 
     /// <summary>

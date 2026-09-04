@@ -1,8 +1,8 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.Auth.UseCases.Commands;
 using Shouldly;
 using Xunit;
 
@@ -32,14 +32,14 @@ public sealed class RequestLogRedactionTests(ApiFixture fixture) : IntegrationTe
         // A refresh, so a refresh token travels in a JSON body.
         using var refreshed = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh",
-            new RefreshAccessTokenCommand(session.RefreshToken),
+            new RefreshAccessTokenRequest(session.Tokens.RefreshToken),
             TestToken);
         refreshed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // A failed login, so a password travels in a JSON body on a path that also logs a failure.
         using var rejected = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",
-            new LoginCommand(user.Email, "Not-The-Password-1!"),
+            new LoginRequest(user.Email, "Not-The-Password-1!"),
             TestToken);
         rejected.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
 
@@ -51,8 +51,8 @@ public sealed class RequestLogRedactionTests(ApiFixture fixture) : IntegrationTe
         [
             user.Password,
             "Not-The-Password-1!",
-            session.AccessToken,
-            session.RefreshToken,
+            session.Tokens.AccessToken,
+            session.Tokens.RefreshToken,
         ];
 
         foreach (string secret in secrets)

@@ -1,4 +1,4 @@
-namespace AppTemplate.Application.Features.Auth.Ports;
+﻿namespace AppTemplate.Application.Features.Auth.Ports;
 
 /// <param name="UserId">
 /// Set only on <see cref="PasswordResetOutcome.Reset"/>, so the caller can revoke that account's

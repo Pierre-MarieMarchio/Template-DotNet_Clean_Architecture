@@ -1,4 +1,4 @@
-using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
+﻿using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.TodoLists.Validators;

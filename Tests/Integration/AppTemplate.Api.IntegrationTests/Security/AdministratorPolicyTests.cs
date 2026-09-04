@@ -6,7 +6,7 @@ using Xunit;
 namespace AppTemplate.Api.IntegrationTests.Security;
 
 /// <summary>
-/// Policy-based authorisation on the maintenance endpoint: an ordinary authenticated user is not an
+/// Policy-based authorisation on the maintenance endpoints: an ordinary authenticated user is not an
 /// administrator, and an unauthenticated caller is not even that.
 /// </summary>
 /// <remarks>
@@ -21,14 +21,18 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 /// </remarks>
 public sealed class AdministratorPolicyTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    private const string _route = "/api/v1/maintenance/idempotency-keys/expired";
-
-    [Fact]
-    public async Task AnOrdinaryAuthenticatedUser_Gets403WithACode()
+    /// <summary>
+    /// Every purge the controller offers. The policy is declared on the controller rather than per
+    /// action, so an endpoint added there is only covered if it is named here too.
+    /// </summary>
+    [Theory]
+    [InlineData("/api/v1/maintenance/idempotency-keys/expired")]
+    [InlineData("/api/v1/maintenance/refresh-tokens/expired")]
+    public async Task AnOrdinaryAuthenticatedUser_Gets403WithACode(string route)
     {
         var (client, _, _) = await SignInAsync();
 
-        using var response = await client.DeleteAsync(new Uri(_route, UriKind.Relative), TestToken);
+        using var response = await client.DeleteAsync(new Uri(route, UriKind.Relative), TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
@@ -36,12 +40,14 @@ public sealed class AdministratorPolicyTests(ApiFixture fixture) : IntegrationTe
         problem.Code.ShouldNotBeNullOrWhiteSpace(problem.Body);
     }
 
-    [Fact]
-    public async Task AnUnauthenticatedCaller_Gets401()
+    [Theory]
+    [InlineData("/api/v1/maintenance/idempotency-keys/expired")]
+    [InlineData("/api/v1/maintenance/refresh-tokens/expired")]
+    public async Task AnUnauthenticatedCaller_Gets401(string route)
     {
         var client = CreateClient();
 
-        using var response = await client.DeleteAsync(new Uri(_route, UriKind.Relative), TestToken);
+        using var response = await client.DeleteAsync(new Uri(route, UriKind.Relative), TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }

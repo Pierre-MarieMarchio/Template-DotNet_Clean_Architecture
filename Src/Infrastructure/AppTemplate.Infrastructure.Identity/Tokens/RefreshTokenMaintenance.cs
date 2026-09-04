@@ -1,4 +1,4 @@
-using AppTemplate.Application.Features.Auth.Ports;
+﻿using AppTemplate.Application.Features.Auth.Ports;
 using AppTemplate.Infrastructure.Identity.Options;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Stores;
 using Microsoft.Extensions.Options;

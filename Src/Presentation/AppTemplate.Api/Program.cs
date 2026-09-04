@@ -3,6 +3,7 @@ using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Errors;
 using AppTemplate.Api.Common.Http;
 using AppTemplate.Api.Common.Idempotency;
+using AppTemplate.Api.Common.Lifecycle;
 using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.OpenApi;
 using AppTemplate.Api.Common.Security;
@@ -14,6 +15,7 @@ using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -111,6 +113,7 @@ builder.Services.AddApiObservability(builder.Configuration);
 builder.Services.AddApiConcurrency(builder.Configuration);
 builder.Services.AddApiIdempotency(builder.Configuration);
 builder.Services.AddApiRequestLimits(builder.Configuration);
+builder.Services.AddApiLifecycle(builder.Configuration);
 
 // Authorisation: authenticated by default. This single line is what closes the template's worst
 // defect — fifteen endpoints were reachable anonymously because each action was individually
@@ -126,11 +129,12 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddApiAuthorizationPolicies();
 
 // Liveness answers "is the process up" with no dependency, so an orchestrator does not restart the
-// API because the database is briefly unreachable. Readiness answers "can it serve traffic".
-// One check, because there is one context: two checks over one connection reported the same fact
-// twice and could not disagree, so the second was noise dressed up as coverage.
+// API because the database is briefly unreachable. Readiness answers "can it serve traffic", and
+// two independent things can say no: the database, and a shutdown already under way — see
+// ShutdownHealthCheck for why the latter must never gate liveness too.
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<AppDbContext>(name: "database", tags: ["ready"]);
+    .AddDbContextCheck<AppDbContext>(name: "database", tags: ["ready"])
+    .AddCheck<ShutdownHealthCheck>(name: "shutdown", tags: ["ready"]);
 
 var app = builder.Build();
 
@@ -165,20 +169,33 @@ app.UseStatusCodePages();
 
 app.UseCors(CorsPolicies.Default);
 app.UseRateLimiter();
+
+// After the rate limiter, so a rejected request never starts a clock that then has to be torn
+// down; before authentication and authorization, so the deadline covers them too, not just the
+// action.
+app.UseApiRequestTimeouts();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
+// Off the rate limiter, both of them: without this, an orchestrator's probe shares the same budget
+// as real traffic, and behind a mesh sidecar or a hostNetwork ingress the probe and inbound traffic
+// can even share one source address and partition. A traffic spike then answers the probe 429 too,
+// which the orchestrator reads as "unhealthy" on /health/ready and as "kill it" on /health — right
+// as the instance is already struggling, cascading the load onto whatever replicas survive.
+// ObservabilityPolicies excludes these same two paths from traces and logs for an unrelated reason
+// (they would dominate every signal); this is the exclusion that keeps the instance alive.
 app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
     Predicate = _ => false,
-}).AllowAnonymous();
+}).AllowAnonymous().DisableRateLimiting();
 
 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("ready"),
-}).AllowAnonymous();
+}).AllowAnonymous().DisableRateLimiting();
 
 if (app.Environment.IsDevelopment())
 {

@@ -18,6 +18,16 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
 
+  <!-- Same OpenTelemetry SDK band as AppTemplate.Api (Directory.Packages.props), minus the two
+       ASP.NET Core instrumentations: this host has no inbound request and no outbound HTTP call to
+       instrument. Npgsql.OpenTelemetry supplies the .AddNpgsql() tracing extension the same way it
+       does for the Api host. -->
+  <ItemGroup>
+    <PackageReference Include="Npgsql.OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+  </ItemGroup>
+
   <!-- The same two modules AppTemplate.Api composes for these two use cases, and nothing else:
        no Email module (neither maintenance task sends mail) and no reference to AppTemplate.Api
        itself — the whole point is that this host needs none of it. AppTemplate.Infrastructure.Identity

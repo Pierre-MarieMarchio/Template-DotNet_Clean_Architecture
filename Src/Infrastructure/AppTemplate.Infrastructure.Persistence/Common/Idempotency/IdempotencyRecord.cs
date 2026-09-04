@@ -30,6 +30,14 @@ internal sealed class IdempotencyRecord
 
     public string? Location { get; set; }
 
+    /// <summary>
+    /// Only set once <see cref="IsCompleted"/> is true, and even then only when the response
+    /// published a validator — a write that publishes none, a 204, has no <c>ETag</c> to keep. A
+    /// replay read back from here is the only way a retry answered by another instance can still
+    /// carry the validator the original response did.
+    /// </summary>
+    public string? ETag { get; set; }
+
     public required DateTimeOffset CreatedAt { get; set; }
 
     public required DateTimeOffset ExpiresAt { get; set; }

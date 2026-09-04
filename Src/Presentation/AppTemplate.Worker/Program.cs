@@ -1,8 +1,9 @@
-using AppTemplate.Application;
+﻿using AppTemplate.Application;
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Worker.Common.Maintenance;
+using AppTemplate.Worker.Common.Observability;
 using AppTemplate.Worker.Common.Security;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -36,6 +37,11 @@ builder.Services.AddOptions<MaintenanceWorkerOptions>()
     .Bind(builder.Configuration.GetSection(MaintenanceWorkerOptions.SectionName))
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<MaintenanceWorkerOptions>, MaintenanceWorkerOptionsValidator>();
+
+// This host's only signal used to be its JSON log — and the maintenance loop only logged when a
+// purge removed something, so a purge broken for weeks was invisible. See WorkerObservability and
+// MaintenanceDiagnostics.
+builder.Services.AddWorkerObservability(builder.Configuration);
 
 builder.Services.AddHostedService<MaintenanceBackgroundService>();
 

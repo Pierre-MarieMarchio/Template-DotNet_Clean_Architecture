@@ -1,4 +1,4 @@
-using AppTemplate.Api.Common.Errors;
+﻿using AppTemplate.Api.Common.Errors;
 using Shouldly;
 using Xunit;
 

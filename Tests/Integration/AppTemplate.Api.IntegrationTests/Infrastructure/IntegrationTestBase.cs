@@ -2,11 +2,11 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using AppTemplate.Api.Features.TodoLists.Contracts;
-using AppTemplate.Application.Features.Auth.Dtos;
-using AppTemplate.Application.Features.Auth.UseCases.Commands;
+using AppTemplate.Api.Features.Auth.Contracts.Requests;
+using AppTemplate.Api.Features.Auth.Contracts.Responses;
+using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
+using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Application.Features.TodoLists.Ports;
-using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Stores;
 using AppTemplate.Infrastructure.InMemory;
@@ -17,8 +17,15 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 
+/// <summary>
+/// An account, as far as a caller that has only signed up can know it. It carries no id: nothing in
+/// the sign-up journey publishes one — that is <see cref="TestSession.UserId"/>'s job.
+/// </summary>
 /// <param name="Password">Kept in plaintext so the test can log in again.</param>
-public sealed record TestUser(Guid Id, string UserName, string Email, string Password);
+public sealed record TestUser(string UserName, string Email, string Password);
+
+/// <param name="UserId">Read from <c>GET /auth/me</c>, the only endpoint that publishes a profile.</param>
+public sealed record TestSession(Guid UserId, TokenResponse Tokens);
 
 /// <summary>
 /// What every test class shares: the fixture, a clean database, a clean mailbox, a clock parked at a
@@ -101,12 +108,22 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     /// </summary>
     protected HttpClient CreateClient()
     {
-        var client = Fixture.Factory.CreateClient();
         int index = Interlocked.Increment(ref _clientAddressCounter);
 
-        client.DefaultRequestHeaders.Add(
-            TestClientAddressStartupFilter.HeaderName,
+        return CreateClientWithAddress(
             string.Create(CultureInfo.InvariantCulture, $"10.10.{(index / 250) % 250}.{(index % 250) + 1}"));
+    }
+
+    /// <summary>
+    /// A client pinned to a caller-chosen address instead of the next one <see cref="CreateClient"/>
+    /// would hand out. For the one kind of test that needs two distinct callers to look like the same
+    /// caller to the rate limiter — everywhere else a shared address would be a bug, not a fixture.
+    /// </summary>
+    protected HttpClient CreateClientWithAddress(string address)
+    {
+        var client = Fixture.Factory.CreateClient();
+
+        client.DefaultRequestHeaders.Add(TestClientAddressStartupFilter.HeaderName, address);
 
         _clients.Add(client);
 
@@ -125,11 +142,11 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         ArgumentNullException.ThrowIfNull(client);
 
         var user = await RegisterUserAsync(client, label);
-        var (email, token) = ReadConfirmationLink(RequireLastEmailTo(user.Email));
+        var (email, token) = ReadEmailLink(RequireLastEmailTo(user.Email));
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/confirm-email",
-            new ConfirmEmailCommand(email, token),
+            new ConfirmEmailRequest(email, token),
             TestToken);
 
         if (response.StatusCode != HttpStatusCode.NoContent)
@@ -148,7 +165,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         string suffix = Guid.CreateVersion7().ToString("N")[..12];
         string userName = $"{label ?? "user"}-{suffix}";
-        var request = new RegisterCommand(userName, $"{userName}@integration.test", ValidPassword);
+        var request = new RegisterRequest(userName, $"{userName}@integration.test", ValidPassword);
 
         using var response = await client.PostAsJsonAsync($"{AuthRoute}/register", request, TestToken);
 
@@ -161,21 +178,21 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         var registered = await ApiJson.ReadAsync<RegisterResponse>(response, TestToken);
 
-        return new TestUser(registered.UserId, registered.UserName, registered.Email, ValidPassword);
+        return new TestUser(registered.UserName, registered.Email, ValidPassword);
     }
 
     /// <summary>
     /// Fails loudly on any other outcome: a helper that every test builds on must not quietly hand
     /// back a session that was never established.
     /// </summary>
-    protected static async Task<LoginOutcome.Authenticated> LoginAsync(HttpClient client, TestUser user)
+    protected static async Task<TokenResponse> LoginAsync(HttpClient client, TestUser user)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(user);
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",
-            new LoginCommand(user.Email, user.Password),
+            new LoginRequest(user.Email, user.Password),
             TestToken);
 
         if (response.StatusCode != HttpStatusCode.OK)
@@ -185,21 +202,51 @@ public abstract class IntegrationTestBase : IAsyncLifetime
                 await response.Content.ReadAsStringAsync(TestToken));
         }
 
-        return await ApiJson.ReadAsync<LoginOutcome>(response, TestToken) as LoginOutcome.Authenticated
+        return (await ApiJson.ReadAsync<LoginResponse>(response, TestToken) as LoginResponse.Authenticated)?.Tokens
             ?? throw new InvalidOperationException($"Logging {user.Email} in did not produce a token pair.");
     }
 
     /// <summary>A confirmed account plus a client already carrying its access token.</summary>
-    protected async Task<(HttpClient Client, TestUser User, LoginOutcome.Authenticated Session)> SignInAsync(
-        string? label = null)
+    /// <remarks>
+    /// Three requests against the authentication endpoints' per-address budget — register, confirm, log
+    /// in — so a test that goes on to spend that budget on the same client has seven permits left, not
+    /// ten. Reading the profile costs nothing here: <c>GET /auth/me</c> is on the global limiter.
+    /// </remarks>
+    protected async Task<(HttpClient Client, TestUser User, TestSession Session)> SignInAsync(string? label = null)
     {
         var client = CreateClient();
         var user = await RegisterConfirmedUserAsync(client, label);
-        var session = await LoginAsync(client, user);
+        var tokens = await LoginAsync(client, user);
 
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
 
-        return (client, user, session);
+        return (client, user, new TestSession(await ReadOwnUserIdAsync(client), tokens));
+    }
+
+    /// <summary>
+    /// The account id of whoever <paramref name="client"/> is carrying a token for. Read from the
+    /// profile endpoint because that is the only place the id is published — signing up and signing
+    /// in both answer without it.
+    /// </summary>
+    protected static async Task<Guid> ReadOwnUserIdAsync(HttpClient client)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+
+        using var response = await client.GetAsync(new Uri($"{AuthRoute}/me", UriKind.Relative), TestToken);
+
+        if (response.StatusCode != HttpStatusCode.OK)
+        {
+            // The product's 401 body says only that a token was required, by design. ApiFactory
+            // publishes the actual reason in a header so a 401 nobody expected can be diagnosed.
+            response.Headers.TryGetValues(ApiFactory.AuthFailureHeader, out var why);
+
+            throw new InvalidOperationException(
+                $"Reading the caller's own profile failed with {(int)response.StatusCode}: " +
+                await response.Content.ReadAsStringAsync(TestToken) +
+                $" | {ApiFactory.AuthFailureHeader}: {string.Join("; ", why ?? [])}");
+        }
+
+        return (await ApiJson.ReadAsync<CurrentUserResponse>(response, TestToken)).UserId;
     }
 
     protected SentEmail RequireLastEmailTo(string recipient) =>
@@ -209,11 +256,11 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             string.Join(", ", Emails.Snapshot().Select(sent => sent.Recipient)));
 
     /// <summary>
-    /// Pulls the address and the single-use token out of a confirmation email, by parsing the link
-    /// the same way the confirmation page would: the values travel in the URL fragment, and the
-    /// whole link is HTML-encoded into the template.
+    /// Pulls the address and the single-use token out of a confirmation or password-reset email, by
+    /// parsing the link the same way the browser page it points to would: both templates carry the
+    /// values in the URL fragment, HTML-encoded, in the same shape.
     /// </summary>
-    protected static (string Email, string Token) ReadConfirmationLink(SentEmail email)
+    protected static (string Email, string Token) ReadEmailLink(SentEmail email)
     {
         ArgumentNullException.ThrowIfNull(email);
 
@@ -269,7 +316,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         using var response = await client.PostAsJsonAsync(
             TodoListsRoute,
-            new CreateTodoListCommand(name),
+            new CreateTodoListRequest(name),
             TestToken);
 
         if (response.StatusCode != HttpStatusCode.Created)
@@ -279,7 +326,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
                 await response.Content.ReadAsStringAsync(TestToken));
         }
 
-        return await ApiJson.ReadGuidAsync(response, TestToken);
+        return (await ApiJson.ReadAsync<TodoListResponse>(response, TestToken)).Id;
     }
 
     protected static async Task<Guid> AddTodoItemAsync(
@@ -304,7 +351,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
                 await response.Content.ReadAsStringAsync(TestToken));
         }
 
-        return await ApiJson.ReadGuidAsync(response, TestToken);
+        return (await ApiJson.ReadAsync<TodoItemResponse>(response, TestToken)).Id;
     }
 
     /// <summary>

@@ -1,9 +1,9 @@
 ﻿using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
-using AppTemplate.Api.Features.TodoLists.Contracts;
+using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
+using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.TodoLists.Dtos;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
@@ -106,7 +106,7 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         string before = await ReadETagAsync(client, listId);
 
         using var renamed = await RenameAsync(client, listId, "Groceries (this week)", before);
-        renamed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        renamed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         (await ReadETagAsync(client, listId)).ShouldNotBe(
             before,
@@ -150,7 +150,7 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         var listId = await CreateTodoListAsync(client, "Groceries");
 
         using var renamed = await RenameAsync(client, listId, "Renamed", await ReadETagAsync(client, listId));
-        renamed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        renamed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var added = await SendAsync(
             client,
@@ -160,21 +160,61 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
             new AddTodoItemRequest("Buy milk", null, null));
         added.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var itemId = await ApiJson.ReadGuidAsync(added, TestToken);
+        var itemId = (await ApiJson.ReadAsync<TodoItemResponse>(added, TestToken)).Id;
+
+        using var updated = await SendAsync(
+            client,
+            HttpMethod.Put,
+            $"{TodoListsRoute}/{listId}/items/{itemId}",
+            await ReadETagAsync(client, listId),
+            new UpdateTodoItemRequest("Buy oat milk", "Two litres"));
+        updated.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var tagged = await SendAsync(
+            client,
+            HttpMethod.Post,
+            $"{TodoListsRoute}/{listId}/items/{itemId}/tags",
+            await ReadETagAsync(client, listId),
+            new AddTodoItemTagRequest("urgent"));
+        tagged.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        IReadOnlyList<string> replacement = ["alpha", "beta"];
+
+        using var retagged = await SendAsync(
+            client,
+            HttpMethod.Put,
+            $"{TodoListsRoute}/{listId}/items/{itemId}/tags",
+            await ReadETagAsync(client, listId),
+            new ReplaceTodoItemTagsRequest(replacement));
+        retagged.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var untagged = await SendAsync(
+            client,
+            HttpMethod.Delete,
+            $"{TodoListsRoute}/{listId}/items/{itemId}/tags/alpha",
+            await ReadETagAsync(client, listId));
+        untagged.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var completed = await SendAsync(
             client,
             HttpMethod.Post,
             $"{TodoListsRoute}/{listId}/items/{itemId}/complete",
             await ReadETagAsync(client, listId));
-        completed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        completed.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var reopened = await SendAsync(
+            client,
+            HttpMethod.Post,
+            $"{TodoListsRoute}/{listId}/items/{itemId}/reopen",
+            await ReadETagAsync(client, listId));
+        reopened.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var removed = await SendAsync(
             client,
             HttpMethod.Delete,
             $"{TodoListsRoute}/{listId}/items/{itemId}",
             await ReadETagAsync(client, listId));
-        removed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        removed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var deleted = await SendAsync(
             client,
@@ -185,21 +225,27 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
     }
 
     /// <summary>
-    /// The same five endpoints, each refusing a validator that is no longer current. Written as one
+    /// The same ten endpoints, each refusing a validator that is no longer current. Written as one
     /// test over all of them because the failure worth catching is one endpoint having been left
     /// unconditional, and that only shows up when every endpoint is asked.
     /// </summary>
+    /// <remarks>
+    /// Every one of them is refused before the operation itself is attempted, which is why a stale tag
+    /// on <c>reopen</c> against an item that was never completed is a 412 rather than the refusal the
+    /// aggregate would otherwise raise: the version is compared while the aggregate is being loaded.
+    /// </remarks>
     [Fact]
     public async Task AStaleETag_IsRefusedByEveryMutatingEndpoint()
     {
         var (client, _, _) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Groceries");
-        var itemId = await AddTodoItemAsync(client, listId, "Buy milk");
+        IReadOnlyList<string> tags = ["urgent"];
+        var itemId = await AddTodoItemAsync(client, listId, "Buy milk", tags);
 
         // Read, then change the list behind the caller's back. The tag it holds is now stale.
         string stale = await ReadETagAsync(client, listId);
         using var interfering = await RenameAsync(client, listId, "Renamed by somebody else");
-        interfering.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        interfering.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var renamed = await RenameAsync(client, listId, "Renamed by the stale caller", stale);
         await AssertPreconditionFailedAsync(renamed);
@@ -212,12 +258,52 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
             new AddTodoItemRequest("Buy bread", null, null));
         await AssertPreconditionFailedAsync(added);
 
+        using var updated = await SendAsync(
+            client,
+            HttpMethod.Put,
+            $"{TodoListsRoute}/{listId}/items/{itemId}",
+            stale,
+            new UpdateTodoItemRequest("Buy oat milk", null));
+        await AssertPreconditionFailedAsync(updated);
+
+        using var tagged = await SendAsync(
+            client,
+            HttpMethod.Post,
+            $"{TodoListsRoute}/{listId}/items/{itemId}/tags",
+            stale,
+            new AddTodoItemTagRequest("later"));
+        await AssertPreconditionFailedAsync(tagged);
+
+        IReadOnlyList<string> replacement = ["later"];
+
+        using var retagged = await SendAsync(
+            client,
+            HttpMethod.Put,
+            $"{TodoListsRoute}/{listId}/items/{itemId}/tags",
+            stale,
+            new ReplaceTodoItemTagsRequest(replacement));
+        await AssertPreconditionFailedAsync(retagged);
+
+        using var untagged = await SendAsync(
+            client,
+            HttpMethod.Delete,
+            $"{TodoListsRoute}/{listId}/items/{itemId}/tags/urgent",
+            stale);
+        await AssertPreconditionFailedAsync(untagged);
+
         using var completed = await SendAsync(
             client,
             HttpMethod.Post,
             $"{TodoListsRoute}/{listId}/items/{itemId}/complete",
             stale);
         await AssertPreconditionFailedAsync(completed);
+
+        using var reopened = await SendAsync(
+            client,
+            HttpMethod.Post,
+            $"{TodoListsRoute}/{listId}/items/{itemId}/reopen",
+            stale);
+        await AssertPreconditionFailedAsync(reopened);
 
         using var removed = await SendAsync(
             client,
@@ -233,7 +319,10 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         var detail = await ReadDetailAsync(client, listId);
         detail.Name.ShouldBe("Renamed by somebody else");
         detail.Items.Select(item => item.Title).ShouldBe(["Buy milk"]);
-        detail.Items.Single().IsCompleted.ShouldBeFalse();
+
+        var item = detail.Items.Single();
+        item.IsCompleted.ShouldBeFalse();
+        item.Tags.ShouldBe(["urgent"]);
     }
 
     /// <summary>
@@ -249,7 +338,7 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
 
         string stale = await ReadETagAsync(client, listId);
         using var interfering = await RenameAsync(client, listId, "Renamed");
-        interfering.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        interfering.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var response = await RenameAsync(client, listId, "Too late", stale);
 
@@ -336,7 +425,7 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
 
         using var response = await RenameAsync(client, listId, "Renamed", $"\"nope\", {current}");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await ReadDetailAsync(client, listId)).Name.ShouldBe("Renamed");
     }
 
@@ -352,7 +441,7 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
 
         using var response = await RenameAsync(client, listId, "Renamed", "*");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await ReadDetailAsync(client, listId)).Name.ShouldBe("Renamed");
     }
 
@@ -430,7 +519,7 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
 
         string stale = await ReadETagAsync(client, listId);
         using var renamed = await RenameAsync(client, listId, "Renamed");
-        renamed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        renamed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var response = await SendAsync(
             client,
@@ -439,7 +528,7 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
             ifNoneMatch: stale);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await ApiJson.ReadAsync<TodoListDetailDto>(response, TestToken)).Name.ShouldBe("Renamed");
+        (await ApiJson.ReadAsync<TodoListResponse>(response, TestToken)).Name.ShouldBe("Renamed");
     }
 
     [Fact]
@@ -516,7 +605,7 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         return client.SendAsync(request, TestToken);
     }
 
-    private static async Task<TodoListDetailDto> ReadDetailAsync(HttpClient client, Guid listId)
+    private static async Task<TodoListResponse> ReadDetailAsync(HttpClient client, Guid listId)
     {
         using var response = await client.GetAsync(
             new Uri($"{TodoListsRoute}/{listId}", UriKind.Relative),
@@ -524,6 +613,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        return await ApiJson.ReadAsync<TodoListDetailDto>(response, TestToken);
+        return await ApiJson.ReadAsync<TodoListResponse>(response, TestToken);
     }
 }

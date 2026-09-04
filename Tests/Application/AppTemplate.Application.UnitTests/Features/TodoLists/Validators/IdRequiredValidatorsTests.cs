@@ -1,4 +1,4 @@
-using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
+﻿using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries;
 using AppTemplate.Application.Features.TodoLists.Validators;
 using Shouldly;

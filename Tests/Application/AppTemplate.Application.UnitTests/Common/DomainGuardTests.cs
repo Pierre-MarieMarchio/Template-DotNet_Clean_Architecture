@@ -1,4 +1,4 @@
-using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common;
 using AppTemplate.Domain.Common.Exceptions;
 using Shouldly;
 using Xunit;

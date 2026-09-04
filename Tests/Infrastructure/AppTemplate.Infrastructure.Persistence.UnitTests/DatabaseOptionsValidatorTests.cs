@@ -1,4 +1,4 @@
-using AppTemplate.Infrastructure.Persistence;
+﻿using AppTemplate.Infrastructure.Persistence;
 using Shouldly;
 using Xunit;
 

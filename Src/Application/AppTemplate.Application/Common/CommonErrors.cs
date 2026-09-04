@@ -1,4 +1,4 @@
-namespace AppTemplate.Application.Common;
+﻿namespace AppTemplate.Application.Common;
 
 /// <summary>Failures no single vertical owns.</summary>
 public static class CommonErrors

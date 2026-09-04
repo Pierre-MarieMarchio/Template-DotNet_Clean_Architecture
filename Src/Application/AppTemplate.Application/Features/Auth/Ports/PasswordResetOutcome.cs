@@ -1,4 +1,4 @@
-namespace AppTemplate.Application.Features.Auth.Ports;
+﻿namespace AppTemplate.Application.Features.Auth.Ports;
 
 /// <summary>
 /// Every value other than <see cref="Reset"/> and <see cref="Rejected"/> must reach the caller as the

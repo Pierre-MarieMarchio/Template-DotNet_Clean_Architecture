@@ -1,4 +1,4 @@
-using AppTemplate.Application.Common.Validation;
+﻿using AppTemplate.Application.Common.Validation;
 using FluentValidation;
 using Shouldly;
 using Xunit;

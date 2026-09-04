@@ -65,8 +65,10 @@ request. It composes `AddApplicationLayer`, `AddPersistenceModule` and `AddIdent
 reads `ConnectionStrings`, `Database`, `IdempotencyPurge`, `Jwt`, `RefreshToken` and
 `EmailConfirmation` exactly like the API, plus its own `MaintenanceWorker` section below. It does
 **not** read `Email`, `IdentitySeed`, `Cors`, `ReverseProxy`, `SecurityHeaders`, `OpenTelemetry`,
-`Concurrency`, `Idempotency` or `RequestLimits` — those are the API's transport-layer concerns, and
-the worker has no transport layer.
+`Concurrency`, `Idempotency`, `RequestLimits`, `Shutdown` or `RequestTimeouts` — those are the API's
+transport-layer concerns, and the worker has no transport layer. The worker still waits for its own
+in-flight iteration to finish on shutdown, on `HostOptions.ShutdownTimeout`'s framework default —
+nothing here raises it for that host.
 
 **Why the worker validates `Jwt`, `Identity`, `RefreshToken` and `EmailConfirmation` at startup
 even though it never authenticates anybody.** `IRefreshTokenMaintenance`'s only adapter lives in
@@ -457,6 +459,65 @@ body is a few kilobytes.
   stops the value going so low that nothing works at all.
 - **Set outside the allowed range** and the host fails `ValidateOnStart()` and does not boot.
 
+### `Shutdown`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Timeout` | timespan | `00:00:30` | Must be greater than zero and at most 10 minutes. |
+
+Read by `Src/Presentation/AppTemplate.Api/Common/Lifecycle/LifecyclePolicies.cs`, which applies it to
+the framework's own `HostOptions.ShutdownTimeout` — how long the host waits for in-flight requests
+to drain once it starts stopping. 30 seconds matches the grace period Kubernetes gives a pod
+(`terminationGracePeriodSeconds`) before sending SIGKILL, so this host is not still draining when
+the orchestrator stops waiting for it.
+
+**Readiness turns unhealthy the instant shutdown starts, before this timer even matters.**
+`ShutdownHealthCheck` (tagged `ready`, alongside the database check) watches
+`IHostApplicationLifetime.ApplicationStopping` and fails `/health/ready` the moment it fires, so an
+orchestrator stops routing new traffic while this timeout is still draining what already arrived.
+`/health` — liveness — does not carry this check and must never: failing liveness during a clean
+shutdown would ask the orchestrator to kill a process that is exiting on its own.
+
+**Set too short**, a slow-but-legitimate request (see `RequestTimeouts:Default` below on how long
+one can legitimately run) is cut off mid-flight when the process actually stops, the same way a
+crash would. **Set outside its range**, the host fails `ValidateOnStart()` and does not boot.
+
+### `RequestTimeouts`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Default` | timespan | `00:05:00` | Applied to every endpoint that names no other policy. Must be 1 second – 1 hour. |
+| `Extended` | timespan | `00:10:00` | Reachable only through the `long` named policy. Must be 1 second – 1 hour, and greater than `Default`. |
+
+Read by `Src/Presentation/AppTemplate.Api/Common/Lifecycle/LifecyclePolicies.cs`, which installs
+`AddRequestTimeouts`/`UseRequestTimeouts` with these two policies. A response still not started when
+the deadline hits gets a `504` `ProblemDetails` with `code: "request.timeout"`; a response already
+under way (headers or a first body chunk already sent) cannot be rewritten, so the connection is cut
+instead — `GlobalExceptionHandler` is what classifies that case correctly in the logs, as a server
+timeout rather than a client hangup.
+
+**`Default` must stay longer than the persistence layer's own worst case, not shorter.**
+`Database:CommandTimeoutSeconds` (30 s by default) and `EnableRetryOnFailure(maxRetryCount: 5)`
+together mean one database call can legitimately occupy on the order of 230 seconds (up to six
+attempts of 30 seconds, spaced by up to five 10-second backoffs) before it gives up on its own. A
+shorter request timeout would routinely cancel a write that is still safely retrying underneath —
+turning a transient failure the driver would have recovered from into a write whose outcome the
+caller can no longer observe. If `Database:CommandTimeoutSeconds` or its retry budget ever change,
+this default has to move with them; it must never be the one that moves first.
+
+**`Extended`, named `long`, is for a future endpoint whose normal work — not a stream — legitimately
+runs longer than `Default`** (a bulk import, say): still an ordinary request/response, so a timeout
+can still answer a `ProblemDetails`. **A streaming endpoint (SSE, an `IAsyncEnumerable` response)
+must use `[DisableRequestTimeout]` instead of either policy, never a larger number.** Once the first
+byte is flushed there is no channel left to report a timeout on, so a "very large" value is not
+safer, only later — it is still reached eventually, at the worst possible moment, and produces a
+silent cutoff instead of a clean error either way.
+
+**Set `Default` too low** and any endpoint whose work legitimately nears the numbers above starts
+failing under normal load, not just under a real incident. **Set `Extended` below or equal to
+`Default`**, or either outside 1 second – 1 hour, and the host fails `ValidateOnStart()` and does
+not boot.
+
 ### `MaintenanceWorker` — `AppTemplate.Worker` only
 
 | Key | Type | Default | Notes |
@@ -488,7 +549,7 @@ purge some other way is not forced into both.
 | Refresh token size / hash | 32 bytes CSPRNG / SHA-256 | `RefreshTokenGrants` |
 | Aggregate item cap | 500 items per list | `TodoList.MaxItems` |
 | Tag cap | 20 tags per item | `TodoItem.MaxTags` |
-| Readiness check | one DbContext check, tagged `ready` | `Program.cs` |
+| Readiness checks | a DbContext check and a shutdown-state check, both tagged `ready` | `Program.cs`, `Common/Lifecycle/ShutdownHealthCheck.cs` |
 | Max page size | 100 | `TodoListCollectionPolicy.MaxPageSize` |
 | Default page size | 20 | `TodoListCollectionPolicy.DefaultPageSize` |
 | Max sort terms | 3 | `TodoListCollectionPolicy.MaxSortTerms` |
@@ -500,6 +561,29 @@ purge some other way is not forced into both.
 `Cache-Control` has no setting because there is only one defensible value for a per-user
 authenticated response — see `docs/adr/0019`. An endpoint whose response is identical for every
 caller may set its own header; the middleware never overwrites one already present.
+
+**Both rate limits are per instance, so the limit a caller actually meets is multiplied by your
+replica count.** The limiter keeps its counters in the memory of one process; nothing is shared
+between replicas. With the shipped defaults behind a load balancer spreading traffic evenly:
+
+```
+effective limit for one client address = 10 (or 300) x number of API replicas
+```
+
+Four replicas therefore admit 40 authentication attempts per minute per address, not 10. Size the
+numbers against the replica count you actually run, and re-check them when you scale. This is a
+deliberate trade rather than a gap: a shared counter means a shared store on the path of every
+request, which buys exactness at the price of a new dependency the limiter must then survive the
+loss of. Where a bound must hold across replicas — a tenant that may not spend another's budget —
+the answer is a second deployment of the same image with its own ingress rules, not a distributed
+counter.
+
+Both limits also partition on the **client address**, including for authenticated callers, so
+callers sharing an address share a budget. `Src/Presentation/AppTemplate.Api/Common/Security/RateLimiterPartitionKeys.cs`
+explains why partitioning the global limiter by user identity is not available at the point the key
+is computed, and why moving authentication earlier to make it available would cost more than it
+saves. Behind a proxy this all depends on `ReverseProxy` being configured — see above; without it
+every request carries the proxy's address and the whole deployment shares one partition.
 
 The collection bounds are per-feature by design: they live on that feature's
 `ICollectionPolicy`, not in configuration, because a deployment cannot know which of a

@@ -1,4 +1,4 @@
-namespace AppTemplate.Application.Features.Auth.Ports;
+﻿namespace AppTemplate.Application.Features.Auth.Ports;
 
 /// <param name="RejectionMessage">
 /// Describes the submitted password, never the account store, so it is safe to return verbatim. Set

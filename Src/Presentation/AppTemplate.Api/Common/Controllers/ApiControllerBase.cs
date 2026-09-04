@@ -1,4 +1,4 @@
-using AppTemplate.Api.Common.Concurrency;
+﻿using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Errors;
 using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Concurrency;
@@ -32,8 +32,21 @@ public abstract class ApiControllerBase : ControllerBase
     {
         ArgumentNullException.ThrowIfNull(result);
 
-        return result.IsSuccess ? Ok(result.Value) : result.Error!.ToActionResult(HttpContext);
+        return result.IsSuccess ? Serialised(result.Value) : result.Error!.ToActionResult(HttpContext);
     }
+
+    /// <summary>
+    /// 200, serialised as <typeparamref name="TValue"/> rather than as whatever the value's runtime
+    /// type happens to be.
+    /// </summary>
+    /// <remarks>
+    /// <c>Ok(value)</c> leaves <see cref="ObjectResult.DeclaredType"/> null, and the output formatter
+    /// then serialises the runtime type. For a closed hierarchy that is silently wrong: a
+    /// <c>[JsonPolymorphic]</c> discriminator is written only when serialisation starts at the
+    /// polymorphic base, so the derived branch went out with no <c>status</c> on it at all and no
+    /// client could tell the branches apart. Naming the declared type here is what puts it back.
+    /// </remarks>
+    private static OkObjectResult Serialised<TValue>(TValue value) => new(value) { DeclaredType = typeof(TValue) };
 
     /// <summary>
     /// Publishes the aggregate's version as a strong <c>ETag</c> and answers 304 when the caller's
@@ -57,7 +70,7 @@ public abstract class ApiControllerBase : ControllerBase
 
         return IfNoneMatchPrecondition.Matches(Request, tag)
             ? StatusCode(StatusCodes.Status304NotModified)
-            : Ok(result.Value.Value);
+            : Serialised(result.Value.Value);
     }
 
     /// <summary>200 with the updated representation and its new <c>ETag</c>, or the mapped problem.</summary>
@@ -72,7 +85,7 @@ public abstract class ApiControllerBase : ControllerBase
 
         Response.Headers.ETag = EntityTagValue.From(result.Value.Version);
 
-        return Ok(result.Value.Value);
+        return Serialised(result.Value.Value);
     }
 
     protected ActionResult NoContentOrProblem(Result result)
@@ -88,7 +101,7 @@ public abstract class ApiControllerBase : ControllerBase
         ArgumentNullException.ThrowIfNull(result);
 
         return result.IsSuccess
-            ? CreatedAtRoute(routeName, routeValues, result.Value)
+            ? Located(routeName, routeValues, result.Value)
             : result.Error!.ToActionResult(HttpContext);
     }
 
@@ -113,7 +126,17 @@ public abstract class ApiControllerBase : ControllerBase
 
         Response.Headers.ETag = EntityTagValue.From(result.Value.Version);
 
-        return CreatedAtRoute(routeName, routeValues(result.Value.Value), result.Value.Value);
+        return Located(routeName, routeValues(result.Value.Value), result.Value.Value);
+    }
+
+    /// <summary>201 with a <c>Location</c>, serialised as <typeparamref name="TValue"/>.</summary>
+    /// <remarks>Declares the type for the reason <see cref="Serialised{TValue}"/> gives.</remarks>
+    private CreatedAtRouteResult Located<TValue>(string routeName, object routeValues, TValue value)
+    {
+        var created = CreatedAtRoute(routeName, routeValues, value);
+        created.DeclaredType = typeof(TValue);
+
+        return created;
     }
 
     /// <summary>

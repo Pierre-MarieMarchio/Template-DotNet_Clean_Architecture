@@ -361,11 +361,16 @@ supersedes [ADR 0006](adr/0006-two-dbcontexts-one-database.md).
   401 to an anonymous caller rather than 404. Verified.
 - **No HTTPS redirection.** TLS terminates upstream and the container listens on plain
   8080; redirection would 307 the orchestrator's health probe.
-- **Liveness has no dependency check**, readiness checks both DbContexts. An
-  orchestrator must not restart a healthy process because the database blinked.
+- **Liveness has no dependency check**; readiness checks the database and whether the host
+  has begun shutting down. An orchestrator must not restart a healthy process because the
+  database blinked, nor kill one that is draining correctly.
 - **Rate limiting** is partitioned by client IP: 10/minute on auth, 300/minute
-  globally, 429 with `Retry-After`. Behind a proxy this needs `ForwardedHeaders`, which
-  this template does not configure because it depends on your topology.
+  globally, 429 with `Retry-After`. Both counters are per instance, so the limit a caller
+  meets is multiplied by the replica count — see `docs/CONFIGURATION.md`. The health
+  endpoints sit outside the limiter, so a traffic spike can never make a probe fail and
+  have the orchestrator restart a process that is merely busy. Behind a proxy this needs
+  `ForwardedHeaders`, which this template does not configure because it depends on your
+  topology.
 - **Structured JSON logs.** `AddJsonConsole` replaces the default unstructured
   formatter, so production logs are queryable without taking on a third-party logging
   dependency the template would then have to maintain.

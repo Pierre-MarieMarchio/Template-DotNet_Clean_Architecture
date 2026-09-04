@@ -31,6 +31,7 @@ with a new numbered record rather than editing history.
 | [0020](0020-no-deprecation-or-sunset-headers.md) | No `Deprecation`/`Sunset` headers while one version ships | Accepted |
 | [0021](0021-no-queryable-audit-trail.md) | No queryable audit trail in the application database | Accepted |
 | [0022](0022-no-soft-delete.md) | No soft delete | Accepted |
+| [0023](0023-no-security-stamp-cache.md) | No security stamp cache | Accepted |
 
 ## Format
 

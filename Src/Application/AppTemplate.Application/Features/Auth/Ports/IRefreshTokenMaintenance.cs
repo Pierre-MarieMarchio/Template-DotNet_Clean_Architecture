@@ -1,4 +1,4 @@
-namespace AppTemplate.Application.Features.Auth.Ports;
+﻿namespace AppTemplate.Application.Features.Auth.Ports;
 
 /// <summary>
 /// Housekeeping for the refresh-token grant table, kept apart from <see cref="IRefreshTokenGrants"/>

@@ -3,8 +3,25 @@ using System.Threading.RateLimiting;
 using AppTemplate.Api.Common.Errors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AppTemplate.Api.Common.Security;
+
+/// <summary>
+/// The fixed-window length both rate-limiting policies use.
+/// </summary>
+/// <remarks>
+/// A registered default rather than a literal inside <see cref="RateLimitingPolicies"/>, so a host
+/// that cannot tolerate the built-in limiter's real-time window — the fixed-window limiter exposes
+/// no injectable clock, so this is the only lever available to a caller that needs one — can replace
+/// this singleton before the limiter is built, the same way <c>AddInMemoryModule</c> replaces the
+/// clock and the email sender. Nothing in this project does; that is a decision for whatever host
+/// composes this differently.
+/// </remarks>
+public sealed record RateLimiterWindow(TimeSpan Duration)
+{
+    public static readonly RateLimiterWindow Default = new(TimeSpan.FromMinutes(1));
+}
 
 /// <summary>
 /// Rate limiting: together with account lockout, this is what bounds online password guessing.
@@ -14,35 +31,21 @@ public static class RateLimitingPolicies
     /// <summary>Applied to the authentication controller.</summary>
     public const string Authentication = "authentication";
 
+    /// <summary>Permits per window on <see cref="Authentication"/>. A test asserts against this.</summary>
+    public const int AuthenticationPermitLimit = 10;
+
+    /// <summary>Permits per window on the global limiter. A test asserts against this.</summary>
+    public const int GlobalPermitLimit = 300;
+
     public static IServiceCollection AddApiRateLimiting(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.TryAddSingleton(RateLimiterWindow.Default);
+
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-            // Partitioned by client IP. Behind a reverse proxy this needs ForwardedHeaders
-            // configured, or every request appears to come from the proxy and shares one partition.
-            options.AddPolicy(Authentication, httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 10,
-                        Window = TimeSpan.FromMinutes(1),
-                        QueueLimit = 0,
-                    }));
-
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 300,
-                        Window = TimeSpan.FromMinutes(1),
-                        QueueLimit = 0,
-                    }));
 
             options.OnRejected = async (context, cancellationToken) =>
             {
@@ -68,6 +71,34 @@ public static class RateLimitingPolicies
                     contentType: "application/problem+json",
                     cancellationToken);
             };
+        });
+
+        // A dependency-injected configure pass, separate from the one above, because it is the only
+        // way to read RateLimiterWindow here: AddRateLimiter's own delegate has no service provider
+        // to resolve from.
+        services.AddOptions<RateLimiterOptions>().Configure<RateLimiterWindow>((options, window) =>
+        {
+            // Behind a reverse proxy this needs ForwardedHeaders configured, or every request
+            // appears to come from the proxy and shares one partition either way.
+            options.AddPolicy(Authentication, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: RateLimiterPartitionKeys.ForAddress(httpContext),
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = AuthenticationPermitLimit,
+                        Window = window.Duration,
+                        QueueLimit = 0,
+                    }));
+
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: RateLimiterPartitionKeys.ForAddress(httpContext),
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = GlobalPermitLimit,
+                        Window = window.Duration,
+                        QueueLimit = 0,
+                    }));
         });
 
         return services;

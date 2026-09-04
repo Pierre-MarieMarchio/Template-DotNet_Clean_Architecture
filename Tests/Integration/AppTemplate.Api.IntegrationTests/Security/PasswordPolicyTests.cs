@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.Auth.UseCases.Commands;
 using Shouldly;
 using Xunit;
 
@@ -17,41 +17,49 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 /// </remarks>
 public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    /// <summary>Each case is rejected, and by which layer.</summary>
-    public static TheoryData<string, string, string> RejectedPasswords => new()
+    /// <summary>
+    /// Each case, with the layer it is there to exercise. Both layers report the one validation code
+    /// the application has and both attach their message to the <c>password</c> field, so which layer
+    /// refused is not observable from the response — the note says what the case is <em>for</em>.
+    /// </summary>
+    public static TheoryData<string, string> RejectedPasswords => new()
     {
         // Below the shape validator's floor, so it never reaches the user store.
-        { "Sh0rt!A", "auth.validation", "under the absolute minimum length" },
-        { "", "auth.validation", "empty" },
+        { "Sh0rt!A", "under the absolute minimum length" },
+        { "", "empty" },
 
         // Acceptable to the shape validator, rejected by the configured policy. This pair is what
         // proves the *configured* length is live and not just the hard floor.
-        { "Sh0rt!Aa", "auth.register.rejected", "eight characters, under the configured twelve" },
-        { "Ab1!Ab1!Ab1", "auth.register.rejected", "eleven characters, one under the configured twelve" },
+        { "Sh0rt!Aa", "eight characters, under the configured twelve" },
+        { "Ab1!Ab1!Ab1", "eleven characters, one under the configured twelve" },
 
         // Long enough, but missing one required character class each.
-        { "nodigitsorcaps!", "auth.register.rejected", "no digit and no uppercase" },
-        { "NoSpecials12345", "auth.register.rejected", "no non-alphanumeric character" },
-        { "NOLOWERCASE1234!", "auth.register.rejected", "no lowercase character" },
-        { "nouppercase1234!", "auth.register.rejected", "no uppercase character" },
+        { "nodigitsorcaps!", "no digit and no uppercase" },
+        { "NoSpecials12345", "no non-alphanumeric character" },
+        { "NOLOWERCASE1234!", "no lowercase character" },
+        { "nouppercase1234!", "no uppercase character" },
     };
 
     [Theory]
     [MemberData(nameof(RejectedPasswords))]
-    public async Task AWeakPassword_IsRejected(string password, string expectedCode, string why)
+    public async Task AWeakPassword_IsRejected(string password, string why)
     {
         var client = CreateClient();
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterCommand("candidate", "candidate@integration.test", password),
+            new RegisterRequest("candidate", "candidate@integration.test", password),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, why);
 
         var problem = await ApiJson.ReadProblemAsync(response, TestToken);
-        problem.Code.ShouldBe(expectedCode, why);
+        problem.Code.ShouldBe("request.validationFailed", why);
         problem.Status.ShouldBe(400);
+
+        // The failure names the field it is about, so a client can render it next to the input it
+        // concerns rather than as free text.
+        problem.Body.ShouldContain("password", Case.Sensitive, why);
     }
 
     /// <summary>
@@ -67,7 +75,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterCommand("candidate", "candidate@integration.test", password),
+            new RegisterRequest("candidate", "candidate@integration.test", password),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -85,7 +93,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var rejected = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterCommand("second-attempt", email, "weakweak"),
+            new RegisterRequest("second-attempt", email, "weakweak"),
             TestToken);
 
         rejected.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -96,7 +104,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
         // The address is still free.
         using var accepted = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterCommand("second-attempt", email, ValidPassword),
+            new RegisterRequest("second-attempt", email, ValidPassword),
             TestToken);
 
         accepted.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -110,7 +118,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterCommand("someone-else", existing.Email, ValidPassword),
+            new RegisterRequest("someone-else", existing.Email, ValidPassword),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
@@ -132,10 +140,10 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterCommand("candidate", email, ValidPassword),
+            new RegisterRequest("candidate", email, ValidPassword),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("auth.validation");
+        (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("request.validationFailed");
     }
 }

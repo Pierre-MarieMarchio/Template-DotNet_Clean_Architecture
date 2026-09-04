@@ -1,4 +1,4 @@
-namespace AppTemplate.Application.Features.Auth.Ports;
+﻿namespace AppTemplate.Application.Features.Auth.Ports;
 
 public enum PasswordChangeOutcome
 {

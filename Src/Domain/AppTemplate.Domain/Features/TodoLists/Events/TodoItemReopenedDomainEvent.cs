@@ -1,4 +1,4 @@
-using AppTemplate.Domain.Common.Events;
+﻿using AppTemplate.Domain.Common.Events;
 
 namespace AppTemplate.Domain.Features.TodoLists.Events;
 

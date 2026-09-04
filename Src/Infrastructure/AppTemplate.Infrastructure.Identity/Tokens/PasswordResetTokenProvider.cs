@@ -1,4 +1,4 @@
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
+﻿using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;

@@ -77,7 +77,7 @@ There is one context and one history table (in the connection's default schema),
   must be backward-compatible with the previous application version (expand, deploy,
   contract).
 - Someone will eventually forget the step and see a runtime error about a missing column.
-  `/health/ready` checks both DbContexts, so wire it to your readiness gate — that is the
+  `/health/ready` checks the database, so wire it to your readiness gate — that is the
   cheapest place to catch it.
 - `dotnet ef migrations bundle` is documented here but **was not run** during this
   change; the `database update` form and `migrations list` were.

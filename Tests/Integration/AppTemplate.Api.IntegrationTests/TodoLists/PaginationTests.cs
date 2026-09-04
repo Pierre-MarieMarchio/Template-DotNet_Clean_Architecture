@@ -1,9 +1,9 @@
 ﻿using System.Globalization;
 using System.Net;
+using AppTemplate.Api.Common.Contracts;
+using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Common;
 using AppTemplate.Application.Features.TodoLists.Collections;
-using AppTemplate.Application.Features.TodoLists.Dtos;
 using Shouldly;
 using Xunit;
 
@@ -123,7 +123,7 @@ public sealed class PaginationTests(ApiFixture fixture) : IntegrationTestBase(fi
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var page = await ApiJson.ReadAsync<PagedResult<TodoListSummaryDto>>(response, TestToken);
+        var page = await ApiJson.ReadAsync<PagedResponse<TodoListSummaryResponse>>(response, TestToken);
         page.Page.ShouldBe(1);
         page.PageSize.ShouldBe(20);
         page.Items.Count.ShouldBe(_listCount);
@@ -157,7 +157,7 @@ public sealed class PaginationTests(ApiFixture fixture) : IntegrationTestBase(fi
         }
     }
 
-    private static async Task<PagedResult<TodoListSummaryDto>> ReadPageAsync(HttpClient client, int page, int pageSize)
+    private static async Task<PagedResponse<TodoListSummaryResponse>> ReadPageAsync(HttpClient client, int page, int pageSize)
     {
         using var response = await client.GetAsync(
             new Uri(
@@ -167,6 +167,6 @@ public sealed class PaginationTests(ApiFixture fixture) : IntegrationTestBase(fi
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        return await ApiJson.ReadAsync<PagedResult<TodoListSummaryDto>>(response, TestToken);
+        return await ApiJson.ReadAsync<PagedResponse<TodoListSummaryResponse>>(response, TestToken);
     }
 }

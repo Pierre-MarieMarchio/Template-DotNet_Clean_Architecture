@@ -1,10 +1,9 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
-using AppTemplate.Api.Features.TodoLists.Contracts;
+using AppTemplate.Api.Common.Contracts;
+using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
+using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Common;
-using AppTemplate.Application.Features.TodoLists.Dtos;
-using AppTemplate.Application.Features.TodoLists.UseCases.Commands;
 using Shouldly;
 using Xunit;
 
@@ -24,19 +23,25 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
     {
         var (client, _, _) = await SignInAsync();
 
-        using var first = await PostAsync(client, "same-key", new CreateTodoListCommand("Groceries"));
+        using var first = await PostAsync(client, "same-key", new CreateTodoListRequest("Groceries"));
         first.StatusCode.ShouldBe(HttpStatusCode.Created);
         first.Headers.Contains(_replayedHeaderName).ShouldBeFalse("the first request is not a replay.");
 
-        var firstId = await ApiJson.ReadGuidAsync(first, TestToken);
+        var firstId = await ReadListIdAsync(first);
         var firstLocation = first.Headers.Location;
 
-        using var second = await PostAsync(client, "same-key", new CreateTodoListCommand("Groceries"));
+        using var second = await PostAsync(client, "same-key", new CreateTodoListRequest("Groceries"));
 
         second.StatusCode.ShouldBe(first.StatusCode);
-        (await ApiJson.ReadGuidAsync(second, TestToken)).ShouldBe(firstId);
+        (await ReadListIdAsync(second)).ShouldBe(firstId);
         second.Headers.Location.ShouldBe(firstLocation);
         second.Headers.GetValues(_replayedHeaderName).ShouldContain("true");
+
+        // The replay must carry a validator, and the same one the original response did — otherwise a
+        // client that replays through a different instance than the one that served the first response
+        // gets a body it cannot make a conditional request against.
+        first.Headers.ETag.ShouldNotBeNull();
+        second.Headers.ETag.ShouldBe(first.Headers.ETag);
 
         var lists = await GetListsAsync(client);
         lists.Items.Count.ShouldBe(1, "a replay must not create a second list.");
@@ -47,10 +52,10 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
     {
         var (client, _, _) = await SignInAsync();
 
-        using var first = await PostAsync(client, "reused-key", new CreateTodoListCommand("Groceries"));
+        using var first = await PostAsync(client, "reused-key", new CreateTodoListRequest("Groceries"));
         first.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        using var second = await PostAsync(client, "reused-key", new CreateTodoListCommand("Something else"));
+        using var second = await PostAsync(client, "reused-key", new CreateTodoListRequest("Something else"));
 
         second.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await ApiJson.ReadProblemAsync(second, TestToken)).Code.ShouldBe("idempotency.keyReused");
@@ -64,13 +69,13 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
     {
         var (client, _, _) = await SignInAsync();
 
-        using var first = await PostAsync(client, "key-one", new CreateTodoListCommand("First"));
+        using var first = await PostAsync(client, "key-one", new CreateTodoListRequest("First"));
         first.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        using var second = await PostAsync(client, "key-two", new CreateTodoListCommand("Second"));
+        using var second = await PostAsync(client, "key-two", new CreateTodoListRequest("Second"));
         second.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        (await ApiJson.ReadGuidAsync(first, TestToken)).ShouldNotBe(await ApiJson.ReadGuidAsync(second, TestToken));
+        (await ReadListIdAsync(first)).ShouldNotBe(await ReadListIdAsync(second));
 
         var lists = await GetListsAsync(client);
         lists.Items.Count.ShouldBe(2);
@@ -81,13 +86,13 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
     {
         var (client, _, _) = await SignInAsync();
 
-        using var first = await client.PostAsJsonAsync(TodoListsRoute, new CreateTodoListCommand("First"), TestToken);
+        using var first = await client.PostAsJsonAsync(TodoListsRoute, new CreateTodoListRequest("First"), TestToken);
         first.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        using var second = await client.PostAsJsonAsync(TodoListsRoute, new CreateTodoListCommand("Second"), TestToken);
+        using var second = await client.PostAsJsonAsync(TodoListsRoute, new CreateTodoListRequest("Second"), TestToken);
         second.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        (await ApiJson.ReadGuidAsync(first, TestToken)).ShouldNotBe(await ApiJson.ReadGuidAsync(second, TestToken));
+        (await ReadListIdAsync(first)).ShouldNotBe(await ReadListIdAsync(second));
 
         var lists = await GetListsAsync(client);
         lists.Items.Count.ShouldBe(2);
@@ -103,14 +108,13 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
         var (owner, _, _) = await SignInAsync("owner");
         var (stranger, _, _) = await SignInAsync("stranger");
 
-        using var ownersList = await PostAsync(owner, "shared-key-string", new CreateTodoListCommand("Owner's list"));
+        using var ownersList = await PostAsync(owner, "shared-key-string", new CreateTodoListRequest("Owner's list"));
         ownersList.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        using var strangersList = await PostAsync(stranger, "shared-key-string", new CreateTodoListCommand("Stranger's list"));
+        using var strangersList = await PostAsync(stranger, "shared-key-string", new CreateTodoListRequest("Stranger's list"));
         strangersList.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        (await ApiJson.ReadGuidAsync(ownersList, TestToken))
-            .ShouldNotBe(await ApiJson.ReadGuidAsync(strangersList, TestToken));
+        (await ReadListIdAsync(ownersList)).ShouldNotBe(await ReadListIdAsync(strangersList));
 
         (await GetListsAsync(owner)).Items.Count.ShouldBe(1);
         (await GetListsAsync(stranger)).Items.Count.ShouldBe(1);
@@ -125,7 +129,7 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
     {
         var (client, _, _) = await SignInAsync();
 
-        using var response = await PostAsync(client, " ", new CreateTodoListCommand("Groceries"));
+        using var response = await PostAsync(client, " ", new CreateTodoListRequest("Groceries"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("idempotency.keyInvalid");
@@ -138,7 +142,7 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
 
         string oversized = new('a', 129); // the shipped default MaxKeyLength is 128.
 
-        using var response = await PostAsync(client, oversized, new CreateTodoListCommand("Groceries"));
+        using var response = await PostAsync(client, oversized, new CreateTodoListRequest("Groceries"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("idempotency.keyInvalid");
@@ -150,10 +154,10 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
     {
         var (client, _, _) = await SignInAsync();
 
-        using var failed = await PostAsync(client, "retry-after-failure", new CreateTodoListCommand(""));
+        using var failed = await PostAsync(client, "retry-after-failure", new CreateTodoListRequest(""));
         failed.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
-        using var corrected = await PostAsync(client, "retry-after-failure", new CreateTodoListCommand("Groceries"));
+        using var corrected = await PostAsync(client, "retry-after-failure", new CreateTodoListRequest("Groceries"));
 
         corrected.StatusCode.ShouldBe(HttpStatusCode.Created);
 
@@ -176,13 +180,19 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
         second.StatusCode.ShouldBe(HttpStatusCode.Created);
         second.Headers.GetValues(_replayedHeaderName).ShouldContain("true");
 
-        (await ApiJson.ReadGuidAsync(first, TestToken)).ShouldBe(await ApiJson.ReadGuidAsync(second, TestToken));
+        (await ReadItemIdAsync(first)).ShouldBe(await ReadItemIdAsync(second));
 
         var detail = await ReadDetailAsync(client, listId);
         detail.Items.Count.ShouldBe(1, "a replayed AddItem must not add a second item.");
     }
 
     // ---- Helpers ---------------------------------------------------------------------------------
+
+    private static async Task<Guid> ReadListIdAsync(HttpResponseMessage response) =>
+        (await ApiJson.ReadAsync<TodoListResponse>(response, TestToken)).Id;
+
+    private static async Task<Guid> ReadItemIdAsync(HttpResponseMessage response) =>
+        (await ApiJson.ReadAsync<TodoItemResponse>(response, TestToken)).Id;
 
     private static Task<HttpResponseMessage> PostAsync(
         HttpClient client,
@@ -200,21 +210,21 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
         return client.SendAsync(request, TestToken);
     }
 
-    private static async Task<PagedResult<TodoListSummaryDto>> GetListsAsync(HttpClient client)
+    private static async Task<PagedResponse<TodoListSummaryResponse>> GetListsAsync(HttpClient client)
     {
         using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        return await ApiJson.ReadAsync<PagedResult<TodoListSummaryDto>>(response, TestToken);
+        return await ApiJson.ReadAsync<PagedResponse<TodoListSummaryResponse>>(response, TestToken);
     }
 
-    private static async Task<TodoListDetailDto> ReadDetailAsync(HttpClient client, Guid listId)
+    private static async Task<TodoListResponse> ReadDetailAsync(HttpClient client, Guid listId)
     {
         using var response = await client.GetAsync(new Uri($"{TodoListsRoute}/{listId}", UriKind.Relative), TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        return await ApiJson.ReadAsync<TodoListDetailDto>(response, TestToken);
+        return await ApiJson.ReadAsync<TodoListResponse>(response, TestToken);
     }
 }

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using AppTemplate.Application.Common.Validation;
 using Microsoft.AspNetCore.Mvc;
 

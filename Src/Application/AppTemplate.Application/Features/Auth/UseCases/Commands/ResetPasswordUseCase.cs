@@ -1,4 +1,4 @@
-using AppTemplate.Application.Common;
+﻿using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Abstractions;
 using AppTemplate.Application.Common.Validation;
 using AppTemplate.Application.Features.Auth.Errors;
@@ -52,10 +52,8 @@ public sealed class ResetPasswordUseCase(
             return Result.Failure(AuthErrors.InvalidPasswordReset);
         }
 
-        // The security stamp already rotated inside the store's reset call. Refresh tokens survive
-        // that rotation, so they are revoked explicitly here.
-        await refreshTokens.RevokeAllForUserAsync(userId, cancellationToken);
-        securityEventLog.Record(SecurityEvent.SecurityStampRotated(userId));
+        // The security stamp already rotated inside the store's reset call.
+        await CredentialInvalidation.InvalidateAsync(refreshTokens, securityEventLog, userId, cancellationToken);
 
         return Result.Success();
     }

@@ -1,10 +1,10 @@
 ﻿using System.Net;
 using System.Text;
+using AppTemplate.Api.Common.Contracts;
+using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Common;
 using AppTemplate.Application.Common.Collections;
 using AppTemplate.Application.Features.TodoLists.Collections;
-using AppTemplate.Application.Features.TodoLists.Dtos;
 using Shouldly;
 using Xunit;
 
@@ -298,7 +298,7 @@ public sealed class CursorPaginationTests(ApiFixture fixture) : IntegrationTestB
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var page = await ApiJson.ReadAsync<PagedResult<TodoListSummaryDto>>(response, TestToken);
+        var page = await ApiJson.ReadAsync<PagedResponse<TodoListSummaryResponse>>(response, TestToken);
         page.Items.Count.ShouldBe(1);
     }
 
@@ -378,21 +378,21 @@ public sealed class CursorPaginationTests(ApiFixture fixture) : IntegrationTestB
     /// sort, the page size, an optional cursor — never <c>paging=cursor</c> itself, so it is never
     /// duplicated.
     /// </summary>
-    private static async Task<PagedResult<TodoListSummaryDto>> ReadCursorPageAsync(HttpClient client, string query)
+    private static async Task<PagedResponse<TodoListSummaryResponse>> ReadCursorPageAsync(HttpClient client, string query)
     {
         using var response = await GetAsync(client, $"paging=cursor&{query}");
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        return await ApiJson.ReadAsync<PagedResult<TodoListSummaryDto>>(response, TestToken);
+        return await ApiJson.ReadAsync<PagedResponse<TodoListSummaryResponse>>(response, TestToken);
     }
 
-    private static async Task<PagedResult<TodoListSummaryDto>> ReadOffsetPageAsync(HttpClient client, string query)
+    private static async Task<PagedResponse<TodoListSummaryResponse>> ReadOffsetPageAsync(HttpClient client, string query)
     {
         using var response = await GetAsync(client, query);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        return await ApiJson.ReadAsync<PagedResult<TodoListSummaryDto>>(response, TestToken);
+        return await ApiJson.ReadAsync<PagedResponse<TodoListSummaryResponse>>(response, TestToken);
     }
 }

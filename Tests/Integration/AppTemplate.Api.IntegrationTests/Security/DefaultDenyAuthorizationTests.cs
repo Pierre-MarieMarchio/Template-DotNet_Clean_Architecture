@@ -27,13 +27,19 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     {
         { "GET", TodoListsRoute },
         { "GET", $"{TodoListsRoute}/{_someListId}" },
+        { "GET", $"{TodoListsRoute}/{_someListId}/items" },
         { "GET", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}" },
         { "POST", TodoListsRoute },
         { "PUT", $"{TodoListsRoute}/{_someListId}" },
         { "DELETE", $"{TodoListsRoute}/{_someListId}" },
         { "POST", $"{TodoListsRoute}/{_someListId}/items" },
+        { "PUT", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}" },
         { "POST", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}/complete" },
+        { "POST", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}/reopen" },
         { "DELETE", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}" },
+        { "POST", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}/tags" },
+        { "PUT", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}/tags" },
+        { "DELETE", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}/tags/urgent" },
     };
 
     [Theory]
@@ -76,9 +82,9 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     }
 
     /// <summary>
-    /// The enumeration above is only a regression guard if it is complete. This fails the moment a
-    /// ninth action is added to the controller, which is exactly when somebody needs to be reminded
-    /// to cover it.
+    /// The enumeration above is only a regression guard if it is complete. This fails the moment an
+    /// action is added to the controller, which is exactly when somebody needs to be reminded to
+    /// cover it.
     /// </summary>
     [Fact]
     public void TheEnumerationCoversEveryActionOnTheController()
@@ -113,12 +119,57 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     /// The other half of the same rule: the endpoints that <em>must</em> be anonymous say so, rather
     /// than being anonymous because nothing protected them.
     /// </summary>
+    /// <remarks>
+    /// The exemption is declared per action and never on the controller. Authorisation is skipped for
+    /// an endpoint as soon as <c>IAllowAnonymous</c> appears <em>anywhere</em> in its metadata, so a
+    /// class-level <c>[AllowAnonymous]</c> would defeat the <c>[Authorize]</c> on the two actions
+    /// below and serve the caller's own profile to anyone — which is why its absence is asserted here
+    /// rather than its presence.
+    /// </remarks>
     [Fact]
-    public void TheAuthenticationEndpoints_OptOutExplicitly()
+    public void TheAuthenticationEndpoints_OptOutOneByOne()
     {
         typeof(AuthController)
             .GetCustomAttributes<AllowAnonymousAttribute>(inherit: true)
-            .ShouldNotBeEmpty();
+            .ShouldBeEmpty(
+                "A controller-level [AllowAnonymous] on AuthController silently un-protects every "
+                + "authenticated action on it.");
+
+        foreach (var action in ActionsOf(typeof(AuthController)))
+        {
+            bool anonymous = action.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true).Any();
+            bool authorised = action.GetCustomAttributes<AuthorizeAttribute>(inherit: true).Any();
+
+            (anonymous ^ authorised).ShouldBeTrue(
+                $"{action.Name} must declare exactly one of [AllowAnonymous] or [Authorize]. Carrying "
+                + "neither leaves it to the fallback policy, where nobody reading the action can tell; "
+                + "carrying both resolves to anonymous.");
+        }
+    }
+
+    /// <summary>
+    /// Which authentication actions require a token, enumerated so that adding one without deciding
+    /// fails here. Everything else on the controller is anonymous by necessity: a caller signing in,
+    /// confirming an address or resetting a password has no token yet.
+    /// </summary>
+    [Fact]
+    public void OnlyTheAccountActions_RequireAToken()
+    {
+        string[] authenticated =
+        [
+            .. ActionsOf(typeof(AuthController))
+                .Where(action => action.GetCustomAttributes<AuthorizeAttribute>(inherit: true).Any())
+                .Select(action => action.Name)
+                .Order(StringComparer.Ordinal),
+        ];
+
+        authenticated.ShouldBe(
+            [
+                nameof(AuthController.ChangePassword),
+                nameof(AuthController.GetCurrentUser),
+                nameof(AuthController.LogoutEverywhere),
+            ],
+            "An authentication endpoint changed sides. Decide deliberately, then update this list.");
     }
 
     [Fact]

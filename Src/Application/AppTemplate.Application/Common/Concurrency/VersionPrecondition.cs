@@ -1,4 +1,4 @@
-namespace AppTemplate.Application.Common.Concurrency;
+﻿namespace AppTemplate.Application.Common.Concurrency;
 
 /// <summary>
 /// The aggregate versions a caller will accept before its change is applied.

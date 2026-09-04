@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Common;
 using AppTemplate.Domain.Common.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http.Timeouts;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Common.Errors;
@@ -17,6 +18,20 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         Exception exception,
         CancellationToken cancellationToken)
     {
+        // A request timeout expires by cancelling the same RequestAborted token a client disconnect
+        // cancels, so the exception type alone cannot tell a deadline from a hangup. This feature is
+        // the only thing that can.
+        //
+        // Like the DomainException arm below, this is a net rather than a path: with the framework's
+        // own RequestTimeoutsMiddleware, a timeout is answered by the policy's WriteTimeoutResponse
+        // (see LifecyclePolicies) while the response has not started, and once it has, the middleware
+        // clears this feature before rethrowing — and ExceptionHandlerMiddleware skips every handler
+        // on a started response anyway. So this arm does not fire today. It is what keeps a deadline
+        // from being logged and measured as a client hangup should anything ever relay one here, and
+        // that misclassification is precisely the failure this file exists to prevent.
+        bool isServerTimeout = exception is OperationCanceledException
+            && httpContext.Features.Get<IHttpRequestTimeoutFeature>() is not null;
+
         var (status, title, code, detail) = exception switch
         {
             ConcurrencyConflictException => (
@@ -39,6 +54,11 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
                 "Invalid request",
                 "domain.invariantViolated",
                 "The request could not be completed because it violates a business rule."),
+            OperationCanceledException when isServerTimeout => (
+                StatusCodes.Status504GatewayTimeout,
+                "Request timeout",
+                "request.timeout",
+                "The server did not complete the request within its configured timeout."),
             OperationCanceledException => (
                 StatusCodes.Status499ClientClosedRequest,
                 "Request cancelled",
@@ -53,9 +73,18 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
 
         if (status == StatusCodes.Status499ClientClosedRequest)
         {
-            // No response can be written to a client that has hung up, and nothing is worth
-            // alerting on. The IsEnabled guard keeps the PathString allocation off the hot path
-            // when Information logging is off (CA1873).
+            // ExceptionHandlerMiddleware has already put 500 on the response before calling this
+            // method; nothing overwrites that below because this branch returns early. Left alone,
+            // every client cancellation would report as a server error to both the request log
+            // (which reads the status this call leaves behind) and the request-duration metric —
+            // the 5xx rate would be dominated by callers hanging up, not by anything worth paging on.
+            // No body follows: nothing can be written to a client that has already hung up, and
+            // HasStarted guards against a status change once the framework has begun the response.
+            if (!httpContext.Response.HasStarted)
+            {
+                httpContext.Response.StatusCode = status;
+            }
+
             if (logger.IsEnabled(LogLevel.Information))
             {
                 logger.LogInformation("Request {Path} was cancelled by the client.", httpContext.Request.Path);
@@ -72,6 +101,19 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
                 logger.LogWarning(
                     exception,
                     "Concurrency conflict while handling {Method} {Path}.",
+                    httpContext.Request.Method,
+                    httpContext.Request.Path);
+            }
+        }
+        else if (status == StatusCodes.Status504GatewayTimeout)
+        {
+            // Unlike a client hangup, this is the service failing to keep its own deadline —
+            // loud enough to alert on, distinct enough from 500 to page differently.
+            if (logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(
+                    exception,
+                    "Request {Method} {Path} exceeded its request timeout.",
                     httpContext.Request.Method,
                     httpContext.Request.Path);
             }

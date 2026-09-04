@@ -1,4 +1,4 @@
-using AppTemplate.Application.Features.Auth.UseCases.Commands;
+﻿using AppTemplate.Application.Features.Auth.UseCases.Commands;
 using AppTemplate.Application.Features.Auth.Validators;
 using Shouldly;
 using Xunit;

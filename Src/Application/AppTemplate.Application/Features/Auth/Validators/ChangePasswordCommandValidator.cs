@@ -1,4 +1,4 @@
-using AppTemplate.Application.Features.Auth.UseCases.Commands;
+﻿using AppTemplate.Application.Features.Auth.UseCases.Commands;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.Auth.Validators;

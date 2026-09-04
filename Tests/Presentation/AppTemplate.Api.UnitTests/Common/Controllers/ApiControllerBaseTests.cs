@@ -1,4 +1,4 @@
-using AppTemplate.Api.Common.Concurrency;
+﻿using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.UnitTests.TestSupport;
 using AppTemplate.Application.Common;
@@ -13,13 +13,29 @@ namespace AppTemplate.Api.UnitTests.Common.Controllers;
 
 public sealed class ApiControllerBaseTests
 {
+    /// <summary>
+    /// <c>Ok(value)</c> leaves <see cref="ObjectResult.DeclaredType"/> null, which serialises the
+    /// runtime type and silently drops a closed hierarchy's discriminator. Asserting only
+    /// <c>ShouldBeOfType&lt;OkObjectResult&gt;()</c> would not catch a regression to that — the type
+    /// has to be named here, not just the result's CLR type.
+    /// </summary>
+    [Fact]
+    public void OkOrProblem_NamesTheDeclaredType()
+    {
+        var controller = AController();
+
+        var result = controller.CallOkOrProblem(Result.Success("value"));
+
+        result.Result.ShouldBeOfType<OkObjectResult>().DeclaredType.ShouldBe(typeof(string));
+    }
+
     [Fact]
     public void OkOrProblem_Versioned_PublishesTheEtag_BeforeAnswering200()
     {
         var controller = AController();
         var result = controller.CallOkOrProblem(Result.Success(new Versioned<string>("value", 3)));
 
-        result.Result.ShouldBeOfType<OkObjectResult>();
+        result.Result.ShouldBeOfType<OkObjectResult>().DeclaredType.ShouldBe(typeof(string));
         controller.Response.Headers.ETag.ToString().ShouldBe(EntityTagValue.From(3));
     }
 
@@ -45,7 +61,7 @@ public sealed class ApiControllerBaseTests
     {
         var controller = AController();
 
-        var result = controller.CallOkOrProblem(Result.Failure<Versioned<string>>(SomeError));
+        var result = controller.CallOkOrProblem(Result.Failure<Versioned<string>>(_someError));
 
         result.Result.ShouldBeOfType<ObjectResult>().StatusCode.ShouldBe(StatusCodes.Status404NotFound);
         controller.Response.Headers.ETag.Count.ShouldBe(0);
@@ -58,8 +74,18 @@ public sealed class ApiControllerBaseTests
 
         var result = controller.CallUpdatedOrProblem(Result.Success(new Versioned<string>("value", 9)));
 
-        result.Result.ShouldBeOfType<OkObjectResult>();
+        result.Result.ShouldBeOfType<OkObjectResult>().DeclaredType.ShouldBe(typeof(string));
         controller.Response.Headers.ETag.ToString().ShouldBe(EntityTagValue.From(9));
+    }
+
+    [Fact]
+    public void CreatedOrProblem_NamesTheDeclaredType()
+    {
+        var controller = AController();
+
+        var result = controller.CallCreatedOrProblem(Result.Success("the-id"), routeValues: new { id = "the-id" });
+
+        result.ShouldBeOfType<CreatedAtRouteResult>().DeclaredType.ShouldBe(typeof(string));
     }
 
     [Fact]
@@ -73,6 +99,7 @@ public sealed class ApiControllerBaseTests
 
         var created = result.Result.ShouldBeOfType<CreatedAtRouteResult>();
         created.RouteValues!["id"].ShouldBe("the-id");
+        created.DeclaredType.ShouldBe(typeof(string));
         controller.Response.Headers.ETag.ToString().ShouldBe(EntityTagValue.From(1));
     }
 
@@ -87,7 +114,7 @@ public sealed class ApiControllerBaseTests
         bool invoked = false;
 
         var result = controller.CallCreatedOrProblem(
-            Result.Failure<Versioned<string>>(SomeError),
+            Result.Failure<Versioned<string>>(_someError),
             routeValues: value =>
             {
                 invoked = true;
@@ -159,7 +186,7 @@ public sealed class ApiControllerBaseTests
     [Fact]
     public void RequiringExistence_TurnsANotFound_IntoAPreconditionFailed_WhenExistenceWasRequired()
     {
-        var result = TestController.CallRequiringExistence(requiresExistence: true, Result.Failure(SomeError));
+        var result = TestController.CallRequiringExistence(requiresExistence: true, Result.Failure(_someError));
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.PreconditionFailed);
@@ -168,9 +195,9 @@ public sealed class ApiControllerBaseTests
     [Fact]
     public void RequiringExistence_LeavesANotFound_UntouchedWhenExistenceWasNotRequired()
     {
-        var result = TestController.CallRequiringExistence(requiresExistence: false, Result.Failure(SomeError));
+        var result = TestController.CallRequiringExistence(requiresExistence: false, Result.Failure(_someError));
 
-        result.Error.ShouldBe(SomeError);
+        result.Error.ShouldBe(_someError);
     }
 
     [Fact]
@@ -183,7 +210,7 @@ public sealed class ApiControllerBaseTests
         result.Error.ShouldBe(conflict);
     }
 
-    private static readonly Error SomeError = Error.NotFound("todoList.notFound", "gone");
+    private static readonly Error _someError = Error.NotFound("todoList.notFound", "gone");
 
     private static TestController AController(IfMatchRequirement ifMatchRequirement = IfMatchRequirement.Optional)
     {
@@ -200,9 +227,14 @@ public sealed class ApiControllerBaseTests
 
     private sealed class TestController : ApiControllerBase
     {
+        public ActionResult<string> CallOkOrProblem(Result<string> result) => OkOrProblem(result);
+
         public ActionResult<string> CallOkOrProblem(Result<Versioned<string>> result) => OkOrProblem(result);
 
         public ActionResult<string> CallUpdatedOrProblem(Result<Versioned<string>> result) => UpdatedOrProblem(result);
+
+        public ActionResult CallCreatedOrProblem(Result<string> result, object routeValues) =>
+            CreatedOrProblem(result, "SomeRoute", routeValues);
 
         public ActionResult<string> CallCreatedOrProblem(
             Result<Versioned<string>> result,

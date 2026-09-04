@@ -1,4 +1,4 @@
-using AppTemplate.Api.Common.Concurrency;
+﻿using AppTemplate.Api.Common.Concurrency;
 using Microsoft.AspNetCore.Http;
 using Shouldly;
 using Xunit;

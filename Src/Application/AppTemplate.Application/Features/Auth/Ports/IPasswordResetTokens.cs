@@ -1,4 +1,4 @@
-namespace AppTemplate.Application.Features.Auth.Ports;
+﻿namespace AppTemplate.Application.Features.Auth.Ports;
 
 /// <summary>
 /// The two halves of password reset: minting a single-use token for an address, and redeeming it to

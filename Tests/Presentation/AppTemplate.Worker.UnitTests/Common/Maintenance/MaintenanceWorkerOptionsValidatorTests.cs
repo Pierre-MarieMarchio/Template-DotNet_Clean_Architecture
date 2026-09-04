@@ -1,4 +1,4 @@
-using AppTemplate.Worker.Common.Maintenance;
+﻿using AppTemplate.Worker.Common.Maintenance;
 using Shouldly;
 using Xunit;
 

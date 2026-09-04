@@ -55,7 +55,14 @@ internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero,
+
+            // Small, not zero. The issuer stamps nbf and exp from IDateTimeProvider while this check
+            // reads the machine clock, so the two are the same instant only while that machine's
+            // clock holds still. At zero tolerance a single backward step — an NTP correction, a
+            // resumed VM — refuses every token already in circulation as "not yet valid", across
+            // every instance behind the load balancer at once. Far below the framework's five-minute
+            // default, which is loose enough to keep a stolen token alive well past its expiry.
+            ClockSkew = TimeSpan.FromSeconds(30),
             ValidIssuer = settings.Issuer,
             ValidAudience = settings.Audience,
             IssuerSigningKey = settings.CreateSigningKey(),

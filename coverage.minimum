@@ -13,9 +13,23 @@
 #   2026-08-10   85.34%  (9186/10764) 3089 tests
 #   2026-09-04   90.46%  (7874/8704)  3259 tests
 #
-# The weakest assembly is AppTemplate.Infrastructure.Email at 64.52%; then
-# AppTemplate.Infrastructure.Storage at 81.89% and AppTemplate.Worker at 82.26%. Every other one is
-# above the floor, AppTemplate.Infrastructure.Identity highest among the adapters at 93.69%. The
+# The two lines below are measured by a different engine and are NOT comparable to the five above.
+# Those were taken by coverlet; these by the code-coverage extension that Microsoft.Testing.Platform
+# collects with, which counts sequence points rather than coverlet's lines. Same code, same tests,
+# same run: 6215 measurable lines in Release where coverlet saw 8704, and a total four points
+# higher. Do not read the jump as coverage that was written; nothing was.
+#
+# The configuration is part of the measurement and has to be stated with it. An optimised build
+# merges and drops sequence points, so Release measures fewer lines than Debug and scores higher
+# over them. CI runs Release; `dotnet run Tools/Tasks.cs coverage` runs Debug unless told
+# otherwise, which is the figure a developer sees first and therefore the binding one.
+#   2026-09-04   94.11%  (5849/6215)  3264 tests   extension, Release  (what CI enforces)
+#   2026-09-04   92.82%  (7029/7573)  3264 tests   extension, Debug    (the lower of the two)
+#
+# The weakest assembly is AppTemplate.Infrastructure.Email at 63.87%; then
+# AppTemplate.Infrastructure.Identity at 85.96% and AppTemplate.Api at 86.11%. Every other one is
+# above the floor, AppTemplate.Domain at 100.00% and AppTemplate.Application at 98.90% highest
+# among them. Read from the Debug row, which is the lower one. The
 # total is what the gate enforces, so a large new project with no tests can pull it down even while
 # every other one improves. Read this list as of the last dated measurement above and no later: it
 # is written by hand, and nothing makes it fall out of step loudly.
@@ -45,10 +59,16 @@
 # the 85.34% below is therefore still the last honest figure for the gate, now an understatement of
 # unknown size. Re-measure on a machine with Docker before touching the floor either way.
 #
-# READ THIS BEFORE TRUSTING THE MARGIN. The measured total is 85.34% against a floor of 85, which is
-# 0.34 points, not the "few points" this file's own rule asks for: the gate will now trip on an honest
-# refactor. Two ways out and they are not equivalent — cover AppTemplate.Worker, which is the cheapest
-# real coverage left on the table, or lower the floor and accept that it protects less. The number
-# below is deliberately left where it is rather than adjusted by whoever noticed, because loosening a
-# gate is a decision and not a chore.
-85
+# WHY THE FLOOR MOVED, AND WHY THAT IS NOT A LOOSENING. Changing the collector re-based every
+# number in this file, and a floor is only worth what its margin is: 85 against a coverlet-measured
+# 90.46% was 5.46 points, while 85 against an extension-measured 92.82% is 7.82 points — the same
+# figure protecting less. 88 restores the margin the rule above asks for and is therefore a
+# tightening of the gate, not a relaxation of it. It is set against the Debug row because that is
+# the lower of the two, so a local run cannot fail a gate that CI would pass — a floor that
+# depends on which configuration you happened to build is not a floor. That leaves 4.82 points of
+# margin locally and 6.11 in CI. Measured first, rule read second, and not the other way round.
+#
+# Measured with Docker present, so both integration suites contributed. Re-measure that way before
+# touching this number again: without a daemon the two suites run nothing and the figure is not
+# comparable to any line above.
+88

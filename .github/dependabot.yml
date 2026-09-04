@@ -51,26 +51,32 @@ updates:
 
       # The 10.0.x runtime band. These ship together and are expected to move together;
       # one PR per package would be ten PRs a month for a single servicing release.
-      # Microsoft.IdentityModel.* (8.x) and Microsoft.NET.Test.Sdk (18.x) are on their
-      # own release trains and are excluded so a PR never mixes two bands.
+      # Microsoft.IdentityModel.* (8.x) and Microsoft.Testing.* (18.x for the coverage
+      # extension) are on their own release trains and are excluded so a PR never mixes
+      # two bands.
       microsoft-runtime:
         applies-to: version-updates
         patterns:
           - Microsoft.*
         exclude-patterns:
           - Microsoft.IdentityModel.*
-          - Microsoft.NET.Test.Sdk
+          - Microsoft.Testing.*
 
       identity-model:
         applies-to: version-updates
         patterns:
           - Microsoft.IdentityModel.*
 
+      # The test platform and what plugs into it. Microsoft.Testing.* covers the coverage
+      # extension and anything else the platform grows; xunit* covers the framework and
+      # the in-process runner it brings. A bump to either can change what `dotnet test`
+      # accepts on its command line, which is why they are grouped with the assertion and
+      # container libraries rather than with the runtime band above: one PR to read
+      # together, not six to correlate.
       test-tooling:
         applies-to: version-updates
         patterns:
-          - Microsoft.NET.Test.Sdk
-          - coverlet.*
+          - Microsoft.Testing.*
           - xunit*
           - NSubstitute
           - Shouldly

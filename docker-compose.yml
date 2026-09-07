@@ -61,7 +61,7 @@ services:
     # Email:Host is a required setting the app validates at startup. A catcher
     # makes that flow work end to end offline instead of failing on send.
     # Web UI: http://localhost:8025
-    image: axllent/mailpit:v1.31.0
+    image: axllent/mailpit:v1.31.1
     restart: unless-stopped
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: "true"

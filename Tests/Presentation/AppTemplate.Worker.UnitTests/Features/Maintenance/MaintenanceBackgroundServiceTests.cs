@@ -3,6 +3,7 @@ using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeE
 using AppTemplate.Worker.Features.Maintenance;
 using AppTemplate.Worker.UnitTests.TestSupport;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -112,6 +113,68 @@ public sealed class MaintenanceBackgroundServiceTests
         completed.ShouldBe(stopTask, "StopAsync must not wait out a 10-minute interval to return");
     }
 
+    /// <summary>
+    /// A task switched off is a task that decided to do nothing, and it has to look different from
+    /// a loop that died. The consequence is in the line because what accumulates while the purge is
+    /// off is rows nothing else in the system removes.
+    /// </summary>
+    [Fact]
+    public async Task DisabledPurge_IsLoggedWithWhatAccumulates_OnEverySkippedIteration()
+    {
+        var options = EnabledOptions();
+        options.PurgeExpiredRefreshTokensEnabled = false;
+        var logger = new RecordingLogger<MaintenanceBackgroundService>();
+
+        using var service = CreateService(new FakeIdempotencyPurge(), new FakeRefreshTokenPurge(), options, logger);
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => logger.Lines.Any(IsTheDisabledRefreshTokenLine),
+            "the disabled refresh-token purge to be logged");
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        var line = logger.Lines.First(IsTheDisabledRefreshTokenLine);
+        line.Message.ShouldContain("disabled");
+        line.Message.ShouldContain("nothing else removes them");
+    }
+
+    /// <summary>
+    /// The stop landing while a purge is mid-flight is the case that matters: an operator watching
+    /// for a loop that stopped needs the one stop that was asked for to look different from the ones
+    /// that were not.
+    /// </summary>
+    [Fact]
+    public async Task Stopping_IsLogged_EvenWhenTheStopLandsMidIteration()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<IPurgeExpiredIdempotencyKeysUseCase>(_ => new HangingUseCase());
+        services.AddScoped<IPurgeExpiredRefreshTokensUseCase>(_ => new FakeRefreshTokenPurge());
+        using var provider = services.BuildServiceProvider();
+
+        var options = EnabledOptions();
+        options.Interval = TimeSpan.FromMinutes(10);
+        var logger = new RecordingLogger<MaintenanceBackgroundService>();
+
+        using var service = new MaintenanceBackgroundService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(options),
+            logger);
+
+        await service.StartAsync(CancellationToken.None);
+
+        // Give the hanging use case a moment to actually be mid-flight before asking it to stop.
+        await Task.Delay(TimeSpan.FromMilliseconds(50), TestContext.Current.CancellationToken);
+
+        await service.StopAsync(CancellationToken.None);
+
+        logger.Lines.ShouldContain(line => line.Message.Contains(
+            "Maintenance worker stopping", StringComparison.Ordinal));
+    }
+
+    private static bool IsTheDisabledRefreshTokenLine((LogLevel Level, string Message) line) =>
+        line.Level == LogLevel.Warning
+        && line.Message.Contains("expired refresh-token grants", StringComparison.Ordinal);
+
     private static MaintenanceWorkerOptions EnabledOptions() => new()
     {
         Interval = _tinyInterval,
@@ -122,7 +185,8 @@ public sealed class MaintenanceBackgroundServiceTests
     private static MaintenanceBackgroundService CreateService(
         FakeIdempotencyPurge idempotency,
         FakeRefreshTokenPurge refreshTokens,
-        MaintenanceWorkerOptions options)
+        MaintenanceWorkerOptions options,
+        ILogger<MaintenanceBackgroundService>? logger = null)
     {
         var services = new ServiceCollection();
         services.AddScoped<IPurgeExpiredIdempotencyKeysUseCase>(_ => idempotency);
@@ -132,7 +196,7 @@ public sealed class MaintenanceBackgroundServiceTests
         return new MaintenanceBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(options),
-            NullLogger<MaintenanceBackgroundService>.Instance);
+            logger ?? NullLogger<MaintenanceBackgroundService>.Instance);
     }
 
 }

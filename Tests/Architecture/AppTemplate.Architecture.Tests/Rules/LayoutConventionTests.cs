@@ -155,10 +155,11 @@ public sealed class LayoutConventionTests
         ["Src/Presentation/AppTemplate.Worker"] =
             ["Observability", "Security"],
 
-        // The four subjects a host needs whatever its transport. Jobs joins them when recurring
-        // work gets an abstraction of its own.
+        // The five subjects a host needs whatever its transport: recurring work, the language a
+        // flow is written in, telemetry, an outbound budget, and the identity of a process with no
+        // caller.
         ["Src/Presentation/AppTemplate.Presentation.Core"] =
-            ["Localization", "Observability", "Outbound", "Security"],
+            ["Jobs", "Localization", "Observability", "Outbound", "Security"],
     };
 
     [Fact]

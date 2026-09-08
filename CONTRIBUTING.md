@@ -147,18 +147,25 @@ AppTemplate.Application.Auth/
                    Features/Auth/{Errors,Policies,Ports/<Port>,
                                   UseCases/{Commands,Queries}/<Operation>}
                    one feature, so nothing is shared between features here
+AppTemplate.Infrastructure.Core/
+                   Common/{Caching,Templating}
+                   no Features/: a mechanism a module needs and no module owns
 AppTemplate.Infrastructure.Persistence/
                    Common/{Contexts,Idempotency,Leases,Options,Saving/{Auditing,DomainEvents,Tracking},Time}
                    Features/<F>/{Models,Configurations,Mapping,Tracking,Repositories,Queries,
                                  Observability,Seeding,Tables}
                    Migrations/
 AppTemplate.Presentation.Core/
-                   Common/{Localization,Observability,Outbound,Security}
+                   Common/{Jobs,Localization,Observability,Outbound,Security}
                    no Features/: what any host needs whatever its transport belongs
                    to none of them
-AppTemplate.Api/            Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
+AppTemplate.Api.Core/       Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
                                     Idempotency,Localization,Observability,OpenApi,Security}
+                   no Features/: the half of an HTTP host that knows no feature
+AppTemplate.Api/            Common/{Hosting,Observability,Security}
                    Features/<F>/{Controllers,Contracts/{Requests,Responses},Mapping}
+                   Common/ is a third kind: what this host cannot delegate — what
+                   names a concrete infrastructure module, or decides a deployment policy
 AppTemplate.Worker/         Common/{Observability,Security}
                    Features/<F>/            one BackgroundService, its options, its metrics
 AppTemplate.Infrastructure.Email/       Common/{Http,Smtp}       Features/<F>/
@@ -249,12 +256,15 @@ pack` over it and no version. Dropping it is not free, and the cost is not in th
 `docs/REMOVING-THE-EXAMPLE-FEATURES.md` for the three places that answer for it.
 
 `AppTemplate.Presentation.Core` is the presentation layer's agnostic half: what any host needs
-whatever its transport, and nothing that names one. Four subjects, one file each. An outbound HTTP
+whatever its transport, and nothing that names one. Five subjects, one file each. An outbound HTTP
 policy installed on `IHttpClientFactory`'s defaults. `LocalizationOptions`, the language a flow is
 written in when nobody said which one to read. `TelemetryOptions` and the OTLP tracer and meter over
-it. And `NoCallerCurrentUser`, the answer a process with no request gives to "who is calling" —
+it. `NoCallerCurrentUser`, the answer a process with no request gives to "who is calling" —
 which throws rather than returning `null`, because `null` there is indistinguishable from a
-legitimately anonymous caller. It references `AppTemplate.Application.Core` and nothing else, and it
+legitimately anonymous caller. And `PeriodicJob`, the loop recurring work is written on: one
+interval, one asynchronous iteration, a primitive a service composes rather than a base class a
+service derives from, which is what lets one host's loop run three passes on three intervals
+without three classes. It references `AppTemplate.Application.Core` and nothing else, and it
 is written package-grade like the three projects inwards: a tracked public surface in
 `Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Shipped.txt` and
 `Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Unshipped.txt`, `CS1591` re-enabled so
@@ -276,6 +286,32 @@ included. Each host keeps that package and adds `.AddNpgsql()` through the traci
 `AddObservability` offers, which is one of three things the shared registration takes from the host
 rather than deciding for it — see `docs/ARCHITECTURE.md` for all three and why each has to be that
 way.
+
+`AppTemplate.Api.Core` is the same division one project further out, for the transport
+`AppTemplate.Presentation.Core` refuses to know: the half of an HTTP host that knows no feature.
+Eleven `Common/` folders and one file at its root — problem details with error codes, ETag and
+`If-Match`, the idempotency filter, rate limiting, CORS, security headers, forwarded headers,
+request timeouts and size limits, API versioning, the health endpoints, and the request-language
+middleware. It is `Microsoft.NET.Sdk` plus a `FrameworkReference` rather than the web SDK, which
+costs it nine implicit `using` directives and buys the guarantee that what needs ASP.NET is exactly
+what is in here. **Public is exactly what a host names, and the compiler settled it type by type:**
+the registration extensions are internal, because a public `Add` with no matching `Use` is a seam
+nobody can use, and `UseCorePipeline()` is monolithic on purpose — the ordering constraints inside
+it are coupled pairwise, so there is no safe extension point in the middle. What stayed in
+`AppTemplate.Api` is what this project may not know: the three files importing
+`AppTemplate.Infrastructure.*`, the reference page's policy, and the telemetry that names this
+host's own database and assembly.
+
+`AppTemplate.Infrastructure.Core` is the infrastructure layer's agnostic half, and it exists because
+a module may not reference a sibling: without it, two modules needing one mechanism each keep a
+copy. Multilingual mail rendering is the case that pays for it — the identity module and the email
+module both send mail, so each would otherwise carry its own renderer. It holds `EmailTemplate`,
+which renders a
+module's *own* embedded resources and reads the subject out of the template so no caller states it
+twice, and `HybridCacheStore`, the one adapter behind `ICacheStore`. `AddCacheStore()` is the only
+thing it registers. Both it and `AppTemplate.Api.Core` carry the shape the four projects above do: a
+tracked public surface in their own `PublicAPI.Shipped.txt` and `PublicAPI.Unshipped.txt`, `CS1591`
+re-enabled, `dotnet pack` over them, and no version.
 
 **Composition is opt-in per feature, and there is deliberately no call that adds all of them.**
 `AppTemplate.Application` exposes `AddTodoLists()`, `AddReminders()` and `AddFiles()`;
@@ -321,19 +357,20 @@ saying nothing about what the list omits.
 `EveryProjectOnDisk_HasAVocabularyOfItsOwn` reads every project under `Src/` off the disk — not the
 infrastructure modules alone, which were merely the ones caught drifting — and requires an entry in
 both lists, so **a new project of any layer fails the build until its layout is described here and
-there.** Its floor is thirteen projects, so a walk that stopped reading the tree cannot pass by
+there.** Its floor is fourteen projects, so a walk that stopped reading the tree cannot pass by
 finding nothing to check.
 
 **An entry may be null, meaning "this project has no such folder today", and that claim is checked
 in both directions.** Null is not the same as an empty word list: empty says the folder exists and
 its features hold their files side by side, null says the folder is not there at all. So a `Common/`
 or `Features/` appearing where the entry says none fails, and so does one vanishing from under a
-list of words — which is what keeps the two halves of a split honest. `AppTemplate.Domain`,
-`AppTemplate.Application` and `AppTemplate.Application.Auth` are all null for `Common/`, and the
-failure message tells the reader what to decide rather than what to undo: something that knows no
-feature belongs in the layer's `.Core` project, something several features share as business belongs
-here. Adding the folder means adding the words it holds to that dictionary and to the tree above,
-which is the moment to make that call.
+list of words — which is what keeps the two halves of a split honest. One entry is null for
+`Common/`: `AppTemplate.Application.Auth`, which holds one feature and so shares nothing *between*
+features. The other two business projects hold `Tagging/` and are checked against that word, and
+the failure message a null entry raises tells a reader what to decide rather than what to undo:
+something that knows no feature belongs in the layer's `.Core` project, something several features
+share as business belongs here. Adding the folder means adding the words it holds to that
+dictionary and to the tree above, which is the moment to make that call.
 
 **The first level of `Common/` is closed too**, per project, held by
 `EveryCommonFolder_IsNamedFromItsProjectsVocabulary` — and it is the newer of the two rules for a
@@ -530,6 +567,32 @@ this repository:
   request rather than its outcome, so two requests always differ — an assertion that they are equal
   is asserting that two requests are the same one. Compare everything else.
 
+### What a derived project inherits here
+
+A project generated from this template receives the whole of `Tests/`, fixtures included. That is
+the delivery mechanism rather than a gap, and it is why there is no test-kit project to reference:
+a kit could only hold the fixtures that name nothing of this product, which is the easy fifth of
+them, and the two a derived project actually wants could not go in it.
+
+**Seven fixtures name no product type and can be leaned on as they are** — 356 lines between them.
+Under `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/`: `ApiJson`, the
+serialiser settings a raw response is read with; `CapturedLogs`, which makes an assertion about a
+log entry possible; `SecurityHeaderAssertions`; and `TestClientAddressStartupFilter`, which is what
+lets a test choose the address the rate limiter partitions on. Under the identity project's
+`Fixtures/`: `DatabaseReadiness`, `Rendezvous`, which is how two concurrent contexts are made to
+race deliberately, and `AnonymousAuditActor`.
+
+**Two name the product and have to be edited, and they are the two that matter.** `ApiFactory`
+names ten product namespaces and `IntegrationTestBase` eight: the modules a test host replaces, the
+options it overrides, the use cases it reaches past HTTP. Nothing can be done about that — a fixture
+that boots this application knows this application — so treat them as your own code from the first
+commit, and expect the edit to be a real one when a feature is removed or a module swapped.
+`docs/REMOVING-THE-EXAMPLE-FEATURES.md` names what each removal costs in them.
+
+The one duplication actually present in the fixtures is the PostgreSQL container builder: five
+lines, three times, differing only in the database name. That is under the bar this file sets for
+an extraction, and it stays.
+
 ### The load smoke test
 
 `Tests/Load/smoke.js` is a k6 script, and CI runs it **non-blocking**. That is the design, not a
@@ -553,9 +616,10 @@ k6 run -e BASE_URL=http://localhost:8080 Tests/Load/smoke.js
 
 NetArchTest resolves each type through `Type.GetType(name, throwOnError: true)`, and that
 resolution is sensitive to how the assembly it is looking in was instrumented — it fails outright
-against a Coverlet-instrumented one. The collector the platform uses does not break it: all 125
-rules in `AppTemplate.Architecture.Tests` pass with the eight product assemblies they inspect
-instrumented, which is why coverage is collected over the whole solution in one invocation.
+against a Coverlet-instrumented one. The collector the platform uses does not break it: all 131
+rules in `AppTemplate.Architecture.Tests` pass with the twelve product assemblies that project
+references instrumented, which is why coverage is collected over the whole solution in one
+invocation.
 
 If you change collector or its settings, re-run that suite under coverage before trusting a green
 elsewhere. It is the one project whose failure mode is a thrown resolution rather than a wrong

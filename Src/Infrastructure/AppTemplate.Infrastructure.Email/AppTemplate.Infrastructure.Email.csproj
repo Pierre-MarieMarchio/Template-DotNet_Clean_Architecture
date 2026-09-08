@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <!-- The reminder mail's templates, one per language, embedded for the reason
-       AppTemplate.Infrastructure.Identity embeds its three: a deployment cannot lose one.
+       AppTemplate.Infrastructure.Auth embeds its three: a deployment cannot lose one.
        WithCulture="false" is load-bearing — see that project's comment for what MSBuild does with a
        .fr.html without it. -->
   <ItemGroup>

@@ -1,23 +1,19 @@
 ﻿using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Configurations;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
-using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
 
 /// <summary>
-/// The one <see cref="DbContext"/> in the system: ASP.NET Identity's tables and the domain's
-/// persistence models, in one model, on one connection, with one migrations history. Why one
-/// context rather than two, and why one database rather than two, is argued in
-/// docs/ARCHITECTURE.md under "One DbContext, one database, five schemas".
+/// The business half's <see cref="DbContext"/>: the domain's persistence models and the tables no
+/// feature owns, in one model with one migrations history. Authentication stores through a context
+/// of its own on the same connection — why two rather than one, and why one database rather than
+/// two, is argued in docs/ARCHITECTURE.md.
 /// <para>
 /// <b>This class is the model's composition root.</b> It is the one type in <c>Common/</c> allowed
 /// to name a feature, exactly as <c>Program.cs</c> is the one place allowed to name every module.
@@ -41,12 +37,8 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
 /// which also apply to the synchronous overload an override would miss.
 /// </para>
 /// </summary>
-public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
-    : IdentityDbContext<AppUser, AppRole, Guid>(options), IDataProtectionKeyContext
+public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    /// <summary>The schema ASP.NET Identity's tables live in.</summary>
-    public const string IdentitySchema = "identity";
-
     /// <summary>The schema the to-do list feature's tables live in.</summary>
     public const string TodoSchema = "todo";
 
@@ -62,16 +54,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     /// <summary>
     /// The schema for tables that are cross-cutting rather than owned by a feature — the idempotency
-    /// key store is the first of these. Neither <see cref="IdentitySchema"/> nor
-    /// <see cref="TodoSchema"/> would be honest: the table belongs to no feature.
+    /// key store is the first of these. <see cref="TodoSchema"/> would not be honest: the table
+    /// belongs to no feature.
     /// </summary>
     public const string PlatformSchema = "platform";
 
     /// <summary>
-    /// One history table for one context. It is left in the connection's default schema rather than
-    /// inside a feature's, because it belongs to neither: naming it here and in the design-time
-    /// factory keeps the tool and the runtime from disagreeing about where applied migrations are
-    /// recorded.
+    /// This context's history table. It is left in the connection's default schema rather than
+    /// inside a feature's, because it belongs to none of them; the other context's sits in the
+    /// schema its own tables live in. Naming it here and in the design-time factory keeps the tool
+    /// and the runtime from disagreeing about where applied migrations are recorded.
     /// </summary>
     public const string MigrationsHistoryTableName = "__EFMigrationsHistory";
 
@@ -101,13 +93,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     internal DbSet<StoredFileRecord> StoredFiles => Set<StoredFileRecord>();
 
     /// <summary>
-    /// Refresh-token grants. Internal, like <see cref="RefreshToken"/> itself: the grant table is
-    /// reached only through <see cref="Features.Identity.Tables.IRefreshTokenTable"/>, and the
-    /// policy for how a grant is hashed, rotated and revoked lives in the identity module.
-    /// </summary>
-    internal DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-
-    /// <summary>
     /// Claimed idempotency keys. Internal for the same reason as every other row type here: the
     /// rules for claiming, completing and releasing one live in
     /// <see cref="Common.Idempotency.IdempotencyStore"/>, reached only through
@@ -115,42 +100,25 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     /// </summary>
     internal DbSet<IdempotencyRecord> IdempotencyKeys => Set<IdempotencyRecord>();
 
-    /// <summary>
-    /// The key ring <see cref="IDataProtectionKeyContext"/> requires. Public, unlike every other
-    /// set here: the ASP.NET Core data-protection system reads and writes it directly through this
-    /// interface, so nothing about it can be internal to this assembly.
-    /// </summary>
-    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
-
-    protected override void OnModelCreating(ModelBuilder builder)
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(modelBuilder);
 
-        base.OnModelCreating(builder);
+        base.OnModelCreating(modelBuilder);
 
-        // Named one by one rather than discovered by scanning the assembly: a dozen lines the
+        // Named one by one rather than discovered by scanning the assembly: seven lines the
         // compiler checks, instead of a reflection call that silently maps nothing when a
         // configuration class is renamed or moved. No default schema is set — every table names its
         // own, so a table cannot drift into the wrong one by omission.
-        builder.ApplyConfiguration(new AppUserConfiguration());
-        builder.ApplyConfiguration(new AppRoleConfiguration());
-        builder.ApplyConfiguration(new RefreshTokenConfiguration());
-        builder.ApplyConfiguration(new UserRoleConfiguration());
-        builder.ApplyConfiguration(new UserClaimConfiguration());
-        builder.ApplyConfiguration(new UserLoginConfiguration());
-        builder.ApplyConfiguration(new RoleClaimConfiguration());
-        builder.ApplyConfiguration(new UserTokenConfiguration());
-        builder.ApplyConfiguration(new DataProtectionKeyConfiguration());
+        modelBuilder.ApplyConfiguration(new TodoListRecordConfiguration());
+        modelBuilder.ApplyConfiguration(new TodoItemRecordConfiguration());
+        modelBuilder.ApplyConfiguration(new TodoItemTagRecordConfiguration());
 
-        builder.ApplyConfiguration(new TodoListRecordConfiguration());
-        builder.ApplyConfiguration(new TodoItemRecordConfiguration());
-        builder.ApplyConfiguration(new TodoItemTagRecordConfiguration());
+        modelBuilder.ApplyConfiguration(new ReminderRecordConfiguration());
 
-        builder.ApplyConfiguration(new ReminderRecordConfiguration());
+        modelBuilder.ApplyConfiguration(new StoredFileRecordConfiguration());
+        modelBuilder.ApplyConfiguration(new StoredFileTagRecordConfiguration());
 
-        builder.ApplyConfiguration(new StoredFileRecordConfiguration());
-        builder.ApplyConfiguration(new StoredFileTagRecordConfiguration());
-
-        builder.ApplyConfiguration(new IdempotencyRecordConfiguration());
+        modelBuilder.ApplyConfiguration(new IdempotencyRecordConfiguration());
     }
 }

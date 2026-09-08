@@ -5,8 +5,8 @@ using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Auth.Features.Auth.Ports.RoleAssignments;
-using AppTemplate.Infrastructure.Persistence.Common.Contexts;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
+using AppTemplate.Infrastructure.Auth.Common.Contexts;
+using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
@@ -391,7 +391,7 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
 
         await Database.ExecuteAsync(
             $"""
-            INSERT INTO {AppDbContext.IdentitySchema}."Role" ("Id", "Name", "NormalizedName", "ConcurrencyStamp")
+            INSERT INTO {AuthDbContext.IdentitySchema}."Role" ("Id", "Name", "NormalizedName", "ConcurrencyStamp")
             VALUES ('{Guid.CreateVersion7()}', '{role}', '{normalizedRole}', '{Guid.CreateVersion7()}')
             ON CONFLICT ("NormalizedName") DO NOTHING
             """,

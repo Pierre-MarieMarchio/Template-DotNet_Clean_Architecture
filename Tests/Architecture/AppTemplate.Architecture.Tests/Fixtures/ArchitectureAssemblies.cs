@@ -4,8 +4,8 @@ using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Email;
-using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.InMemory;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Storage;
@@ -45,7 +45,7 @@ internal static class ArchitectureAssemblies
     internal const string PresentationCoreNamespace = "AppTemplate.Presentation.Core";
 
     internal const string PersistenceNamespace = "AppTemplate.Infrastructure.Persistence";
-    internal const string IdentityInfrastructureNamespace = "AppTemplate.Infrastructure.Identity";
+    internal const string IdentityInfrastructureNamespace = "AppTemplate.Infrastructure.Auth";
     internal const string EmailInfrastructureNamespace = "AppTemplate.Infrastructure.Email";
     internal const string InMemoryInfrastructureNamespace = "AppTemplate.Infrastructure.InMemory";
     internal const string StorageInfrastructureNamespace = "AppTemplate.Infrastructure.Storage";
@@ -109,7 +109,7 @@ internal static class ArchitectureAssemblies
         new(() => Anchor(typeof(PersistenceModule), PersistenceNamespace));
 
     private static readonly Lazy<Assembly> _identityInfrastructure =
-        new(() => Anchor(typeof(IdentityModule), IdentityInfrastructureNamespace));
+        new(() => Anchor(typeof(AuthModule), IdentityInfrastructureNamespace));
 
     private static readonly Lazy<Assembly> _emailInfrastructure =
         new(() => Anchor(typeof(EmailModule), EmailInfrastructureNamespace));

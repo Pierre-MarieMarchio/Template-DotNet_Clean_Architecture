@@ -41,7 +41,7 @@
        confirmation mail of its own — a deployment that never uses reminders still has to point
        this host at a working SMTP relay for it to start. Same shape of cost as the paragraph
        below, just one module over.
-       AppTemplate.Infrastructure.Identity is NOT here only because IRefreshTokenMaintenance's sole
+       AppTemplate.Infrastructure.Auth is NOT here only because IRefreshTokenMaintenance's sole
        adapter lives there, which is what this comment used to say. EmailReminderNotifier, one
        module over, resolves IUserProfilesService to find the address a due reminder is rung at, so
        the reminder loop — this host's own feature — needs the identity module whatever happens to
@@ -58,7 +58,7 @@
     <ProjectReference Include="..\AppTemplate.Presentation.Core\AppTemplate.Presentation.Core.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Core\AppTemplate.Infrastructure.Core.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
-    <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Identity\AppTemplate.Infrastructure.Identity.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Auth\AppTemplate.Infrastructure.Auth.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
   </ItemGroup>

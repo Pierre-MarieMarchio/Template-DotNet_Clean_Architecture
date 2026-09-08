@@ -202,7 +202,7 @@ public sealed class LayerDependencyTests
     /// mechanisms. What must not appear is the reverse, because a business feature that named an
     /// authentication type would make the whole project mandatory again, and per-feature
     /// registration would buy nothing.
-    /// <see cref="Composition.ContainerCompositionTests.RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer"/>
+    /// <see cref="Composition.ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer"/>
     /// carries what stops a full removal being free.
     /// </para>
     /// </summary>

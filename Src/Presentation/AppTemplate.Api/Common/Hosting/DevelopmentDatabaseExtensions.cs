@@ -1,5 +1,6 @@
-﻿using AppTemplate.Infrastructure.Persistence.Common.Contexts;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
+﻿using AppTemplate.Infrastructure.Auth.Common.Contexts;
+using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
+using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Api.Common.Hosting;
@@ -12,9 +13,11 @@ namespace AppTemplate.Api.Common.Hosting;
 /// process that serves requests: that needs DDL rights at runtime and races between replicas on
 /// <c>__EFMigrationsHistory</c>. Failures are logged with context before rethrowing.
 /// <para>
-/// One migration history, against the single <see cref="AppDbContext"/>: a second context would
-/// mean a window in which one module's schema exists and the other's does not, and a lasting one
-/// if the second call failed.
+/// Two histories, one per context, applied one after the other. That leaves a window in which the
+/// first schema exists and the second does not — and a lasting one if the second call fails, which
+/// is why the failure is rethrown rather than logged and stepped over. Applying both from one
+/// bootstrap is what keeps the window as short as a single process can make it; a deployment
+/// applies each as its own explicit step, where the order is a deployment's to decide.
 /// </para>
 /// <para>
 /// No hand-rolled retry loop: Npgsql's <c>EnableRetryOnFailure</c> handles transient unavailability.
@@ -36,6 +39,8 @@ internal static class DevelopmentDatabaseExtensions
         {
             logger.LogInformation("Applying migrations (Development only).");
 
+            // Authentication first, because seeding an account writes to its tables.
+            await services.GetRequiredService<AuthDbContext>().Database.MigrateAsync();
             await services.GetRequiredService<AppDbContext>().Database.MigrateAsync();
 
             await services.GetRequiredService<IIdentitySeeder>().SeedAsync();

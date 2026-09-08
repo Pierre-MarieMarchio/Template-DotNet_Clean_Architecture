@@ -1,4 +1,14 @@
 #nullable enable
+AppTemplate.Infrastructure.Core.Common.Contexts.DefaultConnectionString
+AppTemplate.Infrastructure.Core.Common.Options.DatabaseOptions
+AppTemplate.Infrastructure.Core.Common.Options.DatabaseOptions.CommandTimeoutSeconds.get -> int
+AppTemplate.Infrastructure.Core.Common.Options.DatabaseOptions.CommandTimeoutSeconds.set -> void
+AppTemplate.Infrastructure.Core.Common.Options.DatabaseOptions.DatabaseOptions() -> void
+AppTemplate.Infrastructure.Core.Common.Options.DatabaseOptions.MaxPoolSize.get -> int
+AppTemplate.Infrastructure.Core.Common.Options.DatabaseOptions.MaxPoolSize.set -> void
+AppTemplate.Infrastructure.Core.Common.Options.DatabaseOptionsValidator
+AppTemplate.Infrastructure.Core.Common.Options.DatabaseOptionsValidator.DatabaseOptionsValidator() -> void
+AppTemplate.Infrastructure.Core.Common.Options.DatabaseOptionsValidator.Validate(string? name, AppTemplate.Infrastructure.Core.Common.Options.DatabaseOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
 AppTemplate.Infrastructure.Core.Common.Saving.Auditing.AuditingSaveChangesInterceptor
 AppTemplate.Infrastructure.Core.Common.Saving.Auditing.AuditingSaveChangesInterceptor.AuditingSaveChangesInterceptor(AppTemplate.Infrastructure.Core.Common.Saving.Auditing.IAuditActor! auditActor, AppTemplate.Application.Core.Common.Ports.IDateTimeProvider! dateTimeProvider) -> void
 AppTemplate.Infrastructure.Core.Common.Saving.Auditing.IAuditActor
@@ -13,6 +23,7 @@ AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents.IDomainEventDispatche
 AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents.IDomainEventSource
 AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents.IDomainEventSource.DrainDomainEvents() -> System.Collections.Generic.IReadOnlyCollection<AppTemplate.Domain.Core.Common.Events.IDomainEvent!>!
 AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents.IDomainEventSource.Restore(System.Collections.Generic.IEnumerable<AppTemplate.Domain.Core.Common.Events.IDomainEvent!>! domainEvents) -> void
+AppTemplate.Infrastructure.Core.Common.Saving.IContextUnitOfWork<TContext>
 AppTemplate.Infrastructure.Core.Common.Saving.Tracking.AggregateFlushSaveChangesInterceptor
 AppTemplate.Infrastructure.Core.Common.Saving.Tracking.AggregateFlushSaveChangesInterceptor.AggregateFlushSaveChangesInterceptor(System.Collections.Generic.IEnumerable<AppTemplate.Infrastructure.Core.Common.Saving.Tracking.IAggregateFlusher!>! flushers) -> void
 AppTemplate.Infrastructure.Core.Common.Saving.Tracking.AggregateTracker<TAggregate, TRecord>
@@ -36,6 +47,9 @@ AppTemplate.Infrastructure.Core.Common.Saving.Tracking.IAggregateFlusher.FlushTo
 AppTemplate.Infrastructure.Core.Common.Saving.Tracking.IAggregateFlusher.RefreshFromStore() -> void
 AppTemplate.Infrastructure.Core.Common.Saving.Tracking.StoredStamps
 abstract AppTemplate.Infrastructure.Core.Common.Saving.Tracking.AggregateTracker<TAggregate, TRecord>.FlushTo(Microsoft.EntityFrameworkCore.DbContext! context) -> void
+const AppTemplate.Infrastructure.Core.Common.Contexts.DefaultConnectionString.EnvironmentVariableName = "ConnectionStrings__Default" -> string!
+const AppTemplate.Infrastructure.Core.Common.Contexts.DefaultConnectionString.Name = "Default" -> string!
+const AppTemplate.Infrastructure.Core.Common.Options.DatabaseOptions.SectionName = "Database" -> string!
 override AppTemplate.Infrastructure.Core.Common.Saving.Auditing.AuditingSaveChangesInterceptor.SavingChanges(Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result) -> Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>
 override AppTemplate.Infrastructure.Core.Common.Saving.Auditing.AuditingSaveChangesInterceptor.SavingChangesAsync(Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>>
 override AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents.DomainEventDispatchSaveChangesInterceptor.SaveChangesFailed(Microsoft.EntityFrameworkCore.Diagnostics.DbContextErrorEventData! eventData) -> void
@@ -48,6 +62,8 @@ override AppTemplate.Infrastructure.Core.Common.Saving.Tracking.AggregateFlushSa
 override AppTemplate.Infrastructure.Core.Common.Saving.Tracking.AggregateFlushSaveChangesInterceptor.SavedChangesAsync(Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesCompletedEventData! eventData, int result, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 override AppTemplate.Infrastructure.Core.Common.Saving.Tracking.AggregateFlushSaveChangesInterceptor.SavingChanges(Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result) -> Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>
 override AppTemplate.Infrastructure.Core.Common.Saving.Tracking.AggregateFlushSaveChangesInterceptor.SavingChangesAsync(Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>>
+static AppTemplate.Infrastructure.Core.Common.Contexts.DefaultConnectionString.Require(Microsoft.Extensions.Configuration.IConfiguration! configuration) -> string!
+static AppTemplate.Infrastructure.Core.Common.Contexts.DefaultConnectionString.ResolveForDesignTime() -> string!
 static AppTemplate.Infrastructure.Core.Common.Saving.Tracking.StoredStamps.ApplyTo<TAggregate>(TAggregate aggregate, AppTemplate.Domain.Core.Common.Abstractions.IAuditable! record, uint version, System.Guid recordId, string! aggregateName) -> void
 static AppTemplate.Infrastructure.Core.InfrastructureCoreModule.AddCoreSaving<TContext>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static AppTemplate.Infrastructure.Core.InfrastructureCoreModule.AddCoreSavingInterceptors(this Microsoft.EntityFrameworkCore.DbContextOptionsBuilder! options, System.IServiceProvider! provider) -> Microsoft.EntityFrameworkCore.DbContextOptionsBuilder!

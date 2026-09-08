@@ -169,7 +169,71 @@ allowed to name a feature.
 **Rule amendment required.** "An infrastructure module references only Persistence horizontally"
 becomes "only Persistence or the infrastructure `.Core`". The non-vacuity assertion in that rule
 stays, and the amendment is what makes the shared foundation legal without opening sideways
-references generally.
+references generally. **No amendment was in fact needed:** it had already been made when the
+infrastructure layer got its agnostic half, so the move landed against a rule that already
+permitted it.
+
+**What the move measured, against what this entry predicted.** Both counts here were wrong. Of the
+21 files in `Persistence/Common/`, **14** name `AppDbContext` zero times — not the seven this entry
+claims, and not the five the measurement table above lets a reader count, which was a sample rather
+than the set. The criterion that decided the move is the one this entry states, and it is need
+rather than agnosticism: what a second context has to compose.
+
+So **12 files moved**, eleven of them unchanged:
+
+- `EfUnitOfWork`, generic over `DbContext` — the one genericisation.
+- The three interceptors, the domain-event dispatcher and its two contracts, the
+  `AggregateTracker` base and its two contracts, and `StoredStamps`.
+- `SystemDateTimeProvider`. **It travels and the Postgres lease does not**, which is not a blanket
+  answer because the two do not cost the same. The clock implements a cross-cutting port, which is
+  the shape `HybridCacheStore` already has in this project, and the auth module will need one for
+  token lifetimes and lockout windows — leaving it behind would force that module to duplicate it or
+  to depend on the business persistence module, which is the coupling this plan removes.
+  `PostgresLeaderLease` takes a session-level advisory lock and would pull **`Npgsql` into a
+  package-grade project every module references**, for a mechanism no second context needs. That is
+  the same reasoning that keeps the PostgreSQL driver out of `AppTemplate.Presentation.Core`.
+
+**The idempotency store did not move, so there is one genericisation and not two.** It owns a table:
+`IdempotencyRecordConfiguration` calls `AppDbContext.PlatformSchema`, so moving it forces a decision
+about which context owns `IdempotencyKeys` and where that schema name lives — which is A4's and A5's
+subject, not this move's, and the measurement above notes the table sits in the initial migration A5
+regenerates. The port is cross-cutting and the table belongs to no feature, so the move is defensible
+eventually; doing it here would have pre-empted A4 with a guess and bought the second context
+nothing.
+
+**The seam this entry did not foresee, and it is the interesting part.** Nearly every moved type was
+`internal`, so the persistence module could no longer see them from another assembly. Making them
+public broke `AdapterVisibilityTests.Adapters_ImplementingAnApplicationPort_AreInternalToTheirModule`
+— and the answer was already in this project, two files away: `HybridCacheStore` is `internal` and
+composed by a public `AddCacheStore()`. So the adapters stay internal and the project exposes calls
+instead: `AddCoreSaving<TContext>()`, `AddCoreSavingInterceptors()` and `AddSystemClock()`. **The
+rule needed no exemption**, the public surface came out at 30 entries rather than the 51 the
+promote-everything shape produced, and the context arrives as a type argument — which is exactly the
+seam wave C's second context calls with its own.
+
+What stayed public is what a module cannot delegate: the `AggregateTracker` it derives from, the
+`StoredStamps` its mapper calls, the `IAuditActor` its host answers, and the three interceptors it
+attaches to its own context. Those are not adapters of application ports, so the rule does not reach
+them, and making them internal would have cost two large tests their subject.
+
+**One nullability finding worth keeping.** `protected IReadOnlyCollection<TrackedAggregate>` on a
+generic type raises `RS0041`: the analyser cannot annotate an unqualified nested-type reference, and
+this repository has never accepted an oblivious public API — there is not one `~` entry in any
+baseline. Naming the outer type arguments —
+`IReadOnlyCollection<AggregateTracker<TAggregate, TRecord>.TrackedAggregate>` — annotates it and
+costs nothing but a longer signature. **Offered and not taken:** exposing the live pairs instead
+would have removed both the obliviousness and the skip-removed-rows loop that the type's own summary
+admits is identical in every feature. It is a design change, and this was a move.
+
+**Two tests moved and two stayed, on what they actually exercise.** The dispatcher's test and the
+unit of work's moved, and both had to shed a product type to live in a package-grade mirror: the
+first raised a real `TodoLists` event where the dispatcher only ever keys on an event's runtime
+type, the second built an `AppDbContext` where EF only needs *a* provider to construct a context at
+all. Each now carries its own. `AuditingSaveChangesInterceptorTests` and
+`DomainEventDispatchSaveChangesInterceptorTests` stayed: they exercise the mechanism composed over
+this module's context and its feature rows, which is the module's subject, and rewriting them
+against local doubles would have cost the auditing interceptor the property that it is proven
+against the real model.
 
 ### A4. Two contexts, two histories, one database
 
@@ -295,11 +359,16 @@ said `Application.Auth` "names no domain type at all" now say it names no *aggre
 claim that is true and the one that mattered. **Whether the nine should declare the reference is a
 question for the owner, not a thing this wave decided.**
 
-### Wave B — move the agnostic mechanisms into `Infrastructure.Core`
+### Wave B — move the agnostic mechanisms into `Infrastructure.Core`. **Done, 2026-09-08.**
 
-Seven pure moves, two genericisations, one rule amendment, and the vocabulary entries in
-`LayoutConventionTests`. The business module keeps `AppDbContext` and its feature folders. Nothing
-about authentication changes here.
+Twelve files: eleven pure moves and one genericisation, plus three registration calls the plan did
+not foresee, the vocabulary entries in `LayoutConventionTests`, and no rule amendment — A3 records
+all of it with what was measured against what was predicted. The business module keeps
+`AppDbContext`, the idempotency table, the Postgres lease and its feature folders, and composes what
+it saves through by calling rather than by naming. Nothing about authentication changed.
+
+Green on the full gate: 3335 tests with none failing, 0 build warnings, 131 architecture rules, all
+six packages, both images, every gate and `dotnet format --verify-no-changes` clean.
 
 ### Wave C — authentication owns its storage
 

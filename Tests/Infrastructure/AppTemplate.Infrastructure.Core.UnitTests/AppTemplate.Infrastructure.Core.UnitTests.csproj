@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the infrastructure mechanisms no module owns. The mirror of
+       AppTemplate.Infrastructure.Core. Templates are read out of an assembly, so this project
+       embeds its own — a rendering test that used a module's templates would be asserting on that
+       module's mail. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <!-- WithCulture="false" is not optional: MSBuild otherwise reads the second-to-last extension as
+       a culture and compiles TestEmailTemplate.fr.html into a fr/ satellite assembly instead of this one, leaving GetManifestResourceNames() with nothing to find and the build green. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Common/Templating/*.html" WithCulture="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Core\AppTemplate.Infrastructure.Core.csproj" />
+  </ItemGroup>
+
+</Project>

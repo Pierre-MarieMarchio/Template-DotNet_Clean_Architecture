@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The agnostic half of the infrastructure layer: mechanisms a module needs and no module owns.
+       An infrastructure module may not reference a sibling, so without this project two modules
+       needing one mechanism have nowhere to share it and each keeps a copy.
+
+       Written as if it were a NuGet package, and vendored rather than published: a derived
+       repository copies it and is free to tune it, which is why it carries no version. -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>AppTemplate.Infrastructure.Core</PackageId>
+    <Description>Infrastructure mechanisms no single module owns: multilingual mail rendered from a module's own embedded templates with the subject read from the template, and a cache behind a port.</Description>
+    <Authors>AppTemplate contributors</Authors>
+  </PropertyGroup>
+
+  <!-- CS1591 is suppressed repository-wide, and re-enabled here: this is a deliberate public
+       surface that a derived project reads instead of reading the code, so every public member
+       owes it a sentence. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <!-- HybridCache rather than IDistributedCache: it is an in-process cache until a deployment
+       registers a distributed one, so the template runs on `dotnet run` with nothing to deploy, and
+       the second level is added without any caller changing. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
+  </ItemGroup>
+
+  <!-- Any change to the public surface is an explicit diff in PublicAPI.Unshipped.txt to review,
+       rather than a side effect of an edit nobody read as one. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Infrastructure.Core.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

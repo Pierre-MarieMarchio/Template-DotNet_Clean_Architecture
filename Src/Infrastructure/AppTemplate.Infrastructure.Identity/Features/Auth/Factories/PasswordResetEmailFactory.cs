@@ -1,4 +1,6 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Ports.PasswordResetEmailFactory;
+using AppTemplate.Application.Core.Common.Localization;
+using AppTemplate.Infrastructure.Core.Common.Templating;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Options;
 using Microsoft.Extensions.Options;
 
@@ -7,14 +9,16 @@ namespace AppTemplate.Infrastructure.Identity.Features.Auth.Factories;
 /// <summary>
 /// Renders the password-reset email and hands it back for the caller to deliver. What it names is
 /// all that distinguishes it: its template, its placeholders and the page its link points at — see
-/// <see cref="EmailBodyFactory"/> for the encoding those three go through.
+/// <see cref="EmailTemplate"/> for the encoding those go through.
 /// </summary>
 internal sealed class PasswordResetEmailFactory(IOptions<PasswordResetOptions> options)
     : IPasswordResetEmailFactory
 {
-    private static readonly EmailBodyFactory _body = new("PasswordResetEmailTemplate");
+    private static readonly EmailTemplate _template = new(
+        typeof(PasswordResetEmailFactory).Assembly,
+        "PasswordResetEmailTemplate");
 
-    public async Task<PasswordResetEmail> CreateAsync(
+    public Task<PasswordResetEmail> CreateAsync(
         string userName,
         string email,
         string token,
@@ -29,13 +33,14 @@ internal sealed class PasswordResetEmailFactory(IOptions<PasswordResetOptions> o
             ?? throw new InvalidOperationException(
                 $"'{PasswordResetOptions.SectionName}:ResetPasswordUrl' is not configured.");
 
-        var rendered = await _body.CreateAsync(
+        var rendered = _template.Render(
+            CurrentLanguage.Current,
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["UserName"] = userName,
-                ["ResetLink"] = EmailBodyFactory.LinkTo(resetPasswordUrl, email, token),
+                ["ResetLink"] = EmailLinkFactory.Create(resetPasswordUrl, email, token),
             });
 
-        return new PasswordResetEmail(rendered.Subject, rendered.Body);
+        return Task.FromResult(new PasswordResetEmail(rendered.Subject, rendered.Body));
     }
 }

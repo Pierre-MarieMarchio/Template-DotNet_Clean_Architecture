@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Core.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Tagging;
+using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -13,6 +14,7 @@ namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands.RemoveTag
 public sealed class RemoveTagFromTodoItemUseCase(
     ITodoListService lists,
     IUnitOfWork unitOfWork,
+    ICacheStore cache,
     IValidator<RemoveTagFromTodoItemCommand> validator) : IRemoveTagFromTodoItemUseCase
 {
     public async Task<Result<Versioned<TodoItemDto>>> ExecuteAsync(
@@ -48,6 +50,10 @@ public sealed class RemoveTagFromTodoItemUseCase(
         todoList.RemoveTagFromItem(command.TodoItemId, command.Tag);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await cache.RemoveAsync(
+            UsedTagsCache.KeyFor(UsedTagsCache.TodoItemScope, todoList.OwnerId),
+            cancellationToken);
 
         return TodoListDtoMapping.Item(todoList, command.TodoItemId);
     }

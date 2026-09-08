@@ -16,6 +16,7 @@ public sealed class ReplaceTodoItemTagsUseCaseTests
 
     private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly RecordingCacheStore _cache = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -92,7 +93,7 @@ public sealed class ReplaceTodoItemTagsUseCaseTests
     }
 
     private ReplaceTodoItemTagsUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(new TodoListService(_repository, currentUser), _unitOfWork, new ReplaceTodoItemTagsCommandValidator());
+        new(new TodoListService(_repository, currentUser), _unitOfWork, _cache, new ReplaceTodoItemTagsCommandValidator());
 
     private ReplaceTodoItemTagsUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

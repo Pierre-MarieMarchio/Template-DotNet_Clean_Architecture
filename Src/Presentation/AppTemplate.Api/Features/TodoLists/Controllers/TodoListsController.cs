@@ -19,6 +19,7 @@ using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItem;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItems;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoList;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;
+using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetUsedTodoItemTags;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.TodoLists.Controllers;
@@ -72,7 +73,8 @@ public sealed class TodoListsController(
     IRemoveTodoItemUseCase removeTodoItem,
     IAddTagToTodoItemUseCase addTagToTodoItem,
     IReplaceTodoItemTagsUseCase replaceTodoItemTags,
-    IRemoveTagFromTodoItemUseCase removeTagFromTodoItem) : ApiControllerBase
+    IRemoveTagFromTodoItemUseCase removeTagFromTodoItem,
+    IGetUsedTodoItemTagsUseCase getUsedTags) : ApiControllerBase
 {
     /// <summary>Lists the caller's own todo lists, sorted, filtered and paginated.</summary>
     /// <remarks>
@@ -513,4 +515,16 @@ public sealed class TodoListsController(
 
         return UpdatedOrProblem(TodoListResponseMapping.ToItemResponse(result));
     }
+
+    /// <summary>The tags the caller has already used on their items.</summary>
+    /// <remarks>
+    /// For a picker or a filter. Served from a cache with a short lifetime, so a tag added
+    /// moments ago may be missing: this is a suggestion, and no write depends on it.
+    /// </remarks>
+    [HttpGet("tags")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(UsedTagsResponse))]
+    public async Task<ActionResult<UsedTagsResponse>> GetUsedTags(
+        CancellationToken cancellationToken = default) =>
+        OkOrProblem(TodoListResponseMapping.ToUsedTagsResponse(
+            await getUsedTags.ExecuteAsync(cancellationToken)));
 }

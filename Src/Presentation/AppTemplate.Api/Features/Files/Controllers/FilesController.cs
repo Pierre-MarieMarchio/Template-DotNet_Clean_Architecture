@@ -12,6 +12,7 @@ using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReplaceStoredFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
+using AppTemplate.Application.Features.Files.UseCases.Queries.GetUsedFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 using Microsoft.AspNetCore.Mvc;
 
@@ -60,7 +61,8 @@ public sealed class FilesController(
     IRegisterFileUseCase registerFile,
     IConfirmFileUploadUseCase confirmFileUpload,
     IReplaceStoredFileTagsUseCase replaceStoredFileTags,
-    IDeleteStoredFileUseCase deleteStoredFile) : ApiControllerBase
+    IDeleteStoredFileUseCase deleteStoredFile,
+    IGetUsedFileTagsUseCase getUsedTags) : ApiControllerBase
 {
     /// <summary>Lists the caller's own files, sorted, filtered and paginated.</summary>
     /// <remarks>
@@ -362,4 +364,16 @@ public sealed class FilesController(
 
         return NoContentOrProblem(result);
     }
+
+    /// <summary>The tags the caller has already used on their files.</summary>
+    /// <remarks>
+    /// For a picker or a filter. Served from a cache with a short lifetime, so a tag added
+    /// moments ago may be missing: this is a suggestion, and no write depends on it.
+    /// </remarks>
+    [HttpGet("tags")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(UsedTagsResponse))]
+    public async Task<ActionResult<UsedTagsResponse>> GetUsedTags(
+        CancellationToken cancellationToken = default) =>
+        OkOrProblem(StoredFileResponseMapping.ToUsedTagsResponse(
+            await getUsedTags.ExecuteAsync(cancellationToken)));
 }

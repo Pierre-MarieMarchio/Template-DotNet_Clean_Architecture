@@ -1,8 +1,10 @@
 ﻿using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
+using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;
+using AppTemplate.Application.Features.TodoLists.Ports.TodoItemTagQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Domain.Features.Files.Repositories;
 using AppTemplate.Domain.Features.Reminders.Repositories;
@@ -148,6 +150,7 @@ public static class PersistenceModule
 
         services.TryAddScoped<ITodoListRepository, TodoListRepository>();
         services.TryAddScoped<ITodoListQueries, TodoListQueries>();
+        services.TryAddScoped<ITodoItemTagQueries, TodoItemTagQueries>();
     }
 
     private static void AddFilesFeature(IServiceCollection services)
@@ -165,6 +168,7 @@ public static class PersistenceModule
 
         services.TryAddScoped<IStoredFileRepository, StoredFileRepository>();
         services.TryAddScoped<IStoredFileQueries, StoredFileQueries>();
+        services.TryAddScoped<IStoredFileTagQueries, StoredFileTagQueries>();
     }
 
     private static void AddRemindersFeature(IServiceCollection services)

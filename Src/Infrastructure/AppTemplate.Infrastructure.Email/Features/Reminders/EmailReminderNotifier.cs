@@ -3,6 +3,7 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Application.Core.Common.Localization;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
+using AppTemplate.Infrastructure.Core.Common.Templating;
 using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Infrastructure.Email.Features.Reminders;
@@ -12,7 +13,7 @@ namespace AppTemplate.Infrastructure.Email.Features.Reminders;
 /// case: what "notify" means is an adapter's decision, and a use case that carried an address
 /// would have picked email on the caller's behalf.
 /// <para>
-/// The subject and the body both come from <see cref="ReminderEmailTemplate"/>, in
+/// The subject and the body both come from the embedded <c>ReminderEmailTemplate</c>, in
 /// <see cref="CurrentLanguage.Current"/> — which in <c>AppTemplate.Worker</c> is the language
 /// <c>Localization:DefaultCulture</c> names, set once at start-up. A background pass has no request
 /// to read a reader's own language from, so this mail is written in the deployment's default until
@@ -24,6 +25,10 @@ internal sealed class EmailReminderNotifier(
     IEmailSender emailSender,
     ILogger<EmailReminderNotifier> logger) : IReminderNotifier
 {
+    private static readonly EmailTemplate _template = new(
+        typeof(EmailReminderNotifier).Assembly,
+        "ReminderEmailTemplate");
+
     public async Task NotifyAsync(
         ReminderNotification notification,
         CancellationToken cancellationToken = default)
@@ -43,7 +48,7 @@ internal sealed class EmailReminderNotifier(
             return;
         }
 
-        var mail = ReminderEmailTemplate.Create(
+        var mail = _template.Render(
             CurrentLanguage.Current,
             new Dictionary<string, string>(StringComparer.Ordinal)
             {

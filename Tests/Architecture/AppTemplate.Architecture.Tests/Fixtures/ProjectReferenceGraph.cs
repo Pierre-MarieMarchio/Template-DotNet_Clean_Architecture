@@ -37,8 +37,15 @@ internal static class ProjectReferenceGraph
     /// <summary>Every project under <c>Src</c>, keyed by project name.</summary>
     internal static IReadOnlyDictionary<string, ProjectNode> SourceProjects { get; } = ReadSourceProjects();
 
+    /// <summary>
+    /// An adapter set a host composes: a project of the infrastructure layer that is not the
+    /// layer's package-grade half. <c>IsPackable</c> decides, the same declaration that identifies
+    /// an SDK project, so a shared foundation added to the layer is excluded from the module rules
+    /// the moment it exists rather than when somebody remembers a list.
+    /// </summary>
     internal static bool IsInfrastructureModule(string projectName) =>
-        projectName.StartsWith(_infrastructurePrefix, StringComparison.Ordinal);
+        projectName.StartsWith(_infrastructurePrefix, StringComparison.Ordinal)
+        && !IsSdkProject(projectName);
 
     internal static IEnumerable<ProjectNode> InfrastructureModules =>
         SourceProjects.Values.Where(project => IsInfrastructureModule(project.Name));

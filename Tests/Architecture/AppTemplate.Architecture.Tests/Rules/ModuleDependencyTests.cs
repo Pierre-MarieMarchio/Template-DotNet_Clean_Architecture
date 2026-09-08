@@ -290,13 +290,15 @@ public sealed class ModuleDependencyTests
             string self = ArchitectureAssemblies.NamespaceOf(assembly);
             RuleAssertions.RequireTypes(assembly);
 
-            // Persistence is the one permitted horizontal dependency: it is shared plumbing, not a
-            // module with its own vertical.
+            // Two permitted horizontal dependencies, and neither is a module with its own vertical:
+            // Persistence is shared plumbing, and the layer's package-grade half is a mechanism no
+            // module owns.
             string[] forbidden = ArchitectureAssemblies.AllInfrastructure
                 .Select(ArchitectureAssemblies.NamespaceOf)
                 .Where(candidate => !string.Equals(candidate, self, StringComparison.Ordinal))
                 .Where(candidate => !string.Equals(
                     candidate, ArchitectureAssemblies.PersistenceNamespace, StringComparison.Ordinal))
+                .Where(candidate => !ProjectReferenceGraph.IsSdkProject(candidate))
                 .ToArray();
 
             forbidden.ShouldNotBeEmpty($"No forbidden namespaces were computed for '{self}'.");
@@ -307,8 +309,9 @@ public sealed class ModuleDependencyTests
                 .GetResult()
                 .ShouldHold(
                     $"'{self}' must not depend on another infrastructure module. Only " +
-                    "AppTemplate.Infrastructure.Persistence may be shared; anything else two modules need in " +
-                    "common belongs behind a port in AppTemplate.Application. Forbidden for this assembly: " +
+                    "AppTemplate.Infrastructure.Persistence and the layer's package-grade half may be " +
+                    "shared; anything else two modules need in common belongs behind a port in " +
+                    "AppTemplate.Application, or in that shared half. Forbidden for this assembly: " +
                     string.Join(", ", forbidden));
         }
     }
@@ -430,14 +433,21 @@ public sealed class ModuleDependencyTests
     {
         var offenders = new List<string>();
         int referencesToPersistence = 0;
+        int referencesToTheLayersCore = 0;
 
         foreach (var module in ProjectReferenceGraph.InfrastructureModules)
         {
-            foreach (string? reference in module.References.Where(ProjectReferenceGraph.IsInfrastructureModule))
+            foreach (string reference in module.References.Where(IsOfTheInfrastructureLayer))
             {
                 if (string.Equals(reference, _persistenceProject, StringComparison.Ordinal))
                 {
                     referencesToPersistence++;
+                    continue;
+                }
+
+                if (ProjectReferenceGraph.IsSdkProject(reference))
+                {
+                    referencesToTheLayersCore++;
                     continue;
                 }
 
@@ -446,16 +456,35 @@ public sealed class ModuleDependencyTests
         }
 
         offenders.ShouldBeEmpty(
-            "An infrastructure module may reference AppTemplate.Infrastructure.Persistence and no other " +
-            "infrastructure module.");
+            "An infrastructure module may reference AppTemplate.Infrastructure.Persistence and the " +
+            "package-grade half of its own layer, and no other infrastructure module. A mechanism two " +
+            "modules need belongs in the layer's Core, where both may take it; a module reaching " +
+            "sideways for one couples two adapter sets that a host is supposed to be able to compose " +
+            "independently.");
 
-        // Non-vacuity: if nothing referenced the shared plumbing any more, the rule above would
-        // hold trivially and the module layout would have changed underneath it.
+        // Non-vacuity, in both directions the rule allows: if nothing referenced the shared plumbing
+        // or the shared foundation any more, the rule above would hold trivially and the module
+        // layout would have changed underneath it.
         referencesToPersistence.ShouldBeGreaterThan(
             0,
             "No infrastructure module references AppTemplate.Infrastructure.Persistence, so this rule is no " +
             "longer describing the repository.");
+
+        referencesToTheLayersCore.ShouldBeGreaterThan(
+            0,
+            "No infrastructure module references the package-grade half of its own layer, so the " +
+            "permission this rule grants describes nothing — either that project has gone, or a " +
+            "mechanism two modules share has gone back to being copied.");
     }
+
+    /// <summary>
+    /// Any project of the infrastructure layer, modules and the layer's Core alike: the rule above
+    /// has to see a reference in order to decide about it, and
+    /// <see cref="ProjectReferenceGraph.IsInfrastructureModule"/> deliberately no longer counts the
+    /// Core as a module.
+    /// </summary>
+    private static bool IsOfTheInfrastructureLayer(string projectName) =>
+        projectName.StartsWith("AppTemplate.Infrastructure.", StringComparison.Ordinal);
 
     /// <summary>
     /// Composing the modules is a host's job, and only a host's. What the rule protects is that no

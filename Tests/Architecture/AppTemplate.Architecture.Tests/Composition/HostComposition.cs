@@ -3,6 +3,7 @@ using AppTemplate.Application.Auth;
 using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.InMemory;
@@ -145,6 +146,7 @@ internal static class HostComposition
         services.AddFiles();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
+        services.AddCacheStore();
         services.AddPersistenceModule(configuration);
         services.AddIdentityModule(configuration);
         services.AddEmailModule(configuration);
@@ -182,6 +184,7 @@ internal static class HostComposition
         services.AddFiles();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
+        services.AddCacheStore();
         services.AddPersistenceModule(configuration);
         services.AddIdentityModule(configuration);
         services.AddEmailModule(configuration);
@@ -227,6 +230,7 @@ internal static class HostComposition
         services.AddFiles();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
+        services.AddCacheStore();
         services.AddPersistenceModule(configuration);
         services.AddEmailModule(configuration);
         services.AddStorageModule(configuration);
@@ -252,6 +256,7 @@ internal static class HostComposition
         services.AddFiles();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
+        services.AddCacheStore();
         services.AddPersistenceModule(configuration);
         services.AddIdentityModule(configuration);
 
@@ -281,6 +286,7 @@ internal static class HostComposition
         services.AddReminders();
         services.AddFiles();
         services.AddPurgeExpiredIdempotencyKeys();
+        services.AddCacheStore();
         services.AddPersistenceModule(configuration);
         services.AddStorageModule(configuration);
 

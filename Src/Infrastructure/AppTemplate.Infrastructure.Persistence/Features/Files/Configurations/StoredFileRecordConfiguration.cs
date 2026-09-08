@@ -105,5 +105,10 @@ internal sealed class StoredFileRecordConfiguration : IEntityTypeConfiguration<S
         builder.Property(file => file.CreatedBy);
         builder.Property(file => file.LastModifiedAt);
         builder.Property(file => file.LastModifiedBy);
+
+        builder.HasMany(file => file.Tags)
+            .WithOne()
+            .HasForeignKey(tag => tag.StoredFileId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

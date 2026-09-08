@@ -66,7 +66,8 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
                     file.Checksum,
                     file.State,
                     file.RegisteredAt,
-                    file.AvailableAt),
+                    file.AvailableAt,
+                    file.Tags.Select(tag => tag.Value).ToList()),
                 file.Version))
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -225,5 +226,6 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
             file.Checksum,
             file.State,
             file.RegisteredAt,
-            file.AvailableAt);
+            file.AvailableAt,
+            file.Tags.Select(tag => tag.Value).ToList());
 }

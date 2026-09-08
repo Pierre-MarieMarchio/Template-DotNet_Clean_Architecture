@@ -1,9 +1,11 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Reflection;
 using AppTemplate.Api.Core.Common.Contracts;
 using AppTemplate.Api.Features.Files.Contracts.Requests;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
+using AppTemplate.Api.Features.Files.Controllers;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using Shouldly;
 using Xunit;
@@ -19,8 +21,9 @@ namespace AppTemplate.Api.IntegrationTests.Files;
 /// <b>The entry points are asserted, not the gate.</b> Ownership is enforced in one place —
 /// <c>StoredFileService.LoadOwnedAsync</c> — which is the right shape and is exactly why a single
 /// endpoint that stopped going through it would be invisible: every other endpoint would keep
-/// passing. So all four entry points are enumerated deliberately. One forgotten route is the whole
-/// vulnerability.
+/// passing. So every entry point is enumerated deliberately, and the count below is asserted against
+/// the controller itself so that a route added later cannot be left out of the list. One forgotten
+/// route is the whole vulnerability.
 /// </para>
 /// <para>
 /// A registration is enough to test with, and no bytes are deposited. What is under test is who may
@@ -33,9 +36,23 @@ public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTe
 {
     private const string _filesRoute = "/api/v1/files";
 
+    /// <summary>How many actions take a file id, and therefore how many refusals are asserted.</summary>
+    private const int _entryPointsNamingAFile = 5;
+
     [Fact]
     public async Task AnotherUsersFile_IsNotFoundOnEveryEntryPointThatNamesOne()
     {
+        // Read off the controller rather than remembered: every action taking a file id has to be
+        // exercised below, so a route added later fails here instead of passing untested.
+        typeof(FilesController)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Count(action => action.GetParameters().Any(parameter => parameter.Name == "fileId"))
+            .ShouldBe(
+                _entryPointsNamingAFile,
+                "an action that names a file is an action a stranger can aim at an id that is not " +
+                "theirs, so each one is asked the question below. This count is what says they all " +
+                "are.");
+
         var (owner, _, _) = await SignInAsync("owner");
         var (intruder, _, _) = await SignInAsync("intruder");
 
@@ -63,6 +80,13 @@ public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTe
         await ShouldBeNotFoundAsync(
             "POST the confirmation, which would move somebody else's file into a servable state",
             () => intruder.PostAsync(new Uri($"{_filesRoute}/{registered.Id}/confirm", UriKind.Relative), null, TestToken));
+
+        await ShouldBeNotFoundAsync(
+            "PUT the tags, which would relabel somebody else's file",
+            () => intruder.PutAsJsonAsync(
+                new Uri($"{_filesRoute}/{registered.Id}/tags", UriKind.Relative),
+                new ReplaceStoredFileTagsRequest(["intruded"]),
+                TestToken));
 
         await ShouldBeNotFoundAsync(
             "DELETE, which would destroy somebody else's row and let its bytes be reclaimed",

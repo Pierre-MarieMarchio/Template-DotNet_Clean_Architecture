@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Features.TodoLists.ValueObjects;
+﻿using AppTemplate.Application.Common.Tagging;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands.RemoveTagFromTodoItem;
@@ -14,9 +14,6 @@ public sealed class RemoveTagFromTodoItemCommandValidator : AbstractValidator<Re
             .NotEmpty().WithMessage("An item id is required.");
 
         RuleFor(command => command.Tag)
-            .Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("A tag cannot be blank.")
-            .Must(tag => tag.Trim().Length <= Tag.MaxLength)
-            .WithMessage($"A tag cannot exceed {Tag.MaxLength} characters.");
+            .IsATag();
     }
 }

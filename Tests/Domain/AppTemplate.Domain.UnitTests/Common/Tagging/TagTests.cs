@@ -1,9 +1,9 @@
-﻿using AppTemplate.Domain.Core.Common.Exceptions;
-using AppTemplate.Domain.Features.TodoLists.ValueObjects;
+﻿using AppTemplate.Domain.Common.Tagging;
+using AppTemplate.Domain.Core.Common.Exceptions;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Domain.UnitTests.Features.TodoLists.ValueObjects;
+namespace AppTemplate.Domain.UnitTests.Common.Tagging;
 
 public sealed class TagTests
 {

@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Core.Common.Exceptions;
+﻿using AppTemplate.Domain.Common.Tagging;
+using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 
@@ -14,13 +15,10 @@ public sealed class TodoItem : Entity<Guid>
 {
     public const int MaxDescriptionLength = 2000;
 
-    /// <summary>
-    /// Bounds tag growth per item. Without it a single request could send an unbounded collection
-    /// into a per-tag loop that is linear in the item's existing tags.
-    /// </summary>
+    /// <summary>How many tags one item carries. The rules that govern them are <see cref="TagSet"/>'s.</summary>
     public const int MaxTags = 20;
 
-    private readonly List<Tag> _tags = [];
+    private readonly TagSet _tags = new(MaxTags, "to-do item");
 
     internal TodoItem(Guid id, Guid todoListId, string title, string? description) : base(id)
     {
@@ -85,7 +83,7 @@ public sealed class TodoItem : Entity<Guid>
     /// <summary>Derived from <see cref="CompletedAt"/>, so the two can never disagree.</summary>
     public bool IsCompleted => CompletedAt is not null;
 
-    public IReadOnlyCollection<Tag> Tags => _tags.AsReadOnly();
+    public IReadOnlyCollection<Tag> Tags => _tags.Tags;
 
     internal void ChangeTitle(string title) => Title = TodoItemTitle.Create(title);
 
@@ -125,30 +123,11 @@ public sealed class TodoItem : Entity<Guid>
         return true;
     }
 
-    /// <summary>
-    /// Adding a tag that is already present is a no-op rather than an error: the caller's
-    /// intent is already satisfied, so failing would force every client to read-then-write to
-    /// stay correct and would make a retried request fail spuriously.
-    /// </summary>
-    internal void AddTag(Tag tag)
-    {
-        if (_tags.Contains(tag))
-        {
-            return;
-        }
+    internal void AddTag(Tag tag) => _tags.Add(tag);
 
-        // The cap is checked only for a tag that is actually new, so re-sending an existing tag
-        // stays a no-op on a full item rather than becoming a spurious failure.
-        if (_tags.Count >= MaxTags)
-        {
-            throw new DomainException($"A to-do item cannot carry more than {MaxTags} tags.");
-        }
-
-        _tags.Add(tag);
-    }
-
-    /// <summary>Removing an absent tag is a no-op, for the same reason as <see cref="AddTag"/>.</summary>
     internal void RemoveTag(Tag tag) => _tags.Remove(tag);
+
+    internal void ReplaceTags(IEnumerable<Tag> tags) => _tags.Replace(tags);
 
     private static string? NormaliseDescription(string? description)
     {

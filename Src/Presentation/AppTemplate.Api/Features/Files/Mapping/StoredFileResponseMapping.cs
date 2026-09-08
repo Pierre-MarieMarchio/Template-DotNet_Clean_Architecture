@@ -37,7 +37,8 @@ internal static class StoredFileResponseMapping
             file.Checksum,
             ToStatus(file.State),
             file.RegisteredAt,
-            file.AvailableAt);
+            file.AvailableAt,
+            file.Tags);
     }
 
     public static UploadGrantResponse ToResponse(IssuedUploadGrant grant)

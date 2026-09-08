@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Core.Common.Abstractions;
+﻿using AppTemplate.Domain.Common.Tagging;
+using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Events;
@@ -163,24 +164,13 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
         item.ChangeDescription(description);
     }
 
-    /// <summary>Total replacement, not a merge: the caller sends the tag set it wants the item
-    /// to end up with, so this removes what is no longer present and adds what is new.</summary>
+    /// <summary>Total replacement, not a merge — see <see cref="TagSet.Replace"/> for what that
+    /// means for the cap.</summary>
     public void SetItemTags(Guid itemId, IEnumerable<string> tags)
     {
         ArgumentNullException.ThrowIfNull(tags);
 
-        var item = RequireItem(itemId);
-        var wanted = tags.Select(Tag.Create).ToHashSet();
-
-        foreach (var existing in item.Tags.Where(existing => !wanted.Contains(existing)).ToArray())
-        {
-            item.RemoveTag(existing);
-        }
-
-        foreach (var tag in wanted)
-        {
-            item.AddTag(tag);
-        }
+        RequireItem(itemId).ReplaceTags(tags.Select(Tag.Create));
     }
 
     public void AddTagToItem(Guid itemId, string tag) => RequireItem(itemId).AddTag(Tag.Create(tag));

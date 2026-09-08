@@ -32,6 +32,7 @@ internal static class StoredFileDtoMapping
             storedFile.Checksum.Value,
             storedFile.State,
             storedFile.RegisteredAt,
-            storedFile.AvailableAt);
+            storedFile.AvailableAt,
+            [.. storedFile.Tags.Select(tag => tag.Value)]);
     }
 }

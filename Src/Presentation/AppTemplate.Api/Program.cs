@@ -6,6 +6,7 @@ using AppTemplate.Api.Core.Common.Hosting;
 using AppTemplate.Application;
 using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core;
+using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.Persistence;
@@ -55,6 +56,9 @@ builder.Services.AddAuthApplication();
 // use case a call at a time, so a host that has no maintenance endpoint and no maintenance
 // loop is not made to supply the two ports this one resolves.
 builder.Services.AddPurgeExpiredIdempotencyKeys();
+// The cache the tag pickers read through. In process, so nothing is deployed for it; a
+// deployment that wants a shared second level registers an IDistributedCache beside this.
+builder.Services.AddCacheStore();
 builder.Services.AddPersistenceModule(builder.Configuration);
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddEmailModule(builder.Configuration);

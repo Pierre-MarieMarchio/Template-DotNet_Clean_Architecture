@@ -1,42 +1,45 @@
-﻿using AppTemplate.Infrastructure.Identity.Features.Auth.Factories;
+﻿using System.Reflection;
+using AppTemplate.Infrastructure.Core.Common.Templating;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Identity.UnitTests.Features.Auth.Factories;
+namespace AppTemplate.Infrastructure.Core.UnitTests.Common.Templating;
 
 /// <summary>
-/// Which language a mail comes out in, and where its subject comes from. Exercised through the
-/// tag-taking overload rather than the ambient one, so nothing here depends on what the process
-/// happens to have set.
+/// Which language a mail comes out in, where its subject comes from, and what happens to a
+/// substituted value. Exercised against this project's own embedded templates, so nothing here
+/// depends on what any module happens to ship.
 /// </summary>
-public sealed class EmailBodyFactoryTests
+public sealed class EmailTemplateTests
 {
-    private static readonly Dictionary<string, string> _placeholders =
-        new(StringComparer.Ordinal) { ["UserName"] = "Ada", ["ConfirmationLink"] = "https://localhost/x" };
+    private static readonly Assembly _resources = typeof(EmailTemplateTests).Assembly;
 
-    private readonly EmailBodyFactory _sut = new("RegisterEmailTemplate");
+    private static readonly Dictionary<string, string> _placeholders =
+        new(StringComparer.Ordinal) { ["UserName"] = "Ada" };
+
+    private readonly EmailTemplate _sut = new(_resources, "TestEmailTemplate");
 
     [Fact]
     public void TheAvailableLanguages_AreTheOnesWithATemplate() =>
         _sut.AvailableCultures.Order(StringComparer.Ordinal).ShouldBe(["en", "fr"]);
 
     [Theory]
-    [InlineData("en", "Confirm your email address")]
-    [InlineData("fr", "Confirmez votre adresse e-mail")]
+    [InlineData("en", "Test subject")]
+    [InlineData("fr", "Sujet de test")]
     public void EachLanguage_BringsItsOwnSubject(string tag, string subject) =>
-        _sut.Create(tag, _placeholders).Subject.ShouldBe(
+        _sut.Render(tag, _placeholders).Subject.ShouldBe(
             subject,
             "the subject is the template's <title>, so it follows the body");
 
     [Fact]
     public void TheSubjectAndTheBody_AreAlwaysInTheSameLanguage()
     {
-        var french = _sut.Create("fr", _placeholders);
+        var french = _sut.Render("fr", _placeholders);
 
-        french.Subject.ShouldBe("Confirmez votre adresse e-mail");
-        french.Body.ShouldContain("Bienvenue");
+        french.Subject.ShouldBe("Sujet de test");
+        french.Body.ShouldContain("corps français");
         french.Body.ShouldNotContain(
-            "Thank you for signing up",
+            "English body",
             Case.Sensitive,
             "a French subject over an English body is the defect this arrangement exists to prevent");
     }
@@ -50,13 +53,13 @@ public sealed class EmailBodyFactoryTests
     [InlineData("fr-CA")]
     [InlineData("fr-BE")]
     public void ARegionalTag_FallsBackToItsParentLanguage(string tag) =>
-        _sut.Create(tag, _placeholders).Subject.ShouldBe("Confirmez votre adresse e-mail");
+        _sut.Render(tag, _placeholders).Subject.ShouldBe("Sujet de test");
 
     [Theory]
     [InlineData("de")]
     [InlineData("ja-JP")]
     public void ALanguageWithNoTemplate_FallsBackToEnglish(string tag) =>
-        _sut.Create(tag, _placeholders).Subject.ShouldBe("Confirm your email address");
+        _sut.Render(tag, _placeholders).Subject.ShouldBe("Test subject");
 
     /// <summary>
     /// A tag that is not a tag at all — an <c>Accept-Language</c> of <c>*</c>, a truncated header,
@@ -67,17 +70,16 @@ public sealed class EmailBodyFactoryTests
     [InlineData("*")]
     [InlineData("not a tag")]
     public void AMalformedTag_FallsBackToEnglish(string tag) =>
-        _sut.Create(tag, _placeholders).Subject.ShouldBe("Confirm your email address");
+        _sut.Render(tag, _placeholders).Subject.ShouldBe("Test subject");
 
     [Fact]
     public void EveryPlaceholder_IsHtmlEncodedInTheBody()
     {
-        var mail = _sut.Create(
-            "fr",
+        var mail = _sut.Render(
+            "en",
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["UserName"] = "<script>alert(1)</script>",
-                ["ConfirmationLink"] = "https://localhost/x",
             });
 
         mail.Body.ShouldNotContain("<script>");
@@ -91,26 +93,44 @@ public sealed class EmailBodyFactoryTests
     [Fact]
     public void TheSubject_TakesNoSubstitution()
     {
-        var mail = _sut.Create(
+        var mail = _sut.Render(
             "en",
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["UserName"] = "Ada\r\nBcc: victim@example.test",
-                ["ConfirmationLink"] = "https://localhost/x",
             });
 
-        mail.Subject.ShouldBe("Confirm your email address");
+        mail.Subject.ShouldBe("Test subject");
         mail.Subject.ShouldNotContain("Bcc");
     }
 
     [Fact]
     public void AMailWithNoTemplateAtAll_FailsLoudly()
     {
-        var missing = new EmailBodyFactory("NoSuchEmailTemplate");
+        var missing = new EmailTemplate(_resources, "NoSuchEmailTemplate");
 
-        var exception = Should.Throw<InvalidOperationException>(() => missing.Create("en", _placeholders));
+        var exception = Should.Throw<InvalidOperationException>(() => missing.Render("en", _placeholders));
 
         exception.Message.ShouldContain("NoSuchEmailTemplate");
+        exception.Message.ShouldContain(_resources.GetName().Name!);
     }
 
+    /// <summary>
+    /// The assembly is a parameter so that a module renders its own mail: reading this class's own
+    /// assembly would make every module's templates unreachable from here.
+    /// </summary>
+    [Fact]
+    public void TheTemplatesAreReadFromTheAssemblyItIsGiven()
+    {
+        var elsewhere = new EmailTemplate(typeof(EmailTemplate).Assembly, "TestEmailTemplate");
+
+        Should.Throw<InvalidOperationException>(() => elsewhere.Render("en", _placeholders));
+    }
+
+    [Fact]
+    public void ItRefusesAMissingAssemblyOrName()
+    {
+        Should.Throw<ArgumentNullException>(() => new EmailTemplate(null!, "TestEmailTemplate"));
+        Should.Throw<ArgumentException>(() => new EmailTemplate(_resources, "  "));
+    }
 }

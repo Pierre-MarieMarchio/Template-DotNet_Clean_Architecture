@@ -83,6 +83,11 @@ public sealed class LayoutConventionTests
         // files.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] = [],
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] = [],
+
+        // Null, not empty, for the reason the other Core projects carry it: what is here is a
+        // mechanism no module owns, so a feature folder appearing would be one module's business
+        // filed as everybody's.
+        ["Src/Infrastructure/AppTemplate.Infrastructure.Core"] = null,
     };
 
     /// <summary>
@@ -129,6 +134,12 @@ public sealed class LayoutConventionTests
         // this project had grown a second subject, which is the thing to argue about rather than
         // the folder.
         ["Src/Application/AppTemplate.Application.Auth"] = null,
+
+        // The agnostic half of this layer: a mechanism a module needs and no module owns. A module
+        // may not reference a sibling, so without this project two modules needing one mechanism
+        // each keep a copy.
+        ["Src/Infrastructure/AppTemplate.Infrastructure.Core"] =
+            ["Caching", "Templating"],
 
         ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] =
             ["Http", "Smtp"],

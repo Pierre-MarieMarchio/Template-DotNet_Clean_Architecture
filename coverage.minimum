@@ -25,14 +25,18 @@
 # otherwise, which is the figure a developer sees first and therefore the binding one.
 #   2026-09-04   94.11%  (5849/6215)  3264 tests   extension, Release  (what CI enforces)
 #   2026-09-04   92.82%  (7029/7573)  3264 tests   extension, Debug    (the lower of the two)
+#   2026-09-08   96.09%  (6099/6347)  3328 tests   extension, Release  (what CI enforces)
+#   2026-09-08   94.87%  (7329/7725)  3328 tests   extension, Debug    (the lower of the two)
 #
-# The weakest assembly is AppTemplate.Infrastructure.Email at 63.87%; then
-# AppTemplate.Infrastructure.Identity at 85.96% and AppTemplate.Api at 86.11%. Every other one is
-# above the floor, AppTemplate.Domain at 100.00% and AppTemplate.Application at 98.90% highest
-# among them. Read from the Debug row, which is the lower one. The
-# total is what the gate enforces, so a large new project with no tests can pull it down even while
-# every other one improves. Read this list as of the last dated measurement above and no later: it
-# is written by hand, and nothing makes it fall out of step loudly.
+# Two of the fifteen assemblies sit under the floor: AppTemplate.Infrastructure.Identity at 86.42%
+# and AppTemplate.Api.Core at 89.31%. Then AppTemplate.Infrastructure.Persistence at 93.89%,
+# AppTemplate.Presentation.Core at 94.31% and AppTemplate.Infrastructure.Storage at 94.28%. Highest
+# are AppTemplate.Domain and AppTemplate.Domain.Core at 100.00%, then AppTemplate.Application.Auth
+# at 99.62% and AppTemplate.Application at 99.05%. Read from the Debug row, which is the lower one.
+# The total is what the gate enforces rather than any one assembly, which is what lets those two sit
+# below it — and equally what lets a large new project with no tests pull the total down while every
+# other one improves. Read this list as of the last dated measurement above and no later: it is
+# written by hand, and nothing makes it fall out of step loudly.
 #
 # THE 68.22% ABOVE WAS MEASURED WITHOUT A SINGLE IDENTITY UNIT TEST IN IT. coverage.runsettings named
 # GeneratedCodeAttribute in ExcludeByAttribute, and coverlet 10.0.1 drops a whole assembly from the
@@ -54,21 +58,24 @@
 # assembly is Program.cs at 0/28, which a unit test cannot reach, and the uncovered halves of the
 # three loops.
 #
-# The Docker-present total has not been re-measured since — Docker is unavailable on the machine
-# these three lines were taken on, so both integration suites contributed nothing to all three — and
-# the 85.34% below is therefore still the last honest figure for the gate, now an understatement of
-# unknown size. Re-measure on a machine with Docker before touching the floor either way.
+# Those three lines were taken where Docker was unavailable, so both integration suites contributed
+# nothing to any of them and none is comparable to a dated row above. The two rows of 2026-09-08
+# were taken with a daemon running and both suites contributing, which is what makes them the
+# figures the floor is set against.
 #
-# WHY THE FLOOR MOVED, AND WHY THAT IS NOT A LOOSENING. Changing the collector re-based every
-# number in this file, and a floor is only worth what its margin is: 85 against a coverlet-measured
-# 90.46% was 5.46 points, while 85 against an extension-measured 92.82% is 7.82 points — the same
-# figure protecting less. 88 restores the margin the rule above asks for and is therefore a
-# tightening of the gate, not a relaxation of it. It is set against the Debug row because that is
-# the lower of the two, so a local run cannot fail a gate that CI would pass — a floor that
-# depends on which configuration you happened to build is not a floor. That leaves 4.82 points of
-# margin locally and 6.11 in CI. Measured first, rule read second, and not the other way round.
+# WHY THE FLOOR MOVES, AND WHY MOVING IT UP IS THE RULE RATHER THAN AN AMBITION. A floor is only
+# worth what its margin is, so the margin is what gets held constant and the number is what follows.
+# 88 against a Debug-measured 92.82% was 4.82 points, which is the margin the rule above asks for;
+# 88 against 94.87% is 6.87 points, which is the same figure protecting less. 90 restores it — 4.87
+# points locally, 6.09 in CI — and is therefore a tightening of the gate, not a claim about how much
+# was written. It is set against the Debug row because that is the lower of the two, so a local run
+# cannot fail a gate that CI would pass: a floor that depends on which configuration you happened to
+# build is not a floor. Measured first, rule read second, and not the other way round.
 #
 # Measured with Docker present, so both integration suites contributed. Re-measure that way before
 # touching this number again: without a daemon the two suites run nothing and the figure is not
-# comparable to any line above.
-88
+# comparable to any line above. And with the -- separator, which is what carries --configuration
+# past dotnet run to Tools/Tasks.cs: `dotnet run Tools/Tasks.cs -- coverage --configuration Release`.
+# Without it dotnet run claims the option for itself, the tests execute from bin/Debug, and the run
+# reports a Release figure that is the Debug one.
+90

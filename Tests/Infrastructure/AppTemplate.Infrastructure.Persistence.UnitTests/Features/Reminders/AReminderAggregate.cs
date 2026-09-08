@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;
 
@@ -18,7 +19,7 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Reminders;
 /// </remarks>
 internal static class AReminderAggregate
 {
-    internal static readonly Guid OwnerId = new("4b7f1d92-4c8a-4f4b-9a1e-0d2f3c4b5a61");
+    internal static readonly UserId OwnerId = UserId.Create(new("4b7f1d92-4c8a-4f4b-9a1e-0d2f3c4b5a61"));
     internal static readonly Guid TodoListId = new("0199a3c4-3333-7000-8000-000000000001");
     internal static readonly Guid TodoItemId = new("0199a3c4-4444-7000-8000-000000000001");
     internal static readonly Guid CreatedBy = new("11111111-2222-3333-4444-555555555556");
@@ -85,7 +86,7 @@ internal static class AReminderAggregate
 
     // ---- The second, entirely different set of values -------------------------------------------
 
-    internal static readonly Guid OtherOwnerId = new("7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e61");
+    internal static readonly UserId OtherOwnerId = UserId.Create(new("7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e61"));
     internal static readonly Guid OtherTodoListId = new("0199a3c4-3333-7000-8000-000000000002");
     internal static readonly Guid OtherTodoItemId = new("0199a3c4-4444-7000-8000-000000000002");
     internal static readonly Guid OtherCreatedBy = new("22222222-3333-4444-5555-666666666667");

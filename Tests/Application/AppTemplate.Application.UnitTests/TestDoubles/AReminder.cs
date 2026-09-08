@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;
 
@@ -11,7 +12,7 @@ internal static class AReminder
 {
     /// <summary>A reminder scheduled the normal way, due after <see cref="StubDateTimeProvider.DefaultInstant"/>.</summary>
     internal static Reminder OwnedBy(
-        Guid ownerId,
+        UserId ownerId,
         DateTimeOffset? dueAt = null,
         Guid? todoListId = null,
         Guid? todoItemId = null)
@@ -28,9 +29,9 @@ internal static class AReminder
         return reminder;
     }
 
-    internal static Reminder OwnedBySomebodyElseThan(Guid notThisUserId)
+    internal static Reminder OwnedBySomebodyElseThan(UserId notThisUserId)
     {
-        var otherOwnerId = Guid.CreateVersion7();
+        var otherOwnerId = UserId.Create(Guid.CreateVersion7());
 
         if (otherOwnerId == notThisUserId)
         {
@@ -43,7 +44,7 @@ internal static class AReminder
     /// <summary>Placed at <paramref name="version"/> the way the store places a freshly loaded
     /// aggregate. Goes through <see cref="IVersioned"/> because that is the only way anything
     /// writes a version.</summary>
-    internal static Reminder OwnedByAtVersion(Guid ownerId, uint version)
+    internal static Reminder OwnedByAtVersion(UserId ownerId, uint version)
     {
         var reminder = OwnedBy(ownerId);
         ((IVersioned)reminder).SetVersion(version);
@@ -57,7 +58,7 @@ internal static class AReminder
     /// claimed, or already fired, since scheduling refuses a due date in the past.
     /// </summary>
     internal static Reminder Rehydrated(
-        Guid ownerId,
+        UserId ownerId,
         DateTimeOffset dueAt,
         ReminderState state = ReminderState.Pending,
         DateTimeOffset? claimedAt = null,

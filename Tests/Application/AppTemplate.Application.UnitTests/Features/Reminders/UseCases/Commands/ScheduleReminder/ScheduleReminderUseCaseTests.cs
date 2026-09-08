@@ -5,6 +5,7 @@ using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleRemin
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using NSubstitute;
@@ -15,7 +16,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands
 
 public sealed class ScheduleReminderUseCaseTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
     private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
 
     private readonly ITodoListQueries _todoLists = Substitute.For<ITodoListQueries>();
@@ -47,7 +48,7 @@ public sealed class ScheduleReminderUseCaseTests
             TestToken);
 
         await _todoLists.DidNotReceive().GetDetailAsync(
-            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+            Arg.Any<Guid>(), Arg.Any<UserId>(), Arg.Any<CancellationToken>());
         _reminders.DidNotReceive().Add(Arg.Any<Reminder>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }

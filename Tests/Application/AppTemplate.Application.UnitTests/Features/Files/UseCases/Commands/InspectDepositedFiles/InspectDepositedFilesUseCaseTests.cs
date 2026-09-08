@@ -3,6 +3,7 @@ using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
 using AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Events;
 using AppTemplate.Domain.Features.Files.Repositories;
@@ -16,7 +17,7 @@ namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Commands.Ins
 
 public sealed class InspectDepositedFilesUseCaseTests
 {
-    private static readonly Guid _ownerId = Guid.CreateVersion7();
+    private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
     private static readonly byte[] _png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00];
 
     private static readonly byte[] _svg =

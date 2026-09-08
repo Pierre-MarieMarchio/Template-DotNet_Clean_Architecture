@@ -49,7 +49,7 @@ public sealed class DisableAccountTwoFactorUseCase(
         }
 
         var guard = SelfAdministrationPolicy.EnsureNotSelf(
-            callerId.Value,
+            callerId.Value.Value,
             request.UserId,
             AuthErrors.CannotDisableOwnTwoFactor);
 

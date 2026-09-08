@@ -2,6 +2,7 @@
 using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetUsedFileTags;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -14,7 +15,7 @@ namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Queries.GetU
 /// </summary>
 public sealed class GetUsedFileTagsUseCaseTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
     private readonly IStoredFileTagQueries _queries = Substitute.For<IStoredFileTagQueries>();
     private readonly RecordingCacheStore _cache = new();
@@ -27,7 +28,7 @@ public sealed class GetUsedFileTagsUseCaseTests
         var result = await useCase.ExecuteAsync(TestToken);
 
         result.IsFailure.ShouldBeTrue();
-        await _queries.DidNotReceiveWithAnyArgs().GetUsedTagsForOwnerAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _queries.DidNotReceiveWithAnyArgs().GetUsedTagsForOwnerAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -63,7 +64,7 @@ public sealed class GetUsedFileTagsUseCaseTests
     [Fact]
     public async Task TwoOwners_DoNotShareAnEntry()
     {
-        var otherId = Guid.CreateVersion7();
+        var otherId = UserId.Create(Guid.CreateVersion7());
 
         _queries.GetUsedTagsForOwnerAsync(_callerId, Arg.Any<CancellationToken>()).Returns(["mine"]);
         _queries.GetUsedTagsForOwnerAsync(otherId, Arg.Any<CancellationToken>()).Returns(["theirs"]);
@@ -86,7 +87,7 @@ public sealed class GetUsedFileTagsUseCaseTests
 
     private GetUsedFileTagsUseCase UseCase() => UseCaseFor(_callerId);
 
-    private GetUsedFileTagsUseCase UseCaseFor(Guid ownerId) =>
+    private GetUsedFileTagsUseCase UseCaseFor(UserId ownerId) =>
         new(_queries, _cache, StubCurrentUser.WithId(ownerId));
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

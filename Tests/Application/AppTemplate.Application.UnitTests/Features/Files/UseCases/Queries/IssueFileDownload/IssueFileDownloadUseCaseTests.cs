@@ -4,6 +4,7 @@ using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using NSubstitute;
@@ -19,7 +20,7 @@ namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Queries.Issu
 /// </summary>
 public sealed class IssueFileDownloadUseCaseTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
     private static readonly IssuedDownloadGrant _grant = new(
         "https://store.example/download",

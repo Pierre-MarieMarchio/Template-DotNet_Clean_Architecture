@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Features.Reminders.Entities;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
 
@@ -19,7 +20,7 @@ internal sealed class ReminderMapper : IReminderMapper
 
         var aggregate = Reminder.Rehydrate(
             record.Id,
-            record.OwnerId,
+            UserId.Create(record.OwnerId),
             record.TodoListId,
             record.TodoItemId,
             record.DueAt,
@@ -43,7 +44,7 @@ internal sealed class ReminderMapper : IReminderMapper
         return new ReminderRecord
         {
             Id = aggregate.Id,
-            OwnerId = aggregate.OwnerId,
+            OwnerId = aggregate.OwnerId.Value,
             TodoListId = aggregate.TodoListId,
             TodoItemId = aggregate.TodoItemId,
             DueAt = aggregate.DueAt,
@@ -73,7 +74,7 @@ internal sealed class ReminderMapper : IReminderMapper
 
         // Assigned, not replaced. EF compares each value against the one it read and writes a column
         // only if it actually differs, so an unchanged aggregate produces no UPDATE at all.
-        record.OwnerId = aggregate.OwnerId;
+        record.OwnerId = aggregate.OwnerId.Value;
         record.TodoListId = aggregate.TodoListId;
         record.TodoItemId = aggregate.TodoItemId;
         record.DueAt = aggregate.DueAt;

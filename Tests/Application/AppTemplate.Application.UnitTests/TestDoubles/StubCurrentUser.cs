@@ -1,13 +1,14 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Domain.Core.Common.Primitives;
 
 namespace AppTemplate.Application.UnitTests.TestDoubles;
 
-internal sealed class StubCurrentUser(Guid? userId) : ICurrentUser
+internal sealed class StubCurrentUser(UserId? userId) : ICurrentUser
 {
-    /// <summary>No id at all, rather than <c>Guid.Empty</c>.</summary>
+    /// <summary>No id at all, rather than an owner whose id happens to be empty.</summary>
     public static StubCurrentUser Anonymous { get; } = new(null);
 
-    public static StubCurrentUser WithId(Guid userId) => new(userId);
+    public static StubCurrentUser WithId(UserId userId) => new(userId);
 
-    public Guid? UserId => userId;
+    public UserId? UserId => userId;
 }

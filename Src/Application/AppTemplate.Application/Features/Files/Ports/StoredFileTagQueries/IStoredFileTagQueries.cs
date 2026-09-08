@@ -1,4 +1,5 @@
-﻿namespace AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+namespace AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 
 /// <summary>
 /// What this owner has labelled their files with. One capability of its own rather than a fifth
@@ -14,6 +15,6 @@ public interface IStoredFileTagQueries
     /// </summary>
     /// <returns>Every tag value in use, each once, ordered so two calls agree.</returns>
     Task<IReadOnlyList<string>> GetUsedTagsForOwnerAsync(
-        Guid ownerId,
+        UserId ownerId,
         CancellationToken cancellationToken = default);
 }

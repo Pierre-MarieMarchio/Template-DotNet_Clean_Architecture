@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using AppTemplate.Domain.Features.Files.ValueObjects;
@@ -36,7 +37,7 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
     [Fact]
     public async Task AQuarantinedFile_StillWeighsOnItsOwnersQuota()
     {
-        var owner = Guid.CreateVersion7();
+        var owner = UserId.Create(Guid.CreateVersion7());
 
         await StoreAsync(owner, file =>
         {
@@ -59,7 +60,7 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
     [Fact]
     public async Task ADepositedFileAwaitingAVerdict_AlreadyWeighsOnTheQuota()
     {
-        var owner = Guid.CreateVersion7();
+        var owner = UserId.Create(Guid.CreateVersion7());
 
         await StoreAsync(owner, Confirm);
 
@@ -83,7 +84,7 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
     [Fact]
     public async Task APendingRegistration_CountsAsPromisedRatherThanStored()
     {
-        var owner = Guid.CreateVersion7();
+        var owner = UserId.Create(Guid.CreateVersion7());
 
         await StoreAsync(owner, _ => { });
 
@@ -100,7 +101,7 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
     /// Registers one file for <paramref name="owner"/> and applies <paramref name="advance"/> to it
     /// before the single commit, so the row lands in whatever state that leaves it in.
     /// </summary>
-    private async Task StoreAsync(Guid owner, Action<StoredFile> advance)
+    private async Task StoreAsync(UserId owner, Action<StoredFile> advance)
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
 
@@ -125,7 +126,7 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
     private static void Confirm(StoredFile file) =>
         file.ConfirmDeposit(FileSize.Create(_size), Sha256Checksum.Create(new string('a', Sha256Checksum.Length)));
 
-    private async Task<OwnerStorageUsage> UsageForAsync(Guid owner)
+    private async Task<OwnerStorageUsage> UsageForAsync(UserId owner)
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
 

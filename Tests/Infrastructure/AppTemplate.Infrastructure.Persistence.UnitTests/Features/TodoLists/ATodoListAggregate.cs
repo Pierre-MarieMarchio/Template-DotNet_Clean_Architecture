@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.TodoLists;
@@ -23,7 +24,7 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.TodoLists;
 /// </remarks>
 internal static class ATodoListAggregate
 {
-    internal static readonly Guid OwnerId = new("4b7f1d92-4c8a-4f4b-9a1e-0d2f3c4b5a60");
+    internal static readonly UserId OwnerId = UserId.Create(new("4b7f1d92-4c8a-4f4b-9a1e-0d2f3c4b5a60"));
     internal static readonly Guid CreatedBy = new("11111111-2222-3333-4444-555555555555");
     internal static readonly Guid LastModifiedBy = new("66666666-7777-8888-9999-aaaaaaaaaaaa");
     internal static readonly DateTimeOffset CreatedAt = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
@@ -124,7 +125,7 @@ internal static class ATodoListAggregate
 
     // ---- The second, entirely different set of values -------------------------------------------
 
-    internal static readonly Guid OtherOwnerId = new("7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f");
+    internal static readonly UserId OtherOwnerId = UserId.Create(new("7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f"));
     internal static readonly Guid OtherCreatedBy = new("22222222-3333-4444-5555-666666666666");
     internal static readonly Guid OtherLastModifiedBy = new("77777777-8888-9999-aaaa-bbbbbbbbbbbb");
     internal static readonly DateTimeOffset OtherCreatedAt = new(2025, 7, 8, 9, 10, 11, TimeSpan.Zero);

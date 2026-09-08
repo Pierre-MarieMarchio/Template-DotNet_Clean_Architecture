@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using Shouldly;
@@ -16,7 +17,7 @@ namespace AppTemplate.Domain.UnitTests.Features.Files.Entities;
 public sealed class StoredFileRehydrationTests
 {
     private static readonly DateTimeOffset _registeredAt = new(2026, 8, 9, 12, 0, 0, TimeSpan.Zero);
-    private static readonly Guid _ownerId = Guid.CreateVersion7();
+    private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
 
     private static readonly ObjectKey _objectKey =
         ObjectKey.Create("t0/202608/0123456789abcdef0123456789abcdef");
@@ -58,11 +59,11 @@ public sealed class StoredFileRehydrationTests
     }
 
     [Fact]
-    public void Rehydrate_Rejects_AnEmptyOwnerId() =>
-        Should.Throw<DomainException>(
+    public void Rehydrate_Rejects_AnAbsentOwner() =>
+        Should.Throw<ArgumentNullException>(
             () => StoredFile.Rehydrate(
                 Guid.CreateVersion7(),
-                Guid.Empty,
+                null!,
                 _objectKey,
                 _name,
                 _mediaType,

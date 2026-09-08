@@ -2,6 +2,7 @@
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminders;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using NSubstitute;
@@ -12,7 +13,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Queries.
 
 public sealed class GetRemindersUseCaseTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
     private static readonly Guid _todoListId = Guid.CreateVersion7();
     private static readonly Guid _todoItemId = Guid.CreateVersion7();
 

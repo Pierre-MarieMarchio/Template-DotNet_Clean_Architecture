@@ -32,7 +32,7 @@ public sealed class SetUpTwoFactorUseCase(
             return userId.To<SetUpTwoFactorOutcome>();
         }
 
-        var started = await enrollment.BeginAsync(userId.Value, cancellationToken);
+        var started = await enrollment.BeginAsync(userId.Value.Value, cancellationToken);
 
         if (started.Status is TwoFactorSetupStatus.AlreadyEnabled)
         {

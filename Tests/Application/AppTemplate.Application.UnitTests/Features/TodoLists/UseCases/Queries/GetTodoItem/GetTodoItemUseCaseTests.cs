@@ -5,6 +5,7 @@ using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItem;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -15,7 +16,7 @@ public sealed class GetTodoItemUseCaseTests
 {
     private const uint _listVersion = 8080;
 
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
     private readonly ITodoListQueries _queries = Substitute.For<ITodoListQueries>();
 
@@ -40,7 +41,7 @@ public sealed class GetTodoItemUseCaseTests
         await UseCaseFor(StubCurrentUser.Anonymous)
             .ExecuteAsync(new GetTodoItemQuery(Guid.CreateVersion7(), Guid.CreateVersion7()), TestToken);
 
-        await _queries.DidNotReceive().GetDetailAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _queries.DidNotReceive().GetDetailAsync(Arg.Any<Guid>(), Arg.Any<UserId>(), Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -66,7 +67,7 @@ public sealed class GetTodoItemUseCaseTests
     [Fact]
     public async Task TheOwnerScope_FollowsTheCallerAndNotTheRequest()
     {
-        var otherCallerId = Guid.CreateVersion7();
+        var otherCallerId = UserId.Create(Guid.CreateVersion7());
         var listId = Guid.CreateVersion7();
         var itemId = Guid.CreateVersion7();
 

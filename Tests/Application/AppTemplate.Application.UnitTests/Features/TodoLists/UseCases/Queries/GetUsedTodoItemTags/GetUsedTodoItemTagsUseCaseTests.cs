@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Features.TodoLists.Ports.TodoItemTagQueries;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetUsedTodoItemTags;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -13,7 +14,7 @@ namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Queries.
 /// </summary>
 public sealed class GetUsedTodoItemTagsUseCaseTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
     private readonly ITodoItemTagQueries _queries = Substitute.For<ITodoItemTagQueries>();
     private readonly RecordingCacheStore _cache = new();
@@ -26,7 +27,7 @@ public sealed class GetUsedTodoItemTagsUseCaseTests
         var result = await useCase.ExecuteAsync(TestToken);
 
         result.IsFailure.ShouldBeTrue();
-        await _queries.DidNotReceiveWithAnyArgs().GetUsedTagsForOwnerAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _queries.DidNotReceiveWithAnyArgs().GetUsedTagsForOwnerAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -62,7 +63,7 @@ public sealed class GetUsedTodoItemTagsUseCaseTests
     [Fact]
     public async Task TwoOwners_DoNotShareAnEntry()
     {
-        var otherId = Guid.CreateVersion7();
+        var otherId = UserId.Create(Guid.CreateVersion7());
 
         _queries.GetUsedTagsForOwnerAsync(_callerId, Arg.Any<CancellationToken>()).Returns(["mine"]);
         _queries.GetUsedTagsForOwnerAsync(otherId, Arg.Any<CancellationToken>()).Returns(["theirs"]);
@@ -76,7 +77,7 @@ public sealed class GetUsedTodoItemTagsUseCaseTests
 
     private GetUsedTodoItemTagsUseCase UseCase() => UseCaseFor(_callerId);
 
-    private GetUsedTodoItemTagsUseCase UseCaseFor(Guid ownerId) =>
+    private GetUsedTodoItemTagsUseCase UseCaseFor(UserId ownerId) =>
         new(_queries, _cache, StubCurrentUser.WithId(ownerId));
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

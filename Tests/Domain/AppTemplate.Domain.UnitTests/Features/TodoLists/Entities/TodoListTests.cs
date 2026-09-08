@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using AppTemplate.Domain.Core.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using AppTemplate.Domain.Features.TodoLists.ValueObjects;
@@ -13,14 +14,14 @@ public sealed class TodoListTests
     private static readonly DateTimeOffset _now = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
 
     private static TodoList ANewList(string name = "Groceries") =>
-        TodoList.Create(Guid.CreateVersion7(), name, _now);
+        TodoList.Create(UserId.Create(Guid.CreateVersion7()), name, _now);
 
     #region Creation
 
     [Fact]
     public void Create_AssignsAnIdAnOwnerAndAName()
     {
-        var ownerId = Guid.CreateVersion7();
+        var ownerId = UserId.Create(Guid.CreateVersion7());
 
         var list = TodoList.Create(ownerId, "Groceries", _now);
 
@@ -32,30 +33,30 @@ public sealed class TodoListTests
 
     [Fact]
     public void Create_NormalisesTheName() =>
-        TodoList.Create(Guid.CreateVersion7(), "  Groceries  ", _now).Name.Value.ShouldBe("Groceries");
+        TodoList.Create(UserId.Create(Guid.CreateVersion7()), "  Groceries  ", _now).Name.Value.ShouldBe("Groceries");
 
     /// <summary>
     /// Ownership is what every authorisation check in the application layer rests on, so
     /// an ownerless list must not be constructible at all.
     /// </summary>
     [Fact]
-    public void Create_Rejects_AnEmptyOwnerId()
+    public void Create_Rejects_AnAbsentOwner()
     {
-        var exception = Should.Throw<DomainException>(() => TodoList.Create(Guid.Empty, "Groceries", _now));
+        var exception = Should.Throw<ArgumentNullException>(() => TodoList.Create(null!, "Groceries", _now));
 
-        exception.Message.ShouldContain("owner");
+        exception.ParamName.ShouldBe("ownerId");
     }
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
     public void Create_Rejects_ABlankName(string name) =>
-        Should.Throw<DomainException>(() => TodoList.Create(Guid.CreateVersion7(), name, _now));
+        Should.Throw<DomainException>(() => TodoList.Create(UserId.Create(Guid.CreateVersion7()), name, _now));
 
     [Fact]
     public void Create_Rejects_ANameLongerThanTheMaximum() =>
         Should.Throw<DomainException>(
-            () => TodoList.Create(Guid.CreateVersion7(), new string('a', TodoListName.MaxLength + 1), _now));
+            () => TodoList.Create(UserId.Create(Guid.CreateVersion7()), new string('a', TodoListName.MaxLength + 1), _now));
 
     [Fact]
     public void Create_GivesEveryListADistinctId() =>

@@ -47,7 +47,7 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
     /// </summary>
     private StoredFile(
         Guid id,
-        Guid ownerId,
+        UserId ownerId,
         ObjectKey objectKey,
         StoredFileName name,
         DeclaredMediaType declaredMediaType,
@@ -61,11 +61,7 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
             throw new DomainException("A stored file must have an id.");
         }
 
-        if (ownerId == Guid.Empty)
-        {
-            throw new DomainException("A stored file must have an owner.");
-        }
-
+        ArgumentNullException.ThrowIfNull(ownerId);
         ArgumentNullException.ThrowIfNull(objectKey);
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(declaredMediaType);
@@ -96,7 +92,7 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
     /// Who the file belongs to. Every authorisation decision about this file reads it, and it is
     /// assigned once: a file does not change hands, so no operation below can move it.
     /// </summary>
-    public Guid OwnerId { get; private set; }
+    public UserId OwnerId { get; private set; }
 
     /// <summary>
     /// Where the bytes are. Minted once at registration and never recomputed — see
@@ -184,7 +180,7 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
     /// dependency and its behaviour is reproducible in a test. It is both the registration instant
     /// and the instant the key's time slice is minted from, and they have to be the same value.</param>
     public static StoredFile Register(
-        Guid ownerId,
+        UserId ownerId,
         StoredFileName name,
         DeclaredMediaType declaredMediaType,
         FileSize size,
@@ -221,7 +217,7 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
     /// </summary>
     public static StoredFile Rehydrate(
         Guid id,
-        Guid ownerId,
+        UserId ownerId,
         ObjectKey objectKey,
         StoredFileName name,
         DeclaredMediaType declaredMediaType,

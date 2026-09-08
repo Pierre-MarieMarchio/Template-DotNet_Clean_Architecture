@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Domain.Features.Reminders.Events;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;
@@ -10,7 +11,7 @@ namespace AppTemplate.Domain.UnitTests.Features.Reminders.Entities;
 public sealed class ReminderTests
 {
     private static readonly DateTimeOffset _now = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
-    private static readonly Guid _ownerId = Guid.CreateVersion7();
+    private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
     private static readonly Guid _todoListId = Guid.CreateVersion7();
     private static readonly Guid _todoItemId = Guid.CreateVersion7();
 
@@ -41,12 +42,12 @@ public sealed class ReminderTests
     #region Scheduling
 
     [Fact]
-    public void Schedule_Rejects_AnEmptyOwnerId()
+    public void Schedule_Rejects_AnAbsentOwner()
     {
-        var exception = Should.Throw<DomainException>(
-            () => Reminder.Schedule(Guid.Empty, _todoListId, _todoItemId, _now.AddHours(1), _now));
+        var exception = Should.Throw<ArgumentNullException>(
+            () => Reminder.Schedule(null!, _todoListId, _todoItemId, _now.AddHours(1), _now));
 
-        exception.Message.ShouldContain("owner");
+        exception.ParamName.ShouldBe("ownerId");
     }
 
     [Fact]
@@ -137,11 +138,11 @@ public sealed class ReminderTests
                 null));
 
     [Fact]
-    public void Rehydrate_Rejects_AnEmptyOwnerId() =>
-        Should.Throw<DomainException>(
+    public void Rehydrate_Rejects_AnAbsentOwner() =>
+        Should.Throw<ArgumentNullException>(
             () => Reminder.Rehydrate(
                 Guid.CreateVersion7(),
-                Guid.Empty,
+                null!,
                 _todoListId,
                 _todoItemId,
                 _now.AddHours(1),

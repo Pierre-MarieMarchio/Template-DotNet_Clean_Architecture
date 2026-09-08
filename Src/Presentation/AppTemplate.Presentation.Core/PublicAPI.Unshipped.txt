@@ -1,1 +1,2 @@
 #nullable enable
+AppTemplate.Presentation.Core.Common.Security.NoCallerCurrentUser.UserId.get -> AppTemplate.Domain.Core.Common.Primitives.UserId?

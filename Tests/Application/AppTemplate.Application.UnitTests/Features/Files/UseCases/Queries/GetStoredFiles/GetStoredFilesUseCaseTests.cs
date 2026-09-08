@@ -7,6 +7,7 @@ using AppTemplate.Application.Features.Files.Policies;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using NSubstitute;
 using Shouldly;
@@ -16,13 +17,13 @@ namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Queries.GetS
 
 public sealed class GetStoredFilesUseCaseTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
     private readonly IStoredFileQueries _queries = Substitute.For<IStoredFileQueries>();
 
     public GetStoredFilesUseCaseTests() =>
         _queries.GetForOwnerAsync(
-                Arg.Any<Guid>(),
+                Arg.Any<UserId>(),
                 Arg.Any<StoredFilePageRequest>(),
                 Arg.Any<CancellationToken>())
             .Returns(PagedResult.Offset<StoredFileDto>([], 1, 20, 0));
@@ -45,7 +46,7 @@ public sealed class GetStoredFilesUseCaseTests
         await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(GetStoredFilesQuery.Offset(1, 20), TestToken);
 
         await _queries.DidNotReceive().GetForOwnerAsync(
-            Arg.Any<Guid>(), Arg.Any<StoredFilePageRequest>(), Arg.Any<CancellationToken>());
+            Arg.Any<UserId>(), Arg.Any<StoredFilePageRequest>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -72,7 +73,7 @@ public sealed class GetStoredFilesUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("sort.invalid");
         await _queries.DidNotReceive().GetForOwnerAsync(
-            Arg.Any<Guid>(), Arg.Any<StoredFilePageRequest>(), Arg.Any<CancellationToken>());
+            Arg.Any<UserId>(), Arg.Any<StoredFilePageRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

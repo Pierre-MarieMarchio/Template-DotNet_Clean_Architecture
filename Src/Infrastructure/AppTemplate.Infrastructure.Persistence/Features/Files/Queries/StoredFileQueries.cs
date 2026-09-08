@@ -4,6 +4,7 @@ using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
@@ -22,7 +23,7 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueries
 {
     public async Task<PagedResult<StoredFileDto>> GetForOwnerAsync(
-        Guid ownerId,
+        UserId ownerId,
         StoredFilePageRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -32,7 +33,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
         // filter or cursor claims.
         var owned = context.StoredFiles
             .AsNoTracking()
-            .Where(file => file.OwnerId == ownerId);
+            .Where(file => file.OwnerId == ownerId.Value);
 
         var filtered = ApplyFilter(owned, request.Filter);
 
@@ -48,7 +49,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
     /// </remarks>
     public Task<Versioned<StoredFileDto>?> GetDetailAsync(
         Guid id,
-        Guid ownerId,
+        UserId ownerId,
         CancellationToken cancellationToken = default) =>
         context.StoredFiles
             .AsNoTracking()
@@ -56,7 +57,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
             // afterwards would have already read another user's row into this process — and the port
             // promises the two failures are indistinguishable, which only holds if one query answers
             // both.
-            .Where(file => file.Id == id && file.OwnerId == ownerId)
+            .Where(file => file.Id == id && file.OwnerId == ownerId.Value)
             .Select(file => new Versioned<StoredFileDto>(
                 new StoredFileDto(
                     file.Id,
@@ -73,7 +74,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
 
 
     public async Task<OwnerStorageUsage> GetUsageForOwnerAsync(
-        Guid ownerId,
+        UserId ownerId,
         CancellationToken cancellationToken = default)
     {
         // Grouped by state, so one round trip returns at most one row per state however many files
@@ -82,7 +83,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
         // guards.
         var totals = await context.StoredFiles
             .AsNoTracking()
-            .Where(file => file.OwnerId == ownerId)
+            .Where(file => file.OwnerId == ownerId.Value)
             .GroupBy(file => file.State)
             .Select(group => new
             {

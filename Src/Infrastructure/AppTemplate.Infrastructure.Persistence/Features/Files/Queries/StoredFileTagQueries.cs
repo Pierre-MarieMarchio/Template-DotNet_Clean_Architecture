@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,11 +12,11 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 internal sealed class StoredFileTagQueries(AppDbContext context) : IStoredFileTagQueries
 {
     public async Task<IReadOnlyList<string>> GetUsedTagsForOwnerAsync(
-        Guid ownerId,
+        UserId ownerId,
         CancellationToken cancellationToken = default) =>
         await context.StoredFiles
             .AsNoTracking()
-            .Where(file => file.OwnerId == ownerId)
+            .Where(file => file.OwnerId == ownerId.Value)
             .SelectMany(file => file.Tags)
             .Select(tag => tag.Value)
             .Distinct()

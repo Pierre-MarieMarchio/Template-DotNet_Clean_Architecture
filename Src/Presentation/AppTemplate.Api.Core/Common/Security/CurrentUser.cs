@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Domain.Core.Common.Primitives;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,13 +13,15 @@ namespace AppTemplate.Api.Core.Common.Security;
 /// </summary>
 internal sealed class CurrentUser(IHttpContextAccessor httpContextAccessor) : ICurrentUser
 {
-    public Guid? UserId
+    public UserId? UserId
     {
         get
         {
             string? subject = httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            return Guid.TryParse(subject, out var userId) ? userId : null;
+            return Guid.TryParse(subject, out var claimed)
+                ? AppTemplate.Domain.Core.Common.Primitives.UserId.CreateOptional(claimed)
+                : null;
         }
     }
 }

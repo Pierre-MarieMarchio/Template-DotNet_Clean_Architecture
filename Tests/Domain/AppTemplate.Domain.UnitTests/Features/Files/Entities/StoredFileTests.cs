@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Events;
 using AppTemplate.Domain.Features.Files.ValueObjects;
@@ -10,7 +11,7 @@ namespace AppTemplate.Domain.UnitTests.Features.Files.Entities;
 public sealed class StoredFileTests
 {
     private static readonly DateTimeOffset _now = new(2026, 8, 9, 12, 0, 0, TimeSpan.Zero);
-    private static readonly Guid _ownerId = Guid.CreateVersion7();
+    private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
     private static readonly StoredFileName _name = StoredFileName.Create("quarterly-report.pdf");
     private static readonly DeclaredMediaType _mediaType = DeclaredMediaType.Create("application/pdf");
     private static readonly FileSize _size = FileSize.Create(4096);
@@ -53,12 +54,12 @@ public sealed class StoredFileTests
     #region Registering
 
     [Fact]
-    public void Register_Rejects_AnEmptyOwnerId()
+    public void Register_Rejects_AnAbsentOwner()
     {
-        var exception = Should.Throw<DomainException>(
-            () => StoredFile.Register(Guid.Empty, _name, _mediaType, _size, _checksum, _now));
+        var exception = Should.Throw<ArgumentNullException>(
+            () => StoredFile.Register(null!, _name, _mediaType, _size, _checksum, _now));
 
-        exception.Message.ShouldContain("owner");
+        exception.ParamName.ShouldBe("ownerId");
     }
 
     /// <summary>

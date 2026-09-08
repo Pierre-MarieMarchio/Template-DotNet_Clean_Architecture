@@ -27,8 +27,8 @@ public sealed class LogoutEverywhereUseCase(
 
         // Revocation only: rotating the security stamp here would also kill the access token the
         // caller just used to ask for this, signing out the very session that made the request.
-        await refreshTokens.RevokeAllForUserAsync(userId.Value, cancellationToken);
-        securityEventLog.Record(SecurityEvent.RefreshTokenRevoked(userId.Value));
+        await refreshTokens.RevokeAllForUserAsync(userId.Value.Value, cancellationToken);
+        securityEventLog.Record(SecurityEvent.RefreshTokenRevoked(userId.Value.Value));
 
         return Result.Success();
     }

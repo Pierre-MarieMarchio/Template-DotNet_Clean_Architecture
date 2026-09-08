@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Api.Common.Security;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Domain.Core.Common.Primitives;
 using Shouldly;
 using Xunit;
 
@@ -49,8 +50,8 @@ public sealed class CurrentUserAuditActorTests
 
     private sealed class StubCurrentUser(Guid? userId) : ICurrentUser
     {
-        public Guid? UserId { get; private set; } = userId;
+        public UserId? UserId { get; private set; } = AppTemplate.Domain.Core.Common.Primitives.UserId.CreateOptional(userId);
 
-        internal void Set(Guid? value) => UserId = value;
+        internal void Set(Guid? value) => UserId = AppTemplate.Domain.Core.Common.Primitives.UserId.CreateOptional(value);
     }
 }

@@ -120,7 +120,6 @@ AppTemplate.Application.Core.Common.Ports.ICacheStore
 AppTemplate.Application.Core.Common.Ports.ICacheStore.GetOrCreateAsync<T>(string! key, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>!>! factory, System.TimeSpan lifetime, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
 AppTemplate.Application.Core.Common.Ports.ICacheStore.RemoveAsync(string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 AppTemplate.Application.Core.Common.Ports.ICurrentUser
-AppTemplate.Application.Core.Common.Ports.ICurrentUser.UserId.get -> System.Guid?
 AppTemplate.Application.Core.Common.Ports.IDateTimeProvider
 AppTemplate.Application.Core.Common.Ports.IDateTimeProvider.UtcNow.get -> System.DateTimeOffset
 AppTemplate.Application.Core.Common.Ports.IEmailSender
@@ -290,7 +289,6 @@ static AppTemplate.Application.Core.Common.Localization.CurrentLanguage.Default.
 static AppTemplate.Application.Core.Common.Localization.CurrentLanguage.IsWellFormed(string? tag) -> bool
 static AppTemplate.Application.Core.Common.Localization.CurrentLanguage.Tag.get -> string?
 static AppTemplate.Application.Core.Common.Localization.CurrentLanguage.Tag.set -> void
-static AppTemplate.Application.Core.Common.Ports.CurrentUserExtensions.RequireUserId(this AppTemplate.Application.Core.Common.Ports.ICurrentUser! currentUser) -> AppTemplate.Application.Core.Common.Results.Result<System.Guid>!
 static AppTemplate.Application.Core.Common.Results.CommonErrors.InvariantViolated(string! message) -> AppTemplate.Application.Core.Common.Results.Error!
 static AppTemplate.Application.Core.Common.Results.Error.Conflict(string! code, string! message) -> AppTemplate.Application.Core.Common.Results.Error!
 static AppTemplate.Application.Core.Common.Results.Error.Forbidden(string! code, string! message) -> AppTemplate.Application.Core.Common.Results.Error!

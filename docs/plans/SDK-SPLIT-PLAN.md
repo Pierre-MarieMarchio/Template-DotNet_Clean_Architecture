@@ -1,4 +1,4 @@
-# Splitting the template into an SDK — plan of record
+# Splitting the template — plan of record
 
 **Status:** agreed, not started. **Decided:** 2026-09-07.
 
@@ -12,6 +12,11 @@ Read this document for *what happens in what order*. Three companions carry the 
 | `docs/plans/SDK-SPLIT-TARGET.md` | What each project is: path, name, folders, namespaces, references, packaging |
 | `docs/plans/SDK-SPLIT-DECISIONS.md` | Why, including every option that was rejected and its reason |
 | `docs/plans/SDK-SPLIT-BLAST-RADIUS.md` | What else has to change: rules, tests, tooling, docs, and the SDK's known gaps |
+
+**Vocabulary.** This repository is a **template**. What the waves below carve out is the part of it
+written to package grade: self-contained, ignorant of the application consuming it, a public
+surface that changes on purpose. It is not distributed as packages and carries no version, so
+wherever these documents say "SDK" they mean that discipline — decision 38.
 
 ## The goal, in one paragraph
 
@@ -112,14 +117,21 @@ builder so a derived project can chain its own `DbContext` check. Two leaks get 
 is hard-coded in the security-header policy, and a login route is written into the OpenAPI
 transformer.
 
-### Wave 6 — The SDK's missing pieces
+### Wave 6 — The missing pieces
 
-`PeriodicJob`, a public email templating surface, a cache port with one adapter, and a reusable
-test kit. Two pre-existing defects surface while factoring the loops and get fixed rather than
-reproduced: the maintenance loop neither counts nor logs a disabled purge, and its shutdown log
-does not run when the stop lands mid-iteration.
+`PeriodicJob` as a loop primitive (decision 33), `AppTemplate.Infrastructure.Core` holding the
+email-template engine taken from its two copies (decision 37), and an `ICache` port with one
+`HybridCache` adapter whose consumer already exists (decision 35). Two pre-existing defects
+surface while factoring the loops and get fixed rather than reproduced: the maintenance loop
+neither counts nor logs a disabled purge, and its shutdown log does not run when the stop lands
+mid-iteration. Decision 34 says what "preserve the nine divergences" means beside that.
+
+The reusable test kit is **not** in this wave: decision 36 withdraws it.
 
 ### Wave 7 — Documentation and close
+
+Then, as a separate chantier: `docs/plans/AUTH-SEPARATION.md`, and the comment-convention
+cleanup pass recorded in the handoff.
 
 The five docs the path gate checks, the "what this SDK does not do" section, a re-measured
 `coverage.minimum`, and `CHANGELOG.md`.

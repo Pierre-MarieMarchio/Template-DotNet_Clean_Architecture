@@ -903,15 +903,18 @@ Src/
                                       application swaps for its own identity provider
                                       -> Application.Core only
   Infrastructure/
-    AppTemplate.Infrastructure.Core/           multilingual mail rendered from a module's own
+    AppTemplate.Infrastructure.Core/           what a context saves through (the unit of work, the
+                                      three save interceptors, the aggregate tracker), the system
+                                      clock, multilingual mail rendered from a module's own
                                       embedded templates, and the cache adapter behind
                                       ICacheStore: a mechanism a module needs and no module
                                       owns, written as a package and vendored
                                       -> Application.Core only
-    AppTemplate.Infrastructure.Persistence/    ALL persistence: the one DbContext, the interceptor
-                                      pipeline, the unit of work, and per-feature models,
-                                      mapping, repositories, queries and stores
-                                      -> Application.Core + Application
+    AppTemplate.Infrastructure.Persistence/    ALL persistence: the one DbContext, the per-feature
+                                      models, mapping, trackers, repositories, queries and
+                                      stores, the idempotency table and the Postgres lease.
+                                      What it saves *through* is Infrastructure.Core's
+                                      -> Application.Core + Application + Infrastructure.Core
     AppTemplate.Infrastructure.Identity/       ASP.NET Identity policy, JWT, refresh-token rotation
                                       (no database of its own)
                                       -> Application.Core + Application.Auth + Persistence
@@ -956,7 +959,8 @@ Tests/
                                         the twenty ports
   Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/
                                         the template engine's language fallback and subject
-                                        extraction, and the cache adapter
+                                        extraction, the cache adapter, the unit of work's
+                                        exception translation, and the event dispatcher
   Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/
                                         the domain <-> row mapper, reflection-driven
   Infrastructure/AppTemplate.Infrastructure.Identity.UnitTests/  the authentication adapters

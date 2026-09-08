@@ -148,10 +148,10 @@ AppTemplate.Application.Auth/
                                   UseCases/{Commands,Queries}/<Operation>}
                    one feature, so nothing is shared between features here
 AppTemplate.Infrastructure.Core/
-                   Common/{Caching,Templating}
+                   Common/{Caching,Saving/{Auditing,DomainEvents,Tracking},Templating,Time}
                    no Features/: a mechanism a module needs and no module owns
 AppTemplate.Infrastructure.Persistence/
-                   Common/{Contexts,Idempotency,Leases,Options,Saving/{Auditing,DomainEvents,Tracking},Time}
+                   Common/{Contexts,Idempotency,Leases,Options}
                    Features/<F>/{Models,Configurations,Mapping,Tracking,Repositories,Queries,
                                  Observability,Seeding,Tables}
                    Migrations/
@@ -307,8 +307,10 @@ host's own database and assembly.
 `AppTemplate.Infrastructure.Core` is the infrastructure layer's agnostic half, and it exists because
 a module may not reference a sibling: without it, two modules needing one mechanism each keep a
 copy. Multilingual mail rendering is the case that pays for it — the identity module and the email
-module both send mail, so each would otherwise carry its own renderer. It holds `EmailTemplate`,
-which renders a
+module both send mail, so each would otherwise carry its own renderer. It also holds what a context
+saves through — the unit of work, the three interceptors and the `AggregateTracker` base — and the
+system clock, so a second context composes the same mechanisms rather than copying them. And it
+holds `EmailTemplate`, which renders a
 module's *own* embedded resources and reads the subject out of the template so no caller states it
 twice, and `HybridCacheStore`, the one adapter behind `ICacheStore`. `AddCacheStore()` is the only
 thing it registers. Both it and `AppTemplate.Api.Core` carry the shape the four projects above do: a

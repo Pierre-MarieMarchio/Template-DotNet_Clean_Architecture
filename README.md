@@ -308,6 +308,7 @@ creating a list or an item (`201`) and deleting a list (`204`).
 | POST | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/tags` | 200 |
 | PUT | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/tags` | 200 — replaces the whole tag set |
 | DELETE | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/tags/{tag}` | 200 |
+| GET | `/api/v1/todo-lists/tags` | 200 — the tags the caller has already used on their items, for a picker or a filter. Read through the cache, so a tag added moments ago may be missing |
 
 ### Reminders — `api/v1/.../reminders` and `api/v1/reminders/*`
 
@@ -338,6 +339,8 @@ file is two requests and reading one back is a redirect.
 | GET | `/api/v1/files/{fileId}/content` | **302** + `Location` — a short-lived signed URL, and no body |
 | POST | `/api/v1/files` | 201 + `Location` — reserves a place and returns the upload grant |
 | POST | `/api/v1/files/{fileId}/confirm` | 200 — the file's metadata, with its new version |
+| PUT | `/api/v1/files/{fileId}/tags` | 200 — replaces the whole tag set, conditioned on the `ETag` above, by the same domain rules a to-do item's tags obey |
+| GET | `/api/v1/files/tags` | 200 — the tags the caller has already used on their files, for a picker or a filter. Read through the cache, so a tag added moments ago may be missing |
 | DELETE | `/api/v1/files/{fileId}` | 204 |
 
 **Depositing, in order.**
@@ -900,6 +903,11 @@ Src/
                                       application swaps for its own identity provider
                                       -> Application.Core only
   Infrastructure/
+    AppTemplate.Infrastructure.Core/           multilingual mail rendered from a module's own
+                                      embedded templates, and the cache adapter behind
+                                      ICacheStore: a mechanism a module needs and no module
+                                      owns, written as a package and vendored
+                                      -> Application.Core only
     AppTemplate.Infrastructure.Persistence/    ALL persistence: the one DbContext, the interceptor
                                       pipeline, the unit of work, and per-feature models,
                                       mapping, repositories, queries and stores
@@ -907,25 +915,35 @@ Src/
     AppTemplate.Infrastructure.Identity/       ASP.NET Identity policy, JWT, refresh-token rotation
                                       (no database of its own)
                                       -> Application.Core + Application.Auth + Persistence
+                                      + Infrastructure.Core
     AppTemplate.Infrastructure.Email/          MailKit SMTP sender, email options
                                       -> Application.Core + Application + Application.Auth
+                                      + Infrastructure.Core
     AppTemplate.Infrastructure.Storage/        S3-compatible object store: signed grants, inventory
                                       -> Application.Core + Application
     AppTemplate.Infrastructure.InMemory/       in-memory port implementations for tests/demo
                                       -> Application.Core + Application + Application.Auth
   Presentation/
     AppTemplate.Presentation.Core/             one outbound HTTP policy, the language a flow is
-                                      written in, OTLP traces and metrics, and the identity of
-                                      a process with no caller: what any host needs whatever
-                                      its transport, written as a package and vendored
+                                      written in, OTLP traces and metrics, the identity of a
+                                      process with no caller, and the loop recurring work is
+                                      written on: what any host needs whatever its transport,
+                                      written as a package and vendored
                                       -> Application.Core only, and no framework reference,
                                       which is what keeps a non-HTTP host possible
+    AppTemplate.Api.Core/                      the half of an HTTP host that knows no feature:
+                                      the whole pipeline behind one UseCorePipeline(), problem
+                                      details, ETags, idempotency, rate limiting, CORS,
+                                      security headers, versioning, the health endpoints
+                                      -> Application.Core + Presentation.Core, plus a
+                                      FrameworkReference on ASP.NET Core rather than the web SDK
     AppTemplate.Api/                           controllers, composition root, Dockerfile
-                                      -> Presentation.Core + all three application projects
-                                      + every module
+                                      -> Api.Core + Presentation.Core + all three application
+                                      projects + every module
     AppTemplate.Worker/                        three BackgroundServices: maintenance, due reminders, file sweeps
                                       -> Presentation.Core + all three application projects
-                                      + Persistence + Identity + Email + Storage
+                                      + Infrastructure.Core + Persistence + Identity + Email
+                                      + Storage
 
 Tests/
   Domain/AppTemplate.Domain.Core.UnitTests/      the primitives, in memory
@@ -936,6 +954,9 @@ Tests/
   Application/AppTemplate.Application.Auth.UnitTests/
                                         the authentication use cases, against doubles for
                                         the twenty ports
+  Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/
+                                        the template engine's language fallback and subject
+                                        extraction, and the cache adapter
   Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/
                                         the domain <-> row mapper, reflection-driven
   Infrastructure/AppTemplate.Infrastructure.Identity.UnitTests/  the authentication adapters
@@ -945,6 +966,10 @@ Tests/
   Presentation/AppTemplate.Presentation.Core.UnitTests/
                                         the shared options validators, the outbound policy's
                                         verb allow-list, and the no-caller identity
+  Presentation/AppTemplate.Api.Core.UnitTests/
+                                        the shared pipeline: error mapping, preconditions,
+                                        idempotency, the language middleware, the base
+                                        controller's result-to-response mapping
   Presentation/AppTemplate.Api.UnitTests/        controllers and request/response mapping
   Presentation/AppTemplate.Worker.UnitTests/     the three loops, their options and their resilience
   Architecture/AppTemplate.Architecture.Tests/   layer/module rules + container composition
@@ -995,9 +1020,13 @@ AppTemplate.Application.Core/
                                 rather than a mechanism
       UseCases/Commands/PurgeExpiredIdempotencyKeys/
 
-AppTemplate.Application/        no Common/ today: the mechanisms above belong to the project
-                                inwards, and nothing here is yet shared by several features
-                                *as business*. A DTO two features answer with goes there
+AppTemplate.Application/
+  Common/                       Tagging/ — the business-shared half: TagValidation, which
+                                restates the domain's tag bounds for a caller so one 400 names
+                                every field it got wrong, and UsedTagsCache, where the key and
+                                lifetime of the used-tag read are decided once for both features
+                                that own tags. The mechanisms that know no feature are the
+                                project inwards
   Features/
     TodoLists/
       Errors/                   TodoListErrors.cs — the feature's failure vocabulary
@@ -1012,7 +1041,8 @@ AppTemplate.Application/        no Common/ today: the mechanisms above belong to
                                 AddTagToTodoItem, RemoveTagFromTodoItem, ReplaceTodoItemTags — one
                                 folder per operation, each holding its command, named interface, use
                                 case and validator
-      UseCases/Queries/<Operation>/    GetTodoLists, GetTodoList, GetTodoItems, GetTodoItem
+      UseCases/Queries/<Operation>/    GetTodoLists, GetTodoList, GetTodoItems, GetTodoItem,
+                                GetUsedTodoItemTags — the used-tag picker, read through the cache
       Dtos/                     TodoListSummaryDto, TodoListDetailDto, TodoItemDto — read models more
                                 than one operation returns
     Reminders/                  the second worked example: a flat aggregate, no child entities
@@ -1041,10 +1071,12 @@ AppTemplate.Application/        no Common/ today: the mechanisms above belong to
       Services/                 IStoredFileService — the one gate every command loads through
       Mapping/                  StoredFileDtoMapping
       Consumers/StoredFileDeleted/  reclaims the object promptly; the sweep is the guarantee
-      UseCases/Commands/<Operation>/   RegisterFile, ConfirmFileUpload, DeleteStoredFile, and the
-                                three the worker runs: InspectDepositedFiles,
-                                PurgeAbandonedRegistrations, ReclaimOrphanedContent
-      UseCases/Queries/<Operation>/    GetStoredFiles, GetStoredFile, IssueFileDownload
+      UseCases/Commands/<Operation>/   RegisterFile, ConfirmFileUpload, ReplaceStoredFileTags,
+                                DeleteStoredFile, and the three the worker runs:
+                                InspectDepositedFiles, PurgeAbandonedRegistrations,
+                                ReclaimOrphanedContent
+      UseCases/Queries/<Operation>/    GetStoredFiles, GetStoredFile, IssueFileDownload,
+                                GetUsedFileTags — the same picker over this feature's tags
       Dtos/                     StoredFileDto
 
 AppTemplate.Application.Auth/   one feature, so nothing is shared between features here and

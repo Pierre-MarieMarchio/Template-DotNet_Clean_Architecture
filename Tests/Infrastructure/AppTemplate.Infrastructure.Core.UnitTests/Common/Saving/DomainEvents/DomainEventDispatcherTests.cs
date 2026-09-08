@@ -1,14 +1,12 @@
 ﻿using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Domain.Core.Common.Events;
-using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.TodoLists.Events;
-using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
+using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Saving.DomainEvents;
+namespace AppTemplate.Infrastructure.Core.UnitTests.Common.Saving.DomainEvents;
 
 /// <summary>
 /// Consumers are found by the event's <em>runtime</em> type, not by the interface it is held as, and every
@@ -16,11 +14,8 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Saving.DomainE
 /// </summary>
 public sealed class DomainEventDispatcherTests
 {
-    private static readonly TodoListCreatedDomainEvent _created = new(
-        Guid.CreateVersion7(),
-        UserId.Create(Guid.CreateVersion7()),
-        "Groceries",
-        new DateTimeOffset(2026, 2, 3, 4, 5, 6, TimeSpan.Zero));
+    private static readonly SomethingHappenedDomainEvent _created =
+        new(Guid.CreateVersion7(), new DateTimeOffset(2026, 2, 3, 4, 5, 6, TimeSpan.Zero));
 
     private readonly RecordingLogger<DomainEventDispatcher> _logger = new();
 
@@ -31,8 +26,8 @@ public sealed class DomainEventDispatcherTests
         var second = new CountingConsumer();
 
         var services = new ServiceCollection();
-        services.AddSingleton<IDomainEventConsumer<TodoListCreatedDomainEvent>>(first);
-        services.AddSingleton<IDomainEventConsumer<TodoListCreatedDomainEvent>>(second);
+        services.AddSingleton<IDomainEventConsumer<SomethingHappenedDomainEvent>>(first);
+        services.AddSingleton<IDomainEventConsumer<SomethingHappenedDomainEvent>>(second);
 
         await using var provider = services.BuildServiceProvider();
 
@@ -71,8 +66,8 @@ public sealed class DomainEventDispatcherTests
         var second = new CountingConsumer();
 
         var services = new ServiceCollection();
-        services.AddSingleton<IDomainEventConsumer<TodoListCreatedDomainEvent>>(first);
-        services.AddSingleton<IDomainEventConsumer<TodoListCreatedDomainEvent>>(second);
+        services.AddSingleton<IDomainEventConsumer<SomethingHappenedDomainEvent>>(first);
+        services.AddSingleton<IDomainEventConsumer<SomethingHappenedDomainEvent>>(second);
 
         await using var provider = services.BuildServiceProvider();
 
@@ -86,7 +81,7 @@ public sealed class DomainEventDispatcherTests
     {
         var failure = new InvalidOperationException("the consumer could not reach the mail relay");
         var services = new ServiceCollection();
-        services.AddSingleton<IDomainEventConsumer<TodoListCreatedDomainEvent>>(new ThrowingConsumer(failure));
+        services.AddSingleton<IDomainEventConsumer<SomethingHappenedDomainEvent>>(new ThrowingConsumer(failure));
 
         await using var provider = services.BuildServiceProvider();
 
@@ -95,7 +90,7 @@ public sealed class DomainEventDispatcherTests
         var entry = _logger.Entries.ShouldHaveSingleItem();
         entry.Level.ShouldBe(LogLevel.Error);
         entry.Exception.ShouldBeSameAs(failure);
-        entry.Message.ShouldContain(nameof(TodoListCreatedDomainEvent));
+        entry.Message.ShouldContain(nameof(SomethingHappenedDomainEvent));
         entry.Message.ShouldContain(nameof(ThrowingConsumer));
     }
 
@@ -110,7 +105,7 @@ public sealed class DomainEventDispatcherTests
         var consumer = new CancelingConsumer(cancellation);
 
         var services = new ServiceCollection();
-        services.AddSingleton<IDomainEventConsumer<TodoListCreatedDomainEvent>>(consumer);
+        services.AddSingleton<IDomainEventConsumer<SomethingHappenedDomainEvent>>(consumer);
 
         await using var provider = services.BuildServiceProvider();
 
@@ -140,6 +135,12 @@ public sealed class DomainEventDispatcherTests
 
     private DomainEventDispatcher Dispatcher(IServiceProvider provider) => new(provider, _logger);
 
+    /// <summary>
+    /// An event of no feature's. The dispatcher keys on an event's runtime type and knows nothing
+    /// else about it, so what it carries is immaterial to every assertion here.
+    /// </summary>
+    private sealed record SomethingHappenedDomainEvent(Guid ThingId, DateTimeOffset OccurredOn) : IDomainEvent;
+
     /// <summary>Answers every <c>IEnumerable&lt;&gt;</c> request with a single object that consumes nothing.</summary>
     private sealed class MisconfiguredServiceProvider : IServiceProvider
     {
@@ -149,12 +150,12 @@ public sealed class DomainEventDispatcherTests
                 : null;
     }
 
-    private sealed class CountingConsumer : IDomainEventConsumer<TodoListCreatedDomainEvent>
+    private sealed class CountingConsumer : IDomainEventConsumer<SomethingHappenedDomainEvent>
     {
         internal int Consumed { get; private set; }
 
         public Task ConsumeAsync(
-            TodoListCreatedDomainEvent domainEvent,
+            SomethingHappenedDomainEvent domainEvent,
             CancellationToken cancellationToken = default)
         {
             Consumed++;
@@ -163,17 +164,17 @@ public sealed class DomainEventDispatcherTests
         }
     }
 
-    private sealed class ThrowingConsumer(Exception failure) : IDomainEventConsumer<TodoListCreatedDomainEvent>
+    private sealed class ThrowingConsumer(Exception failure) : IDomainEventConsumer<SomethingHappenedDomainEvent>
     {
         public Task ConsumeAsync(
-            TodoListCreatedDomainEvent domainEvent,
+            SomethingHappenedDomainEvent domainEvent,
             CancellationToken cancellationToken = default) => Task.FromException(failure);
     }
 
     private sealed class CancelingConsumer(CancellationTokenSource cancellation)
-        : IDomainEventConsumer<TodoListCreatedDomainEvent>
+        : IDomainEventConsumer<SomethingHappenedDomainEvent>
     {
-        public Task ConsumeAsync(TodoListCreatedDomainEvent domainEvent, CancellationToken cancellationToken = default)
+        public Task ConsumeAsync(SomethingHappenedDomainEvent domainEvent, CancellationToken cancellationToken = default)
         {
             cancellation.Cancel();
             cancellationToken.ThrowIfCancellationRequested();

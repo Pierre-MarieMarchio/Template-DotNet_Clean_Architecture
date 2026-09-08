@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.ValueObjects;
-using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
+using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;

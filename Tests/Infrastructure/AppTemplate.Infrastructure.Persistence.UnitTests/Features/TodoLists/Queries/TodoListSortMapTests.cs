@@ -14,7 +14,7 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.TodoLists.Qu
 /// <summary>
 /// SQL-shape assertions against <c>ToQueryString()</c>. No database is contacted: the context is
 /// configured against PostgreSQL only so EF has a provider and a model to translate against — the
-/// same arrangement <see cref="Common.Saving.EfUnitOfWorkTests"/> uses.
+/// same arrangement <c>EfUnitOfWorkTests</c> uses, one project inwards.
 /// <para>
 /// Every sort here is built through the real <see cref="SortOrder.Parse"/> and every cursor through
 /// the real <see cref="Cursor.After"/>, never by hand-constructing internals, so these tests

@@ -67,7 +67,7 @@ builder.Services.AddStorageModule(builder.Configuration);
 // Two questions with the same answer in this host, and the only registration a derived host has to
 // remember: the row is stamped with whoever made the request. A default supplied by the persistence
 // module would stamp null in silence where this fails at composition.
-builder.Services.AddScoped<AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing.IAuditActor, CurrentUserAuditActor>();
+builder.Services.AddScoped<AppTemplate.Infrastructure.Core.Common.Saving.Auditing.IAuditActor, CurrentUserAuditActor>();
 
 builder.Services.AddControllers();
 

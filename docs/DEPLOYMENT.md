@@ -231,7 +231,7 @@ are what the hosts genuinely have to agree about.
 
 **`PasswordReset:ResetPasswordUrl`, `EmailChange:ConfirmEmailChangeUrl` and `Email:Host` are all
 required by both hosts, not just the API.** `AppTemplate.Worker` composes
-`AppTemplate.Infrastructure.Identity` for its reminder loop's `IUserProfilesService` as much as for
+`AppTemplate.Infrastructure.Auth` for its reminder loop's `IUserProfilesService` as much as for
 `IRefreshTokenMaintenanceService`'s adapter — see `docs/CONFIGURATION.md` for why moving the latter
 would free this host of nothing — and that
 module validates `PasswordReset`, `EmailConfirmation` and `EmailChange` at startup regardless of

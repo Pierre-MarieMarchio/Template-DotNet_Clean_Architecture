@@ -899,7 +899,7 @@ Src/
                                       -> Domain + Application.Core
     AppTemplate.Application.Auth/              sign-in, accounts, tokens, two-factor, external
                                       providers, roles, lockouts — behind twenty ports, and
-                                      naming no domain type at all; the project a derived
+                                      naming no aggregate; the project a derived
                                       application swaps for its own identity provider
                                       -> Application.Core only
   Infrastructure/
@@ -997,13 +997,13 @@ one project inwards, where it has a `Common/` to itself.
 
 **Two folders share the name `Common/`, and the difference is the whole point of the split.**
 `<Layer>.Core/Common/` is agnostic of the business — `Result`, `Error`, `PageRequest`, `SortOrder`,
-`IUnitOfWork`, `ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`. Nothing in it knows a feature,
-and nothing in it ever may. `<Layer>/Common/` is the business-shared half: what several features
-share *as business*, so that business code is not repeated across features — a value object three
-features spend, a DTO two features answer with, a policy that spans them. The sorting test is one
-question, **does it know a feature?** If it names a feature, or would have to the moment a second
-feature used it, it belongs in the business project's `Common/`; if it does not and never will, it
-belongs one project inwards.
+`IUnitOfWork`, `ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`, `UserId`. Nothing in it knows a
+feature, and nothing in it ever may. `<Layer>/Common/` is the business-shared half: what several
+features share *as business*, so that business code is not repeated across features — a value object
+three features spend, a DTO two features answer with, a policy that spans them. The sorting test is
+one question, **does it know a feature?** If it names a feature, or would have to the moment a
+second feature used it, it belongs in the business project's `Common/`; if it does not and never
+will, it belongs one project inwards.
 
 ```
 AppTemplate.Application.Core/
@@ -1080,8 +1080,8 @@ AppTemplate.Application/
       Dtos/                     StoredFileDto
 
 AppTemplate.Application.Auth/   one feature, so nothing is shared between features here and
-                                there is no Common/. It names no domain type at all: the
-                                identity model is not an aggregate, it lives behind the ports
+                                there is no Common/. It names no aggregate: the identity
+                                model is not one, it lives behind the ports
   Features/
     Auth/
       Errors/                   AuthErrors.cs — the vertical's failure vocabulary
@@ -1224,10 +1224,10 @@ tree, so an architecture rule holds it: a dependency taken there is a dependency
 `AppTemplate.Domain` references it and nothing else. `AppTemplate.Application.Core` references
 `AppTemplate.Domain.Core` and nothing else either — never `AppTemplate.Domain`, so the mechanisms
 know no aggregate — and `AppTemplate.Application` references `AppTemplate.Domain` plus
-`AppTemplate.Application.Core`. `AppTemplate.Application.Auth` references
-`AppTemplate.Application.Core` and nothing else — it names no domain type, because the identity
-model lives behind its twenty ports. `AppTemplate.Presentation.Core` references
-`AppTemplate.Application.Core` and nothing else either, and carries no `FrameworkReference` at all:
+`AppTemplate.Application.Core`. `AppTemplate.Application.Auth` declares
+`AppTemplate.Application.Core` alone — it names no aggregate, because the identity model lives
+behind its twenty ports, and the one domain type it names is `UserId`.
+`AppTemplate.Presentation.Core` declares `AppTemplate.Application.Core` alone too, and carries no `FrameworkReference` at all:
 that is what lets a host with no HTTP surface take a clock, a culture, an outbound budget and a
 telemetry pipeline from it without inheriting ASP.NET, and it is why it is a project apart from the
 `AppTemplate.Api.Core` that everything needing the framework belongs in. Both hosts reference it.

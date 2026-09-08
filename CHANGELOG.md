@@ -484,6 +484,18 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **What a context saves through now lives in `AppTemplate.Infrastructure.Core`**, not in the
+  persistence module: `EfUnitOfWork` — generic over `DbContext` rather than one named context — the
+  three save interceptors, the aggregate-tracker base, and the system clock. A module composes them
+  with `AddCoreSaving<TContext>()` and attaches the interceptors with `AddCoreSavingInterceptors()`
+  where its context's options are built. Adopting this in an existing project means two things: the
+  namespaces `AppTemplate.Infrastructure.Persistence.Common.{Saving,Time}` are now
+  `AppTemplate.Infrastructure.Core.Common.{Saving,Time}`, and a module that registered those types
+  by name registers them by call instead — every adapter of an application port behind these calls
+  is `internal`, which is what stops a second module from composing one by naming it.
+  The idempotency store stays in the persistence module: it owns a table, and which context owns
+  that table is not a question this move answers.
+
 - **Tests run on Microsoft.Testing.Platform, and `dotnet test` takes different switches.**
   `global.json` names the runner, each test project builds as a console application hosting its own
   runner, and one invocation runs the whole solution in parallel — no per-project loop, and the

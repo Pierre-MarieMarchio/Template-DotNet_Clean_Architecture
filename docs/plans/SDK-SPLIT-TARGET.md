@@ -1,4 +1,4 @@
-# Target layout — the five SDK projects
+# Target layout — the six package-grade projects
 
 Companion to `docs/plans/SDK-SPLIT-PLAN.md`. This is the document to keep open while implementing.
 
@@ -7,7 +7,7 @@ Every project keeps the shape `CONTRIBUTING.md` states for all four layers —
 folders with no exception, and the sweep is a pure prefix substitution rather than a per-folder
 remap.
 
-## The five projects
+## The six projects
 
 ### `AppTemplate.Domain.Core`
 
@@ -72,7 +72,7 @@ remap.
   localisation options, the merged telemetry options with an explicit service name, the "no caller"
   identity, and `PeriodicJob`
 - **Promotion:** `OutboundHttpExtensions` and its method — unavoidable, they *are* the composition.
-  `PeriodicJob` becomes a public base class
+  `PeriodicJob` becomes a public loop primitive, not a base class — decision 33
 - **Not here:** the audit actors (they would drag `AppTemplate.Infrastructure.Persistence` into an
   SDK project), and the observability extension may not name a host's diagnostics — the host passes
   the names in
@@ -130,6 +130,22 @@ remap.
   content-security policy (decision 24), and the database half of the observability registration
   (decision 23). Those five are what the import graph already says must stay: exactly three of the
   forty-eight files import `AppTemplate.Infrastructure.*`, and they are three of these
+
+### `AppTemplate.Infrastructure.Core`
+
+- **Path:** `Src/Infrastructure/AppTemplate.Infrastructure.Core/`
+- **Root:** `Common/{Caching,Templating}` plus `InfrastructureCoreModule.cs`; `Common/Saving`,
+  `Common/Idempotency`, `Common/Leases`, `Common/Options` and `Common/Time` join it with the
+  separation of authentication — see `docs/plans/AUTH-SEPARATION.md`, decision A3
+- **Namespaces:** `AppTemplate.Infrastructure.Core.Common.*`
+- **References:** `AppTemplate.Application.Core`
+- **Packages:** `Microsoft.Extensions.Caching.Hybrid`
+- **Content:** the email-template engine, taken from the two copies decision 37 measures, and
+  the `HybridCache` adapter behind `ICache` — decision 35
+- **Promotion:** the engine and `RenderedEmail` become public; the engine takes the calling
+  assembly, so a module renders its own templates out of its own resources
+- **Why the layer needs it:** an infrastructure module may not reference a sibling, so two
+  modules needing one mechanism have nowhere to share it — decision 37
 
 ## What stays in the hosts
 

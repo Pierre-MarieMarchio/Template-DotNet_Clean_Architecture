@@ -4,6 +4,9 @@ Companion to `docs/plans/SDK-SPLIT-PLAN.md`. This document exists so the analysi
 is never redone. Each entry states the decision, then the reason, then what was rejected and why —
 the rejections are the load-bearing half.
 
+Entries 33 to 38 settle the questions wave 6 was blocked on. The separation of authentication has
+its own document, `docs/plans/AUTH-SEPARATION.md`, with decisions A1 to A8.
+
 ## 1. Five projects, one per SDK concern
 
 **Decided.** `AppTemplate.Domain.Core`, `AppTemplate.Application.Core`,
@@ -776,6 +779,237 @@ one consumer.
 **Rejected — inventing a concept with no existing code behind it.** The whole point of the search
 that preceded this was to avoid exactly that, and `CONTRIBUTING.md`'s rule is explicit about a
 guessed abstraction being worse than an assumed duplication.
+
+## 33. `PeriodicJob` is a loop primitive, not a `BackgroundService` base class
+
+**Decided.** `PeriodicJob` in `Presentation.Core/Common/Jobs/` runs one interval and one
+asynchronous iteration until the stopping token ends it. Each background service keeps deriving from
+`BackgroundService` and composes one instance, or three.
+
+**Reason.** Timing, the wait and the shutdown path are one responsibility; being hosted is another.
+The file worker runs three timers under one `Task.WhenAll`, and its timer topology is one of the
+nine divergences that must survive, so a base class carrying one timer cannot serve it — a subclass
+would have to defeat the base to keep its own shape. Composition reaches all five loop instances
+across the three services; inheritance reaches two.
+
+**What it factors, measured.** The eleven-line `WaitForNextTickAsync`, byte-identical three times
+over including its doc comment, and the `using timer` plus `do`/`while` skeleton, which stands five
+times across the three files.
+
+**Rejected — a `BackgroundService` base class with an abstract iteration.** It serves the
+maintenance and reminder loops and leaves the file worker's 228 lines untouched, so half of the 507
+stays unfactored and the abstraction reads as if it were general.
+
+**Amends `docs/plans/SDK-SPLIT-TARGET.md`**, which states that `PeriodicJob` becomes a public base
+class.
+
+## 34. The nine divergences are structural; the two defects are observable
+
+**Decided.** What wave 6 preserves is the *structure* of each loop: where the enabled test sits, the
+level and the vocabulary of each log, the span and tag names, the counter shape, the timer topology,
+the scope granularity and how the stop propagates. What it fixes is the *observable* defect. The
+maintenance loop gains a counted and logged disabled purge; the maintenance and reminder loops gain
+the shutdown log the file loop guarantees.
+
+**Reason.** `docs/plans/SDK-SPLIT-BLAST-RADIUS.md` lists nine divergences to preserve and two
+defects to fix, and two of the nine name the same subjects as the two defects — the shutdown path
+and the disabled-flag treatment. Read as "preserve the observable behaviour" the two lists
+contradict each other; read as "preserve the structure, fix the defect" both hold, and the defects
+are what they are called.
+
+**The disabled purge is logged at warning, with its consequence.** An idempotency or refresh-token
+purge switched off accumulates rows that nothing else removes, which is the failure class of the
+file sweeps rather than of a reminder, where the person waiting is the alarm.
+`FileBackgroundService.RunLoopAsync`'s own parameter documentation already draws that distinction.
+The counter is tagged `task` and `outcome=disabled`, matching the tagging the maintenance loop
+already applies.
+
+**Amends `docs/plans/SDK-SPLIT-BLAST-RADIUS.md`**, which leaves the two lists to be reconciled by
+whoever reads them.
+
+## 35. The cache is `HybridCache` behind a port, and its consumer already exists
+
+**Decided.** A minimal `ICache` port in `Application.Core/Common/Ports/`, one adapter over
+`Microsoft.Extensions.Caching.Hybrid` in `AppTemplate.Infrastructure.Core`, and
+`Infrastructure.Identity/Features/Auth/Directories/CachedSigningKeys.cs` re-expressed over it. No
+output caching.
+
+**Reason for the technology.** `HybridCache` gives an in-process L1 with no service to deploy, which
+is what a template's default has to be, plus stampede protection; a second level plugs in behind the
+same abstraction through configuration, so no consumer changes on the day a deployment wants one.
+
+**Reason for the port.** It keeps a caching package out of the application layer, which is the same
+reason every other mechanism here is reached through one.
+
+**Reason for that consumer.** `CachedSigningKeys` is a cache written by hand, so the change resorbs
+something that exists instead of inventing a caller — the rule `CONTRIBUTING.md` states for every
+extraction. Its rotation semantics are already written and already covered, which makes its own
+tests the oracle for the change.
+
+**Rejected — Redis, or any distributed cache, as the shipped adapter.** A `docker-compose` service,
+a container fixture and a configuration section, for a capability no example feature needs. A
+template that runs on `dotnet run` is worth more than one that demonstrates a second data store.
+
+**Rejected — no port, the application layer naming `HybridCache` directly.** Defensible on KISS
+grounds, and it puts a caching package in the layer whose whole discipline is naming no mechanism.
+
+**Rejected — output caching in the same wave.** It interacts with idempotency, rate limiting and the
+conditional-request handling, and the right cacheability differs per endpoint. It stays a stated
+limit in `docs/ARCHITECTURE.md`.
+
+**Rejected — an example feature as the demonstration consumer.** Caching an owner's file-usage total
+would put a stale quota between a caller and a limit, which is a correctness risk taken to
+illustrate a mechanism.
+
+**Corrected while implementing: the consumer named above cannot be that consumer, and nothing was
+built.** `CachedSigningKeys` is not a general cache. It is a `ConcurrentDictionary` holding a record
+with **two** timestamps that answer two different questions: `FetchedAt`, which the cache lifetime is
+measured from, so a provider that goes down does not extend the life of the keys it served before it
+did; and `AttemptedAt`, which the forced-refresh floor is measured from, so a flood of tokens naming
+a key nobody ever published costs one outbound request rather than one each. A time-to-live cache
+expresses the first and not the second.
+
+Re-expressing it over `ICache` therefore does one of two things: it drops the floor, which is a
+security-relevant property, or it stores the same two-timestamp record under a key with no expiry —
+at which point the cache is a dictionary again and the port has bought nothing. Measured against the
+rule this decision invoked, resorbing something that exists, the candidate fails: what exists is not
+an instance of the thing being extracted.
+
+**So the port has no consumer in this template, and decision 16's argument applies to it exactly:** a
+seam that registers something nothing calls reads, at every derived project's composition root, like
+the thing that makes the project work. Neither the port nor the adapter was created, and
+`CachedSigningKeys` is untouched. `Microsoft.Extensions.Caching.Hybrid` is not referenced anywhere.
+
+**What is left is a choice for the repository owner**, and the three options are not equivalent:
+
+- **Ship the port and one adapter with no consumer**, as a building block a derived project wires up.
+  It contradicts decision 16, which is the reason to state it rather than assume it.
+- **Give it a consumer inside an example feature** — the file-usage total is the only real candidate —
+  and accept the invalidation work and the stale-quota risk this decision rejected above.
+- **Drop it**, and document "no cache" as a stated limit in `docs/ARCHITECTURE.md` beside output
+  caching, which this decision already leaves there.
+
+The lesson is the one decisions 7, 27 and 30 each recorded: a decision that names a consumer should
+be checked against what that consumer actually is before the extraction is designed around it.
+
+### Resolved: the consumer is a read that did not exist yet
+
+**The owner chose the second option**, and the search for an existing consumer was measured out
+first, so what follows is what the measurement established rather than a preference.
+
+**No existing read in the example features tolerates staleness.** Four candidates, four refusals:
+
+| Read | Why not |
+|---|---|
+| `IStoredFileQueries.GetUsageForOwnerAsync` | The quota. `CommittedBytes` is the sum of `SizeInBytes` over *all* an owner's rows, so state transitions are neutral to it and only inserting a row raises it — and the only path that inserts is `RegisterFileUseCase`, which is also the only reader. Invalidating there gives the cache a **0% hit rate** except when a registration is refused, which accelerates exactly the loop `MaxPendingRegistrations` bounds. Writing the new total through instead keeps the hit rate and widens the overshoot `StoredFileQuotaPolicy` documents as "one request's worth" to "the bound times however many processes hold a copy" |
+| `GetDetailAsync`, on both features | Its version becomes the `ETag`. A cached version is a precondition that no longer describes the thing it guards |
+| `GetForOwnerAsync`, on both features | A page a user sees after their own write |
+| `GetLiveObjectKeysAsync` | It tells the orphan sweep which objects nothing names, so a stale "not live" deletes a live file's bytes |
+
+**So the consumer is a new read, in both features that own tags**: the distinct tags an owner has
+already used, for a picker or a filter. It is a suggestion — it decides no authorisation, enforces
+no bound, becomes no `ETag`, and tells nothing what to delete — which is the list `ICacheStore`'s own
+documentation gives for what may be cached.
+
+**What was built.** `ICacheStore` in `Application.Core/Common/Ports/`; `HybridCacheStore` in
+`Infrastructure.Core/Common/Caching/`, registered by `InfrastructureCoreModule.AddCacheStore()` and
+called by both hosts; `AppTemplate.Application/Common/Tagging/UsedTagsCache`, holding the key, the
+one-minute lifetime and the two scopes, so the decision is stated once for both features; a
+`GetUsedTodoItemTags` and a `GetUsedFileTags` use case reading through the cache; and
+`GET .../todo-lists/tags` and `GET .../files/tags`.
+
+**Invalidation is at the four commands that change an owner's tags**, each dropping the entry after
+its commit. A missed one costs a suggestion list up to a minute out of date, which is the whole
+reason this read was the one chosen.
+
+**One rule caught a real defect while this was built, and it was right to.**
+`PortConventionTests.NoApplicationPort_IsAMultiCapabilityFacade` failed: hanging the new read off
+`IStoredFileQueries` took that port to five operations. Reading a file and reading the vocabulary an
+owner has built up are different capabilities, so the read went to `IStoredFileTagQueries` and
+`ITodoItemTagQueries` — one operation each — with their own adapters in the persistence module.
+
+**Closed counts that had to follow**, and each is the mechanism the repository uses to notice this
+kind of addition: the use-case count (30 to 32), `FilesController`'s action count (7 to 8), the
+default-deny endpoint enumeration, `LayoutConventionTests`' vocabulary for
+`Infrastructure.Core/Common/` (`Caching` beside `Templating`), the port doubles in
+`ApplicationModuleTests`, and `HostComposition`'s five compositions.
+
+## 36. There is no reusable test kit, because this is a template
+
+**Decided.** The integration fixtures stay where they are. No project is created, and the item
+leaves wave 6.
+
+**Reason, measured.** Of the fixtures under
+`Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/` and the identity project's
+`Fixtures/`, the files naming no product type at all are `ApiJson` 82, `CapturedLogs` 84,
+`DatabaseReadiness` 59, `TestClientAddressStartupFilter` 50, `SecurityHeaderAssertions` 38,
+`Rendezvous` 31 and `AnonymousAuditActor` 12 — 356 lines. The two a derived project actually wants,
+`ApiFactory` 207 and `IntegrationTestBase` 437, name ten and eight product namespaces each and
+cannot move. A kit would ship the easy fifth and leave the rest to be copied.
+
+**Reason, and it is the decisive one.** A derived project receives the whole of `Tests/` by
+generation. "A derived project copies them" is the delivery mechanism here, not a defect, so the gap
+`docs/plans/SDK-SPLIT-BLAST-RADIUS.md` records is a gap only for a published package.
+
+**Measured against the extraction rule.** The duplication actually present is the PostgreSQL
+container builder: five lines, three times, differing only in the database name. That is under the
+bar `CONTRIBUTING.md` sets.
+
+**Rejected — a packable project under `Src/`.** A sixth project held to package grade, its own
+mirror by the 1:1 rule — a test project for a test kit — guids in two manifests, an entry in two
+vocabularies and a `dotnet pack` target, to deliver files the generator already delivers.
+
+**Rejected — a non-packable project under `Tests/`.** Cheaper, and then the kit is invisible to
+`PackageBoundaryTests`, which reads `Src/` only, so nothing holds it to the standard that was the
+reason for extracting it.
+
+**Amends `docs/plans/SDK-SPLIT-BLAST-RADIUS.md`**, whose fourth scheduled gap this withdraws. Wave 7
+documents the fixtures a derived project inherits instead.
+
+## 37. The infrastructure layer gets its agnostic half
+
+**Decided.** `AppTemplate.Infrastructure.Core`, created in wave 6, holding the email-template engine
+and — from the authentication separation onwards — the agnostic EF mechanisms.
+
+**Reason, measured.** The template engine exists twice:
+`Infrastructure.Identity/Features/Auth/Factories/EmailBodyFactory.cs` at 196 lines and
+`Infrastructure.Email/Features/Reminders/ReminderEmailTemplate.cs` at 131, with the same
+`<title>` regex, the same culture fallback, the same resource read, the same placeholder loop, and
+`RenderedEmail` declared in both. Two real cases doing the same thing, which is the bar an
+extraction has to clear here.
+
+**Why not `Application.Core`.** The duplicated file's own documentation gives the objection and it
+holds: reading HTML out of an assembly is not a decision the application layer should be making. The
+same file names the reason the duplication exists —
+`ModuleDependencyTests.InfrastructureModules_ReferenceOnlyPersistenceHorizontally` — so the shared
+home has to be inside the infrastructure layer.
+
+**Consequence.** All four layers then have the same two halves, agnostic and business, which is one
+rule a reader learns once instead of three plus an exception. The engine takes the calling assembly,
+the seam decision 18 already uses for `AddObservability`.
+
+**Rule amendment.** "An infrastructure module references only Persistence horizontally" becomes
+"only Persistence or the infrastructure `.Core`", with its non-vacuity assertion kept.
+
+**Rejected — leaving the duplication and keeping the coverage rule that pins the two together.**
+`EmailTemplateCoverageTests` asserts both modules ship the same languages, which contains the drift
+without removing the copy, and it is what has allowed the copy to survive.
+
+## 38. This is a template, and six of its projects are written to package grade
+
+**Decided.** The vocabulary is corrected wherever these documents call the result an SDK. The
+repository is a template; `Domain.Core`, `Application.Core`, `Application.Auth`,
+`Infrastructure.Core`, `Presentation.Core` and `Api.Core` are the part of it written as if it were
+packaged — self-contained, ignorant of the application consuming it, a public surface that changes
+on purpose.
+
+**Reason.** The projects are vendored by copy and carry no version (decision 11), so "SDK" promises
+a distribution that does not exist and invites a reader to look for a package feed. What the word
+was carrying — the discipline — is `IsPackable` plus the frozen surface plus the boundary rule, and
+those are named directly.
+
+**File names are kept.** `docs/plans/SDK-SPLIT-*.md` are cited from each other, from the handoff and
+from this document; renaming five files and their cross-references buys a word.
 
 ## Two corrections to `docs/plans/SDK-SPLIT-TARGET.md`, found while implementing wave 4
 

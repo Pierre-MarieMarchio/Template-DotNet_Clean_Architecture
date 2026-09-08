@@ -177,7 +177,7 @@ module that needs it must declare it.
 | Module | Application-side references | Change |
 |---|---|---|
 | `AppTemplate.Infrastructure.Persistence` | `Application.Core`, `AppTemplate.Application` | one addition |
-| `AppTemplate.Infrastructure.Identity` | `Application.Core`, `Application.Auth`, `Infrastructure.Persistence` | drops `AppTemplate.Application` entirely — it implements 20 Auth ports and nothing else |
+| `AppTemplate.Infrastructure.Auth` | `Application.Core`, `Application.Auth`, `Infrastructure.Persistence` | drops `AppTemplate.Application` entirely — it implements 20 Auth ports and nothing else |
 | `AppTemplate.Infrastructure.Email` | `Application.Core`, `Application.Auth`, `AppTemplate.Application` | two additions; the Auth one is mandatory, its reminder notifier resolves a user profile to find an address |
 | `AppTemplate.Infrastructure.Storage` | `Application.Core`, `AppTemplate.Application` | one addition, for the `Result` type alone |
 | `AppTemplate.Infrastructure.InMemory` | `Application.Core`, `Application.Auth`, `AppTemplate.Application` | two additions; its one Auth double is already registered by a separate public method |

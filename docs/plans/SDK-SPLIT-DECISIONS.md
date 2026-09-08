@@ -146,7 +146,7 @@ So the claim is split in two, and both halves are asserted:
   manifests, neither the business project nor the mechanisms name anything in
   `AppTemplate.Application.Auth`. This is the half per-feature registration actually bought, and it
   is the half that matters for a derived project writing its own features.
-- `ContainerCompositionTests.RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer`
+- `ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
   — the composition that drops authentication is built, refuses, and the refusal is required to name
   `IIdentitySeeder` and `IReminderNotifier`. The caveat becomes executable instead of prose, and the
   day either coupling goes away the test says so rather than staying quietly true.

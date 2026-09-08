@@ -70,7 +70,7 @@ data:
   Email__FromName: "AppTemplate"
 
   # --- EmailConfirmation / PasswordReset / EmailChange: required, no default, and used by BOTH ---
-  # hosts (AppTemplate.Worker composes AppTemplate.Infrastructure.Identity too, so it validates
+  # hosts (AppTemplate.Worker composes AppTemplate.Infrastructure.Auth too, so it validates
   # these same three sections at startup even though it sends none of that mail itself over HTTP —
   # see configmap-worker.yaml). Kept identical across both ConfigMaps deliberately: two copies of
   # one fact, not two facts that could drift.

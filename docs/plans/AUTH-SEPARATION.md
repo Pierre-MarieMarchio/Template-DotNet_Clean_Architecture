@@ -434,11 +434,17 @@ seeder leaves with the module. So the claim the correction inside decision 7 cou
 becomes assertable except for the notifier, and A6 is the entry that keeps that honest: the test is
 rewritten to name **one** coupling, not two, and its message says which.
 
-### Wave D — close and document
+### Wave D — close and document. **Done with the storage, 2026-09-08, except A7.**
 
-`docs/ARCHITECTURE.md`'s context section rewritten (A4), the single business-to-auth door documented
-(A6), the removal guide's note about an already-deployed derived project (A5), and the module table
-in the architecture document. Then the `Api.Auth` question (A7), on the tree as it then stands.
+Written as each change landed rather than afterwards, because a document that describes a tree it no
+longer matches is what this whole chantier kept finding. `docs/ARCHITECTURE.md`'s context section is
+rewritten (A4) along with its module table and its schema paragraph; the removal guide loses the
+three obstacles that no longer exist and gains the already-deployed caveat (A5); the single
+business-to-auth door is named in both (A6); `CONFIGURATION.md` follows the two sections that changed
+owner; and `CONTRIBUTING.md`'s tree and `README.md`'s two trees follow the projects.
+
+**`Api.Auth` (A7) is not decided and not started.** It is the one part of this plan that was always
+to be taken last, on the tree as it then stands — which is now this one.
 
 ## Blast radius
 

@@ -45,7 +45,7 @@ co-author trailer. Leave your own work staged (`git add -A` at the end of a wave
 | — | The audit pass, all three strands | done |
 | 6 | The missing pieces | done |
 | 7 | Documentation and close | done; the whole gate runs, and the step that used to be the exception is explained below |
-| — | `docs/plans/AUTH-SEPARATION.md`, waves A to D | not started, scheduled after 7 |
+| — | `docs/plans/AUTH-SEPARATION.md`, waves A to D | done, except the `Api.Auth` question (A7), which was always to be taken last |
 | — | The comment-convention cleanup pass | not started, scheduled last |
 
 Measured at the end of wave 7, not remembered:

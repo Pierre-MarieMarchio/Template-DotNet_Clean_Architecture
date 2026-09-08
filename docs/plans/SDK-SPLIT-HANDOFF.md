@@ -44,7 +44,7 @@ co-author trailer. Leave your own work staged (`git add -A` at the end of a wave
 | 5 | `AppTemplate.Api.Core` | done |
 | — | The audit pass, all three strands | done |
 | 6 | The missing pieces | done |
-| 7 | Documentation and close | done, except one gate step this machine cannot run — see below |
+| 7 | Documentation and close | done; the whole gate runs, and the step that used to be the exception is explained below |
 | — | `docs/plans/AUTH-SEPARATION.md`, waves A to D | not started, scheduled after 7 |
 | — | The comment-convention cleanup pass | not started, scheduled last |
 
@@ -166,17 +166,26 @@ Three findings worth keeping, because none of them was predicted by the plan:
   because it *was* a real measurement, of the wrong thing. `coverage.minimum` now states the
   invocation. The file's own doc comment had said so all along.
 
-**One exit-gate step cannot run on this machine**, and it is the environment rather than the tree:
-`dotnet run Tools/Tasks.cs verify` ends on
-`dotnet ef migrations has-pending-model-changes`, and `dotnet tool restore` fails with
-`Settings file 'DotnetToolSettings.xml' was not found in the package`. The nupkg downloads and is
-well-formed — it carries `tools/net8.0/any/DotnetToolSettings.xml` — but the SDK extracts nothing to
-`~/.nuget/packages/dotnet-ef/`, leaving the directory empty. Not `rollForward`: a scratch manifest
-with `rollForward: true` fails identically, and it fails the same way with the sandbox disabled. The
-guarantee that step buys is asserted anyway by `PendingModelChangesTests`, which needs no database
-and passed among the 3328. Everything else in the gate is green: build with 0 warnings, all six
-gates and their self-tests, `dotnet format --verify-no-changes`, six clean `dotnet pack`s, and both
-container images.
+**The exit gate runs end to end, including the step that used to be the exception.**
+`dotnet run Tools/Tasks.cs verify` ends on `dotnet ef migrations has-pending-model-changes`, and
+`dotnet tool restore` used to fail there with
+`Settings file 'DotnetToolSettings.xml' was not found in the package` — on a nupkg that downloads
+intact and carries `tools/net8.0/any/DotnetToolSettings.xml`, with the SDK extracting nothing to the
+package store.
+
+**It is the SDK, and only one of the two installed.** Measured: 10.0.111 restores tools fine, and
+10.0.300 — the one `global.json` pins — fails for *every* tool, `dotnetsay` as much as `dotnet-ef`.
+Not the package version (10.0.8, 10.0.9 and 9.0.11 fail identically), not `rollForward`, not the
+sandbox.
+
+**The fix is machine-local and changes nothing in this repository.** Restore the tool once from a
+scratch directory whose own `global.json` pins the working SDK; that populates
+`~/.nuget/packages/dotnet-ef/`, and the repository's own restore then finds it already extracted and
+succeeds. Deleting that cache entry reproduces the failure, so this is worth knowing rather than
+forgetting. **Rejected — pinning `global.json` to 10.0.111:** that file decides which SDK every
+developer and CI uses, and downgrading all of them to work around one machine's tool-extraction bug
+is a wide change for a local problem. **Rejected — installing the tool globally:** a local manifest
+takes precedence, so it would not be the one that runs.
 
 ### Then, two chantiers of their own
 

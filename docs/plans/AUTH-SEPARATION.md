@@ -86,15 +86,59 @@ exists.
 **Decided.** A `UserId` value object in `AppTemplate.Domain.Core/Common/Primitives/`, returned by
 `ICurrentUser` and held by the three aggregates in place of the bare `Guid`.
 
+**The name is `UserId`, and fork 1 is closed** (owner, 2026-09-08). `SubjectId` says more
+precisely what the thing is, and the reason below argues for that reading; what decides it is that
+`ICurrentUser.UserId` and the three `OwnerId` properties already say *user*, and a type whose name
+disagrees with every property that holds it introduces a second word for one concept. The
+precision `SubjectId` would buy is bought instead by the type's own summary.
+
 **Reason.** The distinction the owner asked for is already true of the data and invisible in the
 code. A named type is what makes it readable by navigation: the type says that this is a subject
 identifier supplied from outside, and a reader meets it before meeting any auth code. It is also
 what a separate auth service hands over — a subject claim — so the name stays accurate on the day
 the module moves.
 
-**Measured cost.** The column is `uuid` either way and no foreign key exists, so **no migration**.
-The edit is the three aggregates, their events, the three persistence mappers, `ICurrentUser` and
-its two adapters, and the tests that name the `Guid`.
+**Measured cost, as predicted.** The column is `uuid` either way and no foreign key exists, so **no
+migration**. The edit is the three aggregates, their events, the three persistence mappers,
+`ICurrentUser` and its two adapters, and the tests that name the `Guid`.
+
+**Measured cost, as it turned out: 111 files.** That list counts where the `Guid` is *declared* and
+not where it *flows*, which is the larger half. A type at a boundary forces a decision at every
+other boundary it reaches, and the plan named none of them. What the work settled, and why:
+
+- **The business ports take `UserId`** — the four query ports of `AppTemplate.Application`, plus
+  `UsedTagsCache.KeyFor`, `ReminderNotification` and the in-memory `SentReminderNotification`. Eleven
+  files, and it is what keeps `.Value` out of the business use cases entirely: they hand the owner
+  straight through. The EF implementations compare the column to `ownerId.Value`, which is the same
+  place the mappers already convert.
+- **The twenty authentication ports keep the raw `Guid`.** What identifies an account there is the
+  subject a token carries, not the business's notion of an owner, and `AppTemplate.Application.Auth`
+  is the project a derived application replaces wholesale — pushing a domain primitive into its port
+  surface would be the coupling this chantier exists to remove. The cost is 19 sites reading
+  `userId.Value.Value`, and that is **deliberately** left visible: they are exactly the places where
+  a named owner is handed to an identity port, which is the seam wave C moves. Zero such sites exist
+  in the business half.
+- **`IAuditActor` and `IAuditable` keep `Guid?`.** `IAuditActor`'s own documentation says it is
+  deliberately not `ICurrentUser` and answers a different question — whom do we record, not who is
+  calling — so `CurrentUserAuditActor` converts with `currentUser.UserId?.Value` and the audit
+  columns stay what they are: a persistence record of who last wrote a row.
+- **`IdempotencyKey` keeps `Guid`.** It scopes a key to a caller and is host machinery; the filter
+  unwraps once.
+
+**What the type paid for immediately.** Three `ownerId == Guid.Empty` guards, one per aggregate,
+are gone: the invariant is stated once in `UserId.Create` and the aggregates take
+`ArgumentNullException.ThrowIfNull(ownerId)` beside the guards they already had. Six tests named
+`*_Rejects_AnEmptyOwnerId` therefore changed subject to an absent owner, and
+`CurrentUserExtensionsTests.RequireUserId_Fails_WhenTheIdIsEmpty` became unreachable and was
+removed — with a note at its neighbour saying where the guarantee now lives, because a deleted test
+nobody explains reads like a lost one. `UserIdTests` adds eight in its place, and the suite went
+from 3328 to 3335.
+
+**One wart, worth knowing before reading the code.** The property `ICurrentUser.UserId` and the type
+`UserId` share a name, so inside any class holding such a member the simple name binds to the
+member and the factory call has to be qualified. That is three places — the HTTP adapter and two
+test stubs — each carrying a one-line note. `SubjectId` would not have had this problem, and fork 1
+was decided on other grounds; this is the price of that decision, and it is small and local.
 
 **Rejected — a business `User` entity.** It would need attributes the business does not have. The
 business owns no fact about a person today; the moment it does, that entity is written then.
@@ -231,11 +275,25 @@ real PostgreSQL. Run them before and after, and read the row counts rather than 
 
 Sequential. Each ends green on the full gate of `docs/plans/SDK-SPLIT-PLAN.md`.
 
-### Wave A — name the subject
+### Wave A — name the subject. **Done, 2026-09-08.**
 
-`UserId` in `Domain.Core/Common/Primitives/`. The three aggregates, their events, the three
-mappers, `ICurrentUser` and its two adapters. No migration, no project created. Green on its own,
-and independent of every other wave.
+`UserId` in `Domain.Core/Common/Primitives/`, which takes that project from seven files to eight and
+adds eleven symbols to its public surface. The three aggregates, their events, the three mappers,
+`ICurrentUser` and its two adapters — plus the boundaries A2 now records. No migration, no project
+created. Green on the full gate: 3335 tests with none failing, 0 build warnings, all six packages,
+both images, every gate and `dotnet format --verify-no-changes` clean.
+
+**One thing it changed that no rule watches.** `AppTemplate.Application.Auth`,
+`AppTemplate.Infrastructure.Email` and `AppTemplate.Presentation.Core` now name
+`AppTemplate.Domain.Core` in their manifests while declaring only `AppTemplate.Application.Core`.
+Nine of the fifteen source projects are in that position now, and none declares the reference. It is
+**pre-existing rather than introduced here** — `AppTemplate.Infrastructure.Persistence` has always
+named `IAuditable` this way — and the principle `docs/ARCHITECTURE.md` states about declaring a
+reference rather than inheriting it is written about `AppTemplate.Application.Core` alone, which is
+why the diagram draws ten arrows into that project and two into `Domain.Core`. The documents that
+said `Application.Auth` "names no domain type at all" now say it names no *aggregate*, which is the
+claim that is true and the one that mattered. **Whether the nine should declare the reference is a
+question for the owner, not a thing this wave decided.**
 
 ### Wave B — move the agnostic mechanisms into `Infrastructure.Core`
 
@@ -306,13 +364,20 @@ template question only in that a derived deployment would have live key material
 
 ## Open forks left to the owner
 
-1. **Wave A's naming.** `UserId` or `SubjectId`. `UserId` matches `ICurrentUser.UserId` and the
-   `OwnerId` properties; `SubjectId` says more precisely what it is and matches what a token
-   carries. Not chosen here.
-2. **Whether wave C also renames `AppTemplate.Infrastructure.Identity` to
-   `AppTemplate.Infrastructure.Auth`.** The module implements auth ports and would then own auth
-   storage, so the name would match the layer above it — `AppTemplate.Application.Auth` — and the
-   folder `Features/Auth/` it already uses. The cost is a rename across the solution manifest, the
-   template manifest, both Dockerfiles, the mirrors and the docs.
+1. ~~**Wave A's naming.**~~ **Closed: `UserId`** (owner, 2026-09-08). See A2 for what decided it
+   against `SubjectId`.
+2. ~~**Whether wave C also renames `AppTemplate.Infrastructure.Identity`.**~~ **Closed: it is
+   renamed to `AppTemplate.Infrastructure.Auth`, in wave C** (owner, 2026-09-08). The module
+   implements the auth ports and will own the auth storage, so the name matches the layer above it
+   — `AppTemplate.Application.Auth` — and the `Features/Auth/` folder it already uses. It happens
+   inside wave C rather than after it, because that wave already rewrites the module's storage and
+   two renames of one project read worse than one.
+
+   **The hazard to respect, and it is written down in `docs/plans/SDK-SPLIT-HANDOFF.md`:**
+   `dotnet sln add` re-generates a different project guid when a project is removed and re-added,
+   and `Rules/TemplatePackagingTests.cs` guards the guid list in `.template.config/template.json`.
+   So the rename is: edit `AppTemplate.sln` by hand rather than through the CLI, keep the existing
+   guid, then verify nesting by reading the file. The mirror test project renames with it, by the
+   1:1 rule.
 3. **A6 again, at the end of wave D:** keep the door, or take the denormalisation.
 4. **A7:** `Api.Auth`, or the controllers stay.

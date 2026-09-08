@@ -1,20 +1,24 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 
-namespace AppTemplate.Infrastructure.Persistence.Common.Saving;
+namespace AppTemplate.Infrastructure.Core.Common.Saving;
 
 /// <summary>
-/// The transactional boundary, which for a single <see cref="AppDbContext"/> is exactly one call to
+/// The transactional boundary, which for a single <see cref="DbContext"/> is exactly one call to
 /// <c>SaveChangesAsync</c>: EF wraps a save in a transaction of its own, so everything a use case
 /// staged either lands or none of it does. Who owns that boundary, and where it does not reach, is
 /// argued in docs/ARCHITECTURE.md under "The transaction boundary, and who owns it".
 /// <para>
+/// It takes <see cref="DbContext"/> rather than one named context, so a module composes it over
+/// whichever context it owns. Registration therefore names the context: a container that resolves
+/// <see cref="DbContext"/> by itself would hand whichever one happened to be registered.
+/// </para>
+/// <para>
 /// Two constraints a caller cannot read off the signature.
 /// </para>
 /// <list type="bullet">
-/// <item><description>ASP.NET Identity's own stores commit through the same context by themselves —
+/// <item><description>ASP.NET Identity's own stores commit through their context by themselves —
 /// <c>UserManager.CreateAsync</c> saves before it returns — so a use case must not assume that an
 /// account creation and a domain write share a transaction. Everything <em>this</em> type commits
 /// does.</description></item>
@@ -25,8 +29,15 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving;
 /// kept as the inner exception so the log still says exactly which rows lost.</description></item>
 /// </list>
 /// </summary>
-internal sealed class EfUnitOfWork(AppDbContext context) : IUnitOfWork
+/// <param name="context">The context whose staged changes this commits.</param>
+internal sealed class EfUnitOfWork(DbContext context) : IUnitOfWork
 {
+    /// <summary>Commits everything staged on the context, as one transaction.</summary>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns>The number of rows written.</returns>
+    /// <exception cref="ConcurrencyConflictException">
+    /// Another writer changed a row this write depended on. The staged changes stay uncommitted.
+    /// </exception>
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         try

@@ -1,11 +1,10 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
-using AppTemplate.Infrastructure.Persistence.Common.Contexts;
-using AppTemplate.Infrastructure.Persistence.Common.Saving;
+using AppTemplate.Infrastructure.Core.Common.Saving;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Saving;
+namespace AppTemplate.Infrastructure.Core.UnitTests.Common.Saving;
 
 /// <summary>
 /// The one place a commit happens is the one place EF's vocabulary stops. Everything above this type
@@ -13,9 +12,10 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Saving;
 /// or reach into its <c>Entries</c>.
 /// </summary>
 /// <remarks>
-/// No database. The context is configured against PostgreSQL so that EF has a provider and a model, and
-/// an interceptor throws before a connection is ever opened — the translation under test happens in the
-/// <c>catch</c>, not in the driver.
+/// No database, and no product context. EF needs a provider before it will build a context at all, so
+/// one is configured and never connected to: an interceptor throws before a connection is opened, and
+/// the translation under test happens in the <c>catch</c> rather than in the driver. The context holds
+/// no entities, because nothing here depends on a model.
 /// </remarks>
 public sealed class EfUnitOfWorkTests
 {
@@ -52,13 +52,16 @@ public sealed class EfUnitOfWorkTests
         failure.ShouldBeSameAs(violation);
     }
 
-    private static AppDbContext AContextThatFailsWith(Exception failure)
+    private static EmptyContext AContextThatFailsWith(Exception failure)
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
+        var options = new DbContextOptionsBuilder<EmptyContext>()
             .UseNpgsql("Host=localhost;Database=never-opened;Username=none;Password=none")
             .AddInterceptors(new FailingSaveChangesInterceptor(failure))
             .Options;
 
-        return new AppDbContext(options);
+        return new EmptyContext(options);
     }
+
+    /// <summary>A context with a provider and nothing in it, which is all a save has to reach.</summary>
+    private sealed class EmptyContext(DbContextOptions<EmptyContext> options) : DbContext(options);
 }

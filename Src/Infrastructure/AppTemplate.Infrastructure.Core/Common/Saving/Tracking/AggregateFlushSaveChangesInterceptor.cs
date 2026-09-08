@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
-namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
+namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 
 /// <summary>
 /// Runs every feature's <see cref="IAggregateFlusher"/> immediately before EF computes its diff, and
@@ -25,11 +25,15 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 /// silent data-loss bug the first time somebody left it.
 /// </para>
 /// </summary>
-internal sealed class AggregateFlushSaveChangesInterceptor(IEnumerable<IAggregateFlusher> flushers)
+public sealed class AggregateFlushSaveChangesInterceptor(IEnumerable<IAggregateFlusher> flushers)
     : SaveChangesInterceptor
 {
     private readonly IAggregateFlusher[] _flushers = [.. flushers];
 
+    /// <summary>Flushes every tracked aggregate onto its row before EF computes its diff.</summary>
+    /// <param name="eventData">EF's description of the save.</param>
+    /// <param name="result">What an earlier interceptor decided; passed through.</param>
+    /// <returns><paramref name="result"/>, unchanged.</returns>
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData,
         InterceptionResult<int> result)
@@ -41,6 +45,11 @@ internal sealed class AggregateFlushSaveChangesInterceptor(IEnumerable<IAggregat
         return base.SavingChanges(eventData, result);
     }
 
+    /// <summary>The asynchronous half of <see cref="SavingChanges"/>, doing the same flush.</summary>
+    /// <param name="eventData">EF's description of the save.</param>
+    /// <param name="result">What an earlier interceptor decided; passed through.</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns><paramref name="result"/>, unchanged.</returns>
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
@@ -53,6 +62,12 @@ internal sealed class AggregateFlushSaveChangesInterceptor(IEnumerable<IAggregat
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
+    /// <summary>
+    /// Tells each tracker the version and audit stamps the store just decided, once the save landed.
+    /// </summary>
+    /// <param name="eventData">EF's description of the completed save.</param>
+    /// <param name="result">The number of rows written; passed through.</param>
+    /// <returns><paramref name="result"/>, unchanged.</returns>
     public override int SavedChanges(SaveChangesCompletedEventData eventData, int result)
     {
         RefreshFromStore();
@@ -60,6 +75,11 @@ internal sealed class AggregateFlushSaveChangesInterceptor(IEnumerable<IAggregat
         return base.SavedChanges(eventData, result);
     }
 
+    /// <summary>The asynchronous half of <see cref="SavedChanges"/>.</summary>
+    /// <param name="eventData">EF's description of the completed save.</param>
+    /// <param name="result">The number of rows written; passed through.</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns><paramref name="result"/>, unchanged.</returns>
     public override ValueTask<int> SavedChangesAsync(
         SaveChangesCompletedEventData eventData,
         int result,

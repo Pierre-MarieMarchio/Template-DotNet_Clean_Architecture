@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore.Diagnostics;
 
-namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Saving;
+namespace AppTemplate.Infrastructure.Core.UnitTests.Common.Saving;
 
 /// <summary>
 /// Makes a save fail the way the database would, without a database: the exception is raised before EF

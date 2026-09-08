@@ -1,9 +1,9 @@
 ﻿using System.Data;
 using System.Data.Common;
 using System.Globalization;
+using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
-using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

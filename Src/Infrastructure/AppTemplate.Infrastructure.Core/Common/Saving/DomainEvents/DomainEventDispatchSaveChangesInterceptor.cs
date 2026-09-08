@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
+namespace AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 
 /// <summary>
 /// Collects the domain events raised during a save, and publishes them only once that save has
@@ -29,7 +29,7 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
 /// another system belongs behind an outbox rather than doing that I/O here.
 /// </para>
 /// </summary>
-internal sealed class DomainEventDispatchSaveChangesInterceptor(
+public sealed class DomainEventDispatchSaveChangesInterceptor(
     IDomainEventDispatcher dispatcher,
     IEnumerable<IDomainEventSource> sources,
     ILogger<DomainEventDispatchSaveChangesInterceptor> logger) : SaveChangesInterceptor
@@ -37,6 +37,11 @@ internal sealed class DomainEventDispatchSaveChangesInterceptor(
     private readonly IDomainEventSource[] _sources = [.. sources];
     private readonly List<(IDomainEventSource Source, IDomainEvent Event)> _pendingEvents = [];
 
+    /// <summary>Drains the tracked aggregates' events, to be dispatched once the save lands.</summary>
+    /// <param name="eventData">EF's description of the save.</param>
+    /// <param name="result">What an earlier interceptor decided; passed through.</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns><paramref name="result"/>, unchanged.</returns>
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
@@ -47,6 +52,10 @@ internal sealed class DomainEventDispatchSaveChangesInterceptor(
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
+    /// <summary>Drains the tracked aggregates' events, so a synchronous save cannot lose them.</summary>
+    /// <param name="eventData">EF's description of the save.</param>
+    /// <param name="result">What an earlier interceptor decided; passed through.</param>
+    /// <returns><paramref name="result"/>, unchanged.</returns>
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData,
         InterceptionResult<int> result)
@@ -56,6 +65,11 @@ internal sealed class DomainEventDispatchSaveChangesInterceptor(
         return base.SavingChanges(eventData, result);
     }
 
+    /// <summary>Dispatches the drained events, in order, after the transaction committed.</summary>
+    /// <param name="eventData">EF's description of the completed save.</param>
+    /// <param name="result">The number of rows written; passed through.</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns><paramref name="result"/>, unchanged.</returns>
     public override async ValueTask<int> SavedChangesAsync(
         SaveChangesCompletedEventData eventData,
         int result,
@@ -105,6 +119,9 @@ internal sealed class DomainEventDispatchSaveChangesInterceptor(
         base.SaveChangesFailed(eventData);
     }
 
+    /// <summary>Hands the drained events back to their trackers, so a retried save still publishes them.</summary>
+    /// <param name="eventData">EF's description of the failure.</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
     public override Task SaveChangesFailedAsync(
         DbContextErrorEventData eventData,
         CancellationToken cancellationToken = default)

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
+﻿using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 
 namespace AppTemplate.Infrastructure.Identity.IntegrationTests.Fixtures;
 

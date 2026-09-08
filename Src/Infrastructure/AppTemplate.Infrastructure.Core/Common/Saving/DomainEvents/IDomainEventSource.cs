@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Domain.Core.Common.Events;
 
-namespace AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
+namespace AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 
 /// <summary>
 /// Somewhere the events raised during the current request have accumulated, ready to be published
@@ -13,7 +13,7 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
 /// it.
 /// </para>
 /// </summary>
-internal interface IDomainEventSource
+public interface IDomainEventSource
 {
     /// <summary>
     /// Returns the events raised so far and clears them, in one step.

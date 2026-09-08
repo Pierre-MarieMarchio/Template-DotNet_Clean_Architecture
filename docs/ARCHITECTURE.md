@@ -21,7 +21,7 @@ one exists.
 | Application | `AppTemplate.Application.Core` | the mechanisms a use case is written *from*: `Result`/`Error`, the `IUseCase` marker, validation, offset and cursor pagination, idempotency, optimistic concurrency, the cross-cutting ports | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application` | the business features' use cases, feature ports, DTOs, validators | `AppTemplate.Domain` + `AppTemplate.Application.Core` |
 | Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind twenty ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
-| Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
+| Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: what a context saves through — the unit of work, the three interceptors, the aggregate tracker — plus the system clock, multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Identity`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
 | Presentation | `AppTemplate.Presentation.Core` | what any host needs whatever its transport: one outbound HTTP policy, the language a flow is written in, OTLP traces and metrics, the identity of a process with no caller — and no framework reference, deliberately | `AppTemplate.Application.Core` |
 | Presentation | `AppTemplate.Api.Core` | the half of an HTTP host that knows no feature: the whole pipeline behind one `UseCorePipeline()` — problem details, ETags, idempotency, rate limiting, CORS, security headers, versioning, the health endpoints | `AppTemplate.Application.Core` + `AppTemplate.Presentation.Core`, plus a `FrameworkReference` on ASP.NET Core |
@@ -38,7 +38,7 @@ graph RL
     Store[AppTemplate.Infrastructure.Storage<br/>S3-compatible object store]
     Mem[AppTemplate.Infrastructure.InMemory<br/>in-memory ports]
     Pers[AppTemplate.Infrastructure.Persistence<br/>the one DbContext, interceptors, unit of work,<br/>per-feature models, mapping, repositories, queries]
-    InfraCore[AppTemplate.Infrastructure.Core<br/>multilingual mail from a module's own templates,<br/>the cache adapter behind ICacheStore]
+    InfraCore[AppTemplate.Infrastructure.Core<br/>the unit of work, the three save interceptors,<br/>the aggregate tracker, the clock, multilingual mail,<br/>the cache adapter behind ICacheStore]
     App[AppTemplate.Application<br/>the business features: use cases, feature ports, DTOs]
     Auth[AppTemplate.Application.Auth<br/>sign-in, accounts, tokens, two-factor,<br/>behind twenty ports — no domain type]
     AppCore[AppTemplate.Application.Core<br/>Result, IUseCase, validation, pagination,<br/>idempotency, concurrency, cross-cutting ports]
@@ -330,13 +330,31 @@ storage — one DbContext in one schema:
 the layer's agnostic half: the mechanisms a module needs and no module owns. A module may not
 reference a sibling, so without it two modules needing one mechanism have nowhere to put it and each
 keeps a copy. Multilingual mail rendering is the case that pays for the project: the identity module
-and the email module both send mail, so each would otherwise carry its own renderer. It holds that
-one engine, `EmailTemplate`, which
+and the email module both send mail, so each would otherwise carry its own renderer.
+
+It holds three subjects. **What a context saves through** — `EfUnitOfWork` over whichever
+`DbContext` a module owns, the three interceptors that run in order (aggregates flushed onto their
+rows, rows stamped, the events that flush raised drained), and the `AggregateTracker` base every
+feature's tracker derives from. **The system clock**, behind `IDateTimeProvider`. And the mail
+engine, `EmailTemplate`, which
 renders a module's *own* embedded resources and reads the subject out of the template so a caller
 never states it twice; and `HybridCacheStore`, the one adapter behind `ICacheStore`. It registers
 one thing, `AddCacheStore()`, because the template engine is a type a module news up rather than
-resolves. Like the other five package-grade projects it carries a tracked public surface, `CS1591`
-re-enabled, `dotnet pack` over it, and no version.
+resolves. Two calls compose the saving half: `AddCoreSaving<TContext>()` registers the mechanisms
+for one context, and `AddCoreSavingInterceptors()` attaches the three interceptors where that
+context's options are built. The context is a type argument rather than something resolved, because
+a deployment may own more than one and nothing registers the base `DbContext` for a container to
+pick from.
+
+**Every adapter of an application port here stays `internal`, and that is what the calls are for.**
+`EfUnitOfWork`, `SystemDateTimeProvider` and `HybridCacheStore` are composed by making the call,
+never by naming the type, which is what
+`AdapterVisibilityTests.Adapters_ImplementingAnApplicationPort_AreInternalToTheirModule` holds — and
+what lets two modules share one mechanism without either owning it. What is public is what a module
+cannot delegate: the `AggregateTracker` it derives from, the `StoredStamps` its mapper calls, the
+`IAuditActor` its host answers, and the interceptors it attaches to its own context. Like the other
+five package-grade projects it carries a tracked public surface, `CS1591` re-enabled, `dotnet pack`
+over it, and no version.
 
 Its `Common/` is held to the rule below by construction rather than by that rule: an SDK project
 may reference only SDK projects, so it cannot name `AppTemplate.Application` or

@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Common.UseCases;
+﻿using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;

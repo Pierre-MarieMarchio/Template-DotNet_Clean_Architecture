@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Api.Features.Maintenance.Mapping;
-using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Core.Common.Results;
 using Shouldly;
 using Xunit;
 

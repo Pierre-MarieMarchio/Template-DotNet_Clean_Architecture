@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Auth.Ports.TwoFactorEnrollment;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment;
 using AppTemplate.Infrastructure.Identity.Common.Directories;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Options;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;

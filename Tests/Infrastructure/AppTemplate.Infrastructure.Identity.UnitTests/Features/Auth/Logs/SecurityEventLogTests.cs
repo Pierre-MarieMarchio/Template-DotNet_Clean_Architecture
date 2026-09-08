@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Logs;
 using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Common.Exceptions;
+﻿using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 using Shouldly;

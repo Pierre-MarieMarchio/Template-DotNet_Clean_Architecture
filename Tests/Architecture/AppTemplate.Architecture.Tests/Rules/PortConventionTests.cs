@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 using System.Text.RegularExpressions;
-using AppTemplate.Application.Common.UseCases;
+using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
@@ -24,14 +24,19 @@ namespace AppTemplate.Architecture.Tests.Rules;
 public sealed class PortConventionTests
 {
     /// <summary>
-    /// <c>AppTemplate.Application.Features.&lt;Vertical&gt;.Ports.&lt;Port&gt;</c>. Each port owns a folder
-    /// holding its interface and the messages it exchanges, so the pattern has to reach past
-    /// <c>Ports</c> rather than stop at it.
+    /// <c>&lt;Project&gt;.Features.&lt;Vertical&gt;.Ports.&lt;Port&gt;</c>. Each port owns a folder holding its
+    /// interface and the messages it exchanges, so the pattern has to reach past <c>Ports</c> rather
+    /// than stop at it.
+    /// <para>
+    /// A suffix, matched against the root namespace of the project that declares the type. The
+    /// application layer is several projects, and one literal prefix spanning them would also span
+    /// any other layer whose names begin the same way.
+    /// </para>
     /// </summary>
-    private const string _featurePortNamespacePattern =
-        @"^AppTemplate\.Application\.Features\.([^.]+)\.Ports(\.[^.]+)*$";
+    private const string _featurePortNamespaceSuffixPattern =
+        @"\.Features\.([^.]+)\.Ports(\.[^.]+)*$";
 
-    private const string _crossCuttingPortNamespace = "AppTemplate.Application.Common.Ports";
+    private const string _crossCuttingPortNamespaceSuffix = ".Common.Ports";
 
     /// <summary>
     /// The most operations one port may declare. Four is what the widest port here needs — issue,
@@ -51,12 +56,9 @@ public sealed class PortConventionTests
     /// </para>
     /// </summary>
     private static IReadOnlyList<Type> Ports { get; } =
-        [.. ArchitectureAssemblies.Application
-            .GetTypes()
+        [.. ApplicationLayerTypes
             .Where(type => type is { IsInterface: true, IsPublic: true, IsNested: false })
-            .Where(type => type.Namespace is not null
-                && (IsFeaturePortNamespace(type.Namespace)
-                    || string.Equals(type.Namespace, _crossCuttingPortNamespace, StringComparison.Ordinal)))
+            .Where(type => IsFeaturePortNamespace(type) || IsCrossCuttingPortNamespace(type))
             .OrderBy(type => type.FullName, StringComparer.Ordinal)];
 
     /// <summary>
@@ -64,8 +66,7 @@ public sealed class PortConventionTests
     /// means for a use case: its constructor is its whole dependency list.
     /// </summary>
     private static IReadOnlyList<UseCaseDependencies> UseCases { get; } =
-        [.. ArchitectureAssemblies.Application
-            .GetTypes()
+        [.. ApplicationLayerTypes
             .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(IUseCase).IsAssignableFrom(type))
             .Select(type => new UseCaseDependencies(type, DependenciesOf(type)))
             .OrderBy(useCase => useCase.Type.FullName, StringComparer.Ordinal)];
@@ -114,8 +115,7 @@ public sealed class PortConventionTests
     {
         Ports.ShouldNotBeEmpty();
 
-        var consumed = ArchitectureAssemblies.Application
-            .GetTypes()
+        var consumed = ApplicationLayerTypes
             .Where(type => type is { IsClass: true, IsAbstract: false })
             .SelectMany(DependenciesOf)
             .ToHashSet();
@@ -216,9 +216,11 @@ public sealed class PortConventionTests
             .ToList();
 
         authUseCases.Count.ShouldBe(
-            24,
-            "The authentication vertical has twenty-four use cases. Finding another number means " +
-            "this rule is no longer describing it.");
+            25,
+            "The authentication vertical has twenty-five use cases — twenty-four account and session " +
+            "operations plus the expired-grant purge, which belongs to this vertical because a " +
+            "refresh token is the only thing it deletes. Finding another number means this rule is " +
+            "no longer describing it.");
 
         // The validator every use case takes is not a collaborator it sequences.
         var orchestrating = authUseCases
@@ -233,15 +235,39 @@ public sealed class PortConventionTests
             "there is nothing in this layer left to test.");
     }
 
-    private static bool IsFeaturePortNamespace(string @namespace) =>
-        Regex.IsMatch(@namespace, _featurePortNamespacePattern, RegexOptions.None, TimeSpan.FromSeconds(5));
+    /// <summary>Every type the application layer declares, across every project of it.</summary>
+    private static IEnumerable<Type> ApplicationLayerTypes =>
+        ArchitectureAssemblies.ApplicationLayer.SelectMany(assembly => assembly.GetTypes());
 
     /// <summary>
-    /// The vertical a type belongs to, read from <c>AppTemplate.Application.Features.&lt;Vertical&gt;.…</c>.
+    /// The root namespace of the assembly a type is declared in, which is that assembly's simple
+    /// name — the convention this repository checks elsewhere.
+    /// </summary>
+    private static string RootOf(Type type) =>
+        type.Assembly.GetName().Name
+        ?? throw new InvalidOperationException(
+            $"'{type.FullName}' is declared in an assembly with no simple name.");
+
+    private static bool IsFeaturePortNamespace(Type type) =>
+        type.Namespace is { } declared
+        && Regex.IsMatch(
+            declared,
+            $"^{Regex.Escape(RootOf(type))}{_featurePortNamespaceSuffixPattern}",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(5));
+
+    private static bool IsCrossCuttingPortNamespace(Type type) =>
+        string.Equals(
+            type.Namespace,
+            RootOf(type) + _crossCuttingPortNamespaceSuffix,
+            StringComparison.Ordinal);
+
+    /// <summary>
+    /// The vertical a type belongs to, read from <c>&lt;Project&gt;.Features.&lt;Vertical&gt;.…</c>.
     /// </summary>
     private static string? VerticalOf(Type type)
     {
-        const string prefix = "AppTemplate.Application.Features.";
+        string prefix = RootOf(type) + ".Features.";
 
         if (type.Namespace is null || !type.Namespace.StartsWith(prefix, StringComparison.Ordinal))
         {

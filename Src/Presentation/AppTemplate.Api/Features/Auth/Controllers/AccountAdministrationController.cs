@@ -1,11 +1,12 @@
-﻿using AppTemplate.Api.Common.Controllers;
-using AppTemplate.Api.Common.Security;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.AddRole;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.DeleteAccount;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.DisableAccountTwoFactor;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.LockAccount;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.RemoveRole;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.UnlockAccount;
+﻿using AppTemplate.Api.Common.Security;
+using AppTemplate.Api.Core.Common.Controllers;
+using AppTemplate.Api.Core.Common.Security;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.AddRole;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteAccount;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DisableAccountTwoFactor;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.LockAccount;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RemoveRole;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.UnlockAccount;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

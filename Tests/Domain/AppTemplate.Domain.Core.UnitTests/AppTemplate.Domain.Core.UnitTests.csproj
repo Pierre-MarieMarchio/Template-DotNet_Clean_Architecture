@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the domain primitives. The mirror of AppTemplate.Domain.Core, which references
+       nothing, so neither does this beyond its test framework: every test here is a statement about
+       an entity, an aggregate root or the domain exception, in memory. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Domain\AppTemplate.Domain.Core\AppTemplate.Domain.Core.csproj" />
+  </ItemGroup>
+
+</Project>

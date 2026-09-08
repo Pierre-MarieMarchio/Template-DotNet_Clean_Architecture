@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Features.Files.Policies;
 using Shouldly;
 using Xunit;
@@ -50,6 +50,6 @@ public sealed class StoredFileCollectionPolicyTests
         parsed.Value.Terms.Count.ShouldBe(1);
         parsed.Value.Terms[0].Field.ShouldBe(StoredFileCollectionPolicy.RegisteredAtField);
         parsed.Value.Terms[0].Direction.ShouldBe(
-            AppTemplate.Application.Common.Collections.SortDirection.Descending);
+            AppTemplate.Application.Core.Common.Collections.SortDirection.Descending);
     }
 }

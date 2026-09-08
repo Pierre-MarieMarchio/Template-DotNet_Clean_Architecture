@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Collections;
-using AppTemplate.Application.Common.Policies;
+﻿using AppTemplate.Application.Core.Common.Collections;
+using AppTemplate.Application.Core.Common.Policies;
 
 namespace AppTemplate.Application.Features.Files.Policies;
 

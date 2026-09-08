@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Features.TodoLists.Policies;
 using Shouldly;
 using Xunit;

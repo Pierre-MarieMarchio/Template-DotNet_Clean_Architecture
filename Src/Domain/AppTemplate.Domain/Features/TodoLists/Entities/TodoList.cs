@@ -1,6 +1,6 @@
-﻿using AppTemplate.Domain.Common.Abstractions;
-using AppTemplate.Domain.Common.Exceptions;
-using AppTemplate.Domain.Common.Primitives;
+﻿using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 

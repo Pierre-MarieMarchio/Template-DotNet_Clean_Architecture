@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 

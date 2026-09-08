@@ -1,6 +1,6 @@
-﻿using AppTemplate.Domain.Common.Abstractions;
-using AppTemplate.Domain.Common.Events;
-using AppTemplate.Domain.Common.Primitives;
+﻿using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Events;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
 using Microsoft.EntityFrameworkCore;
 

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Common.Events;
+﻿using AppTemplate.Domain.Core.Common.Events;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 
 namespace AppTemplate.Domain.Features.Files.Events;

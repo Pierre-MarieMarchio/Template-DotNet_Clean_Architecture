@@ -7,9 +7,14 @@ namespace AppTemplate.Architecture.Tests.Rules;
 
 /// <summary>
 /// Four properties of the HTTP surface that no compiler and no unit test can see, because each one
-/// is about what the API <em>does not</em> do. They are read from the Api project's source rather
-/// than from metadata: this test project deliberately does not reference <c>AppTemplate.Api</c>, so
-/// that the container tests compose it module by module the way <c>Program.cs</c> does.
+/// is about what the API <em>does not</em> do. They are read from source rather than from metadata:
+/// this test project deliberately references no presentation project, so that the container tests
+/// compose them module by module the way <c>Program.cs</c> does.
+/// <para>
+/// The walk covers all of <c>Src/Presentation</c> rather than one project. An endpoint is now
+/// mapped from two of them — the health probes by the SDK, the reference page by the host — and a
+/// walk naming the projects it knows about would pass over the next one silently.
+/// </para>
 /// </summary>
 public sealed class HttpSurfaceTests
 {
@@ -37,9 +42,10 @@ public sealed class HttpSurfaceTests
     ];
 
     /// <summary>
-    /// The minimal endpoints mapped in <c>Program.cs</c> rather than on a controller, which opt out
-    /// fluently and so carry no attribute for the scan above to find. Two health probes, and the
-    /// OpenAPI document and its reference page, which are mapped in Development only.
+    /// The minimal endpoints mapped rather than declared on a controller, which opt out fluently and
+    /// so carry no attribute for the scan above to find. Two health probes, mapped by
+    /// <c>MapCoreHealthEndpoints</c>, and the OpenAPI document and its reference page, which the
+    /// host maps in Development only.
     /// </summary>
     private const int _fluentlyAnonymousEndpoints = 4;
 
@@ -112,7 +118,7 @@ public sealed class HttpSurfaceTests
     [Fact]
     public void EveryAnonymousEndpoint_IsOnTheList()
     {
-        var found = ApiSourceFiles()
+        var found = PresentationSourceFiles()
             .SelectMany(file => _anonymousAction.Matches(File.ReadAllText(file)))
             .Select(match => match.Groups[1].Value)
             .Distinct(StringComparer.Ordinal)
@@ -129,7 +135,7 @@ public sealed class HttpSurfaceTests
             "Authorisation is default-deny, so an anonymous action is an exception that is argued " +
             "for here before it is written.");
 
-        int fluent = ApiSourceFiles()
+        int fluent = PresentationSourceFiles()
             .Sum(file => File.ReadAllText(file).Split(".AllowAnonymous()").Length - 1);
 
         fluent.ShouldBe(
@@ -186,29 +192,29 @@ public sealed class HttpSurfaceTests
     {
         return
         [
-            .. ApiSourceFiles()
+            .. PresentationSourceFiles()
                 .Where(file => Mentions(File.ReadAllText(file), needles))
                 .Select(file => Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file))
                 .Order(StringComparer.Ordinal)
         ];
     }
 
-    private static List<string> ApiSourceFiles()
+    private static List<string> PresentationSourceFiles()
     {
-        string api = Path.Combine(
-            ProjectReferenceGraph.RepositoryRoot, "Src", "Presentation", "AppTemplate.Api");
+        string presentation = Path.Combine(
+            ProjectReferenceGraph.RepositoryRoot, "Src", "Presentation");
 
         var files = Directory
-            .EnumerateFiles(api, "*.cs", SearchOption.AllDirectories)
+            .EnumerateFiles(presentation, "*.cs", SearchOption.AllDirectories)
             .Where(file =>
                 !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
                 && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .ToList();
 
         files.Count.ShouldBeGreaterThanOrEqualTo(
-            50,
-            "Far fewer Api source files were found than this template holds, so the walk is not " +
-            "reading the project it is meant to describe.");
+            90,
+            "Far fewer presentation source files were found than this template holds, so the walk " +
+            "is not reading the projects it is meant to describe.");
 
         return files;
     }

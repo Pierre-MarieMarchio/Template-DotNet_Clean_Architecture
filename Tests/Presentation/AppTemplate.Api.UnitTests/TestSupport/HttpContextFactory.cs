@@ -1,5 +1,5 @@
-﻿using AppTemplate.Api.Common.Concurrency;
-using AppTemplate.Api.Common.Errors;
+﻿using AppTemplate.Api.Core.Common.Concurrency;
+using AppTemplate.Api.Core.Common.Errors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -21,10 +21,14 @@ internal static class HttpContextFactory
     {
         var services = new ServiceCollection();
 
-        services.AddSingleton(Options.Create(new ProblemTypeOptions
+        var problemTypes = new ProblemTypeOptions();
+
+        if (problemTypeBaseUri is not null)
         {
-            BaseUri = problemTypeBaseUri ?? ProblemTypes.DefaultBaseUri,
-        }));
+            problemTypes.BaseUri = problemTypeBaseUri;
+        }
+
+        services.AddSingleton(Options.Create(problemTypes));
 
         services.AddSingleton(Options.Create(new ConcurrencyOptions { IfMatch = ifMatchRequirement }));
 

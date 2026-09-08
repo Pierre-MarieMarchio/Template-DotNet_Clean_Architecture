@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Core.Common.Collections;
 
 namespace AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 

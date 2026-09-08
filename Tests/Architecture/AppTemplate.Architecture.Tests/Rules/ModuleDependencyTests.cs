@@ -18,7 +18,9 @@ public sealed class ModuleDependencyTests
 {
     private const string _apiProject = "AppTemplate.Api";
     private const string _domainProject = "AppTemplate.Domain";
+    private const string _domainCoreProject = "AppTemplate.Domain.Core";
     private const string _applicationProject = "AppTemplate.Application";
+    private const string _applicationCoreProject = "AppTemplate.Application.Core";
     private const string _persistenceProject = "AppTemplate.Infrastructure.Persistence";
 
     /// <summary>The single context, named here because two rules below address it by name.</summary>
@@ -40,6 +42,12 @@ public sealed class ModuleDependencyTests
         ArchitectureAssemblies.DomainFeaturesNamespace,
         ArchitectureAssemblies.PersistenceFeaturesNamespace,
         ArchitectureAssemblies.ApplicationFeaturesNamespace,
+
+        // Authentication is a feature like any other, and it is a project of its own rather than a
+        // folder under the one above — so the prefix that catches the business features does not
+        // reach it. Listed separately, because a shared mechanism that named an authentication port
+        // would otherwise be the one feature this rule stopped seeing.
+        ArchitectureAssemblies.ApplicationAuthNamespace,
     ];
 
     /// <summary>
@@ -145,7 +153,7 @@ public sealed class ModuleDependencyTests
     }
 
     /// <summary>
-    /// The cross-cutting mechanisms work through <c>AppTemplate.Domain.Common</c> abstractions —
+    /// The cross-cutting mechanisms work through <c>AppTemplate.Domain.Core.Common</c> abstractions —
     /// <c>IAuditable</c>, <c>IVersioned</c>, <c>IDomainEvent</c> — plus two seams of their own,
     /// <c>IAggregateFlusher</c> and <c>IDomainEventSource</c>. The moment one of them names a business
     /// entity or a feature's mapping, auditing, flushing and event dispatch stop being generic and
@@ -329,28 +337,80 @@ public sealed class ModuleDependencyTests
     // gets its foothold.
 
     [Fact]
-    public void Domain_ReferencesNoProject()
+    public void TheDomainLayer_ReferencesNothingOutsideItself()
     {
-        ProjectReferenceGraph.Project(_domainProject)
-            .References
-            .ShouldBeEmpty("AppTemplate.Domain is the innermost layer: it references no project at all.");
-    }
+        var domainProjects = ProjectReferenceGraph.ProjectsInLayer("Domain").ToList();
 
-    [Fact]
-    public void Application_ReferencesOnlyTheDomain()
-    {
-        var application = ProjectReferenceGraph.Project(_applicationProject);
+        domainProjects.Count.ShouldBeGreaterThanOrEqualTo(
+            2,
+            "Fewer projects were found in the domain layer than this template holds, so this rule " +
+            "read no reference list at all and every list in it would report as clean.");
 
-        application.References.ShouldContain(
-            _domainProject,
-            $"{application.RelativePath} is written against the domain model and must reference it.");
+        var withinTheLayer = domainProjects
+            .Select(project => project.Name)
+            .ToHashSet(StringComparer.Ordinal);
 
-        application.References
-            .Where(reference => !string.Equals(reference, _domainProject, StringComparison.Ordinal))
+        domainProjects
+            .SelectMany(project => project.References
+                .Where(reference => !withinTheLayer.Contains(reference))
+                .Select(reference => $"{project.RelativePath} -> {reference}"))
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty(
-                $"{application.RelativePath} may reference AppTemplate.Domain and nothing else. A port belongs " +
-                "here; the project that implements it must not be visible from here.");
+                "The domain is the innermost layer: a project in it may reference another project " +
+                "of the same layer and nothing else at all.");
+
+        ProjectReferenceGraph.Project(_domainCoreProject)
+            .References
+            .ShouldBeEmpty(
+                $"{_domainCoreProject} holds the primitives every aggregate is built from, so " +
+                "whatever it referenced would be referenced by everything.");
+    }
+
+    /// <summary>
+    /// The application layer sees the domain and itself, and nothing further out. Read over every
+    /// project of the layer rather than one of them, so a project added to it is constrained the
+    /// moment it exists.
+    /// </summary>
+    [Fact]
+    public void TheApplicationLayer_ReferencesOnlyTheDomainAndItself()
+    {
+        var applicationProjects = ProjectReferenceGraph.ProjectsInLayer("Application").ToList();
+
+        applicationProjects.Count.ShouldBeGreaterThanOrEqualTo(
+            3,
+            "Fewer projects were found in the application layer than this template holds, so this " +
+            "rule read no reference list at all and every list in it would report as clean.");
+
+        var permitted = applicationProjects
+            .Select(project => project.Name)
+            .Concat(ProjectReferenceGraph.ProjectsInLayer("Domain").Select(project => project.Name))
+            .ToHashSet(StringComparer.Ordinal);
+
+        applicationProjects
+            .SelectMany(project => project.References
+                .Where(reference => !permitted.Contains(reference))
+                .Select(reference => $"{project.RelativePath} -> {reference}"))
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty(
+                "A project of the application layer may reference the domain and another project of " +
+                "its own layer, and nothing else. A port belongs here; the project that implements " +
+                "it must not be visible from here.");
+
+        ProjectReferenceGraph.Project(_applicationProject)
+            .References
+            .ShouldContain(
+                _domainProject,
+                $"{_applicationProject} is written against the domain model and must reference it.");
+
+        // The mechanisms know no feature, so they know no aggregate either: the two files here that
+        // need a domain type need only the primitives.
+        ProjectReferenceGraph.Project(_applicationCoreProject)
+            .References
+            .ShouldNotContain(
+                _domainProject,
+                $"{_applicationCoreProject} must reference {_domainCoreProject} and not " +
+                $"{_domainProject}: naming the business domain would make the mechanisms know a " +
+                "feature.");
     }
 
     [Fact]
@@ -414,7 +474,8 @@ public sealed class ModuleDependencyTests
             .ToList();
 
         offenders.ShouldBeEmpty(
-            "Only a composition root under Src\\Presentation may reference an infrastructure module.");
+            "Only a composition root — a project with a Program.cs — may reference an " +
+            "infrastructure module.");
 
         // Non-vacuity: a host that composes nothing would satisfy the rule for the wrong reason.
         foreach (var host in ProjectReferenceGraph.Hosts)

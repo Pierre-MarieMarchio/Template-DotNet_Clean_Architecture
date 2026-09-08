@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Results;
+﻿using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Errors;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 

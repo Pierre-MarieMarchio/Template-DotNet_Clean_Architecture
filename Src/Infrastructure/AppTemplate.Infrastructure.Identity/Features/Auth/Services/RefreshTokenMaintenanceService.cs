@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Auth.Ports.RefreshTokenMaintenance;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenMaintenance;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Options;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Tables;
 using Microsoft.Extensions.Options;

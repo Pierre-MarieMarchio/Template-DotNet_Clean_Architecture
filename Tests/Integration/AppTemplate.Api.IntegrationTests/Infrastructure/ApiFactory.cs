@@ -1,7 +1,6 @@
 ﻿using System.Globalization;
-using AppTemplate.Api.Common.Controllers;
-using AppTemplate.Api.Common.Security;
-using AppTemplate.Application;
+using AppTemplate.Api.Core.Common.Security;
+using AppTemplate.Application.Core;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using AppTemplate.Infrastructure.Email.Common.Smtp;
 using AppTemplate.Infrastructure.Identity.Common.Options;
@@ -25,12 +24,12 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Why the entry-point type argument is <see cref="ApiControllerBase"/> and not
-/// <c>Program</c>.</b> <c>Program</c> is the compiler-generated class behind top-level statements,
-/// and it is <c>internal</c>. Making it visible would mean editing <c>AppTemplate.Api.csproj</c>, which this
-/// project must not touch. <see cref="WebApplicationFactory{TEntryPoint}"/> only ever uses the type
-/// argument to locate the assembly that owns the entry point, so any public type from the API works
-/// and nothing about the host changes.
+/// <b>Why the entry-point type argument is <c>Program</c>.</b>
+/// <see cref="WebApplicationFactory{TEntryPoint}"/> uses it to locate the assembly that owns the
+/// entry point, and refuses a type from an assembly that has none. The API's own base controller
+/// would not do: it belongs to <c>AppTemplate.Api.Core</c>, which is a class library. The host
+/// declares <c>Program</c> public for exactly this, which costs it no member and no
+/// <c>InternalsVisibleTo</c>.
 /// </para>
 /// <para>
 /// <b>Why configuration is supplied through environment variables.</b> <c>Program.cs</c> reads
@@ -43,7 +42,7 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// project or to the test output directory.
 /// </para>
 /// </remarks>
-public sealed class ApiFactory : WebApplicationFactory<ApiControllerBase>
+public sealed class ApiFactory : WebApplicationFactory<Program>
 {
     /// <summary>Well above the 32-byte HS256 floor <see cref="JwtOptions"/> enforces.</summary>
     private const string _signingKey = "integration-tests-signing-key-0123456789abcdef0123456789abcdef";

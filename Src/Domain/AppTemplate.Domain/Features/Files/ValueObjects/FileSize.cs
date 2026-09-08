@@ -1,5 +1,5 @@
 ﻿using System.Globalization;
-using AppTemplate.Domain.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Exceptions;
 
 namespace AppTemplate.Domain.Features.Files.ValueObjects;
 

@@ -91,15 +91,14 @@ public sealed class BackgroundWorkTests
     [Fact]
     public void TheLeaderLease_IsTakenByAUseCase()
     {
-        string useCases = Path.Combine(
-            ProjectReferenceGraph.RepositoryRoot,
-            "Src",
-            "Application",
-            "AppTemplate.Application",
-            "Features");
-
-        var consumers = Directory
-            .EnumerateFiles(useCases, "*UseCase.cs", SearchOption.AllDirectories)
+        // Every project of the layer, not the one this rule was written against: a lease-taking use
+        // case in another of them is the same fact, and a walk that missed it would report that
+        // nothing takes the lease.
+        var consumers = ProjectReferenceGraph
+            .ProjectsInLayer("Application")
+            .Select(project => Path.Combine(ProjectReferenceGraph.RootOf(project), "Features"))
+            .Where(Directory.Exists)
+            .SelectMany(features => Directory.EnumerateFiles(features, "*UseCase.cs", SearchOption.AllDirectories))
             .Where(IsProductionSource)
             .Where(useCase => _leaseDependency.IsMatch(CodeOf(useCase)))
             .Select(Relative)

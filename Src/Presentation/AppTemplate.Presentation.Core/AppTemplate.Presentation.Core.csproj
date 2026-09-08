@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Written as if it were a NuGet package, and vendored rather than published: a derived
+       repository copies it and is free to tune it, which is why it carries no version. -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>AppTemplate.Presentation.Core</PackageId>
+    <Description>What any host needs whatever its transport: an outbound HTTP resilience policy, the language a flow is written in, OpenTelemetry traces and metrics over OTLP, and the identity of a process with no caller.</Description>
+    <Authors>AppTemplate contributors</Authors>
+  </PropertyGroup>
+
+  <!-- CS1591 is suppressed repository-wide, and re-enabled here: this is a deliberate public
+       surface that a derived project reads instead of reading the code, so every public member
+       owes it a sentence. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <!-- No FrameworkReference, and that absence is the whole point of this project existing apart
+       from AppTemplate.Api.Core: a desktop or CLI host gets a clock, a culture and an outbound
+       budget without inheriting ASP.NET.
+
+       Which is also why four packages this repository uses are deliberately absent — each carries
+       the ASP.NET framework reference in its own nuspec, so referencing one here would pull the
+       shared framework in through the back door: Scalar.AspNetCore, Microsoft.AspNetCore.OpenApi,
+       OpenTelemetry.Instrumentation.AspNetCore, and Asp.Versioning.Mvc through its dependency
+       Asp.Versioning.Http — whose own nuspec is clean, which is what makes that one hard to see.
+
+       Npgsql.OpenTelemetry is absent for a different reason: it pulls the PostgreSQL driver, and a
+       future Avalonia or CLI host would inherit a database driver from a presentation SDK. The
+       tracer takes an Action<TracerProviderBuilder> instead and each host keeps its own AddNpgsql. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+  </ItemGroup>
+
+  <!-- Any change to the public surface is an explicit diff in PublicAPI.Unshipped.txt to review,
+       rather than a side effect of an edit nobody read as one. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
+  </ItemGroup>
+
+  <!-- The options validators are internal on purpose: a validator is reached by the container, not
+       by a caller. Granted to exactly one assembly — this project's own mirror. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Presentation.Core.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

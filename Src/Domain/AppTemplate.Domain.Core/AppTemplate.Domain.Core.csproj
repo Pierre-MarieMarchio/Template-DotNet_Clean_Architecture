@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The primitives an aggregate is built from. This project references no project and no runtime
+       package at all, and an architecture rule holds that: it is the innermost thing in the tree,
+       and anything it learned would be learned by everything. -->
+
+  <!-- Written as if it were a NuGet package, and vendored rather than published: a derived
+       repository copies it and is free to tune it, which is why it carries no version. -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>AppTemplate.Domain.Core</PackageId>
+    <Description>Domain primitives: entities, aggregate roots, domain events, audit and concurrency abstractions, and the domain exception.</Description>
+    <Authors>AppTemplate contributors</Authors>
+  </PropertyGroup>
+
+  <!-- CS1591 is suppressed repository-wide, and re-enabled here: this is a deliberate public
+       surface that a derived project reads instead of reading the code, so every public member
+       owes it a sentence. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <!-- Any change to the public surface is an explicit diff in PublicAPI.Unshipped.txt to review,
+       rather than a side effect of an edit nobody read as one. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+
+</Project>

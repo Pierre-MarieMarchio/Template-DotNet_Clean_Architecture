@@ -28,7 +28,7 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
 /// <b>Resource ownership.</b> A context instance is a unit of work. The DI container opens it,
 /// scoped to one request, and disposes it when the request ends; nothing else may dispose it.
 /// Staged changes are committed by exactly one call to <c>SaveChangesAsync</c>, made by
-/// <see cref="Application.Common.Ports.IUnitOfWork"/> on behalf of a use case. Repositories,
+/// <see cref="Application.Core.Common.Ports.IUnitOfWork"/> on behalf of a use case. Repositories,
 /// query classes and stores borrow the context and never commit: ownership of the transaction never
 /// transfers to them.
 /// </para>
@@ -111,7 +111,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     /// Claimed idempotency keys. Internal for the same reason as every other row type here: the
     /// rules for claiming, completing and releasing one live in
     /// <see cref="Common.Idempotency.IdempotencyStore"/>, reached only through
-    /// <see cref="Application.Common.Idempotency.IIdempotencyStore"/>.
+    /// <see cref="Application.Core.Common.Idempotency.IIdempotencyStore"/>.
     /// </summary>
     internal DbSet<IdempotencyRecord> IdempotencyKeys => Set<IdempotencyRecord>();
 

@@ -1,6 +1,6 @@
 ﻿using System.Net;
 using System.Text.RegularExpressions;
-using AppTemplate.Application.Common.Localization;
+using AppTemplate.Application.Core.Common.Localization;
 
 namespace AppTemplate.Infrastructure.Email.Features.Reminders;
 

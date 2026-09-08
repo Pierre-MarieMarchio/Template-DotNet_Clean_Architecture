@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Written as if it were a NuGet package, and vendored rather than published: a derived
+       repository copies it and is free to tune it, which is why it carries no version. -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>AppTemplate.Application.Auth</PackageId>
+    <Description>Authentication and account administration as application-layer use cases: sign-in, refresh-token rotation, password and email lifecycle, two-factor enrolment, external providers, roles and lockouts — behind ports an identity module satisfies.</Description>
+    <Authors>AppTemplate contributors</Authors>
+  </PropertyGroup>
+
+  <!-- CS1591 is suppressed repository-wide, and re-enabled here: this is a deliberate public
+       surface that a derived project reads instead of reading the code, so every public member
+       owes it a sentence. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <!-- Any change to the public surface is an explicit diff in PublicAPI.Unshipped.txt to review,
+       rather than a side effect of an edit nobody read as one. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+
+  <!-- The identity model is not an aggregate here: it lives behind the ports under
+       Features/Auth/Ports/, so this project names no domain type and references no domain project. -->
+  <ItemGroup>
+    <ProjectReference Include="..\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
+  </ItemGroup>
+
+  <!-- PasswordPolicy is internal on purpose: it is the one decision this feature owns outright, and
+       a caller that could read it would be reimplementing the check instead of asking for it.
+       Granted to exactly one assembly — this project's own mirror. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Application.Auth.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

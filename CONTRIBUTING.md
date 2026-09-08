@@ -175,7 +175,7 @@ adapter holds (`CachedSigningKeys`). A fourth entry is the rule being dismantled
 so it needs its argument in the pull request that adds it.
 
 The vocabulary under `Features/<F>/` is closed, and
-`LayoutConventionTests.EveryFeatureFolder_IsNamedFromItsLayersVocabulary` holds it for all nine
+`LayoutConventionTests.EveryFeatureFolder_IsNamedFromItsLayersVocabulary` holds it for all eleven
 projects above that have a `Features/` directory — including `AppTemplate.Worker`, whose list is deliberately empty: its features
 hold their files side by side with no subfolder, so the first subfolder anyone adds has to be
 argued for in the pull request that adds it, and written into this file, rather than created
@@ -184,9 +184,22 @@ quietly.
 Neither of those two rules can catch a project nobody listed, because a project absent from the
 dictionary is absent from the loop, and a rule that iterates a list it does not own passes by
 saying nothing about what the list omits.
-`EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn` reads the modules off the disk and
-requires an entry in both lists, so **a new infrastructure module fails the build until its layout
-is described here and there.**
+`EveryProjectOnDisk_HasAVocabularyOfItsOwn` reads every project under `Src/` off the disk — not the
+infrastructure modules alone, which were merely the ones caught drifting — and requires an entry in
+both lists, so **a new project of any layer fails the build until its layout is described here and
+there.** Its floor is thirteen projects, so a walk that stopped reading the tree cannot pass by
+finding nothing to check.
+
+**An entry may be null, meaning "this project has no such folder today", and that claim is checked
+in both directions.** Null is not the same as an empty word list: empty says the folder exists and
+its features hold their files side by side, null says the folder is not there at all. So a `Common/`
+or `Features/` appearing where the entry says none fails, and so does one vanishing from under a
+list of words — which is what keeps the two halves of a split honest. `AppTemplate.Domain`,
+`AppTemplate.Application` and `AppTemplate.Application.Auth` are all null for `Common/`, and the
+failure message tells the reader what to decide rather than what to undo: something that knows no
+feature belongs in the layer's `.Core` project, something several features share as business belongs
+here. Adding the folder means adding the words it holds to that dictionary and to the tree above,
+which is the moment to make that call.
 
 **The first level of `Common/` is closed too**, per project, held by
 `EveryCommonFolder_IsNamedFromItsProjectsVocabulary` — and it is the newer of the two rules for a
@@ -232,8 +245,14 @@ testability choice, not an oversight. Default visibility is `internal sealed`; o
 configuration-bound options classes, and types the host must name are `public`.
 
 **Where a contract lives.** A repository contract goes in `AppTemplate.Domain/Features/<F>/Repositories/`,
-because it speaks only in domain types. Every other port goes in `AppTemplate.Application`, because it speaks
-in DTOs or platform concerns. `AdapterVisibilityTests` enforces this by recognising a repository contract from
+because it speaks only in domain types. Every other port belongs to the application layer, because it speaks
+in DTOs or platform concerns — and which of the layer's three projects declares it follows how many features
+need it. A port one feature reaches for goes in `AppTemplate.Application/Features/<F>/Ports/<Port>/`, or in
+`AppTemplate.Application.Auth/Features/Auth/Ports/<Port>/` when the feature is authentication; a
+cross-cutting one every feature may reach for — the clock, the caller's identity, the commit boundary, the
+mail relay, the leader lease, the idempotency store — goes in `AppTemplate.Application.Core/Common/Ports/`,
+or beside its own subject when it has one, as `IIdempotencyStore` does in `Common/Idempotency/`.
+`AdapterVisibilityTests` enforces this by recognising a repository contract from
 a namespace ending in `.Repositories`.
 
 **Use cases.** One class per use case, plus **one named interface per use case** inheriting
@@ -278,14 +297,17 @@ Two rules follow from having been broken:
   the two is wrong — find which and rename it, do not document the ambiguity. Two more that were:
   `Access` named what `Service` already named, and `Verdict` named what `Decision` already named —
   a policy's chosen action, as opposed to the `Status` an observation reports.
-- **A port is a port at both scopes, and the word says so.** `Common/Ports/` holds the ones every
-  feature reaches for — the clock, the unit of work, the mail relay — and `Features/<F>/Ports/<Port>/`
+- **A port is a port at both scopes, and the word says so.**
+  `AppTemplate.Application.Core/Common/Ports/` holds the ones every
+  feature reaches for — the clock, the unit of work, the mail relay — and
+  `AppTemplate.Application/Features/<F>/Ports/<Port>/`
   the ones one feature does. There is no `Abstractions/` in the application layer: every interface
   it declares is an abstraction, so the word sorted nothing, and it hid two interfaces the layer
-  *implements* rather than consumes among the ones infrastructure satisfies. Those two live with
-  their subject instead — `IUseCase` in `Common/UseCases/`, `IDomainEventConsumer` in
+  *implements* rather than consumes among the ones infrastructure satisfies. That reasoning is
+  `AppTemplate.Application.Core`'s to keep, since `Common/` is its folder alone, and those two live
+  with their subject there — `IUseCase` in `Common/UseCases/`, `IDomainEventConsumer` in
   `Common/Events/` — which is what let `PortConventionTests` drop the exclusion list it needed to
-  tell them apart. `AppTemplate.Domain` keeps its `Common/Abstractions/`: `IAuditable` and
+  tell them apart. `AppTemplate.Domain.Core` keeps a `Common/Abstractions/`: `IAuditable` and
   `IVersioned` are opt-in contracts a persistence row satisfies, not capabilities the domain calls
   out for.
 - **The port carries the nature word, and the adapter is the port without its `I`.**
@@ -386,7 +408,7 @@ k6 run -e BASE_URL=http://localhost:8080 Tests/Load/smoke.js
 NetArchTest resolves each type through `Type.GetType(name, throwOnError: true)`, and that
 resolution is sensitive to how the assembly it is looking in was instrumented — it fails outright
 against a Coverlet-instrumented one. The collector the platform uses does not break it: all 125
-rules in `AppTemplate.Architecture.Tests` pass with the seven product assemblies they inspect
+rules in `AppTemplate.Architecture.Tests` pass with the eight product assemblies they inspect
 instrumented, which is why coverage is collected over the whole solution in one invocation.
 
 If you change collector or its settings, re-run that suite under coverage before trusting a green
@@ -441,6 +463,8 @@ by the compiler, so run `dotnet test Tests/Architecture` before pushing.
 
 1. **Domain** — `AppTemplate.Domain/Features/<F>/`: the aggregate root in `Entities/`, sealed, value
    objects in `ValueObjects/`, events in `Events/`, and the repository contract in `Repositories/`.
+   The root derives from `AppTemplate.Domain.Core`'s `AggregateRoot<TId>` and each event implements
+   its `IDomainEvent`; a feature adds nothing to that project, which is the point of it being one.
    Invariants belong in the constructor, the factory, and `Rehydrate` — all three, or a stored row
    can produce an aggregate that breaks its own rules. An event no consumer handles has to be named
    in `DomainEventTests._deliberatelyUnconsumed` with its reason, or that rule fails.
@@ -450,8 +474,14 @@ by the compiler, so run `dotnet test Tests/Architecture` before pushing.
    repository goes in `Ports/<Port>/`, next to the messages that cross it, and declares at most four
    operations. Read models more than one operation shares go in `Dtos/`; the feature's failure
    vocabulary goes in `Errors/`. Validate against the *trimmed* value if the domain normalises.
-   Use cases are discovered; **a domain-event consumer and anything under `Services/` are not** —
-   bind each one by hand in `ApplicationModule.AddApplicationLayer`, or it compiles and never runs.
+   Everything the feature is built *from* — `Result`, `Error`, `IUseCase`, `PageRequest`,
+   `SortOrder`, `VersionPrecondition`, the cross-cutting ports — comes from
+   `AppTemplate.Application.Core`, and a feature adds nothing to that project either.
+   Then give the feature its own `AddX()` in `ApplicationModule`, and call it from each host that
+   offers the feature: registration is opt-in per feature, so a feature nobody composes is
+   registered nowhere. Within that method the use cases and validators of the vertical are
+   discovered by namespace; **a domain-event consumer and anything under `Services/` are not** —
+   bind each one by hand there, or it compiles and never runs.
 3. **Persistence** — `AppTemplate.Infrastructure.Persistence/Features/<F>/`: the `*Record` in `Models/`, its
    `IEntityTypeConfiguration` in `Configurations/`, the mapper in `Mapping/`, the tracker in
    `Tracking/`, the repository implementation in `Repositories/`, read-side projections in `Queries/`.
@@ -569,15 +599,17 @@ The four-operation ceiling `PortConventionTests` enforces is a rule about **port
 use case sees. A `Table` is not one, and `IRefreshTokenTable` has six operations deliberately: it is
 one table's whole surface, held narrow by having exactly one consumer rather than by a count.
 
-**There is one outbound HTTP budget, and it is a default rather than a call.** Each host installs
-it on `IHttpClientFactory`'s defaults from `Common/Outbound/`, so a module that registers a typed
-client inherits 10 s per attempt, 30 s in total, three retries with jitter, a circuit breaker and a
-concurrency bound without knowing any of it exists. That shape was forced rather than chosen: only
-the persistence project may be shared between infrastructure modules, so a shared HTTP project is
-not available, and putting `HttpClient` behind an application port is the abstraction
-`docs/ARCHITECTURE.md` refuses by name. A default beats a shared method anyway — nothing can forget
-it. Two rules guard the two escapes: `NoType_ConstructsItsOwnHttpClient` and
-`EveryHost_InstallsTheOutboundPolicy`.
+**There is one outbound HTTP budget, it is written once, and it is a default rather than a call.**
+`AppTemplate.Presentation.Core`'s `AddOutboundHttp()` installs it on `IHttpClientFactory`'s
+defaults, so a module that registers a typed client inherits 10 s per attempt, 30 s in total, three
+retries with jitter, a circuit breaker and a concurrency bound without knowing any of it exists. A
+default beats a shared method that each module has to remember to call — nothing can forget a
+default. And one policy is what makes it a policy at all: the modules that call outwards, mail and
+identity, are composed by more than one host, and a budget enforced in one host only is worse than
+none, because the host that misses it is the one nobody watches. The alternative shape stays refused
+for its own reason — putting `HttpClient` behind an application port is the abstraction
+`docs/ARCHITECTURE.md` rejects by name. Two rules guard the two escapes:
+`NoType_ConstructsItsOwnHttpClient` and `EveryHost_InstallsTheOutboundPolicy`.
 **Retry is an allow-list of the safe verbs** — GET, HEAD, OPTIONS, TRACE — and not the package's
 own deny-list, which would retry any verb it does not name. PUT and DELETE are out despite being
 idempotent by specification, because that promise belongs to the server at the other end and a

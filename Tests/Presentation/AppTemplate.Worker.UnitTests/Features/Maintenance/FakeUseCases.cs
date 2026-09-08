@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
-using AppTemplate.Application.Features.Maintenance.UseCases.Commands.PurgeExpiredRefreshTokens;
+﻿using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 
 namespace AppTemplate.Worker.UnitTests.Features.Maintenance;
 

@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The Domain has no dependencies at all — not on EF Core, not on ASP.NET,
+  <!-- The Domain has no dependencies outside its own layer — not on EF Core, not on ASP.NET,
        not on a DI container. Architecture.Tests asserts that this stays true. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\AppTemplate.Domain.Core\AppTemplate.Domain.Core.csproj" />
+  </ItemGroup>
 
 </Project>

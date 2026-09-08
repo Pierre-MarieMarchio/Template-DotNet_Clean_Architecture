@@ -1,6 +1,7 @@
-﻿using AppTemplate.Application.Common.Events;
-using AppTemplate.Application.Common.Policies;
-using AppTemplate.Application.Common.UseCases;
+﻿using System.Reflection;
+using AppTemplate.Application.Core.Common.Events;
+using AppTemplate.Application.Core.Common.Policies;
+using AppTemplate.Application.Core.Common.UseCases;
 
 namespace AppTemplate.Architecture.Tests.Fixtures;
 
@@ -17,21 +18,7 @@ namespace AppTemplate.Architecture.Tests.Fixtures;
 /// </summary>
 internal static class ApplicationPorts
 {
-    /// <summary>
-    /// <c>AppTemplate.Application.Features.&lt;Vertical&gt;.Ports.&lt;Port&gt;</c>. A port owns a
-    /// folder holding its interface and the messages that cross it, so the match has to reach past
-    /// <c>Ports</c> rather than stop at it.
-    /// </summary>
-    private const string _featurePortNamespacePrefix = "AppTemplate.Application.Features.";
-
     private const string _featurePortNamespaceSegment = ".Ports";
-
-    /// <summary>
-    /// The cross-cutting half: <c>Common.Abstractions</c> for the clock, the mail relay, the unit of
-    /// work and the caller, plus the rest of <c>Common</c> — which is where <c>IIdempotencyStore</c>
-    /// lives, and which a narrower match on <c>Common.Abstractions</c> alone would not reach.
-    /// </summary>
-    private const string _crossCuttingPortNamespacePrefix = "AppTemplate.Application.Common";
 
     /// <summary>
     /// Public interfaces in the application layer that are not ports for a module to satisfy.
@@ -60,17 +47,26 @@ internal static class ApplicationPorts
     /// </summary>
     internal static IReadOnlyList<Type> NotPorts => _notPorts;
 
-    /// <summary>
-    /// The ports declared in <c>AppTemplate.Application</c>, ordered so a failure message reads the
-    /// same way twice.
-    /// </summary>
-    internal static IReadOnlyList<Type> Declared { get; } =
-        [.. ArchitectureAssemblies.Application
-            .GetTypes()
+    private static readonly Lazy<IReadOnlyList<Type>> _declared = new(() =>
+        [.. ArchitectureAssemblies.ApplicationLayer
+            .SelectMany(PortsIn)
+            .OrderBy(type => type.FullName, StringComparer.Ordinal)]);
+
+    private static readonly Lazy<IReadOnlyList<Type>> _domainRepositories = new(() =>
+        [.. ArchitectureAssemblies.DomainLayer
+            .SelectMany(assembly => assembly.GetTypes())
             .Where(type => type is { IsInterface: true, IsPublic: true, IsNested: false })
-            .Where(type => !_notPorts.Contains(type.IsGenericType ? type.GetGenericTypeDefinition() : type))
-            .Where(type => type.Namespace is not null && IsPortNamespace(type.Namespace))
-            .OrderBy(type => type.FullName, StringComparer.Ordinal)];
+            .Where(type => type.Namespace?.EndsWith(".Repositories", StringComparison.Ordinal) == true)
+            .OrderBy(type => type.FullName, StringComparer.Ordinal)]);
+
+    private static readonly Lazy<IReadOnlyList<Type>> _all = new(() =>
+        [.. Declared.Concat(DomainRepositories).OrderBy(type => type.FullName, StringComparer.Ordinal)]);
+
+    /// <summary>
+    /// The ports the application layer declares, across every project of it, ordered so a failure
+    /// message reads the same way twice.
+    /// </summary>
+    internal static IReadOnlyList<Type> Declared => _declared.Value;
 
     /// <summary>
     /// The repository contracts, which live in the Domain because their signatures name nothing but
@@ -78,19 +74,36 @@ internal static class ApplicationPorts
     /// module satisfies them and the container has to resolve them — so a rule about "every port"
     /// that skipped them would be checking the easier half.
     /// </summary>
-    internal static IReadOnlyList<Type> DomainRepositories { get; } =
-        [.. ArchitectureAssemblies.Domain
-            .GetTypes()
-            .Where(type => type is { IsInterface: true, IsPublic: true, IsNested: false })
-            .Where(type => type.Namespace?.EndsWith(".Repositories", StringComparison.Ordinal) == true)
-            .OrderBy(type => type.FullName, StringComparer.Ordinal)];
+    internal static IReadOnlyList<Type> DomainRepositories => _domainRepositories.Value;
 
     /// <summary>Both halves: what a host must be able to resolve for the application layer to run.</summary>
-    internal static IReadOnlyList<Type> All { get; } =
-        [.. Declared.Concat(DomainRepositories).OrderBy(type => type.FullName, StringComparer.Ordinal)];
+    internal static IReadOnlyList<Type> All => _all.Value;
 
-    private static bool IsPortNamespace(string @namespace) =>
-        (@namespace.StartsWith(_featurePortNamespacePrefix, StringComparison.Ordinal)
+    private static IEnumerable<Type> PortsIn(Assembly assembly)
+    {
+        string root = assembly.GetName().Name
+            ?? throw new InvalidOperationException("An application assembly has no simple name.");
+
+        return assembly
+            .GetTypes()
+            .Where(type => type is { IsInterface: true, IsPublic: true, IsNested: false })
+            .Where(type => !_notPorts.Contains(type.IsGenericType ? type.GetGenericTypeDefinition() : type))
+            .Where(type => type.Namespace is not null && IsPortNamespace(root, type.Namespace));
+    }
+
+    /// <summary>
+    /// Whether a namespace is one the port convention puts a port in, judged against the root
+    /// namespace of the assembly that declares it — <c>&lt;Root&gt;.Features.&lt;Vertical&gt;.Ports</c>
+    /// or <c>&lt;Root&gt;.Common</c>.
+    /// <para>
+    /// Anchored on the declaring assembly's full name rather than on a shared prefix. A prefix short
+    /// enough to cover several projects of one layer also covers the projects of another layer whose
+    /// names begin the same way, and the resulting population is wrong in a direction no rule
+    /// reports: it grows.
+    /// </para>
+    /// </summary>
+    private static bool IsPortNamespace(string root, string @namespace) =>
+        (@namespace.StartsWith($"{root}.Features.", StringComparison.Ordinal)
             && @namespace.Contains(_featurePortNamespaceSegment, StringComparison.Ordinal))
-        || @namespace.StartsWith(_crossCuttingPortNamespacePrefix, StringComparison.Ordinal);
+        || @namespace.StartsWith($"{root}.Common", StringComparison.Ordinal);
 }

@@ -1,11 +1,13 @@
 ﻿using System.Collections;
-using AppTemplate.Application;
-using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Common.UseCases;
-using AppTemplate.Application.Features.Auth.Ports.RefreshTokenMaintenance;
-using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
+using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenMaintenance;
+using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
+using AppTemplate.Application.Core;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Core.Common.UseCases;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Architecture.Tests.Fixtures;
+using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -90,7 +92,7 @@ public sealed class ContainerCompositionTests
     [Fact]
     public void TheApiContainer_ResolvesEveryUseCaseInTheApplicationAssembly()
     {
-        var implementations = UseCaseTypes.InApplicationAssembly;
+        var implementations = UseCaseTypes.InTheApplicationLayer;
 
         SourceDeclarations.WalkComplaints.ShouldBeEmpty(
             "The source-tree walk this test measures its expectation with did not read the tree it " +
@@ -105,7 +107,7 @@ public sealed class ContainerCompositionTests
         divergence.ShouldBeEmpty(
             "This test promises to resolve every use case, so the population it walks has to be the " +
             "population the source tree declares. The two were measured independently — " +
-            $"{SourceDeclarations.UseCaseFullNames.Count} declared in the application project, " +
+            $"{SourceDeclarations.UseCaseFullNames.Count} declared across the application layer, " +
             $"{implementations.Count} found by reflection — and they no longer agree, so one of the " +
             $"two has stopped matching:{Environment.NewLine}  " +
             string.Join($"{Environment.NewLine}  ", divergence));
@@ -223,10 +225,13 @@ public sealed class ContainerCompositionTests
     /// whole configuration surface with it. It would not. <c>EmailReminderNotifier</c> — the
     /// adapter behind the reminder loop, which is this host's own feature and not a favour to the
     /// API — resolves <see cref="IUserProfilesService"/> to find the address a due reminder is
-    /// rung at. And <c>AddApplicationLayer</c> registers every use case in the assembly, so under
+    /// rung at. And <c>AddAuthApplication</c> registers every authentication use case, so under
     /// <c>ValidateOnBuild</c> — which <c>Host.CreateApplicationBuilder</c> turns on in Development
-    /// — every port the layer declares has to be resolvable in every host, not merely the ports
-    /// this host's own loops reach.
+    /// — every port that project declares has to be resolvable here, not merely the ports this
+    /// host's own loops reach. Which is also why this host could drop the module only by dropping
+    /// that call, and
+    /// <see cref="RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer"/>
+    /// carries what else stands in the way.
     /// </para>
     /// </summary>
     [Fact]
@@ -247,6 +252,51 @@ public sealed class ContainerCompositionTests
             nameof(IRefreshTokenMaintenanceService),
             customMessage: "The written reason is real too, just not the only one — if it were, " +
             "moving that adapter would be worth doing.");
+    }
+
+    /// <summary>
+    /// What still holds authentication in place, named rather than described — so the two couplings
+    /// that make removing it more than deleting a call cannot quietly stop being the reason.
+    /// <para>
+    /// Registration is per feature now, and no business feature names anything in
+    /// <c>AppTemplate.Application.Auth</c> — <c>TheApplicationLayer_KnowsNothingOfAuthentication</c>
+    /// holds that half. So the application layer is genuinely free of it. What is not free of it is
+    /// the infrastructure underneath, in two places, and both are visible in this container's
+    /// refusal to build:
+    /// </para>
+    /// <para>
+    /// <c>IIdentitySeeder</c> is registered by the <em>persistence</em> module and needs a
+    /// <c>UserManager</c> that only the identity module supplies, so the pair is bidirectional and
+    /// persistence alone cannot be composed. And <c>IReminderNotifier</c>, which the reminder
+    /// feature's own use case takes, has its single adapter in the email module — whose reminder
+    /// notifier in turn resolves an authentication port to find an address.
+    /// </para>
+    /// <para>
+    /// Which is why the honest claim is the one this test makes and not "a container builds without
+    /// authentication": in this template it does not, and a derived project dropping authentication
+    /// answers for those two before it answers for anything in the application layer. Regenerating
+    /// the initial migration, which mixes the identity tables with the rest, is the third.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer()
+    {
+        var services = HostComposition.ComposeApiWithoutAuthentication(HostComposition.Configuration());
+
+        var exception = Should.Throw<AggregateException>(
+            () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose());
+
+        exception.Message.ShouldContain(
+            nameof(IIdentitySeeder),
+            customMessage: "The persistence module no longer registers a seeder that needs the " +
+            "identity module, which would mean that pair has stopped being bidirectional — so a " +
+            "derived project really can drop authentication without regenerating persistence, and " +
+            "the caveat in docs/REMOVING-THE-EXAMPLE-FEATURES.md is answerable at last.");
+
+        exception.Message.ShouldContain(
+            nameof(IReminderNotifier),
+            customMessage: "The reminder feature no longer needs a notifier, so it has stopped " +
+            "depending on the email module and one of the two couplings is gone.");
     }
 
     // ---- Proof that the checks above can fail -------------------------------------------------
@@ -445,9 +495,9 @@ public sealed class ContainerCompositionTests
 /// </summary>
 internal static class UseCaseTypes
 {
-    internal static IReadOnlyList<Type> InApplicationAssembly { get; } =
-        [.. ArchitectureAssemblies.Application
-            .GetTypes()
+    internal static IReadOnlyList<Type> InTheApplicationLayer { get; } =
+        [.. ArchitectureAssemblies.ApplicationLayer
+            .SelectMany(assembly => assembly.GetTypes())
             .Where(type => type is { IsClass: true, IsAbstract: false }
                 && typeof(IUseCase).IsAssignableFrom(type))
             .OrderBy(type => type.FullName, StringComparer.Ordinal)];

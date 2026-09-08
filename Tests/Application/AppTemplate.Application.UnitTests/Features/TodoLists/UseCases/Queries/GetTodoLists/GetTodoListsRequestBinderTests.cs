@@ -1,9 +1,9 @@
-﻿using AppTemplate.Application.Common.Collections;
+﻿using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Features.TodoLists.Policies;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;
 using Shouldly;
 using Xunit;
-using SortDirection = AppTemplate.Application.Common.Collections.SortDirection;
+using SortDirection = AppTemplate.Application.Core.Common.Collections.SortDirection;
 
 namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Queries.GetTodoLists;
 
@@ -143,7 +143,7 @@ public sealed class GetTodoListsRequestBinderTests
             new GetTodoListsQuery("cursor", null, 10, tampered, "createdAt", null, null, null));
 
         result.IsFailure.ShouldBeTrue();
-        result.Error!.Type.ShouldBe(AppTemplate.Application.Common.Results.ErrorType.Validation);
+        result.Error!.Type.ShouldBe(AppTemplate.Application.Core.Common.Results.ErrorType.Validation);
         result.Error.Code.ShouldBe("cursor.invalid");
     }
 

@@ -23,7 +23,11 @@ The `Reminders`-only removal below was carried out in full in a disposable copy 
 and measured: three rounds of `dotnet build` (5 errors, then 1, then none), then the ten unit and
 architecture test projects, all green — 2618 passing, 0 failing, 0 skipped, including
 `PendingModelChangesTests`, which is what proves the migration edit. Every file named in [What to
-edit](#what-to-edit) is a file that removal actually required.
+edit](#what-to-edit) is a file some removal reaches.
+
+Treat the round count and the test total as a floor rather than a prediction: they were taken
+against one particular tree, and the test suite grows. The list of files and edits is the part to
+rely on.
 
 Three things are **not** measured here and you should treat them as such:
 
@@ -105,6 +109,13 @@ And their test mirrors — same shape, under `Tests/` instead of `Src/`:
 | `Tests/Infrastructure/AppTemplate.Infrastructure.InMemory.UnitTests/Features/` | — | — | yes |
 | `Tests/Integration/AppTemplate.Api.IntegrationTests/` | `TodoLists/` | `Reminders/` | `Files/` and `Storage/` |
 
+`AppTemplate.Domain.Core.UnitTests` and `AppTemplate.Application.Core.UnitTests` are absent from
+that table on purpose, and it is worth checking rather than assuming: every test in either is a
+statement about a primitive, a result, a page request, a cursor or a precondition, with no
+aggregate in sight, so no removal reaches them. `AppTemplate.Application.Auth.UnitTests` is absent
+for a different reason: it mirrors a project that holds one feature, and that feature is not an
+example — see [Removing authentication](#removing-authentication).
+
 Plus, outside a `Features/` folder:
 
 - `Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/ATodoList.cs` (TodoLists) and
@@ -140,16 +151,19 @@ These are the files outside a feature folder that name an example directly, in t
 reaches them. Each entry names the exact change. `(R)`, `(T)` and `(F)` mark which removal an entry
 belongs to.
 
+**In the application layer the whole edit is two deletions per feature**, because registration is
+opt-in per feature rather than a scan of the assembly: the feature's method in `ApplicationModule`,
+and the one line in each host that calls it. Nothing else claims to have registered the feature, so
+there is no anchor type to re-point, no consumer list to prune elsewhere and no port that has to
+stay resolvable in a host that no longer offers the feature.
+
 **`Src/Application/AppTemplate.Application/ApplicationModule.cs`**
-Remove `AddScoped<ITodoListService, TodoListService>()` **(T)**, `AddScoped<IReminderService,
-ReminderService>()` **(R)** and `AddScoped<IStoredFileService, StoredFileService>()` **(F)**. Remove
-the domain-event consumer registrations that go with each: both
-`AddDomainEventConsumer<TodoItemCompletedDomainEvent, …>()` calls with `TodoLists` **(T)**, the
-`CancelRemindersOnTodoItemCompletedConsumer` one on its own with `Reminders` **(R)**, and the
-`StoredFileDeletedDomainEvent` one with `Files` **(F)**.
-`AddValidatorsFromAssemblyContaining<CreateTodoListCommandValidator>()` **(T)** needs a different
-anchor type from the same assembly; any validator that survives works, `LoginCommandValidator` for
-instance. Prune the now-unused `using` directives.
+Delete the whole method for the feature you removed — `AddTodoLists` **(T)**, `AddReminders`
+**(R)**, `AddFiles` **(F)** — including its `AddScoped<…Service, …>()` line, its
+`AddDomainEventConsumer<…>()` call or calls, and its `private const string` vertical name. Prune the
+now-unused `using` directives. The `AddFeature` helper and the two reflection helpers below it name
+no feature and stay as they are; the class summary explains why there is no call that adds
+everything, and that argument survives every removal unchanged.
 
 **`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/PersistenceModule.cs`**
 Delete the `AddTodoListsFeature` **(T)**, `AddRemindersFeature` **(R)** and `AddFilesFeature`
@@ -179,21 +193,25 @@ Remove `AddInMemoryReminderNotifications` and its call inside `AddInMemoryModule
 the doubles it installs and names `IReminderNotifier` in a `<see cref>`; rewrite the sentence around
 whatever is left. Leave the clock and email-sender substitutions alone.
 
-**`Src/Presentation/AppTemplate.Api/Program.cs`** **(F)**
-Remove `AddStorageModule(builder.Configuration)` and its `using
-AppTemplate.Infrastructure.Storage;`. Nothing else in this file names a feature: `TodoLists` and
-`Reminders` cascade automatically through `AddApplicationLayer` and `AddPersistenceModule`.
+**`Src/Presentation/AppTemplate.Api/Program.cs`**
+Remove the feature's one composition line — `AddTodoLists()` **(T)**, `AddReminders()` **(R)**,
+`AddFiles()` **(F)** — and, with `Files`, `AddStorageModule(builder.Configuration)` and its `using
+AppTemplate.Infrastructure.Storage;`. The persistence side needs no line here: it cascades through
+`AddPersistenceModule`.
 
 **`Src/Presentation/AppTemplate.Worker/Program.cs`**
-Remove the `AddOptions<ReminderWorkerOptions>()` block, its
-`AddSingleton<IValidateOptions<ReminderWorkerOptions>, …>()` line and
+Remove the same composition line as in the API, then the `AddOptions<ReminderWorkerOptions>()`
+block, its `AddSingleton<IValidateOptions<ReminderWorkerOptions>, …>()` line and
 `AddHostedService<ReminderBackgroundService>()` **(R)**; the same three for `FileWorkerOptions` and
-`FileBackgroundService`, plus `AddStorageModule` **(F)**. **Do not remove `AddEmailModule` with
-`Reminders`.** `AddApplicationLayer` registers every `Auth` use case in this host too, four of them
-take `IEmailSender`, and `ValidateOnBuild` requires every port the layer declares to resolve in
-every host — so dropping the module leaves a build that is perfectly green and a Worker that will
-not start. The two composition comments at the top of the file argue from the reminder loop; rewrite
-them around the `Auth` use cases, which is the reason that survives.
+`FileBackgroundService`, plus `AddStorageModule` **(F)**. **Do not remove `AddEmailModule` or
+`AddIdentityModule` with `Reminders`.** This host also calls `AddAuthApplication()`, which registers
+every use case `AppTemplate.Application.Auth` declares, and `ValidateOnBuild` then requires all
+twenty of that project's ports to resolve here — four of the use cases take `IEmailSender` — so
+dropping either module leaves a build that is perfectly green and a Worker that will not start. The
+composition comment at the top of the file argues from the reminder loop *and* from
+`AddAuthApplication`; the second half is the reason that survives a `Reminders` removal, so trim the
+first half rather than the whole block. Dropping authentication itself is a different operation:
+see [Removing authentication](#removing-authentication).
 
 **`Src/Presentation/AppTemplate.Worker/Common/Observability/WorkerObservabilityExtensions.cs`**
 This is four separate edits, not one, and three of them are compile errors. With `Reminders`
@@ -333,13 +351,15 @@ files — so removing any one example leaves two. `MaintenanceBackgroundService`
 (`PurgeExpiredIdempotencyKeys`, `PurgeExpiredRefreshTokens`) on a timer and depends on no example
 feature at all, so even removing all three leaves the host doing real work.
 
-What it composes does not shrink as much as it looks like it should. `AddApplicationLayer` registers
-every use case in the assembly, and `ValidateOnBuild` then requires every port those use cases
-declare to resolve *in this host too* — not only the ports its own loops reach. That is why
-`AppTemplate.Infrastructure.Identity` and `AppTemplate.Infrastructure.Email` both stay composed
-after `Reminders` goes: `Auth`'s use cases take `IUserProfilesService` and `IEmailSender`, and they
-are registered here whether or not anything in this process calls them.
-`AppTemplate.Infrastructure.Storage` is the one module that genuinely leaves, and only with `Files`.
+What it composes shrinks by exactly the line you delete, and no further. Removing a business
+feature removes that feature's `AddX()` call and nothing else from the graph. What does not shrink
+is authentication: this host calls `AddAuthApplication()`, and `ValidateOnBuild` then requires all
+twenty ports `AppTemplate.Application.Auth` declares to resolve *in this host too* — not only the
+ports its own loops reach. That is why `AppTemplate.Infrastructure.Identity` and
+`AppTemplate.Infrastructure.Email` both stay composed after `Reminders` goes: those use cases take
+`IUserProfilesService` and `IEmailSender`, and they are registered here whether or not anything in
+this process calls them. `AppTemplate.Infrastructure.Storage` is the one module that leaves with a
+business feature, and only with `Files`.
 
 Either way the host still proves the template's actual claim: the same application layer, answering
 an HTTP request in one process and a background loop in another, with no use case and no domain type
@@ -420,9 +440,10 @@ than passing over nothing:
   `AuthController` decorates every action explicitly, and `MaintenanceController` and
   `AccountAdministrationController` each declare their own policy at the controller level.
 - `DomainModelTests` — `AppTemplate.Domain` declares no aggregate, no entity, no value object and no
-  domain event; `Features/` is empty and `Common/` holds only the primitives a real feature builds
-  on. Five rules there exist to prove properties of a concrete domain model and have none to check.
-  `Auth` never raises a domain event.
+  domain event: `Features/` is all that project holds, and it is empty. The primitives a real
+  feature builds on are one project inwards, in `AppTemplate.Domain.Core`, and nothing about
+  removing a feature touches them. Five rules there exist to prove properties of a concrete domain
+  model and have none to check. `Auth` never raises a domain event.
 - `CollectionContractTests` — no collection policy registered anywhere, so its two rules about a
   policy's internal consistency are vacuous.
 - `IdempotentActionsAreAlwaysPostTests` — no `[Idempotent]` action anywhere. The mechanism
@@ -432,9 +453,12 @@ than passing over nothing:
   exists — has no example left, because no action in the remaining API is addressed by an `{id}`
   route segment at all. Every authentication action addresses either nobody or the caller identified
   by their own token; every maintenance action addresses everybody.
-- `LayoutConventionTests.EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn` — its floor is five
-  infrastructure modules and four remain, so the floor and the `Storage` entries in both
-  vocabularies come out together.
+- `LayoutConventionTests.EveryProjectOnDisk_HasAVocabularyOfItsOwn` — it reads every project under
+  `Src/` off the disk, not the infrastructure modules alone, and its floor is twelve projects, which
+  is exactly how many there are. So deleting `AppTemplate.Infrastructure.Storage` takes the
+  `Storage` entries out of both vocabularies *and* drops the floor below what it asserts. Lowering
+  it is a claim about how many projects your template has — recount the tree and write that number,
+  do not subtract one from the old one.
 - `StorageVocabularyTests` — four rules whose whole subject is the two-store shape.
 
 None of this is a defect in the removal. It is what "the examples teach the architecture rather than
@@ -463,12 +487,19 @@ red, and the edit each one needs:
 | `DomainEventTests.NoEventIsListedAsUnconsumed_WhileSomethingConsumesIt` | `ReminderFiredDomainEvent` is still listed as deliberately unconsumed | drop the entry |
 
 The layout one is worth a paragraph, because the obvious fix trades one red test for another.
-`LayoutConventionTests` holds two hand-maintained vocabularies and asserts `checkedLayers` equals
-`_vocabulary.Count` — every listed project must have a `Features/` folder — while
-`EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn` asserts the converse, that every module on
-disk is listed in both. Deleting the email module's entry satisfies the first and breaks the second.
-Keep the entry and turn the identity assertion into a floor instead, naming the module that is
-listed without a `Features/` folder and why. That was measured: both rules then pass.
+`LayoutConventionTests` holds two hand-maintained vocabularies, and each of the two folder rules
+reports a project listed with words whose folder is not on disk — while
+`EveryProjectOnDisk_HasAVocabularyOfItsOwn` asserts the converse, that every project on disk is
+listed in both. Deleting the email module's entry outright satisfies the first and breaks the
+second. The fix is the third state the dictionaries carry: set the entry to `null`, which says this
+project has no `Features/` folder at all, and is checked in that direction too — a `Features/`
+reappearing there fails. That is the same entry `AppTemplate.Domain`, `AppTemplate.Application` and
+`AppTemplate.Application.Auth` already carry for `Common/`: null means "no such folder today", not
+"no such folder allowed". Those three would grow one the moment several of their features shared
+something *as business* — a value object, a DTO, a policy that spans them — and the rule's failure
+message says which of the two kinds to decide it is: something that knows no feature belongs in the
+layer's `.Core` project, something several features share as business belongs in the business
+project.
 
 Two more counts sit outside the architecture project and are not assertions you can lower blindly —
 read the current value, recompute it after the removal, and update the comment beside it with the
@@ -476,9 +507,11 @@ number:
 
 - `Tests/Application/AppTemplate.Application.UnitTests/ApplicationModuleTests.cs` holds
   `_knownUseCaseCount`, and a doc comment that breaks the total down per vertical. Removing
-  `Reminders` takes it from 55 to 50; the comment has to lose the same clause. The number alone,
-  without the comment saying what it now counts, is exactly the kind of assertion this repository's
-  conventions warn against.
+  `Reminders` takes it from 29 to 24; the comment has to lose the same clause, and the feature's
+  entry comes out of the `FeatureCalls` theory data beside it. The number alone, without the comment
+  saying what it now counts, is exactly the kind of assertion this repository's conventions warn
+  against. `Tests/Application/AppTemplate.Application.Auth.UnitTests/ApplicationAuthModuleTests.cs`
+  is its counterpart and no business removal touches it.
 - `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/IdempotentActionsAreAlwaysPostTests.cs`
   holds both a controller list and a count of `[Idempotent]` actions, which is four today.
 - `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/AdapterVisibilityTests.cs` holds a
@@ -497,13 +530,14 @@ And the fixture and helper code, which the compiler finds for you:
   test into the next as an order-dependent intermittent, which is the worst category to diagnose.
   `Tests/Integration/AppTemplate.Api.IntegrationTests/Health/HealthEndpointTests.cs` asserts on two
   of the same constants for its "did the schemas migrate" check.
-- `Tests/Application/AppTemplate.Application.UnitTests/Common/Concurrency/VersionPreconditionTests.cs`
-  keeps its first half — the precondition object's own logic needs no aggregate — and loses the
-  theory over the to-do list's mutating use cases **(T)**.
-- `Tests/Domain/AppTemplate.Domain.UnitTests/Common/Abstractions/AuditableTests.cs` exercises
-  `IAuditable` through `TodoList` **(T)**; rewrite it against a private nested test-only aggregate
-  implementing the interface the same way every real one does — public getters, explicit interface
-  setters.
+- The version precondition needs no edit at all, and the reason is the project boundary. Its own
+  logic is tested in
+  `Tests/Application/AppTemplate.Application.Core.UnitTests/Common/Concurrency/VersionPreconditionTests.cs`,
+  which names no aggregate and mentions no example; the theory over the to-do list's mutating use
+  cases is `Tests/Application/AppTemplate.Application.UnitTests/Features/TodoLists/UseCases/TodoListVersionPreconditionTests.cs`
+  and goes with the `Features/TodoLists/` mirror in the table above **(T)**. This is the shape most
+  of the application layer's mechanisms now have: what a removal touches is under `Features/`, and
+  what it must not touch is in another project.
 - `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Common/Saving/DomainEvents/DomainEventDispatcherTests.cs`
   and its `DomainEventDispatchSaveChangesInterceptorTests.cs` sibling raise real `TodoLists` events
   through a real tracker **(T)**; both the dispatcher and the interceptor are generic over
@@ -552,6 +586,55 @@ queries `context.TodoLists`. Either keep `TodoLists`, or accept that removing it
 `CancelRemindersOnTodoItemCompletedConsumer` and `ReminderTargetQueries` — against whatever replaces
 the to-do item as the thing a reminder is scheduled against. That is no longer removing an example;
 it is redesigning one.
+
+## Removing authentication
+
+Authentication is not an example feature — it is the capability a derived project is most likely to
+keep and the second most likely to replace wholesale with its own identity provider. It is also the
+one removal that is **not** symmetrical with the three above, so it gets its own section.
+
+The composable half is genuinely composable, and asserted rather than claimed —  but it is the
+*application layer*, not the container.
+`LayerDependencyTests.TheApplicationLayer_KnowsNothingOfAuthentication` reads the assembly manifests
+and finds that neither the business features nor the mechanisms name anything in
+`AppTemplate.Application.Auth`. A container of the business features with no `AddAuthApplication()`
+and no identity module does **not** build, and
+`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer`
+is what says so and names why. So the first three steps are small: delete the
+`AddAuthApplication()` line from both `Program.cs` files, delete
+`Src/Application/AppTemplate.Application.Auth/` and `Src/Infrastructure/AppTemplate.Infrastructure.Identity/`
+with their test mirrors and solution entries, and delete
+`Src/Presentation/AppTemplate.Api/Features/Auth/` — `AuthController` and
+`AccountAdministrationController`.
+
+**Then four things answer back, and none of them is in either of those two projects.**
+
+- **The email module will not compile without it.** `EmailReminderNotifier` resolves
+  `IUserProfilesService` — an authentication port — to find the address a due reminder is rung at.
+  That is `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/EmailReminderNotifier.cs`,
+  and it is why the module is absent from the container that test builds. Either the reminder loop
+  learns an address some other way, or it goes.
+- **`AppDbContext` *inherits* `IdentityDbContext`.** `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs`
+  declares `IdentityDbContext<AppUser, AppRole, Guid>` as its base, so ASP.NET Identity's model is
+  part of the context itself rather than a module's contribution to it. Changing the base class is a
+  model change, not a deletion.
+- **The persistence/identity pair is bidirectional.** The seeder in
+  `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Identity/Seeding/IdentitySeeder.cs`
+  takes a `UserManager<AppUser>`, which only the identity module registers. So persistence needs the
+  identity module as much as the identity module needs persistence, and dropping one leaves the
+  other with an unresolvable dependency.
+- **The initial migration mixes the identity tables with the ones that stay.**
+  `20260809002532_InitialCreate` creates nine tables in the `identity` schema and one,
+  `IdempotencyKeys`, in `platform` — and that one belongs to `AppTemplate.Application.Core`'s own
+  idempotency mechanism, which every derived project keeps. There is no earlier designer to copy
+  over the snapshot here, because this *is* the first migration. A clean removal means regenerating
+  it: delete all three migrations and the snapshot, and `dotnet ef migrations add InitialCreate`
+  against the edited model. Do that only on a project no database has yet applied a migration to;
+  otherwise it is a real `DropTable`/`DropSchema` migration, reviewed line by line.
+
+Which is the whole point of stating it here: **removing authentication is a decision about the email
+module, the context's base class, the seeder and the migration.** The two projects are the easy
+part.
 
 ## Verification
 

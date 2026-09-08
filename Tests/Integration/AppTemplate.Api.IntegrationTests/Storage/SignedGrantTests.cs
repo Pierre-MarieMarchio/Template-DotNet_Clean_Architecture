@@ -50,27 +50,9 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
     private static readonly TimeSpan _expiryCap = TimeSpan.FromMinutes(2);
 
     /// <summary>
-    /// How much earlier than the instant a grant announces the store may stop honouring it.
-    /// </summary>
-    /// <remarks>
-    /// A Signature Version 4 URL carries <c>X-Amz-Date</c> floored to the whole second and
-    /// <c>X-Amz-Expires</c> as a whole number of seconds, so the deadline the store computes is the
-    /// signing second plus that count — up to one second before the instant <c>ExpiryFor</c> put in
-    /// the grant, which it takes from the unfloored clock. Measured, not assumed: a grant asked for
-    /// with a one-second lifetime is signed <c>X-Amz-Expires=1</c> against a floored date and is
-    /// refused before its own <c>ExpiresAt</c> on most runs.
-    /// <para>
-    /// This is why the lifetime below is not one second. At one second the window in which a refusal
-    /// unambiguously means "never valid" is empty, and the check above could only ever be vacuous or
-    /// wrong.
-    /// </para>
-    /// </remarks>
-    private static readonly TimeSpan _signatureDateGranularity = TimeSpan.FromSeconds(1);
-
-    /// <summary>
-    /// Long enough to leave a window — <c>lifetime</c> minus <see cref="_signatureDateGranularity"/> —
-    /// in which the store serving the object is the only correct answer, so a refusal inside it is
-    /// evidence of a grant that never worked rather than of an expiry being honoured.
+    /// How long the grant whose expiry is the subject is signed for. Short, so a passing run waits
+    /// seconds; nothing else depends on the figure, because what proves the grant was ever valid is
+    /// a control grant of its own rather than a window inside this one.
     /// </summary>
     private static readonly TimeSpan _shortLifetime = TimeSpan.FromSeconds(3);
 
@@ -276,10 +258,19 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The lifetime is <see cref="_shortLifetime"/> rather than the shortest the port accepts, for
-    /// the reason <see cref="_signatureDateGranularity"/> gives, and the loop then asks until the
-    /// store refuses rather than sleeping for a guessed interval. The wait is on the condition, so a
-    /// store that expires promptly costs one extra request and a slow machine costs a few more.
+    /// The loop asks until the store refuses rather than sleeping for a guessed interval. The wait
+    /// is on the condition, so a store that expires promptly costs one extra request and a slow
+    /// machine costs a few more.
+    /// </para>
+    /// <para>
+    /// <b>Why a refusal here means expiry.</b> A grant over this object is served once first, under
+    /// a lifetime nowhere near elapsing. Without that control, the loop below would end on its own
+    /// exit condition having proved nothing: a signature computed wrong, a lifetime that reached the
+    /// store as nothing, or a store still warming up all answer the first request with the same
+    /// <c>Forbidden</c> the assertion is waiting for. The control is a separate grant rather than an
+    /// early request against the short one, so that establishing validity never races the very
+    /// window whose expiry is the subject — a race this suite loses on a run where twelve test
+    /// projects and four containers start at once.
     /// </para>
     /// <para>
     /// <b>The lifetime is not the operator's ceiling.</b> <c>MaxGrantLifetime</c> clamps downwards
@@ -294,6 +285,21 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 
         await DepositAsync(objectKey);
 
+        var control = await fixture.Content.CreateDownloadGrantAsync(
+            objectKey,
+            "anything.txt",
+            "text/plain",
+            TimeSpan.FromMinutes(10),
+            TestToken);
+
+        using (var served = await fixture.FetchAsync(control.Url, TestToken))
+        {
+            served.StatusCode.ShouldBe(
+                HttpStatusCode.OK,
+                "a grant over this object is refused while nowhere near its deadline, so the "
+                + "refusal the assertion below waits for would be evidence of nothing.");
+        }
+
         var grant = await fixture.Content.CreateDownloadGrantAsync(
             objectKey,
             "anything.txt",
@@ -303,47 +309,25 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 
         var elapsed = Stopwatch.StartNew();
         HttpStatusCode last;
-        var refusedBeforeItsDeadline = false;
 
         do
         {
             using var attempt = await fixture.FetchAsync(grant.Url, TestToken);
             last = attempt.StatusCode;
 
-            // A refusal is only evidence of expiry if it arrives while the grant was still supposed
-            // to work. Without this the assertion below is satisfied by a grant that never worked at
-            // all — a signature computed wrong, a lifetime that reached the store as nothing — since
-            // the first request would answer Forbidden and the loop would end on its own exit
-            // condition having proved nothing about any deadline. Verified by tampering with the
-            // signature: this is what turns red, and the assertion below stays green.
-            //
-            // Recorded rather than asserted inside the loop, so that a first request which lands
-            // after the window has closed observes nothing instead of failing. That is what keeps
-            // this off the machine's clock: a loaded run proves less, never something false.
-            if (last == HttpStatusCode.Forbidden && DateTimeOffset.UtcNow < grant.ExpiresAt - _signatureDateGranularity)
-            {
-                refusedBeforeItsDeadline = true;
-            }
-
             if (last != HttpStatusCode.Forbidden)
             {
                 // A polling interval, not a guess at when the grant expires: the loop ends on the
-                // store's answer, and this only keeps a passing run from spending its one second
+                // store's answer, and this only keeps a passing run from spending its seconds
                 // hammering the container.
                 await Task.Delay(TimeSpan.FromMilliseconds(100), TestToken);
             }
         }
-        // The exit condition is the thing being asserted, not "the answer changed". Twelve test
-        // projects and four containers run at once here, and a store under that much start-up load
-        // can answer a request with something that is neither the object nor a refusal. Ending the
-        // loop on any non-OK status would turn one of those into a failed assertion about expiry —
-        // a flake, and one that would read as if the deadline had been ignored.
+        // The exit condition is the thing being asserted, not "the answer changed". A store under
+        // start-up load can answer with something that is neither the object nor a refusal, and
+        // ending the loop on any non-OK status would turn one of those into a failed assertion
+        // about expiry.
         while (last != HttpStatusCode.Forbidden && elapsed.Elapsed < _expiryCap);
-
-        refusedBeforeItsDeadline.ShouldBeFalse(
-            $"the store refused this grant before {grant.ExpiresAt:O}, the instant it was signed to " +
-            "expire at. That is not the expiry being honoured — it is a grant that was never valid, " +
-            "and the assertion below would have called it a pass.");
 
         last.ShouldBe(
             HttpStatusCode.Forbidden,

@@ -15,6 +15,8 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// </summary>
 public sealed class LayoutConventionTests
 {
+    private const string _productPrefix = "AppTemplate";
+
     /// <summary>
     /// The folders a feature may hold, per layer. Closed on purpose: a word outside this list is a
     /// concept a reader has to infer from its contents, and one feature inventing a word the others
@@ -22,12 +24,29 @@ public sealed class LayoutConventionTests
     /// CONTRIBUTING.md's Layout section and to this list, argued for in the pull request — not a
     /// mkdir.
     /// </summary>
-    private static readonly Dictionary<string, string[]> _vocabulary = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string[]?> _vocabulary = new(StringComparer.Ordinal)
     {
         ["Src/Application/AppTemplate.Application"] =
             ["Consumers", "Dtos", "Errors", "Extensions", "Mapping", "Policies", "Ports", "Services", "UseCases"],
+
+        // One vertical, holding one operation. A mechanism project earns a Features/ folder only for
+        // work that is genuinely a use case rather than a mechanism — here, purging what the
+        // idempotency store has let expire.
+        ["Src/Application/AppTemplate.Application.Core"] = ["UseCases"],
+
+        // Four words, and no Services/ or Consumers/: this feature registers no service and
+        // answers no domain event. What it offers is use cases over ports an identity module
+        // satisfies.
+        ["Src/Application/AppTemplate.Application.Auth"] =
+            ["Errors", "Policies", "Ports", "UseCases"],
         ["Src/Domain/AppTemplate.Domain"] =
             ["Entities", "Events", "Repositories", "ValueObjects"],
+
+        // Null, not empty, and the difference is the point: this project has no Features/ folder to
+        // hold a word, and it may not grow one. What is here is agnostic of every feature — that is
+        // the whole claim of the project — so a feature folder appearing here is the defect, and
+        // this entry is what reports it. A shared *business* concept belongs in AppTemplate.Domain.
+        ["Src/Domain/AppTemplate.Domain.Core"] = null,
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
             ["Configurations", "Mapping", "Models", "Observability", "Queries", "Repositories", "Seeding", "Tables", "Tracking"],
         ["Src/Presentation/AppTemplate.Api"] =
@@ -47,6 +66,15 @@ public sealed class LayoutConventionTests
         // correct vocabulary today is "none", and the first subfolder anyone adds fails this test
         // instead of quietly inventing a word the other hosts do not use.
         ["Src/Presentation/AppTemplate.Worker"] = [],
+
+        // Null, not empty: this project has no Features/ and may not grow one. What is here
+        // is what any host needs whatever its transport, so a feature folder appearing would
+        // be a transport concern filed as a shared one.
+        ["Src/Presentation/AppTemplate.Presentation.Core"] = null,
+
+        // Same, one transport down. What is here is what any HTTP host needs; a feature folder
+        // appearing would be a feature of the application leaking into the SDK.
+        ["Src/Presentation/AppTemplate.Api.Core"] = null,
 
         // Same reason, one layer down. These two modules have both a transverse adapter and a
         // feature-scoped one, which is what earns them Common/ and Features/ at all; the feature
@@ -70,17 +98,39 @@ public sealed class LayoutConventionTests
     /// detail of one subject, not a word the layout offers.
     /// </para>
     /// </summary>
-    private static readonly Dictionary<string, string[]> _commonVocabulary = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string[]?> _commonVocabulary = new(StringComparer.Ordinal)
     {
-        ["Src/Domain/AppTemplate.Domain"] =
+        ["Src/Domain/AppTemplate.Domain.Core"] =
             ["Abstractions", "Events", "Exceptions", "Primitives"],
+
+        // Null because there is nothing here yet, not because there may not be. A Common/ in this
+        // project would hold what several features share *as business* — a value object three
+        // features spend, a rule that is about the model rather than about mechanism. What sits one
+        // project inwards instead is everything that knows no feature. The sorting question is that
+        // one, and it has an answer: if it names a feature, or would have to once a second feature
+        // used it, it belongs here.
+        ["Src/Domain/AppTemplate.Domain"] = null,
+
         // No "Abstractions": every interface here is one, so the word sorted by nothing. What the
         // layer declares for something else to implement is a Ports/, at both scopes — the same word
         // Features/<F>/Ports/ uses — and the two interfaces the layer implements itself sit with the
         // subject they are about instead.
-        ["Src/Application/AppTemplate.Application"] =
+        ["Src/Application/AppTemplate.Application.Core"] =
             ["Collections", "Concurrency", "Events", "Idempotency", "Localization", "Policies",
              "Ports", "Results", "UseCases", "Validation"],
+
+        // Null because there is nothing here yet, not because there may not be. A Common/ in this
+        // project would hold what several features share *as business* — a DTO two features answer
+        // with, a policy that spans them. The mechanisms that know no feature are one project
+        // inwards. Adding the folder means adding its words here, which is the moment to decide
+        // which of the two it is.
+        ["Src/Application/AppTemplate.Application"] = null,
+
+        // One feature, so nothing is shared *between* features here. A Common/ would only mean
+        // this project had grown a second subject, which is the thing to argue about rather than
+        // the folder.
+        ["Src/Application/AppTemplate.Application.Auth"] = null,
+
         ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] =
             ["Http", "Smtp"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] =
@@ -91,46 +141,68 @@ public sealed class LayoutConventionTests
             ["Contexts", "Idempotency", "Leases", "Options", "Saving", "Time"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Budgets", "Factories", "Options"],
+        // Three words, and the criterion is executable rather than stylistic: what stays in a host's
+        // Common/ is what the host cannot delegate — what names a concrete infrastructure module, or
+        // what decides a deployment policy. Of the forty-eight files that were here, exactly the
+        // three importing AppTemplate.Infrastructure.* stayed, plus the reference page's policy and
+        // the telemetry residue that names this host's own database and assembly.
         ["Src/Presentation/AppTemplate.Api"] =
+            ["Hosting", "Observability", "Security"],
+
+        // The same eleven the host had: this is the half of an HTTP host that knows no feature.
+        ["Src/Presentation/AppTemplate.Api.Core"] =
             ["Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
-             "Idempotency", "Localization", "Observability", "OpenApi", "Outbound", "Security"],
+             "Idempotency", "Localization", "Observability", "OpenApi", "Security"],
         ["Src/Presentation/AppTemplate.Worker"] =
+            ["Observability", "Security"],
+
+        // The four subjects a host needs whatever its transport. Jobs joins them when recurring
+        // work gets an abstraction of its own.
+        ["Src/Presentation/AppTemplate.Presentation.Core"] =
             ["Localization", "Observability", "Outbound", "Security"],
     };
 
     [Fact]
     public void EveryCommonFolder_IsNamedFromItsProjectsVocabulary()
     {
-        var checkedProjects = 0;
         var offenders = new List<string>();
 
-        foreach ((string project, string[] allowed) in _commonVocabulary)
+        foreach ((string project, string[]? allowed) in _commonVocabulary)
         {
-            string common = Path.Combine(ProjectReferenceGraph.RepositoryRoot, project, "Common");
-
-            if (!Directory.Exists(common))
+            if (!ShouldWalk(project, "Common", allowed, offenders))
             {
                 continue;
             }
 
-            checkedProjects++;
+            string common = Path.Combine(ProjectReferenceGraph.RepositoryRoot, project, "Common");
 
             offenders.AddRange(Directory
                 .EnumerateDirectories(common)
                 .Select(Path.GetFileName)
-                .Where(folder => folder is not null && !allowed.Contains(folder, StringComparer.Ordinal))
+                .Where(folder => folder is not null && !allowed!.Contains(folder, StringComparer.Ordinal))
                 .Select(folder => $"{project}: 'Common/{folder}' is not one of " +
-                    $"[{string.Join(", ", allowed)}]"));
+                    $"[{string.Join(", ", allowed!)}]"));
+
+            // The other direction, and the one a list of words rots in: a word nothing is filed
+            // under any more. It cannot fail the check above — that one only reads folders — so a
+            // vocabulary keeps offering a concept the tree stopped having, and the next reader
+            // takes the list for the index it claims to be.
+            var present = Directory
+                .EnumerateDirectories(common)
+                .Select(Path.GetFileName)
+                .ToHashSet(StringComparer.Ordinal);
+
+            offenders.AddRange(allowed!
+                .Where(word => !present.Contains(word))
+                .Select(word => $"{project}: 'Common/{word}' is in this project's vocabulary and " +
+                    "no such folder exists. Drop the word, or say which of the two kinds of " +
+                    "Common/ the folder it named belonged to."));
 
             offenders.AddRange(Directory
                 .EnumerateFiles(common, "*.cs")
                 .Select(file => $"{project}: 'Common/{Path.GetFileName(file)}' sits loose at the " +
                     "root of Common, which names no responsibility at all"));
         }
-
-        checkedProjects.ShouldBe(
-            _commonVocabulary.Count,
-            "A project's Common folder was not found, so its vocabulary was never checked.");
 
         offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
             "Common/ is the half of a project that knows no feature, and a word invented there is " +
@@ -151,26 +223,38 @@ public sealed class LayoutConventionTests
     [Fact]
     public void EveryFeatureFolder_IsNamedFromItsLayersVocabulary()
     {
-        var checkedLayers = 0;
         var offenders = new List<string>();
 
-        foreach ((string project, string[] allowed) in _vocabulary)
+        foreach ((string project, string[]? allowed) in _vocabulary)
         {
-            string features = Path.Combine(ProjectReferenceGraph.RepositoryRoot, project, "Features");
-
-            if (!Directory.Exists(features))
+            if (!ShouldWalk(project, "Features", allowed, offenders))
             {
                 continue;
             }
 
-            checkedLayers++;
+            string features = Path.Combine(ProjectReferenceGraph.RepositoryRoot, project, "Features");
 
             offenders.AddRange(Directory
                 .EnumerateDirectories(features)
                 .SelectMany(feature => Directory.EnumerateDirectories(feature))
-                .Where(folder => !allowed.Contains(Path.GetFileName(folder), StringComparer.Ordinal))
+                .Where(folder => !allowed!.Contains(Path.GetFileName(folder), StringComparer.Ordinal))
                 .Select(folder => $"{project}: '{Path.GetRelativePath(features, folder)}' is not one of " +
-                    $"[{string.Join(", ", allowed)}]"));
+                    $"[{string.Join(", ", allowed!)}]"));
+
+            // The other direction: a word no feature is filed under any more. Not every feature has
+            // every word — one having no Consumers/ is normal — so the claim is that *some* feature
+            // does. A word none does is a concept the vocabulary still offers and the tree stopped
+            // having, which is how a list of words quietly stops being an index.
+            var used = Directory
+                .EnumerateDirectories(features)
+                .SelectMany(feature => Directory.EnumerateDirectories(feature))
+                .Select(Path.GetFileName)
+                .ToHashSet(StringComparer.Ordinal);
+
+            offenders.AddRange(allowed!
+                .Where(word => !used.Contains(word))
+                .Select(word => $"{project}: '{word}' is in this layer's vocabulary and no feature " +
+                    "is filed under it. Drop the word, or file something under it."));
 
             // The same second pass its sibling above makes over Common/'s loose files, and it has to
             // be conditional where that one does not: a project whose list is empty says by saying so
@@ -178,7 +262,7 @@ public sealed class LayoutConventionTests
             // worker and for the two smallest infrastructure modules. Running the pass there would
             // fail twenty-one correct files. Where a word does exist, a file lying beside the folders
             // rather than in one is filed under nothing.
-            if (allowed.Length == 0)
+            if (allowed!.Length == 0)
             {
                 continue;
             }
@@ -190,10 +274,6 @@ public sealed class LayoutConventionTests
                     $"the root of its feature, under none of [{string.Join(", ", allowed)}]"));
         }
 
-        checkedLayers.ShouldBe(
-            _vocabulary.Count,
-            "A layer's Features folder was not found, so its vocabulary was never checked.");
-
         offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
             "A folder outside its layer's vocabulary makes the reader infer a concept from the files " +
             "inside it, and lets one feature be organised unlike every other. A file loose beside " +
@@ -202,7 +282,7 @@ public sealed class LayoutConventionTests
     }
 
     /// <summary>
-    /// The two vocabularies above, against the infrastructure modules that actually exist on disk.
+    /// The two vocabularies above, against every project that actually exists on disk.
     /// </summary>
     /// <remarks>
     /// Both dictionaries are maintained by hand, and the guards on the two rules above cannot catch
@@ -218,17 +298,17 @@ public sealed class LayoutConventionTests
     /// </para>
     /// </remarks>
     [Fact]
-    public void EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn()
+    public void EveryProjectOnDisk_HasAVocabularyOfItsOwn()
     {
-        var onDisk = ProjectReferenceGraph.InfrastructureModules
+        var onDisk = ProjectReferenceGraph.SourceProjects.Values
             .Select(project => Path.GetDirectoryName(project.RelativePath)!.Replace('\\', '/'))
             .ToHashSet(StringComparer.Ordinal);
 
         onDisk.Count.ShouldBeGreaterThanOrEqualTo(
-            5,
-            "Far fewer infrastructure modules were found under Src than this template holds, so the " +
-            "project walk is not reading the tree it is meant to describe and every module in it " +
-            "would read as listed.");
+            14,
+            "Far fewer projects were found under Src than this template holds, so the project walk " +
+            "is not reading the tree it is meant to describe and every project in it would read as " +
+            "listed.");
 
         var unlisted = onDisk
             .Where(project => !_vocabulary.ContainsKey(project) || !_commonVocabulary.ContainsKey(project))
@@ -236,10 +316,10 @@ public sealed class LayoutConventionTests
             .ToList();
 
         unlisted.ShouldBeEmpty(
-            "An infrastructure module exists that neither vocabulary names, so both rules above walk " +
-            "past it and pass. Give it an entry in each — empty when its features hold their files " +
-            "side by side, as Email and InMemory do — and write the words into CONTRIBUTING.md's " +
-            "Layout section.");
+            "A project exists that one of the two vocabularies does not name, so the rule that reads " +
+            "it walks past that project and passes. Give it an entry in each — empty when its " +
+            "features hold their files side by side, as Email and InMemory do — and write the words " +
+            "into CONTRIBUTING.md's Layout section.");
     }
 
     /// <summary>
@@ -271,7 +351,7 @@ public sealed class LayoutConventionTests
 
         foreach (var project in ProjectReferenceGraph.SourceProjects.Values)
         {
-            string root = RootOf(project);
+            string root = ProjectReferenceGraph.RootOf(project);
             checkedProjects++;
 
             var loose = Directory
@@ -289,8 +369,9 @@ public sealed class LayoutConventionTests
             else if (loose.Count == 1 && !IsCompositionFile(project.Name, loose[0]!))
             {
                 offenders.Add(
-                    $"{project.Name}: '{loose[0]}' sits at its root, which is neither 'Program.cs' " +
-                    $"nor '{ModuleFileName(project.Name)}'.");
+                    $"{project.Name}: '{loose[0]}' sits at its root, which is none of 'Program.cs', " +
+                    $"'{ModuleFileName(project.Name)}' or " +
+                    $"'{QualifiedModuleFileName(project.Name)}'.");
             }
 
             offenders.AddRange(Directory
@@ -303,7 +384,7 @@ public sealed class LayoutConventionTests
         }
 
         checkedProjects.ShouldBeGreaterThanOrEqualTo(
-            9,
+            13,
             "Fewer projects were found under Src than this template ships, so this rule read no " +
             "root at all and every root in it would report as clean.");
 
@@ -340,7 +421,7 @@ public sealed class LayoutConventionTests
 
         foreach (var project in ProjectReferenceGraph.SourceProjects.Values)
         {
-            string root = RootOf(project);
+            string root = ProjectReferenceGraph.RootOf(project);
 
             foreach (string file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
             {
@@ -524,9 +605,50 @@ public sealed class LayoutConventionTests
         }
     }
 
-    /// <summary>The directory holding a project file, which is the project's root.</summary>
-    private static string RootOf(ProjectNode project) =>
-        Path.GetDirectoryName(Path.Combine(ProjectReferenceGraph.RepositoryRoot, project.RelativePath))!;
+    /// <summary>
+    /// Whether the walk goes on into <paramref name="folderName"/>, recording a complaint first when
+    /// the tree and the vocabulary disagree about that folder existing at all.
+    /// <para>
+    /// A <see langword="null"/> vocabulary is a project stating it has no such folder, and the claim
+    /// is checked rather than taken. The two ways either list rots are a folder that appeared where
+    /// the list says there is none, and a folder that vanished from under a list of words — the same
+    /// defect from both sides, the vocabulary no longer describing the tree, and neither is visible
+    /// in a count of how many projects the walk managed to read.
+    /// </para>
+    /// </summary>
+    private static bool ShouldWalk(
+        string project,
+        string folderName,
+        string[]? allowed,
+        List<string> offenders)
+    {
+        bool exists = Directory.Exists(
+            Path.Combine(ProjectReferenceGraph.RepositoryRoot, project, folderName));
+
+        if (allowed is null)
+        {
+            if (exists)
+            {
+                offenders.Add(
+                    $"{project}: '{folderName}/' exists, and this project is listed as having none. " +
+                    "Decide which of the two it is first: something that knows no feature belongs in " +
+                    "this layer's Core project, and something several features share as business " +
+                    "belongs here. Then give it the words it holds, and write them into " +
+                    "CONTRIBUTING.md's Layout section.");
+            }
+
+            return false;
+        }
+
+        if (!exists)
+        {
+            offenders.Add(
+                $"{project}: '{folderName}/' does not exist, and this project is listed with " +
+                $"[{string.Join(", ", allowed)}]. Set its entry to null if it genuinely has none.");
+        }
+
+        return exists;
+    }
 
     /// <summary>
     /// The DI module class a project's name asks for: the last segment of the name, plus
@@ -536,9 +658,24 @@ public sealed class LayoutConventionTests
     private static string ModuleFileName(string projectName) =>
         $"{projectName[(projectName.LastIndexOf('.') + 1)..]}Module.cs";
 
+    /// <summary>
+    /// The same class named from the whole project, product prefix stripped and dots removed:
+    /// <c>AppTemplate.Application.Core</c> composes itself in <c>ApplicationCoreModule</c>.
+    /// <para>
+    /// A second accepted form rather than a replacement, because the rule's purpose is that
+    /// <c>AddApplicationCore</c> be findable from its call site, and the last segment alone would
+    /// demand a <c>CoreModule</c> — a name three projects would share and none of them would be
+    /// found under.
+    /// </para>
+    /// </summary>
+    private static string QualifiedModuleFileName(string projectName) =>
+        $"{projectName.Replace($"{_productPrefix}.", string.Empty, StringComparison.Ordinal)
+            .Replace(".", string.Empty, StringComparison.Ordinal)}Module.cs";
+
     private static bool IsCompositionFile(string projectName, string fileName) =>
         fileName is "Program.cs"
-        || string.Equals(fileName, ModuleFileName(projectName), StringComparison.Ordinal);
+        || string.Equals(fileName, ModuleFileName(projectName), StringComparison.Ordinal)
+        || string.Equals(fileName, QualifiedModuleFileName(projectName), StringComparison.Ordinal);
 
     private static HashSet<string> PublicTypesIn(string file) =>
         [.. _publicTypeDeclaration

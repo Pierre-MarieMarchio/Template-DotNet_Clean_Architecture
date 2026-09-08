@@ -84,11 +84,14 @@ be filled from user secrets or environment variables.
 `IPurgeExpiredIdempotencyKeysUseCase` and `IPurgeExpiredRefreshTokensUseCase` — the exact same
 application-layer use cases `MaintenanceController` exposes over HTTP — on a timer instead of a
 request, and rings a due reminder by mail through the exact same `IReminderNotifier` port the API
-would use if it ever called it. It composes `AddTodoLists`, `AddReminders`, `AddFiles`,
-`AddAuthApplication`, `AddPurgeExpiredIdempotencyKeys`, `AddPersistenceModule`,
-`AddIdentityModule` **and** `AddEmailModule`, so it reads `ConnectionStrings`, `Database`,
-`IdempotencyPurge`, `Jwt`, `RefreshToken`, `IdentityTokens`, `EmailConfirmation`, `PasswordReset`,
-`EmailChange` and `Email` exactly like the API, plus its own `MaintenanceWorker` section below. `IdentitySeed` is
+would use if it ever called it. It composes the same ten lines the API does — `AddTodoLists`,
+`AddReminders`, `AddFiles`, `AddAuthApplication`, `AddPurgeExpiredIdempotencyKeys`,
+`AddCacheStore`, `AddPersistenceModule`, `AddIdentityModule`, `AddEmailModule` **and**
+`AddStorageModule` — so it reads `ConnectionStrings`, `Database`, `IdempotencyPurge`, `Jwt`,
+`RefreshToken`, `IdentityTokens`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `Email`,
+`Storage` and `ContentInspection` exactly like the API, plus the three sections that are its own:
+`MaintenanceWorker`, `ReminderWorker` and `FileWorker` below. `AddCacheStore` binds nothing: the
+cache's lifetimes are decided at each call site, which is why no section answers for it. `IdentitySeed` is
 bound and validated too — `AddPersistenceModule` does that unconditionally — but every one of its
 members has a safe default (`Enabled: false`), so an absent section validates cleanly; the worker
 never *exercises* seeding either way, since `IIdentitySeeder`/`MigrateAndSeedForDevelopmentAsync`
@@ -689,18 +692,22 @@ language no template backs. Adding a language is adding
 
 **How a reader's language is chosen.**
 
-- In `AppTemplate.Api`, from the request's `Accept-Language`, by `UseRequestLanguage`. Only
-  `CurrentUICulture` is set, never `CurrentCulture`: the first decides which text is chosen, the
-  second decides how values parse, and letting a header change parsing would make one body mean
-  different things to different callers.
+- In `AppTemplate.Api`, from the request's `Accept-Language`, by `UseRequestLanguage`. What it sets
+  is `CurrentLanguage.Tag` — a BCP-47 string, not a `CultureInfo`. The repository builds with
+  `InvariantGlobalization=true` and the API's runtime image ships no ICU because of it, so
+  `CultureInfo.GetCultureInfo("fr")` throws at run time and `CurrentUICulture` is not a thing this
+  template can set. The tag decides which text is chosen and nothing else: how a value parses stays
+  invariant everywhere, which is what keeps one body from meaning different things to different
+  callers. `CurrentLanguage`'s own remarks carry the reasoning.
 - A request that names no language, and every mail `AppTemplate.Worker` sends, uses
   `DefaultCulture`. The worker serves no request, so it has no reader to ask.
 - A language with no template falls back to English, which every template family must ship.
 
 **To follow a stored per-account preference instead**, add the column to `AppUser`, carry it on
-`UserProfile`, and set `CultureInfo.CurrentUICulture` from it — in `EmailReminderNotifier` for the
-worker's mail, and ahead of the use case for the API's. That is the one change that would make a
-reminder follow its reader rather than the deployment; nothing else here would move.
+`UserProfile`, and set `CurrentLanguage.Tag` from it — in `EmailReminderNotifier` for the worker's
+mail, and ahead of the use case for the API's, where the request header has already set it and the
+stored preference would win. That is the one change that would make a reminder follow its reader
+rather than the deployment; nothing else here would move.
 
 ### `IdentitySeed` — development only
 
@@ -1062,6 +1069,18 @@ knob: `IFireDueRemindersUseCase` takes no command, so how many reminders one pas
 | Max `search` length | 100 characters | `SearchTerm.MaxLength` |
 | Max cursor length | 512 characters | `Cursor.MaxEncodedLength` |
 | `Cache-Control` on reads | `private, no-cache` | `Src/Presentation/AppTemplate.Api.Core/Common/Caching/CacheHeaderExtensions.cs` |
+| Used-tag list lifetime | 1 minute | `UsedTagsCache.Lifetime` |
+
+**The server-side cache has no configuration section, and that is a property of what it holds.**
+One read goes through it — the tags an owner has already used, for a picker — and its lifetime is a
+decision about that answer rather than about a deployment: short, because the list is also what a
+client sees immediately after tagging something in another tab. `ICacheStore` takes the lifetime as
+an argument, so a second cached read states its own; there is no global default to configure and no
+key naming one. Where the cache lives is a deployment's choice and it is made in code, not here:
+`AddCacheStore()` in `AppTemplate.Infrastructure.Core` registers `HybridCache` in process, and a
+deployment that wants a shared second level registers an `IDistributedCache` beside that call
+without any caller changing. Output caching is deliberately absent — see
+`docs/ARCHITECTURE.md`'s `What is deliberately absent`.
 
 `Cache-Control` has no setting because there is only one defensible value for a per-user
 authenticated response: caching here is revalidation, not storage. An endpoint whose response is identical for every

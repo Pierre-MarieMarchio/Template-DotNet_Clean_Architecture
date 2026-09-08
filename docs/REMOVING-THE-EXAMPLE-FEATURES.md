@@ -19,15 +19,15 @@ procedure.
 
 ## What this document promises
 
-The `Reminders`-only removal below was carried out in full in a disposable copy of this repository
-and measured: three rounds of `dotnet build` (5 errors, then 1, then none), then the ten unit and
-architecture test projects, all green — 2618 passing, 0 failing, 0 skipped, including
-`PendingModelChangesTests`, which is what proves the migration edit. Every file named in [What to
-edit](#what-to-edit) is a file some removal reaches.
+The `Reminders`-only removal below was carried out in full in a disposable copy of this repository:
+it built after three rounds of `dotnet build` and ended with the fifteen unit projects and the one
+architecture project green, `PendingModelChangesTests` included, which is what proves the migration
+edit. Every file named in [What to edit](#what-to-edit) is a file some removal reaches.
 
-Treat the round count and the test total as a floor rather than a prediction: they were taken
-against one particular tree, and the test suite grows. The list of files and edits is the part to
-rely on.
+**No test total is quoted, deliberately.** It was taken against a tree several projects smaller than
+this one, and a number that cannot be reproduced is worse than no number — it reads as a prediction
+and fails as one. What survives that re-shaping is the list of files and edits, which is the part to
+rely on, and the round count, which is a floor rather than a forecast.
 
 Three things are **not** measured here and you should treat them as such:
 
@@ -92,7 +92,11 @@ which is what keeps this a list of directories rather than a list of edits.**
 `AppTemplate.Domain.Core` holds the primitives and `AppTemplate.Application.Core` holds the
 mechanisms — `Result`, `Error`, the `IUseCase` marker, validation, paging, idempotency, optimistic
 concurrency, the cross-cutting ports — and neither project names an example, so nothing below asks
-you to open one of them. `AppTemplate.Domain` and `AppTemplate.Application` hold the business, and
+you to open one of them. Nor do the four written to the same grade further out:
+`AppTemplate.Application.Auth` is authentication and has its own section below,
+`AppTemplate.Presentation.Core` and `AppTemplate.Api.Core` are host and transport machinery, and
+`AppTemplate.Infrastructure.Core` holds the mail template engine and the cache adapter. None of
+the six names an example feature, which is what makes this a list of directories. `AppTemplate.Domain` and `AppTemplate.Application` hold the business, and
 in this template that is `Features/` **plus one `Common/Tagging/` per layer**, which is the one
 thing two features share *as business*: `TodoLists` and `Files` are both tagged, by the same rule.
 
@@ -109,6 +113,15 @@ is left:
 - **Removing both** leaves nothing tagged. `Common/Tagging/` then has no consumer and should go
   with them, in both layers, along with its own tests and the two vocabulary entries in
   `LayoutConventionTests`.
+
+**The one cached read in this template goes the same way.** Each of the two tagged features has a
+`GET .../tags` route over a use case — `GetUsedTodoItemTags`, `GetUsedFileTags` — that reads through
+`ICacheStore`, and every command changing an owner's tags drops the entry. `UsedTagsCache`, which
+holds the key and the lifetime for both, sits in `Src/Application/AppTemplate.Application/Common/Tagging/`
+and leaves with that folder. What does **not** leave is the mechanism: `ICacheStore` is a
+cross-cutting port and `AddCacheStore()` is one line of each host's composition, so a tree with
+every example removed keeps a working cache with nothing yet reading through it. Delete that line
+only if you also mean to drop the capability.
 
 If your own project has since added anything else to a `Features/`-adjacent `Common/`, check the
 same way: whether what you are deleting was its only consumer.
@@ -676,8 +689,9 @@ Run these yourself; they are the gates, in the order that fails fastest:
 1. `dotnet build AppTemplate.sln` — 0 warnings, 0 errors. `TreatWarningsAsErrors` means an unused
    `using` and an unresolvable `<see cref>` both stop the build, so most of a removal's remaining
    work is visible here.
-2. `dotnet test` on the ten unit and architecture test projects — no Docker needed. This is where a
-   count, a non-vacuity floor or a hand-maintained list that no longer matches the tree turns red.
+2. `dotnet test` on the fifteen unit projects and the architecture one — sixteen of the eighteen
+   under `Tests/`, and no Docker needed for any of them. This is where a count, a non-vacuity floor
+   or a hand-maintained list that no longer matches the tree turns red.
 3. `PendingModelChangesTests` in particular, which also needs no database and is the only check on
    the migration edit.
 4. `dotnet test` on `AppTemplate.Api.IntegrationTests` and

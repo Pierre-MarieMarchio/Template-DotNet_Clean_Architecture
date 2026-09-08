@@ -1,4 +1,5 @@
 #nullable enable
+AppTemplate.Presentation.Core.Common.Jobs.PeriodicJob
 AppTemplate.Presentation.Core.Common.Localization.LocalizationOptions
 AppTemplate.Presentation.Core.Common.Localization.LocalizationOptions.DefaultCulture.get -> string!
 AppTemplate.Presentation.Core.Common.Localization.LocalizationOptions.DefaultCulture.set -> void
@@ -23,6 +24,7 @@ AppTemplate.Presentation.Core.Common.Security.NoCallerCurrentUser.UserId.get -> 
 AppTemplate.Presentation.Core.PresentationCoreModule
 const AppTemplate.Presentation.Core.Common.Localization.LocalizationOptions.SectionName = "Localization" -> string!
 const AppTemplate.Presentation.Core.Common.Observability.TelemetryOptions.SectionName = "OpenTelemetry" -> string!
+static AppTemplate.Presentation.Core.Common.Jobs.PeriodicJob.RunAsync(System.TimeSpan interval, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task!>! iteration, System.Threading.CancellationToken stoppingToken) -> System.Threading.Tasks.Task!
 static AppTemplate.Presentation.Core.Common.Observability.ObservabilityExtensions.AddObservability(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration, System.Reflection.Assembly! host, System.Action<OpenTelemetry.Trace.TracerProviderBuilder!>? tracing = null, System.Action<OpenTelemetry.Metrics.MeterProviderBuilder!>? metrics = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static AppTemplate.Presentation.Core.Common.Outbound.OutboundHttpExtensions.AddOutboundHttp(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static AppTemplate.Presentation.Core.PresentationCoreModule.AddLocalizationOptions(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

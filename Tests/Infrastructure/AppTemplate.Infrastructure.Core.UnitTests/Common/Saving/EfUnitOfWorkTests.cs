@@ -27,7 +27,8 @@ public sealed class EfUnitOfWorkTests
         await using var context = AContextThatFailsWith(conflict);
 
         var failure = await Should.ThrowAsync<ConcurrencyConflictException>(
-            async () => await new EfUnitOfWork(context).SaveChangesAsync(TestContext.Current.CancellationToken));
+            async () => await new EfUnitOfWork<EmptyContext>(context)
+                .SaveChangesAsync(TestContext.Current.CancellationToken));
 
         failure.InnerException.ShouldBeSameAs(
             conflict,
@@ -47,7 +48,8 @@ public sealed class EfUnitOfWorkTests
         await using var context = AContextThatFailsWith(violation);
 
         var failure = await Should.ThrowAsync<DbUpdateException>(
-            async () => await new EfUnitOfWork(context).SaveChangesAsync(TestContext.Current.CancellationToken));
+            async () => await new EfUnitOfWork<EmptyContext>(context)
+                .SaveChangesAsync(TestContext.Current.CancellationToken));
 
         failure.ShouldBeSameAs(violation);
     }

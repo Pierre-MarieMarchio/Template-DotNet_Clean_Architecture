@@ -2,10 +2,10 @@
 using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Localization;
+using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Email;
-using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Storage;
 using AppTemplate.Presentation.Core;
@@ -29,7 +29,7 @@ builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 // the same infrastructure modules AppTemplate.Api uses for these two use cases, with no use case
 // and no domain type touched to make it work here.
 //
-// AppTemplate.Infrastructure.Identity is composed for two reasons, and the one written here alone
+// AppTemplate.Infrastructure.Auth is composed for two reasons, and the one written here alone
 // for months was the smaller: IRefreshTokenMaintenanceService's sole adapter lives there. The
 // larger is that EmailReminderNotifier — the adapter behind this host's own reminder loop, not a
 // favour to the API — resolves IUserProfilesService to find the address a due reminder is rung at.
@@ -61,7 +61,7 @@ builder.Services.AddPurgeExpiredIdempotencyKeys();
 // deployment that wants a shared second level registers an IDistributedCache beside this.
 builder.Services.AddCacheStore();
 builder.Services.AddPersistenceModule(builder.Configuration);
-builder.Services.AddIdentityModule(builder.Configuration);
+builder.Services.AddAuthModule(builder.Configuration);
 builder.Services.AddEmailModule(builder.Configuration);
 builder.Services.AddStorageModule(builder.Configuration);
 

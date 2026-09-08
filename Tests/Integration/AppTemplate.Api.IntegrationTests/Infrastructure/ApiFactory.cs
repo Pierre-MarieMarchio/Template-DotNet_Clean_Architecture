@@ -2,12 +2,12 @@
 using AppTemplate.Api.Core.Common.Security;
 using AppTemplate.Application.Core;
 using AppTemplate.Domain.Features.TodoLists.Events;
+using AppTemplate.Infrastructure.Auth.Common.Options;
+using AppTemplate.Infrastructure.Auth.Features.Auth.Options;
+using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Email.Common.Smtp;
-using AppTemplate.Infrastructure.Identity.Common.Options;
-using AppTemplate.Infrastructure.Identity.Features.Auth.Options;
 using AppTemplate.Infrastructure.InMemory;
-using AppTemplate.Infrastructure.Persistence.Common.Contexts;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
 using AppTemplate.Infrastructure.Storage.Common.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;

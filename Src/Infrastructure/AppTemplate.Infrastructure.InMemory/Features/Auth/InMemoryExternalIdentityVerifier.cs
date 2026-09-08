@@ -14,7 +14,7 @@ namespace AppTemplate.Infrastructure.InMemory.Features.Auth;
 /// It verifies nothing and is not meant to. What a token means is
 /// <see cref="AcceptedExternalIdentities"/>'s business, arranged by the test; the checks the real
 /// adapter makes are proved against real signatures in
-/// <c>AppTemplate.Infrastructure.Identity.UnitTests</c>, where they belong.
+/// <c>AppTemplate.Infrastructure.Auth.UnitTests</c>, where they belong.
 /// </para>
 /// </summary>
 internal sealed class InMemoryExternalIdentityVerifier(AcceptedExternalIdentities accepted)

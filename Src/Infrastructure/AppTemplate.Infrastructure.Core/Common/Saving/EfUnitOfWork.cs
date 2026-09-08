@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
-using AppTemplate.Application.Core.Common.Ports;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Core.Common.Saving;
@@ -29,8 +28,10 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving;
 /// kept as the inner exception so the log still says exactly which rows lost.</description></item>
 /// </list>
 /// </summary>
-/// <param name="context">The context whose staged changes this commits.</param>
-internal sealed class EfUnitOfWork(DbContext context) : IUnitOfWork
+/// <typeparam name="TContext">The context whose staged changes this commits.</typeparam>
+/// <param name="context">That context, resolved by the container.</param>
+internal sealed class EfUnitOfWork<TContext>(TContext context) : IContextUnitOfWork<TContext>
+    where TContext : DbContext
 {
     /// <summary>Commits everything staged on the context, as one transaction.</summary>
     /// <param name="cancellationToken">Cancels the save.</param>

@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Common.Results;
+﻿using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;

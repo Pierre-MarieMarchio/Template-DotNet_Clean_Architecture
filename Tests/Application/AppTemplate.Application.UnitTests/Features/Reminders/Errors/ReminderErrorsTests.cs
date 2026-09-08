@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Results;
+﻿using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.Errors;
 using Shouldly;
 using Xunit;

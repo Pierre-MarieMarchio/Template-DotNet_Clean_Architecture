@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Features.TodoLists.Mapping;
-using AppTemplate.Domain.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using Shouldly;
 using Xunit;

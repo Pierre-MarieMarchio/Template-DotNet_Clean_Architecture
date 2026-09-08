@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Auth.Ports.EmailChangeEmailFactory;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.EmailChangeEmailFactory;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Options;
 using Microsoft.Extensions.Options;
 

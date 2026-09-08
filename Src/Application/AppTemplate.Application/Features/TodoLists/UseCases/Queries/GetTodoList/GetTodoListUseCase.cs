@@ -1,7 +1,7 @@
-﻿using AppTemplate.Application.Common.Concurrency;
-using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Common.Validation;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Core.Common.Validation;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Errors;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;

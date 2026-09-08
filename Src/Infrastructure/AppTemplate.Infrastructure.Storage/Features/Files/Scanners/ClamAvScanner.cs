@@ -77,13 +77,7 @@ internal static class ClamAvScanner
 
             await socket.WriteAsync(_command, cancellationToken);
 
-            // A write failing part-way through is not a failed scan. clamd stops reading and answers
-            // as soon as it has found something, so a large infected file regularly produces a
-            // broken pipe here — and the verdict is already waiting on the socket. Giving up at this
-            // point would report the one case the scanner is for as an outage.
-            await TrySendAsync(socket, head, rest, cancellationToken);
-
-            return Interpret(await ReadReplyAsync(socket, cancellationToken));
+            return Interpret(await ExchangeAsync(socket, head, rest, cancellationToken));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -121,6 +115,35 @@ internal static class ClamAvScanner
         attempt.CancelAfter(ScannerBudget.AttemptTimeout);
 
         await client.ConnectAsync(host, port, attempt.Token);
+    }
+
+    /// <summary>
+    /// Sends the object and reads the verdict at the same time.
+    /// <para>
+    /// <c>INSTREAM</c> is full duplex on purpose: <c>clamd</c> stops reading and answers the moment
+    /// it has a detection, without draining the rest of the object, so on a large infected file the
+    /// verdict arrives while the transfer is still in flight and the daemon then closes a connection
+    /// that still holds unread bytes — which TCP signals with a reset. Reading concurrently takes
+    /// the verdict off the socket at the moment it arrives. Reading only after the send finished
+    /// would mean reading a connection already reset, and a reset discards what the receive buffer
+    /// still held: the one case this scanner exists for would report as an outage.
+    /// </para>
+    /// <para>
+    /// Both halves are awaited together so that neither is left unobserved when the other fails.
+    /// </para>
+    /// </summary>
+    private static async Task<string> ExchangeAsync(
+        Stream socket,
+        ReadOnlyMemory<byte> head,
+        Stream rest,
+        CancellationToken cancellationToken)
+    {
+        var reply = ReadReplyAsync(socket, cancellationToken);
+        var transfer = TrySendAsync(socket, head, rest, cancellationToken);
+
+        await Task.WhenAll(transfer, reply);
+
+        return await reply;
     }
 
     private static async Task TrySendAsync(

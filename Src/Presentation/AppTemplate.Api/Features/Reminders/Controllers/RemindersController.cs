@@ -1,5 +1,5 @@
-﻿using AppTemplate.Api.Common.Controllers;
-using AppTemplate.Api.Common.Idempotency;
+﻿using AppTemplate.Api.Core.Common.Controllers;
+using AppTemplate.Api.Core.Common.Idempotency;
 using AppTemplate.Api.Features.Reminders.Contracts.Requests;
 using AppTemplate.Api.Features.Reminders.Contracts.Responses;
 using AppTemplate.Api.Features.Reminders.Mapping;

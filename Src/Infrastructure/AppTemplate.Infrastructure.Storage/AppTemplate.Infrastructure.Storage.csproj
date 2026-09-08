@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!-- One bucket, two adapters. The module references AppTemplate.Application for the ports it
        satisfies and no other infrastructure module — not even the persistence project, which it has
@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
   </ItemGroup>
 
   <!-- Internals are shared for the two types that hold this module's decisions and are reachable no

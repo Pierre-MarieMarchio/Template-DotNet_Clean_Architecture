@@ -33,6 +33,16 @@ Events/<Thing>DomainEvent.cs    what the aggregate raised
 Repositories/I<Aggregate>Repository.cs   the repository contract, in domain types only
 ```
 
+Everything the aggregate is built *from* comes from one project inwards,
+`AppTemplate.Domain.Core`: the root derives from its `AggregateRoot<TId>`, a child entity from
+its `Entity<TId>`, each event implements its `IDomainEvent`, and a violated invariant throws its
+`DomainException`. A feature adds nothing to that project. It is written as a package and vendored
+rather than published — it references nothing at all, its public surface is tracked in
+`Src/Domain/AppTemplate.Domain.Core/PublicAPI.Shipped.txt` and
+`Src/Domain/AppTemplate.Domain.Core/PublicAPI.Unshipped.txt`, and every public member of it is
+documented — so the primitives are something you read the signatures of and build on, not
+something a new feature negotiates with.
+
 `TodoList` (`Entities/TodoList.cs`) is the reference: a private list of items, a
 factory (`Create`) and a rehydration path (`Rehydrate`) that both run the same
 invariants — unique titles, an item cap, a non-empty owner — so a row loaded from
@@ -70,6 +80,21 @@ and the array is where the difference is stated.
 
 `Src/Application/AppTemplate.Application/Features/<Feature>/`
 
+A feature is created there and only there. `AppTemplate.Application` is `Features/` and, today, no
+`Common/` — not because it may not have one, but because nothing in this template's examples is yet
+shared by several features *as business*. That is what a `<Layer>/Common/` is for: a DTO two
+features answer with, a policy that spans them, a value object three features spend. The sorting
+test is one question — does it know a feature? If it names one, or would have to the moment a second
+feature used it, it goes in this project's `Common/`. If it does not and never will, it goes one
+project inwards. Everything the feature is built *from* is one project inwards,
+in `AppTemplate.Application.Core`: `Result` and `Error`, the `IUseCase` marker the named interface
+derives from, `PageRequest`, `SortOrder` and the rest of the paging vocabulary,
+`VersionPrecondition` and `Versioned<T>`, the validation extensions, `DomainGuard`,
+`IDomainEventConsumer`, and the cross-cutting ports — the clock, the caller's identity, the commit
+boundary, the mail relay, the leader lease, the idempotency store. A feature adds nothing to that
+project; if a new mechanism looks like it belongs there, that is a decision to argue for, not a
+file to move.
+
 ```
 UseCases/Commands|Queries/<Operation>/         one folder per operation:
   <Operation>Command.cs                        the command or query record
@@ -96,16 +121,22 @@ many use cases call that port — otherwise `Ports/` would depend on `UseCases/`
 `TodoListPageRequest` is the real example: it is `ITodoListQueries`'s parameter, so it
 lives in `Ports/TodoListQueries/`, not inside any one query's own folder.
 
-**Two of those folders hold things nothing discovers for you, and both are registered
-by hand in `ApplicationModule.AddApplicationLayer`.** A domain-event consumer is bound
-to its event with `services.AddDomainEventConsumer<TEvent, TConsumer>()`; the binding
-is written out rather than scanned, so a consumer nothing reaches is an absence you can
-see in the file instead of a silence at runtime. A collaborator under `Services/` has
-no request or response shape of its own, so the marker-based discovery below never sees
-it either: bind it with its own `services.AddScoped<TContract, TImplementation>()` next
-to the three that are already there. Skip either line and the code still compiles — the
-consumer simply never fires, and the use case that takes the collaborator throws on its
-first resolution.
+**A feature is registered by its own `AddX()` in `ApplicationModule`, which a host calls or does
+not.** `AddTodoLists()`, `AddReminders()` and `AddFiles()` are the three that exist, and there is
+deliberately no call that adds all of them: that is what makes a feature removable — delete its
+folder and its one line in each host, and nothing else claims to have registered it. So a new
+feature means a new `AddX()` here and a line in each `Program.cs` that offers it. Inside the method
+the vertical's use cases and validators are discovered by namespace.
+
+**Two of those folders hold things nothing discovers for you, and both are registered by hand in
+that method.** A domain-event consumer is bound to its event with
+`services.AddDomainEventConsumer<TEvent, TConsumer>()`; the binding is written out rather than
+scanned, so a consumer nothing reaches is an absence you can see in the file instead of a silence at
+runtime. A collaborator under `Services/` has no request or response shape of its own, so the
+marker-based discovery below never sees it either: bind it with its own
+`services.AddScoped<TContract, TImplementation>()` in the same method. Skip either line and the code
+still compiles — the consumer simply never fires, and the use case that takes the collaborator
+throws on its first resolution.
 
 A port is a capability, not a façade, and two architecture rules hold it to that.
 `PortConventionTests` refuses any port declaring more than **four** operations: four is
@@ -113,8 +144,8 @@ what the widest port here needs, and a fifth means a second capability that belo
 a port of its own. It also refuses a feature port that *every* use case in its vertical
 depends on, because a vertical whose use cases are all wrappers around one collaborator
 has put its logic in the collaborator. Neither rule applies to the cross-cutting ports
-in `Common/Ports/` — the clock and the caller's identity may legitimately be
-needed everywhere.
+in `AppTemplate.Application.Core/Common/Ports/` — the clock and the caller's identity may
+legitimately be needed everywhere.
 
 One class per use case, plus **exactly one named interface** deriving from
 `IUseCase<TRequest, TResponse>` (or `IUseCase<TResponse>`):
@@ -142,10 +173,10 @@ public sealed class CreateTodoListUseCase(
 }
 ```
 
-The named interface is not decoration: `ApplicationModule.AddUseCasesFrom` walks the
-application assembly and registers every `IUseCase` implementation under the **one**
-other interface it declares. Zero or several named interfaces throws from
-`AddApplicationLayer` itself, at registration, before the container is ever built —
+The named interface is not decoration: `ApplicationCoreModule.AddUseCases`, which each feature's
+`AddX()` calls over the types in that vertical's namespace, registers every `IUseCase`
+implementation under the **one** other interface it declares. Zero or several named interfaces
+throws from that call itself, at registration, before the container is ever built —
 rather than surfacing as a 500 on first request the way a missing registration would.
 Controllers depend on the named interface, never on the concrete class.
 
@@ -160,8 +191,8 @@ for a caller driving an aggregate into a state the model forbids.
 ### If the feature has a collection endpoint
 
 Sorting, filtering and paging are already built, once, in
-`Common/Collections/`. A feature does not implement them — it **declares what it
-allows**:
+`AppTemplate.Application.Core/Common/Collections/`. A feature does not implement them — it
+**declares what it allows**:
 
 ```
 Policies/<Aggregate>CollectionPolicy.cs              the sortable whitelist and the bounds
@@ -174,8 +205,9 @@ of — `TodoListFilter` and `TodoListPageRequest` live in `Ports/TodoListQueries
 `ITodoListQueries` itself — because they are that port's signature, not one use case's
 private concern.
 
-The policy is the whitelist, and it lives in its own `Policies/` folder rather than in
-`Common/` because only the feature knows which of its columns are cheap to order by:
+The policy is the whitelist, and it lives in the feature's own `Policies/` folder rather than
+beside `ICollectionPolicy` in `AppTemplate.Application.Core/Common/Policies/`, because only the
+feature knows which of its columns are cheap to order by:
 
 ```csharp
 public sealed class TodoListCollectionPolicy : ICollectionPolicy
@@ -397,10 +429,13 @@ The adapter lives in its own module, `AppTemplate.Infrastructure.Storage`, which
 follows the same nature-word vocabulary as everything else: `Common/{Budgets,
 Factories, Options}` and `Features/Files/{Inspectors, Inventories, Options, Scanners,
 Stores}`, one plural per nature of file and nothing else inside. A new infrastructure
-module of your own gets the same treatment, and
-`LayoutConventionTests.EveryInfrastructureModuleOnDisk_HasAVocabularyOfItsOwn` will not
+module of your own gets the same treatment — and so does a new project in any layer, because
+`LayoutConventionTests.EveryProjectOnDisk_HasAVocabularyOfItsOwn` reads every project under `Src/`
+off the disk rather than the infrastructure modules alone, and will not
 let it build until its vocabulary is written into `CONTRIBUTING.md`'s layout tree and
-into the rule's own dictionary.
+into the rule's own dictionary. An entry of `null` is how a project says it has no such folder at
+all, and that claim is checked in both directions: the folder appearing where the entry says none
+fails, and so does the folder vanishing from under a list of words.
 
 **The two halves meet in a use case and nowhere else.** No repository reaches the
 bucket, no adapter reaches the database. `ConfirmFileUploadUseCase` is where the row
@@ -534,9 +569,8 @@ than not shipping one.
 If you want it gone anyway, follow `docs/REMOVING-THE-EXAMPLE-FEATURES.md` rather than
 improvising from the tree. Deleting the folders is the easy half. The removal takes
 `Reminders` with it, because a reminder is scheduled against a to-do item and that
-feature does not compile without this one; it touches `ApplicationModule` in five
-separate lines, one of which is the validator anchor naming a type you just deleted;
-and the migration is where guessing costs data, since `AddExampleFeatures` carries
+feature does not compile without this one; and the migration is where guessing costs
+data, since `AddExampleFeatures` carries
 `todo` and `reminders` together and what to do with it depends on whether a database
 has already applied it. That document names every file, every edit and the state each
 test suite is left in.

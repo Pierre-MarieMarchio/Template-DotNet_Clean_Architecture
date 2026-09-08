@@ -1,14 +1,10 @@
-﻿using System.Reflection;
-using AppTemplate.Application.Common.Events;
-using AppTemplate.Application.Common.UseCases;
+﻿using AppTemplate.Application.Core;
 using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.Reminders.Services;
 using AppTemplate.Application.Features.TodoLists.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.TodoLists.Services;
-using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CreateTodoList;
-using AppTemplate.Domain.Common.Events;
 using AppTemplate.Domain.Features.Files.Events;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using FluentValidation;
@@ -16,38 +12,83 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AppTemplate.Application;
 
+/// <summary>
+/// One call per feature, and a host composes the features it offers.
+/// <para>
+/// There is no call that adds all of them. That is what makes a feature removable: deleting its
+/// folder and its one line here is the whole operation, and nothing else claims to have registered
+/// it. A single entry point scanning the assembly would put every port every feature declares into
+/// every host's graph, which under <c>ValidateOnBuild</c> makes each of them mandatory everywhere.
+/// </para>
+/// <para>
+/// None of these takes an <c>IConfiguration</c>, deliberately: nothing in this layer reads
+/// settings, and accepting configuration invites the infrastructure knowledge the layer exists to
+/// avoid.
+/// </para>
+/// </summary>
 public static class ApplicationModule
 {
+    private const string _todoLists = "TodoLists";
+    private const string _reminders = "Reminders";
+    private const string _files = "Files";
+
     /// <summary>
-    /// Takes no <c>IConfiguration</c> deliberately: nothing in this layer reads settings, and
-    /// accepting configuration invites the infrastructure knowledge the layer exists to avoid.
+    /// Registers the to-do list feature: its use cases, its validators, and the access service its
+    /// use cases share.
     /// </summary>
-    public static IServiceCollection AddApplicationLayer(this IServiceCollection services)
+    /// <param name="services">The container being built.</param>
+    /// <returns>The same collection, for chaining.</returns>
+    public static IServiceCollection AddTodoLists(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddValidatorsFromAssemblyContaining<CreateTodoListCommandValidator>(
-            lifetime: ServiceLifetime.Scoped,
-            includeInternalTypes: true);
-
-        services.AddUseCasesFrom(typeof(ApplicationModule).Assembly);
-
-        // Not a use case: it has no request/response shape of its own, so the marker-based
-        // discovery above never sees it. Bound explicitly, like the domain-event consumers below.
+        services.AddFeature(_todoLists);
         services.AddScoped<ITodoListService, TodoListService>();
-        services.AddScoped<IReminderService, ReminderService>();
-        services.AddScoped<IStoredFileService, StoredFileService>();
 
         services.AddDomainEventConsumer<TodoItemCompletedDomainEvent, LogTodoItemCompletedConsumer>();
 
-        // A second consumer of the same event: both run when an item is completed, neither aware
-        // of the other.
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the reminder feature.
+    /// <para>
+    /// <b>Not independent of <see cref="AddTodoLists"/>.</b> Scheduling a reminder reaches into the
+    /// to-do list's read port, which is the only ownership check made before a reminder is created,
+    /// so a host that composes this without that one resolves nothing. The two example features are
+    /// not symmetric, and saying so here is cheaper than a start-up failure that does not explain
+    /// itself.
+    /// </para>
+    /// </summary>
+    /// <param name="services">The container being built.</param>
+    /// <returns>The same collection, for chaining.</returns>
+    public static IServiceCollection AddReminders(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddFeature(_reminders);
+        services.AddScoped<IReminderService, ReminderService>();
+
+        // A second consumer of an event the to-do list feature raises: both run when an item is
+        // completed, neither aware of the other.
         services.AddDomainEventConsumer<
             TodoItemCompletedDomainEvent, CancelRemindersOnTodoItemCompletedConsumer>();
 
+        return services;
+    }
+
+    /// <summary>Registers the stored-file feature.</summary>
+    /// <param name="services">The container being built.</param>
+    /// <returns>The same collection, for chaining.</returns>
+    public static IServiceCollection AddFiles(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddFeature(_files);
+        services.AddScoped<IStoredFileService, StoredFileService>();
+
         // The prompt half of reclaiming a deleted file's bytes. The orphan sweep is what makes it
-        // correct; this only makes it fast — see the consumer's own doc, and note that three files
-        // in the Files feature claimed this consumer existed before it did.
+        // correct; this only makes it fast — see the consumer's own doc.
         services.AddDomainEventConsumer<
             StoredFileDeletedDomainEvent, ReclaimContentOnStoredFileDeletedConsumer>();
 
@@ -55,71 +96,31 @@ public static class ApplicationModule
     }
 
     /// <summary>
-    /// Binds a consumer to one event type. Registration is explicit rather than scanned so that a
-    /// consumer which is never reached is a compile-time absence rather than a silent one.
+    /// The use cases and validators one vertical declares, discovered by the folder they sit in.
+    /// <para>
+    /// Discovery within a feature, opt-in between features. A hand-written list of thirty use cases
+    /// per feature could only go stale, and the namespace already states which feature a type
+    /// belongs to — a rule elsewhere holds that it does.
+    /// </para>
     /// </summary>
-    public static IServiceCollection AddDomainEventConsumer<TEvent, TConsumer>(this IServiceCollection services)
-        where TEvent : IDomainEvent
-        where TConsumer : class, IDomainEventConsumer<TEvent>
+    private static void AddFeature(this IServiceCollection services, string vertical)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        services.AddValidatorsFromAssembly(
+            typeof(ApplicationModule).Assembly,
+            lifetime: ServiceLifetime.Scoped,
+            filter: scan => IsInVertical(scan.ValidatorType, vertical),
+            includeInternalTypes: true);
 
-        services.AddScoped<IDomainEventConsumer<TEvent>, TConsumer>();
-
-        return services;
+        services.AddUseCases(TypesIn(vertical));
     }
 
-    public static IServiceCollection AddUseCasesFrom(this IServiceCollection services, Assembly assembly)
-    {
-        ArgumentNullException.ThrowIfNull(assembly);
+    private static IEnumerable<Type> TypesIn(string vertical) =>
+        typeof(ApplicationModule).Assembly
+            .GetTypes()
+            .Where(type => IsInVertical(type, vertical));
 
-        return services.AddUseCases(assembly.GetTypes());
-    }
-
-    /// <summary>
-    /// Registers each <see cref="IUseCase"/> implementation under the single named interface it
-    /// declares.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// A use case declares no named interface, or several: there is no one service type to bind.
-    /// </exception>
-    public static IServiceCollection AddUseCases(this IServiceCollection services, IEnumerable<Type> candidates)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(candidates);
-
-        var implementations = candidates
-            .Where(candidate => candidate is { IsClass: true, IsAbstract: false }
-                && typeof(IUseCase).IsAssignableFrom(candidate))
-            .ToArray();
-
-        foreach (var implementation in implementations)
-        {
-            services.AddScoped(ContractOf(implementation), implementation);
-        }
-
-        return services;
-    }
-
-    private static Type ContractOf(Type implementation)
-    {
-        var contracts = Array.FindAll(
-            implementation.GetInterfaces(),
-            candidate => candidate != typeof(IUseCase)
-                && !candidate.IsGenericType
-                && typeof(IUseCase).IsAssignableFrom(candidate));
-
-        if (contracts.Length != 1)
-        {
-            throw new InvalidOperationException(
-                $"'{implementation.FullName}' declares {contracts.Length} named use-case interfaces " +
-                "but must declare exactly one: " +
-                (contracts.Length == 0
-                    ? "give it an interface of its own deriving from IUseCase<,>."
-                    : $"found {string.Join(", ", contracts.Select(contract => contract.Name))}, and " +
-                      "picking one of them would be a guess."));
-        }
-
-        return contracts[0];
-    }
+    private static bool IsInVertical(Type type, string vertical) =>
+        type.Namespace?.StartsWith(
+            $"{typeof(ApplicationModule).Namespace}.Features.{vertical}.",
+            StringComparison.Ordinal) == true;
 }

@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
-using AppTemplate.Application.Common.Localization;
-using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
+using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
+using AppTemplate.Application.Core.Common.Localization;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using Microsoft.Extensions.Logging;
 

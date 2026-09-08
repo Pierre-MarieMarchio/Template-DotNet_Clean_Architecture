@@ -1,7 +1,7 @@
 ﻿using System.Buffers;
 using System.Globalization;
 using System.Security.Cryptography;
-using AppTemplate.Domain.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Exceptions;
 
 namespace AppTemplate.Domain.Features.Files.ValueObjects;
 

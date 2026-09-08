@@ -1,5 +1,5 @@
 ﻿using System.Reflection;
-using AppTemplate.Api.Common.Idempotency;
+using AppTemplate.Api.Core.Common.Idempotency;
 using AppTemplate.Api.Features.Auth.Controllers;
 using AppTemplate.Api.Features.Files.Controllers;
 using AppTemplate.Api.Features.Maintenance.Controllers;

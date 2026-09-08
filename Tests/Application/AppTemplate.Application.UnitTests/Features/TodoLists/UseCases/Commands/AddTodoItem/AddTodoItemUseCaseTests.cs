@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Common.Results;
+﻿using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.AddTodoItem;
 using AppTemplate.Application.UnitTests.TestDoubles;

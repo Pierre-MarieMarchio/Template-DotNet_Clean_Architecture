@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Common.Exceptions;
+﻿using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Domain.Features.Reminders.Events;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;

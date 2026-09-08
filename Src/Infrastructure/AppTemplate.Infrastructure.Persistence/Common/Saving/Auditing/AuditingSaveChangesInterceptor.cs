@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Ports;
-using AppTemplate.Domain.Common.Abstractions;
+﻿using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Domain.Core.Common.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 

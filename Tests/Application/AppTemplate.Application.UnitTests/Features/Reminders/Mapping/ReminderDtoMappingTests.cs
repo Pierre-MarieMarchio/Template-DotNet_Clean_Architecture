@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Features.Reminders.Mapping;
 using AppTemplate.Application.UnitTests.TestDoubles;
-using AppTemplate.Domain.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;
 using Shouldly;
 using Xunit;

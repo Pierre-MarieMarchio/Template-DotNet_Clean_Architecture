@@ -61,7 +61,9 @@ be filled from user secrets or environment variables.
 > | `Storage` | `AddStorageModule` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
 > | `ContentInspection` | `AddStorageModule` | `AppTemplate.Infrastructure.Storage/Features/Files/Options/` |
 > | `MaintenanceWorker`, `ReminderWorker`, `FileWorker` | `AppTemplate.Worker`'s own `Program.cs` | `AppTemplate.Worker/Features/<Feature>/` |
-> | Everything else | `AppTemplate.Api`'s own `Program.cs` | beside the middleware that reads it, under `AppTemplate.Api/Common/` |
+> | `OpenTelemetry` | `AddObservability`, called from each host's `Program.cs` | `AppTemplate.Presentation.Core/Common/Observability/` |
+> | `Localization` | `AddLocalizationOptions`, called from each host's `Program.cs` | `AppTemplate.Presentation.Core/Common/Localization/` |
+> | Everything else | `AppTemplate.Api`'s own `Program.cs`, through `AddApiCore` | beside the middleware that reads it, under `AppTemplate.Api.Core/Common/` |
 >
 > `IdentitySeed` sits with the seeder because seeding is a persistence concern, not an
 > authentication policy. **The configuration keys and their validation do not change** —
@@ -82,17 +84,20 @@ be filled from user secrets or environment variables.
 `IPurgeExpiredIdempotencyKeysUseCase` and `IPurgeExpiredRefreshTokensUseCase` — the exact same
 application-layer use cases `MaintenanceController` exposes over HTTP — on a timer instead of a
 request, and rings a due reminder by mail through the exact same `IReminderNotifier` port the API
-would use if it ever called it. It composes `AddApplicationLayer`, `AddPersistenceModule`,
+would use if it ever called it. It composes `AddTodoLists`, `AddReminders`, `AddFiles`,
+`AddAuthApplication`, `AddPurgeExpiredIdempotencyKeys`, `AddPersistenceModule`,
 `AddIdentityModule` **and** `AddEmailModule`, so it reads `ConnectionStrings`, `Database`,
 `IdempotencyPurge`, `Jwt`, `RefreshToken`, `IdentityTokens`, `EmailConfirmation`, `PasswordReset`,
 `EmailChange` and `Email` exactly like the API, plus its own `MaintenanceWorker` section below. `IdentitySeed` is
 bound and validated too — `AddPersistenceModule` does that unconditionally — but every one of its
 members has a safe default (`Enabled: false`), so an absent section validates cleanly; the worker
 never *exercises* seeding either way, since `IIdentitySeeder`/`MigrateAndSeedForDevelopmentAsync`
-are only ever called from `AppTemplate.Api/Program.cs`. It reads `OpenTelemetry` too, through its
-own `WorkerTelemetryOptions` — a deliberate twin of the API's `TelemetryOptions`, same section and
-same keys, because the worker cannot reference the API project; an option one of them honours and
-the other ignores is a bug, not a difference. The worker does **not** read `Cors`,
+are only ever called from `AppTemplate.Api/Program.cs`. It reads `OpenTelemetry` and
+`Localization` too, and both hosts bind each of them through the one options class
+`AppTemplate.Presentation.Core` declares for it — one class over one section, so an option one host
+honours and the other ignores is not a state this template can reach. A sampling ratio, or the
+language an unattributed mail is written in, means the same thing in every process of a deployment.
+The worker does **not** read `Cors`,
 `ReverseProxy`, `SecurityHeaders`, `Concurrency`, `Idempotency`, `RequestLimits`,
 `Shutdown` or `RequestTimeouts` — those are the API's transport-layer concerns, and the worker has
 no transport layer. The worker still waits for its own in-flight iteration to finish on shutdown,
@@ -113,11 +118,14 @@ port — to find the address a due reminder is rung at. That is the reminder loo
 host's own feature and its main reason to exist. So the worker needs the identity module whatever
 happens to the maintenance adapter.
 
-And above both: `AddApplicationLayer` registers *every* use case in the assembly, and
-`Host.CreateApplicationBuilder` turns on `ValidateOnBuild` in Development. Every port the
-application layer declares therefore has to be resolvable in every host — not only the ports that
-host's own loops reach. A worker composed without the identity module fails to build its container
-naming twenty-odd unresolvable use cases, not one.
+And above both: this host calls `AddAuthApplication`, which registers *every* use case
+`AppTemplate.Application.Auth` declares, and `Host.CreateApplicationBuilder` turns on
+`ValidateOnBuild` in Development. Every one of that project's twenty ports therefore has to be
+resolvable here — not only the ports this host's own loops reach. A worker composed without the
+identity module fails to build its container naming twenty-odd unresolvable use cases, not one.
+Which is also the only way this host could shed the module: by not making that call at all, and
+then answering for `EmailReminderNotifier`, which needs an authentication port whatever else
+changes.
 `TheWorkerContainer_NeedsIdentityForItsReminderLoop_NotOnlyForThePurgeAdapter` holds all of this,
 so the paragraph cannot drift back to the convenient version.
 
@@ -155,9 +163,11 @@ surface — not a per-host configuration override.
 **`ICurrentUser` outside a request.** The API's `CurrentUser` reads `IHttpContextAccessor`, which
 the worker cannot depend on and would be `null` for every call anyway — silently producing a
 `UserId` of `null` indistinguishable from a legitimate anonymous HTTP request. The worker instead
-registers `BackgroundCurrentUser`, whose `UserId` getter throws `NotSupportedException`: a use case
-moved onto this host that reads the caller's identity must fail loudly at that call, not proceed
-as if it were an anonymous request.
+calls `AddNoCallerIdentity()`, which registers `AppTemplate.Presentation.Core`'s
+`NoCallerCurrentUser` scoped — the same lifetime the API gives its own caller, so the use-case graph
+is identical in both. Its `UserId` getter throws `NotSupportedException`: a use case moved onto this
+host that reads the caller's identity must fail loudly at that call, not proceed as if it were an
+anonymous request. Nothing configures this, and there is no section for it.
 
 ## Secrets: use `dotnet user-secrets`
 
@@ -442,9 +452,11 @@ the next pass.
 
 ### Outbound HTTP — deliberately not configurable
 
-There is no section for it, and that is a decision rather than an omission. Each host installs one
-policy on `IHttpClientFactory`'s defaults (`Common/Outbound/OutboundHttpExtensions.cs`), so every
-typed client any module registers gets it:
+There is no section for it, and that is a decision rather than an omission. There is one policy,
+written once in
+`Src/Presentation/AppTemplate.Presentation.Core/Common/Outbound/OutboundHttpExtensions.cs`, and each
+host installs it with `AddOutboundHttp()` on `IHttpClientFactory`'s defaults — so every typed client
+any module registers gets it, in every host that composes that module:
 
 | | Value |
 |---|---|
@@ -652,9 +664,16 @@ serves any of these three requests itself.
 
 ### `Localization`
 
-The language a mail is written in. Bound by **both hosts**, from twin options classes — the API's
-`Common/Localization/LocalizationOptions.cs` and the worker's — so a deployment cannot write a
-password reset in one language and a reminder in another.
+The language a mail is written in. Bound by **both hosts**, from the one options class in
+`Src/Presentation/AppTemplate.Presentation.Core/Common/Localization/LocalizationOptions.cs`, so a
+deployment cannot write a password reset in one language and a reminder in another.
+
+`AddLocalizationOptions()` binds and validates the section and does nothing else. Reading the value
+into `CurrentLanguage.Default` is each host's own call, because *when* that has to happen differs:
+`AppTemplate.Api` does it as the request pipeline is built, inside `UseRequestLanguage`, and
+`AppTemplate.Worker` does it once the container exists and before the first loop runs. The key and
+its validation are the same either way — a blank or malformed tag fails startup in both hosts with
+the same message.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
@@ -711,7 +730,7 @@ environment fails at that call site rather than being quietly ignored.
 | `AllowedOrigins` | string[] | `[]` | Exact origins. Bind by index from the environment: `Cors__AllowedOrigins__0`, `…__1`, … |
 
 **This is the one section with no options class and no validator.**
-`Src/Presentation/AppTemplate.Api/Common/Security/CorsExtensions.cs` reads
+`Src/Presentation/AppTemplate.Api.Core/Common/Security/CorsExtensions.cs` reads
 `Cors:AllowedOrigins` straight off `IConfiguration` at composition time, so nothing checks
 the values: an entry that is not a well-formed origin — a trailing slash, a path, a
 hostname with no scheme — is registered exactly as written and then silently matches no
@@ -742,7 +761,7 @@ started.
 | `KnownNetworks` | string[] | `[]` | CIDR blocks, e.g. `10.0.0.0/8`. The address must be the network address: `10.0.0.1/8` is rejected, not silently masked. |
 | `ForwardLimit` | int | `1` | How many entries to consume from the right of `X-Forwarded-For`. Must equal the number of proxies actually in front of the app. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Security/ForwardedHeadersExtensions.cs`. This is the
+Read by `Src/Presentation/AppTemplate.Api.Core/Common/Security/ForwardedHeadersExtensions.cs`. This is the
 section that decides whether rate limiting works, so it is worth reading twice.
 
 - **Leave it off and the rate limiter partitions on the proxy's address**, which means every
@@ -768,7 +787,7 @@ anything that reads the address or the scheme.
 |---|---|---|---|
 | `ContentSecurityPolicy` | string | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | The policy sent on API responses. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Security/SecurityHeadersExtensions.cs`. Alongside the CSP,
+Read by `Src/Presentation/AppTemplate.Api.Core/Common/Security/SecurityHeadersExtensions.cs`. Alongside the CSP,
 every response also carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`
 and `X-Frame-Options: DENY`; `Server` and `X-Powered-By` are suppressed.
 
@@ -792,18 +811,48 @@ terminating TLS is required to send it.
 | `Enabled` | bool | `false` | Off registers no instrumentation, no exporter and no background flush. |
 | `OtlpEndpoint` | string | `""` | e.g. `http://collector:4317`. |
 | `OtlpProtocol` | string | `Grpc` | `Grpc` or `HttpProtobuf`. |
-| `ServiceName` | string? | `null` | Falls back to the assembly name and informational version. |
+| `ServiceName` | string? | `null` | Falls back to the calling host's own assembly name and informational version — see below for why it has to be the host's. Present but blank is refused; remove the key instead. |
 | `TracesSamplingRatio` | double | `1.0` | Must be **greater than 0 and at most 1**. Not in any tracked `appsettings.json`; the default samples every trace, which is what a template should do until ingestion volume, rather than curiosity, argues for less. `NaN` is refused. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Observability/ObservabilityExtensions.cs`. Traces cover
-ASP.NET Core, `HttpClient` and Npgsql; metrics cover ASP.NET Core and `HttpClient`. `/health*` is
-excluded from both traces and the request log.
+Bound and validated once, by `AddObservability` in
+`Src/Presentation/AppTemplate.Presentation.Core/Common/Observability/ObservabilityExtensions.cs`,
+which both hosts call. Both therefore read the same five keys from the same section through the same
+options class, so a sampling ratio set for a deployment means the same thing in each of its
+processes. What that call registers is everything two hosts disagreeing about would be a bug rather
+than a difference: the resource, the sampler, the outbound-`HttpClient` instrumentation, the
+`System.Runtime` runtime meters and the OTLP exporter. With `Enabled` left false it registers none
+of it — no instrumentation, no exporter, no background flush.
 
-The worker reads the same five keys, from the same section, through
-`Src/Presentation/AppTemplate.Worker/Common/Observability/WorkerObservabilityExtensions.cs`. It
-instruments no ASP.NET Core — it answers no request — and adds its three loops' own sources and
-meters instead; `ServiceName` falls back to `AppTemplate.Worker` there rather than to the API's
-assembly name.
+**Three things it takes from the calling host instead of deciding**, which is how one registration
+still gives each host its own spans. Each is forced rather than preferred:
+
+- **The service name.** The call takes the host's `Assembly`, not a string: `service.name` and
+  `service.version` are read off it, so a rename or a version bump cannot leave a stale literal
+  behind. It cannot read its own assembly, because both hosts would then announce themselves under
+  one name, and two processes reporting as one is worse than either reporting nothing. `ServiceName`
+  above overrides the result when several deployments share one collector.
+- **The diagnostics names.** A host's `ActivitySource` and `Meter` names are constants on classes in
+  its own feature folders, so a shared project that listed them would have to reference the host
+  that references it. They arrive through two callbacks, one for tracing and one for metrics,
+  invoked before the exporter so a host can still add a processor of its own.
+- **The ASP.NET Core and Npgsql instrumentation**, neither of which the transport-agnostic project
+  can carry: the first needs the ASP.NET framework reference that project deliberately refuses, and
+  the second pulls the PostgreSQL driver, which would put a database behind every host that wanted
+  traces.
+
+So the registration is three storeys, and each storey adds what the one below it cannot know.
+`Src/Presentation/AppTemplate.Api.Core/Common/Observability/ObservabilityExtensions.cs` adds the
+ASP.NET Core instrumentation, the `Microsoft.AspNetCore.RateLimiting` meter — named there because
+the rate limiter is registered there, so a mechanism and its one diagnostic travel together — and
+the exclusion of `/health*` from both traces and the request log.
+`Src/Presentation/AppTemplate.Api/Common/Observability/ObservabilityExtensions.cs` adds what only
+this host knows: `AddNpgsql()`, the `Npgsql` meter, and its own assembly, from which `service.name`
+is read. Between them, traces cover ASP.NET Core, `HttpClient` and Npgsql, and metrics cover ASP.NET
+Core, `HttpClient`, the runtime, the connection pool and the rate limiter.
+`Src/Presentation/AppTemplate.Worker/Common/Observability/WorkerObservabilityExtensions.cs` adds its
+three loops' own sources and meters, the persistence project's `AppTemplate.Reminders` meter, and
+`AddNpgsql()`. It instruments no ASP.NET Core, because it answers no request. `service.name` is
+`AppTemplate.Api` in the one and `AppTemplate.Worker` in the other, each read from its own assembly.
 
 - **An unreachable collector is safe.** Startup succeeds and the failing export cycles produce
   no log output at all, because the OTLP exporter reports failures on its own `EventSource`
@@ -823,7 +872,7 @@ assembly name.
 |---|---|---|---|
 | `IfMatch` | `Optional` \| `Required` | `Optional` | `Required` refuses a mutating request with no `If-Match` header with `428`. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Concurrency/ConcurrencyExtensions.cs`. Every read of a
+Read by `Src/Presentation/AppTemplate.Api.Core/Common/Concurrency/ConcurrencyExtensions.cs`. Every read of a
 `TodoList` or `TodoItem` publishes a strong `ETag` regardless of this setting, and every write
 already honours `If-Match` when one is sent — a stale, malformed or unrecognised version is
 refused with `412` either way. This setting only decides what happens when a write names **no**
@@ -848,7 +897,7 @@ version at all.
 | `MaxKeyLength` | int | `128` | Must be 1…512. A longer key is `400` `idempotency.keyInvalid`. |
 | `MaxStoredResponseBytes` | int | `8192` | Must be ≥ 1. A larger response is stored without its body, and a replay then answers `409` `idempotency.notReplayable` rather than a truncated body. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Idempotency/IdempotencyExtensions.cs`. The filter is
+Read by `Src/Presentation/AppTemplate.Api.Core/Common/Idempotency/IdempotencyExtensions.cs`. The filter is
 registered globally but is **inert unless the action carries `[Idempotent]`** — four actions do:
 `POST /api/v1/todo-lists`, `POST /api/v1/todo-lists/{id}/items`,
 `POST /api/v1/todo-lists/{id}/items/{id}/reminders` and `POST /api/v1/files`. Sending no
@@ -883,7 +932,7 @@ What each setting does when it is wrong:
 |---|---|---|---|
 | `MaxRequestBodyBytes` | long | `65536` | Must be between 1024 and 31457280 (30 MB). |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Hosting/RequestLimitsExtensions.cs`. It replaces
+Read by `Src/Presentation/AppTemplate.Api.Core/Common/Hosting/RequestLimitsExtensions.cs`. It replaces
 Kestrel's 30 MB default, which is a free denial-of-service against an API whose largest legitimate
 body is a few kilobytes.
 
@@ -902,7 +951,7 @@ body is a few kilobytes.
 |---|---|---|---|
 | `Timeout` | timespan | `00:00:30` | Must be greater than zero and at most 10 minutes. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Hosting/HostLifecycleExtensions.cs`, which applies it to
+Read by `Src/Presentation/AppTemplate.Api.Core/Common/Hosting/HostLifecycleExtensions.cs`, which applies it to
 the framework's own `HostOptions.ShutdownTimeout` — how long the host waits for in-flight requests
 to drain once it starts stopping. 30 seconds matches the grace period Kubernetes gives a pod
 (`terminationGracePeriodSeconds`) before sending SIGKILL, so this host is not still draining when
@@ -926,7 +975,7 @@ crash would. **Set outside its range**, the host fails `ValidateOnStart()` and d
 | `Default` | timespan | `00:05:00` | Applied to every endpoint that names no other policy. Must be 1 second – 1 hour. |
 | `Extended` | timespan | `00:10:00` | Reachable only through the `long` named policy. Must be 1 second – 1 hour, and greater than `Default`. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Hosting/HostLifecycleExtensions.cs`, which installs
+Read by `Src/Presentation/AppTemplate.Api.Core/Common/Hosting/HostLifecycleExtensions.cs`, which installs
 `AddRequestTimeouts`/`UseRequestTimeouts` with these two policies. A response still not started when
 the deadline hits gets a `504` `ProblemDetails` with `code: "request.timeout"`; a response already
 under way (headers or a first body chunk already sent) cannot be rewritten, so the connection is cut
@@ -996,7 +1045,7 @@ knob: `IFireDueRemindersUseCase` takes no command, so how many reminders one pas
 
 | Behaviour | Value | Where |
 |---|---|---|
-| Auth rate limit | 10 requests/minute per client address | `Src/Presentation/AppTemplate.Api/Common/Security/RateLimitingExtensions.cs` |
+| Auth rate limit | 10 requests/minute per client address | `Src/Presentation/AppTemplate.Api.Core/Common/Security/RateLimitingExtensions.cs` |
 | Global rate limit | 300 requests/minute per client address | same |
 | Refresh token size / hash | 32 bytes CSPRNG / SHA-256 | `RefreshTokenGrants` |
 | Aggregate item cap | 500 items per list | `TodoList.MaxItems` |
@@ -1012,7 +1061,7 @@ knob: `IFireDueRemindersUseCase` takes no command, so how many reminders one pas
 | Sortable fields | `name`, `createdAt`, `lastModifiedAt` | `TodoListCollectionPolicy.SortableFields` |
 | Max `search` length | 100 characters | `SearchTerm.MaxLength` |
 | Max cursor length | 512 characters | `Cursor.MaxEncodedLength` |
-| `Cache-Control` on reads | `private, no-cache` | `Src/Presentation/AppTemplate.Api/Common/Caching/CacheHeaderExtensions.cs` |
+| `Cache-Control` on reads | `private, no-cache` | `Src/Presentation/AppTemplate.Api.Core/Common/Caching/CacheHeaderExtensions.cs` |
 
 `Cache-Control` has no setting because there is only one defensible value for a per-user
 authenticated response: caching here is revalidation, not storage. An endpoint whose response is identical for every
@@ -1035,7 +1084,7 @@ the answer is a second deployment of the same image with its own ingress rules, 
 counter.
 
 Both limits also partition on the **client address**, including for authenticated callers, so
-callers sharing an address share a budget. `Src/Presentation/AppTemplate.Api/Common/Security/RateLimiterPartitionKeys.cs`
+callers sharing an address share a budget. `Src/Presentation/AppTemplate.Api.Core/Common/Security/RateLimiterPartitionKeys.cs`
 explains why partitioning the global limiter by user identity is not available at the point the key
 is computed, and why moving authentication earlier to make it available would cost more than it
 saves. Behind a proxy this all depends on `ReverseProxy` being configured — see above; without it

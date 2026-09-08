@@ -1,7 +1,8 @@
 ﻿using System.Reflection;
-using AppTemplate.Api.Common.Controllers;
+using AppTemplate.Api.Common.Security;
 using AppTemplate.Application;
-using AppTemplate.Application.Common.Concurrency;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePassword;
+using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -29,8 +30,26 @@ namespace AppTemplate.Api.UnitTests.Conventions;
 /// </remarks>
 public sealed class ControllerContractTests
 {
-    private static readonly Assembly _api = typeof(ApiControllerBase).Assembly;
-    private static readonly Assembly _application = typeof(ApplicationModule).Assembly;
+    /// <summary>
+    /// The host, anchored on a type that is not a controller. Anchoring on
+    /// <c>ApiControllerBase</c> would name the SDK project the base class lives in, which holds no
+    /// controller at all — and anchoring on a controller would make
+    /// <see cref="Discovery_FindsTheControllers"/> unable to fail.
+    /// </summary>
+    private static readonly Assembly _api = typeof(AuthorizationPolicies).Assembly;
+
+    /// <summary>
+    /// Every assembly of the application layer, not one of them. The layer is split across three
+    /// projects, and a rule comparing by assembly identity against a single one stops seeing a DTO
+    /// reached from either of the other two — an Auth response leaking onto the wire would have
+    /// read as compliant.
+    /// </summary>
+    private static readonly Assembly[] _applicationLayer =
+    [
+        typeof(ApplicationModule).Assembly,
+        typeof(VersionPrecondition).Assembly,
+        typeof(ChangePasswordCommand).Assembly,
+    ];
 
     [Fact]
     public void Discovery_FindsTheControllers()
@@ -77,6 +96,20 @@ public sealed class ControllerContractTests
         ApplicationTypesIn(BoundTypes(action)).ShouldNotBeEmpty(
             "The parameter walk did not flag an action binding an application command, so "
             + $"{nameof(NoAction_BindsAnApplicationType)} is vacuous.");
+
+        // And it flags one from every project of the layer, which "not empty" above does not say.
+        // Drop an assembly from the list and this is what notices; the rules themselves would go on
+        // reporting no offender for whatever that project holds.
+        var authAction = typeof(LeakingController).GetMethod(nameof(LeakingController.LeakFromAuth))!;
+
+        ApplicationTypesIn(ResponseTypes(action).Concat(ResponseTypes(authAction)))
+            .Select(type => type.Assembly)
+            .Distinct()
+            .ShouldBe(
+                _applicationLayer,
+                ignoreOrder: true,
+                "The walk flags types from some projects of the application layer and not others, "
+                + "so a contract standing on one of the projects it misses reads as compliant.");
     }
 
     private static IReadOnlyList<string> Offenders(Func<MethodInfo, IEnumerable<Type>> subject) =>
@@ -139,11 +172,12 @@ public sealed class ControllerContractTests
             .Where(type => type != typeof(CancellationToken));
 
     /// <summary>
-    /// Walks generic arguments and array elements, so that a contract standing on an application type
-    /// — a page of DTOs, a versioned DTO — is caught rather than hidden one level down.
+    /// Walks generic arguments and array elements, so that a contract standing on a type from any
+    /// project of the application layer — a page of DTOs, a versioned DTO, an Auth result — is
+    /// caught rather than hidden one level down.
     /// </summary>
     private static IReadOnlyList<Type> ApplicationTypesIn(IEnumerable<Type> types) =>
-        [.. types.SelectMany(Closure).Where(type => type.Assembly == _application).Distinct()];
+        [.. types.SelectMany(Closure).Where(type => _applicationLayer.Contains(type.Assembly)).Distinct()];
 
     private static IEnumerable<Type> Closure(Type type)
     {
@@ -169,8 +203,14 @@ public sealed class ControllerContractTests
     /// <summary>The violation both rules are written to catch, kept nested so discovery skips it.</summary>
     private sealed class LeakingController : ControllerBase
     {
+        // One leak per project of the application layer: the DTO from the business project, the
+        // Versioned<> wrapper from the Core, and the command from Auth. That is what makes the
+        // three-assembly list above self-verifying rather than asserted.
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TodoItemDto))]
         public Task<ActionResult<Versioned<TodoItemDto>>> Leak(TodoItemDto body) =>
             throw new NotSupportedException(nameof(Leak));
+
+        public Task<ActionResult<ChangePasswordCommand>> LeakFromAuth(ChangePasswordCommand body) =>
+            throw new NotSupportedException(nameof(LeakFromAuth));
     }
 }

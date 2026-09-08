@@ -1,6 +1,6 @@
-﻿using AppTemplate.Api.Common.Contracts;
-using AppTemplate.Api.Common.Controllers;
-using AppTemplate.Api.Common.Idempotency;
+﻿using AppTemplate.Api.Core.Common.Contracts;
+using AppTemplate.Api.Core.Common.Controllers;
+using AppTemplate.Api.Core.Common.Idempotency;
 using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.Features.TodoLists.Mapping;

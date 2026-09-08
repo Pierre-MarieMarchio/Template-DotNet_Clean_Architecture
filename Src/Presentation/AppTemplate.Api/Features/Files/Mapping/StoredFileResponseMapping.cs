@@ -1,7 +1,7 @@
-﻿using AppTemplate.Api.Common.Contracts;
+﻿using AppTemplate.Api.Core.Common.Contracts;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
-using AppTemplate.Application.Common.Concurrency;
-using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;

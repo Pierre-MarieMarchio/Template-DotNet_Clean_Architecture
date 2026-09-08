@@ -1,6 +1,6 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
-using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Infrastructure.Storage.Common.Budgets;
 using AppTemplate.Infrastructure.Storage.Common.Options;

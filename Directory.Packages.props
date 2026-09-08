@@ -87,6 +87,13 @@
     <PackageVersion Include="Scalar.AspNetCore" Version="2.17.2" />
   </ItemGroup>
 
+  <!-- Build-time only, and referenced with PrivateAssets="all" so it reaches no consumer. It
+       tracks the public surface of each SDK project in a PublicAPI.*.txt beside the project, which
+       turns a change to that surface into an explicit diff to review. -->
+  <ItemGroup Label="Analyzers">
+    <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Test">
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.0" />

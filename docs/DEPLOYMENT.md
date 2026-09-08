@@ -19,7 +19,7 @@ distinction currently changes the answer.
 
 ## The shutdown chain: three numbers that have to agree
 
-`Src/Presentation/AppTemplate.Api/Common/Hosting/ShutdownHealthCheck.cs` turns
+`Src/Presentation/AppTemplate.Api.Core/Common/Hosting/ShutdownHealthCheck.cs` turns
 `/health/ready` unhealthy the instant graceful shutdown begins (`ApplicationStopping`), while
 `/health` — liveness — stays healthy for as long as the process is exiting cleanly. Read that
 file's own comment; it is the half of this mechanism that lives in code. The other half lives in

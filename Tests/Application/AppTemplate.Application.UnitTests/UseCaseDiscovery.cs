@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.UseCases;
+﻿using AppTemplate.Application.Core.Common.UseCases;
 using Shouldly;
 
 namespace AppTemplate.Application.UnitTests;

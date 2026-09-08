@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Api.Features.Reminders.Mapping;
-using AppTemplate.Application.Common.Concurrency;
-using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.Dtos;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;
 using Shouldly;

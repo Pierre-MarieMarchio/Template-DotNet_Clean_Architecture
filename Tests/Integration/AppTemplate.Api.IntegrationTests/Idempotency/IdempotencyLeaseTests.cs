@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Common.Idempotency;
+using AppTemplate.Application.Core.Common.Idempotency;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;

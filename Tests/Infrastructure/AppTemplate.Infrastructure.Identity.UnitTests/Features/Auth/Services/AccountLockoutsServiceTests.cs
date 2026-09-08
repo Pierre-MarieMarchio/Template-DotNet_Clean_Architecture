@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Auth.Ports.AccountLockouts;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountLockouts;
 using AppTemplate.Infrastructure.Identity.Common.Directories;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Services;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;

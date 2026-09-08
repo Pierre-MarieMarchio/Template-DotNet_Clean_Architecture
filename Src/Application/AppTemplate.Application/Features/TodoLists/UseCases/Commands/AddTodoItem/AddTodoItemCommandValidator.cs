@@ -12,8 +12,6 @@ public sealed class AddTodoItemCommandValidator : AbstractValidator<AddTodoItemC
             .NotEmpty().WithMessage("A list id is required.");
 
         RuleFor(command => command.Title)
-            // Every Must below dereferences the value, and FluentValidation runs the remaining rules
-            // for a property even after NotEmpty has failed.
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("An item title is required.")
             // Measured after trimming, like the domain measures it.

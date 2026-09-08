@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Features.Auth.Ports.TwoFactorChallenge;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorChallenge;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Identity.Common.Directories;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Options;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Services;

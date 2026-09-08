@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Auth.Ports.EmailChangeTokens;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.EmailChangeTokens;
 using AppTemplate.Infrastructure.Identity.Common.Directories;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;

@@ -7,7 +7,7 @@ namespace AppTemplate.Worker.Common.Security;
 /// absent one. A sweep that promotes a deposited file or rings a due reminder is not something a
 /// user did, so the audit columns say so.
 /// <para>
-/// This is deliberately not <see cref="BackgroundCurrentUser"/>, which throws. The distinction is
+/// This is deliberately not <c>NoCallerCurrentUser</c>, which throws. The distinction is
 /// the point: a use case asking this host <em>who is calling</em> is composed wrongly and must fail
 /// loudly, while the audit stamp on a background write is simply unattributed.
 /// </para>

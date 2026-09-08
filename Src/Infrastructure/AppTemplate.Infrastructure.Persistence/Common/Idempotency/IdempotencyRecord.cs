@@ -3,7 +3,7 @@
 /// <summary>
 /// One claimed <c>Idempotency-Key</c>, keyed by the user that presented it and the key itself.
 /// Internal: reached only through <see cref="IdempotencyStore"/>, behind
-/// <see cref="Application.Common.Idempotency.IIdempotencyStore"/>.
+/// <see cref="Application.Core.Common.Idempotency.IIdempotencyStore"/>.
 /// </summary>
 internal sealed class IdempotencyRecord
 {

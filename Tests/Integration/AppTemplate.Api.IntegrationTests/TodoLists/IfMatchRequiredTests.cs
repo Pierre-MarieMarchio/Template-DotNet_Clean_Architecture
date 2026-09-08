@@ -1,7 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
-using AppTemplate.Api.Common.Concurrency;
-using AppTemplate.Api.Common.Controllers;
+using AppTemplate.Api.Core.Common.Concurrency;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Shouldly;
@@ -87,12 +86,12 @@ public sealed class IfMatchRequiredTests(ApiFixture fixture) : IntegrationTestBa
         response.Headers.ETag.ShouldNotBeNull();
     }
 
-    private WebApplicationFactory<ApiControllerBase> StrictHost() =>
+    private WebApplicationFactory<Program> StrictHost() =>
         Fixture.Factory.WithWebHostBuilder(builder => builder.UseSetting(
             $"{ConcurrencyOptions.SectionName}:{nameof(ConcurrencyOptions.IfMatch)}",
             nameof(IfMatchRequirement.Required)));
 
-    private static HttpClient ClientOf(WebApplicationFactory<ApiControllerBase> host, string accessToken)
+    private static HttpClient ClientOf(WebApplicationFactory<Program> host, string accessToken)
     {
         var client = host.CreateClient();
 

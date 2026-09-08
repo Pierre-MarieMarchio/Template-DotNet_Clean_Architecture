@@ -37,16 +37,24 @@ internal static class SourceDeclarations
         RegexOptions.Multiline,
         TimeSpan.FromSeconds(5));
 
-    private static readonly string _applicationRoot = Path.Combine(
-        ProjectReferenceGraph.RepositoryRoot, "Src", "Application", "AppTemplate.Application");
+    /// <summary>
+    /// Every project of the application layer, and every project of the domain. Read from the
+    /// project graph rather than named, because a layer split across projects declares its use cases
+    /// and its ports across all of them: a walk that knew one project would drop the rest of the
+    /// population from both sides of a comparison at once, and agree with itself about what is left.
+    /// </summary>
+    private static readonly IReadOnlyList<ProjectNode> _applicationProjects =
+        [.. ProjectReferenceGraph.ProjectsInLayer("Application")];
 
-    private static readonly string _domainRoot = Path.Combine(
-        ProjectReferenceGraph.RepositoryRoot, "Src", "Domain", "AppTemplate.Domain");
+    private static readonly IReadOnlyList<ProjectNode> _domainProjects =
+        [.. ProjectReferenceGraph.ProjectsInLayer("Domain")];
 
-    private static readonly string _featuresRoot = Path.Combine(_applicationRoot, "Features");
-
-    /// <summary>The verticals the application layer has, by folder name.</summary>
-    internal static IReadOnlyList<string> Verticals { get; } = SubfolderNamesOf(_featuresRoot);
+    /// <summary>The verticals the application layer has, by folder name, across every project of it.</summary>
+    internal static IReadOnlyList<string> Verticals { get; } =
+        [.. _applicationProjects
+            .SelectMany(project => VerticalsOf(project))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
 
     /// <summary>
     /// Every use-case class the application layer declares, by the full name it compiles to, so a
@@ -85,11 +93,12 @@ internal static class SourceDeclarations
         // The whole project, not only the UseCases folders: a use case declared somewhere else is
         // still one reflection will find, and the rule about where it belongs is a different rule
         // whose failure this one must not pre-empt by quietly not seeing the type at all.
-        var useCases = DeclarationsUnder(
-            Directory.Exists(_applicationRoot) ? [_applicationRoot] : [],
-            _useCaseClassDeclaration,
-            _applicationRoot,
-            "AppTemplate.Application");
+        var useCases = _applicationProjects
+            .SelectMany(project => DeclarationsIn(
+                project,
+                [ProjectReferenceGraph.RootOf(project)],
+                _useCaseClassDeclaration))
+            .ToList();
 
         UseCaseFullNames = [.. useCases.Order(StringComparer.Ordinal)];
 
@@ -101,25 +110,20 @@ internal static class SourceDeclarations
                 .Order(StringComparer.Ordinal)];
 
         PortFullNames =
-            [.. DeclarationsUnder(
-                    Verticals
-                        .Select(vertical => Path.Combine(_featuresRoot, vertical, "Ports"))
-                        .Append(Path.Combine(_applicationRoot, "Common"))
-                        .Where(Directory.Exists),
-                    _publicInterfaceDeclaration,
-                    _applicationRoot,
-                    "AppTemplate.Application")
+            [.. _applicationProjects
+                .SelectMany(project => DeclarationsIn(
+                    project,
+                    PortFoldersOf(project),
+                    _publicInterfaceDeclaration))
                 .Distinct(StringComparer.Ordinal)
                 .Order(StringComparer.Ordinal)];
 
         DomainRepositoryFullNames =
-            [.. DeclarationsUnder(
-                    Directory.Exists(_domainRoot)
-                        ? Directory.EnumerateDirectories(_domainRoot, "Repositories", SearchOption.AllDirectories)
-                        : [],
-                    _publicInterfaceDeclaration,
-                    _domainRoot,
-                    "AppTemplate.Domain")
+            [.. _domainProjects
+                .SelectMany(project => DeclarationsIn(
+                    project,
+                    FoldersNamed(ProjectReferenceGraph.RootOf(project), "Repositories"),
+                    _publicInterfaceDeclaration))
                 .Distinct(StringComparer.Ordinal)
                 .Order(StringComparer.Ordinal)];
 
@@ -168,48 +172,94 @@ internal static class SourceDeclarations
     {
         var complaints = new List<string>();
 
+        if (_applicationProjects.Count == 0)
+        {
+            complaints.Add(
+                "The project graph reports no project in the application layer, so every population " +
+                "read here is empty and every comparison against one holds by comparing nothing.");
+        }
+
+        if (_domainProjects.Count == 0)
+        {
+            complaints.Add("The project graph reports no project in the domain layer.");
+        }
+
         if (Verticals.Count == 0)
         {
             complaints.Add(
-                $"No vertical folder was found under '{_featuresRoot}', so every population read " +
-                "here is empty and every comparison against one holds by comparing nothing.");
+                "No vertical folder was found under the Features of any application project.");
         }
 
-        complaints.AddRange(Verticals
-            .Where(vertical => Directory.Exists(Path.Combine(_featuresRoot, vertical, "UseCases")))
-            .Where(vertical => !UseCaseFullNames.Any(fullName => fullName.StartsWith(
-                $"AppTemplate.Application.Features.{vertical}.UseCases.", StringComparison.Ordinal)))
-            .Select(vertical =>
-                $"'{vertical}' has a UseCases folder in which no use-case class declaration was " +
-                "found, so the declaration pattern has stopped matching what is written there."));
+        // Per project rather than per vertical name: the same vertical can be split across projects,
+        // and a UseCases folder that has stopped matching in one of them is invisible to a check
+        // satisfied by the other.
+        complaints.AddRange(_applicationProjects
+            .SelectMany(project => VerticalsOf(project)
+                .Where(vertical => Directory.Exists(
+                    Path.Combine(ProjectReferenceGraph.RootOf(project), "Features", vertical, "UseCases")))
+                .Where(vertical => !UseCaseFullNames.Any(fullName => fullName.StartsWith(
+                    $"{project.Name}.Features.{vertical}.UseCases.", StringComparison.Ordinal)))
+                .Select(vertical =>
+                    $"'{project.Name}' declares the vertical '{vertical}' with a UseCases folder in " +
+                    "which no use-case class declaration was found, so the declaration pattern has " +
+                    "stopped matching what is written there.")));
 
         if (PortFullNames.Count == 0)
         {
             complaints.Add(
-                $"No port interface was found under '{_featuresRoot}' or '{_applicationRoot}\\Common'.");
+                "No port interface was found under a vertical's Ports folder or under the Common " +
+                "folder of any application project.");
         }
 
         if (DomainRepositoryFullNames.Count == 0)
         {
-            complaints.Add($"No repository contract was found in a Repositories folder under '{_domainRoot}'.");
+            complaints.Add(
+                "No repository contract was found in a Repositories folder of any domain project.");
         }
 
         return complaints;
     }
 
     /// <summary>
-    /// Every capture of <paramref name="declaration"/> in the source files under
-    /// <paramref name="roots"/>, as the full name the folder and the declaration together imply.
+    /// The verticals one project has, by folder name under its <c>Features</c>.
     /// </summary>
-    private static List<string> DeclarationsUnder(
-        IEnumerable<string> roots,
-        Regex declaration,
-        string projectRoot,
-        string rootNamespace)
+    private static List<string> VerticalsOf(ProjectNode project) =>
+        SubfolderNamesOf(Path.Combine(ProjectReferenceGraph.RootOf(project), "Features"));
+
+    /// <summary>
+    /// Where the port convention puts an interface in one project: under a vertical's <c>Ports</c>,
+    /// or anywhere under <c>Common</c>.
+    /// </summary>
+    private static IEnumerable<string> PortFoldersOf(ProjectNode project)
     {
+        string root = ProjectReferenceGraph.RootOf(project);
+
+        return VerticalsOf(project)
+            .Select(vertical => Path.Combine(root, "Features", vertical, "Ports"))
+            .Append(Path.Combine(root, "Common"))
+            .Where(Directory.Exists);
+    }
+
+    private static IEnumerable<string> FoldersNamed(string root, string folderName) =>
+        Directory.Exists(root)
+            ? Directory.EnumerateDirectories(root, folderName, SearchOption.AllDirectories)
+            : [];
+
+    /// <summary>
+    /// Every capture of <paramref name="declaration"/> under <paramref name="roots"/>, as the full
+    /// name the folder and the declaration together imply. A project's name is its root namespace,
+    /// which is what lets one walk serve every project of a layer.
+    /// </summary>
+    private static List<string> DeclarationsIn(
+        ProjectNode project,
+        IEnumerable<string> roots,
+        Regex declaration)
+    {
+        string projectRoot = ProjectReferenceGraph.RootOf(project);
+        string rootNamespace = project.Name;
         var found = new List<string>();
 
-        foreach (string root in roots)
+        foreach (string root in roots.Where(Directory.Exists))
         {
             foreach (string file in SourceFilesUnder(root))
             {

@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Identity.Common.Directories;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Options;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Services;

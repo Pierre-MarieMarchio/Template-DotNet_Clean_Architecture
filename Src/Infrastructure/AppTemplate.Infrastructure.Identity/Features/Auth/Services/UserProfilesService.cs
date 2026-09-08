@@ -1,5 +1,5 @@
 ﻿using System.Globalization;
-using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
+using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 

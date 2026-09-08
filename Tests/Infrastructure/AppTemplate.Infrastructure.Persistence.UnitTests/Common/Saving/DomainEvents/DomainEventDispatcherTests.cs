@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Events;
-using AppTemplate.Domain.Common.Events;
+﻿using AppTemplate.Application.Core.Common.Events;
+using AppTemplate.Domain.Core.Common.Events;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,5 +1,5 @@
 ﻿using System.Globalization;
-using AppTemplate.Domain.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using AppTemplate.Domain.Features.TodoLists.ValueObjects;

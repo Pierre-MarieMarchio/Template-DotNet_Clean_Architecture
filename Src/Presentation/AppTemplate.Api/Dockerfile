@@ -56,15 +56,20 @@ COPY ["global.json", "Directory.Build.props", "Directory.Build.targets", "Direct
 #    ProjectReference graph, so a missing or misplaced entry fails this layer rather than
 #    being silently picked up by the `COPY . .` further down. AppTemplate.Infrastructure.InMemory is
 #    deliberately absent — it is a test-double module the API does not reference.
-COPY ["Src/Domain/AppTemplate.Domain/AppTemplate.Domain.csproj",                                                     "Src/Domain/AppTemplate.Domain/"]
-COPY ["Src/Application/AppTemplate.Application/AppTemplate.Application.csproj",                                      "Src/Application/AppTemplate.Application/"]
-COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence/AppTemplate.Infrastructure.Persistence.csproj",     "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/"]
-COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Identity/AppTemplate.Infrastructure.Identity.csproj",           "Src/Infrastructure/AppTemplate.Infrastructure.Identity/"]
-COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Email/AppTemplate.Infrastructure.Email.csproj",                 "Src/Infrastructure/AppTemplate.Infrastructure.Email/"]
-COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Storage/AppTemplate.Infrastructure.Storage.csproj",             "Src/Infrastructure/AppTemplate.Infrastructure.Storage/"]
-COPY ["Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj",                                                     "Src/Presentation/AppTemplate.Api/"]
+COPY ["Src/Domain/AppTemplate.Domain.Core/AppTemplate.Domain.Core.csproj",                                       "Src/Domain/AppTemplate.Domain.Core/"]
+COPY ["Src/Domain/AppTemplate.Domain/AppTemplate.Domain.csproj",                                                 "Src/Domain/AppTemplate.Domain/"]
+COPY ["Src/Application/AppTemplate.Application.Core/AppTemplate.Application.Core.csproj",                        "Src/Application/AppTemplate.Application.Core/"]
+COPY ["Src/Application/AppTemplate.Application.Auth/AppTemplate.Application.Auth.csproj",                        "Src/Application/AppTemplate.Application.Auth/"]
+COPY ["Src/Application/AppTemplate.Application/AppTemplate.Application.csproj",                                  "Src/Application/AppTemplate.Application/"]
+COPY ["Src/Presentation/AppTemplate.Presentation.Core/AppTemplate.Presentation.Core.csproj",                     "Src/Presentation/AppTemplate.Presentation.Core/"]
+COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence/AppTemplate.Infrastructure.Persistence.csproj", "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/"]
+COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Identity/AppTemplate.Infrastructure.Identity.csproj",       "Src/Infrastructure/AppTemplate.Infrastructure.Identity/"]
+COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Email/AppTemplate.Infrastructure.Email.csproj",             "Src/Infrastructure/AppTemplate.Infrastructure.Email/"]
+COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Storage/AppTemplate.Infrastructure.Storage.csproj",         "Src/Infrastructure/AppTemplate.Infrastructure.Storage/"]
+COPY ["Src/Presentation/AppTemplate.Api.Core/AppTemplate.Api.Core.csproj",                                     "Src/Presentation/AppTemplate.Api.Core/"]
+COPY ["Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj",                                                 "Src/Presentation/AppTemplate.Api/"]
 
-# Restoring the API transitively restores the five projects it references.
+# Restoring the API transitively restores the projects it references.
 #
 # Deliberately NO `--mount=type=cache` for ~/.nuget/packages here: the restored
 # assets would live outside the layer, and the later `dotnet publish --no-restore`

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Auth.Ports.ConfirmationEmailFactory;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ConfirmationEmailFactory;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Options;
 using Microsoft.Extensions.Options;
 

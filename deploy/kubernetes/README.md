@@ -1,4 +1,4 @@
-# Kubernetes manifests
+﻿# Kubernetes manifests
 
 Raw manifests, no Helm chart — that is a deliberate choice, not a placeholder for one. The
 narrative — why each value is what it is, and the three durations that have to agree with each

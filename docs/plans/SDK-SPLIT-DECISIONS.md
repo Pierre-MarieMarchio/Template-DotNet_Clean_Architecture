@@ -4,8 +4,8 @@ Companion to `docs/plans/SDK-SPLIT-PLAN.md`. This document exists so the analysi
 is never redone. Each entry states the decision, then the reason, then what was rejected and why —
 the rejections are the load-bearing half.
 
-Entries 33 to 38 settle the questions wave 6 was blocked on. The separation of authentication has
-its own document, `docs/plans/AUTH-SEPARATION.md`, with decisions A1 to A8.
+Entries 33 to 38 settle the questions wave 6 was blocked on, and 39 to 42 wave 7's. The separation
+of authentication has its own document, `docs/plans/AUTH-SEPARATION.md`, with decisions A1 to A8.
 
 ## 1. Five projects, one per SDK concern
 
@@ -1010,6 +1010,84 @@ those are named directly.
 
 **File names are kept.** `docs/plans/SDK-SPLIT-*.md` are cited from each other, from the handoff and
 from this document; renaming five files and their cross-references buys a word.
+
+## 39. The limits extend the section that already exists
+
+**Decided.** The capabilities `docs/plans/SDK-SPLIT-BLAST-RADIUS.md` lists as 5 to 11 join
+`docs/ARCHITECTURE.md`'s `What is deliberately absent` table, each row naming the extension point a
+derived project would use. No second section is created.
+
+**Reason.** That table already answers the question a reader arrives with — what is not here, and
+what to do about it — and it already holds both kinds of row. `An outbox` is a capability with an
+extension point; `AutoMapper` is a design choice with nothing to extend. So the distinction a second
+section would draw is one this table has never drawn, and seven new rows are not the occasion to
+start.
+
+**Rejected — a second section beside it.** Two headings a screen apart, both answering "what this
+template does not do", and a reader who finds one has no reason to look for the other. The failure
+mode is a limit documented twice, or in neither.
+
+**Rejected — one heading with two subsections.** It states the distinction without paying for it:
+every row still has to be sorted into "choice" or "gap", and a per-tenant notion is both at once —
+absent by choice and absent as a capability.
+
+## 40. The fixtures a derived project inherits are documented in `CONTRIBUTING.md`
+
+**Decided.** What a derived project receives under `Tests/` is described in `CONTRIBUTING.md`'s
+`## Tests` section. No `docs/TESTING.md` is created.
+
+**Reason.** Decision 36 withdrew the test kit because a derived project receives the whole of
+`Tests/` by generation. What is left to write is therefore not a catalogue of a deliverable but a
+note on the discipline that section already states: which fixtures name no product type and can be
+leaned on as they are, which two name the product and have to be edited, and that copying is the
+delivery mechanism rather than a gap. That is a few paragraphs, in a section that exists.
+
+**Rejected — `docs/TESTING.md`.** A seventh document and a sixth surface for the path gate to keep
+true, for a subject a few paragraphs long, and split from the testing discipline it qualifies.
+
+**Rejected — `docs/ARCHITECTURE.md`.** That document describes what the generated application is.
+The fixtures are how this repository is worked on, which is `CONTRIBUTING.md`'s subject.
+
+## 41. The changelog records the split by subject, not as one entry
+
+**Decided.** `[Unreleased]` gains five entries: the six projects written to package grade, tagging
+as the worked example of a business `Common/`, `PeriodicJob`, `AppTemplate.Infrastructure.Core` with
+the email-template engine it holds, and the cache port with the two reads that consume it.
+
+**Reason.** The file's own preface fixes the test: what counts as notable in a template is what
+changes the generated project. Each of the five does, and in a way a reader searches for by name —
+someone asking whether this template caches anything looks for the word "cache", not for the name of
+a chantier.
+
+**Rejected — one consolidated entry.** Shorter, and it files four subjects under a word that names
+the work rather than the change, where nobody will look for them.
+
+**Rejected — one entry per wave.** It records the order the work happened in, which is what the
+preface excludes: a wave boundary is invisible to someone starting a new project from this
+repository.
+
+## 42. The markdown BOM is normalised, and the rule is stated in `.editorconfig`
+
+**Decided.** A `.md` file carries a UTF-8 BOM, except under `docs/plans/`, which carries none. Both
+halves are stated in `.editorconfig`: `charset = utf-8-bom` joins the `[*.md]` section that already
+exists, and a `[docs/plans/*.md]` section sets `charset = utf-8`. `deploy/kubernetes/README.md`
+follows the general rule and gains one.
+
+**Reason.** Two files sit outside the shape the other fifteen have, and nothing says which shape is
+intended, so the next person to add a document copies whichever neighbour they opened. Writing it in
+`.editorconfig` puts the answer where an editor reads it and where a reader looks for it.
+
+**What enforces it, stated rather than implied: nothing does.** `dotnet format` reads `charset` for
+the documents in the compilation, and a `.md` file is not one, so the section is a statement to
+editors and to readers, not a gate. That is why the two intruders are normalised in the same lot:
+the statement has to start out true, because nothing will notice it drifting.
+
+**Rejected — normalising without writing the rule down.** It leaves the convention deducible only by
+counting files, which is how the inconsistency arrived.
+
+**Rejected — a gate of its own.** A hygiene check over seventeen files' first three bytes, for a
+property no tool in this repository reads. `Tools/` already carries five gates, and each of the
+others exists because something real broke without it.
 
 ## Two corrections to `docs/plans/SDK-SPLIT-TARGET.md`, found while implementing wave 4
 

@@ -584,11 +584,13 @@ And the fixture and helper code, which the compiler finds for you:
   and goes with the `Features/TodoLists/` mirror in the table above **(T)**. This is the shape most
   of the application layer's mechanisms now have: what a removal touches is under `Features/`, and
   what it must not touch is in another project.
-- `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Common/Saving/DomainEvents/DomainEventDispatcherTests.cs`
-  and its `DomainEventDispatchSaveChangesInterceptorTests.cs` sibling raise real `TodoLists` events
-  through a real tracker **(T)**; both the dispatcher and the interceptor are generic over
-  `IDomainEvent`, so a private in-file event record and a minimal `IDomainEventSource` cover them
-  with no feature at all.
+- `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Common/Saving/DomainEvents/DomainEventDispatchSaveChangesInterceptorTests.cs`
+  raises real `TodoLists` events through a real tracker **(T)**; the interceptor is generic over
+  `IDomainEvent`, so a private in-file event record and a minimal `IDomainEventSource` cover it with
+  no feature at all. Its dispatcher sibling needs no edit: it lives in
+  `Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Saving/DomainEvents/DomainEventDispatcherTests.cs`
+  and already raises an event of its own, because a mirror of a package-grade project may name no
+  business type.
 - `Tests/Presentation/AppTemplate.Api.UnitTests/Conventions/ControllerContractTests.cs`'s
   deliberately-leaking test controller returns `TodoItemDto` **(T)**; repoint it at any application
   type from a vertical that survives.

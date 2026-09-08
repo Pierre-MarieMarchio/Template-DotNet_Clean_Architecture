@@ -7,7 +7,7 @@ using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Architecture.Tests.Fixtures;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
+using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -230,14 +230,14 @@ public sealed class ContainerCompositionTests
     /// — every port that project declares has to be resolvable here, not merely the ports this
     /// host's own loops reach. Which is also why this host could drop the module only by dropping
     /// that call, and
-    /// <see cref="RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer"/>
+    /// <see cref="RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer"/>
     /// carries what else stands in the way.
     /// </para>
     /// </summary>
     [Fact]
     public void TheWorkerContainer_NeedsIdentityForItsReminderLoop_NotOnlyForThePurgeAdapter()
     {
-        var services = HostComposition.ComposeWorkerWithoutTheIdentityModule(HostComposition.Configuration());
+        var services = HostComposition.ComposeWorkerWithoutTheAuthModule(HostComposition.Configuration());
 
         var exception = Should.Throw<AggregateException>(
             () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose());
@@ -245,7 +245,7 @@ public sealed class ContainerCompositionTests
         exception.Message.ShouldContain(
             nameof(IUserProfilesService),
             customMessage: "If this port ever stops being needed here, the worker really can drop " +
-            "AddIdentityModule — and the comments in Program.cs, the csproj, docker-compose.yml, " +
+            "AddAuthModule — and the comments in Program.cs, the csproj, docker-compose.yml, " +
             "configmap-worker.yaml and docs/CONFIGURATION.md all become answerable at last.");
 
         exception.Message.ShouldContain(
@@ -255,31 +255,33 @@ public sealed class ContainerCompositionTests
     }
 
     /// <summary>
-    /// What still holds authentication in place, named rather than described — so the two couplings
-    /// that make removing it more than deleting a call cannot quietly stop being the reason.
+    /// What still holds authentication in place, named rather than described — so the one coupling
+    /// that makes removing it more than deleting a call cannot quietly stop being the reason.
     /// <para>
-    /// Registration is per feature now, and no business feature names anything in
+    /// Registration is per feature, and no business feature names anything in
     /// <c>AppTemplate.Application.Auth</c> — <c>TheApplicationLayer_KnowsNothingOfAuthentication</c>
     /// holds that half. So the application layer is genuinely free of it. What is not free of it is
-    /// the infrastructure underneath, in two places, and both are visible in this container's
-    /// refusal to build:
+    /// one adapter underneath: <c>IReminderNotifier</c>, which the reminder feature's own use case
+    /// takes, has its single implementation in the email module — whose reminder notifier in turn
+    /// resolves an authentication port to find the address a due reminder is rung at.
     /// </para>
     /// <para>
-    /// <c>IIdentitySeeder</c> is registered by the <em>persistence</em> module and needs a
-    /// <c>UserManager</c> that only the identity module supplies, so the pair is bidirectional and
-    /// persistence alone cannot be composed. And <c>IReminderNotifier</c>, which the reminder
-    /// feature's own use case takes, has its single adapter in the email module — whose reminder
-    /// notifier in turn resolves an authentication port to find an address.
+    /// <b>The second coupling is gone, and this test asserts its absence rather than trusting it.</b>
+    /// <c>IIdentitySeeder</c> was registered by the <em>persistence</em> module and needed a
+    /// <c>UserManager</c> only the authentication module supplies, which made the pair bidirectional
+    /// and meant persistence alone could not be composed. The seeder is the authentication module's
+    /// now, so dropping that module takes the seeder with it. The migration caveat went the same
+    /// way: each half has its own initial migration, so removing authentication no longer means
+    /// regenerating the business one.
     /// </para>
     /// <para>
-    /// Which is why the honest claim is the one this test makes and not "a container builds without
-    /// authentication": in this template it does not, and a derived project dropping authentication
-    /// answers for those two before it answers for anything in the application layer. Regenerating
-    /// the initial migration, which mixes the identity tables with the rest, is the third.
+    /// The honest claim is therefore still not "a container builds without authentication" — in this
+    /// template it does not — but what is left to answer for is one adapter rather than three
+    /// things.
     /// </para>
     /// </summary>
     [Fact]
-    public void RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer()
+    public void RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer()
     {
         var services = HostComposition.ComposeApiWithoutAuthentication(HostComposition.Configuration());
 
@@ -287,16 +289,16 @@ public sealed class ContainerCompositionTests
             () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose());
 
         exception.Message.ShouldContain(
-            nameof(IIdentitySeeder),
-            customMessage: "The persistence module no longer registers a seeder that needs the " +
-            "identity module, which would mean that pair has stopped being bidirectional — so a " +
-            "derived project really can drop authentication without regenerating persistence, and " +
-            "the caveat in docs/REMOVING-THE-EXAMPLE-FEATURES.md is answerable at last.");
-
-        exception.Message.ShouldContain(
             nameof(IReminderNotifier),
             customMessage: "The reminder feature no longer needs a notifier, so it has stopped " +
-            "depending on the email module and one of the two couplings is gone.");
+            "depending on the email module and the last coupling is gone — which would make " +
+            "\"a container builds without authentication\" true at last.");
+
+        exception.Message.ShouldNotContain(
+            nameof(IIdentitySeeder),
+            customMessage: "The seeder is holding this container up again, which means it has gone " +
+            "back to being registered by a module that cannot supply what it needs. It belongs to " +
+            "the authentication module, so that module's absence must take it away.");
     }
 
     // ---- Proof that the checks above can fail -------------------------------------------------

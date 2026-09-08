@@ -35,12 +35,14 @@ public static class InfrastructureCoreModule
 
     /// <summary>
     /// Registers the mechanisms one <typeparamref name="TContext"/> saves through: the three
-    /// interceptors, the domain-event dispatcher, and <see cref="IUnitOfWork"/> over that context.
+    /// interceptors, the domain-event dispatcher, and
+    /// <see cref="IContextUnitOfWork{TContext}"/> over that context.
     /// </summary>
     /// <remarks>
-    /// The context is a type argument rather than something resolved, because a deployment may own
-    /// more than one and nothing registers the base <see cref="DbContext"/> for a container to pick
-    /// from. Attaching the interceptors to that context is a second step:
+    /// The commit boundary is registered under <see cref="IContextUnitOfWork{TContext}"/> and not
+    /// under the unnamed <see cref="IUnitOfWork"/>, so two modules calling this do not overwrite
+    /// each other: whichever module owns the context a use case should commit through registers
+    /// that mapping itself. Attaching the interceptors is a second step,
     /// <see cref="AddCoreSavingInterceptors"/>, called where the context's options are built.
     /// </remarks>
     /// <typeparam name="TContext">The context whose saves these mechanisms govern.</typeparam>
@@ -55,8 +57,7 @@ public static class InfrastructureCoreModule
         services.TryAddScoped<AuditingSaveChangesInterceptor>();
         services.TryAddScoped<DomainEventDispatchSaveChangesInterceptor>();
         services.TryAddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
-        services.TryAddScoped<IUnitOfWork>(
-            provider => new EfUnitOfWork(provider.GetRequiredService<TContext>()));
+        services.TryAddScoped<IContextUnitOfWork<TContext>, EfUnitOfWork<TContext>>();
 
         return services;
     }

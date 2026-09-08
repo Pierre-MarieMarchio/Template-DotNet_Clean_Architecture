@@ -75,7 +75,7 @@ public static class InMemoryModule
     /// Registers the arranged <see cref="IExternalIdentityVerifier"/> on its own, without the clock
     /// and email-sender swaps <see cref="AddInMemoryModule"/> also makes.
     /// <para>
-    /// The real adapter (<c>ExternalIdentityVerifier</c>, in <c>AppTemplate.Infrastructure.Identity</c>)
+    /// The real adapter (<c>ExternalIdentityVerifier</c>, in <c>AppTemplate.Infrastructure.Auth</c>)
     /// fetches a provider's key set over HTTP, so it is an outward call like every other one replaced
     /// here — and it is also the only port a test could not reach any other way, since presenting a
     /// token it would accept means holding Google's private key.

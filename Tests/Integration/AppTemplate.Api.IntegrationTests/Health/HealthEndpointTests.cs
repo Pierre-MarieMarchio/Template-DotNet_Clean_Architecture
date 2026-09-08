@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
+using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -10,7 +11,7 @@ using Xunit;
 namespace AppTemplate.Api.IntegrationTests.Health;
 
 /// <summary>
-/// Liveness answers without touching a dependency; readiness answers for the database.
+/// Liveness answers without touching a dependency; readiness answers for both databases.
 /// </summary>
 public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
@@ -40,7 +41,7 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
 
     /// <summary>
     /// The readiness endpoint answers in minimal plaintext, so its body names no individual check.
-    /// This is what proves what readiness reports on: the database it needs to serve a request, and
+    /// This is what proves what readiness reports on: the two contexts it needs to serve a request, and
     /// whether the host has begun shutting down. Both carry the tag the endpoint filters by.
     /// </summary>
     [Fact]
@@ -49,7 +50,7 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
         // Which checks, not in which order: the predicate selects them by tag, and the order they
         // were registered in is an artefact of the shutdown check arriving with AddCoreHealthChecks
         // and the database check being chained onto the builder it returns.
-        ReadyCheckNames().ShouldBe(["database", "shutdown"], ignoreOrder: true);
+        ReadyCheckNames().ShouldBe(["auth-database", "database", "shutdown"], ignoreOrder: true);
     }
 
     /// <summary>
@@ -61,11 +62,11 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
     [Fact]
     public void Liveness_RunsNoChecks()
     {
-        // Both registered checks are readiness checks, and the liveness endpoint's predicate
+        // Every registered check is a readiness check, and the liveness endpoint's predicate
         // excludes all of them.
         Registrations()
             .Select(registration => registration.Name)
-            .ShouldBe(["database", "shutdown"], ignoreOrder: true);
+            .ShouldBe(["auth-database", "database", "shutdown"], ignoreOrder: true);
     }
 
     [Fact]
@@ -80,25 +81,27 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
             TestToken);
 
         schemas.ShouldContain(AppDbContext.TodoSchema);
-        schemas.ShouldContain(AppDbContext.IdentitySchema);
+        schemas.ShouldContain(AuthDbContext.IdentitySchema);
     }
 
     /// <summary>
-    /// One context means one migrations history. Two histories could disagree about what had been
-    /// applied, and a deployment could leave one feature's schema ahead of the other's.
+    /// One history per context, and each in its own schema. Two contexts sharing one history would
+    /// let either half's migrations claim the other's had been applied; a half with no history of
+    /// its own would never be migrated at all.
     /// </summary>
     [Fact]
-    public async Task ThereIsExactlyOneMigrationsHistoryTable()
+    public async Task EachContextHasAMigrationsHistoryOfItsOwn()
     {
         var histories = await Database.QueryAsync(
             $"""
             SELECT table_schema
             FROM information_schema.tables
             WHERE table_name = '{AppDbContext.MigrationsHistoryTableName}'
+            ORDER BY table_schema
             """,
             TestToken);
 
-        histories.ShouldBe([AppDbContext.MigrationsHistorySchema]);
+        histories.ShouldBe([AuthDbContext.MigrationsHistorySchema, AppDbContext.MigrationsHistorySchema]);
     }
 
     private IEnumerable<HealthCheckRegistration> Registrations() =>

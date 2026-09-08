@@ -12,7 +12,7 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// <para>
 /// A mail's subject is its body's own <c>&lt;title&gt;</c>, which is what keeps that pair together.
 /// What no single file can keep together is the two modules:
-/// <c>AppTemplate.Infrastructure.Identity</c> renders the three account mails and
+/// <c>AppTemplate.Infrastructure.Auth</c> renders the three account mails and
 /// <c>AppTemplate.Infrastructure.Email</c> the reminder, they may not reference each other, and a
 /// language added to one folder and not the other gives a deployment a password reset in French and
 /// a reminder in English. These rules are what stands between that and nobody noticing.
@@ -38,7 +38,7 @@ public sealed class EmailTemplateCoverageTests
     /// </summary>
     private static readonly string[] _templateFolders =
     [
-        "Src/Infrastructure/AppTemplate.Infrastructure.Identity/Features/Auth/Templates",
+        "Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates",
         "Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders",
     ];
 

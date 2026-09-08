@@ -32,6 +32,9 @@
        a context talks to is the module's decision, not this project's. -->
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <!-- Read by DefaultConnectionString, which is the one name every context in the system reaches
+         its database through. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
   </ItemGroup>
 
   <!-- Any change to the public surface is an explicit diff in PublicAPI.Unshipped.txt to review,

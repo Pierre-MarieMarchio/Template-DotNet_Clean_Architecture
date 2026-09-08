@@ -68,9 +68,10 @@ public sealed class StorageVocabularyTests
     }
 
     /// <summary>
-    /// The distinction that made the rename worth doing: a <c>Table</c> is declared where its rows
-    /// are, and no use case knows it exists. One that appears in Application has become a port, and
-    /// a port is a <c>Store</c>, a <c>Repository</c> or a <c>Queries</c> — not a table.
+    /// The distinction that made the rename worth doing: a <c>Table</c> is declared in the module
+    /// that owns its rows, and no use case knows it exists. One that appears in Application has
+    /// become a port, and a port is a <c>Store</c>, a <c>Repository</c> or a <c>Queries</c> — not a
+    /// table.
     /// </summary>
     [Fact]
     public void NoTableContract_IsDeclaredInOrReachedFromTheApplicationLayer()
@@ -85,14 +86,15 @@ public sealed class StorageVocabularyTests
             1,
             "No Table contract was found at all, so this rule is checking an empty set.");
 
-        var declaredOutsidePersistence = tables
-            .Where(table => table.Assembly != ArchitectureAssemblies.Persistence)
+        var declaredOutsideARowOwner = tables
+            .Where(table => !_rowOwners.Contains(table.Assembly))
             .Select(table => table.FullName ?? table.Name)
             .Order(StringComparer.Ordinal)
             .ToList();
 
-        declaredOutsidePersistence.ShouldBeEmpty(
-            "A Table contract belongs in the assembly that owns the rows. Declared anywhere else it " +
+        declaredOutsideARowOwner.ShouldBeEmpty(
+            "A Table contract belongs in the module that owns the rows — the business one for a " +
+            "business table, the authentication one for the grant table. Declared anywhere else it " +
             "is a port that forgot to say so.");
 
         var ports = ApplicationPorts.All
@@ -139,8 +141,19 @@ public sealed class StorageVocabularyTests
             "nothing about a word nobody is using.");
     }
 
+    /// <summary>
+    /// The application layer plus every module that owns rows. A module is included so that a Table
+    /// declared in the wrong one is still seen: the rule below is about which assembly declares a
+    /// contract, and a search that skipped the modules could not tell a misplaced one from none.
+    /// </summary>
+    private static readonly Assembly[] _rowOwners =
+    [
+        ArchitectureAssemblies.Persistence,
+        ArchitectureAssemblies.IdentityInfrastructure,
+    ];
+
     private static List<Type> ContractsNamed(string suffix) =>
-        [.. new[] { ArchitectureAssemblies.Application, ArchitectureAssemblies.Persistence }
+        [.. _rowOwners.Prepend(ArchitectureAssemblies.Application)
             .SelectMany(assembly => assembly.GetTypes())
             .Where(type => type is { IsInterface: true, IsNested: false })
             .Where(type => type.Name.EndsWith(suffix, StringComparison.Ordinal))

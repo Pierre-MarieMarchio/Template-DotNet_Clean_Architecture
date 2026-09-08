@@ -1,0 +1,20 @@
+﻿using AppTemplate.Infrastructure.Auth.Common.Contexts;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace AppTemplate.Infrastructure.Auth.Features.Auth.Configurations;
+
+/// <summary>
+/// Mapping for the key ring the identity module persists its token-provider keys to, so a
+/// confirmation or reset token minted by one instance stays valid on another.
+/// </summary>
+internal sealed class DataProtectionKeyConfiguration : IEntityTypeConfiguration<DataProtectionKey>
+{
+    public void Configure(EntityTypeBuilder<DataProtectionKey> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("DataProtectionKeys", AuthDbContext.IdentitySchema);
+    }
+}

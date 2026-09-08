@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using AppTemplate.Architecture.Tests.Fixtures;
-using AppTemplate.Domain.Common.Events;
-using AppTemplate.Domain.Common.Primitives;
+using AppTemplate.Domain.Core.Common.Events;
+using AppTemplate.Domain.Core.Common.Primitives;
 using NetArchTest.Rules;
 using Shouldly;
 using Xunit;

@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Api.Features.Maintenance.Contracts.Responses;
-using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Api.Features.Maintenance.Mapping;
 

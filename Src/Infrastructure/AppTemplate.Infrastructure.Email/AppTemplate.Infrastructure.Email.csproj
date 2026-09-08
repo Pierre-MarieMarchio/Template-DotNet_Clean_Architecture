@@ -33,6 +33,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
+    <ProjectReference Include="..\..\Application\AppTemplate.Application.Auth\AppTemplate.Application.Auth.csproj" />
   </ItemGroup>
 
   <!-- The options validator decides whether this process is allowed to send mail over a transport

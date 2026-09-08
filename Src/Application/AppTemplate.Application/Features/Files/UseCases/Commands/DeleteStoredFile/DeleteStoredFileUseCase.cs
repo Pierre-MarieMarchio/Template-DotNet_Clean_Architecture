@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Common.Validation;
+﻿using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Core.Common.Validation;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Domain.Features.Files.Repositories;
 using FluentValidation;

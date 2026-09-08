@@ -128,6 +128,14 @@ internal static class CheckDocPaths
         return index > 0 && index < name.Length - 1 ? name[index..] : string.Empty;
     }
 
+    private static bool UnderExemptDirectory(string fullPath) =>
+        Segments(fullPath).Any(ExemptDirectoryNames.Contains);
+
+    private static string[] Segments(string fullPath) =>
+        fullPath.Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+            StringSplitOptions.RemoveEmptyEntries);
+
     private static bool UnderSkippedDirectory(string fullPath)
     {
         foreach (var part in fullPath.Split(
@@ -179,12 +187,19 @@ internal static class CheckDocPaths
         return collected;
     }
 
-    /// <summary>Paths git is told to ignore.</summary>
+    /// <summary>Paths git is told to ignore, in the separator shape <see cref="Normalised"/> gives.</summary>
     /// <remarks>
+    /// <para>
     /// Asked of git rather than parsed out of <c>.gitignore</c>, because a gate that reimplements
     /// the ignore rules disagrees with them eventually. A tree that is not a repository, or a
     /// machine with no git, yields nothing to skip rather than an error: the check still runs, over
     /// slightly more.
+    /// </para>
+    /// <para>
+    /// Git echoes back each ignored path exactly as it was fed one, so the paths go in normalised
+    /// and the answers come out comparable. A backslash also makes git quote and escape the path it
+    /// prints, which no reading of the reply would survive.
+    /// </para>
     /// </remarks>
     private static HashSet<string> GitIgnored(string repo, List<string> paths)
     {
@@ -222,7 +237,7 @@ internal static class CheckDocPaths
             var standardOutput = process.StandardOutput.ReadToEndAsync();
             var standardError = process.StandardError.ReadToEndAsync();
 
-            process.StandardInput.Write(string.Join("\n", paths));
+            process.StandardInput.Write(string.Join("\n", paths.Select(Normalised)));
             process.StandardInput.Close();
             process.WaitForExit();
 
@@ -231,7 +246,7 @@ internal static class CheckDocPaths
             foreach (var line in standardOutput.GetAwaiter().GetResult()
                          .Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
-                ignored.Add(line.TrimEnd('\r'));
+                ignored.Add(Normalised(line.TrimEnd('\r')));
             }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -242,11 +257,18 @@ internal static class CheckDocPaths
         return ignored;
     }
 
+    /// <summary>The candidates git is not told to ignore.</summary>
+    /// <remarks>
+    /// The tree's own paths carry the platform separator, so the lookup normalises them to match the
+    /// shape the ignore list holds. The comparison itself stays exact: a path that differs from
+    /// another only in case, or that merely contains it, is a different path, and an ignore list that
+    /// swallowed either would quietly shrink the candidate set the whole gate rests on.
+    /// </remarks>
     private static List<string> Tracked(string repo, List<string> candidates)
     {
         var ignored = GitIgnored(repo, candidates);
 
-        return candidates.Where(path => !ignored.Contains(path)).ToList();
+        return candidates.Where(path => !ignored.Contains(Normalised(path))).ToList();
     }
 
     /// <summary>
@@ -259,6 +281,14 @@ internal static class CheckDocPaths
     private static readonly HashSet<string> ExemptFileNames =
         new(StringComparer.OrdinalIgnoreCase) { "CHANGELOG.md" };
 
+    /// <summary>
+    /// Directories whose Markdown states an intention rather than a fact. A plan cites the tree it
+    /// means to create, so its paths are claims about a future tree and cannot be checked against
+    /// this one — the same reason <see cref="ExemptFileNames"/> excludes a changelog, one tense over.
+    /// </summary>
+    private static readonly HashSet<string> ExemptDirectoryNames =
+        new(StringComparer.Ordinal) { "plans" };
+
     private static List<string> CollectMarkdown(string repo, List<FileSystemInfo> entries)
     {
         var candidates = entries
@@ -266,6 +296,7 @@ internal static class CheckDocPaths
                             && entry.Exists
                             && Suffix(entry.Name) == ".md"
                             && !ExemptFileNames.Contains(entry.Name)
+                            && !UnderExemptDirectory(entry.FullName)
                             && !UnderSkippedDirectory(entry.FullName))
             .Select(entry => entry.FullName)
             .ToList();
@@ -545,6 +576,20 @@ internal static class CheckDocPaths
         ("ignored/WORKING-NOTE.md", "A scratch note citing `Src/Application/Missing.cs`.\n"),
     ];
 
+    // The fixture that pins the exempt directory down from both sides: a plan cites the tree it means
+    // to create and the gate must neither read it nor count it, while a note beside it that describes
+    // today is still held to the tree. Only the second half makes the first worth anything — an
+    // exemption that quietly covered the whole tree would satisfy "raises nothing" just as well.
+    private static readonly (string Path, string Content)[] PlannedTree =
+    [
+        ("README.md", "The handler lives in `Src/Application/Present.cs`.\n"),
+        ("Src/Application/Present.cs", ""),
+        ($"{DocDir}/plans/WAVE-ONE.md", "The handler will live in `Src/Application/Planned.cs`.\n"),
+        ("NOTES.md", "The handler lives in `Src/Application/Absent.cs`.\n"),
+    ];
+
+    private static readonly string[] PlannedTreeProblems = ["NOTES.md: `Src/Application/Absent.cs`"];
+
     private static void Materialise(string root, (string Path, string Content)[] files)
     {
         foreach (var (relative, content) in files)
@@ -655,11 +700,31 @@ internal static class CheckDocPaths
             }
         });
 
-        var total = MustFire.Length + MustStaySilent.Length + (ignoredNoteChecked ? 1 : 0);
+        RunInTemporaryTree(PlannedTree, root =>
+        {
+            var result = ScanTree(root);
+
+            if (result.MarkdownFiles != 2)
+            {
+                failures.Add(
+                    "a plan the gate exempts must not be scanned; expected 2 Markdown files, saw "
+                    + $"{result.MarkdownFiles}");
+            }
+
+            if (!result.Problems.SequenceEqual(PlannedTreeProblems, StringComparer.Ordinal))
+            {
+                failures.Add(
+                    "a plan the gate exempts must raise nothing while the note beside it still does; "
+                    + $"expected {Repr(PlannedTreeProblems)}, got {Repr(result.Problems)}");
+            }
+        });
+
+        var total = MustFire.Length + MustStaySilent.Length + (ignoredNoteChecked ? 1 : 0) + 1;
 
         Console.WriteLine(
             $"Self-test: {MustFire.Length} faulted tree(s), {MustStaySilent.Length} sound tree(s), "
-            + $"{(ignoredNoteChecked ? "1 ignored-note tree" : "no ignored-note tree (git absent)")}.");
+            + $"{(ignoredNoteChecked ? "1 ignored-note tree" : "no ignored-note tree (git absent)")}, "
+            + "1 exempt-plan tree.");
         Console.WriteLine();
 
         if (failures.Count > 0)
@@ -705,6 +770,9 @@ internal static class CheckDocPaths
     }
 
     private static string Resolve(string path) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+
+    /// <summary>The path with its separators in the one shape git speaks.</summary>
+    private static string Normalised(string path) => path.Replace('\\', '/');
 
     private static string Relative(string repo, string path) =>
         Path.GetRelativePath(repo, path).Replace(Path.DirectorySeparatorChar, '/');

@@ -1,13 +1,13 @@
 ﻿using System.Reflection;
-using AppTemplate.Api.Common.Caching;
-using AppTemplate.Api.Common.Concurrency;
-using AppTemplate.Api.Common.Errors;
-using AppTemplate.Api.Common.Idempotency;
+using AppTemplate.Api.Core.Common.Caching;
+using AppTemplate.Api.Core.Common.Concurrency;
+using AppTemplate.Api.Core.Common.Errors;
+using AppTemplate.Api.Core.Common.Idempotency;
 using AppTemplate.Api.Features.Files.Contracts.Requests;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
 using AppTemplate.Api.Features.Files.Controllers;
-using AppTemplate.Application.Common.Concurrency;
-using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Errors;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
@@ -202,14 +202,29 @@ public sealed class FilesControllerTests
         var action = await AController(httpContext).GetFile(Guid.CreateVersion7(), TestContext.Current.CancellationToken);
 
         action.Result.ShouldBeOfType<OkObjectResult>().Value.ShouldBeOfType<StoredFileResponse>();
-        httpContext.Response.Headers.ETag.ToString().ShouldBe(EntityTagMapping.From(1234u));
+
+        string tag = httpContext.Response.Headers.ETag.ToString();
+
+        // Strong, which is what If-Match compares under: quoted, and never the W/ prefix. What is
+        // inside the quotes is opaque on purpose, so nothing here reads it.
+        tag.ShouldNotBeNullOrEmpty();
+        tag.ShouldStartWith("\"");
+        tag.ShouldEndWith("\"");
+
+        // And it names that version rather than the resource: a different version publishes a
+        // different tag, which is the whole point of sending one.
+        tag.ShouldNotBe(await APublishedEntityTagAsync(1235u));
     }
 
     [Fact]
     public async Task GetById_Answers304_WhenTheCallerAlreadyNamesThatVersion()
     {
+        // The tag comes from a response, the way a client's would, so this also proves the round
+        // trip: what the API published is what it accepts back.
+        string published = await APublishedEntityTagAsync(1234u);
+
         var httpContext = AContext();
-        httpContext.Request.Headers.IfNoneMatch = EntityTagMapping.From(1234u);
+        httpContext.Request.Headers.IfNoneMatch = published;
 
         _getStoredFile.ExecuteAsync(Arg.Any<GetStoredFileQuery>(), Arg.Any<CancellationToken>())
             .Returns(new Versioned<StoredFileDto>(AFile(StoredFileState.Available), 1234u));
@@ -218,7 +233,7 @@ public sealed class FilesControllerTests
 
         StatusOf(action.Result!).ShouldBe(StatusCodes.Status304NotModified);
         httpContext.Response.Headers.ETag.ToString().ShouldBe(
-            EntityTagMapping.From(1234u),
+            published,
             "RFC 9110 requires a 304 to carry the validator it is refusing to resend the body for.");
     }
 
@@ -230,7 +245,7 @@ public sealed class FilesControllerTests
     public async Task Confirm_HandsTheVersionsFromIfMatch_ToTheUseCase()
     {
         var httpContext = AContext();
-        httpContext.Request.Headers.IfMatch = EntityTagMapping.From(77u);
+        httpContext.Request.Headers.IfMatch = await APublishedEntityTagAsync(77u);
 
         ConfirmFileUploadCommand? captured = null;
 
@@ -295,7 +310,7 @@ public sealed class FilesControllerTests
     public async Task Delete_HandsTheVersionsFromIfMatch_ToTheUseCase_AndAnswers204()
     {
         var httpContext = AContext();
-        httpContext.Request.Headers.IfMatch = EntityTagMapping.From(9u);
+        httpContext.Request.Headers.IfMatch = await APublishedEntityTagAsync(9u);
 
         DeleteStoredFileCommand? captured = null;
 
@@ -454,7 +469,7 @@ public sealed class FilesControllerTests
         var services = new ServiceCollection();
 
         services.AddLogging();
-        services.AddSingleton(Options.Create(new ProblemTypeOptions { BaseUri = ProblemTypes.DefaultBaseUri }));
+        services.AddSingleton(Options.Create(new ProblemTypeOptions()));
         services.AddSingleton(Options.Create(new ConcurrencyOptions { IfMatch = ifMatch }));
         services.AddSingleton<IUrlHelperFactory, UrlHelperFactory>();
         services.AddSingleton<IActionResultExecutor<RedirectResult>, RedirectResultExecutor>();
@@ -464,6 +479,28 @@ public sealed class FilesControllerTests
             RequestServices = services.BuildServiceProvider(),
             TraceIdentifier = $"trace-{Guid.NewGuid():N}",
         };
+    }
+
+    /// <summary>
+    /// The entity tag this API publishes for a version, obtained the way a caller obtains one — by
+    /// reading it off a response.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not minted here. The encoding is internal to the API, and a test that reproduced
+    /// it would both duplicate the code under test and pin a layout the mapping documents as free to
+    /// change. Reading it back instead is what a client does, and it makes every use below assert a
+    /// round trip rather than a restatement.
+    /// </remarks>
+    private async Task<string> APublishedEntityTagAsync(uint version)
+    {
+        var httpContext = AContext();
+
+        _getStoredFile.ExecuteAsync(Arg.Any<GetStoredFileQuery>(), Arg.Any<CancellationToken>())
+            .Returns(new Versioned<StoredFileDto>(AFile(StoredFileState.Available), version));
+
+        await AController(httpContext).GetFile(Guid.CreateVersion7(), TestContext.Current.CancellationToken);
+
+        return httpContext.Response.Headers.ETag.ToString();
     }
 
     private FilesController AController(HttpContext? httpContext = null) =>

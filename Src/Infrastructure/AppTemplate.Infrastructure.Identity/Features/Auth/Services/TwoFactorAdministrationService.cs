@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Auth.Ports.TwoFactorAdministration;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorAdministration;
 using AppTemplate.Infrastructure.Identity.Common.Directories;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;

@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common.Collections;
-using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Common.Results;
+﻿using AppTemplate.Application.Core.Common.Collections;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;
@@ -8,7 +8,7 @@ using AppTemplate.Application.UnitTests.TestDoubles;
 using NSubstitute;
 using Shouldly;
 using Xunit;
-using SortDirection = AppTemplate.Application.Common.Collections.SortDirection;
+using SortDirection = AppTemplate.Application.Core.Common.Collections.SortDirection;
 
 namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Queries.GetTodoLists;
 

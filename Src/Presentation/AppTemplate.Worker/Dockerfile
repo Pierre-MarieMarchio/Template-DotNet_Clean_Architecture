@@ -37,13 +37,17 @@ COPY ["global.json", "Directory.Build.props", "Directory.Packages.props", "./"]
 # 2. Project files. Every project the worker references transitively must appear here, at its
 #    real path. A missing one does not fail restore loudly — it logs "Skipping project ... because
 #    it was not found" and the build dies later at publish, on a missing assets file.
-COPY ["Src/Domain/AppTemplate.Domain/AppTemplate.Domain.csproj",                                                     "Src/Domain/AppTemplate.Domain/"]
-COPY ["Src/Application/AppTemplate.Application/AppTemplate.Application.csproj",                                      "Src/Application/AppTemplate.Application/"]
-COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence/AppTemplate.Infrastructure.Persistence.csproj",     "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/"]
-COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Identity/AppTemplate.Infrastructure.Identity.csproj",           "Src/Infrastructure/AppTemplate.Infrastructure.Identity/"]
-COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Email/AppTemplate.Infrastructure.Email.csproj",                 "Src/Infrastructure/AppTemplate.Infrastructure.Email/"]
-COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Storage/AppTemplate.Infrastructure.Storage.csproj",             "Src/Infrastructure/AppTemplate.Infrastructure.Storage/"]
-COPY ["Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj",                                               "Src/Presentation/AppTemplate.Worker/"]
+COPY ["Src/Domain/AppTemplate.Domain.Core/AppTemplate.Domain.Core.csproj",                                       "Src/Domain/AppTemplate.Domain.Core/"]
+COPY ["Src/Domain/AppTemplate.Domain/AppTemplate.Domain.csproj",                                                 "Src/Domain/AppTemplate.Domain/"]
+COPY ["Src/Application/AppTemplate.Application.Core/AppTemplate.Application.Core.csproj",                        "Src/Application/AppTemplate.Application.Core/"]
+COPY ["Src/Application/AppTemplate.Application.Auth/AppTemplate.Application.Auth.csproj",                        "Src/Application/AppTemplate.Application.Auth/"]
+COPY ["Src/Application/AppTemplate.Application/AppTemplate.Application.csproj",                                  "Src/Application/AppTemplate.Application/"]
+COPY ["Src/Presentation/AppTemplate.Presentation.Core/AppTemplate.Presentation.Core.csproj",                     "Src/Presentation/AppTemplate.Presentation.Core/"]
+COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence/AppTemplate.Infrastructure.Persistence.csproj", "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/"]
+COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Identity/AppTemplate.Infrastructure.Identity.csproj",       "Src/Infrastructure/AppTemplate.Infrastructure.Identity/"]
+COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Email/AppTemplate.Infrastructure.Email.csproj",             "Src/Infrastructure/AppTemplate.Infrastructure.Email/"]
+COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Storage/AppTemplate.Infrastructure.Storage.csproj",         "Src/Infrastructure/AppTemplate.Infrastructure.Storage/"]
+COPY ["Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj",                                           "Src/Presentation/AppTemplate.Worker/"]
 
 RUN dotnet restore "Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj"
 

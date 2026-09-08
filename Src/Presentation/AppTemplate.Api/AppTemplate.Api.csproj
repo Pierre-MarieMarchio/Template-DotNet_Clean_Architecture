@@ -36,14 +36,10 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
     <!-- Referenced by the host, not by any module: the outbound policy is installed once on the
-         factory's defaults in Common/Outbound/, so no infrastructure module needs the package to
+         factory's defaults by AppTemplate.Presentation.Core, so no infrastructure module needs the package to
          benefit from it. -->
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
     <PackageReference Include="Npgsql.OpenTelemetry" />
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
     <PackageReference Include="Scalar.AspNetCore" />
   </ItemGroup>
 
@@ -51,6 +47,10 @@
        set, which is what lets a module be added or dropped without any other module noticing. -->
   <ItemGroup>
     <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
+    <ProjectReference Include="..\..\Application\AppTemplate.Application.Auth\AppTemplate.Application.Auth.csproj" />
+    <ProjectReference Include="..\AppTemplate.Api.Core\AppTemplate.Api.Core.csproj" />
+    <ProjectReference Include="..\AppTemplate.Presentation.Core\AppTemplate.Presentation.Core.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Identity\AppTemplate.Infrastructure.Identity.csproj" />

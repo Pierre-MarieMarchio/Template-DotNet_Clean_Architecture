@@ -1,12 +1,12 @@
 ﻿using AppTemplate.Api.Features.Auth.Contracts.Responses;
-using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.Login;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.RefreshAccessToken;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.Register;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.SetUpTwoFactor;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
-using AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RefreshAccessToken;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Register;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SetUpTwoFactor;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.GetCurrentUser;
+using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Api.Features.Auth.Mapping;
 

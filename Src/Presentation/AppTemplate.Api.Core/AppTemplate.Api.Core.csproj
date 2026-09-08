@@ -1,0 +1,86 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Written as if it were a NuGet package, and vendored rather than published: a derived
+       repository copies it and is free to tune it, which is why it carries no version. -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>AppTemplate.Api.Core</PackageId>
+    <Description>The cross-cutting mechanisms of an HTTP host: RFC 7807 problem details with error codes, ETag and If-Match, idempotent commands, rate limiting, CORS, security headers, forwarded headers, request limits and timeouts, graceful shutdown, liveness and readiness, API versioning with one OpenAPI document per version, and the request pipeline that orders them.</Description>
+    <Authors>AppTemplate contributors</Authors>
+  </PropertyGroup>
+
+  <!-- CS1591 is suppressed repository-wide, and re-enabled here: this is a deliberate public
+       surface that a derived project reads instead of reading the code, so every public member
+       owes it a sentence. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <!-- AV0029 and AV0030 ask for the per-version OpenAPI integration in Asp.Versioning.OpenApi,
+       which is a separate package. AddCoreOpenApiPerVersion already produces one document per
+       version, and the two are equivalent in structure; what differs is the prose. That package
+       replaces the XML comment source generator in Microsoft.AspNetCore.OpenApi with a transformer
+       of its own, and renders a <see cref="..."/> as the empty string — so schema descriptions lose
+       the type they name and read with a hole in them.
+
+       Suppressed at the project level rather than with a #pragma because AV0029 also fires inside
+       OpenApiXmlCommentSupport.generated.cs, which no source-level directive can reach. That is the
+       same reason the API host carries this suppression, and it arrives here with the generator.
+
+       Revisit when Asp.Versioning.OpenApi resolves a cref to the type name. The check is
+       OpenApiDocumentTests, which asserts on exactly the descriptions that regress. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);AV0029;AV0030</NoWarn>
+  </PropertyGroup>
+
+  <!-- Microsoft.NET.Sdk and an explicit framework reference, not Microsoft.NET.Sdk.Web, which would
+       add static web assets, an app host and start-up project behaviour to a class library.
+
+       This is the repository's first non-host project to carry the shared framework, which makes
+       NU1510 a real error here: anything ASP.NET already provides must not be a PackageReference.
+       From the framework's own PackageOverrides.txt, that rules out Microsoft.Extensions.Hosting,
+       .Http, .Options, .Configuration*, .DependencyInjection*, .Logging*, .Primitives,
+       .Diagnostics.HealthChecks and .Abstractions, System.Threading.RateLimiting, and
+       Microsoft.AspNetCore.Mvc and .Core.
+
+       It also costs the nine implicit usings the web SDK adds, so every file here names what it
+       uses. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- The two Asp.Versioning packages carry the shared framework in their own nuspec, which is
+       legal here and in no other project of this repository. Scalar.AspNetCore is deliberately
+       absent: the API-reference page's content-security policy is an observation about a versioned
+       third-party bundle, so it lives beside the reference that pins that version — in the host —
+       and reaches this project through one optional delegate on UseCorePipeline. -->
+  <ItemGroup>
+    <PackageReference Include="Asp.Versioning.Mvc" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+  </ItemGroup>
+
+  <!-- Any change to the public surface is an explicit diff in PublicAPI.Unshipped.txt to review,
+       rather than a side effect of an edit nobody read as one. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
+    <ProjectReference Include="..\AppTemplate.Presentation.Core\AppTemplate.Presentation.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Public is exactly what a host names; the option validators, the registration extensions, the
+       idempotency filter and the request-log middleware are reached by the container or by the
+       pipeline, not by a caller. Granted to exactly one assembly — this project's own mirror. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Api.Core.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

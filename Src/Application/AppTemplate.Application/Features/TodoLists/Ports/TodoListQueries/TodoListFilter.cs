@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
-using AppTemplate.Application.Common.Collections;
-using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Core.Common.Collections;
+using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 

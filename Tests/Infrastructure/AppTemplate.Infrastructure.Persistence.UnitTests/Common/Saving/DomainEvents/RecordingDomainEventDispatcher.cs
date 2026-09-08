@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Common.Events;
+﻿using AppTemplate.Domain.Core.Common.Events;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Saving.DomainEvents;

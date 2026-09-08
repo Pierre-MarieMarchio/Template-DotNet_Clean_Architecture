@@ -1,6 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
-using AppTemplate.Api.Common.Contracts;
+using AppTemplate.Api.Core.Common.Contracts;
 using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;

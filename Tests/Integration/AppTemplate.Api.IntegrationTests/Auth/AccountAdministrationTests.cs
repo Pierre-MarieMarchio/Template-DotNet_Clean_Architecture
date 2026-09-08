@@ -4,7 +4,7 @@ using System.Net.Http.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.Auth.Ports.RoleAssignments;
+using AppTemplate.Application.Auth.Features.Auth.Ports.RoleAssignments;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
 using Microsoft.Extensions.DependencyInjection;

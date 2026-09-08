@@ -1,5 +1,5 @@
 ﻿using System.Globalization;
-using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Policies;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using Shouldly;

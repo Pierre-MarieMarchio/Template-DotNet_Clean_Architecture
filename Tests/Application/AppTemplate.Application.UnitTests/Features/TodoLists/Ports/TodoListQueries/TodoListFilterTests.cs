@@ -1,5 +1,5 @@
 ﻿using System.Globalization;
-using AppTemplate.Application.Common.Collections;
+using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using Shouldly;
 using Xunit;

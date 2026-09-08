@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Ports;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Options;
 using MimeKit;

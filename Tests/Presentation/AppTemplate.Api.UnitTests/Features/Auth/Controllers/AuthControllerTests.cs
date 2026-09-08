@@ -1,33 +1,33 @@
 ﻿using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AppTemplate.Api.Common.Caching;
-using AppTemplate.Api.Common.Errors;
-using AppTemplate.Api.Common.Idempotency;
-using AppTemplate.Api.Common.Security;
+using AppTemplate.Api.Core.Common.Caching;
+using AppTemplate.Api.Core.Common.Errors;
+using AppTemplate.Api.Core.Common.Idempotency;
+using AppTemplate.Api.Core.Common.Security;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.Features.Auth.Controllers;
-using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Features.Auth.Errors;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.ChangePassword;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.ConfirmEmail;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.ConfirmEmailChange;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.DisableTwoFactor;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.Login;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.Logout;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.LogoutEverywhere;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.RefreshAccessToken;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.Register;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.RequestEmailChange;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.RequestPasswordReset;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.ResendConfirmationEmail;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.ResetPassword;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.SetUpTwoFactor;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
-using AppTemplate.Application.Features.Auth.UseCases.Commands.VerifyTwoFactor;
-using AppTemplate.Application.Features.Auth.UseCases.Queries.GetCurrentUser;
+using AppTemplate.Application.Auth.Features.Auth.Errors;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePassword;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEmail;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEmailChange;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DisableTwoFactor;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Logout;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.LogoutEverywhere;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RefreshAccessToken;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Register;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestEmailChange;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestPasswordReset;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResendConfirmationEmail;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResetPassword;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SetUpTwoFactor;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.VerifyTwoFactor;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.GetCurrentUser;
+using AppTemplate.Application.Core.Common.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -372,7 +372,7 @@ public sealed class AuthControllerTests
 
         services.AddLogging();
         services.AddControllers();
-        services.AddSingleton(Options.Create(new ProblemTypeOptions { BaseUri = ProblemTypes.DefaultBaseUri }));
+        services.AddSingleton(Options.Create(new ProblemTypeOptions()));
 
         return new DefaultHttpContext
         {

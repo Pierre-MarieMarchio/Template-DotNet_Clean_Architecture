@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Features.Files.Mapping;
-using AppTemplate.Domain.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using Shouldly;
 using Xunit;

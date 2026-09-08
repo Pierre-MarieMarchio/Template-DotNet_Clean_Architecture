@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
 
 namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.RescheduleReminder;
 

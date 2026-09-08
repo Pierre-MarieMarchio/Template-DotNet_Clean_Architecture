@@ -1,5 +1,5 @@
 ﻿using System.Net;
-using AppTemplate.Api.Common.Security;
+using AppTemplate.Api.Core.Common.Security;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using Shouldly;
 using Xunit;

@@ -627,7 +627,7 @@ and refuses two languages of one mail sharing a subject.
 
 **Two things to know before changing this.** The repository builds with
 `InvariantGlobalization=true`, so there is no `CultureInfo` to carry a language in and
-`AppTemplate.Application.Common.Localization.CurrentLanguage` carries a BCP-47 tag instead.
+`AppTemplate.Application.Core.Common.Localization.CurrentLanguage` carries a BCP-47 tag instead.
 And an `EmbeddedResource` named `*.fr.html` needs `WithCulture="false"` in the `.csproj`, or
 MSBuild compiles it into a satellite assembly and every mail throws at the first send.
 [docs/CONFIGURATION.md](docs/CONFIGURATION.md#localization) has the rest, including where a
@@ -878,40 +878,73 @@ docker-compose.yml             db + mailpit + minio + api + worker
 
 Src/
   Domain/
+    AppTemplate.Domain.Core/                   entity, aggregate root, domain event, the audit
+                                      and concurrency contracts, the domain exception:
+                                      the primitives an aggregate is built from,
+                                      written as a package and vendored
+                                      -> ZERO dependencies, no reference of any kind
     AppTemplate.Domain/                        aggregates, value objects, domain events
-                                      -> ZERO dependencies, no NuGet packages
+                                      -> Domain.Core only, no NuGet packages
   Application/
-    AppTemplate.Application/                   use cases, ports, Result/Error
-                                      -> Domain only
+    AppTemplate.Application.Core/              Result/Error, the IUseCase marker, validation,
+                                      pagination, idempotency, optimistic concurrency and
+                                      the cross-cutting ports: the mechanisms a use case is
+                                      written from, written as a package and vendored
+                                      -> Domain.Core only
+    AppTemplate.Application/                   the business features: use cases, feature ports,
+                                      DTOs, validators
+                                      -> Domain + Application.Core
+    AppTemplate.Application.Auth/              sign-in, accounts, tokens, two-factor, external
+                                      providers, roles, lockouts — behind twenty ports, and
+                                      naming no domain type at all; the project a derived
+                                      application swaps for its own identity provider
+                                      -> Application.Core only
   Infrastructure/
     AppTemplate.Infrastructure.Persistence/    ALL persistence: the one DbContext, the interceptor
                                       pipeline, the unit of work, and per-feature models,
                                       mapping, repositories, queries and stores
-                                      -> Application
+                                      -> Application.Core + Application
     AppTemplate.Infrastructure.Identity/       ASP.NET Identity policy, JWT, refresh-token rotation
                                       (no database of its own)
-                                      -> Application + Persistence
+                                      -> Application.Core + Application.Auth + Persistence
     AppTemplate.Infrastructure.Email/          MailKit SMTP sender, email options
-                                      -> Application
+                                      -> Application.Core + Application + Application.Auth
     AppTemplate.Infrastructure.Storage/        S3-compatible object store: signed grants, inventory
-                                      -> Application
+                                      -> Application.Core + Application
     AppTemplate.Infrastructure.InMemory/       in-memory port implementations for tests/demo
-                                      -> Application
+                                      -> Application.Core + Application + Application.Auth
   Presentation/
+    AppTemplate.Presentation.Core/             one outbound HTTP policy, the language a flow is
+                                      written in, OTLP traces and metrics, and the identity of
+                                      a process with no caller: what any host needs whatever
+                                      its transport, written as a package and vendored
+                                      -> Application.Core only, and no framework reference,
+                                      which is what keeps a non-HTTP host possible
     AppTemplate.Api/                           controllers, composition root, Dockerfile
-                                      -> Application + every module
+                                      -> Presentation.Core + all three application projects
+                                      + every module
     AppTemplate.Worker/                        three BackgroundServices: maintenance, due reminders, file sweeps
-                                      -> Application + Persistence + Identity + Email + Storage
+                                      -> Presentation.Core + all three application projects
+                                      + Persistence + Identity + Email + Storage
 
 Tests/
+  Domain/AppTemplate.Domain.Core.UnitTests/      the primitives, in memory
   Domain/AppTemplate.Domain.UnitTests/           the aggregate, in memory
+  Application/AppTemplate.Application.Core.UnitTests/
+                                        the mechanisms, with no feature in sight
   Application/AppTemplate.Application.UnitTests/ use cases against test doubles
+  Application/AppTemplate.Application.Auth.UnitTests/
+                                        the authentication use cases, against doubles for
+                                        the twenty ports
   Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/
                                         the domain <-> row mapper, reflection-driven
   Infrastructure/AppTemplate.Infrastructure.Identity.UnitTests/  the authentication adapters
   Infrastructure/AppTemplate.Infrastructure.Email.UnitTests/     the MailKit sender, in isolation
   Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests/   the S3 adapters, without a network
   Infrastructure/AppTemplate.Infrastructure.InMemory.UnitTests/  the test/demo doubles themselves
+  Presentation/AppTemplate.Presentation.Core.UnitTests/
+                                        the shared options validators, the outbound policy's
+                                        verb allow-list, and the no-caller identity
   Presentation/AppTemplate.Api.UnitTests/        controllers and request/response mapping
   Presentation/AppTemplate.Worker.UnitTests/     the three loops, their options and their resilience
   Architecture/AppTemplate.Architecture.Tests/   layer/module rules + container composition
@@ -934,14 +967,37 @@ namespace — the disk path and the root namespace are independent.
 ### Inside a project: feature first, responsibility second
 
 Within `AppTemplate.Application` and `AppTemplate.Api`, the top-level partition is the **business feature**,
-and only inside a feature is code grouped by what it does:
+and only inside a feature is code grouped by what it does. What every feature is written *from* is
+one project inwards, where it has a `Common/` to itself.
+
+**Two folders share the name `Common/`, and the difference is the whole point of the split.**
+`<Layer>.Core/Common/` is agnostic of the business — `Result`, `Error`, `PageRequest`, `SortOrder`,
+`IUnitOfWork`, `ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`. Nothing in it knows a feature,
+and nothing in it ever may. `<Layer>/Common/` is the business-shared half: what several features
+share *as business*, so that business code is not repeated across features — a value object three
+features spend, a DTO two features answer with, a policy that spans them. The sorting test is one
+question, **does it know a feature?** If it names a feature, or would have to the moment a second
+feature used it, it belongs in the business project's `Common/`; if it does not and never will, it
+belongs one project inwards.
 
 ```
-AppTemplate.Application/
+AppTemplate.Application.Core/
   Common/                       Results/ (Result, Error, ErrorType, PagedResult),
-                                 Abstractions/ (cross-feature ports), Validation/,
-                                 Idempotency/, Collections/, Concurrency/ — one folder per
-                                 subject, nothing loose at the root
+                                 Ports/ (the cross-cutting ports: the clock, the caller's
+                                 identity, the commit boundary, the mail relay, the leader
+                                 lease), UseCases/ (the IUseCase marker), Validation/,
+                                 Collections/ (offset and cursor paging), Concurrency/,
+                                 Idempotency/, Events/, Policies/, Localization/ — one
+                                 folder per subject, nothing loose at the root
+  Features/
+    Maintenance/                the idempotency mechanism's own housekeeping and nothing
+                                else, which is the only work here that is a use case
+                                rather than a mechanism
+      UseCases/Commands/PurgeExpiredIdempotencyKeys/
+
+AppTemplate.Application/        no Common/ today: the mechanisms above belong to the project
+                                inwards, and nothing here is yet shared by several features
+                                *as business*. A DTO two features answer with goes there
   Features/
     TodoLists/
       Errors/                   TodoListErrors.cs — the feature's failure vocabulary
@@ -971,19 +1027,6 @@ AppTemplate.Application/
                                 target rather than trusting the event that should have cancelled it
       UseCases/Queries/<Operation>/    GetReminders
       Dtos/                     ReminderDto
-    Auth/
-      Errors/                   AuthErrors.cs — the vertical's failure vocabulary
-      Policies/                 CredentialInvalidationPolicy, PasswordPolicy,
-                                SelfAdministrationPolicy
-      Ports/<Port>/             UserAccounts, EmailConfirmationTokens, AccessTokenIssuer,
-                                RefreshTokenGrants, RefreshTokenMaintenance, ConfirmationEmailFactory,
-                                PasswordResetTokens, PasswordResetEmailFactory, SecurityEventLog,
-                                UserProfiles, and others — one port per capability, in place of
-                                one IAuthService
-      UseCases/Commands/<Operation>/   Register, Login, Logout, LogoutEverywhere,
-                                RefreshAccessToken, ConfirmEmail, ResendConfirmationEmail,
-                                ChangePassword, RequestPasswordReset, ResetPassword
-      UseCases/Queries/GetCurrentUser/
     Files/                      the third worked example: one aggregate whose two halves live
                                 in different stores — metadata in PostgreSQL, bytes behind a port
       Errors/                   StoredFileErrors.cs
@@ -1003,8 +1046,34 @@ AppTemplate.Application/
                                 PurgeAbandonedRegistrations, ReclaimOrphanedContent
       UseCases/Queries/<Operation>/    GetStoredFiles, GetStoredFile, IssueFileDownload
       Dtos/                     StoredFileDto
-    Maintenance/                no aggregate and no domain of its own: two commands over rows
-      UseCases/Commands/<Operation>/   PurgeExpiredIdempotencyKeys, PurgeExpiredRefreshTokens
+
+AppTemplate.Application.Auth/   one feature, so nothing is shared between features here and
+                                there is no Common/. It names no domain type at all: the
+                                identity model is not an aggregate, it lives behind the ports
+  Features/
+    Auth/
+      Errors/                   AuthErrors.cs — the vertical's failure vocabulary
+      Policies/                 CredentialInvalidationPolicy, ExternalAccountLinkPolicy,
+                                PasswordPolicy, SelfAdministrationPolicy
+      Ports/<Port>/             twenty of them, one per capability in place of one IAuthService:
+                                UserAccounts, UserProfiles, AccountDeletion, AccountLockouts,
+                                RoleAssignments, AccessTokenIssuer, RefreshTokenGrants,
+                                RefreshTokenMaintenance, EmailConfirmationTokens,
+                                ConfirmationEmailFactory, EmailChangeTokens,
+                                EmailChangeEmailFactory, PasswordResetTokens,
+                                PasswordResetEmailFactory, ExternalIdentity, ExternalLogins,
+                                TwoFactorEnrollment, TwoFactorChallenge,
+                                TwoFactorAdministration, SecurityEventLog
+      UseCases/Commands/<Operation>/   Register, Login, Logout, LogoutEverywhere,
+                                RefreshAccessToken, ConfirmEmail, ResendConfirmationEmail,
+                                ChangePassword, RequestPasswordReset, ResetPassword,
+                                RequestEmailChange, ConfirmEmailChange, SignInWithExternalProvider,
+                                SetUpTwoFactor, ConfirmTwoFactorSetup, VerifyTwoFactor,
+                                DisableTwoFactor, DisableAccountTwoFactor, AddRole, RemoveRole,
+                                LockAccount, UnlockAccount, DeleteAccount, and
+                                PurgeExpiredRefreshTokens, which is a command over rows rather
+                                than a decision about an account
+      UseCases/Queries/GetCurrentUser/
 ```
 
 A command or query record lives **in the same folder as the one use case that accepts
@@ -1089,15 +1158,59 @@ file merely *named* after a feature would not trip it; `ReminderDiagnostics` sit
 test forced it there.
 
 The word "Module" is kept for exactly one thing: dependency-injection registration classes
-— `ApplicationModule`, `PersistenceModule`, `IdentityModule`, `EmailModule`, `StorageModule`
-and `InMemoryModule`. That is a composition concept, not a business partition.
+— `ApplicationCoreModule`, `ApplicationModule`, `ApplicationAuthModule`,
+`PresentationCoreModule`, `PersistenceModule`, `IdentityModule`, `EmailModule`, `StorageModule` and
+`InMemoryModule`. That is a composition
+concept, not a business partition. `ApplicationCoreModule` is the odd one: it offers the
+registration helpers the layer above composes with — `AddUseCasesFrom`, `AddUseCases`,
+`AddDomainEventConsumer` — and `AddPurgeExpiredIdempotencyKeys` for its one use case, but no
+umbrella `AddApplicationCore()`, because ports, results and markers are not things a container
+registers and a call that registered nothing would read like the seam that makes the project work.
 
-**The dependency rule: source dependencies point inward, always.** `AppTemplate.Domain`
-references nothing — not even a NuGet package. `AppTemplate.Application` references only
-`AppTemplate.Domain`. Infrastructure modules reference `AppTemplate.Application` and may reference
-`AppTemplate.Infrastructure.Persistence`; **Persistence never references a module back**, and
-modules do not reference each other. Only `AppTemplate.Api` knows about all of them, and only
-to wire them up. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**The application layer is composed a feature at a time, and there is no call that adds all of
+them.** `ApplicationModule` exposes `AddTodoLists()`, `AddReminders()` and `AddFiles()`;
+`ApplicationAuthModule` exposes `AddAuthApplication()`. A host composes what it offers, so deleting
+a feature is its folder and its one line, with nothing else claiming to have registered it — where
+one entry point scanning the assembly would put every port every feature declares into every host's
+graph, making all of them mandatory everywhere under `ValidateOnBuild`.
+`LayerDependencyTests.TheApplicationLayer_KnowsNothingOfAuthentication` proves the payoff, read off
+the assembly manifests: neither the business features nor the mechanisms name anything in
+`AppTemplate.Application.Auth`. So the application layer is genuinely free of it.
+
+The infrastructure underneath is not, and
+`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer`
+names the two that hold it: `IIdentitySeeder`, registered by the *persistence* module and needing a
+`UserManager` only the identity module supplies, so that pair is bidirectional; and
+`IReminderNotifier`, whose one adapter is in the email module, whose own reminder notifier resolves
+an authentication port to find a reminder's address. A third caveat is not a coupling but a shape:
+`AddReminders()` is **not** independent of `AddTodoLists()`, since scheduling reaches into the to-do
+list's read port for the only ownership check made before a reminder is created.
+
+**The dependency rule: source dependencies point inward, always.** `AppTemplate.Domain.Core`
+references nothing at all — no project, no NuGet package — and it is the innermost thing in the
+tree, so an architecture rule holds it: a dependency taken there is a dependency taken everywhere.
+`AppTemplate.Domain` references it and nothing else. `AppTemplate.Application.Core` references
+`AppTemplate.Domain.Core` and nothing else either — never `AppTemplate.Domain`, so the mechanisms
+know no aggregate — and `AppTemplate.Application` references `AppTemplate.Domain` plus
+`AppTemplate.Application.Core`. `AppTemplate.Application.Auth` references
+`AppTemplate.Application.Core` and nothing else — it names no domain type, because the identity
+model lives behind its twenty ports. `AppTemplate.Presentation.Core` references
+`AppTemplate.Application.Core` and nothing else either, and carries no `FrameworkReference` at all:
+that is what lets a host with no HTTP surface take a clock, a culture, an outbound budget and a
+telemetry pipeline from it without inheriting ASP.NET, and it is why it is a project apart from the
+`AppTemplate.Api.Core` that everything needing the framework belongs in. Both hosts reference it.
+Infrastructure modules reference the application projects they
+need and may reference `AppTemplate.Infrastructure.Persistence`; **Persistence never references a
+module back**, and modules do not reference each other. `AppTemplate.Application.Core` is never
+carried transitively as a favour: every project that names a `Result` or a cross-cutting port
+declares the reference itself, so both hosts, `AppTemplate.Presentation.Core` and all five modules
+name it. Neither is
+`AppTemplate.Application.Auth`, and for a sharper reason — a project that needs authentication
+declares it, so that a project which does not can drop it. Five do declare it: the identity module
+(twenty ports), the email module (its reminder notifier resolves a user profile to find an
+address), the in-memory doubles, and both hosts. `AppTemplate.Infrastructure.Identity` declares no
+reference to `AppTemplate.Application` at all. Only `AppTemplate.Api` knows about all of them, and
+only to wire them up. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Ports and TLS
 

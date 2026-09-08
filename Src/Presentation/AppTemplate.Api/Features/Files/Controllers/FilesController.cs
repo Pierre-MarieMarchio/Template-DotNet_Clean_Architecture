@@ -1,8 +1,8 @@
-﻿using AppTemplate.Api.Common.Caching;
-using AppTemplate.Api.Common.Contracts;
-using AppTemplate.Api.Common.Controllers;
-using AppTemplate.Api.Common.Errors;
-using AppTemplate.Api.Common.Idempotency;
+﻿using AppTemplate.Api.Core.Common.Caching;
+using AppTemplate.Api.Core.Common.Contracts;
+using AppTemplate.Api.Core.Common.Controllers;
+using AppTemplate.Api.Core.Common.Errors;
+using AppTemplate.Api.Core.Common.Idempotency;
 using AppTemplate.Api.Features.Files.Contracts.Requests;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
 using AppTemplate.Api.Features.Files.Mapping;

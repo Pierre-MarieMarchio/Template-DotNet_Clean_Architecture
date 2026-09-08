@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Concurrency;
-using AppTemplate.Application.Common.Results;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Errors;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.UnitTests.TestDoubles;
@@ -145,7 +145,7 @@ public sealed class TodoListServiceTests
         result.Error!.Code.ShouldBe(TodoListErrors.ListNotFound(foreign.Id).Code);
     }
 
-    private TodoListService AccessFor(AppTemplate.Application.Common.Ports.ICurrentUser currentUser) =>
+    private TodoListService AccessFor(AppTemplate.Application.Core.Common.Ports.ICurrentUser currentUser) =>
         new(_repository, currentUser);
 
     private TodoListService Access() => AccessFor(StubCurrentUser.WithId(_callerId));

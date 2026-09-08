@@ -2,8 +2,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using AppTemplate.Api.Common.Controllers;
-using AppTemplate.Api.Common.Hosting;
+using AppTemplate.Api.Core.Common.Hosting;
 using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -76,12 +75,12 @@ public sealed class RequestBodySizeLimitTests(ApiFixture fixture) : IntegrationT
             await response.Content.ReadAsStringAsync(TestToken));
     }
 
-    private WebApplicationFactory<ApiControllerBase> HostWithLoweredLimit() =>
+    private WebApplicationFactory<Program> HostWithLoweredLimit() =>
         Fixture.Factory.WithWebHostBuilder(builder => builder.UseSetting(
             $"{RequestLimitsOptions.SectionName}:{nameof(RequestLimitsOptions.MaxRequestBodyBytes)}",
             _loweredLimit.ToString(CultureInfo.InvariantCulture)));
 
-    private static HttpClient ClientOf(WebApplicationFactory<ApiControllerBase> host, string accessToken)
+    private static HttpClient ClientOf(WebApplicationFactory<Program> host, string accessToken)
     {
         var client = host.CreateClient();
 

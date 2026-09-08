@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Features.Reminders.Dtos;
 using AppTemplate.Domain.Features.Reminders.Entities;
 

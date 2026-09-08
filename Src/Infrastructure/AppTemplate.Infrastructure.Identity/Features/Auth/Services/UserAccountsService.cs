@@ -1,7 +1,7 @@
 ﻿using System.Security.Cryptography;
-using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Identity.Common.Directories;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;

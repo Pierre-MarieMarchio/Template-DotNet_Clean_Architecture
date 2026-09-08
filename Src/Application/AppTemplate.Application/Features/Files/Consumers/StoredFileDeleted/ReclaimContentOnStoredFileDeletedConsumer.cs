@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Events;
-using AppTemplate.Application.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Events;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Domain.Features.Files.Events;
 using Microsoft.Extensions.Logging;

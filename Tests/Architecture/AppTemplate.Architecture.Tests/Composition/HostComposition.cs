@@ -1,6 +1,8 @@
 ﻿using AppTemplate.Application;
-using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Features.Auth.Ports.UserProfiles;
+using AppTemplate.Application.Auth;
+using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
+using AppTemplate.Application.Core;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.InMemory;
@@ -138,7 +140,11 @@ internal static class HostComposition
 
         AddHostSuppliedServices(services, configuration);
 
-        services.AddApplicationLayer();
+        services.AddTodoLists();
+        services.AddReminders();
+        services.AddFiles();
+        services.AddAuthApplication();
+        services.AddPurgeExpiredIdempotencyKeys();
         services.AddPersistenceModule(configuration);
         services.AddIdentityModule(configuration);
         services.AddEmailModule(configuration);
@@ -171,7 +177,11 @@ internal static class HostComposition
 
         AddHostSuppliedServices(services, configuration);
 
-        services.AddApplicationLayer();
+        services.AddTodoLists();
+        services.AddReminders();
+        services.AddFiles();
+        services.AddAuthApplication();
+        services.AddPurgeExpiredIdempotencyKeys();
         services.AddPersistenceModule(configuration);
         services.AddIdentityModule(configuration);
         services.AddEmailModule(configuration);
@@ -212,7 +222,11 @@ internal static class HostComposition
 
         AddHostSuppliedServices(services, configuration);
 
-        services.AddApplicationLayer();
+        services.AddTodoLists();
+        services.AddReminders();
+        services.AddFiles();
+        services.AddAuthApplication();
+        services.AddPurgeExpiredIdempotencyKeys();
         services.AddPersistenceModule(configuration);
         services.AddEmailModule(configuration);
         services.AddStorageModule(configuration);
@@ -233,9 +247,42 @@ internal static class HostComposition
 
         AddHostSuppliedServices(services, configuration);
 
-        services.AddApplicationLayer();
+        services.AddTodoLists();
+        services.AddReminders();
+        services.AddFiles();
+        services.AddAuthApplication();
+        services.AddPurgeExpiredIdempotencyKeys();
         services.AddPersistenceModule(configuration);
         services.AddIdentityModule(configuration);
+
+        AddHostSuppliedAdapters(services);
+
+        return services;
+    }
+
+    /// <summary>
+    /// The API's composition with authentication left out entirely — no <c>AddAuthApplication</c>,
+    /// no identity module, and no email module either.
+    /// <para>
+    /// The email module has to go with it, and that is the honest cost rather than an oversight:
+    /// its reminder notifier resolves a user profile to find the address a due reminder is rung at,
+    /// which is an authentication port. So this composition is what a derived project that brings
+    /// its own identity provider actually starts from — the three business features over
+    /// persistence and storage — and the point it proves is that such a container builds.
+    /// </para>
+    /// </summary>
+    internal static ServiceCollection ComposeApiWithoutAuthentication(IConfiguration configuration)
+    {
+        var services = new ServiceCollection();
+
+        AddHostSuppliedServices(services, configuration);
+
+        services.AddTodoLists();
+        services.AddReminders();
+        services.AddFiles();
+        services.AddPurgeExpiredIdempotencyKeys();
+        services.AddPersistenceModule(configuration);
+        services.AddStorageModule(configuration);
 
         AddHostSuppliedAdapters(services);
 
@@ -278,7 +325,7 @@ internal static class HostComposition
     }
 }
 
-/// <summary>Stands in for <c>AppTemplate.Api.Common.CurrentUser</c>, which needs an HTTP request.</summary>
+/// <summary>Stands in for <c>AppTemplate.Api.Core.Common.Security.CurrentUser</c>, which needs an HTTP request.</summary>
 internal sealed class ArchitectureTestCurrentUser : ICurrentUser
 {
     private static readonly Guid _userId = new("11111111-1111-1111-1111-111111111111");

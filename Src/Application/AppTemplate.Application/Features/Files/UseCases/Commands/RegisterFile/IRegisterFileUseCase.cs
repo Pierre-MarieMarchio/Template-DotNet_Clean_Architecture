@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Common.UseCases;
+﻿using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Core.Common.UseCases;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 

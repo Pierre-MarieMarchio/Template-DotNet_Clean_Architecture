@@ -56,34 +56,52 @@ public sealed class LayerDependencyTests
         "MediatR",
     ];
 
+    /// <summary>
+    /// Every project of the domain layer, not one of them. The forbidden list is the same for all:
+    /// a rule written against the project somebody happened to have in mind leaves the rest of the
+    /// layer unread, and the primitives are the half everything else compiles against.
+    /// </summary>
     [Fact]
-    public void Domain_DependsOnNothing()
+    public void TheDomainLayer_DependsOnNothing()
     {
-        RuleAssertions.RequireTypes(ArchitectureAssemblies.Domain);
+        foreach (var domain in ArchitectureAssemblies.DomainLayer)
+        {
+            RuleAssertions.RequireTypes(domain);
 
-        Types.InAssembly(ArchitectureAssemblies.Domain)
-            .ShouldNot()
-            .HaveDependencyOnAny(_forbiddenInDomain)
-            .GetResult()
-            .ShouldHold(
-                "AppTemplate.Domain is the innermost layer and must depend on nothing: not on the layers " +
-                "above it, not on EF Core or ASP.NET Core, not on a DI container, not on a " +
-                "serialiser. Forbidden: " + string.Join(", ", _forbiddenInDomain));
+            Types.InAssembly(domain)
+                .ShouldNot()
+                .HaveDependencyOnAny(_forbiddenInDomain)
+                .GetResult()
+                .ShouldHold(
+                    $"{ArchitectureAssemblies.NamespaceOf(domain)} belongs to the innermost layer and " +
+                    "must depend on nothing: not on the layers above it, not on EF Core or ASP.NET " +
+                    "Core, not on a DI container, not on a serialiser. Forbidden: " +
+                    string.Join(", ", _forbiddenInDomain));
+        }
     }
 
+    /// <summary>
+    /// Every project of the application layer, for the reason the domain rule above reads all of
+    /// its own: the mechanisms and the features are held to one standard, and a list that named one
+    /// project would leave the other unread.
+    /// </summary>
     [Fact]
-    public void Application_DependsOnlyOnTheDomain()
+    public void TheApplicationLayer_DependsOnlyOnTheDomain()
     {
-        RuleAssertions.RequireTypes(ArchitectureAssemblies.Application);
+        foreach (var application in ArchitectureAssemblies.ApplicationLayer)
+        {
+            RuleAssertions.RequireTypes(application);
 
-        Types.InAssembly(ArchitectureAssemblies.Application)
-            .ShouldNot()
-            .HaveDependencyOnAny(_forbiddenInApplication)
-            .GetResult()
-            .ShouldHold(
-                "AppTemplate.Application may depend on AppTemplate.Domain, FluentValidation and the DI abstractions " +
-                "and nothing else. A port belongs here; the adapter that implements it belongs in " +
-                "an infrastructure module. Forbidden: " + string.Join(", ", _forbiddenInApplication));
+            Types.InAssembly(application)
+                .ShouldNot()
+                .HaveDependencyOnAny(_forbiddenInApplication)
+                .GetResult()
+                .ShouldHold(
+                    $"{ArchitectureAssemblies.NamespaceOf(application)} may depend on the domain, " +
+                    "FluentValidation and the DI abstractions and nothing else. A port belongs here; " +
+                    "the adapter that implements it belongs in an infrastructure module. Forbidden: " +
+                    string.Join(", ", _forbiddenInApplication));
+        }
     }
 
     /// <summary>
@@ -103,23 +121,121 @@ public sealed class LayerDependencyTests
                 "AppTemplate.Application does not name AppTemplate.Domain in its manifest, so it no longer uses the " +
                 "domain model at all and every rule about the direction between them is moot.");
 
-        TypeFacts.ReferencesAssembly(ArchitectureAssemblies.Domain, ArchitectureAssemblies.ApplicationNamespace)
-            .ShouldBeFalse("AppTemplate.Domain must not name AppTemplate.Application in its manifest.");
+        TypeFacts.ReferencesAssembly(ArchitectureAssemblies.Domain, ArchitectureAssemblies.DomainCoreNamespace)
+            .ShouldBeTrue(
+                "AppTemplate.Domain does not name AppTemplate.Domain.Core in its manifest, so its " +
+                "aggregates are no longer built from the shared primitives and the split between " +
+                "the two has stopped meaning anything.");
 
-        foreach (var infrastructure in ArchitectureAssemblies.AllInfrastructure)
+        TypeFacts.ReferencesAssembly(ArchitectureAssemblies.DomainCore, ArchitectureAssemblies.DomainNamespace)
+            .ShouldBeFalse(
+                "AppTemplate.Domain.Core must not name AppTemplate.Domain in its manifest: the " +
+                "primitives know no feature, which is the whole reason they are a project of their " +
+                "own.");
+
+        foreach (var domain in ArchitectureAssemblies.DomainLayer)
         {
-            string moduleName = ArchitectureAssemblies.NamespaceOf(infrastructure);
+            string domainName = ArchitectureAssemblies.NamespaceOf(domain);
 
-            TypeFacts.ReferencesAssembly(ArchitectureAssemblies.Domain, moduleName)
-                .ShouldBeFalse($"AppTemplate.Domain must not name '{moduleName}' in its manifest.");
+            TypeFacts.ReferencesAssembly(domain, ArchitectureAssemblies.ApplicationNamespace)
+                .ShouldBeFalse($"'{domainName}' must not name AppTemplate.Application in its manifest.");
 
-            TypeFacts.ReferencesAssembly(ArchitectureAssemblies.Application, moduleName)
-                .ShouldBeFalse($"AppTemplate.Application must not name '{moduleName}' in its manifest.");
+            foreach (var infrastructure in ArchitectureAssemblies.AllInfrastructure)
+            {
+                string moduleName = ArchitectureAssemblies.NamespaceOf(infrastructure);
+
+                TypeFacts.ReferencesAssembly(domain, moduleName)
+                    .ShouldBeFalse($"'{domainName}' must not name '{moduleName}' in its manifest.");
+            }
+        }
+
+        TypeFacts.ReferencesAssembly(
+                ArchitectureAssemblies.Application,
+                ArchitectureAssemblies.ApplicationCoreNamespace)
+            .ShouldBeTrue(
+                "AppTemplate.Application does not name AppTemplate.Application.Core in its " +
+                "manifest, so its use cases no longer answer with the shared Result or carry the " +
+                "shared paging contracts, and the split between the two has stopped meaning " +
+                "anything.");
+
+        TypeFacts.ReferencesAssembly(
+                ArchitectureAssemblies.ApplicationCore,
+                ArchitectureAssemblies.DomainNamespace)
+            .ShouldBeFalse(
+                "AppTemplate.Application.Core must not name AppTemplate.Domain in its manifest: the " +
+                "mechanisms know no feature, and the two files here that need a domain type need " +
+                "only the primitives.");
+
+        TypeFacts.ReferencesAssembly(
+                ArchitectureAssemblies.ApplicationCore,
+                ArchitectureAssemblies.ApplicationNamespace)
+            .ShouldBeFalse(
+                "AppTemplate.Application.Core must not name AppTemplate.Application in its " +
+                "manifest. The arrow points from the features to the mechanisms; the reverse would " +
+                "make the mechanisms unusable without the example features.");
+
+        foreach (var application in ArchitectureAssemblies.ApplicationLayer)
+        {
+            string applicationName = ArchitectureAssemblies.NamespaceOf(application);
+
+            foreach (var infrastructure in ArchitectureAssemblies.AllInfrastructure)
+            {
+                string moduleName = ArchitectureAssemblies.NamespaceOf(infrastructure);
+
+                TypeFacts.ReferencesAssembly(application, moduleName)
+                    .ShouldBeFalse($"'{applicationName}' must not name '{moduleName}' in its manifest.");
+            }
         }
     }
 
     /// <summary>
-    /// Proves the machinery behind <see cref="Domain_DependsOnNothing"/> can fail.
+    /// The half of "authentication is optional" that is actually true, and the one the split bought:
+    /// nothing in the business application project or in the mechanisms names anything in
+    /// <c>AppTemplate.Application.Auth</c>.
+    /// <para>
+    /// Read off the manifests, which is the linker's own view: an entry appears there only because
+    /// something in the assembly uses it. So this is not a statement about project files that could
+    /// be true while a type reached across anyway — it is a statement about what the code does.
+    /// </para>
+    /// <para>
+    /// The arrow is allowed to point the other way and does: authentication is built on the
+    /// mechanisms. What must not appear is the reverse, because a business feature that named an
+    /// authentication type would make the whole project mandatory again, and per-feature
+    /// registration would buy nothing.
+    /// <see cref="Composition.ContainerCompositionTests.RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer"/>
+    /// carries what stops a full removal being free.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void TheApplicationLayer_KnowsNothingOfAuthentication()
+    {
+        TypeFacts.ReferencesAssembly(
+                ArchitectureAssemblies.ApplicationAuth,
+                ArchitectureAssemblies.ApplicationCoreNamespace)
+            .ShouldBeTrue(
+                "AppTemplate.Application.Auth does not name AppTemplate.Application.Core in its " +
+                "manifest, so it is no longer built on the shared mechanisms and the direction this " +
+                "rule is about has stopped existing.");
+
+        TypeFacts.ReferencesAssembly(
+                ArchitectureAssemblies.Application,
+                ArchitectureAssemblies.ApplicationAuthNamespace)
+            .ShouldBeFalse(
+                "AppTemplate.Application names AppTemplate.Application.Auth in its manifest. A " +
+                "business feature that reaches into authentication makes that project mandatory in " +
+                "every host again, which is exactly what registering per feature was for.");
+
+        TypeFacts.ReferencesAssembly(
+                ArchitectureAssemblies.ApplicationCore,
+                ArchitectureAssemblies.ApplicationAuthNamespace)
+            .ShouldBeFalse(
+                "AppTemplate.Application.Core names AppTemplate.Application.Auth in its manifest. " +
+                "The mechanisms are the innermost thing in this layer; anything they learned would " +
+                "be learned by everything above them.");
+    }
+
+    /// <summary>
+    /// Proves the machinery behind <see cref="TheDomainLayer_DependsOnNothing"/> can fail.
     /// <para>
     /// The same forbidden list is applied to <c>AppTemplate.Infrastructure.Persistence</c>, which depends on
     /// EF Core, on the DI abstractions and on AppTemplate.Application by design. If this passes, then

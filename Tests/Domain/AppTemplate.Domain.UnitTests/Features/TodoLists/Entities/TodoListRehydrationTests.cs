@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
-using AppTemplate.Domain.Common.Abstractions;
-using AppTemplate.Domain.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using Shouldly;
 using Xunit;

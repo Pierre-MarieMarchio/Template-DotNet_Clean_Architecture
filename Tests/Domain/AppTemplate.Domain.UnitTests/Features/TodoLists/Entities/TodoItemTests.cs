@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Common.Exceptions;
+﻿using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 using Shouldly;

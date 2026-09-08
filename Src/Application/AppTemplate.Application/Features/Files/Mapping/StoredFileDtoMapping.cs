@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Domain.Features.Files.Entities;
 

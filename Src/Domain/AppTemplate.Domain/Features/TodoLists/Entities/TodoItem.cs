@@ -1,5 +1,5 @@
-﻿using AppTemplate.Domain.Common.Exceptions;
-using AppTemplate.Domain.Common.Primitives;
+﻿using AppTemplate.Domain.Core.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 
 namespace AppTemplate.Domain.Features.TodoLists.Entities;

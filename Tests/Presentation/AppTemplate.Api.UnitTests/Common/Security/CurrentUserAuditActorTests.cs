@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Api.Common.Security;
-using AppTemplate.Application.Common.Ports;
+using AppTemplate.Application.Core.Common.Ports;
 using Shouldly;
 using Xunit;
 

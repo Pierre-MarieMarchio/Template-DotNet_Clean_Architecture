@@ -14,7 +14,7 @@ redone:
 |---|---|
 | `docs/plans/SDK-SPLIT-PLAN.md` | The seven waves, the order, the preconditions, the exit gate |
 | `docs/plans/SDK-SPLIT-TARGET.md` | What each project is: path, folders, namespaces, references, packaging |
-| `docs/plans/SDK-SPLIT-DECISIONS.md` | Why, including every rejected option and its reason — **41 entries now, 38 numbered** |
+| `docs/plans/SDK-SPLIT-DECISIONS.md` | Why, including every rejected option and its reason — **45 entries now, 42 numbered** |
 | `docs/plans/SDK-SPLIT-BLAST-RADIUS.md` | What else changes: rules, tests, tooling, docs, and the known gaps |
 | `docs/plans/AUTH-SEPARATION.md` | The separation of authentication: measured state, decisions A1 to A8, waves A to D. Scheduled after wave 7, self-contained |
 
@@ -25,12 +25,11 @@ they differ. **19 to 27 were settled at the start of wave 5, and 28 to 30 came o
 the packages of `Api.Core`, its composition list, its public surface, its promotion count, the
 API-reference policy, and what stays in the API host.
 
-## Nothing is committed
+## How work leaves this repository
 
-Everything from waves 0 to 5, and the audit pass after it, is **staged and uncommitted**, on
-`main`, over commit `4bbb18a`. About 883 staged paths. The working tree is clean. **Never run
-`git commit`** — commits are split by hand, and they carry no co-author trailer. Leave your own work
-staged too (`git add -A` at the end of a wave, no commit).
+Waves 0 to 6 and the audit pass between them are committed on `main`. **Never run `git commit` on
+your own initiative** — the owner asks for it, splits the commits by subject, and they carry no
+co-author trailer. Leave your own work staged (`git add -A` at the end of a wave) until then.
 
 ## What is done, and verified
 
@@ -139,9 +138,20 @@ makes a shared infrastructure foundation legal without opening sideways referenc
 
 ### Wave 7 — documentation and close
 
-The five docs the path gate checks, a "what this template does not do" section, a **re-measured**
-`coverage.minimum`, and `CHANGELOG.md`. Also the fixtures a derived project inherits, which is what
-decision 36 leaves to documentation instead of to a project.
+Its nine lots and their order are in `docs/plans/SDK-SPLIT-PLAN.md`; decisions 39 to 42 settle what
+was open. The subject is documentation, and the one measurement in it is the coverage floor. Three
+things are worth knowing before starting:
+
+- **`AppTemplate.Infrastructure.Core` is named in no document at all** — not in the five the path
+  gate checks, not in `README.md`, not in `CONTRIBUTING.md`, not in `CHANGELOG.md` — while the other
+  five `.Core` projects are already described everywhere. It is the largest gap of the wave, and the
+  gate does not see it: the gate checks that a cited path exists, never that an existing project is
+  cited.
+- **The coverage lot runs alone and early.** It runs the whole suite, and a test host still holding
+  the DLLs fails the next build with MSB3021.
+- **The test-project counts to write are 15 unit plus 1 architecture**, out of 18 under `Tests/`.
+  Question 5 below carried "thirteen non-integration ones", measured before `Api.Core.UnitTests` and
+  `Infrastructure.Core.UnitTests` existed.
 
 ### Then, two chantiers of their own
 
@@ -295,8 +305,9 @@ Read them in `docs/plans/SDK-SPLIT-DECISIONS.md`; summarised here so nothing is 
 
 ## Open questions — ask, do not assume
 
-The repository owner has asked explicitly for no invention and no silent assumption. **Only 5, 6
-and 7 below are still open, and all three are wave-7 items.** Everything wave 6 was blocked on was
+The repository owner has asked explicitly for no invention and no silent assumption. **All seven are
+now closed**; 5, 6 and 7 were answered on 2026-09-08 and each says which wave-7 lot carries it.
+Everything wave 6 was blocked on was
 settled on 2026-09-08 and is recorded as decisions 33 to 38; the questions the separation of
 authentication leaves open are listed at the end of its own document. Ask; do not pick.
 
@@ -315,15 +326,23 @@ authentication leaves open are listed at the end of its own document. Ask; do no
    the grant was valid with a control grant of its own instead of with a time window, which removes
    the reading under which a transient `Forbidden` from a warming store counted as "never valid".
    See decision 31, including what that decision does and does not claim.
-5. **Two pre-existing defects the docs carry**, reported and not fixed, both wave-7 candidates:
-   `docs/REMOVING-THE-EXAMPLE-FEATURES.md` says "the ten unit and architecture test projects" (there
-   are thirteen non-integration ones) and cites measurements taken against a different tree ("2618
-   passing", "three rounds of `dotnet build`"); and `docs/CONFIGURATION.md`'s `Localization` section
+5. ~~**Two pre-existing defects the docs carry**~~ — **answered: both are fixed in wave 7**, in
+   lot 4. `docs/REMOVING-THE-EXAMPLE-FEATURES.md` says "the ten unit and architecture test projects"
+   and cites measurements taken against a different tree ("2618 passing", "three rounds of
+   `dotnet build`"); the count to write is **15 unit plus 1 architecture**, and the measurements are
+   re-taken or dropped rather than restated. `docs/CONFIGURATION.md`'s `Localization` section
    advises setting `CultureInfo.CurrentUICulture`, which `CurrentLanguage`'s own remarks explain is
-   impossible here because the repository builds with `InvariantGlobalization=true`.
-6. **`docs/ARCHITECTURE.md` contains one sentence beginning "There was previously a…"**, which
-   violates the repository's own no-history rule. Pre-existing. Fix in wave 7, or leave?
-7. **Markdown BOM is inconsistent** — seven files carry one, five do not, and `.editorconfig`
-   prescribes a BOM for `[*.cs]` only. Nothing gates it. Normalise, or leave?
+   impossible under `InvariantGlobalization=true`; that section is corrected to name
+   `CurrentLanguage.Tag`, which is what `UseRequestLanguage` actually sets, in both places the prose
+   names the culture.
+6. ~~**`docs/ARCHITECTURE.md` contains one sentence beginning "There was previously a…"**~~ —
+   **answered: rewrite it**, in the same lot, to state what resolves the connection string without
+   the comparison. It is rewritten now rather than left to decision A4 of
+   `docs/plans/AUTH-SEPARATION.md`, which rewrites the whole section later: a rule the repository
+   states about itself is not left broken for the length of another chantier.
+7. ~~**Markdown BOM is inconsistent**~~ — **answered: normalise it and write the rule down**, lot 8,
+   decision 42. Measured on 2026-09-08: nine files carry a BOM (`CHANGELOG.md`, `CONTRIBUTING.md`,
+   `README.md`, `SECURITY.md` and the five under `docs/` other than `DEPLOYMENT.md`) and eight do
+   not (`docs/DEPLOYMENT.md`, `deploy/kubernetes/README.md`, and the six under `docs/plans/`).
 
 Anything not on this list and not settled by the four plan documents is also a question. Ask it.

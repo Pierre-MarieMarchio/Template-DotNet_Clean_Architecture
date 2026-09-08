@@ -105,25 +105,37 @@ Also: about 30 references written as `` `path/to/file.cs` `` inside `<c>` tags r
 `<see cref>`. No compiler checks them, and they name exactly the files being moved. They need a
 manual sweep, listed per wave.
 
-## Known gaps of the SDK
+## Known gaps of the package-grade projects
 
-Verified absent, not assumed. The first four are scheduled in wave 6; the rest get a "what this SDK
-does not do" section in `docs/ARCHITECTURE.md` with the intended extension point for each.
+Verified absent, not assumed. The first three are scheduled in wave 6; the fourth is withdrawn by
+decision 36. The rest get a "what this template does not do" section in `docs/ARCHITECTURE.md`
+with the intended extension point for each.
 
 ### Scheduled
 
 1. **Recurring work has no abstraction.** The three worker loops are 507 lines that each re-do
    timing, DI scope, instruments and error handling — including an eleven-line wait helper that is
-   byte-identical three times over, doc comment included. Nine real behavioural divergences must be
+   byte-identical three times over, doc comment included. Nine divergences must be
    preserved rather than unified: timer topology, scope granularity, the shutdown path, the disabled
    flag treatment, the volume counter shape, where the enabled test sits, the start-up log contents,
-   span and tag names, and log vocabulary.
-2. **Email templating is locked inside the identity module.** Multilingual rendering from embedded
-   resources already exists; the factory is `internal`, so a derived project cannot render its own
-   mail through the SDK.
-3. **No cache at all** — no distributed cache, no output caching, no hybrid cache.
-4. **The test fixtures are not reusable.** The API factory and the Testcontainers fixtures live
-   inside the integration test project, so a derived project copies them.
+   span and tag names, and log vocabulary. **What "preserved" means is decided in decision 34:** the
+   structure of each loop survives, and the two defects below are fixed — two of the nine name the
+   same subjects as the two defects, so the pair only reads as consistent under that reading.
+   `PeriodicJob` is a loop primitive rather than a base class, decision 33.
+2. **Email templating is locked inside the identity module, and duplicated.** Multilingual rendering
+   from embedded resources exists twice — `EmailBodyFactory` at 196 lines and
+   `ReminderEmailTemplate` at 131, with `RenderedEmail` declared in both — because an
+   infrastructure module may not reference a sibling. Both are `internal`, so a derived project
+   cannot render its own mail through the template at all. The engine moves to
+   `AppTemplate.Infrastructure.Core` — decision 37.
+3. **No cache at all** — no distributed cache, no output caching, no hybrid cache. Wave 6 adds an
+   `ICache` port with one `HybridCache` adapter, and re-expresses `CachedSigningKeys` over it.
+   Output caching stays a stated limit — decision 35.
+4. ~~**The test fixtures are not reusable.**~~ **Withdrawn — decision 36.** Measured, only 356 lines
+   of them name no product type, while `ApiFactory` and `IntegrationTestBase` name ten and eight
+   product namespaces and cannot move. A derived project receives the whole of `Tests/` by
+   generation, so copying is the delivery mechanism rather than a defect. Wave 7 documents the
+   fixtures a derived project inherits.
 
 ### Documented as limits
 

@@ -1,18 +1,22 @@
 # Handoff — where the SDK split stands, and what is left
 
-**Written:** 2026-09-07, at the end of wave 4. **Read this before touching anything.**
+**Written:** 2026-09-07, at the end of wave 4. **Amended 2026-09-08**, when wave 6's five open
+questions were settled and the separation of authentication was scheduled.
+**Read this before touching anything.**
 
 This directory is exempt from `Tools/CheckDocPaths.cs`, so paths below may name a tree that does not
 exist yet.
 
-Read these four first. They are the plan of record and the analysis behind it must not be redone:
+Read these five first. They are the plan of record and the analysis behind them must not be
+redone:
 
 | Document | Answers |
 |---|---|
 | `docs/plans/SDK-SPLIT-PLAN.md` | The seven waves, the order, the preconditions, the exit gate |
 | `docs/plans/SDK-SPLIT-TARGET.md` | What each project is: path, folders, namespaces, references, packaging |
-| `docs/plans/SDK-SPLIT-DECISIONS.md` | Why, including every rejected option and its reason — **35 entries now, 32 numbered** |
-| `docs/plans/SDK-SPLIT-BLAST-RADIUS.md` | What else changes: rules, tests, tooling, docs, and the SDK's known gaps |
+| `docs/plans/SDK-SPLIT-DECISIONS.md` | Why, including every rejected option and its reason — **41 entries now, 38 numbered** |
+| `docs/plans/SDK-SPLIT-BLAST-RADIUS.md` | What else changes: rules, tests, tooling, docs, and the known gaps |
+| `docs/plans/AUTH-SEPARATION.md` | The separation of authentication: measured state, decisions A1 to A8, waves A to D. Scheduled after wave 7, self-contained |
 
 `SDK-SPLIT-DECISIONS.md` has grown thirteen entries and two corrections since it was written.
 Entries **15 to 32** and the two sections at the end (`Two corrections to …TARGET.md`, and the
@@ -39,18 +43,20 @@ staged too (`git add -A` at the end of a wave, no commit).
 | 4 | `AppTemplate.Presentation.Core` | done |
 | 5 | `AppTemplate.Api.Core` | done |
 | — | The audit pass, all three strands | done |
-| 6 | The SDK's missing pieces | not started |
+| 6 | The missing pieces | done |
 | 7 | Documentation and close | not started |
+| — | `docs/plans/AUTH-SEPARATION.md`, waves A to D | not started, scheduled after 7 |
+| — | The comment-convention cleanup pass | not started, scheduled last |
 
 Measured at the end of the audit pass, not remembered:
 
-- **14 projects** under `Src/`, **17** under `Tests/`.
-- **3285 tests**, 0 failing, 0 skipped (`dotnet test --solution AppTemplate.sln`).
-- **132 architecture rules**, all passing — two more than wave 4 left, both added because the split
+- **15 projects** under `Src/`, **18** under `Tests/`.
+- **3328 tests**, 0 failing, 0 skipped (`dotnet test --solution AppTemplate.sln`).
+- **131 architecture rules**, all passing — two more than wave 4 left, both added because the split
   created the gap they close: a host must install the core pipeline before any middleware of its
   own, and an SDK project without the ASP.NET framework reference may not acquire it from a package.
-- Five SDK projects declare `IsPackable`: `Domain.Core`, `Application.Core`, `Application.Auth`,
-  `Presentation.Core`, `Api.Core`. All five `dotnet pack` cleanly.
+- **Six** projects declare `IsPackable`: `Domain.Core`, `Application.Core`, `Application.Auth`,
+  `Infrastructure.Core`, `Presentation.Core`, `Api.Core`. All six `dotnet pack` cleanly.
 - Both container images build.
 - `dotnet run Tools/Tasks.cs verify` and `dotnet format --verify-no-changes` both clean.
 
@@ -115,20 +121,44 @@ Four of them exist because a test caught something a reading had missed, and eac
 
 ### What is still open
 
-### Wave 6 — the SDK's missing pieces
+### Wave 6 — the missing pieces. Every question it was blocked on is answered.
 
-`docs/plans/SDK-SPLIT-BLAST-RADIUS.md` has the verified list. Scheduled: `PeriodicJob`
-(`Common/Jobs/` in `Presentation.Core`, which is **why that project has four `Common/` folders today
-and not five**), a public email-templating surface, a cache port with one adapter, and a reusable
-test kit. Two pre-existing defects get fixed while factoring the three worker loops rather than
-reproduced — the maintenance loop neither counts nor logs a disabled purge, and the maintenance and
-reminder loops do not run their shutdown log when the stop lands mid-iteration. Nine behavioural
-divergences between the loops must be **preserved**, not unified; BLAST-RADIUS names them.
+Three subjects, not four, and all three are implemented and green. Decisions 33 to 37 settle each one and say what they rejected; decision 35 carries a correction and its resolution, because the consumer it first named turned out not to be a cache at all.
+
+| Subject | Shape | Decision |
+|---|---|---|
+| `PeriodicJob` | A **loop primitive**, not a `BackgroundService` base class: one interval, one asynchronous iteration. Each service composes one instance, or three. `Common/Jobs/` in `Presentation.Core`, which is why that project has four `Common/` folders today and not five | 33 |
+| The three worker loops | The **structure** of each survives — where the enabled test sits, log level and vocabulary, span and tag names, counter shape, timer topology, scope granularity, how the stop propagates. The two **defects** are fixed: the maintenance loop gains a counted and warning-logged disabled purge with its consequence, and maintenance and reminder gain the shutdown log the file loop guarantees | 34 |
+| Email templating | A new **`AppTemplate.Infrastructure.Core`**, holding the engine taken from its two existing copies. Not `Application.Core`: reading HTML out of an assembly is not that layer's decision, and the duplicated file says so itself | 37 |
+| Cache | `ICacheStore` in `Application.Core/Common/Ports/`, one `HybridCache` adapter in `Infrastructure.Core`, and the consumer is a **new** read in both features that own tags — the tags an owner has already used, for a picker. No existing read tolerated staleness, and the correction inside decision 35 measures all four. **No output caching** | 35 |
+| ~~A reusable test kit~~ | **Withdrawn.** Measured: 356 lines of the fixtures name no product type, and the two a derived project wants name ten and eight product namespaces and cannot move. A derived project receives all of `Tests/` by generation, so copying is the delivery mechanism | 36 |
+
+One rule is amended by wave 6: `InfrastructureModules_ReferenceOnlyPersistenceHorizontally` becomes
+"only Persistence or the infrastructure `.Core`", keeping its non-vacuity assertion. That is what
+makes a shared infrastructure foundation legal without opening sideways references generally.
 
 ### Wave 7 — documentation and close
 
-The five docs the path gate checks, a "what this SDK does not do" section, a **re-measured**
-`coverage.minimum`, and `CHANGELOG.md`.
+The five docs the path gate checks, a "what this template does not do" section, a **re-measured**
+`coverage.minimum`, and `CHANGELOG.md`. Also the fixtures a derived project inherits, which is what
+decision 36 leaves to documentation instead of to a project.
+
+### Then, two chantiers of their own
+
+**The separation of authentication** — `docs/plans/AUTH-SEPARATION.md`. Read that document; it is
+self-contained and every measurement in it was taken on 2026-09-08, so nothing needs re-measuring.
+The short version: the business domain already knows only an opaque `Guid OwnerId` with **no**
+foreign key to the identity tables, `ICurrentUser` is already scheme-agnostic, and **no code path
+commits an identity write and a business write together** — so the real work is that the two halves
+share one `DbContext`, one migrations history and one unit of work. Four waves: name the subject,
+move the agnostic EF mechanisms into `Infrastructure.Core`, give authentication its own storage,
+document and close. **There is no `Domain.Auth`** and decision A1 says why.
+
+**The comment-convention cleanup pass.** `CONTRIBUTING.md`'s `## Comments` section now forbids
+orchestration and construction commentary and sends rationale to `docs/`. Every file written or
+touched from 2026-09-08 follows it. The existing tree does not yet, and bringing it into line is a
+pass of its own — running it inside another wave would make that wave's diff unreadable. It goes
+last.
 
 ### Roughly 126 lines of measured, agnostic duplication — offered to the owner, not yet scheduled
 
@@ -249,9 +279,13 @@ Read them in `docs/plans/SDK-SPLIT-DECISIONS.md`; summarised here so nothing is 
   is the composition file: `Program.cs`, or the name `LayoutConventionTests.ModuleFileName` /
   `QualifiedModuleFileName` accepts.
 - File-scoped namespaces only. LF endings. `using AppTemplate.*` sorted on the namespace text.
-- **Comments: minimum, short, and never about the repository's own history.** No "was", "used to",
-  "previously", "moved from", "now that", and no mention of this split.
-  `Tools/CheckNarrativeComments.cs` fails the build on those.
+- **Comments: minimum and short.** A comment says what something does, or how it works, when the
+  signature does not — never why it has this shape rather than another. No orchestration or
+  construction commentary, no rejected alternatives, no paraphrase, and nothing about the
+  repository's own history: no "was", "used to", "previously", "moved from", "now that", and no
+  mention of this split. `Tools/CheckNarrativeComments.cs` fails the build on the history half.
+  **Rationale belongs in `docs/`** — these plan documents and `docs/ARCHITECTURE.md`. See
+  `CONTRIBUTING.md`, section `## Comments`, which is the statement of record.
 - `Tests/` is a 1:1 mirror of `Src/`. Each `InternalsVisibleTo` names exactly one assembly — its own
   mirror.
 - **Never `git commit`.** Leave work staged. The owner splits the commits by hand, and they carry
@@ -261,9 +295,10 @@ Read them in `docs/plans/SDK-SPLIT-DECISIONS.md`; summarised here so nothing is 
 
 ## Open questions — ask, do not assume
 
-The repository owner has asked explicitly for no invention and no silent assumption. Four of the
-seven are closed; **2, 3, 5, 6 and 7 below are the live ones** — 2 and 3 answered, the rest still
-waiting. Ask; do not pick.
+The repository owner has asked explicitly for no invention and no silent assumption. **Only 5, 6
+and 7 below are still open, and all three are wave-7 items.** Everything wave 6 was blocked on was
+settled on 2026-09-08 and is recorded as decisions 33 to 38; the questions the separation of
+authentication leaves open are listed at the end of its own document. Ask; do not pick.
 
 1. ~~**The `.Core` `Common/` shape**~~ — **closed.** Shape A is kept, for all five `.Core` projects,
    and the reason is not the one decision 4 gave: see decision 19. No rename happens, and `Api.Core`

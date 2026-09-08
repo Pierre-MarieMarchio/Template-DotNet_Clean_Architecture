@@ -16,11 +16,11 @@ one exists.
 
 | Layer | Project(s) | Contains | May reference |
 |---|---|---|---|
-| Domain | `AppTemplate.Domain.Core` | the primitives an aggregate is built from: entity, aggregate root, domain event, the audit and concurrency contracts, the domain exception | **nothing** |
+| Domain | `AppTemplate.Domain.Core` | the primitives an aggregate is built from: entity, aggregate root, domain event, the audit and concurrency contracts, the domain exception, and `UserId` — who a thing belongs to | **nothing** |
 | Domain | `AppTemplate.Domain` | aggregates, value objects, domain events, invariants | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application.Core` | the mechanisms a use case is written *from*: `Result`/`Error`, the `IUseCase` marker, validation, offset and cursor pagination, idempotency, optimistic concurrency, the cross-cutting ports | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application` | the business features' use cases, feature ports, DTOs, validators | `AppTemplate.Domain` + `AppTemplate.Application.Core` |
-| Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind twenty ports; it names no domain type | `AppTemplate.Application.Core` |
+| Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind twenty ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Identity`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
 | Presentation | `AppTemplate.Presentation.Core` | what any host needs whatever its transport: one outbound HTTP policy, the language a flow is written in, OTLP traces and metrics, the identity of a process with no caller — and no framework reference, deliberately | `AppTemplate.Application.Core` |
@@ -123,8 +123,8 @@ features come to share as business.
 
 **Which brings up the one thing worth being precise about, because two folders share a name.**
 `<Layer>.Core/Common/` is the agnostic half of a layer — `Result`, `Error`, `PageRequest`,
-`SortOrder`, `IUnitOfWork`, `ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`. Nothing in it
-knows a feature, and nothing in it ever may; that is the whole claim of those projects.
+`SortOrder`, `IUnitOfWork`, `ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`, `UserId`. Nothing
+in it knows a feature, and nothing in it ever may; that is the whole claim of those projects.
 `<Layer>/Common/` is the business-shared half, and it exists so business code is not repeated across
 features: a value object three features spend, a DTO two features answer with, a policy that spans
 them. The sorting test is one question — **does it know a feature?** If it names a feature, or would
@@ -168,9 +168,13 @@ makes the project work.
 `AppTemplate.Application.Auth` is the layer's third project, and it is a vertical rather than a
 Core: authentication and account administration as use cases — sign-in, refresh-token rotation, the
 password and email lifecycle, two-factor enrolment, external providers, roles and lockouts — under
-`Features/Auth/{Errors,Policies,Ports,UseCases}`. It references `AppTemplate.Application.Core` and
-nothing else, and it names **no domain type at all**: the identity model is not an aggregate here,
-it lives behind the twenty ports in `Features/Auth/Ports/`. It has a project of its own because it
+`Features/Auth/{Errors,Policies,Ports,UseCases}`. It declares one project reference,
+`AppTemplate.Application.Core`, and it names **no aggregate**: the identity model is not one here,
+it lives behind the twenty ports in `Features/Auth/Ports/`. The one domain type it names is
+`UserId`, which arrives through `ICurrentUser` — and every one of its own twenty ports takes the
+raw `Guid` inside it instead, because what an account is identified by here is the subject a token
+carries rather than the business's notion of an owner. That is why the unwrap is visible at each of
+those calls. It has a project of its own because it
 is the part of this template a derived application is most likely to replace wholesale with its own
 identity provider, and that is only possible if nothing composes it on that application's behalf —
 hence one call, `AddAuthApplication()`, and no arrow to it from either of the other two application
@@ -185,8 +189,8 @@ file each — the outbound HTTP policy installed on `IHttpClientFactory`'s defau
 `LocalizationOptions` naming the language a flow is written in when nobody said which to read, the
 `TelemetryOptions` and the OTLP tracer and meter over it, `NoCallerCurrentUser`, the answer a
 process with no request gives to "who is calling", and `PeriodicJob`, the loop a host's recurring
-work is written on — see the Worker below for what that primitive does and does not decide. It references `AppTemplate.Application.Core` and
-nothing else, and it is written package-grade for the same reasons the three projects inwards are: a
+work is written on — see the Worker below for what that primitive does and does not decide. It
+declares one project reference, `AppTemplate.Application.Core`, and it is written package-grade for the same reasons the three projects inwards are: a
 tracked public surface in `Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Shipped.txt` and
 `Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Unshipped.txt`, `CS1591` re-enabled so a
 derived project can read the signatures instead of the code, `dotnet pack` over it, and no version,
@@ -307,7 +311,7 @@ capability an adapter can satisfy on its own,
 and the ASP.NET Identity types (`AppUser`, `UserManager<>`) never appear in
 Application. An architecture test asserts that no port grows wide enough to take the
 sequencing back. Because those twenty ports are all `AppTemplate.Application.Auth` speaks in, that
-project names no domain type: an account here is what its ports say about it, not an aggregate.
+project names no aggregate: an account here is what its ports say about it.
 
 ## Infrastructure is split per capability, with no per-technology sub-split
 

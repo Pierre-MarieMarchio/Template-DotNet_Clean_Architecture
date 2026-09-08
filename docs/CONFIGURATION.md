@@ -52,10 +52,10 @@ be filled from user secrets or environment variables.
 >
 > | Section | Bound by | Declared in |
 > |---|---|---|
-> | `Identity`, `IdentityTokens` | `AddIdentityModule` | `AppTemplate.Infrastructure.Identity/Common/Options/` |
-> | `Jwt`, `RefreshToken`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `TwoFactor`, `ExternalIdentity` | `AddIdentityModule` | `AppTemplate.Infrastructure.Identity/Features/Auth/Options/` |
-> | `IdentitySeed` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Features/Identity/Seeding/` |
-> | `Database` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Options/` |
+> | `Identity`, `IdentityTokens` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Common/Options/` |
+> | `Jwt`, `RefreshToken`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `TwoFactor`, `ExternalIdentity` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Auth/Options/` |
+> | `IdentitySeed` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Auth/Seeding/` |
+> | `Database` | `AddPersistenceModule` **and** `AddAuthModule` | `AppTemplate.Infrastructure.Core/Common/Options/` |
 > | `IdempotencyPurge` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Idempotency/` |
 > | `Email`, `Postmark` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Common/Smtp/` and `Common/Http/` |
 > | `Storage` | `AddStorageModule` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
@@ -86,7 +86,7 @@ application-layer use cases `MaintenanceController` exposes over HTTP — on a t
 request, and rings a due reminder by mail through the exact same `IReminderNotifier` port the API
 would use if it ever called it. It composes the same ten lines the API does — `AddTodoLists`,
 `AddReminders`, `AddFiles`, `AddAuthApplication`, `AddPurgeExpiredIdempotencyKeys`,
-`AddCacheStore`, `AddPersistenceModule`, `AddIdentityModule`, `AddEmailModule` **and**
+`AddCacheStore`, `AddPersistenceModule`, `AddAuthModule`, `AddEmailModule` **and**
 `AddStorageModule` — so it reads `ConnectionStrings`, `Database`, `IdempotencyPurge`, `Jwt`,
 `RefreshToken`, `IdentityTokens`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `Email`,
 `Storage` and `ContentInspection` exactly like the API, plus the three sections that are its own:
@@ -111,7 +111,7 @@ and `EmailChange` at startup even though it never authenticates anybody.**
 Two reasons, and the second is the one that decides it.
 
 The smaller: `IRefreshTokenMaintenanceService`'s only adapter lives in
-`AppTemplate.Infrastructure.Identity`. Read alone, that invites an obvious conclusion — move that
+`AppTemplate.Infrastructure.Auth`. Read alone, that invites an obvious conclusion — move that
 one adapter into the persistence project, where the `IRefreshTokenTable` it drives already lives,
 and the worker sheds six configuration sections. **That conclusion is wrong**, which is worth
 saying plainly because it is the first thing anyone reading this reaches for.
@@ -205,7 +205,7 @@ they are **not** the values in `appsettings.Development.json`, which override th
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `Default` | string | — | **Required.** The one and only connection string. Npgsql format. The one `DbContext` uses it; see [ARCHITECTURE.md](ARCHITECTURE.md#one-dbcontext-one-database-five-schemas). |
+| `Default` | string | — | **Required.** The one and only connection string. Npgsql format. Both `DbContext`s use it, which is also what makes them share one pool; see [ARCHITECTURE.md](ARCHITECTURE.md#two-contexts-one-database-five-schemas). |
 
 Example: `Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=…`
 
@@ -227,8 +227,14 @@ else — a monitoring dashboard, a `psql` session, a second application — gets
 20 is deliberately conservative so that running several replicas, of the API *and* the worker,
 against one PostgreSQL instance does not by itself approach the server's ceiling.
 
+**Bound once, for both contexts.** This section is bound by whichever modules own a context —
+`AddPersistenceModule` and `AddAuthModule` — into one options type in
+`AppTemplate.Infrastructure.Core`. Npgsql pools per connection string, so two contexts built on the
+identical string share **one** pool of `MaxPoolSize`, not one each. Deriving the bound separately in
+the two modules is what would turn it into two.
+
 **Sizing this against replica count and `max_connections`.** Every replica of every process that
-calls `AddPersistenceModule` — each API instance and each worker instance — holds its own pool up
+composes either module — each API instance and each worker instance — holds its own pool up
 to `MaxPoolSize`. Budget:
 
 ```
@@ -328,7 +334,7 @@ middleware.
 
 ### `ExternalIdentity`
 
-Which providers a caller may present an `id_token` from. Bound by `AddIdentityModule`, so both hosts
+Which providers a caller may present an `id_token` from. Bound by `AddAuthModule`, so both hosts
 read it; only the API acts on it.
 
 | Key | Type | Default | Notes |
@@ -659,7 +665,7 @@ happened while the subject lived here: an English `Subject` was delivered above 
 as long as nobody opened the mail. See [`Localization`](#localization).
 
 **Both hosts validate all three of `EmailConfirmation`, `PasswordReset` and `EmailChange` at
-startup.** All three are bound by `AddIdentityModule`, not by anything HTTP-specific, so
+startup.** All three are bound by `AddAuthModule`, not by anything HTTP-specific, so
 `AppTemplate.Worker` — which composes that module for its reminder loop's `IUserProfilesService`
 and for `IRefreshTokenMaintenanceService`'s adapter, see
 [above](#two-hosts-one-configuration-schema) — requires all three URLs too, even though it never
@@ -686,7 +692,7 @@ the same message.
 templates are embedded, and a list here would be a second statement of that — free to name a
 language no template backs. Adding a language is adding
 `<Mail>.<culture>.html` next to the ones that ship, in
-`AppTemplate.Infrastructure.Identity/Features/Auth/Templates/` (the three account mails) and
+`AppTemplate.Infrastructure.Auth/Features/Auth/Templates/` (the three account mails) and
 `AppTemplate.Infrastructure.Email/Features/Reminders/Templates/` (the reminder), and nothing else.
 `EmailTemplateCoverageTests` refuses a language added to one of those folders and not the other.
 

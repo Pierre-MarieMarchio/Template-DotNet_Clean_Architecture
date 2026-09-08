@@ -32,7 +32,7 @@ rely on, and the round count, which is a floor rather than a forecast.
 Three things are **not** measured here and you should treat them as such:
 
 - **The integration suites.** `AppTemplate.Api.IntegrationTests` and
-  `AppTemplate.Infrastructure.Identity.IntegrationTests` need Docker. Everything this document says
+  `AppTemplate.Infrastructure.Auth.IntegrationTests` need Docker. Everything this document says
   about them comes from reading them, not from running them. Run them yourself before you call a
   removal done.
 - **The Docker image builds.** The `Dockerfile` warning below is a real property of `dotnet restore`
@@ -249,7 +249,7 @@ Remove the same composition line as in the API, then the `AddOptions<ReminderWor
 block, its `AddSingleton<IValidateOptions<ReminderWorkerOptions>, …>()` line and
 `AddHostedService<ReminderBackgroundService>()` **(R)**; the same three for `FileWorkerOptions` and
 `FileBackgroundService`, plus `AddStorageModule` **(F)**. **Do not remove `AddEmailModule` or
-`AddIdentityModule` with `Reminders`.** This host also calls `AddAuthApplication()`, which registers
+`AddAuthModule` with `Reminders`.** This host also calls `AddAuthApplication()`, which registers
 every use case `AppTemplate.Application.Auth` declares, and `ValidateOnBuild` then requires all
 twenty of that project's ports to resolve here — four of the use cases take `IEmailSender` — so
 dropping either module leaves a build that is perfectly green and a Worker that will not start. The
@@ -301,66 +301,49 @@ it in `Tests/Architecture/AppTemplate.Architecture.Tests/Composition/HostComposi
 
 ## The migrations
 
-The template ships **three** migrations, and which ones you touch depends on what you removed:
+Each context ships **one** migration, and they are independent:
 
-| Migration | Creates |
-|---|---|
-| `20260809002532_InitialCreate` | `identity` and `platform` — the schema every derived project keeps |
-| `20260809002559_AddExampleFeatures` | `todo` **and** `reminders`, in one migration |
-| `20260809211043_AddFiles` | `files` |
+| Context | Migration | Creates |
+|---|---|---|
+| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/` | `todo`, `reminders`, `files` and `platform` — seven tables |
+| `AuthDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Migrations/` | `identity` — nine tables plus the key ring |
+
+**Removing an example touches the business migration and nothing else.** Authentication's is a
+different file, in a different project, with a history table of its own, so no removal here can
+reach it.
 
 Nothing outside the examples references any of the three example schemas, so on a project that has
 not yet applied a migration to a real database this is not a matter of generating a migration to
-undo them. It is a matter of editing the files that create them, and then bringing
-`AppDbContextModelSnapshot.cs` back into agreement with the code.
+undo them.
 
-**Removing all three examples.** Delete both `*_AddExampleFeatures.*` and both `*_AddFiles.*` file
-pairs. What survives is exactly `InitialCreate`, so — and only in this case — copying the
-`BuildTargetModel` body of `20260809002532_InitialCreate.Designer.cs` over
-`AppDbContextModelSnapshot.cs`'s `BuildModel` body is correct: that designer describes `identity`
-and `platform` and nothing else. The two files differ only in the wrapping — the snapshot's class
-extends `ModelSnapshot` and carries no `[Migration(...)]` attribute — so the method name is the only
-edit the copy needs.
+**The simplest correct path is to regenerate.** The business half ships a single initial migration,
+so there is no chain to keep coherent and no earlier designer to reconcile: delete both its files
+and `AppDbContextModelSnapshot.cs`, then
 
-**Removing some but not all.** Do **not** copy an earlier designer over the snapshot. Subtract from
-the current one instead. Every model description is a list of `modelBuilder.Entity("…")` blocks;
-take out the blocks for the entities you removed, in all three passes of the file — the entity
-definitions, the relationship blocks and the navigation blocks — and leave everything else alone.
-The blocks are named by their persistence model's full type name, so
+```bash
+dotnet ef migrations add InitialCreate \
+  --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
+  --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
+  --output-dir Migrations
+```
+
+against the edited model. What comes out creates exactly the schemas your remaining features need,
+plus `platform` for the idempotency table that belongs to `AppTemplate.Application.Core`'s own
+mechanism and that every derived project keeps.
+
+**Do that only on a project no database has yet applied a migration to.** Otherwise the removal is a
+real `DropTable`/`DropSchema` migration, generated against the deployed model and reviewed line by
+line — regenerating an initial migration that a database has already recorded makes the tool and the
+database disagree about what has been applied.
+
+**If you would rather edit than regenerate**, subtract from both files by hand: in the migration,
+drop the `EnsureSchema`, `CreateTable` and `CreateIndex` calls for what went and the matching
+`DropTable` in `Down`; in the snapshot, take out the `modelBuilder.Entity("…")` blocks for the same
+entities in all three passes of the file — the entity definitions, the relationship blocks and the
+navigation blocks. The blocks are named by their persistence model's full type name, so
 `…Features.TodoLists.Models.TodoListRecord` and its two siblings go with `TodoLists`,
 `…Features.Reminders.Models.ReminderRecord` with `Reminders`, and
-`…Features.Files.Models.StoredFileRecord` with `Files`. Make the same subtraction in the designer
-file of every migration *later* than the one that created the entity, so the chain stays coherent:
-`20260809211043_AddFiles.Designer.cs` describes the to-do list and reminder entities too, because it
-was generated when they existed.
-
-Copying `InitialCreate`'s designer over the snapshot in this case removes `StoredFiles` from the
-model while the `AddFiles` migration and all the `Files` code are still there, and the next `dotnet
-ef migrations add` then emits a duplicate `CreateTable` on `files`.
-
-**Removing `Reminders` alone** additionally means editing `20260809002559_AddExampleFeatures.cs`
-itself, since one migration creates both example schemas: drop the `EnsureSchema(name: "reminders")`
-call, the `CreateTable` for `Reminders`, its two `CreateIndex` calls and the matching `DropTable` in
-`Down`. Removing `TodoLists` means removing `Reminders` too, so in that direction the whole file
-goes.
-
-**Removing `Files` alone** is the cleanest of the three: `AddFiles` is the last migration, so
-deleting both its files and subtracting `StoredFileRecord` from the snapshot is the whole edit. No
-earlier designer mentions it.
-
-`Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Migrations/PendingModelChangesTests.cs`
-is what proves the edit is complete. It calls `Database.HasPendingModelChanges()`, needs no
-database, and fails the moment the snapshot, the remaining migrations and the code's model disagree.
-Run it before trusting this step done — it is the only thing here that will catch a subtraction that
-took one block too many or too few.
-
-**If a database has already had a migration applied to it**, deleting the file does not drop those
-schemas there; it only stops a fresh database from ever creating them. Dropping them from a database
-that already has them needs a real migration, generated against the edited project and reviewed for
-exactly the `DropTable`/`DropSchema` groups you expect and nothing touched on a surviving table.
-Give it a name no existing migration already carries — `dotnet ef` refuses a duplicate — so
-`DropExampleFeatures` rather than `InitialCreate`. The tool is pinned by
-`.config/dotnet-tools.json`.
+`…Features.Files.Models.StoredFileRecord` with `Files`.
 
 ## Configuration, deployment and the sample requests
 
@@ -400,7 +383,7 @@ What it composes shrinks by exactly the line you delete, and no further. Removin
 feature removes that feature's `AddX()` call and nothing else from the graph. What does not shrink
 is authentication: this host calls `AddAuthApplication()`, and `ValidateOnBuild` then requires all
 twenty ports `AppTemplate.Application.Auth` declares to resolve *in this host too* — not only the
-ports its own loops reach. That is why `AppTemplate.Infrastructure.Identity` and
+ports its own loops reach. That is why `AppTemplate.Infrastructure.Auth` and
 `AppTemplate.Infrastructure.Email` both stay composed after `Reminders` goes: those use cases take
 `IUserProfilesService` and `IEmailSender`, and they are registered here whether or not anything in
 this process calls them. `AppTemplate.Infrastructure.Storage` is the one module that leaves with a
@@ -647,10 +630,10 @@ The composable half is genuinely composable, and asserted rather than claimed �
 and finds that neither the business features nor the mechanisms name anything in
 `AppTemplate.Application.Auth`. A container of the business features with no `AddAuthApplication()`
 and no identity module does **not** build, and
-`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer`
+`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
 is what says so and names why. So the first three steps are small: delete the
 `AddAuthApplication()` line from both `Program.cs` files, delete
-`Src/Application/AppTemplate.Application.Auth/` and `Src/Infrastructure/AppTemplate.Infrastructure.Identity/`
+`Src/Application/AppTemplate.Application.Auth/` and `Src/Infrastructure/AppTemplate.Infrastructure.Auth/`
 with their test mirrors and solution entries, and delete
 `Src/Presentation/AppTemplate.Api/Features/Auth/` — `AuthController` and
 `AccountAdministrationController`.
@@ -662,27 +645,26 @@ with their test mirrors and solution entries, and delete
   That is `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/EmailReminderNotifier.cs`,
   and it is why the module is absent from the container that test builds. Either the reminder loop
   learns an address some other way, or it goes.
-- **`AppDbContext` *inherits* `IdentityDbContext`.** `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs`
-  declares `IdentityDbContext<AppUser, AppRole, Guid>` as its base, so ASP.NET Identity's model is
-  part of the context itself rather than a module's contribution to it. Changing the base class is a
-  model change, not a deletion.
-- **The persistence/identity pair is bidirectional.** The seeder in
-  `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Identity/Seeding/IdentitySeeder.cs`
-  takes a `UserManager<AppUser>`, which only the identity module registers. So persistence needs the
-  identity module as much as the identity module needs persistence, and dropping one leaves the
-  other with an unresolvable dependency.
-- **The initial migration mixes the identity tables with the ones that stay.**
-  `20260809002532_InitialCreate` creates nine tables in the `identity` schema and one,
-  `IdempotencyKeys`, in `platform` — and that one belongs to `AppTemplate.Application.Core`'s own
-  idempotency mechanism, which every derived project keeps. There is no earlier designer to copy
-  over the snapshot here, because this *is* the first migration. A clean removal means regenerating
-  it: delete all three migrations and the snapshot, and `dotnet ef migrations add InitialCreate`
-  against the edited model. Do that only on a project no database has yet applied a migration to;
-  otherwise it is a real `DropTable`/`DropSchema` migration, reviewed line by line.
+- **The business context does not know authentication exists.**
+  `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs`
+  derives from `DbContext` and maps the business tables and `IdempotencyKeys`.
+  `AppTemplate.Infrastructure.Auth` owns `AuthDbContext`, the nine identity tables and the key ring,
+  in the `identity` schema with a migrations history of its own. Deleting the project takes the model
+  with it.
+- **The seeder goes with its module.** `IIdentitySeeder` is registered by the authentication module,
+  so nothing in the business half is left holding a dependency only that module could satisfy.
+  `ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
+  asserts the *absence* of that coupling, so it cannot come back unnoticed.
+- **The migrations are already separate**, so removing authentication is deleting its migration
+  along with its project. The business migration is untouched, and `platform` — the idempotency
+  table that belongs to `AppTemplate.Application.Core`'s own mechanism, which every derived project
+  keeps — was never in the same file.
 
-Which is the whole point of stating it here: **removing authentication is a decision about the email
-module, the context's base class, the seeder and the migration.** The two projects are the easy
-part.
+**What is left to answer for is one adapter.** `IReminderNotifier`'s only implementation is in the
+email module, and that implementation resolves `IUserProfilesService` to find the address a due
+reminder is rung at. Either drop the reminder feature with authentication, denormalise the address
+onto the reminder, or write a notifier that gets it elsewhere. That is the whole of it now: a
+project, a line in each host's composition, and that one door.
 
 ## Verification
 
@@ -697,7 +679,7 @@ Run these yourself; they are the gates, in the order that fails fastest:
 3. `PendingModelChangesTests` in particular, which also needs no database and is the only check on
    the migration edit.
 4. `dotnet test` on `AppTemplate.Api.IntegrationTests` and
-   `AppTemplate.Infrastructure.Identity.IntegrationTests`, which need Docker for their
+   `AppTemplate.Infrastructure.Auth.IntegrationTests`, which need Docker for their
    Testcontainers PostgreSQL. Nothing in this document has been confirmed against a running instance
    of either.
 5. `docker build` on both `Dockerfile`s, for the `COPY` failure mode that `dotnet restore` hides.

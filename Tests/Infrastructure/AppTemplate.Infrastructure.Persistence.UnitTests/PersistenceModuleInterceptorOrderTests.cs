@@ -1,7 +1,7 @@
-﻿using AppTemplate.Infrastructure.Persistence.Common.Contexts;
-using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
-using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
-using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
+﻿using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
+using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
+using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
+using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;

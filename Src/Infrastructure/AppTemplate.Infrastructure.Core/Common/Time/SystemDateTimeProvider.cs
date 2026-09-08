@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 
-namespace AppTemplate.Infrastructure.Persistence.Common.Time;
+namespace AppTemplate.Infrastructure.Core.Common.Time;
 
 /// <summary>
 /// The real clock. It lives in infrastructure because reading the machine's time is an
@@ -17,5 +17,6 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Time;
 /// </summary>
 internal sealed class SystemDateTimeProvider : IDateTimeProvider
 {
+    /// <summary>The current instant, in UTC.</summary>
     public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
 }

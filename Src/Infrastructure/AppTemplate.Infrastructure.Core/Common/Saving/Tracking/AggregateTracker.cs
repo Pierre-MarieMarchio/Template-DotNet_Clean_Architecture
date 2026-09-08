@@ -1,10 +1,10 @@
 ﻿using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Core.Common.Events;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
+using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 using Microsoft.EntityFrameworkCore;
 
-namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
+namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 
 /// <summary>
 /// The identity map, the drain and the restore path shared by every feature's aggregate tracker — the
@@ -28,7 +28,7 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 /// interface to hang a constraint on — the concurrency token lives on the record as a plain property,
 /// not behind an abstraction — so <paramref name="version"/> supplies the one line that reads it.
 /// </typeparam>
-internal abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint> version)
+public abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint> version)
     : IAggregateFlusher, IDomainEventSource
     where TAggregate : AggregateRoot<Guid>, IVersioned, IAuditable
     where TRecord : class, IAuditable
@@ -38,12 +38,21 @@ internal abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint
     /// <summary>Events drained for a save that then failed, waiting to be handed out again.</summary>
     private readonly List<IDomainEvent> _restored = [];
 
+    /// <summary>The aggregate this request already loaded, or <see langword="null"/>.</summary>
+    /// <param name="id">The aggregate's identity.</param>
+    /// <returns>The tracked aggregate, or <see langword="null"/> when it is untracked or removed.</returns>
     public TAggregate? Find(Guid id) =>
         _tracked.TryGetValue(id, out var tracked) && !tracked.IsRemoved ? tracked.Aggregate : null;
 
+    /// <summary>The row a tracked aggregate is stored in, removed ones included.</summary>
+    /// <param name="id">The aggregate's identity.</param>
+    /// <returns>The tracked row, or <see langword="null"/> when nothing is tracked under that id.</returns>
     public TRecord? FindRecord(Guid id) =>
         _tracked.TryGetValue(id, out var tracked) ? tracked.Record : null;
 
+    /// <summary>Puts an aggregate and its row in the identity map for the rest of the request.</summary>
+    /// <param name="aggregate">The aggregate, as the caller holds it.</param>
+    /// <param name="record">The row it is stored in.</param>
     public void Track(TAggregate aggregate, TRecord record)
     {
         ArgumentNullException.ThrowIfNull(aggregate);
@@ -52,6 +61,11 @@ internal abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint
         _tracked[aggregate.Id] = new TrackedAggregate(aggregate, record);
     }
 
+    /// <summary>
+    /// Records that this aggregate is being deleted, so it is not flushed and its events still are.
+    /// </summary>
+    /// <param name="aggregate">The aggregate being deleted.</param>
+    /// <param name="record">The row to delete.</param>
     public void MarkRemoved(TAggregate aggregate, TRecord record)
     {
         ArgumentNullException.ThrowIfNull(aggregate);
@@ -75,6 +89,10 @@ internal abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint
     /// </summary>
     public abstract void FlushTo(DbContext context);
 
+    /// <summary>
+    /// Tells every tracked aggregate the version and audit stamps the store just decided, so a
+    /// second write in the same request does not fail against a token it moved itself.
+    /// </summary>
     public void RefreshFromStore()
     {
         foreach (var tracked in _tracked.Values)
@@ -102,6 +120,11 @@ internal abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint
         }
     }
 
+    /// <summary>
+    /// Takes every tracked aggregate's events, oldest first, and clears them — so an event taken
+    /// once cannot be taken again by a later save in the same request.
+    /// </summary>
+    /// <returns>The events drained, in the order they were raised.</returns>
     public IReadOnlyCollection<IDomainEvent> DrainDomainEvents()
     {
         List<IDomainEvent>? drained = null;
@@ -131,6 +154,11 @@ internal abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint
         return drained ?? [];
     }
 
+    /// <summary>
+    /// Hands back events drained for a save that then failed, so the next drain returns them and
+    /// a retried save publishes them exactly once.
+    /// </summary>
+    /// <param name="domainEvents">The events the failed save had taken.</param>
     public void Restore(IEnumerable<IDomainEvent> domainEvents)
     {
         ArgumentNullException.ThrowIfNull(domainEvents);
@@ -146,15 +174,19 @@ internal abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint
     /// Exposed rather than duplicated: the loop that skips a removed or untracked row is identical in
     /// every feature, and only what a live row is mapped onto differs.
     /// </summary>
-    protected IReadOnlyCollection<TrackedAggregate> TrackedAggregates => _tracked.Values;
+    protected IReadOnlyCollection<AggregateTracker<TAggregate, TRecord>.TrackedAggregate> TrackedAggregates =>
+        _tracked.Values;
 
     /// <summary>One aggregate, the row it is stored in, and whether that row is on its way out.</summary>
     protected sealed class TrackedAggregate(TAggregate aggregate, TRecord record)
     {
-        internal TAggregate Aggregate { get; } = aggregate;
+        /// <summary>The aggregate, as the caller holds it.</summary>
+        public TAggregate Aggregate { get; } = aggregate;
 
-        internal TRecord Record { get; } = record;
+        /// <summary>The row it is stored in.</summary>
+        public TRecord Record { get; } = record;
 
-        internal bool IsRemoved { get; set; }
+        /// <summary>Whether this row is on its way out, and so must not be flushed.</summary>
+        public bool IsRemoved { get; set; }
     }
 }

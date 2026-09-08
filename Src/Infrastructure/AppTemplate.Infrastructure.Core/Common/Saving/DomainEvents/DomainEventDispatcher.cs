@@ -3,7 +3,7 @@ using AppTemplate.Domain.Core.Common.Events;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
+namespace AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 
 /// <summary>
 /// Resolves consumers straight from the container. No mediator library: the whole mechanism
@@ -23,10 +23,13 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
 /// this is the narrower, deliberately incomplete half of that decision.
 /// </para>
 /// </summary>
-internal sealed class DomainEventDispatcher(
+public sealed class DomainEventDispatcher(
     IServiceProvider serviceProvider,
     ILogger<DomainEventDispatcher> logger) : IDomainEventDispatcher
 {
+    /// <summary>Hands one event to every consumer registered for its type.</summary>
+    /// <param name="domainEvent">The event to deliver.</param>
+    /// <param name="cancellationToken">Cancels the delivery.</param>
     public async Task DispatchAsync(IDomainEvent domainEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(domainEvent);

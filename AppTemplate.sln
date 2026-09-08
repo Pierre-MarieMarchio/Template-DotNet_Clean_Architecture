@@ -23,7 +23,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastru
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Email", "Src\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj", "{4E3A92CC-E179-4BD2-AF0F-5BCAFD37FD54}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Identity", "Src\Infrastructure\AppTemplate.Infrastructure.Identity\AppTemplate.Infrastructure.Identity.csproj", "{82BE0110-2A7E-42E5-BD85-12D7F94AF01F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Auth", "Src\Infrastructure\AppTemplate.Infrastructure.Auth\AppTemplate.Infrastructure.Auth.csproj", "{82BE0110-2A7E-42E5-BD85-12D7F94AF01F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Persistence", "Src\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj", "{8162CD3D-C8B1-43AC-884C-84B700E5CDEF}"
 EndProject
@@ -55,7 +55,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Api.Integration
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Persistence.UnitTests", "Tests\Infrastructure\AppTemplate.Infrastructure.Persistence.UnitTests\AppTemplate.Infrastructure.Persistence.UnitTests.csproj", "{69394BB0-C501-466D-B2BC-05F99D1DC92F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Identity.UnitTests", "Tests\Infrastructure\AppTemplate.Infrastructure.Identity.UnitTests\AppTemplate.Infrastructure.Identity.UnitTests.csproj", "{0EE33EEE-8DDA-4D8C-B30F-6B28A43600FA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Auth.UnitTests", "Tests\Infrastructure\AppTemplate.Infrastructure.Auth.UnitTests\AppTemplate.Infrastructure.Auth.UnitTests.csproj", "{0EE33EEE-8DDA-4D8C-B30F-6B28A43600FA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Email.UnitTests", "Tests\Infrastructure\AppTemplate.Infrastructure.Email.UnitTests\AppTemplate.Infrastructure.Email.UnitTests.csproj", "{FA823C16-564E-4AB3-9645-9DA1BB387CE4}"
 EndProject
@@ -77,7 +77,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Presentation.Co
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Integration", "Integration", "{28A6993C-471E-82FE-7D9E-AD3B1EC22BD9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Identity.IntegrationTests", "Tests\Integration\AppTemplate.Infrastructure.Identity.IntegrationTests\AppTemplate.Infrastructure.Identity.IntegrationTests.csproj", "{6A63B1ED-8153-44F3-9E5C-C0576B0890B0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Auth.IntegrationTests", "Tests\Integration\AppTemplate.Infrastructure.Auth.IntegrationTests\AppTemplate.Infrastructure.Auth.IntegrationTests.csproj", "{6A63B1ED-8153-44F3-9E5C-C0576B0890B0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Storage", "Src\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj", "{B4FE3D28-553C-4B09-B4E6-95E66D33A973}"
 EndProject

@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Application.Core.Common.Ports;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+
+namespace AppTemplate.Application.Core.Common.Ports;
 
 /// <summary>
 /// Who the request is on behalf of, and nothing about how they proved it: the application layer has
@@ -7,5 +9,5 @@
 public interface ICurrentUser
 {
     /// <summary>The caller's id, or <c>null</c> when the request is anonymous.</summary>
-    Guid? UserId { get; }
+    UserId? UserId { get; }
 }

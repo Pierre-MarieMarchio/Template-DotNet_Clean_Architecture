@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Events;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 
 namespace AppTemplate.Domain.Features.Files.Events;
@@ -30,6 +31,6 @@ namespace AppTemplate.Domain.Features.Files.Events;
 /// </summary>
 public sealed record StoredFileQuarantinedDomainEvent(
     Guid StoredFileId,
-    Guid OwnerId,
+    UserId OwnerId,
     ObjectKey ObjectKey,
     DateTimeOffset OccurredOn) : IDomainEvent;

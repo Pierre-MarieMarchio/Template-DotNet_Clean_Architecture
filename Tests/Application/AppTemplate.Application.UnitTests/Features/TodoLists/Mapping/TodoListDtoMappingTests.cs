@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Features.TodoLists.Mapping;
 using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using Shouldly;
 using Xunit;
@@ -14,14 +15,14 @@ namespace AppTemplate.Application.UnitTests.Features.TodoLists.Mapping;
 public sealed class TodoListDtoMappingTests
 {
     private static readonly DateTimeOffset _now = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
-    private static readonly Guid _ownerId = Guid.CreateVersion7();
+    private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
 
     [Fact]
     public void Detail_CarriesTheAggregatesOwnVersionAndAuditValues()
     {
         var list = TodoList.Create(_ownerId, "Groceries", _now);
         ((IVersioned)list).SetVersion(7);
-        ((IAuditable)list).SetCreated(_now, _ownerId);
+        ((IAuditable)list).SetCreated(_now, _ownerId.Value);
 
         var projected = TodoListDtoMapping.Detail(list);
 

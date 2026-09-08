@@ -2,6 +2,7 @@
 using AppTemplate.Api.Core.UnitTests.TestSupport;
 using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Domain.Core.Common.Primitives;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
@@ -29,7 +30,7 @@ public sealed class IdempotencyFilterTests
     {
         var store = Substitute.For<IIdempotencyStore>();
         var currentUser = Substitute.For<ICurrentUser>();
-        currentUser.UserId.Returns((Guid?)null);
+        currentUser.UserId.Returns((UserId?)null);
         var logger = new RecordingLogger<IdempotencyFilter>();
 
         var filter = new IdempotencyFilter(
@@ -75,7 +76,7 @@ public sealed class IdempotencyFilterTests
     public async Task ACallerWithNoIdentity_ButNoIdempotencyKeyHeader_ProceedsNormally()
     {
         var currentUser = Substitute.For<ICurrentUser>();
-        currentUser.UserId.Returns((Guid?)null);
+        currentUser.UserId.Returns((UserId?)null);
 
         var filter = new IdempotencyFilter(
             Substitute.For<IIdempotencyStore>(),
@@ -104,7 +105,7 @@ public sealed class IdempotencyFilterTests
     public async Task WhenIdempotencyIsDisabled_ACallerWithNoIdentity_StillProceedsNormally()
     {
         var currentUser = Substitute.For<ICurrentUser>();
-        currentUser.UserId.Returns((Guid?)null);
+        currentUser.UserId.Returns((UserId?)null);
 
         var filter = new IdempotencyFilter(
             Substitute.For<IIdempotencyStore>(),
@@ -147,7 +148,7 @@ public sealed class IdempotencyFilterTests
             Arg.Any<CancellationToken>()).Returns(IdempotencyClaim.Claimed());
 
         var currentUser = Substitute.For<ICurrentUser>();
-        currentUser.UserId.Returns(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+        currentUser.UserId.Returns(UserId.Create(Guid.Parse("11111111-1111-1111-1111-111111111111")));
 
         var filter = new IdempotencyFilter(
             store,
@@ -182,7 +183,7 @@ public sealed class IdempotencyFilterTests
             Arg.Any<CancellationToken>()).Returns(IdempotencyClaim.Claimed());
 
         var currentUser = Substitute.For<ICurrentUser>();
-        currentUser.UserId.Returns(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+        currentUser.UserId.Returns(UserId.Create(Guid.Parse("11111111-1111-1111-1111-111111111111")));
 
         var filter = new IdempotencyFilter(
             store,

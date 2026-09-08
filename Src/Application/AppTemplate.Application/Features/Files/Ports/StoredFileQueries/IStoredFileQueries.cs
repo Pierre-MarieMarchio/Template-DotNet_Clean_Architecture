@@ -2,6 +2,7 @@
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Policies;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Repositories;
 
 namespace AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
@@ -20,7 +21,7 @@ public interface IStoredFileQueries
     /// sort or filter — it only translates them.
     /// </summary>
     Task<PagedResult<StoredFileDto>> GetForOwnerAsync(
-        Guid ownerId,
+        UserId ownerId,
         StoredFilePageRequest request,
         CancellationToken cancellationToken = default);
 
@@ -29,7 +30,7 @@ public interface IStoredFileQueries
     /// caller cannot use this to probe for other users' file ids.</returns>
     Task<Versioned<StoredFileDto>?> GetDetailAsync(
         Guid id,
-        Guid ownerId,
+        UserId ownerId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -37,7 +38,7 @@ public interface IStoredFileQueries
     /// that materialised every aggregate to add up four numbers would cost more than the upload it
     /// is guarding.
     /// </summary>
-    Task<OwnerStorageUsage> GetUsageForOwnerAsync(Guid ownerId, CancellationToken cancellationToken = default);
+    Task<OwnerStorageUsage> GetUsageForOwnerAsync(UserId ownerId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Which of <paramref name="candidateObjectKeys"/> some row still names. The orphan sweep's half

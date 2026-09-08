@@ -5,6 +5,7 @@ using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItems;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -13,7 +14,7 @@ namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Queries.
 
 public sealed class GetTodoItemsUseCaseTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
     private const uint _listVersion = 55;
 
     private readonly ITodoListQueries _queries = Substitute.For<ITodoListQueries>();

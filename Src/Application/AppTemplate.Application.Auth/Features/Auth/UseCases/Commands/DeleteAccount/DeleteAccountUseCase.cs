@@ -41,7 +41,7 @@ public sealed class DeleteAccountUseCase(
         }
 
         var guard = SelfAdministrationPolicy.EnsureNotSelf(
-            callerId.Value,
+            callerId.Value.Value,
             request.UserId,
             AuthErrors.CannotDeleteOwnAccount);
 

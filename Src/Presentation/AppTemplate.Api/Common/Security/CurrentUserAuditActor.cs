@@ -10,5 +10,5 @@ namespace AppTemplate.Api.Common.Security;
 /// </summary>
 internal sealed class CurrentUserAuditActor(ICurrentUser currentUser) : IAuditActor
 {
-    public Guid? UserId => currentUser.UserId;
+    public Guid? UserId => currentUser.UserId?.Value;
 }

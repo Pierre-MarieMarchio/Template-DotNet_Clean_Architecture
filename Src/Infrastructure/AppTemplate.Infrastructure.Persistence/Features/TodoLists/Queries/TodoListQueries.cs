@@ -4,6 +4,7 @@ using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +22,7 @@ namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Queries;
 internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
 {
     public async Task<PagedResult<TodoListSummaryDto>> GetForOwnerAsync(
-        Guid ownerId,
+        UserId ownerId,
         TodoListPageRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -31,7 +32,7 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
         // sort, filter or cursor claims.
         var owned = context.TodoLists
             .AsNoTracking()
-            .Where(list => list.OwnerId == ownerId);
+            .Where(list => list.OwnerId == ownerId.Value);
 
         var filtered = ApplyFilter(owned, request.Filter);
 
@@ -47,13 +48,13 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
     /// </remarks>
     public Task<Versioned<TodoListDetailDto>?> GetDetailAsync(
         Guid id,
-        Guid ownerId,
+        UserId ownerId,
         CancellationToken cancellationToken = default) =>
         context.TodoLists
             .AsNoTracking()
             // Ownership is in the WHERE clause. A query that fetched by id and compared the
             // owner afterwards would have already read another user's row into this process.
-            .Where(list => list.Id == id && list.OwnerId == ownerId)
+            .Where(list => list.Id == id && list.OwnerId == ownerId.Value)
             .Select(list => new Versioned<TodoListDetailDto>(
                 new TodoListDetailDto(
                     list.Id,

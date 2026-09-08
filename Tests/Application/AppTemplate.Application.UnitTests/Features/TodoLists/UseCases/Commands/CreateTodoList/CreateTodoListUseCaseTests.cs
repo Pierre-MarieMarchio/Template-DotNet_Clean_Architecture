@@ -2,6 +2,7 @@
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CreateTodoList;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
@@ -14,7 +15,7 @@ namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Commands
 
 public sealed class CreateTodoListUseCaseTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
     private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
@@ -135,7 +136,7 @@ public sealed class CreateTodoListUseCaseTests
     [Fact]
     public async Task TheOwner_IsAlwaysTheCallerAndNeverComesFromTheRequest()
     {
-        var otherCallerId = Guid.CreateVersion7();
+        var otherCallerId = UserId.Create(Guid.CreateVersion7());
 
         await UseCaseFor(StubCurrentUser.WithId(otherCallerId))
             .ExecuteAsync(new CreateTodoListCommand("Groceries"), TestToken);

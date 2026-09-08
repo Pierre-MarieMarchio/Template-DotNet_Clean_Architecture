@@ -1,1 +1,12 @@
 #nullable enable
+AppTemplate.Domain.Core.Common.Primitives.UserId
+AppTemplate.Domain.Core.Common.Primitives.UserId.<Clone>$() -> AppTemplate.Domain.Core.Common.Primitives.UserId!
+AppTemplate.Domain.Core.Common.Primitives.UserId.Equals(AppTemplate.Domain.Core.Common.Primitives.UserId? other) -> bool
+AppTemplate.Domain.Core.Common.Primitives.UserId.Value.get -> System.Guid
+override AppTemplate.Domain.Core.Common.Primitives.UserId.Equals(object? obj) -> bool
+override AppTemplate.Domain.Core.Common.Primitives.UserId.GetHashCode() -> int
+override AppTemplate.Domain.Core.Common.Primitives.UserId.ToString() -> string!
+static AppTemplate.Domain.Core.Common.Primitives.UserId.Create(System.Guid value) -> AppTemplate.Domain.Core.Common.Primitives.UserId!
+static AppTemplate.Domain.Core.Common.Primitives.UserId.CreateOptional(System.Guid? value) -> AppTemplate.Domain.Core.Common.Primitives.UserId?
+static AppTemplate.Domain.Core.Common.Primitives.UserId.operator !=(AppTemplate.Domain.Core.Common.Primitives.UserId? left, AppTemplate.Domain.Core.Common.Primitives.UserId? right) -> bool
+static AppTemplate.Domain.Core.Common.Primitives.UserId.operator ==(AppTemplate.Domain.Core.Common.Primitives.UserId? left, AppTemplate.Domain.Core.Common.Primitives.UserId? right) -> bool

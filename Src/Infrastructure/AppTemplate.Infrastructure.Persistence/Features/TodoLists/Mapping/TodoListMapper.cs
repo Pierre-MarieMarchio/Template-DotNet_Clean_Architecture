@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Features.TodoLists.Entities;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 
@@ -37,7 +38,7 @@ internal sealed class TodoListMapper : ITodoListMapper
                 item.Tags.Select(tag => tag.Value)))
             .ToList();
 
-        var aggregate = TodoList.Rehydrate(record.Id, record.OwnerId, record.Name, items);
+        var aggregate = TodoList.Rehydrate(record.Id, UserId.Create(record.OwnerId), record.Name, items);
 
         // The version and the audit stamps are read back through StoredStamps, not assigned here: the
         // aggregate exposes them as read-only properties, settable only through the explicit interfaces
@@ -55,7 +56,7 @@ internal sealed class TodoListMapper : ITodoListMapper
         var record = new TodoListRecord
         {
             Id = aggregate.Id,
-            OwnerId = aggregate.OwnerId,
+            OwnerId = aggregate.OwnerId.Value,
             Name = aggregate.Name.Value,
 
             // Carried even though the store owns it. On an insert PostgreSQL assigns xmin itself and
@@ -88,7 +89,7 @@ internal sealed class TodoListMapper : ITodoListMapper
 
         // Assigned, not replaced. EF compares each value against the one it read and writes a column
         // only if it actually differs, so an unchanged aggregate produces no UPDATE at all.
-        record.OwnerId = aggregate.OwnerId;
+        record.OwnerId = aggregate.OwnerId.Value;
         record.Name = aggregate.Name.Value;
 
         // Version, CreatedAt, CreatedBy, LastModifiedAt and LastModifiedBy are deliberately NOT

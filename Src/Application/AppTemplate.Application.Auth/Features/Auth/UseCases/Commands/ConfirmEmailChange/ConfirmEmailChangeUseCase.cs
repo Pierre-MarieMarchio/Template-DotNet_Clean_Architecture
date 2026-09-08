@@ -44,7 +44,7 @@ public sealed class ConfirmEmailChangeUseCase(
         }
 
         var confirmation = await emailChangeTokens.RedeemAsync(
-            userId.Value,
+            userId.Value.Value,
             request.NewEmail,
             request.Token,
             cancellationToken);
@@ -61,7 +61,7 @@ public sealed class ConfirmEmailChangeUseCase(
             return Result.Failure(AuthErrors.InvalidEmailChange);
         }
 
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value.Value, cancellationToken);
 
         return Result.Success();
     }

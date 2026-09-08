@@ -1,4 +1,5 @@
-﻿namespace AppTemplate.Application.Common.Tagging;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+namespace AppTemplate.Application.Common.Tagging;
 
 /// <summary>
 /// Where one owner's used-tag list is kept, and for how long. Shared by every feature that owns
@@ -36,9 +37,10 @@ public static class UsedTagsCache
     /// the key because the answer is theirs alone, and the scope because two features answer this
     /// question separately.
     /// </summary>
-    public static string KeyFor(string scope, Guid ownerId)
+    public static string KeyFor(string scope, UserId ownerId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(scope);
+        ArgumentNullException.ThrowIfNull(ownerId);
 
         return $"tags:{scope}:{ownerId}";
     }

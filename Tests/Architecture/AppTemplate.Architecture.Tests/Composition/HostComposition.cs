@@ -3,6 +3,7 @@ using AppTemplate.Application.Auth;
 using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Identity;
@@ -334,9 +335,9 @@ internal static class HostComposition
 /// <summary>Stands in for <c>AppTemplate.Api.Core.Common.Security.CurrentUser</c>, which needs an HTTP request.</summary>
 internal sealed class ArchitectureTestCurrentUser : ICurrentUser
 {
-    private static readonly Guid _userId = new("11111111-1111-1111-1111-111111111111");
+    private static readonly UserId _userId = UserId.Create(new("11111111-1111-1111-1111-111111111111"));
 
-    public Guid? UserId => _userId;
+    public UserId? UserId => _userId;
 }
 
 /// <summary>Stands in for <c>AppTemplate.Api.Common.Security.CurrentUserAuditActor</c>.</summary>
@@ -354,7 +355,7 @@ internal sealed class ArchitectureTestAuditActor : IAuditActor
 /// </summary>
 internal sealed class ArchitectureTestBackgroundCurrentUser : ICurrentUser
 {
-    public Guid? UserId => throw new NotSupportedException(
+    public UserId? UserId => throw new NotSupportedException(
         "The worker has no current user. A use case that reads ICurrentUser.UserId cannot run " +
         "unmodified from that host.");
 }

@@ -5,6 +5,7 @@ using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using NSubstitute;
 using Shouldly;
@@ -14,7 +15,7 @@ namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Queries.GetS
 
 public sealed class GetStoredFileUseCaseTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
     private readonly IStoredFileQueries _queries = Substitute.For<IStoredFileQueries>();
 
@@ -37,7 +38,7 @@ public sealed class GetStoredFileUseCaseTests
             .ExecuteAsync(new GetStoredFileQuery(Guid.CreateVersion7()), TestToken);
 
         await _queries.DidNotReceive().GetDetailAsync(
-            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+            Arg.Any<Guid>(), Arg.Any<UserId>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>

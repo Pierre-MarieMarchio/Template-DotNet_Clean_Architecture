@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Events;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using Shouldly;
@@ -18,7 +19,7 @@ public sealed class TodoItemReopenedDomainEventTests
         string title = "Buy milk",
         DateTimeOffset? reopenedAt = null)
     {
-        list = TodoList.Create(Guid.CreateVersion7(), "Groceries", _now);
+        list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", _now);
         itemId = list.AddItem(title, null);
         list.CompleteItem(itemId, _now);
         list.ClearDomainEvents();
@@ -71,7 +72,7 @@ public sealed class TodoItemReopenedDomainEventTests
     [Fact]
     public void NoEvent_IsRaisedForAnItemThatWasAlreadyOpen()
     {
-        var list = TodoList.Create(Guid.CreateVersion7(), "Groceries", _now);
+        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", _now);
         var itemId = list.AddItem("Buy milk", null);
         list.ClearDomainEvents();
 

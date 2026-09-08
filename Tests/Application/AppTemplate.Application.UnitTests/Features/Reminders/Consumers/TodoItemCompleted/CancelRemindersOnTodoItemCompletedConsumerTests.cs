@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;
@@ -13,7 +14,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.Consumers.TodoIte
 
 public sealed class CancelRemindersOnTodoItemCompletedConsumerTests
 {
-    private static readonly Guid _ownerId = Guid.CreateVersion7();
+    private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
     private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
 
     private readonly IReminderRepository _repository = Substitute.For<IReminderRepository>();

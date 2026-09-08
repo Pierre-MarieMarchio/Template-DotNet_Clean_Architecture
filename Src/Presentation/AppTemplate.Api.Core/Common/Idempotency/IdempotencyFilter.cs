@@ -91,7 +91,7 @@ internal sealed class IdempotencyFilter(
         string endpoint = $"{httpContext.Request.Method} {httpContext.Request.Path}";
         string fingerprint = await ComputeFingerprintAsync(httpContext, endpoint);
 
-        var keyResult = IdempotencyKey.Create(userId, headerValues.ToString(), endpoint, fingerprint, settings.MaxKeyLength);
+        var keyResult = IdempotencyKey.Create(userId.Value, headerValues.ToString(), endpoint, fingerprint, settings.MaxKeyLength);
 
         if (keyResult.IsFailure)
         {

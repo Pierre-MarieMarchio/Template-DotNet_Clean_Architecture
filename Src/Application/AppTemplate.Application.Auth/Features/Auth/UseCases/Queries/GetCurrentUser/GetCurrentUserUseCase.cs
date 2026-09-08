@@ -25,7 +25,7 @@ public sealed class GetCurrentUserUseCase(
 
         // Read from the store rather than from the principal's claims — see IUserProfilesService for why a
         // claim-built profile would be stale.
-        var profile = await profiles.FindByIdAsync(userId.Value, cancellationToken);
+        var profile = await profiles.FindByIdAsync(userId.Value.Value, cancellationToken);
 
         if (profile is null)
         {

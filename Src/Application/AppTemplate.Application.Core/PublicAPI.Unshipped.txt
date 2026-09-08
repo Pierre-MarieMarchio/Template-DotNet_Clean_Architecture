@@ -1,1 +1,3 @@
 #nullable enable
+AppTemplate.Application.Core.Common.Ports.ICurrentUser.UserId.get -> AppTemplate.Domain.Core.Common.Primitives.UserId?
+static AppTemplate.Application.Core.Common.Ports.CurrentUserExtensions.RequireUserId(this AppTemplate.Application.Core.Common.Ports.ICurrentUser! currentUser) -> AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Domain.Core.Common.Primitives.UserId!>!

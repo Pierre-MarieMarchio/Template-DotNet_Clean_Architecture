@@ -2,6 +2,7 @@
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Policies;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 
 namespace AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
@@ -17,7 +18,7 @@ public interface ITodoListQueries
     /// whitelist, so nothing here re-validates paging, sort or filter — it only translates them.
     /// </summary>
     Task<PagedResult<TodoListSummaryDto>> GetForOwnerAsync(
-        Guid ownerId,
+        UserId ownerId,
         TodoListPageRequest request,
         CancellationToken cancellationToken = default);
 
@@ -31,6 +32,6 @@ public interface ITodoListQueries
     /// </remarks>
     Task<Versioned<TodoListDetailDto>?> GetDetailAsync(
         Guid id,
-        Guid ownerId,
+        UserId ownerId,
         CancellationToken cancellationToken = default);
 }

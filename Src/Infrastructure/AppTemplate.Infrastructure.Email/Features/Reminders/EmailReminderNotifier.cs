@@ -35,7 +35,7 @@ internal sealed class EmailReminderNotifier(
     {
         ArgumentNullException.ThrowIfNull(notification);
 
-        var profile = await profiles.FindByIdAsync(notification.OwnerId, cancellationToken);
+        var profile = await profiles.FindByIdAsync(notification.OwnerId.Value, cancellationToken);
 
         if (profile is null)
         {

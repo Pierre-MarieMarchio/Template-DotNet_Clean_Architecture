@@ -4,6 +4,7 @@ using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUpload;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using AppTemplate.Domain.Features.Files.ValueObjects;
@@ -15,7 +16,7 @@ namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Commands.Con
 
 public sealed class ConfirmFileUploadUseCaseTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
     private readonly IStoredFileRepository _repository = Substitute.For<IStoredFileRepository>();
     private readonly IFileContentStore _content = Substitute.For<IFileContentStore>();

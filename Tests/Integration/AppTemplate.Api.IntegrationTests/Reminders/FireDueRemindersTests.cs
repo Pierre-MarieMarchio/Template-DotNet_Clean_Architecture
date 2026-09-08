@@ -36,7 +36,7 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
 
         var sent = Notifications.LastFor(itemId);
         sent.ShouldNotBeNull();
-        sent!.OwnerId.ShouldBe(session.UserId);
+        sent!.OwnerId.Value.ShouldBe(session.UserId);
         sent.TodoItemId.ShouldBe(itemId);
         sent.DueAt.ShouldBe(dueAt);
 

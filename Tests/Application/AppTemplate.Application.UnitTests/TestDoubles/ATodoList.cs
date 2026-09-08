@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 
 namespace AppTemplate.Application.UnitTests.TestDoubles;
@@ -10,7 +11,7 @@ namespace AppTemplate.Application.UnitTests.TestDoubles;
 internal static class ATodoList
 {
     /// <summary>The creation event is already cleared, so callers assert on their own events only.</summary>
-    internal static TodoList OwnedBy(Guid ownerId, string name = "Groceries")
+    internal static TodoList OwnedBy(UserId ownerId, string name = "Groceries")
     {
         var list = TodoList.Create(ownerId, name, StubDateTimeProvider.DefaultInstant);
         list.ClearDomainEvents();
@@ -18,9 +19,9 @@ internal static class ATodoList
         return list;
     }
 
-    internal static TodoList OwnedBySomebodyElseThan(Guid notThisUserId)
+    internal static TodoList OwnedBySomebodyElseThan(UserId notThisUserId)
     {
-        var otherOwnerId = Guid.CreateVersion7();
+        var otherOwnerId = UserId.Create(Guid.CreateVersion7());
 
         if (otherOwnerId == notThisUserId)
         {
@@ -30,7 +31,7 @@ internal static class ATodoList
         return OwnedBy(otherOwnerId, "Somebody else's list");
     }
 
-    internal static TodoList OwnedByWithItem(Guid ownerId, out Guid itemId, string title = "Buy milk")
+    internal static TodoList OwnedByWithItem(UserId ownerId, out Guid itemId, string title = "Buy milk")
     {
         var list = OwnedBy(ownerId);
         itemId = list.AddItem(title, null);
@@ -44,7 +45,7 @@ internal static class ATodoList
     /// freshly loaded aggregate. It goes through <see cref="IVersioned"/> because that is the only
     /// way anything writes a version.
     /// </summary>
-    internal static TodoList OwnedByWithItemAtVersion(Guid ownerId, uint version, out Guid itemId)
+    internal static TodoList OwnedByWithItemAtVersion(UserId ownerId, uint version, out Guid itemId)
     {
         var list = OwnedByWithItem(ownerId, out itemId);
         ((IVersioned)list).SetVersion(version);
@@ -53,7 +54,7 @@ internal static class ATodoList
     }
 
     /// <summary>Filled to <see cref="TodoList.MaxItems"/>.</summary>
-    internal static TodoList OwnedByAndFull(Guid ownerId)
+    internal static TodoList OwnedByAndFull(UserId ownerId)
     {
         var list = OwnedBy(ownerId);
 

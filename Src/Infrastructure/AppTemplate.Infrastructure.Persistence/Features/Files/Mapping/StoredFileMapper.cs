@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Features.Files.Entities;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
@@ -28,7 +29,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         // reason — see the value object.
         var aggregate = StoredFile.Rehydrate(
             record.Id,
-            record.OwnerId,
+            UserId.Create(record.OwnerId),
             ObjectKey.Create(record.ObjectKey),
             StoredFileName.Create(record.Name),
             DeclaredMediaType.Create(record.DeclaredMediaType),
@@ -54,7 +55,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         var record = new StoredFileRecord
         {
             Id = aggregate.Id,
-            OwnerId = aggregate.OwnerId,
+            OwnerId = aggregate.OwnerId.Value,
 
             // The key the upload grant was minted against. Verbatim: nothing here may normalise it,
             // because the store resolves keys literally and a key this row does not match is a key
@@ -119,7 +120,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
 
         // Assigned, not replaced. EF compares each value against the one it read and writes a column
         // only if it actually differs, so an unchanged aggregate produces no UPDATE at all.
-        record.OwnerId = aggregate.OwnerId;
+        record.OwnerId = aggregate.OwnerId.Value;
 
         // Written on every flush although no operation can move it, and that is the point: the column
         // is asserted to still hold the key the bytes are under rather than left alone and assumed to.

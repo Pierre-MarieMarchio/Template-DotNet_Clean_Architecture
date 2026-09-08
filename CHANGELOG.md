@@ -301,7 +301,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 - `TodoItem.MaxTags`, enforced by the aggregate and surfaced as a 400 by the validator, bounding
   per-item tag growth.
 - `IDomainEventSource.Restore`, so events survive a failed save and a retry publishes them.
-- `Tests/Integration/AppTemplate.Infrastructure.Identity.IntegrationTests`, including a real
+- `Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests`, including a real
   two-context race against PostgreSQL proving refresh-token rotation is single-use.
 - A coverage floor in `coverage.minimum`, read by CI and `tasks.ps1` from the same file. Set from
   measurement (86.53% of lines over 974 tests), not invented, and the file records the measurements
@@ -377,7 +377,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 - **The coverage gate was scoring the identity module's 187 unit tests as zero.**
   `coverage.runsettings` named `GeneratedCodeAttribute` in `ExcludeByAttribute`, and coverlet 10.0.1
   does not exclude a source-generated class with that — it drops the whole assembly holding one from
-  the report. `AppTemplate.Infrastructure.Identity` holds `SecurityEventLog`, a `LoggerMessage`
+  the report. `AppTemplate.Infrastructure.Auth` holds `SecurityEventLog`, a `LoggerMessage`
   partial, so its own coverage report contained no entry for it at all, and the 68.22% recorded for
   the module came entirely from the two integration suites. The exclusion is now an `ExcludeByFile`
   glob over `obj/`, which is where every source generator writes: measured to give every other
@@ -484,6 +484,31 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **Authentication owns its storage, and the module is `AppTemplate.Infrastructure.Auth`.**
+  `AuthDbContext` maps the nine identity tables, the refresh-token grants and the data-protection
+  key ring in the `identity` schema, with a migrations history of its own; `AppDbContext` keeps the
+  business tables and the idempotency one and no longer derives from `IdentityDbContext`. One
+  database and one connection string still — and therefore one connection pool, which is why
+  `DatabaseOptions` moved to `AppTemplate.Infrastructure.Core` and both modules bind the same
+  section into it. Adopting this in an existing project means four things: the namespace
+  `AppTemplate.Infrastructure.Identity` is now `AppTemplate.Infrastructure.Auth` and
+  `AddIdentityModule` is `AddAuthModule`; a module that owns a context takes
+  `IContextUnitOfWork<TContext>` rather than the unnamed `IUnitOfWork`, which stays registered by
+  the module owning the business context; both contexts must be migrated and health-checked; and the
+  two initial migrations are regenerated rather than split, so a deployed database needs a real
+  `DropTable`/`DropSchema` migration instead. The configuration sections keep their names —
+  `Identity`, `IdentitySeed` and `IdentityTokens` name ASP.NET Identity's own concepts, and
+  `IdentitySeed` is now bound by `AddAuthModule`.
+- **Removing authentication is one coupling lighter.** The seeder belongs to the authentication
+  module, so nothing in the business half is left needing what only that module supplies, and each
+  half's initial migration records only its own tables. What is still to answer for is
+  `IReminderNotifier`, whose only implementation resolves an authentication port to find the address
+  a due reminder is rung at.
+- **No infrastructure module references another.** Every module takes what it shares from the
+  layer's package-grade half, so the permission for a horizontal reference to the persistence module
+  is withdrawn: the rule now reads "only the layer's Core horizontally", and the persistence module
+  is a module like any other.
+
 - **What a context saves through now lives in `AppTemplate.Infrastructure.Core`**, not in the
   persistence module: `EfUnitOfWork` — generic over `DbContext` rather than one named context — the
   three save interceptors, the aggregate-tracker base, and the system clock. A module composes them
@@ -551,7 +576,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 - **`CONTRIBUTING.md` said `compose-up` starts PostgreSQL and mailpit.** It starts the whole stack.
 
 - **Every infrastructure module now has the same shape: `Common/<Responsibility>/` plus
-  `Features/<Feature>/<Responsibility>/`.** `AppTemplate.Infrastructure.Identity` had forty files in
+  `Features/<Feature>/<Responsibility>/`.** `AppTemplate.Infrastructure.Auth` had forty files in
   ten subject folders at its root and `AppTemplate.Infrastructure.Storage` nine in three, with
   neither a `Common/` nor a `Features/`, while the other three modules had both. A folder under
   `Features/` is the plural of the nature word its files carry — a `…Service` is in `Services/` and

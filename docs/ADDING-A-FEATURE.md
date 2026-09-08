@@ -496,6 +496,62 @@ is called by the Worker, which is why the feature has ports for a notifier
 the targets it notifies (`Ports/ReminderTargetQueries/`). A use case is a use case
 whichever host calls it; nothing about the shape changes.
 
+## 4d. When the feature shares, caches, or runs on a timer
+
+Three seams a second feature meets that the first one does not, and each has one right
+answer here.
+
+**Something two features share.** The question is not "is it repeated" but **does it know
+a feature?** If it names a business type, it goes in the business project's `Common/` —
+`Src/Domain/AppTemplate.Domain/Common/` for the domain half,
+`Src/Application/AppTemplate.Application/Common/` for the application one. If it names no
+business type and never would, it goes one project inwards, into the layer's `.Core`, and
+a feature adds nothing to those. `Common/Tagging/` is the worked example of the first
+answer: a to-do item and a stored file are both tagged, so `Tag` and `TagSet` sit in the
+domain's `Common/Tagging/` and `TagValidation` in the application's. The test that put
+them there is mechanical rather than a matter of taste — `TagSet` names `Tag`, and a
+`.Core` project may name no business type. What is *not* there is as instructive: the
+ownership check every feature performs and the paginated read every feature exposes are
+both duplicated and both agnostic, so they belong inwards and not here.
+
+Adding a folder to either `Common/` means adding its word to the `Common/` vocabulary
+`LayoutConventionTests` holds and to `CONTRIBUTING.md`'s tree, and the entry
+is checked in both directions — a folder appearing where the dictionary says none fails,
+and so does a word whose folder has gone.
+
+The infrastructure layer has the same two halves, and its agnostic one is
+`AppTemplate.Infrastructure.Core`. A module may not reference a sibling, so a mechanism two
+modules need goes there and both take it from one place — that is where the mail template engine
+and the cache adapter live. A mechanism only *one* module needs stays in that module's own
+`Common/`, and `InfrastructureModules_ReferenceOnlyPersistenceHorizontally` is what refuses the
+third option of reaching sideways for it.
+
+**A read that is expensive to repeat.** `ICacheStore`, from
+`AppTemplate.Application.Core/Common/Ports/`, and the list of what may go through it is
+short: an answer whose staleness is harmless. Nothing that decides an authorisation,
+enforces a bound, becomes an `ETag`, or tells something else what to delete — a cached
+bound is a bound multiplied by however many processes hold a copy, and a cached version is
+a precondition that no longer describes the thing it guards. The worked example is
+`GetUsedTodoItemTagsUseCase`, and it shows the whole shape: the key and the lifetime are
+constants on one type in the business `Common/` (`UsedTagsCache`) rather than literals in
+the use case, the key names the owner because the answer is theirs alone, and every
+command that changes the answer calls `RemoveAsync` with the same key. An entry may vanish
+before its lifetime is over, so the caller has to be correct when it does: the port
+promises to be faster, never to remember.
+
+**Work that runs on a timer.** A `BackgroundService` in `AppTemplate.Worker/Features/<F>/`,
+and its loop is `PeriodicJob.RunAsync` from `AppTemplate.Presentation.Core/Common/Jobs/` —
+one interval, one asynchronous iteration, ticks coalesced so an iteration never overlaps
+itself, and a return rather than a throw when the host stops. It is a primitive the
+service composes, not a base class it derives from, so a feature needing three passes on
+three intervals composes three of them; `FileBackgroundService` does exactly that. What
+the primitive does not decide is what each loop still owes: its own start-up and shutdown
+logs, its own span and counter names, its own DI scope per iteration, and its own
+behaviour when its enabled flag is off — a disabled pass is logged and counted, because a
+silent one is indistinguishable from a dead loop. Exclusivity between two processes is not
+the loop's business: the operations that must not run twice at once take `ILeaderLease`
+inside the use case, and `ReclaimOrphanedContentUseCase` carries the reasoning.
+
 ## 5. Tests
 
 `Tests/` mirrors `Src/`: domain tests under `Tests/Domain/AppTemplate.Domain.UnitTests/`,

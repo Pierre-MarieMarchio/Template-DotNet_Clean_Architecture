@@ -56,6 +56,7 @@
     <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
     <ProjectReference Include="..\..\Application\AppTemplate.Application.Auth\AppTemplate.Application.Auth.csproj" />
     <ProjectReference Include="..\AppTemplate.Presentation.Core\AppTemplate.Presentation.Core.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Core\AppTemplate.Infrastructure.Core.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Identity\AppTemplate.Infrastructure.Identity.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />

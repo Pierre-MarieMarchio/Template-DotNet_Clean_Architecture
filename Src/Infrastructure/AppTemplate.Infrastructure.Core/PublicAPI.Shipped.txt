@@ -1,0 +1,21 @@
+#nullable enable
+AppTemplate.Infrastructure.Core.Common.Templating.EmailTemplate
+AppTemplate.Infrastructure.Core.Common.Templating.EmailTemplate.AvailableCultures.get -> System.Collections.Generic.IReadOnlyCollection<string!>!
+AppTemplate.Infrastructure.Core.Common.Templating.EmailTemplate.EmailTemplate(System.Reflection.Assembly! resources, string! baseName) -> void
+AppTemplate.Infrastructure.Core.Common.Templating.EmailTemplate.Render(string! languageTag, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! placeholders) -> AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail!
+AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail
+AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.<Clone>$() -> AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail!
+AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.Body.get -> string!
+AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.Body.init -> void
+AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.Deconstruct(out string! Subject, out string! Body) -> void
+AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.Equals(AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail? other) -> bool
+AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.RenderedEmail(string! Subject, string! Body) -> void
+AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.Subject.get -> string!
+AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.Subject.init -> void
+AppTemplate.Infrastructure.Core.InfrastructureCoreModule
+override AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.Equals(object? obj) -> bool
+override AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.GetHashCode() -> int
+override AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.ToString() -> string!
+static AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.operator !=(AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail? left, AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail? right) -> bool
+static AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail.operator ==(AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail? left, AppTemplate.Infrastructure.Core.Common.Templating.RenderedEmail? right) -> bool
+static AppTemplate.Infrastructure.Core.InfrastructureCoreModule.AddCacheStore(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

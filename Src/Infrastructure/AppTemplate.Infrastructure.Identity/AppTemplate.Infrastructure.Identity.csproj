@@ -38,6 +38,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
+    <ProjectReference Include="..\AppTemplate.Infrastructure.Core\AppTemplate.Infrastructure.Core.csproj" />
     <ProjectReference Include="..\..\Application\AppTemplate.Application.Auth\AppTemplate.Application.Auth.csproj" />
     <ProjectReference Include="..\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
   </ItemGroup>

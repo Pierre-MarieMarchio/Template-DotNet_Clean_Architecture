@@ -116,6 +116,9 @@ AppTemplate.Application.Core.Common.Policies.ICollectionPolicy.MaxPageSize.get -
 AppTemplate.Application.Core.Common.Policies.ICollectionPolicy.MaxSortTerms.get -> int
 AppTemplate.Application.Core.Common.Policies.ICollectionPolicy.SortableFields.get -> System.Collections.Generic.IReadOnlyList<AppTemplate.Application.Core.Common.Collections.SortableField!>!
 AppTemplate.Application.Core.Common.Ports.CurrentUserExtensions
+AppTemplate.Application.Core.Common.Ports.ICacheStore
+AppTemplate.Application.Core.Common.Ports.ICacheStore.GetOrCreateAsync<T>(string! key, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>!>! factory, System.TimeSpan lifetime, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
+AppTemplate.Application.Core.Common.Ports.ICacheStore.RemoveAsync(string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 AppTemplate.Application.Core.Common.Ports.ICurrentUser
 AppTemplate.Application.Core.Common.Ports.ICurrentUser.UserId.get -> System.Guid?
 AppTemplate.Application.Core.Common.Ports.IDateTimeProvider

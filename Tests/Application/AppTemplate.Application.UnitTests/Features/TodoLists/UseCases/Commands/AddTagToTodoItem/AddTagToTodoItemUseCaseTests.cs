@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
+﻿using AppTemplate.Application.Common.Tagging;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.AddTagToTodoItem;
@@ -17,6 +18,7 @@ public sealed class AddTagToTodoItemUseCaseTests
 
     private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly RecordingCacheStore _cache = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -90,10 +92,14 @@ public sealed class AddTagToTodoItemUseCaseTests
         result.IsSuccess.ShouldBeTrue();
         result.Value.Value.Tags.ShouldBe(["urgent"]);
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+
+        // Tagging changes the answer the picker reads, so the entry has to go: a suggestion list
+        // that never learned about a tag the caller just added is the one staleness a user notices.
+        _cache.Removed.ShouldContain(UsedTagsCache.KeyFor(UsedTagsCache.TodoItemScope, _callerId));
     }
 
     private AddTagToTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(new TodoListService(_repository, currentUser), _unitOfWork, new AddTagToTodoItemCommandValidator());
+        new(new TodoListService(_repository, currentUser), _unitOfWork, _cache, new AddTagToTodoItemCommandValidator());
 
     private AddTagToTodoItemUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

@@ -5,11 +5,13 @@ using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
+using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
+using AppTemplate.Application.Features.TodoLists.Ports.TodoItemTagQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.AddTagToTodoItem;
@@ -46,7 +48,7 @@ public sealed class ApplicationModuleTests
     /// abandonment purge, the orphan reclamation and the deposit inspection, are reached only from
     /// the worker.
     /// </summary>
-    private const int _knownUseCaseCount = 30;
+    private const int _knownUseCaseCount = 32;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
@@ -229,6 +231,7 @@ public sealed class ApplicationModuleTests
 
         services.AddScoped(_ => Substitute.For<ITodoListRepository>());
         services.AddScoped(_ => Substitute.For<ITodoListQueries>());
+        services.AddScoped(_ => Substitute.For<ITodoItemTagQueries>());
         services.AddScoped(_ => Substitute.For<IReminderRepository>());
         services.AddScoped(_ => Substitute.For<IReminderNotifier>());
         services.AddScoped(_ => Substitute.For<IReminderTargetQueries>());
@@ -237,12 +240,14 @@ public sealed class ApplicationModuleTests
         services.AddScoped(_ => Substitute.For<ILeaderLease>());
         services.AddScoped(_ => Substitute.For<IStoredFileRepository>());
         services.AddScoped(_ => Substitute.For<IStoredFileQueries>());
+        services.AddScoped(_ => Substitute.For<IStoredFileTagQueries>());
         services.AddScoped(_ => Substitute.For<IFileContentStore>());
         services.AddScoped(_ => Substitute.For<IFileContentInventory>());
         services.AddScoped(_ => Substitute.For<IFileContentInspector>());
         services.AddScoped(_ => Substitute.For<ICurrentUser>());
         services.AddScoped(_ => Substitute.For<IDateTimeProvider>());
         services.AddScoped(_ => Substitute.For<IIdempotencyStore>());
+        services.AddScoped(_ => Substitute.For<ICacheStore>());
 
         // The layer's domain-event consumers take an ILogger, which every real host supplies.
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));

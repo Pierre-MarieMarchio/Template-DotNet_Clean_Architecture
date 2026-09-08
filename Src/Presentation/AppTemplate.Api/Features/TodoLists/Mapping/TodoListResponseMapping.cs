@@ -84,4 +84,9 @@ internal static class TodoListResponseMapping
     public static Result<Versioned<TodoItemsResponse>> ToItemsResponse(
         Result<Versioned<IReadOnlyList<TodoItemDto>>> result) =>
         result.Map(value => new Versioned<TodoItemsResponse>(ToResponse(value.Value), value.Version));
+
+    /// <summary>The tags this caller has used on their items.</summary>
+    public static Result<UsedTagsResponse> ToUsedTagsResponse(
+        Result<IReadOnlyList<string>> result) =>
+        result.Map(tags => new UsedTagsResponse(tags));
 }

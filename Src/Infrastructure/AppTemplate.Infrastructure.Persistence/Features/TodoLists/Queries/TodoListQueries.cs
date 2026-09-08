@@ -152,6 +152,7 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
         return PagedResult.Keyset(page, pageSize, nextCursor);
     }
 
+
     private static readonly Expression<Func<TodoListRecord, TodoListSummaryDto>> _toSummary =
         list => new TodoListSummaryDto(
             list.Id,

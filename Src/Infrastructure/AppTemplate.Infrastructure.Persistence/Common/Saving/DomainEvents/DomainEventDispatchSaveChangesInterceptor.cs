@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Common.Events;
+﻿using AppTemplate.Domain.Core.Common.Events;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 

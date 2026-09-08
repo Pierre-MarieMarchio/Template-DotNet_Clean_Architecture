@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Features.Auth.Ports.ExternalIdentity;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;

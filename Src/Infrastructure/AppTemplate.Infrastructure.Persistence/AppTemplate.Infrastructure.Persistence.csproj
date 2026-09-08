@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!-- All persistence, and nothing else. One project, one DbContext, one migrations history.
        Organised as Common/ (the cross-cutting mechanisms: the context, the interceptor pipeline,
@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
   </ItemGroup>
 
   <!-- The mapper between the domain aggregate and its persistence model is the one place in this

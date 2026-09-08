@@ -21,17 +21,20 @@ public sealed class UseCaseConventionTests
     private const string _useCaseSuffix = "UseCase";
 
     /// <summary>
-    /// <c>AppTemplate.Application.Features.&lt;Vertical&gt;.UseCases[.Commands|.Queries|…]</c>.
+    /// <c>&lt;Project&gt;.Features.&lt;Vertical&gt;.UseCases[.Commands|.Queries|…]</c>, judged against the
+    /// root namespace of the project that declares the type rather than against one literal prefix:
+    /// the application layer is several projects, and a prefix short enough to span them would also
+    /// span a layer whose names begin the same way.
     /// </summary>
-    private const string _useCaseNamespacePattern =
-        @"^AppTemplate\.Application\.Features\.[^.]+\.UseCases(\.[^.]+)*$";
+    private const string _useCaseNamespaceSuffixPattern =
+        @"\.Features\.[^.]+\.UseCases(\.[^.]+)*$";
 
     /// <summary>
     /// One operation's own folder:
-    /// <c>AppTemplate.Application.Features.&lt;Vertical&gt;.UseCases.Commands|Queries.&lt;Operation&gt;</c>.
+    /// <c>&lt;Project&gt;.Features.&lt;Vertical&gt;.UseCases.Commands|Queries.&lt;Operation&gt;</c>.
     /// </summary>
-    private const string _useCaseFolderNamespacePattern =
-        @"^AppTemplate\.Application\.Features\.[^.]+\.UseCases\.(Commands|Queries)\.[^.]+$";
+    private const string _useCaseFolderNamespaceSuffixPattern =
+        @"\.Features\.[^.]+\.UseCases\.(Commands|Queries)\.[^.]+$";
 
     /// <summary>
     /// What a use case's input is called. The record is declared in the same file as the operation
@@ -42,7 +45,7 @@ public sealed class UseCaseConventionTests
     [Fact]
     public void UseCases_LiveUnderTheirVerticalsUseCasesFolder()
     {
-        var useCases = Types.InAssembly(ArchitectureAssemblies.Application)
+        var useCases = Types.InAssemblies(ArchitectureAssemblies.ApplicationLayer)
             .That()
             .AreClasses()
             .And()
@@ -64,23 +67,48 @@ public sealed class UseCaseConventionTests
             "The candidate set is measured against the declarations on disk rather than floored at a " +
             "number, because a floor cannot be wrong — only stale, and a stale one lets this rule " +
             "check a fraction of the layer while reporting that the convention holds. " +
-            $"({SourceDeclarations.UseCaseFullNames.Count} declared in the application project, " +
+            $"({SourceDeclarations.UseCaseFullNames.Count} declared across the application layer, " +
             $"{matched.Count} matched here.){Environment.NewLine}  " +
             string.Join($"{Environment.NewLine}  ", divergence));
 
-        useCases.Should()
-            .ResideInNamespaceMatching(_useCaseNamespacePattern)
-            .GetResult()
-            .ShouldHold(
-                "A use case belongs in Features/<Vertical>/UseCases/. The folder layout is the only " +
-                "index of what the application can do, because registration is explicit rather " +
-                $"than scanned. Expected namespace pattern: {_useCaseNamespacePattern}");
+        matched
+            .Where(useCase => !IsUnderAUseCasesFolder(useCase))
+            .Select(useCase => useCase.FullName ?? useCase.Name)
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty(
+                "A use case belongs in Features/<Vertical>/UseCases/ of the project that declares " +
+                "it. The folder layout is the only index of what the application can do, because " +
+                "registration is explicit rather than scanned. Expected namespace shape: " +
+                $"<Project>{_useCaseNamespaceSuffixPattern}");
     }
+
+    /// <summary>
+    /// The root namespace of the assembly a type is declared in, which is that assembly's simple
+    /// name — the convention this repository checks elsewhere.
+    /// </summary>
+    private static string RootOf(Type type) =>
+        type.Assembly.GetName().Name
+        ?? throw new InvalidOperationException(
+            $"'{type.FullName}' is declared in an assembly with no simple name.");
+
+    private static bool MatchesInItsOwnProject(Type type, string suffixPattern) =>
+        type.Namespace is { } declared
+        && Regex.IsMatch(
+            declared,
+            $"^{Regex.Escape(RootOf(type))}{suffixPattern}",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(5));
+
+    private static bool IsUnderAUseCasesFolder(Type type) =>
+        MatchesInItsOwnProject(type, _useCaseNamespaceSuffixPattern);
+
+    private static bool IsInAUseCaseFolder(Type type) =>
+        MatchesInItsOwnProject(type, _useCaseFolderNamespaceSuffixPattern);
 
     [Fact]
     public void UseCases_AreSealed()
     {
-        var useCases = Types.InAssembly(ArchitectureAssemblies.Application)
+        var useCases = Types.InAssemblies(ArchitectureAssemblies.ApplicationLayer)
             .That()
             .AreClasses()
             .And()
@@ -99,7 +127,7 @@ public sealed class UseCaseConventionTests
     [Fact]
     public void UseCases_ArePublic()
     {
-        var useCases = Types.InAssembly(ArchitectureAssemblies.Application)
+        var useCases = Types.InAssemblies(ArchitectureAssemblies.ApplicationLayer)
             .That()
             .AreClasses()
             .And()
@@ -137,12 +165,11 @@ public sealed class UseCaseConventionTests
     [Fact]
     public void EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt()
     {
-        var folders = ArchitectureAssemblies.Application
-            .GetTypes()
+        var folders = ArchitectureAssemblies.ApplicationLayer
+            .SelectMany(assembly => assembly.GetTypes())
             .Where(type => type is { IsNested: false })
             .Where(type => !Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute)))
-            .Where(type => type.Namespace is not null
-                && Regex.IsMatch(type.Namespace, _useCaseFolderNamespacePattern, RegexOptions.None, TimeSpan.FromSeconds(5)))
+            .Where(type => IsInAUseCaseFolder(type))
             .GroupBy(type => type.Namespace!, StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .ToList();

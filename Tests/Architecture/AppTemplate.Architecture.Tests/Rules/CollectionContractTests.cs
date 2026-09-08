@@ -1,9 +1,9 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using AppTemplate.Application.Common.Collections;
-using AppTemplate.Application.Common.Policies;
-using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Core.Common.Collections;
+using AppTemplate.Application.Core.Common.Policies;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
@@ -21,16 +21,22 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// </summary>
 public sealed class CollectionContractTests
 {
-    /// <summary><c>AppTemplate.Application.Common.Collections</c> or a feature's own <c>…Collections</c>.</summary>
+    /// <summary>
+    /// <c>AppTemplate.Application.Core.Common.Collections</c> or a feature's own <c>…Collections</c>,
+    /// in any project of the application layer.
+    /// </summary>
     private const string _collectionsNamespacePattern = @"^AppTemplate\.Application\..*\.Collections$";
+
+    /// <summary>Every type the application layer declares, across every project of it.</summary>
+    private static IEnumerable<Type> ApplicationLayerTypes =>
+        ArchitectureAssemblies.ApplicationLayer.SelectMany(assembly => assembly.GetTypes());
 
     #region 1. Every validated collection contract is unconstructible without validation
 
     [Fact]
     public void EveryRecordInACollectionsNamespace_HasNoPublicConstructor()
     {
-        var candidates = ArchitectureAssemblies.Application
-            .GetTypes()
+        var candidates = ApplicationLayerTypes
             .Where(type => type is { IsClass: true, IsNested: false })
             .Where(type => !Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute)))
             .Where(type => type.Namespace is not null && IsCollectionsNamespace(type.Namespace))
@@ -65,15 +71,14 @@ public sealed class CollectionContractTests
     /// <summary>
     /// The exclusion the rule above depends on, stated as its own assertion: a policy is a plain
     /// class, not a record, and is deliberately allowed a public constructor
-    /// (<see cref="ArchitectureAssemblies.Application"/> discovers it by a parameterless one). This
+    /// (the rule below discovers it by a parameterless one). This
     /// proves that exemption is explicit rather than accidental — the predicate above excludes it
     /// because <c>TypeFacts.IsRecord</c> says no, not because nobody looked.
     /// </summary>
     [Fact]
     public void APolicyClass_IsNotARecordAndIsExemptFromTheConstructorRule()
     {
-        var policies = ArchitectureAssemblies.Application
-            .GetTypes()
+        var policies = ApplicationLayerTypes
             .Where(type => type is { IsClass: true, IsNested: false })
             .Where(type => typeof(ICollectionPolicy).IsAssignableFrom(type))
             .ToList();
@@ -96,8 +101,7 @@ public sealed class CollectionContractTests
     [Fact]
     public void EveryCollectionPolicy_IsInternallyConsistent()
     {
-        var policyTypes = ArchitectureAssemblies.Application
-            .GetTypes()
+        var policyTypes = ApplicationLayerTypes
             .Where(type => type is { IsClass: true, IsAbstract: false, IsNested: false })
             .Where(type => typeof(ICollectionPolicy).IsAssignableFrom(type))
             .ToList();
@@ -203,8 +207,7 @@ public sealed class CollectionContractTests
     [Fact]
     public void EveryRecord_WithAValidatingFactory_HasNoPublicConstructor()
     {
-        var validated = ArchitectureAssemblies.Application
-            .GetTypes()
+        var validated = ApplicationLayerTypes
             .Where(type => type is { IsClass: true, IsNested: false })
             .Where(type => !Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute)))
             .Where(TypeFacts.IsRecord)
@@ -248,8 +251,8 @@ public sealed class CollectionContractTests
 
     /// <summary>
     /// A static method returning <see cref="Result{TValue}"/> of the very type that declares it.
-    /// Non-public factories count: <c>SearchTerm.Create</c> and <c>Cursor.Decode</c> are internal,
-    /// and are no less the only way in.
+    /// Non-public factories count: <c>Cursor.Decode</c> and <c>SortTerm.Of</c> are internal, and are
+    /// no less the only way in.
     /// </summary>
     private static bool HasAValidatingFactory(Type type) =>
         type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)

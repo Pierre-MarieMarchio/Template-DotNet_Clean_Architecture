@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Events;
+﻿using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using Microsoft.Extensions.Logging;
 

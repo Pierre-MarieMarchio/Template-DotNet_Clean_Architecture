@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Common.Exceptions;
+﻿using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Events;
 using AppTemplate.Domain.Features.Files.ValueObjects;

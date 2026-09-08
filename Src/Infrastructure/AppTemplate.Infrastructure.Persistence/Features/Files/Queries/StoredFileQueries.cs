@@ -1,7 +1,7 @@
 ﻿using System.Linq.Expressions;
-using AppTemplate.Application.Common.Collections;
-using AppTemplate.Application.Common.Concurrency;
-using AppTemplate.Application.Common.Results;
+using AppTemplate.Application.Core.Common.Collections;
+using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Domain.Features.Files.ValueObjects;

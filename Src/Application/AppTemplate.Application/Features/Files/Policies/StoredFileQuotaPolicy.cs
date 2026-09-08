@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Results;
+﻿using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Errors;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Domain.Features.Files.ValueObjects;

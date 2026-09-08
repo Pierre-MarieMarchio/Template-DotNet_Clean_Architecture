@@ -46,7 +46,10 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
     [Fact]
     public void Readiness_CoversTheDatabaseAndTheShutdownSignal()
     {
-        ReadyCheckNames().ShouldBe(["database", "shutdown"]);
+        // Which checks, not in which order: the predicate selects them by tag, and the order they
+        // were registered in is an artefact of the shutdown check arriving with AddCoreHealthChecks
+        // and the database check being chained onto the builder it returns.
+        ReadyCheckNames().ShouldBe(["database", "shutdown"], ignoreOrder: true);
     }
 
     /// <summary>
@@ -60,7 +63,9 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
     {
         // Both registered checks are readiness checks, and the liveness endpoint's predicate
         // excludes all of them.
-        Registrations().Select(registration => registration.Name).ShouldBe(["database", "shutdown"]);
+        Registrations()
+            .Select(registration => registration.Name)
+            .ShouldBe(["database", "shutdown"], ignoreOrder: true);
     }
 
     [Fact]

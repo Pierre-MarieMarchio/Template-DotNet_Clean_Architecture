@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Concurrency;
-using AppTemplate.Application.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 

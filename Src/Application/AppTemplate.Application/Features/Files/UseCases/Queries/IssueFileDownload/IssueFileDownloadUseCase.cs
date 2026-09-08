@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Results;
-using AppTemplate.Application.Common.Validation;
+﻿using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Core.Common.Validation;
 using AppTemplate.Application.Features.Files.Errors;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Services;

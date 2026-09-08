@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Ports;
 
 namespace AppTemplate.Infrastructure.InMemory.Common.Time;
 

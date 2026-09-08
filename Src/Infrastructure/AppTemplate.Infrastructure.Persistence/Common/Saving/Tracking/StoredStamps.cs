@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Common.Abstractions;
+﻿using AppTemplate.Domain.Core.Common.Abstractions;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 

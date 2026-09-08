@@ -1,0 +1,135 @@
+#nullable enable
+AppTemplate.Api.Core.ApiCoreModule
+AppTemplate.Api.Core.Common.Caching.NoStoreAttribute
+AppTemplate.Api.Core.Common.Caching.NoStoreAttribute.NoStoreAttribute() -> void
+AppTemplate.Api.Core.Common.Concurrency.ConcurrencyOptions
+AppTemplate.Api.Core.Common.Concurrency.ConcurrencyOptions.ConcurrencyOptions() -> void
+AppTemplate.Api.Core.Common.Concurrency.ConcurrencyOptions.IfMatch.get -> AppTemplate.Api.Core.Common.Concurrency.IfMatchRequirement
+AppTemplate.Api.Core.Common.Concurrency.ConcurrencyOptions.IfMatch.set -> void
+AppTemplate.Api.Core.Common.Concurrency.IfMatchRequirement
+AppTemplate.Api.Core.Common.Concurrency.IfMatchRequirement.Optional = 0 -> AppTemplate.Api.Core.Common.Concurrency.IfMatchRequirement
+AppTemplate.Api.Core.Common.Concurrency.IfMatchRequirement.Required = 1 -> AppTemplate.Api.Core.Common.Concurrency.IfMatchRequirement
+AppTemplate.Api.Core.Common.Contracts.PagedResponse
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.<Clone>$() -> AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>!
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.Deconstruct(out System.Collections.Generic.IReadOnlyList<TItem>! Items, out int PageSize, out int? Page, out int? TotalCount, out int? TotalPages, out bool HasNextPage, out string? NextCursor) -> void
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.Equals(AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>? other) -> bool
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.HasNextPage.get -> bool
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.HasNextPage.init -> void
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.Items.get -> System.Collections.Generic.IReadOnlyList<TItem>!
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.Items.init -> void
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.NextCursor.get -> string?
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.NextCursor.init -> void
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.Page.get -> int?
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.Page.init -> void
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.PageSize.get -> int
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.PageSize.init -> void
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.PagedResponse(System.Collections.Generic.IReadOnlyList<TItem>! Items, int PageSize, int? Page, int? TotalCount, int? TotalPages, bool HasNextPage, string? NextCursor) -> void
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.TotalCount.get -> int?
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.TotalCount.init -> void
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.TotalPages.get -> int?
+AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.TotalPages.init -> void
+AppTemplate.Api.Core.Common.Controllers.ApiControllerBase
+AppTemplate.Api.Core.Common.Controllers.ApiControllerBase.ApiControllerBase() -> void
+AppTemplate.Api.Core.Common.Controllers.ApiControllerBase.CreatedOrProblem<TValue>(AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>!>! result, string! routeName, System.Func<TValue, object!>! routeValues) -> Microsoft.AspNetCore.Mvc.ActionResult<TValue>!
+AppTemplate.Api.Core.Common.Controllers.ApiControllerBase.CreatedOrProblem<TValue>(AppTemplate.Application.Core.Common.Results.Result<TValue>! result, string! routeName, object! routeValues) -> Microsoft.AspNetCore.Mvc.ActionResult!
+AppTemplate.Api.Core.Common.Controllers.ApiControllerBase.NoContentOrProblem(AppTemplate.Application.Core.Common.Results.Result! result) -> Microsoft.AspNetCore.Mvc.ActionResult!
+AppTemplate.Api.Core.Common.Controllers.ApiControllerBase.OkOrProblem<TValue>(AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>!>! result) -> Microsoft.AspNetCore.Mvc.ActionResult<TValue>!
+AppTemplate.Api.Core.Common.Controllers.ApiControllerBase.OkOrProblem<TValue>(AppTemplate.Application.Core.Common.Results.Result<TValue>! result) -> Microsoft.AspNetCore.Mvc.ActionResult<TValue>!
+AppTemplate.Api.Core.Common.Controllers.ApiControllerBase.ReadPrecondition(out AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition? precondition, out bool requiresExistence) -> Microsoft.AspNetCore.Mvc.ActionResult?
+AppTemplate.Api.Core.Common.Controllers.ApiControllerBase.UpdatedOrProblem<TValue>(AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>!>! result) -> Microsoft.AspNetCore.Mvc.ActionResult<TValue>!
+AppTemplate.Api.Core.Common.Errors.ErrorMapping
+AppTemplate.Api.Core.Common.Errors.ProblemTypeOptions
+AppTemplate.Api.Core.Common.Errors.ProblemTypeOptions.BaseUri.get -> string!
+AppTemplate.Api.Core.Common.Errors.ProblemTypeOptions.BaseUri.set -> void
+AppTemplate.Api.Core.Common.Errors.ProblemTypeOptions.ProblemTypeOptions() -> void
+AppTemplate.Api.Core.Common.Hosting.HealthEndpoints
+AppTemplate.Api.Core.Common.Hosting.RequestLimitsOptions
+AppTemplate.Api.Core.Common.Hosting.RequestLimitsOptions.MaxRequestBodyBytes.get -> long
+AppTemplate.Api.Core.Common.Hosting.RequestLimitsOptions.MaxRequestBodyBytes.set -> void
+AppTemplate.Api.Core.Common.Hosting.RequestLimitsOptions.RequestLimitsOptions() -> void
+AppTemplate.Api.Core.Common.Hosting.RequestTimeoutsOptions
+AppTemplate.Api.Core.Common.Hosting.RequestTimeoutsOptions.Default.get -> System.TimeSpan
+AppTemplate.Api.Core.Common.Hosting.RequestTimeoutsOptions.Default.set -> void
+AppTemplate.Api.Core.Common.Hosting.RequestTimeoutsOptions.Extended.get -> System.TimeSpan
+AppTemplate.Api.Core.Common.Hosting.RequestTimeoutsOptions.Extended.set -> void
+AppTemplate.Api.Core.Common.Hosting.RequestTimeoutsOptions.RequestTimeoutsOptions() -> void
+AppTemplate.Api.Core.Common.Hosting.ShutdownOptions
+AppTemplate.Api.Core.Common.Hosting.ShutdownOptions.ShutdownOptions() -> void
+AppTemplate.Api.Core.Common.Hosting.ShutdownOptions.Timeout.get -> System.TimeSpan
+AppTemplate.Api.Core.Common.Hosting.ShutdownOptions.Timeout.set -> void
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.ClaimLease.get -> System.TimeSpan
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.ClaimLease.set -> void
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.Enabled.get -> bool
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.Enabled.set -> void
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.IdempotencyOptions() -> void
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.MaxKeyLength.get -> int
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.MaxKeyLength.set -> void
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.MaxStoredResponseBytes.get -> int
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.MaxStoredResponseBytes.set -> void
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.Retention.get -> System.TimeSpan
+AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.Retention.set -> void
+AppTemplate.Api.Core.Common.Idempotency.IdempotentAttribute
+AppTemplate.Api.Core.Common.Idempotency.IdempotentAttribute.IdempotentAttribute() -> void
+AppTemplate.Api.Core.Common.Observability.ObservabilityExtensions
+AppTemplate.Api.Core.Common.Security.RateLimiterWindow
+AppTemplate.Api.Core.Common.Security.RateLimiterWindow.<Clone>$() -> AppTemplate.Api.Core.Common.Security.RateLimiterWindow!
+AppTemplate.Api.Core.Common.Security.RateLimiterWindow.Deconstruct(out System.TimeSpan Duration) -> void
+AppTemplate.Api.Core.Common.Security.RateLimiterWindow.Duration.get -> System.TimeSpan
+AppTemplate.Api.Core.Common.Security.RateLimiterWindow.Duration.init -> void
+AppTemplate.Api.Core.Common.Security.RateLimiterWindow.Equals(AppTemplate.Api.Core.Common.Security.RateLimiterWindow? other) -> bool
+AppTemplate.Api.Core.Common.Security.RateLimiterWindow.RateLimiterWindow(System.TimeSpan Duration) -> void
+AppTemplate.Api.Core.Common.Security.RateLimitingExtensions
+AppTemplate.Api.Core.Common.Security.ResponseContentSecurityPolicy
+AppTemplate.Api.Core.Common.Security.ReverseProxyOptions
+AppTemplate.Api.Core.Common.Security.ReverseProxyOptions.Enabled.get -> bool
+AppTemplate.Api.Core.Common.Security.ReverseProxyOptions.Enabled.set -> void
+AppTemplate.Api.Core.Common.Security.ReverseProxyOptions.ForwardLimit.get -> int
+AppTemplate.Api.Core.Common.Security.ReverseProxyOptions.ForwardLimit.set -> void
+AppTemplate.Api.Core.Common.Security.ReverseProxyOptions.KnownNetworks.get -> System.Collections.Generic.IList<string!>!
+AppTemplate.Api.Core.Common.Security.ReverseProxyOptions.KnownProxies.get -> System.Collections.Generic.IList<string!>!
+AppTemplate.Api.Core.Common.Security.ReverseProxyOptions.ReverseProxyOptions() -> void
+AppTemplate.Api.Core.Common.Security.SecurityHeaderOptions
+AppTemplate.Api.Core.Common.Security.SecurityHeaderOptions.ContentSecurityPolicy.get -> string!
+AppTemplate.Api.Core.Common.Security.SecurityHeaderOptions.ContentSecurityPolicy.set -> void
+AppTemplate.Api.Core.Common.Security.SecurityHeaderOptions.SecurityHeaderOptions() -> void
+const AppTemplate.Api.Core.Common.Concurrency.ConcurrencyOptions.SectionName = "Concurrency" -> string!
+const AppTemplate.Api.Core.Common.Errors.ProblemTypeOptions.SectionName = "ProblemTypes" -> string!
+const AppTemplate.Api.Core.Common.Hosting.HealthEndpoints.PathPrefix = "/health" -> string!
+const AppTemplate.Api.Core.Common.Hosting.HealthEndpoints.ReadyTag = "ready" -> string!
+const AppTemplate.Api.Core.Common.Hosting.RequestLimitsOptions.SectionName = "RequestLimits" -> string!
+const AppTemplate.Api.Core.Common.Hosting.RequestTimeoutsOptions.SectionName = "RequestTimeouts" -> string!
+const AppTemplate.Api.Core.Common.Hosting.ShutdownOptions.SectionName = "Shutdown" -> string!
+const AppTemplate.Api.Core.Common.Idempotency.IdempotencyOptions.SectionName = "Idempotency" -> string!
+const AppTemplate.Api.Core.Common.Security.RateLimitingExtensions.Authentication = "authentication" -> string!
+const AppTemplate.Api.Core.Common.Security.RateLimitingExtensions.AuthenticationPermitLimit = 10 -> int
+const AppTemplate.Api.Core.Common.Security.RateLimitingExtensions.GlobalPermitLimit = 300 -> int
+const AppTemplate.Api.Core.Common.Security.ReverseProxyOptions.SectionName = "ReverseProxy" -> string!
+const AppTemplate.Api.Core.Common.Security.SecurityHeaderOptions.DefaultContentSecurityPolicy = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" -> string!
+const AppTemplate.Api.Core.Common.Security.SecurityHeaderOptions.SectionName = "SecurityHeaders" -> string!
+override AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.Equals(object? obj) -> bool
+override AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.GetHashCode() -> int
+override AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.ToString() -> string!
+override AppTemplate.Api.Core.Common.Security.RateLimiterWindow.Equals(object? obj) -> bool
+override AppTemplate.Api.Core.Common.Security.RateLimiterWindow.GetHashCode() -> int
+override AppTemplate.Api.Core.Common.Security.RateLimiterWindow.ToString() -> string!
+static AppTemplate.Api.Core.ApiCoreModule.AddApiCore(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static AppTemplate.Api.Core.ApiCoreModule.AddCoreApiVersioning(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static AppTemplate.Api.Core.ApiCoreModule.CoreApiVersionGroups(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> System.Collections.Generic.IReadOnlyList<string!>!
+static AppTemplate.Api.Core.ApiCoreModule.UseCoreDocumentConventions(this Microsoft.AspNetCore.OpenApi.OpenApiOptions! options, string! groupName) -> void
+static AppTemplate.Api.Core.ApiCoreModule.UseCorePipeline(this Microsoft.AspNetCore.Builder.WebApplication! app, AppTemplate.Api.Core.Common.Security.ResponseContentSecurityPolicy? apiReferencePolicy = null) -> Microsoft.AspNetCore.Builder.WebApplication!
+static AppTemplate.Api.Core.Common.Contracts.PagedResponse.From<TSource, TItem>(AppTemplate.Application.Core.Common.Results.PagedResult<TSource>! page, System.Func<TSource, TItem>! item) -> AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>!
+static AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.operator !=(AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>? left, AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>? right) -> bool
+static AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>.operator ==(AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>? left, AppTemplate.Api.Core.Common.Contracts.PagedResponse<TItem>? right) -> bool
+static AppTemplate.Api.Core.Common.Controllers.ApiControllerBase.RequiringExistence(bool requiresExistence, AppTemplate.Application.Core.Common.Results.Result! result) -> AppTemplate.Application.Core.Common.Results.Result!
+static AppTemplate.Api.Core.Common.Controllers.ApiControllerBase.RequiringExistence<TValue>(bool requiresExistence, AppTemplate.Application.Core.Common.Results.Result<TValue>! result) -> AppTemplate.Application.Core.Common.Results.Result<TValue>!
+static AppTemplate.Api.Core.Common.Errors.ErrorMapping.ToActionResult(this AppTemplate.Application.Core.Common.Results.Error! error) -> Microsoft.AspNetCore.Mvc.ActionResult!
+static AppTemplate.Api.Core.Common.Errors.ErrorMapping.ToActionResult(this AppTemplate.Application.Core.Common.Results.Error! error, Microsoft.AspNetCore.Http.HttpContext! httpContext) -> Microsoft.AspNetCore.Mvc.ActionResult!
+static AppTemplate.Api.Core.Common.Hosting.HealthEndpoints.AddCoreHealthChecks(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder!
+static AppTemplate.Api.Core.Common.Hosting.HealthEndpoints.MapCoreHealthEndpoints(this Microsoft.AspNetCore.Builder.WebApplication! app) -> Microsoft.AspNetCore.Builder.WebApplication!
+static AppTemplate.Api.Core.Common.Observability.ObservabilityExtensions.AddCoreObservability(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration, System.Reflection.Assembly! host, System.Action<OpenTelemetry.Trace.TracerProviderBuilder!>? tracing = null, System.Action<OpenTelemetry.Metrics.MeterProviderBuilder!>? metrics = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static AppTemplate.Api.Core.Common.Security.RateLimiterWindow.operator !=(AppTemplate.Api.Core.Common.Security.RateLimiterWindow? left, AppTemplate.Api.Core.Common.Security.RateLimiterWindow? right) -> bool
+static AppTemplate.Api.Core.Common.Security.RateLimiterWindow.operator ==(AppTemplate.Api.Core.Common.Security.RateLimiterWindow? left, AppTemplate.Api.Core.Common.Security.RateLimiterWindow? right) -> bool
+static readonly AppTemplate.Api.Core.Common.Security.RateLimiterWindow.Default -> AppTemplate.Api.Core.Common.Security.RateLimiterWindow!
+virtual AppTemplate.Api.Core.Common.Security.ResponseContentSecurityPolicy.Invoke(Microsoft.AspNetCore.Http.HttpContext! context) -> string?

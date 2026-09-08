@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Common.Abstractions;
+﻿using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 

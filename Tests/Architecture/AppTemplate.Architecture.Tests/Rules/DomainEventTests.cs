@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Common.Events;
+﻿using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Architecture.Tests.Fixtures;
-using AppTemplate.Domain.Common.Events;
+using AppTemplate.Domain.Core.Common.Events;
 using Shouldly;
 using Xunit;
 
@@ -64,8 +64,8 @@ public sealed class DomainEventTests
             "Far fewer domain events were found than this template raises, so this rule is reading " +
             "the wrong assembly and passing for the wrong reason.");
 
-        var consumed = ArchitectureAssemblies.Application
-            .GetTypes()
+        var consumed = ArchitectureAssemblies.ApplicationLayer
+            .SelectMany(assembly => assembly.GetTypes())
             .Where(type => type is { IsClass: true, IsAbstract: false })
             .SelectMany(type => type.GetInterfaces())
             .Where(contract => contract.IsGenericType
@@ -104,8 +104,8 @@ public sealed class DomainEventTests
             .Select(type => type.Name)
             .ToHashSet(StringComparer.Ordinal);
 
-        var consumed = ArchitectureAssemblies.Application
-            .GetTypes()
+        var consumed = ArchitectureAssemblies.ApplicationLayer
+            .SelectMany(assembly => assembly.GetTypes())
             .Where(type => type is { IsClass: true, IsAbstract: false })
             .SelectMany(type => type.GetInterfaces())
             .Where(contract => contract.IsGenericType

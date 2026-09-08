@@ -1,0 +1,323 @@
+#nullable enable
+AppTemplate.Application.Core.ApplicationCoreModule
+AppTemplate.Application.Core.Common.Collections.CollectionErrors
+AppTemplate.Application.Core.Common.Collections.CollectionOrder
+AppTemplate.Application.Core.Common.Collections.CollectionOrder.<Clone>$() -> AppTemplate.Application.Core.Common.Collections.CollectionOrder!
+AppTemplate.Application.Core.Common.Collections.CollectionOrder.Equals(AppTemplate.Application.Core.Common.Collections.CollectionOrder? other) -> bool
+AppTemplate.Application.Core.Common.Collections.CollectionOrder.Mode.get -> AppTemplate.Application.Core.Common.Collections.PagingMode
+AppTemplate.Application.Core.Common.Collections.CollectionOrder.Sort.get -> AppTemplate.Application.Core.Common.Collections.SortOrder!
+AppTemplate.Application.Core.Common.Collections.CollectionOrder.ToPageRequest(int? page, int? pageSize, string? cursor, params string![]! dateKeyFields) -> AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Application.Core.Common.Collections.PageRequest!>!
+AppTemplate.Application.Core.Common.Collections.Cursor
+AppTemplate.Application.Core.Common.Collections.Cursor.<Clone>$() -> AppTemplate.Application.Core.Common.Collections.Cursor!
+AppTemplate.Application.Core.Common.Collections.Cursor.Direction.get -> AppTemplate.Application.Core.Common.Collections.SortDirection
+AppTemplate.Application.Core.Common.Collections.Cursor.Encode() -> string!
+AppTemplate.Application.Core.Common.Collections.Cursor.Equals(AppTemplate.Application.Core.Common.Collections.Cursor? other) -> bool
+AppTemplate.Application.Core.Common.Collections.Cursor.Field.get -> string!
+AppTemplate.Application.Core.Common.Collections.Cursor.Id.get -> System.Guid
+AppTemplate.Application.Core.Common.Collections.Cursor.Key.get -> string!
+AppTemplate.Application.Core.Common.Collections.PageRequest
+AppTemplate.Application.Core.Common.Collections.PageRequest.<Clone>$() -> AppTemplate.Application.Core.Common.Collections.PageRequest!
+AppTemplate.Application.Core.Common.Collections.PageRequest.Cursor.get -> AppTemplate.Application.Core.Common.Collections.Cursor?
+AppTemplate.Application.Core.Common.Collections.PageRequest.Equals(AppTemplate.Application.Core.Common.Collections.PageRequest? other) -> bool
+AppTemplate.Application.Core.Common.Collections.PageRequest.Mode.get -> AppTemplate.Application.Core.Common.Collections.PagingMode
+AppTemplate.Application.Core.Common.Collections.PageRequest.Page.get -> int?
+AppTemplate.Application.Core.Common.Collections.PageRequest.PageSize.get -> int
+AppTemplate.Application.Core.Common.Collections.PagingMode
+AppTemplate.Application.Core.Common.Collections.PagingMode.Cursor = 1 -> AppTemplate.Application.Core.Common.Collections.PagingMode
+AppTemplate.Application.Core.Common.Collections.PagingMode.Offset = 0 -> AppTemplate.Application.Core.Common.Collections.PagingMode
+AppTemplate.Application.Core.Common.Collections.SearchTerm
+AppTemplate.Application.Core.Common.Collections.SearchTerm.<Clone>$() -> AppTemplate.Application.Core.Common.Collections.SearchTerm!
+AppTemplate.Application.Core.Common.Collections.SearchTerm.Equals(AppTemplate.Application.Core.Common.Collections.SearchTerm? other) -> bool
+AppTemplate.Application.Core.Common.Collections.SearchTerm.Value.get -> string!
+AppTemplate.Application.Core.Common.Collections.SortDirection
+AppTemplate.Application.Core.Common.Collections.SortDirection.Ascending = 0 -> AppTemplate.Application.Core.Common.Collections.SortDirection
+AppTemplate.Application.Core.Common.Collections.SortDirection.Descending = 1 -> AppTemplate.Application.Core.Common.Collections.SortDirection
+AppTemplate.Application.Core.Common.Collections.SortOrder
+AppTemplate.Application.Core.Common.Collections.SortOrder.<Clone>$() -> AppTemplate.Application.Core.Common.Collections.SortOrder!
+AppTemplate.Application.Core.Common.Collections.SortOrder.Equals(AppTemplate.Application.Core.Common.Collections.SortOrder? other) -> bool
+AppTemplate.Application.Core.Common.Collections.SortOrder.Terms.get -> System.Collections.Generic.IReadOnlyList<AppTemplate.Application.Core.Common.Collections.SortTerm!>!
+AppTemplate.Application.Core.Common.Collections.SortTerm
+AppTemplate.Application.Core.Common.Collections.SortTerm.<Clone>$() -> AppTemplate.Application.Core.Common.Collections.SortTerm!
+AppTemplate.Application.Core.Common.Collections.SortTerm.Direction.get -> AppTemplate.Application.Core.Common.Collections.SortDirection
+AppTemplate.Application.Core.Common.Collections.SortTerm.Equals(AppTemplate.Application.Core.Common.Collections.SortTerm? other) -> bool
+AppTemplate.Application.Core.Common.Collections.SortTerm.Field.get -> string!
+AppTemplate.Application.Core.Common.Collections.SortableField
+AppTemplate.Application.Core.Common.Collections.SortableField.<Clone>$() -> AppTemplate.Application.Core.Common.Collections.SortableField!
+AppTemplate.Application.Core.Common.Collections.SortableField.Equals(AppTemplate.Application.Core.Common.Collections.SortableField? other) -> bool
+AppTemplate.Application.Core.Common.Collections.SortableField.Name.get -> string!
+AppTemplate.Application.Core.Common.Collections.SortableField.SupportsKeyset.get -> bool
+AppTemplate.Application.Core.Common.Concurrency.ConcurrencyConflictException
+AppTemplate.Application.Core.Common.Concurrency.ConcurrencyConflictException.ConcurrencyConflictException() -> void
+AppTemplate.Application.Core.Common.Concurrency.ConcurrencyConflictException.ConcurrencyConflictException(string! message) -> void
+AppTemplate.Application.Core.Common.Concurrency.ConcurrencyConflictException.ConcurrencyConflictException(string! message, System.Exception! innerException) -> void
+AppTemplate.Application.Core.Common.Concurrency.ConcurrencyErrors
+AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition
+AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.<Clone>$() -> AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition!
+AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.AcceptableVersions.get -> System.Collections.Generic.IReadOnlyList<uint>!
+AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.AcceptableVersions.init -> void
+AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.Deconstruct(out System.Collections.Generic.IReadOnlyList<uint>! AcceptableVersions) -> void
+AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.Equals(AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition? other) -> bool
+AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.IsSatisfiedBy(uint version) -> bool
+AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.VersionPrecondition(System.Collections.Generic.IReadOnlyList<uint>! AcceptableVersions) -> void
+AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>
+AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.<Clone>$() -> AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>!
+AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.Deconstruct(out TValue Value, out uint Version) -> void
+AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.Equals(AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>? other) -> bool
+AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.Value.get -> TValue
+AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.Version.get -> uint
+AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.Version.init -> void
+AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.Versioned(TValue Value, uint Version) -> void
+AppTemplate.Application.Core.Common.Events.IDomainEventConsumer
+AppTemplate.Application.Core.Common.Events.IDomainEventConsumer.ConsumeAsync(AppTemplate.Domain.Core.Common.Events.IDomainEvent! domainEvent, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+AppTemplate.Application.Core.Common.Events.IDomainEventConsumer<TEvent>
+AppTemplate.Application.Core.Common.Events.IDomainEventConsumer<TEvent>.ConsumeAsync(TEvent domainEvent, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+AppTemplate.Application.Core.Common.Idempotency.IIdempotencyStore
+AppTemplate.Application.Core.Common.Idempotency.IIdempotencyStore.ClaimAsync(AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey! key, System.DateTimeOffset expiresAt, System.DateTimeOffset claimedUntil, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim!>!
+AppTemplate.Application.Core.Common.Idempotency.IIdempotencyStore.CompleteAsync(AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey! key, AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse! response, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+AppTemplate.Application.Core.Common.Idempotency.IIdempotencyStore.PurgeExpiredAsync(System.DateTimeOffset asOf, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<int>!
+AppTemplate.Application.Core.Common.Idempotency.IIdempotencyStore.ReleaseAsync(AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey! key, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.<Clone>$() -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim!
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.Equals(AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim? other) -> bool
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.Response.get -> AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse?
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.Status.get -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyErrors
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.<Clone>$() -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey!
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.Endpoint.get -> string!
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.Equals(AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey? other) -> bool
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.Fingerprint.get -> string!
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.Key.get -> string!
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.UserId.get -> System.Guid
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus.Claimed = 0 -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus.InProgress = 1 -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus.KeyReused = 3 -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus.NotReplayable = 4 -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus
+AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus.Replay = 2 -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyStatus
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.<Clone>$() -> AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse!
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.Body.get -> string?
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.Body.init -> void
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.Deconstruct(out int StatusCode, out string? Body, out string? Location, out string? ETag) -> void
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.ETag.get -> string?
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.ETag.init -> void
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.Equals(AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse? other) -> bool
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.IdempotentResponse(int StatusCode, string? Body, string? Location, string? ETag = null) -> void
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.Location.get -> string?
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.Location.init -> void
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.StatusCode.get -> int
+AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.StatusCode.init -> void
+AppTemplate.Application.Core.Common.Localization.CurrentLanguage
+AppTemplate.Application.Core.Common.Policies.ICollectionPolicy
+AppTemplate.Application.Core.Common.Policies.ICollectionPolicy.DefaultPageSize.get -> int
+AppTemplate.Application.Core.Common.Policies.ICollectionPolicy.DefaultSort.get -> string!
+AppTemplate.Application.Core.Common.Policies.ICollectionPolicy.MaxPageSize.get -> int
+AppTemplate.Application.Core.Common.Policies.ICollectionPolicy.MaxSortTerms.get -> int
+AppTemplate.Application.Core.Common.Policies.ICollectionPolicy.SortableFields.get -> System.Collections.Generic.IReadOnlyList<AppTemplate.Application.Core.Common.Collections.SortableField!>!
+AppTemplate.Application.Core.Common.Ports.CurrentUserExtensions
+AppTemplate.Application.Core.Common.Ports.ICurrentUser
+AppTemplate.Application.Core.Common.Ports.ICurrentUser.UserId.get -> System.Guid?
+AppTemplate.Application.Core.Common.Ports.IDateTimeProvider
+AppTemplate.Application.Core.Common.Ports.IDateTimeProvider.UtcNow.get -> System.DateTimeOffset
+AppTemplate.Application.Core.Common.Ports.IEmailSender
+AppTemplate.Application.Core.Common.Ports.IEmailSender.SendAsync(string! recipient, string! subject, string! htmlBody, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+AppTemplate.Application.Core.Common.Ports.ILeaderLease
+AppTemplate.Application.Core.Common.Ports.ILeaderLease.TryRunExclusivelyAsync(string! leaseName, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task!>! work, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<bool>!
+AppTemplate.Application.Core.Common.Ports.IUnitOfWork
+AppTemplate.Application.Core.Common.Ports.IUnitOfWork.SaveChangesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<int>!
+AppTemplate.Application.Core.Common.Results.CommonErrors
+AppTemplate.Application.Core.Common.Results.Error
+AppTemplate.Application.Core.Common.Results.Error.<Clone>$() -> AppTemplate.Application.Core.Common.Results.Error!
+AppTemplate.Application.Core.Common.Results.Error.Code.get -> string!
+AppTemplate.Application.Core.Common.Results.Error.Code.init -> void
+AppTemplate.Application.Core.Common.Results.Error.Deconstruct(out string! Code, out string! Message, out AppTemplate.Application.Core.Common.Results.ErrorType Type, out System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>? Details) -> void
+AppTemplate.Application.Core.Common.Results.Error.Details.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>?
+AppTemplate.Application.Core.Common.Results.Error.Details.init -> void
+AppTemplate.Application.Core.Common.Results.Error.Equals(AppTemplate.Application.Core.Common.Results.Error? other) -> bool
+AppTemplate.Application.Core.Common.Results.Error.Error(string! Code, string! Message, AppTemplate.Application.Core.Common.Results.ErrorType Type, System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>? Details = null) -> void
+AppTemplate.Application.Core.Common.Results.Error.Message.get -> string!
+AppTemplate.Application.Core.Common.Results.Error.Message.init -> void
+AppTemplate.Application.Core.Common.Results.Error.Type.get -> AppTemplate.Application.Core.Common.Results.ErrorType
+AppTemplate.Application.Core.Common.Results.Error.Type.init -> void
+AppTemplate.Application.Core.Common.Results.ErrorType
+AppTemplate.Application.Core.Common.Results.ErrorType.Conflict = 4 -> AppTemplate.Application.Core.Common.Results.ErrorType
+AppTemplate.Application.Core.Common.Results.ErrorType.Forbidden = 3 -> AppTemplate.Application.Core.Common.Results.ErrorType
+AppTemplate.Application.Core.Common.Results.ErrorType.NotFound = 1 -> AppTemplate.Application.Core.Common.Results.ErrorType
+AppTemplate.Application.Core.Common.Results.ErrorType.PreconditionFailed = 6 -> AppTemplate.Application.Core.Common.Results.ErrorType
+AppTemplate.Application.Core.Common.Results.ErrorType.PreconditionRequired = 7 -> AppTemplate.Application.Core.Common.Results.ErrorType
+AppTemplate.Application.Core.Common.Results.ErrorType.TooManyRequests = 5 -> AppTemplate.Application.Core.Common.Results.ErrorType
+AppTemplate.Application.Core.Common.Results.ErrorType.Unauthorized = 2 -> AppTemplate.Application.Core.Common.Results.ErrorType
+AppTemplate.Application.Core.Common.Results.ErrorType.Validation = 0 -> AppTemplate.Application.Core.Common.Results.ErrorType
+AppTemplate.Application.Core.Common.Results.PagedResult
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.<Clone>$() -> AppTemplate.Application.Core.Common.Results.PagedResult<TItem>!
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.Deconstruct(out System.Collections.Generic.IReadOnlyList<TItem>! Items, out int PageSize, out int? Page, out int? TotalCount, out string? NextCursor) -> void
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.Equals(AppTemplate.Application.Core.Common.Results.PagedResult<TItem>? other) -> bool
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.HasNextPage.get -> bool
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.Items.get -> System.Collections.Generic.IReadOnlyList<TItem>!
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.Items.init -> void
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.NextCursor.get -> string?
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.NextCursor.init -> void
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.Page.get -> int?
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.Page.init -> void
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.PageSize.get -> int
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.PageSize.init -> void
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.PagedResult(System.Collections.Generic.IReadOnlyList<TItem>! Items, int PageSize, int? Page, int? TotalCount, string? NextCursor) -> void
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.TotalCount.get -> int?
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.TotalCount.init -> void
+AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.TotalPages.get -> int?
+AppTemplate.Application.Core.Common.Results.Result
+AppTemplate.Application.Core.Common.Results.Result.Error.get -> AppTemplate.Application.Core.Common.Results.Error?
+AppTemplate.Application.Core.Common.Results.Result.IsFailure.get -> bool
+AppTemplate.Application.Core.Common.Results.Result.IsSuccess.get -> bool
+AppTemplate.Application.Core.Common.Results.Result.To<TOther>() -> AppTemplate.Application.Core.Common.Results.Result<TOther>!
+AppTemplate.Application.Core.Common.Results.Result<TValue>
+AppTemplate.Application.Core.Common.Results.Result<TValue>.Value.get -> TValue
+AppTemplate.Application.Core.Common.Results.ResultExtensions
+AppTemplate.Application.Core.Common.UseCases.IUseCase
+AppTemplate.Application.Core.Common.UseCases.IUseCase<TRequest, TResponse>
+AppTemplate.Application.Core.Common.UseCases.IUseCase<TRequest, TResponse>.ExecuteAsync(TRequest request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResponse>!
+AppTemplate.Application.Core.Common.UseCases.IUseCase<TResponse>
+AppTemplate.Application.Core.Common.UseCases.IUseCase<TResponse>.ExecuteAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TResponse>!
+AppTemplate.Application.Core.Common.Validation.DomainGuard
+AppTemplate.Application.Core.Common.Validation.ValidationError
+AppTemplate.Application.Core.Common.Validation.ValidationExtensions
+AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys.IPurgeExpiredIdempotencyKeysUseCase
+AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys.PurgeExpiredIdempotencyKeysUseCase
+AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys.PurgeExpiredIdempotencyKeysUseCase.ExecuteAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<AppTemplate.Application.Core.Common.Results.Result<int>!>!
+AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys.PurgeExpiredIdempotencyKeysUseCase.PurgeExpiredIdempotencyKeysUseCase(AppTemplate.Application.Core.Common.Idempotency.IIdempotencyStore! store, AppTemplate.Application.Core.Common.Ports.IDateTimeProvider! dateTimeProvider) -> void
+const AppTemplate.Application.Core.Common.Collections.Cursor.MaxEncodedLength = 512 -> int
+const AppTemplate.Application.Core.Common.Collections.SearchTerm.MaxLength = 100 -> int
+const AppTemplate.Application.Core.Common.Localization.CurrentLanguage.FallbackTag = "en" -> string!
+const AppTemplate.Application.Core.Common.Validation.ValidationError.Code = "request.validationFailed" -> string!
+override AppTemplate.Application.Core.Common.Collections.CollectionOrder.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Collections.CollectionOrder.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Collections.CollectionOrder.ToString() -> string!
+override AppTemplate.Application.Core.Common.Collections.Cursor.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Collections.Cursor.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Collections.Cursor.ToString() -> string!
+override AppTemplate.Application.Core.Common.Collections.PageRequest.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Collections.PageRequest.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Collections.PageRequest.ToString() -> string!
+override AppTemplate.Application.Core.Common.Collections.SearchTerm.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Collections.SearchTerm.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Collections.SearchTerm.ToString() -> string!
+override AppTemplate.Application.Core.Common.Collections.SortOrder.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Collections.SortOrder.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Collections.SortOrder.ToString() -> string!
+override AppTemplate.Application.Core.Common.Collections.SortTerm.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Collections.SortTerm.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Collections.SortTerm.ToString() -> string!
+override AppTemplate.Application.Core.Common.Collections.SortableField.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Collections.SortableField.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Collections.SortableField.ToString() -> string!
+override AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.ToString() -> string!
+override AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.ToString() -> string!
+override AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.ToString() -> string!
+override AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.ToString() -> string!
+override AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.ToString() -> string!
+override AppTemplate.Application.Core.Common.Results.Error.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Results.Error.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Results.Error.ToString() -> string!
+override AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.ToString() -> string!
+static AppTemplate.Application.Core.ApplicationCoreModule.AddDomainEventConsumer<TEvent, TConsumer>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static AppTemplate.Application.Core.ApplicationCoreModule.AddPurgeExpiredIdempotencyKeys(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static AppTemplate.Application.Core.ApplicationCoreModule.AddUseCases(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Collections.Generic.IEnumerable<System.Type!>! candidates) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static AppTemplate.Application.Core.ApplicationCoreModule.AddUseCasesFrom(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Reflection.Assembly! assembly) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static AppTemplate.Application.Core.Common.Collections.CollectionErrors.InvalidCursor(string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Collections.CollectionErrors.InvalidFilter(string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Collections.CollectionErrors.InvalidPaging(string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Collections.CollectionErrors.InvalidSort(string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Collections.CollectionOrder.Parse(string? paging, string? sort, AppTemplate.Application.Core.Common.Policies.ICollectionPolicy! policy) -> AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Application.Core.Common.Collections.CollectionOrder!>!
+static AppTemplate.Application.Core.Common.Collections.CollectionOrder.operator !=(AppTemplate.Application.Core.Common.Collections.CollectionOrder? left, AppTemplate.Application.Core.Common.Collections.CollectionOrder? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.CollectionOrder.operator ==(AppTemplate.Application.Core.Common.Collections.CollectionOrder? left, AppTemplate.Application.Core.Common.Collections.CollectionOrder? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.Cursor.After(AppTemplate.Application.Core.Common.Collections.SortTerm! term, string! key, System.Guid id) -> AppTemplate.Application.Core.Common.Collections.Cursor!
+static AppTemplate.Application.Core.Common.Collections.Cursor.operator !=(AppTemplate.Application.Core.Common.Collections.Cursor? left, AppTemplate.Application.Core.Common.Collections.Cursor? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.Cursor.operator ==(AppTemplate.Application.Core.Common.Collections.Cursor? left, AppTemplate.Application.Core.Common.Collections.Cursor? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.PageRequest.Create(AppTemplate.Application.Core.Common.Collections.PagingMode mode, int? page, int? pageSize, AppTemplate.Application.Core.Common.Collections.Cursor? cursor, AppTemplate.Application.Core.Common.Policies.ICollectionPolicy! policy) -> AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Application.Core.Common.Collections.PageRequest!>!
+static AppTemplate.Application.Core.Common.Collections.PageRequest.ParseMode(string? raw) -> AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Application.Core.Common.Collections.PagingMode>!
+static AppTemplate.Application.Core.Common.Collections.PageRequest.operator !=(AppTemplate.Application.Core.Common.Collections.PageRequest? left, AppTemplate.Application.Core.Common.Collections.PageRequest? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.PageRequest.operator ==(AppTemplate.Application.Core.Common.Collections.PageRequest? left, AppTemplate.Application.Core.Common.Collections.PageRequest? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.SearchTerm.Create(string! value) -> AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Application.Core.Common.Collections.SearchTerm!>!
+static AppTemplate.Application.Core.Common.Collections.SearchTerm.operator !=(AppTemplate.Application.Core.Common.Collections.SearchTerm? left, AppTemplate.Application.Core.Common.Collections.SearchTerm? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.SearchTerm.operator ==(AppTemplate.Application.Core.Common.Collections.SearchTerm? left, AppTemplate.Application.Core.Common.Collections.SearchTerm? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.SortOrder.Parse(string? raw, AppTemplate.Application.Core.Common.Policies.ICollectionPolicy! policy) -> AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Application.Core.Common.Collections.SortOrder!>!
+static AppTemplate.Application.Core.Common.Collections.SortOrder.operator !=(AppTemplate.Application.Core.Common.Collections.SortOrder? left, AppTemplate.Application.Core.Common.Collections.SortOrder? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.SortOrder.operator ==(AppTemplate.Application.Core.Common.Collections.SortOrder? left, AppTemplate.Application.Core.Common.Collections.SortOrder? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.SortTerm.operator !=(AppTemplate.Application.Core.Common.Collections.SortTerm? left, AppTemplate.Application.Core.Common.Collections.SortTerm? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.SortTerm.operator ==(AppTemplate.Application.Core.Common.Collections.SortTerm? left, AppTemplate.Application.Core.Common.Collections.SortTerm? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.SortableField.Keyset(string! name) -> AppTemplate.Application.Core.Common.Collections.SortableField!
+static AppTemplate.Application.Core.Common.Collections.SortableField.OffsetOnly(string! name) -> AppTemplate.Application.Core.Common.Collections.SortableField!
+static AppTemplate.Application.Core.Common.Collections.SortableField.operator !=(AppTemplate.Application.Core.Common.Collections.SortableField? left, AppTemplate.Application.Core.Common.Collections.SortableField? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.SortableField.operator ==(AppTemplate.Application.Core.Common.Collections.SortableField? left, AppTemplate.Application.Core.Common.Collections.SortableField? right) -> bool
+static AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.operator !=(AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition? left, AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition? right) -> bool
+static AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition.operator ==(AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition? left, AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition? right) -> bool
+static AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.operator !=(AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>? left, AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>? right) -> bool
+static AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>.operator ==(AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>? left, AppTemplate.Application.Core.Common.Concurrency.Versioned<TValue>? right) -> bool
+static AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.Claimed() -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim!
+static AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.InProgress() -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim!
+static AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.KeyReused() -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim!
+static AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.NotReplayable() -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim!
+static AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.Replay(AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse! response) -> AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim!
+static AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.operator !=(AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim? left, AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim? right) -> bool
+static AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim.operator ==(AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim? left, AppTemplate.Application.Core.Common.Idempotency.IdempotencyClaim? right) -> bool
+static AppTemplate.Application.Core.Common.Idempotency.IdempotencyErrors.KeyInvalid(string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.Create(System.Guid userId, string? key, string! endpoint, string! fingerprint, int maxKeyLength) -> AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey!>!
+static AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.operator !=(AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey? left, AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey? right) -> bool
+static AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey.operator ==(AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey? left, AppTemplate.Application.Core.Common.Idempotency.IdempotencyKey? right) -> bool
+static AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.operator !=(AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse? left, AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse? right) -> bool
+static AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse.operator ==(AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse? left, AppTemplate.Application.Core.Common.Idempotency.IdempotentResponse? right) -> bool
+static AppTemplate.Application.Core.Common.Localization.CurrentLanguage.Candidates(string! tag) -> System.Collections.Generic.IEnumerable<string!>!
+static AppTemplate.Application.Core.Common.Localization.CurrentLanguage.Current.get -> string!
+static AppTemplate.Application.Core.Common.Localization.CurrentLanguage.Default.get -> string!
+static AppTemplate.Application.Core.Common.Localization.CurrentLanguage.Default.set -> void
+static AppTemplate.Application.Core.Common.Localization.CurrentLanguage.IsWellFormed(string? tag) -> bool
+static AppTemplate.Application.Core.Common.Localization.CurrentLanguage.Tag.get -> string?
+static AppTemplate.Application.Core.Common.Localization.CurrentLanguage.Tag.set -> void
+static AppTemplate.Application.Core.Common.Ports.CurrentUserExtensions.RequireUserId(this AppTemplate.Application.Core.Common.Ports.ICurrentUser! currentUser) -> AppTemplate.Application.Core.Common.Results.Result<System.Guid>!
+static AppTemplate.Application.Core.Common.Results.CommonErrors.InvariantViolated(string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Results.Error.Conflict(string! code, string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Results.Error.Forbidden(string! code, string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Results.Error.NotFound(string! code, string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Results.Error.PreconditionFailed(string! code, string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Results.Error.PreconditionRequired(string! code, string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Results.Error.Unauthorized(string! code, string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Results.Error.Validation(string! code, string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Results.Error.Validation(string! code, string! message, System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! details) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Results.Error.operator !=(AppTemplate.Application.Core.Common.Results.Error? left, AppTemplate.Application.Core.Common.Results.Error? right) -> bool
+static AppTemplate.Application.Core.Common.Results.Error.operator ==(AppTemplate.Application.Core.Common.Results.Error? left, AppTemplate.Application.Core.Common.Results.Error? right) -> bool
+static AppTemplate.Application.Core.Common.Results.PagedResult.Keyset<TItem>(System.Collections.Generic.IReadOnlyList<TItem>! items, int pageSize, string? nextCursor) -> AppTemplate.Application.Core.Common.Results.PagedResult<TItem>!
+static AppTemplate.Application.Core.Common.Results.PagedResult.Offset<TItem>(System.Collections.Generic.IReadOnlyList<TItem>! items, int page, int pageSize, int totalCount) -> AppTemplate.Application.Core.Common.Results.PagedResult<TItem>!
+static AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.operator !=(AppTemplate.Application.Core.Common.Results.PagedResult<TItem>? left, AppTemplate.Application.Core.Common.Results.PagedResult<TItem>? right) -> bool
+static AppTemplate.Application.Core.Common.Results.PagedResult<TItem>.operator ==(AppTemplate.Application.Core.Common.Results.PagedResult<TItem>? left, AppTemplate.Application.Core.Common.Results.PagedResult<TItem>? right) -> bool
+static AppTemplate.Application.Core.Common.Results.Result.Failure(AppTemplate.Application.Core.Common.Results.Error! error) -> AppTemplate.Application.Core.Common.Results.Result!
+static AppTemplate.Application.Core.Common.Results.Result.Failure<TValue>(AppTemplate.Application.Core.Common.Results.Error! error) -> AppTemplate.Application.Core.Common.Results.Result<TValue>!
+static AppTemplate.Application.Core.Common.Results.Result.Success() -> AppTemplate.Application.Core.Common.Results.Result!
+static AppTemplate.Application.Core.Common.Results.Result.Success<TValue>(TValue value) -> AppTemplate.Application.Core.Common.Results.Result<TValue>!
+static AppTemplate.Application.Core.Common.Results.Result<TValue>.Failure(AppTemplate.Application.Core.Common.Results.Error! error) -> AppTemplate.Application.Core.Common.Results.Result<TValue>!
+static AppTemplate.Application.Core.Common.Results.Result<TValue>.Success(TValue value) -> AppTemplate.Application.Core.Common.Results.Result<TValue>!
+static AppTemplate.Application.Core.Common.Results.Result<TValue>.implicit operator AppTemplate.Application.Core.Common.Results.Result<TValue>!(TValue value) -> AppTemplate.Application.Core.Common.Results.Result<TValue>!
+static AppTemplate.Application.Core.Common.Results.ResultExtensions.Map<TIn, TOut>(this AppTemplate.Application.Core.Common.Results.Result<TIn>! result, System.Func<TIn, TOut>! project) -> AppTemplate.Application.Core.Common.Results.Result<TOut>!
+static AppTemplate.Application.Core.Common.Validation.DomainGuard.Try(System.Action! operation) -> AppTemplate.Application.Core.Common.Results.Result!
+static AppTemplate.Application.Core.Common.Validation.DomainGuard.Try<TValue>(System.Func<TValue>! operation) -> AppTemplate.Application.Core.Common.Results.Result<TValue>!
+static AppTemplate.Application.Core.Common.Validation.ValidationError.ForField(string! field, string! message) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Validation.ValidationError.From(FluentValidation.Results.ValidationResult! validationResult) -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Core.Common.Validation.ValidationExtensions.EnsureValidAsync<TRequest>(this FluentValidation.IValidator<TRequest>! validator, TRequest request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<AppTemplate.Application.Core.Common.Results.Result!>!
+static readonly AppTemplate.Application.Core.Common.Concurrency.ConcurrencyErrors.PreconditionFailed -> AppTemplate.Application.Core.Common.Results.Error!
+static readonly AppTemplate.Application.Core.Common.Idempotency.IdempotencyErrors.InProgress -> AppTemplate.Application.Core.Common.Results.Error!
+static readonly AppTemplate.Application.Core.Common.Idempotency.IdempotencyErrors.KeyReused -> AppTemplate.Application.Core.Common.Results.Error!
+static readonly AppTemplate.Application.Core.Common.Idempotency.IdempotencyErrors.NotReplayable -> AppTemplate.Application.Core.Common.Results.Error!
+static readonly AppTemplate.Application.Core.Common.Results.CommonErrors.NotAuthenticated -> AppTemplate.Application.Core.Common.Results.Error!

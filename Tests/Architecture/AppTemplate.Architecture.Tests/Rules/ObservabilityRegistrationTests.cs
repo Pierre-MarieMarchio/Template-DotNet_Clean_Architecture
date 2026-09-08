@@ -70,6 +70,28 @@ public sealed class ObservabilityRegistrationTests
 
             string registrations = ReadObservabilitySource(directory);
 
+            // The folder this rule reads has to exist wherever there is an instrument to register.
+            // A missing one yields no registration text, and every instrument the host declares is
+            // then reported with no place named to fix it in — a failure that reads as the host's
+            // and is the rule's. It cannot be caught by the count below, which the other host
+            // satisfies on its own, so it is asserted here.
+            bool declaresAnything = SourceFilesUnder(directory).Any(file =>
+            {
+                string text = File.ReadAllText(file);
+
+                return _meterField.IsMatch(text) || _activitySourceField.IsMatch(text);
+            });
+
+            if (declaresAnything && registrations.Length == 0)
+            {
+                offenders.Add(
+                    $"{host.Name}: declares an instrument and has no 'Common/Observability/' to " +
+                    "register it in. A host keeps a thin extension of its own over the shared one, " +
+                    "and that is where its own instruments are named; folding the call straight " +
+                    "into Program.cs leaves this rule nothing to read.");
+                continue;
+            }
+
             foreach (string file in SourceFilesUnder(directory))
             {
                 string text = File.ReadAllText(file);

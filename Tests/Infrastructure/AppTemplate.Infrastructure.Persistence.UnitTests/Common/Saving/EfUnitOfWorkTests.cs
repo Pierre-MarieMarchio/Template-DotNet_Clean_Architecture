@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Concurrency;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Saving;
 using Microsoft.EntityFrameworkCore;

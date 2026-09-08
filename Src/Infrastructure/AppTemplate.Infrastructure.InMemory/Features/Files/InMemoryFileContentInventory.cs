@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Results;
+﻿using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;

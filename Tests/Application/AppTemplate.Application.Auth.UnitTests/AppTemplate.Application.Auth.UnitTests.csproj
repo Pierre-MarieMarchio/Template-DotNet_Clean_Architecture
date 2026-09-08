@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the authentication use cases. Every port is a test double, so nothing here
+       touches an identity store, a token provider or a mail relay: these tests are statements about
+       the use cases' own decisions — which failure a caller gets, and in which order the checks
+       run. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Application\AppTemplate.Application.Auth\AppTemplate.Application.Auth.csproj" />
+  </ItemGroup>
+
+</Project>

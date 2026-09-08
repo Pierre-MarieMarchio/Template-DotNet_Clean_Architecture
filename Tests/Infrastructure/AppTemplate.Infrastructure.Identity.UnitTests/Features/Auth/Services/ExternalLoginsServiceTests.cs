@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Auth.Ports.ExternalLogins;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
 using AppTemplate.Infrastructure.Identity.Common.Directories;
 using AppTemplate.Infrastructure.Identity.Features.Auth.Services;
 using AppTemplate.Infrastructure.Identity.UnitTests.Fixtures;

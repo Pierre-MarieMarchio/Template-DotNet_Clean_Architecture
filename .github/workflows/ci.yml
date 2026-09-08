@@ -128,7 +128,7 @@ jobs:
       #     Type.GetType(name, throwOnError: true), and that resolution fails
       #     against a Coverlet-instrumented assembly — which is why it needed a
       #     collector-free invocation of its own. This collector does not break it:
-      #     all 125 of its tests pass with the seven product assemblies it inspects
+      #     all 131 of its tests pass with the eleven product assemblies it inspects
       #     instrumented. Verify that before splitting this step again.
       #   * minimum-expected-tests is the platform's own answer to a green run that
       #     executed nothing. It is a floor and not an exact count, so it does not
@@ -202,6 +202,55 @@ jobs:
             TestResults/**/coverage.cobertura.xml
           if-no-files-found: error
           retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # The vendored SDK projects are written as if they were NuGet packages, and `dotnet
+  # pack` is what turns that claim into a check: it fails when such a project
+  # references a non-packable one, or loses an embedded resource its code still reads.
+  #
+  # Discovery, not a list. The set is defined by the `<IsPackable>true</IsPackable>`
+  # each project declares — the same declaration the architecture rules read — so it
+  # cannot drift from what is packed here, and a project added later is covered by the
+  # act of declaring itself.
+  #
+  # Finding nothing is a pass, not a failure: the projects arrive over several
+  # changes, and until the first one declares itself this job has nothing to say.
+  pack:
+    name: Pack the SDK projects
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Pack every project that declares IsPackable
+        run: |
+          set -euo pipefail
+          mapfile -t projects < <(grep -rlE '<IsPackable>[[:space:]]*true[[:space:]]*</IsPackable>' --include='*.csproj' Src | sort)
+          if [ "${#projects[@]}" -eq 0 ]; then
+            echo "No project under Src/ declares <IsPackable>true</IsPackable>; nothing to pack."
+            exit 0
+          fi
+          echo "Packing ${#projects[@]} project(s):"
+          for project in "${projects[@]}"; do
+            echo "::group::$project"
+            dotnet pack "$project" --configuration "$CONFIGURATION" --output packages
+            echo "::endgroup::"
+          done
+          ls -l packages
 
   # ---------------------------------------------------------------------------
   # Cheap, no SDK, no Docker: catches the class of defect that only shows up when

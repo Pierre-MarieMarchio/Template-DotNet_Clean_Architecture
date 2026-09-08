@@ -1,5 +1,5 @@
 ﻿using System.Globalization;
-using AppTemplate.Application.Common.Collections;
+using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Policies;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;

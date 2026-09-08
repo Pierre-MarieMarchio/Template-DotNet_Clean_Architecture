@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Auth.Ports.ExternalIdentity;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Auth;
 

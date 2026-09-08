@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Concurrency;
-using AppTemplate.Application.Common.Results;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Features.Files.Entities;

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the cross-cutting mechanisms of an HTTP host: ProblemDetails normalisation,
+       ETag encoding, If-Match parsing, the ApiControllerBase primitives, the option validators and
+       the rate-limit counters — all pure or near-pure decisions that run in microseconds and do not
+       need a live HTTP pipeline to verify. The mirror of AppTemplate.Api.Core, and the one assembly
+       its internals are granted to. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Not Sdk="Microsoft.NET.Sdk.Web": this project asserts on types, not on a running server, so
+         it only needs the ASP.NET Core types themselves, not the hosting model. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Presentation\AppTemplate.Api.Core\AppTemplate.Api.Core.csproj" />
+  </ItemGroup>
+
+</Project>

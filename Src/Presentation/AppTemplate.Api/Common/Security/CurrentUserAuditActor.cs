@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
 
 namespace AppTemplate.Api.Common.Security;

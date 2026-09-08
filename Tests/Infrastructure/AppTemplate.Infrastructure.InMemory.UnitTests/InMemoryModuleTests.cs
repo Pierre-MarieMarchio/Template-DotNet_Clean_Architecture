@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Common.Ports;
-using AppTemplate.Application.Features.Auth.Ports.ExternalIdentity;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
 using AppTemplate.Infrastructure.InMemory.Features.Auth;

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Auth.Ports.PasswordResetTokens;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.PasswordResetTokens;
 using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 

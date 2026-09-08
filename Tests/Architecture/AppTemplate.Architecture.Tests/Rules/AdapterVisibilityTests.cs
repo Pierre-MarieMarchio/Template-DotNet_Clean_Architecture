@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Architecture.Tests.Fixtures;
 using NetArchTest.Rules;
 using Shouldly;
@@ -137,19 +137,29 @@ public sealed class AdapterVisibilityTests
             port.IsPublic.ShouldBeTrue($"{port.FullName} is a port and must be public.");
 
             // A repository contract speaks only in aggregate types, so it belongs beside the aggregate
-            // it loads; every other port speaks in DTOs or platform concerns and belongs in
-            // Application. Either way it is declared inward of the module that satisfies it, which is
-            // the point.
-            var expected = IsRepositoryContract(port)
-                ? ArchitectureAssemblies.Domain
-                : ArchitectureAssemblies.Application;
+            // it loads; every other port speaks in DTOs or platform concerns and belongs in the
+            // application layer. Either way it is declared inward of the module that satisfies it,
+            // which is the point.
+            //
+            // The layer rather than one named project: a layer split across projects declares its
+            // ports across all of them — the cross-cutting ones with the mechanisms, the
+            // feature-scoped ones with the feature — and which of the two owns a given port is a
+            // different question from whether it is declared inward at all.
+            bool isRepository = IsRepositoryContract(port);
 
-            port.Assembly.ShouldBe(
-                expected,
-                $"{port.FullName} must be declared in '{expected.GetName().Name}': a contract is owned " +
-                "inward of the module that satisfies it, never by the adapter itself. Repository " +
-                "contracts live in AppTemplate.Domain under Features/<Feature>/Repositories; every " +
-                "other port lives in AppTemplate.Application.");
+            var expected = isRepository
+                ? ArchitectureAssemblies.DomainLayer
+                : ArchitectureAssemblies.ApplicationLayer;
+
+            string layer = isRepository ? "domain" : "application";
+
+            expected.ShouldContain(
+                port.Assembly,
+                $"{port.FullName} is declared in '{port.Assembly.GetName().Name}' and must be " +
+                $"declared in the {layer} layer: a contract is owned inward of the module that " +
+                "satisfies it, never by the adapter itself. Repository contracts live in the domain " +
+                "under Features/<Feature>/Repositories; every other port lives in the application " +
+                "layer.");
         }
     }
 

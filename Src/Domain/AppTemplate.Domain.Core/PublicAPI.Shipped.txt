@@ -1,0 +1,32 @@
+#nullable enable
+AppTemplate.Domain.Core.Common.Abstractions.IAuditable
+AppTemplate.Domain.Core.Common.Abstractions.IAuditable.CreatedAt.get -> System.DateTimeOffset
+AppTemplate.Domain.Core.Common.Abstractions.IAuditable.CreatedBy.get -> System.Guid?
+AppTemplate.Domain.Core.Common.Abstractions.IAuditable.LastModifiedAt.get -> System.DateTimeOffset?
+AppTemplate.Domain.Core.Common.Abstractions.IAuditable.LastModifiedBy.get -> System.Guid?
+AppTemplate.Domain.Core.Common.Abstractions.IAuditable.SetCreated(System.DateTimeOffset at, System.Guid? by) -> void
+AppTemplate.Domain.Core.Common.Abstractions.IAuditable.SetLastModified(System.DateTimeOffset at, System.Guid? by) -> void
+AppTemplate.Domain.Core.Common.Abstractions.IVersioned
+AppTemplate.Domain.Core.Common.Abstractions.IVersioned.SetVersion(uint version) -> void
+AppTemplate.Domain.Core.Common.Abstractions.IVersioned.Version.get -> uint
+AppTemplate.Domain.Core.Common.Events.IDomainEvent
+AppTemplate.Domain.Core.Common.Events.IDomainEvent.OccurredOn.get -> System.DateTimeOffset
+AppTemplate.Domain.Core.Common.Exceptions.DomainException
+AppTemplate.Domain.Core.Common.Exceptions.DomainException.DomainException(string! message) -> void
+AppTemplate.Domain.Core.Common.Exceptions.DomainException.DomainException(string! message, System.Exception! innerException) -> void
+AppTemplate.Domain.Core.Common.Primitives.AggregateRoot<TId>
+AppTemplate.Domain.Core.Common.Primitives.AggregateRoot<TId>.AggregateRoot(TId id) -> void
+AppTemplate.Domain.Core.Common.Primitives.AggregateRoot<TId>.ClearDomainEvents() -> void
+AppTemplate.Domain.Core.Common.Primitives.AggregateRoot<TId>.DomainEvents.get -> System.Collections.Generic.IReadOnlyCollection<AppTemplate.Domain.Core.Common.Events.IDomainEvent!>!
+AppTemplate.Domain.Core.Common.Primitives.AggregateRoot<TId>.RaiseDomainEvent(AppTemplate.Domain.Core.Common.Events.IDomainEvent! domainEvent) -> void
+AppTemplate.Domain.Core.Common.Primitives.Entity<TId>
+AppTemplate.Domain.Core.Common.Primitives.Entity<TId>.Entity(TId id) -> void
+AppTemplate.Domain.Core.Common.Primitives.Entity<TId>.Equals(AppTemplate.Domain.Core.Common.Primitives.Entity<TId>? other) -> bool
+AppTemplate.Domain.Core.Common.Primitives.Entity<TId>.Id.get -> TId
+AppTemplate.Domain.Core.Common.Primitives.IAggregateRoot
+AppTemplate.Domain.Core.Common.Primitives.IAggregateRoot.ClearDomainEvents() -> void
+AppTemplate.Domain.Core.Common.Primitives.IAggregateRoot.DomainEvents.get -> System.Collections.Generic.IReadOnlyCollection<AppTemplate.Domain.Core.Common.Events.IDomainEvent!>!
+override AppTemplate.Domain.Core.Common.Primitives.Entity<TId>.Equals(object? obj) -> bool
+override AppTemplate.Domain.Core.Common.Primitives.Entity<TId>.GetHashCode() -> int
+static AppTemplate.Domain.Core.Common.Primitives.Entity<TId>.operator !=(AppTemplate.Domain.Core.Common.Primitives.Entity<TId>? left, AppTemplate.Domain.Core.Common.Primitives.Entity<TId>? right) -> bool
+static AppTemplate.Domain.Core.Common.Primitives.Entity<TId>.operator ==(AppTemplate.Domain.Core.Common.Primitives.Entity<TId>? left, AppTemplate.Domain.Core.Common.Primitives.Entity<TId>? right) -> bool

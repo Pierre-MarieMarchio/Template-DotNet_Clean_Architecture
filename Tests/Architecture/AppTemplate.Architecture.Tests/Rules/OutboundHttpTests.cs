@@ -34,12 +34,12 @@ public sealed class OutboundHttpTests
         TimeSpan.FromSeconds(5));
 
     /// <summary>
-    /// The composition call each host owes. Named per host — <c>AddApiOutboundHttp</c>,
-    /// <c>AddWorkerOutboundHttp</c> — because the two files are twins that must not drift, so the
-    /// match is on the shared part rather than on either name.
+    /// The composition call each host owes. One policy, one method, one name — matched exactly,
+    /// because a host installing something else called <c>AddSomethingOutboundHttp</c> would be
+    /// installing a second policy, and this rule exists to say there is one.
     /// </summary>
     private static readonly Regex _policyInstalled = new(
-        @"\bAdd\w*OutboundHttp\s*\(",
+        @"\bAddOutboundHttp\s*\(",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 

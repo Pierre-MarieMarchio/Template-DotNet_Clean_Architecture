@@ -1,9 +1,9 @@
 ﻿using System.Net;
 using System.Text;
-using AppTemplate.Api.Common.Contracts;
+using AppTemplate.Api.Core.Common.Contracts;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Common.Collections;
+using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Features.TodoLists.Policies;
 using Shouldly;
 using Xunit;

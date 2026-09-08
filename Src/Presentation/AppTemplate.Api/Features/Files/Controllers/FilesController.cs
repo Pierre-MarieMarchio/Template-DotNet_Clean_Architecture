@@ -9,6 +9,7 @@ using AppTemplate.Api.Features.Files.Mapping;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUpload;
 using AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
+using AppTemplate.Application.Features.Files.UseCases.Commands.ReplaceStoredFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
@@ -58,6 +59,7 @@ public sealed class FilesController(
     IIssueFileDownloadUseCase issueFileDownload,
     IRegisterFileUseCase registerFile,
     IConfirmFileUploadUseCase confirmFileUpload,
+    IReplaceStoredFileTagsUseCase replaceStoredFileTags,
     IDeleteStoredFileUseCase deleteStoredFile) : ApiControllerBase
 {
     /// <summary>Lists the caller's own files, sorted, filtered and paginated.</summary>
@@ -281,6 +283,47 @@ public sealed class FilesController(
         var result = RequiringExistence(
             requiresExistence,
             await confirmFileUpload.ExecuteAsync(command, cancellationToken));
+
+        return UpdatedOrProblem(StoredFileResponseMapping.ToFileResponse(result));
+    }
+
+    /// <summary>Replaces the labels a file carries.</summary>
+    /// <remarks>
+    /// <b>PUT and not PATCH</b>, and the request carries the whole set: what a partial update of a
+    /// set would mean is not a question this API answers, so an omitted tag is a tag removed and
+    /// the body says so. Sending an empty list is how a caller clears them.
+    /// <para>
+    /// Conditional for the ordinary reason: two clients relabelling the same file unconditionally
+    /// would each overwrite the other's set, and the loser would never learn. <c>If-Match</c> on
+    /// the version the caller read turns that into a 412.
+    /// </para>
+    /// <para>
+    /// The rules the set obeys — normalisation, de-duplication, the cap — are the domain's, and a
+    /// to-do item obeys the same ones through the same code. A refusal here therefore reads the
+    /// same as a refusal there.
+    /// </para>
+    /// </remarks>
+    [HttpPut("{fileId:guid}/tags")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(StoredFileResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status412PreconditionFailed, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status428PreconditionRequired, Type = typeof(ProblemDetails))]
+    public async Task<ActionResult<StoredFileResponse>> ReplaceTags(
+        Guid fileId,
+        ReplaceStoredFileTagsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (ReadPrecondition(out var precondition, out bool requiresExistence) is { } refusal)
+        {
+            return refusal;
+        }
+
+        var command = new ReplaceStoredFileTagsCommand(fileId, request?.Tags ?? [], precondition);
+        var result = RequiringExistence(
+            requiresExistence,
+            await replaceStoredFileTags.ExecuteAsync(command, cancellationToken));
 
         return UpdatedOrProblem(StoredFileResponseMapping.ToFileResponse(result));
     }

@@ -61,7 +61,8 @@ internal static class AStoredFileAggregate
             Sha256Checksum.Create(ChecksumValue),
             State,
             RegisteredAt,
-            AvailableAt);
+            AvailableAt,
+            ["invoice", "2026"]);
 
         ((IVersioned)aggregate).SetVersion(Version);
         ((IAuditable)aggregate).SetCreated(CreatedAt, CreatedBy);
@@ -94,7 +95,8 @@ internal static class AStoredFileAggregate
             Sha256Checksum.Create(OtherChecksumValue),
             OtherState,
             OtherRegisteredAt,
-            OtherAvailableAt);
+            OtherAvailableAt,
+            ["receipt"]);
 
         ((IVersioned)aggregate).SetVersion(OtherVersion);
         ((IAuditable)aggregate).SetCreated(OtherCreatedAt, OtherCreatedBy);

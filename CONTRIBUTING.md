@@ -128,21 +128,38 @@ filing system:
 ```
 
 ```
-AppTemplate.Domain/         Common/{Abstractions,Events,Exceptions,Primitives}
+AppTemplate.Domain.Core/    Common/{Abstractions,Events,Exceptions,Primitives}
+                   no Features/: a primitive belongs to no feature
+AppTemplate.Domain/         Common/{Tagging}
                    Features/<F>/{Entities,Events,ValueObjects,Repositories}
-AppTemplate.Application/    Common/{Collections,Concurrency,Events,Idempotency,Localization,
-                                    Policies,Ports,Results,UseCases,Validation}
+                   Common/ is the business-shared half: what two features share
+                   *as business*. The primitives are AppTemplate.Domain.Core's
+AppTemplate.Application.Core/
+                   Common/{Collections,Concurrency,Events,Idempotency,Localization,
+                           Policies,Ports,Results,UseCases,Validation}
+                   Features/Maintenance/UseCases/Commands/<Operation>
+AppTemplate.Application/    Common/{Tagging}
                    Features/<F>/{UseCases/{Commands,Queries}/<Operation>,Ports/<Port>,
                                  Consumers,Services,Policies,Extensions,Mapping,Dtos,Errors}
+                   Common/ is the business-shared half; the mechanisms that know
+                   no feature are AppTemplate.Application.Core's
+AppTemplate.Application.Auth/
+                   Features/Auth/{Errors,Policies,Ports/<Port>,
+                                  UseCases/{Commands,Queries}/<Operation>}
+                   one feature, so nothing is shared between features here
 AppTemplate.Infrastructure.Persistence/
                    Common/{Contexts,Idempotency,Leases,Options,Saving/{Auditing,DomainEvents,Tracking},Time}
                    Features/<F>/{Models,Configurations,Mapping,Tracking,Repositories,Queries,
                                  Observability,Seeding,Tables}
                    Migrations/
+AppTemplate.Presentation.Core/
+                   Common/{Localization,Observability,Outbound,Security}
+                   no Features/: what any host needs whatever its transport belongs
+                   to none of them
 AppTemplate.Api/            Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
-                                    Idempotency,Observability,OpenApi,Outbound,Security}
+                                    Idempotency,Localization,Observability,OpenApi,Security}
                    Features/<F>/{Controllers,Contracts/{Requests,Responses},Mapping}
-AppTemplate.Worker/         Common/{Observability,Outbound,Security}
+AppTemplate.Worker/         Common/{Observability,Security}
                    Features/<F>/            one BackgroundService, its options, its metrics
 AppTemplate.Infrastructure.Email/       Common/{Http,Smtp}       Features/<F>/
 AppTemplate.Infrastructure.InMemory/    Common/{Email,Time}      Features/<F>/
@@ -153,6 +170,123 @@ AppTemplate.Infrastructure.Storage/     Common/{Budgets,Factories,Options}
                    Features/Files/{Inspectors,Inventories,Options,Scanners,Stores}
 Tests/             a 1:1 mirror of Src/
 ```
+
+**Two different `Common/` folders, and the tree above holds both.** `<Layer>.Core/Common/` is the
+half of a layer that is agnostic of the business: `Result`, `Error`, `PageRequest`, `SortOrder`,
+`IUnitOfWork`, `ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`. Nothing in it knows a feature,
+and nothing in it ever may — that is the whole claim of those projects. `<Layer>/Common/` is the
+business-shared half: what several features share *as business*, a value object three features
+spend, a DTO two features answer with, a policy that spans them. It exists so that business code is
+not repeated across features, and it belongs in the business project rather than in the Core.
+
+**The sorting test is one question: does it know a feature?** If it names a feature — or would have
+to, the moment a second feature used it — it belongs in the business project's `Common/`. If it does
+not and never will, it belongs one project inwards.
+
+`Common/Tagging/` is the worked example of the business half, in both layers. A to-do item and a
+stored file are both tagged, and they are tagged by the same rule — a tag is held once however many
+times it is sent, a cap bounds how many one thing carries, and a replacement is total rather than a
+merge — so `TagSet` states it once and both aggregates own one. **The test that put it there rather
+than one project inwards is mechanical, not a matter of taste: `TagSet` names `Tag`, and a `.Core`
+project may name no business type.** Its generic shape — a bounded, de-duplicating collection —
+would have been agnostic; what it actually is is not. The application half is the same argument one
+layer up: `TagValidation` restates the domain's bounds for a caller, reads the domain's constants
+rather than literals, and names `Tag`.
+
+What is *not* there is as informative. The ownership check every feature performs, and the paginated
+read every feature exposes, are both duplicated and both agnostic — they name no feature and never
+would — so they belong one project inwards and not here. A folder in the business `Common/` is
+earned by naming a business type, not by being repeated.
+
+`AppTemplate.Domain.Core` is the innermost project of the tree, and it holds the primitives an
+aggregate is built from: an entity, an aggregate root, a domain event, the audit and concurrency
+contracts a persistence row opts into, and the one domain exception. It is written as a package and
+vendored rather than published, and every part of that shape is load-bearing. It references
+nothing at all — no project, no runtime package — because a dependency taken by the innermost
+project is a dependency taken by everything above it, and an architecture rule holds that. Its
+public surface is tracked in `Src/Domain/AppTemplate.Domain.Core/PublicAPI.Shipped.txt` and
+`Src/Domain/AppTemplate.Domain.Core/PublicAPI.Unshipped.txt`, so widening it is an explicit diff to
+review rather than a side effect of an edit nobody read as one. `CS1591` is re-enabled there and
+nowhere else, because a derived project reads those signatures instead of reading the code, so
+every public member owes it a sentence. It carries no version: a project that needs a primitive
+this one does not have copies the project and tunes it. And `dotnet pack` runs over it, which is
+what actually proves the self-containment — packing fails the moment it acquires a reference to
+something unpackable. What all of that buys is the division the tree above shows: a project derived
+from this template writes its own `Features/`, plus whatever `Common/` its own features come to
+share as business — and never a primitive.
+
+`AppTemplate.Application.Core` is the same argument one layer out, and it holds the mechanisms a
+use case is written *from* rather than any use case's business: `Result` and `Error`, the `IUseCase`
+marker every named interface derives from, validation, offset and cursor pagination, idempotency,
+optimistic concurrency, and the cross-cutting ports a host has to satisfy — the clock, the caller's
+identity, the commit boundary, the mail relay, the leader lease. It references
+`AppTemplate.Domain.Core` and nothing else, never `AppTemplate.Domain`: the two files here that
+need a domain type — `IDomainEventConsumer` and `DomainGuard` — need only the primitives, so this
+project knows no aggregate and cannot come to know one. Its public surface is tracked in
+`Src/Application/AppTemplate.Application.Core/PublicAPI.Shipped.txt` and
+`Src/Application/AppTemplate.Application.Core/PublicAPI.Unshipped.txt`, `CS1591` is re-enabled here
+too so every public member carries a sentence, `dotnet pack` runs over it, and it carries no
+version, for the same reasons as the project inwards. The one use case it holds,
+`Features/Maintenance/UseCases/Commands/PurgeExpiredIdempotencyKeys/`, is here because it is the
+idempotency mechanism's own housekeeping and names no business type; it is registered by
+`AddPurgeExpiredIdempotencyKeys()` a call at a time, so a host with neither a maintenance endpoint
+nor a maintenance loop is not made to supply the two ports it resolves. There is deliberately no
+`AddApplicationCore()`: what this project declares is ports, results and markers, which nothing
+registers, and an umbrella call that registered nothing would read like the seam that makes the
+project work.
+
+`AppTemplate.Application.Auth` is authentication and account administration as application-layer use
+cases — sign-in, refresh-token rotation, the password and email lifecycle, two-factor enrolment,
+external providers, roles and lockouts — behind the twenty ports under `Features/Auth/Ports/`. It
+references `AppTemplate.Application.Core` and nothing else, and it names no domain type at all: the
+identity model is not an aggregate here, it lives behind those ports. It is the project a derived
+application is most likely to replace wholesale with its own identity provider, which is what earns
+it a project of its own, and one call — `AddAuthApplication()` — that a host either makes or does
+not. It is written package-grade like the two `.Core` projects, with the same tracked public surface
+in `Src/Application/AppTemplate.Application.Auth/PublicAPI.Shipped.txt` and
+`Src/Application/AppTemplate.Application.Auth/PublicAPI.Unshipped.txt`, `CS1591` re-enabled, `dotnet
+pack` over it and no version. Dropping it is not free, and the cost is not in this project: see
+`docs/REMOVING-THE-EXAMPLE-FEATURES.md` for the three places that answer for it.
+
+`AppTemplate.Presentation.Core` is the presentation layer's agnostic half: what any host needs
+whatever its transport, and nothing that names one. Four subjects, one file each. An outbound HTTP
+policy installed on `IHttpClientFactory`'s defaults. `LocalizationOptions`, the language a flow is
+written in when nobody said which one to read. `TelemetryOptions` and the OTLP tracer and meter over
+it. And `NoCallerCurrentUser`, the answer a process with no request gives to "who is calling" —
+which throws rather than returning `null`, because `null` there is indistinguishable from a
+legitimately anonymous caller. It references `AppTemplate.Application.Core` and nothing else, and it
+is written package-grade like the three projects inwards: a tracked public surface in
+`Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Shipped.txt` and
+`Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Unshipped.txt`, `CS1591` re-enabled so
+every public member owes a sentence to the reader who reads signatures instead of code, `dotnet
+pack` over it, and no version — it is vendored, and a project that needs a subject this one lacks
+copies it and tunes it.
+
+**It carries no `FrameworkReference`, and that absence is the whole reason it is a project of its
+own rather than half of one presentation Core.** A host with no HTTP surface — a desktop client, a
+CLI — gets a clock, a culture and an outbound budget without inheriting ASP.NET, which is what keeps
+that door open at all. It is also why four packages this repository uses are deliberately absent
+here: each carries the ASP.NET framework reference in its own nuspec, so referencing one would pull
+the shared framework in through the back door. `Scalar.AspNetCore`,
+`Microsoft.AspNetCore.OpenApi`, `OpenTelemetry.Instrumentation.AspNetCore`, and `Asp.Versioning.Mvc`
+through its dependency `Asp.Versioning.Http` — whose own nuspec is clean, which is what makes that
+one hard to see. `Npgsql.OpenTelemetry` is absent for a different reason: it pulls the PostgreSQL
+driver, and a presentation SDK that carried one would put a database behind every host, desktop ones
+included. Each host keeps that package and adds `.AddNpgsql()` through the tracing callback
+`AddObservability` offers, which is one of three things the shared registration takes from the host
+rather than deciding for it — see `docs/ARCHITECTURE.md` for all three and why each has to be that
+way.
+
+**Composition is opt-in per feature, and there is deliberately no call that adds all of them.**
+`AppTemplate.Application` exposes `AddTodoLists()`, `AddReminders()` and `AddFiles()`;
+`AppTemplate.Application.Auth` exposes `AddAuthApplication()`; `AppTemplate.Application.Core`
+exposes `AddPurgeExpiredIdempotencyKeys()`. That is what makes a feature removable — deleting its
+folder and its one line is the whole operation, and nothing else claims to have registered it —
+whereas one entry point scanning a layer's assembly puts every port every feature declares into
+every host's graph, which under `ValidateOnBuild` makes each of them mandatory everywhere.
+`AddReminders()` is **not** independent of `AddTodoLists()`: scheduling a reminder reaches into the
+to-do list's read port, which is the only ownership check made before a reminder is created, so a
+host that composes the one without the other resolves nothing.
 
 **A folder under `Features/<F>/` is the plural of the nature word its files carry.** A
 `…Repository` is in `Repositories/`, a `…Mapper` in `Mapping/`, a `…Tracker` in `Tracking/`, a

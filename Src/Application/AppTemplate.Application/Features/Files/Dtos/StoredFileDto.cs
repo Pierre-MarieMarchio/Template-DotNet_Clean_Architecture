@@ -21,6 +21,10 @@ namespace AppTemplate.Application.Features.Files.Dtos;
 /// the store from <see cref="StoredFileState.Deposited"/> onwards.</param>
 /// <param name="AvailableAt"><c>null</c> until the content has been examined and cleared, and for
 /// ever for a file that was never deposited against or whose content was refused.</param>
+/// <param name="Tags">
+/// How the owner has labelled the file, normalised and de-duplicated by the domain — see
+/// <c>TagSet</c>, which a to-do item shares.
+/// </param>
 /// <param name="State">Where the file is in its life, and the only thing that says whether asking
 /// for its content is worth doing. <see cref="StoredFileState.Deposited"/> means "wait";
 /// <see cref="StoredFileState.Quarantined"/> means "never".</param>
@@ -32,4 +36,5 @@ public sealed record StoredFileDto(
     string Checksum,
     StoredFileState State,
     DateTimeOffset RegisteredAt,
-    DateTimeOffset? AvailableAt);
+    DateTimeOffset? AvailableAt,
+    IReadOnlyList<string> Tags);

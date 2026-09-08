@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Core.Common.Abstractions;
+﻿using AppTemplate.Domain.Common.Tagging;
+using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Events;
@@ -34,6 +35,11 @@ namespace AppTemplate.Domain.Features.Files.Entities;
 /// </summary>
 public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
 {
+    /// <summary>How many tags one file carries. The rules that govern them are <see cref="TagSet"/>'s.</summary>
+    public const int MaxTags = 20;
+
+    private readonly TagSet _tags = new(MaxTags, "stored file");
+
     /// <summary>
     /// The one place the shared invariants live, so that neither entry point can be given a rule the
     /// other lacks. <see cref="Register"/> and <see cref="Rehydrate"/> add only the checks that are
@@ -79,6 +85,12 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
         Checksum = checksum;
         RegisteredAt = registeredAt;
     }
+
+    /// <summary>
+    /// How the owner has labelled this file. Free-text, normalised, and bounded — see
+    /// <see cref="TagSet"/>, which a to-do item shares.
+    /// </summary>
+    public IReadOnlyCollection<Tag> Tags => _tags.Tags;
 
     /// <summary>
     /// Who the file belongs to. Every authorisation decision about this file reads it, and it is
@@ -217,8 +229,11 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
         Sha256Checksum checksum,
         StoredFileState state,
         DateTimeOffset registeredAt,
-        DateTimeOffset? availableAt)
+        DateTimeOffset? availableAt,
+        IEnumerable<string> tags)
     {
+        ArgumentNullException.ThrowIfNull(tags);
+
         // The state and the instant are two records of the same fact. Where they disagree the row
         // describes a file that no sequence of operations could have produced, and loading it would
         // put the contradiction inside an aggregate, where it surfaces far from the row that caused
@@ -238,11 +253,18 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
                     : "Only an available stored file may record when it was made available.");
         }
 
-        return new StoredFile(id, ownerId, objectKey, name, declaredMediaType, size, checksum, registeredAt)
+        var file = new StoredFile(id, ownerId, objectKey, name, declaredMediaType, size, checksum, registeredAt)
         {
             State = state,
             AvailableAt = availableAt,
         };
+
+        // Through the set rather than around it: a stored row that somehow holds more tags than the
+        // cap allows, or the same tag twice, is refused here rather than loaded into an aggregate
+        // that no sequence of operations could have produced.
+        file.SetTags(tags);
+
+        return file;
     }
 
     /// <summary>
@@ -396,6 +418,18 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
     /// </summary>
     public bool IsAbandoned(DateTimeOffset now, TimeSpan abandonedAfter) =>
         State == StoredFileState.Pending && now - RegisteredAt >= abandonedAfter;
+
+    /// <summary>
+    /// Replaces this file's tags with the set the caller wants it to end up with. Total
+    /// replacement, not a merge — see <see cref="TagSet.Replace"/> for what that means for the cap.
+    /// </summary>
+    /// <param name="tags">The labels the file should carry afterwards.</param>
+    public void SetTags(IEnumerable<string> tags)
+    {
+        ArgumentNullException.ThrowIfNull(tags);
+
+        _tags.Replace(tags.Select(Tag.Create));
+    }
 
     void IAuditable.SetCreated(DateTimeOffset at, Guid? by)
     {

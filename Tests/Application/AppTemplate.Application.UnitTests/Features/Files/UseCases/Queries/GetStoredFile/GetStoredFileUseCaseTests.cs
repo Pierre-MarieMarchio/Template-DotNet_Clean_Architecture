@@ -103,6 +103,7 @@ public sealed class GetStoredFileUseCaseTests
                     nameof(StoredFileDto.State),
                     nameof(StoredFileDto.RegisteredAt),
                     nameof(StoredFileDto.AvailableAt),
+                    nameof(StoredFileDto.Tags),
                 ],
                 ignoreOrder: true);
 
@@ -128,7 +129,7 @@ public sealed class GetStoredFileUseCaseTests
             AStoredFile.Checksum,
             StoredFileState.Available,
             StubDateTimeProvider.DefaultInstant,
-            StubDateTimeProvider.DefaultInstant),
+            StubDateTimeProvider.DefaultInstant, []),
         3u);
 
     private GetStoredFileUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));

@@ -32,9 +32,14 @@ internal sealed class StoredFileRepository(
             return alreadyLoaded;
         }
 
-        var record = await context.StoredFiles.FirstOrDefaultAsync(
-            file => file.Id == id,
-            cancellationToken);
+        // Every path that materialises a file includes its tags, this one included. The mapper
+        // reconciles them by hand in both directions, so a record loaded without them looks like a
+        // file that has none — and the next write re-inserts every tag it already holds, against a
+        // key that already exists. The identity map makes the hazard worse rather than better: a
+        // file loaded tag-less once is handed out tag-less for the rest of the request.
+        var record = await context.StoredFiles
+            .Include(file => file.Tags)
+            .FirstOrDefaultAsync(file => file.Id == id, cancellationToken);
 
         return record is null ? null : LoadOrTrack(record);
     }
@@ -45,9 +50,9 @@ internal sealed class StoredFileRepository(
 
         // The key is compared as the string it is stored as, ordinally, exactly as the object store
         // resolves it. The unique index on this column is what makes at most one row match.
-        var record = await context.StoredFiles.FirstOrDefaultAsync(
-            file => file.ObjectKey == objectKey.Value,
-            cancellationToken);
+        var record = await context.StoredFiles
+            .Include(file => file.Tags)
+            .FirstOrDefaultAsync(file => file.ObjectKey == objectKey.Value, cancellationToken);
 
         return record is null ? null : LoadOrTrack(record);
     }
@@ -60,6 +65,7 @@ internal sealed class StoredFileRepository(
         // Strictly before, as the contract says. Oldest first, so a backlog larger than one batch is
         // worked through in registration order rather than a batch of the same rows every pass.
         var records = await context.StoredFiles
+            .Include(file => file.Tags)
             .Where(file => file.State == StoredFileState.Pending && file.RegisteredAt < registeredBefore)
             .OrderBy(file => file.RegisteredAt)
             .Take(batchSize)
@@ -77,6 +83,7 @@ internal sealed class StoredFileRepository(
         // sort key. No new index is owed for this query, which is the whole reason it orders by
         // RegisteredAt rather than by anything nearer to when the deposit arrived.
         var records = await context.StoredFiles
+            .Include(file => file.Tags)
             .Where(file => file.State == StoredFileState.Deposited)
             .OrderBy(file => file.RegisteredAt)
             .Take(batchSize)

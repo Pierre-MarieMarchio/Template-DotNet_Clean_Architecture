@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Features.TodoLists.Entities;
+﻿using AppTemplate.Application.Common.Tagging;
+using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 using FluentValidation;
 
@@ -29,9 +30,6 @@ public sealed class AddTodoItemCommandValidator : AbstractValidator<AddTodoItemC
             .WithMessage($"An item cannot carry more than {TodoItem.MaxTags} tags.");
 
         RuleForEach(command => command.Tags)
-            .Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("A tag cannot be blank.")
-            .Must(tag => tag.Trim().Length <= Tag.MaxLength)
-            .WithMessage($"A tag cannot exceed {Tag.MaxLength} characters.");
+            .IsATag();
     }
 }

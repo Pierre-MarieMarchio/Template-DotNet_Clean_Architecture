@@ -149,6 +149,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.ApplyConfiguration(new ReminderRecordConfiguration());
 
         builder.ApplyConfiguration(new StoredFileRecordConfiguration());
+        builder.ApplyConfiguration(new StoredFileTagRecordConfiguration());
 
         builder.ApplyConfiguration(new IdempotencyRecordConfiguration());
     }

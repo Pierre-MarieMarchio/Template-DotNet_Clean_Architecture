@@ -245,7 +245,8 @@ public sealed class StoredFileSortMapTests
             new string('a', Sha256Checksum.Length),
             StoredFileState.Available,
             registeredAt,
-            AvailableAt: null);
+            AvailableAt: null,
+            Tags: []);
 
     #endregion
 

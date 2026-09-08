@@ -223,7 +223,8 @@ public sealed class StoredFileResponseMappingTests
             Checksum: new string('a', 64),
             state,
             _registeredAt,
-            availableAt);
+            availableAt,
+            Tags: ["invoice", "2026"]);
 
     private static IssuedUploadGrant AGrant() =>
         new(
@@ -266,7 +267,7 @@ public sealed class StoredFileResponseMappingTests
                 new string('a', 64),
                 state,
                 DateTimeOffset.UtcNow,
-                null);
+                null, []);
 
             var response = Should.NotThrow(
                 () => StoredFileResponseMapping.ToResponse(dto),

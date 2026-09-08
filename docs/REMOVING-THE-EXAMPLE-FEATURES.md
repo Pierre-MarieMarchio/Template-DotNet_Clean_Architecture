@@ -78,8 +78,40 @@ the same will do.
 
 ## What to delete
 
+**In outline, removing a business feature is three things:** delete `Features/<F>/` in each layer
+that has one, delete the feature's `AddX()` method in `ApplicationModule`, and delete the one line
+in each `Program.cs` that calls it. Everything else below is a consequence — a schema in the
+context, a migration, a worker loop, a configuration section, a test that used the feature as its
+subject.
+
 By layer, mirroring `Src/`'s own structure. Each of these is a whole feature folder; delete the
 directory, not file-by-file.
+
+**The boundary between what teaches and what stays is a project boundary, in the two inner layers,
+which is what keeps this a list of directories rather than a list of edits.**
+`AppTemplate.Domain.Core` holds the primitives and `AppTemplate.Application.Core` holds the
+mechanisms — `Result`, `Error`, the `IUseCase` marker, validation, paging, idempotency, optimistic
+concurrency, the cross-cutting ports — and neither project names an example, so nothing below asks
+you to open one of them. `AppTemplate.Domain` and `AppTemplate.Application` hold the business, and
+in this template that is `Features/` **plus one `Common/Tagging/` per layer**, which is the one
+thing two features share *as business*: `TodoLists` and `Files` are both tagged, by the same rule.
+
+So a removal touches a feature folder here, one of the composition files named in
+[What to edit](#what-to-edit), and — for tagging alone — a shared folder whose fate depends on what
+is left:
+
+- **Removing `TodoLists`** leaves `Files` tagged, so `Common/Tagging/` stays in both layers. What
+  goes with the feature is its own use of it: the three tag commands, their validators and their
+  routes.
+- **Removing `Files`** leaves `TodoLists` tagged, so `Common/Tagging/` stays here too. What goes
+  with it is `ReplaceStoredFileTags`, the `PUT .../tags` route, and the `StoredFileTags` table —
+  which means a migration, like every other table the feature owns.
+- **Removing both** leaves nothing tagged. `Common/Tagging/` then has no consumer and should go
+  with them, in both layers, along with its own tests and the two vocabulary entries in
+  `LayoutConventionTests`.
+
+If your own project has since added anything else to a `Features/`-adjacent `Common/`, check the
+same way: whether what you are deleting was its only consumer.
 
 | Layer | TodoLists | Reminders | Files |
 |---|---|---|---|
@@ -402,10 +434,11 @@ Four things lose their only example, and one of them is measured.
   `If-Match` write side survives: `FilesController` reads preconditions on two actions through the
   same `ApiControllerBase.ReadPrecondition`, and `Versioned<StoredFileDto>` crosses
   `ConfirmFileUploadUseCase`, so `412`/`428` and `Versioned<T>` stay demonstrated.
-- **An aggregate with child entities.** `TodoList` owns `TodoItem`, which owns `Tag`, and the
-  tracker's flush enrols a root whose own columns did not move so the root's `xmin` arbitrates the
-  whole aggregate. `Reminder` and `StoredFile` are both flat, so what remains proves the simpler
-  half only.
+- **An aggregate with child entities.** `TodoList` owns `TodoItem`, and the tracker's flush enrols
+  a root whose own columns did not move so the root's `xmin` arbitrates the whole aggregate.
+  `Reminder` and `StoredFile` are both flat, so what remains proves the simpler half only. Tagging
+  is not the missing half: `StoredFile` carries a `TagSet` too, and its rows are reconciled the same
+  way — what goes is the *nesting*, not the collection.
 
 Everything else keeps a live example, because `Files` is one:
 

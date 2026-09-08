@@ -32,7 +32,8 @@ public sealed class StoredFileRehydrationTests
         Guid? id = null,
         StoredFileState state = StoredFileState.Pending,
         DateTimeOffset? registeredAt = null,
-        DateTimeOffset? availableAt = null) =>
+        DateTimeOffset? availableAt = null,
+        IEnumerable<string>? tags = null) =>
         StoredFile.Rehydrate(
             id ?? Guid.CreateVersion7(),
             _ownerId,
@@ -43,7 +44,8 @@ public sealed class StoredFileRehydrationTests
             _checksum,
             state,
             registeredAt ?? _registeredAt,
-            availableAt);
+            availableAt,
+            tags ?? []);
 
     #region What a stored row must carry
 
@@ -68,7 +70,8 @@ public sealed class StoredFileRehydrationTests
                 _checksum,
                 StoredFileState.Pending,
                 _registeredAt,
-                null));
+                null,
+                []));
 
     /// <summary>
     /// Without it, a pending row could not answer how long it has been waiting, and the abandonment
@@ -94,7 +97,8 @@ public sealed class StoredFileRehydrationTests
                 _checksum,
                 StoredFileState.Pending,
                 _registeredAt,
-                null));
+                null,
+                []));
 
     #endregion
 
@@ -178,7 +182,8 @@ public sealed class StoredFileRehydrationTests
             _checksum,
             StoredFileState.Available,
             _registeredAt,
-            availableAt);
+            availableAt,
+            ["Urgent", "urgent ", "home"]);
 
         file.Id.ShouldBe(id);
         file.OwnerId.ShouldBe(_ownerId);
@@ -190,6 +195,10 @@ public sealed class StoredFileRehydrationTests
         file.State.ShouldBe(StoredFileState.Available);
         file.RegisteredAt.ShouldBe(_registeredAt);
         file.AvailableAt.ShouldBe(availableAt);
+
+        // Restored through the shared set, so a row is normalised and de-duplicated on the way in
+        // exactly as a caller's input is: "Urgent" and "urgent " are one tag.
+        file.Tags.Select(tag => tag.Value).ShouldBe(["urgent", "home"], ignoreOrder: true);
     }
 
     /// <summary>

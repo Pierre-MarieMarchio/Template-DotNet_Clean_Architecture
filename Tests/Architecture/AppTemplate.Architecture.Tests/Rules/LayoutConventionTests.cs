@@ -103,13 +103,12 @@ public sealed class LayoutConventionTests
         ["Src/Domain/AppTemplate.Domain.Core"] =
             ["Abstractions", "Events", "Exceptions", "Primitives"],
 
-        // Null because there is nothing here yet, not because there may not be. A Common/ in this
-        // project would hold what several features share *as business* — a value object three
-        // features spend, a rule that is about the model rather than about mechanism. What sits one
-        // project inwards instead is everything that knows no feature. The sorting question is that
-        // one, and it has an answer: if it names a feature, or would have to once a second feature
-        // used it, it belongs here.
-        ["Src/Domain/AppTemplate.Domain"] = null,
+        // The business half of this layer's Common/, and the word names a subject rather than a
+        // nature: what a to-do item and a stored file share is that they are tagged, and that they
+        // are tagged by the same rule. It could not sit one project inwards — TagSet names Tag, and
+        // a Core project may name no business type — which is the test that decides between the two
+        // kinds of Common/ rather than a preference about where it reads better.
+        ["Src/Domain/AppTemplate.Domain"] = ["Tagging"],
 
         // No "Abstractions": every interface here is one, so the word sorted by nothing. What the
         // layer declares for something else to implement is a Ports/, at both scopes — the same word
@@ -119,12 +118,12 @@ public sealed class LayoutConventionTests
             ["Collections", "Concurrency", "Events", "Idempotency", "Localization", "Policies",
              "Ports", "Results", "UseCases", "Validation"],
 
-        // Null because there is nothing here yet, not because there may not be. A Common/ in this
-        // project would hold what several features share *as business* — a DTO two features answer
-        // with, a policy that spans them. The mechanisms that know no feature are one project
-        // inwards. Adding the folder means adding its words here, which is the moment to decide
-        // which of the two it is.
-        ["Src/Application/AppTemplate.Application"] = null,
+        // The business half of this layer's Common/, and it pairs with the domain's: what several
+        // features share as business here is the input validation over the domain's tag rules. It
+        // could not sit one project inwards either — TagValidation names Tag, and a Core project
+        // may name no business type — which is again the test that decides between the two kinds
+        // rather than a preference.
+        ["Src/Application/AppTemplate.Application"] = ["Tagging"],
 
         // One feature, so nothing is shared *between* features here. A Common/ would only mean
         // this project had grown a second subject, which is the thing to argue about rather than

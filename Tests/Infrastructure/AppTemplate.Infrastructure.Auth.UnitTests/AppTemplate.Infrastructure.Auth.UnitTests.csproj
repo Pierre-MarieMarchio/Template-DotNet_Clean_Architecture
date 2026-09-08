@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Tests for the identity module's own decisions: how a refresh token is rotated, what a failure
        is allowed to disclose, how an account email is encoded, and what the options validators
@@ -29,6 +29,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <!-- A provider, so EF builds the same relational mapping the real context has: column
+         types are part of what a model snapshot records. No database is reached. -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Shouldly" />

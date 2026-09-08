@@ -154,6 +154,7 @@ internal static class Tasks
         string repoRoot = ResolveRepoRoot();
         string solution = Path.Combine(repoRoot, "AppTemplate.sln");
         string persistence = Path.Combine(repoRoot, "Src", "Infrastructure", "AppTemplate.Infrastructure.Persistence");
+        string auth = Path.Combine(repoRoot, "Src", "Infrastructure", "AppTemplate.Infrastructure.Auth");
         string api = Path.Combine(repoRoot, "Src", "Presentation", "AppTemplate.Api");
         string runsettings = Path.Combine(repoRoot, "coverage.runsettings");
 
@@ -275,10 +276,18 @@ internal static class Tasks
                 Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
                 Step("dotnet", "build", solution, "--configuration", configuration, "--no-restore");
                 Step("dotnet", "test", solution, "--configuration", configuration, "--no-build");
+                // Both contexts, because each has a history of its own: a model whose snapshot
+                // nobody compares is a model nobody migrates, and the other half's migrations
+                // would go on applying cleanly while this half's tables were simply absent.
                 Step(
                     "dotnet", "ef", "migrations", "has-pending-model-changes",
                     "--project", persistence,
                     "--startup-project", persistence,
+                    "--no-build");
+                Step(
+                    "dotnet", "ef", "migrations", "has-pending-model-changes",
+                    "--project", auth,
+                    "--startup-project", auth,
                     "--no-build");
                 VulnerablePackages(solution);
                 break;

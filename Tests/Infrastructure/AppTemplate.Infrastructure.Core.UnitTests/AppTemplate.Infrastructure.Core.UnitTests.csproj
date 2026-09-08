@@ -12,6 +12,9 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <!-- A provider, so EF will build a context at all. No database is ever reached: the saving
+         tests raise their failure from an interceptor, before a connection is opened. -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <PackageReference Include="Shouldly" />
     <PackageReference Include="xunit.v3" />

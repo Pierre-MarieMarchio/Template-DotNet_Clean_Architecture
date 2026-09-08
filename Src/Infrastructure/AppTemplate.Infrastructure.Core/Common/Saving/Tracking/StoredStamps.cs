@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Domain.Core.Common.Abstractions;
 
-namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
+namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 
 /// <summary>
 /// The version and the audit stamps, read back onto an aggregate just rehydrated from its own row.
@@ -12,7 +12,7 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 /// reader can see all of it at once.
 /// </para>
 /// </summary>
-internal static class StoredStamps
+public static class StoredStamps
 {
     /// <summary>
     /// Applies the version and audit stamps a row carries onto the aggregate just rebuilt from it.
@@ -26,7 +26,7 @@ internal static class StoredStamps
     /// <param name="recordId">The row's id, named in the exception a malformed pairing raises.</param>
     /// <param name="aggregateName">The word naming the aggregate in that same exception — "To-do list",
     /// "Reminder" — so the message reads like the rest of the mapper it came from.</param>
-    internal static void ApplyTo<TAggregate>(
+    public static void ApplyTo<TAggregate>(
         TAggregate aggregate,
         IAuditable record,
         uint version,

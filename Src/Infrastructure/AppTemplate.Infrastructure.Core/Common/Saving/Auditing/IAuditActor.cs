@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
+﻿namespace AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 
 /// <summary>
 /// Who the audit columns name for a write. The host supplies it, the way it supplies

@@ -9,15 +9,13 @@ using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Domain.Features.Files.Repositories;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
+using AppTemplate.Infrastructure.Core;
+using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
+using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
 using AppTemplate.Infrastructure.Persistence.Common.Options;
-using AppTemplate.Infrastructure.Persistence.Common.Saving;
-using AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
-using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
-using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
-using AppTemplate.Infrastructure.Persistence.Common.Time;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Repositories;
@@ -113,7 +111,7 @@ public static class PersistenceModule
 
     private static void AddSharedServices(IServiceCollection services)
     {
-        services.TryAddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
+        services.AddSystemClock();
 
         // Singleton, and it has to be: the lease holds nothing between calls, but the background
         // services that take it are singletons, and a scoped dependency captured by one is what
@@ -124,12 +122,7 @@ public static class PersistenceModule
 
         // Scoped, because auditing needs the caller of the current request, the flush pipeline needs the
         // aggregates loaded in it, and event dispatch accumulates the events of the current save.
-        services.TryAddScoped<AggregateFlushSaveChangesInterceptor>();
-        services.TryAddScoped<AuditingSaveChangesInterceptor>();
-        services.TryAddScoped<DomainEventDispatchSaveChangesInterceptor>();
-        services.TryAddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
-
-        services.TryAddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddCoreSaving<AppDbContext>();
     }
 
     private static void AddTodoListsFeature(IServiceCollection services)
@@ -243,10 +236,7 @@ public static class PersistenceModule
                 // Added or Modified — and the flush is what makes a root Modified when only a child
                 // changed. Event dispatch comes last, because it publishes after the commit the other two
                 // prepared.
-                .AddInterceptors(
-                    serviceProvider.GetRequiredService<AggregateFlushSaveChangesInterceptor>(),
-                    serviceProvider.GetRequiredService<AuditingSaveChangesInterceptor>(),
-                    serviceProvider.GetRequiredService<DomainEventDispatchSaveChangesInterceptor>());
+                .AddCoreSavingInterceptors(serviceProvider);
         });
     }
 

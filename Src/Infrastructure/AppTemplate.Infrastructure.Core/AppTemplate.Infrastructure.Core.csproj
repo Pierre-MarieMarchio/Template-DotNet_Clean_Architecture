@@ -27,6 +27,13 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
   </ItemGroup>
 
+  <!-- EF Core, for the saving mechanisms a module composes over its own context: the unit of work,
+       the three interceptors and the aggregate tracker. The provider is not here — which database
+       a context talks to is the module's decision, not this project's. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
   <!-- Any change to the public surface is an explicit diff in PublicAPI.Unshipped.txt to review,
        rather than a side effect of an edit nobody read as one. -->
   <ItemGroup>

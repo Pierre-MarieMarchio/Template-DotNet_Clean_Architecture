@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Domain.Features.Files.Entities;
-using AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
+using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 using Microsoft.EntityFrameworkCore;
@@ -30,7 +30,7 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Files.Tracking;
 /// <para>
 /// The type is <c>internal sealed</c> and takes no contract-specific state, which is what lets
 /// <c>PersistenceModule</c> register it once and resolve <see cref="IStoredFileTracker"/>,
-/// <see cref="IAggregateFlusher"/> and <see cref="Common.Saving.DomainEvents.IDomainEventSource"/> to
+/// <see cref="IAggregateFlusher"/> and <see cref="AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents.IDomainEventSource"/> to
 /// that one instance.
 /// </para>
 /// </remarks>

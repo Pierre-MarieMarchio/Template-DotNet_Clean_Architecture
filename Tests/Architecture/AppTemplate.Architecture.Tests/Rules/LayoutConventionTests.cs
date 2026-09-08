@@ -139,7 +139,7 @@ public sealed class LayoutConventionTests
         // may not reference a sibling, so without this project two modules needing one mechanism
         // each keep a copy.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Core"] =
-            ["Caching", "Templating"],
+            ["Caching", "Saving", "Templating", "Time"],
 
         ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] =
             ["Http", "Smtp"],
@@ -148,7 +148,7 @@ public sealed class LayoutConventionTests
         ["Src/Infrastructure/AppTemplate.Infrastructure.Identity"] =
             ["Directories", "Options"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
-            ["Contexts", "Idempotency", "Leases", "Options", "Saving", "Time"],
+            ["Contexts", "Idempotency", "Leases", "Options"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Budgets", "Factories", "Options"],
         // Three words, and the criterion is executable rather than stylistic: what stays in a host's

@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
+namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 
 /// <summary>
 /// The bridge between a domain aggregate and the persistence model that stores it, for one feature.
@@ -19,7 +19,7 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Tracking;
 /// <em>tracked</em> rows in place and lets EF decide what actually changed.
 /// </para>
 /// </summary>
-internal interface IAggregateFlusher
+public interface IAggregateFlusher
 {
     /// <summary>
     /// Writes the state of every aggregate this flusher is holding onto its tracked rows, reconciles

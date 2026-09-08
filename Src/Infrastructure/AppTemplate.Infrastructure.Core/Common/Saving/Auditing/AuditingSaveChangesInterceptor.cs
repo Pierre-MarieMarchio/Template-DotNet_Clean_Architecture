@@ -3,7 +3,7 @@ using AppTemplate.Domain.Core.Common.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
-namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
+namespace AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 
 /// <summary>
 /// Stamps audit columns on the persistence models that opt in via <see cref="IAuditable"/>.
@@ -24,10 +24,14 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Saving.Auditing;
 /// feature that owns the aggregate, in its flusher, which runs first for exactly that reason.
 /// </para>
 /// </summary>
-internal sealed class AuditingSaveChangesInterceptor(
+public sealed class AuditingSaveChangesInterceptor(
     IAuditActor auditActor,
     IDateTimeProvider dateTimeProvider) : SaveChangesInterceptor
 {
+    /// <summary>Stamps who wrote and when, on every added or modified auditable row.</summary>
+    /// <param name="eventData">EF's description of the save.</param>
+    /// <param name="result">What an earlier interceptor decided; passed through.</param>
+    /// <returns><paramref name="result"/>, unchanged.</returns>
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData,
         InterceptionResult<int> result)
@@ -39,6 +43,11 @@ internal sealed class AuditingSaveChangesInterceptor(
         return base.SavingChanges(eventData, result);
     }
 
+    /// <summary>The asynchronous half of <see cref="SavingChanges"/>, stamping the same rows.</summary>
+    /// <param name="eventData">EF's description of the save.</param>
+    /// <param name="result">What an earlier interceptor decided; passed through.</param>
+    /// <param name="cancellationToken">Cancels the save.</param>
+    /// <returns><paramref name="result"/>, unchanged.</returns>
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,

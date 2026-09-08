@@ -265,7 +265,7 @@ Read them in `docs/plans/SDK-SPLIT-DECISIONS.md`; summarised here so nothing is 
   registers `IIdentitySeeder`, which needs a `UserManager` only the identity module supplies. The
   claim is split in two and both halves are asserted:
   `LayerDependencyTests.TheApplicationLayer_KnowsNothingOfAuthentication` and
-  `ContainerCompositionTests.RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer`.
+  `ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`.
 - **Two corrections to TARGET** — each host lost **four** package references to `Presentation.Core`,
   not five; and `Common/Jobs`/`PeriodicJob` are wave 6, so TARGET describes the finished state there.
 

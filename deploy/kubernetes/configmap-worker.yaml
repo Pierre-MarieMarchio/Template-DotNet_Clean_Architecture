@@ -3,7 +3,7 @@
 # is bound only by AppTemplate.Api's own Common/Lifecycle module — see
 # Src/Presentation/AppTemplate.Worker/Program.cs, which registers no such option and therefore
 # runs on the .NET Generic Host's own default shutdown timeout, not the 30 s this template tunes
-# for the API). It still composes AppTemplate.Infrastructure.Identity — for
+# for the API). It still composes AppTemplate.Infrastructure.Auth — for
 # IRefreshTokenMaintenance's adapter, and above all for IUserProfilesService, which
 # EmailReminderNotifier needs to find the address a due reminder is rung at — and therefore still
 # validates Jwt, EmailConfirmation, PasswordReset and EmailChange at startup, exactly as if it
@@ -43,14 +43,14 @@ data:
   Jwt__Key: "this-host-neither-signs-nor-verifies-a-token"
 
   # Same three required URLs as configmap-api.yaml, same reasoning: this host does not send any of
-  # this mail, but AppTemplate.Infrastructure.Identity validates all three sections regardless of
+  # this mail, but AppTemplate.Infrastructure.Auth validates all three sections regardless of
   # which host composes it.
   EmailConfirmation__ConfirmEmailUrl: "https://app.example.com/confirm-email"
   PasswordReset__ResetPasswordUrl: "https://app.example.com/reset-password"
   EmailChange__ConfirmEmailChangeUrl: "https://app.example.com/confirm-email-change"
 
   # --- Email (SMTP) — required, no default. Unlike EmailConfirmation/PasswordReset/EmailChange -
-  # above, this section is NOT a coupling cost of AppTemplate.Infrastructure.Identity: this host
+  # above, this section is NOT a coupling cost of AppTemplate.Infrastructure.Auth: this host
   # composes AppTemplate.Infrastructure.Email in its own right, for IReminderNotifier's adapter (a
   # reminder that comes due is rung by mail — see Program.cs and AppTemplate.Worker.csproj). Kept
   # identical to configmap-api.yaml's values, same reasoning as the three URLs above.

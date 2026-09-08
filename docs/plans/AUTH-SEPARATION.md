@@ -46,7 +46,7 @@ share one `DbContext`, one migrations history and one unit of work.
 | Coupling | Measured volume | Where |
 |---|---|---|
 | One context for both halves | `AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>`, plus `Features/Identity/` = **18 files** (3 models, 9 configurations, 4 seeding, 3 grant-table) | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/` |
-| The identity stores and the key ring name the shared context | `AddEntityFrameworkStores<AppDbContext>()` and `PersistKeysToDbContext<AppDbContext>()` | `Infrastructure.Identity/IdentityModule.cs:229` and `:302` |
+| The identity stores and the key ring name the shared context | `AddEntityFrameworkStores<AppDbContext>()` and `PersistKeysToDbContext<AppDbContext>()` | `Infrastructure.Identity/AuthModule.cs:229` and `:302` |
 | Refresh-token rows commit through the shared unit of work | 4 calls to `unitOfWork.SaveChangesAsync` | `Infrastructure.Identity/Features/Auth/Services/RefreshTokenGrantsService.cs` |
 | The seeder is declared by the business module and consumed by the API host | registered at `PersistenceModule.cs:199`, consumed at `DevelopmentDatabaseExtensions.cs:41` | two projects |
 | The one business-to-auth read | **1 file**: it resolves `profile.UserName` and `profile.Email` through `IUserProfilesService` | `Infrastructure.Email/Features/Reminders/EmailReminderNotifier.cs` |
@@ -331,7 +331,7 @@ context, that commit reaches the wrong model, and the failure is a silent no-op 
 error: `SaveChangesAsync` on a context with no tracked changes succeeds.
 
 **This is the one behavioural risk of the whole plan.** The test that proves it is
-`Tests/Integration/AppTemplate.Infrastructure.Identity.IntegrationTests/Leases/` and
+`Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Leases/` and
 `.../RefreshTokenRotationTests.cs`, plus `GrantTableFixture`, which compose the module against a
 real PostgreSQL. Run them before and after, and read the row counts rather than the pass count.
 
@@ -370,16 +370,56 @@ it saves through by calling rather than by naming. Nothing about authentication 
 Green on the full gate: 3335 tests with none failing, 0 build warnings, 131 architecture rules, all
 six packages, both images, every gate and `dotnet format --verify-no-changes` clean.
 
-### Wave C — authentication owns its storage
+### Wave C — authentication owns its storage. **Done, 2026-09-08.**
 
-The heart of the plan.
+The heart of the plan, and green on the full gate: 3335 tests with none failing, 0 build warnings,
+131 architecture rules, all six packages, both images, every gate clean.
+
+**A8's risk fired, exactly as written.** `IUnitOfWork` is registered once, so the auth module's
+writes were staged on `AuthDbContext` and committed on `AppDbContext` — a save with nothing tracked
+succeeds and reports zero rows, so refresh-token rotation began answering 401 with no error
+anywhere. Reading row counts rather than pass counts is what A8 told the next reader to do, and it
+was the failing integration tests that said so first. The fix designs the ambiguity out instead of
+watching for it: `IContextUnitOfWork<TContext>` is what a module owning a context takes, and the
+unnamed port stays registered by the module owning the business context. Nothing else in the plan
+was wrong about behaviour.
+
+**Five things the plan did not carry, each with what it cost.**
+
+- **Two contexts on one connection string share one pool, or two, depending on nothing visible.**
+  Npgsql pools per connection string, so the two halves must build the identical string or a
+  deployment silently gets two pools of `MaxPoolSize` instead of one. `DatabaseOptions` therefore
+  moved to `Infrastructure.Core` and both modules bind the same section into it. **Rejected —
+  putting the connection-string builder there too:** it would pull `Npgsql` into a package-grade
+  project every module references, which is the reason the Postgres lease stayed out of it.
+- **`DefaultConnectionString` moved as well**, because the auth module needed it and reaching into
+  the business module for it would have kept the coupling this wave removes. Its own summary claimed
+  "exactly one `AppDbContext`, so exactly one migrations history", which the wave made false.
+- **No module references another any more**, so the horizontal permission for the persistence module
+  describes nothing. The rule is rewritten rather than left with a dead branch, and the persistence
+  module becomes a module like any other — which is what moving the saving mechanisms earned.
+- **`verify` checked one context for pending model changes.** With two histories the omission is
+  invisible: the other half's migrations apply cleanly while this half's tables are simply absent.
+  Both are checked now, and the auth mirror has its own `PendingModelChangesTests` saying why.
+- **The lease tests were in the auth integration project** because that project was historically the
+  one with a database. The lease is the business module's, so they moved to the suite that composes
+  the real host. **Rejected — a Persistence integration project:** structurally right, and a guid in
+  two manifests for two files. **Rejected — referencing the business module from the auth test
+  project:** the coupling this wave removes, one level up.
+
+**Two counts in this document were wrong.** `Persistence/Features/Identity/` is 19 files, not 18 —
+3 models, 9 configurations, 4 seeding, 3 grant-table, which is what the same entry adds up to. And
+the container test's message had already predicted its own rewrite: it said that if the seeder
+stopped holding the container up, "the caveat in docs/REMOVING-THE-EXAMPLE-FEATURES.md is answerable
+at last". It is, and the test now asserts the *absence* of that coupling so it cannot come back
+unnoticed.
 
 - `Persistence/Features/Identity/` — 18 files — moves into the auth module.
 - `AuthDbContext`, deriving from `IdentityDbContext<AppUser, AppRole, Guid>` and implementing
   `IDataProtectionKeyContext`, with the `identity` schema and its own migrations history table.
 - `AppDbContext` stops deriving from `IdentityDbContext` and drops the 9 identity configurations,
   `RefreshTokens` and `DataProtectionKeys`.
-- `IdentityModule.cs:229` and `:302` name `AuthDbContext`.
+- `AuthModule.cs:229` and `:302` name `AuthDbContext`.
 - `RefreshTokenGrantsService` commits through the auth unit of work (A8).
 - `IIdentitySeeder` and `IdentitySeeder` leave the business module.
 - Two regenerated initial migrations (A5).
@@ -388,7 +428,7 @@ The heart of the plan.
 - The design-time factory gains a twin for the auth context.
 
 **What this unblocks, and it is worth naming.** The two couplings that make
-`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer`
+`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
 true are `IIdentitySeeder` and `IReminderNotifier`. The first disappears by construction here — the
 seeder leaves with the module. So the claim the correction inside decision 7 could not assert
 becomes assertable except for the notifier, and A6 is the entry that keeps that honest: the test is
@@ -435,7 +475,7 @@ template question only in that a derived deployment would have live key material
 
 1. ~~**Wave A's naming.**~~ **Closed: `UserId`** (owner, 2026-09-08). See A2 for what decided it
    against `SubjectId`.
-2. ~~**Whether wave C also renames `AppTemplate.Infrastructure.Identity`.**~~ **Closed: it is
+2. ~~**Whether wave C also renames `AppTemplate.Infrastructure.Auth`.**~~ **Closed: it is
    renamed to `AppTemplate.Infrastructure.Auth`, in wave C** (owner, 2026-09-08). The module
    implements the auth ports and will own the auth storage, so the name matches the layer above it
    — `AppTemplate.Application.Auth` — and the `Features/Auth/` folder it already uses. It happens

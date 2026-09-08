@@ -270,7 +270,7 @@ services:
       FileWorker__ReclaimOrphanedContentEnabled: ${FILE_WORKER_RECLAIM_ENABLED:-true}
 
       # --- Jwt, RefreshToken, EmailConfirmation, PasswordReset, EmailChange ----
-      # AppTemplate.Infrastructure.Identity is composed for two things, and the smaller one used to
+      # AppTemplate.Infrastructure.Auth is composed for two things, and the smaller one used to
       # be the only one written down: IRefreshTokenMaintenance's sole adapter. The one that decides
       # it is IUserProfilesService, which EmailReminderNotifier resolves to find the address a due
       # reminder is rung at — so the reminder loop needs this module whatever happens to the
@@ -312,7 +312,7 @@ services:
 
       # --- Email (SMTP) --------------------------------------------------------
       # Unlike the Jwt/Identity sections above, this one is not a side effect of composing
-      # AppTemplate.Infrastructure.Identity: this service composes AppTemplate.Infrastructure.Email
+      # AppTemplate.Infrastructure.Auth: this service composes AppTemplate.Infrastructure.Email
       # in its own right, for IReminderNotifier's adapter — a reminder that comes due is rung by
       # mail, see AppTemplate.Worker.csproj. Same variables and same values as the api service, so
       # both hosts reach the same mailpit sink.

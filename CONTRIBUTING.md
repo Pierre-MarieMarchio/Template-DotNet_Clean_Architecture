@@ -180,11 +180,12 @@ Tests/             a 1:1 mirror of Src/
 
 **Two different `Common/` folders, and the tree above holds both.** `<Layer>.Core/Common/` is the
 half of a layer that is agnostic of the business: `Result`, `Error`, `PageRequest`, `SortOrder`,
-`IUnitOfWork`, `ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`. Nothing in it knows a feature,
-and nothing in it ever may — that is the whole claim of those projects. `<Layer>/Common/` is the
-business-shared half: what several features share *as business*, a value object three features
-spend, a DTO two features answer with, a policy that spans them. It exists so that business code is
-not repeated across features, and it belongs in the business project rather than in the Core.
+`IUnitOfWork`, `ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`, `UserId`. Nothing in it knows a
+feature, and nothing in it ever may — that is the whole claim of those projects. `<Layer>/Common/`
+is the business-shared half: what several features share *as business*, a value object three
+features spend, a DTO two features answer with, a policy that spans them. It exists so that business
+code is not repeated across features, and it belongs in the business project rather than in the
+Core.
 
 **The sorting test is one question: does it know a feature?** If it names a feature — or would have
 to, the moment a second feature used it — it belongs in the business project's `Common/`. If it does
@@ -245,8 +246,9 @@ project work.
 `AppTemplate.Application.Auth` is authentication and account administration as application-layer use
 cases — sign-in, refresh-token rotation, the password and email lifecycle, two-factor enrolment,
 external providers, roles and lockouts — behind the twenty ports under `Features/Auth/Ports/`. It
-references `AppTemplate.Application.Core` and nothing else, and it names no domain type at all: the
-identity model is not an aggregate here, it lives behind those ports. It is the project a derived
+declares one project reference, `AppTemplate.Application.Core`, and it names no aggregate: the
+identity model is not one here, it lives behind those ports. The one domain type it names is
+`UserId`, arriving through `ICurrentUser`, and its own ports take the raw `Guid` inside it. It is the project a derived
 application is most likely to replace wholesale with its own identity provider, which is what earns
 it a project of its own, and one call — `AddAuthApplication()` — that a host either makes or does
 not. It is written package-grade like the two `.Core` projects, with the same tracked public surface
@@ -264,7 +266,7 @@ which throws rather than returning `null`, because `null` there is indistinguish
 legitimately anonymous caller. And `PeriodicJob`, the loop recurring work is written on: one
 interval, one asynchronous iteration, a primitive a service composes rather than a base class a
 service derives from, which is what lets one host's loop run three passes on three intervals
-without three classes. It references `AppTemplate.Application.Core` and nothing else, and it
+without three classes. It declares one project reference, `AppTemplate.Application.Core`, and it
 is written package-grade like the three projects inwards: a tracked public surface in
 `Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Shipped.txt` and
 `Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Unshipped.txt`, `CS1591` re-enabled so

@@ -4,10 +4,10 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Email;
-using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.InMemory;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Storage;
@@ -149,7 +149,7 @@ internal static class HostComposition
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
-        services.AddIdentityModule(configuration);
+        services.AddAuthModule(configuration);
         services.AddEmailModule(configuration);
         services.AddStorageModule(configuration);
 
@@ -187,7 +187,7 @@ internal static class HostComposition
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
-        services.AddIdentityModule(configuration);
+        services.AddAuthModule(configuration);
         services.AddEmailModule(configuration);
         services.AddStorageModule(configuration);
 
@@ -220,7 +220,7 @@ internal static class HostComposition
     /// needs <see cref="IUserProfilesService"/> to find the address it notifies. Moving the
     /// maintenance adapter to another module would not free this host of anything.
     /// </summary>
-    internal static ServiceCollection ComposeWorkerWithoutTheIdentityModule(IConfiguration configuration)
+    internal static ServiceCollection ComposeWorkerWithoutTheAuthModule(IConfiguration configuration)
     {
         var services = new ServiceCollection();
 
@@ -259,7 +259,7 @@ internal static class HostComposition
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
-        services.AddIdentityModule(configuration);
+        services.AddAuthModule(configuration);
 
         AddHostSuppliedAdapters(services);
 

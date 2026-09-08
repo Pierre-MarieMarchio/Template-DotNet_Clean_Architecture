@@ -2,8 +2,8 @@
 using System.Net.Http.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Infrastructure.Persistence.Common.Contexts;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Models;
+using AppTemplate.Infrastructure.Auth.Common.Contexts;
+using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -106,7 +106,7 @@ public sealed class AccountLockoutTests(ApiFixture fixture) : IntegrationTestBas
     private async Task<AppUser> ReadUserAsync(string email)
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
 
         return await context.Users
             .AsNoTracking()

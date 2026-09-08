@@ -10,18 +10,18 @@ using AppTemplate.Domain.Features.Files.Repositories;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using AppTemplate.Infrastructure.Core;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
+using AppTemplate.Infrastructure.Core.Common.Options;
+using AppTemplate.Infrastructure.Core.Common.Saving;
 using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
-using AppTemplate.Infrastructure.Persistence.Common.Options;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Repositories;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Tracking;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
-using AppTemplate.Infrastructure.Persistence.Features.Identity.Tables;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Observability;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Queries;
@@ -78,13 +78,11 @@ public static class PersistenceModule
         // Fail here, at composition time, rather than on the first request that needs a database.
         string connectionString = DefaultConnectionString.Require(configuration);
 
-        AddSeedingOptions(services, configuration);
         AddDatabaseOptions(services, configuration);
         AddSharedServices(services);
         AddTodoListsFeature(services);
         AddRemindersFeature(services);
         AddFilesFeature(services);
-        AddIdentityFeature(services);
         AddIdempotencyFeature(services, configuration);
         AddContext(services, connectionString);
         AddContextFactory(services, connectionString);
@@ -92,14 +90,6 @@ public static class PersistenceModule
         return services;
     }
 
-
-    private static void AddSeedingOptions(IServiceCollection services, IConfiguration configuration)
-    {
-        services.AddOptions<IdentitySeedOptions>()
-            .Bind(configuration.GetSection(IdentitySeedOptions.SectionName))
-            .ValidateOnStart();
-        services.AddSingleton<IValidateOptions<IdentitySeedOptions>, IdentitySeedOptionsValidator>();
-    }
 
     private static void AddDatabaseOptions(IServiceCollection services, IConfiguration configuration)
     {
@@ -123,6 +113,12 @@ public static class PersistenceModule
         // Scoped, because auditing needs the caller of the current request, the flush pipeline needs the
         // aggregates loaded in it, and event dispatch accumulates the events of the current save.
         services.AddCoreSaving<AppDbContext>();
+
+        // The unnamed port, which every use case takes, resolves the business context. A
+        // container registers it once, so the module that owns that context is the one that
+        // maps it — a second module doing the same would silently commit its writes here.
+        services.TryAddScoped<IUnitOfWork>(
+            provider => provider.GetRequiredService<IContextUnitOfWork<AppDbContext>>());
     }
 
     private static void AddTodoListsFeature(IServiceCollection services)
@@ -183,17 +179,6 @@ public static class PersistenceModule
         // is a choice made for clarity, not a requirement: a scoped registration would have been
         // just as correct.
         services.TryAddSingleton<IReminderDiagnostics, ReminderDiagnostics>();
-    }
-
-    private static void AddIdentityFeature(IServiceCollection services)
-    {
-        services.TryAddScoped<IRefreshTokenTable, RefreshTokenTable>();
-
-        // Constructible only once the identity module has composed ASP.NET Identity, because seeding an
-        // account means hashing a password and generating a security stamp — not writing a row. That is
-        // the one dependency this assembly has on another module's registrations, and it is why the
-        // container test composes the host as a whole rather than this module alone.
-        services.TryAddScoped<IIdentitySeeder, IdentitySeeder>();
     }
 
     private static void AddIdempotencyFeature(IServiceCollection services, IConfiguration configuration)

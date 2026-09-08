@@ -8,7 +8,7 @@
        composition root. -->
   <ItemGroup>
     <!-- IdentityDbContext and the Identity entity base types. This project owns the identity
-         *store*; AppTemplate.Infrastructure.Identity owns authentication policy and composes UserManager. -->
+         *store*; AppTemplate.Infrastructure.Auth owns authentication policy and composes UserManager. -->
     <!-- IDataProtectionKeyContext, so AppDbContext can host the DataProtectionKeys table the
          identity module persists its key ring to. -->
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />

@@ -2,7 +2,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Npgsql;

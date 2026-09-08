@@ -4,7 +4,7 @@ using System.Net.Http.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -231,7 +231,7 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
     private async Task<bool> EmailConfirmedAsync(string email)
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
 
         return await context.Users
             .AsNoTracking()

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Infrastructure.Persistence.Features.Identity.Seeding;
+﻿using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
 using Microsoft.AspNetCore.Authorization;
 
 namespace AppTemplate.Api.Common.Security;

@@ -48,7 +48,7 @@ public sealed class LayoutConventionTests
         // this entry is what reports it. A shared *business* concept belongs in AppTemplate.Domain.
         ["Src/Domain/AppTemplate.Domain.Core"] = null,
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
-            ["Configurations", "Mapping", "Models", "Observability", "Queries", "Repositories", "Seeding", "Tables", "Tracking"],
+            ["Configurations", "Mapping", "Models", "Observability", "Queries", "Repositories", "Tracking"],
         ["Src/Presentation/AppTemplate.Api"] =
             ["Contracts", "Controllers", "Mapping"],
 
@@ -56,8 +56,9 @@ public sealed class LayoutConventionTests
         // rest of the repository follows, where a …Repository is in Repositories/ and a …Tracker in
         // Tracking/. Which is what makes a folder findable from a type name alone and back again: a
         // …Service is in Services/ and nowhere else, and Services/ holds nothing that is not one.
-        ["Src/Infrastructure/AppTemplate.Infrastructure.Identity"] =
-            ["Directories", "Factories", "Issuers", "Logs", "Options", "Providers", "Services", "Templates", "Verifiers"],
+        ["Src/Infrastructure/AppTemplate.Infrastructure.Auth"] =
+            ["Configurations", "Directories", "Factories", "Issuers", "Logs", "Models", "Options", "Providers",
+             "Seeding", "Services", "Tables", "Templates", "Verifiers"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Inspectors", "Inventories", "Options", "Scanners", "Stores"],
 
@@ -139,16 +140,16 @@ public sealed class LayoutConventionTests
         // may not reference a sibling, so without this project two modules needing one mechanism
         // each keep a copy.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Core"] =
-            ["Caching", "Saving", "Templating", "Time"],
+            ["Caching", "Contexts", "Options", "Saving", "Templating", "Time"],
 
         ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] =
             ["Http", "Smtp"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] =
             ["Email", "Time"],
-        ["Src/Infrastructure/AppTemplate.Infrastructure.Identity"] =
-            ["Directories", "Options"],
+        ["Src/Infrastructure/AppTemplate.Infrastructure.Auth"] =
+            ["Contexts", "Directories", "Options"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
-            ["Contexts", "Idempotency", "Leases", "Options"],
+            ["Contexts", "Idempotency", "Leases"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Budgets", "Factories", "Options"],
         // Three words, and the criterion is executable rather than stylistic: what stays in a host's

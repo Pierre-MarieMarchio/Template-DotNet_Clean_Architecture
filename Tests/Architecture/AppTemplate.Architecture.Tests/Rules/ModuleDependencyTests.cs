@@ -56,7 +56,7 @@ public sealed class ModuleDependencyTests
     /// </summary>
     private static readonly (string Module, System.Reflection.Assembly Assembly)[] _moduleCommons =
     [
-        ("AppTemplate.Infrastructure.Identity", ArchitectureAssemblies.IdentityInfrastructure),
+        ("AppTemplate.Infrastructure.Auth", ArchitectureAssemblies.IdentityInfrastructure),
         ("AppTemplate.Infrastructure.Storage", ArchitectureAssemblies.StorageInfrastructure),
         ("AppTemplate.Infrastructure.Email", ArchitectureAssemblies.EmailInfrastructure),
         ("AppTemplate.Infrastructure.InMemory", ArchitectureAssemblies.InMemoryInfrastructure),
@@ -428,23 +428,21 @@ public sealed class ModuleDependencyTests
                 "point from a module to the shared plumbing, never back.");
     }
 
+    /// <summary>
+    /// One horizontal edge is allowed in this layer, and it points at the layer's package-grade
+    /// half. Nothing points at another module — including the persistence one, which is a module
+    /// like any other now that what a context saves through is the Core's.
+    /// </summary>
     [Fact]
-    public void InfrastructureModules_ReferenceOnlyPersistenceHorizontally()
+    public void InfrastructureModules_ReferenceOnlyTheLayersCoreHorizontally()
     {
         var offenders = new List<string>();
-        int referencesToPersistence = 0;
         int referencesToTheLayersCore = 0;
 
         foreach (var module in ProjectReferenceGraph.InfrastructureModules)
         {
             foreach (string reference in module.References.Where(IsOfTheInfrastructureLayer))
             {
-                if (string.Equals(reference, _persistenceProject, StringComparison.Ordinal))
-                {
-                    referencesToPersistence++;
-                    continue;
-                }
-
                 if (ProjectReferenceGraph.IsSdkProject(reference))
                 {
                     referencesToTheLayersCore++;
@@ -456,25 +454,18 @@ public sealed class ModuleDependencyTests
         }
 
         offenders.ShouldBeEmpty(
-            "An infrastructure module may reference AppTemplate.Infrastructure.Persistence and the " +
-            "package-grade half of its own layer, and no other infrastructure module. A mechanism two " +
-            "modules need belongs in the layer's Core, where both may take it; a module reaching " +
-            "sideways for one couples two adapter sets that a host is supposed to be able to compose " +
-            "independently.");
+            "An infrastructure module may reference the package-grade half of its own layer, and no " +
+            "other project of this layer. A mechanism two modules need belongs in that Core, where " +
+            "both may take it; a module reaching sideways for one couples two adapter sets that a " +
+            "host is supposed to be able to compose independently.");
 
-        // Non-vacuity, in both directions the rule allows: if nothing referenced the shared plumbing
-        // or the shared foundation any more, the rule above would hold trivially and the module
-        // layout would have changed underneath it.
-        referencesToPersistence.ShouldBeGreaterThan(
-            0,
-            "No infrastructure module references AppTemplate.Infrastructure.Persistence, so this rule is no " +
-            "longer describing the repository.");
-
+        // Non-vacuity: with no reference to the shared foundation, the permission this rule grants
+        // would describe nothing — either that project has gone, or a mechanism two modules share
+        // has gone back to being copied.
         referencesToTheLayersCore.ShouldBeGreaterThan(
             0,
             "No infrastructure module references the package-grade half of its own layer, so the " +
-            "permission this rule grants describes nothing — either that project has gone, or a " +
-            "mechanism two modules share has gone back to being copied.");
+            "permission this rule grants describes nothing.");
     }
 
     /// <summary>

@@ -6,9 +6,10 @@ using AppTemplate.Api.Core.Common.Hosting;
 using AppTemplate.Application;
 using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core;
+using AppTemplate.Infrastructure.Auth;
+using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Email;
-using AppTemplate.Infrastructure.Identity;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Storage;
@@ -60,7 +61,7 @@ builder.Services.AddPurgeExpiredIdempotencyKeys();
 // deployment that wants a shared second level registers an IDistributedCache beside this.
 builder.Services.AddCacheStore();
 builder.Services.AddPersistenceModule(builder.Configuration);
-builder.Services.AddIdentityModule(builder.Configuration);
+builder.Services.AddAuthModule(builder.Configuration);
 builder.Services.AddEmailModule(builder.Configuration);
 builder.Services.AddStorageModule(builder.Configuration);
 
@@ -107,7 +108,8 @@ builder.Services.AddApiAuthorizationPolicies();
 // The shutdown check comes with AddCoreHealthChecks; the database is this host's own answer to
 // "can it serve traffic", so it is chained here on the builder that call returns.
 builder.Services.AddCoreHealthChecks()
-    .AddDbContextCheck<AppDbContext>(name: "database", tags: [HealthEndpoints.ReadyTag]);
+    .AddDbContextCheck<AppDbContext>(name: "database", tags: [HealthEndpoints.ReadyTag])
+    .AddDbContextCheck<AuthDbContext>(name: "auth-database", tags: [HealthEndpoints.ReadyTag]);
 
 var app = builder.Build();
 

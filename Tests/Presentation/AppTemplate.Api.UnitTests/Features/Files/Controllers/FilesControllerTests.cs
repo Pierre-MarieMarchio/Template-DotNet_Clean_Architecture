@@ -17,6 +17,7 @@ using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReplaceStoredFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
+using AppTemplate.Application.Features.Files.UseCases.Queries.GetUsedFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using Microsoft.AspNetCore.Http;
@@ -54,6 +55,7 @@ public sealed class FilesControllerTests
         Substitute.For<IReplaceStoredFileTagsUseCase>();
 
     private readonly IDeleteStoredFileUseCase _deleteStoredFile = Substitute.For<IDeleteStoredFileUseCase>();
+    private readonly IGetUsedFileTagsUseCase _getUsedTags = Substitute.For<IGetUsedFileTagsUseCase>();
 
     #region Listing
 
@@ -516,7 +518,8 @@ public sealed class FilesControllerTests
             _registerFile,
             _confirmFileUpload,
             _replaceStoredFileTags,
-            _deleteStoredFile)
+            _deleteStoredFile,
+            _getUsedTags)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext ?? AContext() },
         };
@@ -540,8 +543,8 @@ public sealed class FilesControllerTests
             .ToList();
 
         actions.Count.ShouldBe(
-            7,
-            "This controller no longer has the seven actions every attribute rule in this class is "
+            8,
+            "This controller no longer has the eight actions every attribute rule in this class is "
             + "written against, so those rules have stopped describing it.");
 
         return

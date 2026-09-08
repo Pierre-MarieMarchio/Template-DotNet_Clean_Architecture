@@ -89,4 +89,9 @@ internal static class StoredFileResponseMapping
         StoredFileState.Quarantined => "quarantined",
         _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown stored file state."),
     };
+
+    /// <summary>The tags this caller has used on their files.</summary>
+    public static Result<UsedTagsResponse> ToUsedTagsResponse(
+        Result<IReadOnlyList<string>> result) =>
+        result.Map(tags => new UsedTagsResponse(tags));
 }

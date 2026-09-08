@@ -26,6 +26,7 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     public static TheoryData<string, string> TodoListEndpoints => new()
     {
         { "GET", TodoListsRoute },
+        { "GET", $"{TodoListsRoute}/tags" },
         { "GET", $"{TodoListsRoute}/{_someListId}" },
         { "GET", $"{TodoListsRoute}/{_someListId}/items" },
         { "GET", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}" },

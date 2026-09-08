@@ -130,11 +130,35 @@ The reusable test kit is **not** in this wave: decision 36 withdraws it.
 
 ### Wave 7 — Documentation and close
 
-Then, as a separate chantier: `docs/plans/AUTH-SEPARATION.md`, and the comment-convention
-cleanup pass recorded in the handoff.
+Nine lots, in this order. The first is written before anything else is touched, so that no
+arbitration of this wave exists only in a conversation.
 
-The five docs the path gate checks, the "what this SDK does not do" section, a re-measured
-`coverage.minimum`, and `CHANGELOG.md`.
+1. **The wave and its arbitrations** — this section, the handoff's, the three questions the handoff
+   still carried, and decisions 39 to 42.
+2. **A re-measured `coverage.minimum`.** With Docker present, which the file itself demands before
+   the floor is touched, and in both configurations, both rows dated. It runs the whole suite, so it
+   runs alone and early: a test host still holding the DLLs fails the next build with MSB3021 rather
+   than with a compiler error. The floor moves only if the file's own rule asks it to, and the prose
+   ranking the assemblies by coverage no longer describes this tree.
+3. **The five docs the path gate checks.** `AppTemplate.Infrastructure.Core` is named in none of
+   them, where the other five `.Core` projects already are. Per document: the layer table and the
+   Mermaid diagram, the per-capability infrastructure split, the port table, `PeriodicJob` under the
+   Worker, `Common/Tagging/` in both business layers, the two `GET .../tags` routes, and the cache
+   port with its adapter.
+4. **Three corrections the handoff carried as open questions** — the two stale counts and the
+   unreachable `CultureInfo.CurrentUICulture` advice, and the one sentence in `docs/ARCHITECTURE.md`
+   that narrates the repository's own history.
+5. **The limits.** `docs/ARCHITECTURE.md`'s `What is deliberately absent` gains the capabilities
+   `docs/plans/SDK-SPLIT-BLAST-RADIUS.md` lists as 5 to 11, each with its extension point —
+   decision 39.
+6. **The fixtures a derived project inherits**, in `CONTRIBUTING.md`'s `## Tests` — decision 40,
+   which is what decision 36 left to documentation rather than to a project.
+7. **`CHANGELOG.md`**, one entry per subject — decision 41.
+8. **The markdown BOM**, normalised and stated in `.editorconfig` — decision 42.
+9. **The exit gate below**, all seven commands.
+
+Then, as separate chantiers: `docs/plans/AUTH-SEPARATION.md`, and the comment-convention cleanup
+pass recorded in the handoff.
 
 ## Exit gate for every wave
 

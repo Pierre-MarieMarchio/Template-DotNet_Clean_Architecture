@@ -21,6 +21,60 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **Six projects are written to package grade, and a derived project writes only its own features.**
+  `AppTemplate.Domain.Core` holds the primitives an aggregate is built from;
+  `AppTemplate.Application.Core` the mechanisms a use case is written *from* — `Result`, the
+  `IUseCase` marker, validation, paging, idempotency, concurrency, the cross-cutting ports;
+  `AppTemplate.Application.Auth` authentication as use cases behind twenty ports, naming no domain
+  type; `AppTemplate.Infrastructure.Core` the mechanisms no module owns;
+  `AppTemplate.Presentation.Core` what any host needs whatever its transport, with no framework
+  reference; and `AppTemplate.Api.Core` the half of an HTTP host that knows no feature — the whole
+  pipeline behind one `UseCorePipeline()`. Each carries a tracked public surface in
+  `PublicAPI.Shipped.txt` and `PublicAPI.Unshipped.txt`, so widening or narrowing it is a diff to
+  review rather than a side effect; `CS1591` re-enabled, so every public member owes the reader a
+  sentence; and `dotnet pack` in CI, which is what proves self-containment rather than asserting it.
+  They carry **no version**: they are vendored, and a project needing something one of them lacks
+  copies it and tunes it. Two things follow for anyone adopting this in an existing project. Every
+  `AppTemplate.Application.*` and `AppTemplate.Domain.*` namespace a file names may have moved one
+  project inwards, and **there is deliberately no `AddApplicationCore()`** — a call that registered
+  nothing would read like the seam that makes the split work.
+- **`AppTemplate.Infrastructure.Core`, the infrastructure layer's agnostic half.** An infrastructure
+  module may not reference a sibling, so two modules needing one mechanism each kept a copy — which
+  is what had happened to multilingual mail rendering, written twice at 196 and 131 lines with
+  `RenderedEmail` declared in both. The engine now lives here once, as `EmailTemplate`, rendering a
+  module's *own* embedded resources and reading the subject out of the template; both modules render
+  through it, and a derived project can render its own mail through it too, which neither `internal`
+  copy allowed. `InfrastructureModules_ReferenceOnlyPersistenceHorizontally` is widened to permit
+  exactly one more edge — the layer's own `.Core` — with its non-vacuity assertion kept, so the
+  permission cannot become a hole nothing uses.
+- **A cache, behind `ICacheStore`, with one `HybridCache` adapter.** `AddCacheStore()` is one line of
+  each host's composition and registers it in process, so the template runs on `dotnet run` with
+  nothing to deploy; a deployment wanting a shared second level registers an `IDistributedCache`
+  beside that call and no caller changes. The port's documentation is a short list of what may go
+  through it: an answer whose staleness is harmless, and nothing that decides an authorisation,
+  enforces a bound, becomes an `ETag`, or tells something else what to delete. Two reads consume it,
+  and they are new — `GET /api/v1/todo-lists/tags` and `GET /api/v1/files/tags`, the tags an owner
+  has already used, for a picker. No read that existed tolerated staleness. Output caching is
+  deliberately absent, and `docs/ARCHITECTURE.md` says why.
+- **`Common/Tagging/`, the worked example of a business `Common/`.** A to-do item and a stored file
+  are both tagged by the same rule, so `Tag` and `TagSet` sit in `AppTemplate.Domain/Common/Tagging/`
+  and `TagValidation` and `UsedTagsCache` in `AppTemplate.Application/Common/Tagging/`. **Two folders
+  now share the name `Common/` and the difference is load-bearing:** `<Layer>.Core/Common/` is the
+  agnostic half and may never know a feature, `<Layer>/Common/` is the business-shared half. The
+  sorting test is one question — does it know a feature? — and it is mechanical rather than a matter
+  of taste: `TagSet` names `Tag`, and a `.Core` project may name no business type. What is *not*
+  there is as informative: the ownership check every feature performs and the paginated read every
+  feature exposes are duplicated and agnostic, so they belong one project inwards.
+- **`PeriodicJob`, the loop a host's recurring work is written on.** One interval, one asynchronous
+  iteration, ticks coalesced so an iteration never overlaps itself, and a return rather than a throw
+  when the host stops — so a shutdown log after the call always runs. It is a **primitive a service
+  composes, not a base class it derives from**, which is what lets one service run three passes on
+  three intervals without three classes. It deliberately decides nothing else: each loop keeps its
+  own logs, span and counter names, scope granularity and treatment of a disabled pass. Two defects
+  in the worker loops are fixed rather than carried across: a disabled maintenance purge is now
+  counted and logged with its consequence, where it had been indistinguishable from a dead loop, and
+  the maintenance and reminder loops now run their shutdown log when the stop lands mid-iteration.
+
 - **docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md**, for the case the generator does not cover: a
   repository that already exists and already has root files of its own. Two shapes, measured against
   each other. Putting the generated tree at the repository root keeps every tool working as
@@ -450,6 +504,12 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 - **The coverage floor is 88, up from 85.** A floor is worth what its margin is, and re-basing the
   measurement left 85 protecting less than it used to. 88 is set against the lower of the two
   configurations measured, so a local Debug run cannot fail a gate that CI's Release run would pass.
+- **The coverage floor is 90, up from 88**, re-measured with Docker present so both integration
+  suites contribute: 94.87% in Debug and 96.09% in Release, over 3,328 tests. Same rule as the
+  move before it — the margin is what is held constant and the number follows, so 88 against a
+  higher measurement was the same figure protecting less. Still set against the Debug row, which
+  is the lower of the two. Two of the fifteen assemblies sit under the floor and the total is what
+  the gate enforces; `coverage.minimum` names them.
 - **`Directory.Build.targets` is new, and carries one property.** `<OutputType>Exe</OutputType>` for
   every project with `IsTestProject`. It cannot live in `Directory.Build.props`, which is imported
   before a project's own body, where `IsTestProject` is still empty.

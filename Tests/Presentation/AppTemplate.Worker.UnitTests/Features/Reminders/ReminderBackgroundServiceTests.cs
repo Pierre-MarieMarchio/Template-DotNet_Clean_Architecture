@@ -86,6 +86,38 @@ public sealed class ReminderBackgroundServiceTests
         completed.ShouldBe(stopTask, "StopAsync must not wait out a 10-minute interval to return");
     }
 
+    /// <summary>
+    /// The stop landing while a pass is mid-flight is the case that matters: an operator watching
+    /// for a loop that stopped needs the one stop that was asked for to look different from the ones
+    /// that were not.
+    /// </summary>
+    [Fact]
+    public async Task Stopping_IsLogged_EvenWhenTheStopLandsMidIteration()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<IFireDueRemindersUseCase>(_ => new HangingFireDueRemindersUseCase());
+        using var provider = services.BuildServiceProvider();
+
+        var options = EnabledOptions();
+        options.Interval = TimeSpan.FromMinutes(10);
+        var logger = new RecordingLogger<ReminderBackgroundService>();
+
+        using var service = new ReminderBackgroundService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(options),
+            logger);
+
+        await service.StartAsync(CancellationToken.None);
+
+        // Give the hanging use case a moment to actually be mid-flight before asking it to stop.
+        await Task.Delay(TimeSpan.FromMilliseconds(50), TestContext.Current.CancellationToken);
+
+        await service.StopAsync(CancellationToken.None);
+
+        logger.Lines.ShouldContain(line => line.Message.Contains(
+            "Reminder worker stopping", StringComparison.Ordinal));
+    }
+
     private static ReminderWorkerOptions EnabledOptions() => new()
     {
         Interval = _tinyInterval,

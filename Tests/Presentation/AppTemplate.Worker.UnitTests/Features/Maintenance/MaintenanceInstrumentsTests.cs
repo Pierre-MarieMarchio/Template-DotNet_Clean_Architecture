@@ -91,4 +91,66 @@ public sealed class MaintenanceInstrumentsTests
         iterationMeasurements.ShouldContain(m => m.Outcome == "success" && m.Value == 1);
     }
 
+    /// <summary>
+    /// A task switched off by configuration still records an iteration, tagged as such: a flat
+    /// series must not be the only thing an alert sees, because a purge switched off and a purge
+    /// that died look identical from there.
+    /// </summary>
+    [Fact]
+    public async Task DisabledTask_RecordsAnIteration_TaggedDisabled()
+    {
+        var iterationMeasurements = new ConcurrentQueue<(long Value, string? Task, string? Outcome)>();
+
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, l) =>
+        {
+            if (instrument.Meter.Name == "AppTemplate.Worker.Maintenance")
+            {
+                l.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, _) =>
+        {
+            if (instrument.Name != "apptemplate.worker.maintenance.iterations")
+            {
+                return;
+            }
+
+            var tagArray = tags.ToArray();
+
+            iterationMeasurements.Enqueue((
+                measurement,
+                tagArray.FirstOrDefault(t => t.Key == "task").Value as string,
+                tagArray.FirstOrDefault(t => t.Key == "outcome").Value as string));
+        });
+        listener.Start();
+
+        var idempotency = new FakeIdempotencyPurge();
+        var services = new ServiceCollection();
+        services.AddScoped<IPurgeExpiredIdempotencyKeysUseCase>(_ => idempotency);
+        services.AddScoped<IPurgeExpiredRefreshTokensUseCase>(_ => new FakeRefreshTokenPurge());
+        using var provider = services.BuildServiceProvider();
+
+        var options = new MaintenanceWorkerOptions
+        {
+            Interval = _tinyInterval,
+            PurgeExpiredIdempotencyKeysEnabled = true,
+            PurgeExpiredRefreshTokensEnabled = false,
+        };
+
+        using var service = new MaintenanceBackgroundService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(options),
+            NullLogger<MaintenanceBackgroundService>.Instance);
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => idempotency.CallCount >= 1,
+            "the enabled purge to have run once");
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        iterationMeasurements.ShouldContain(m =>
+            m.Task == "expired refresh-token grants" && m.Outcome == "disabled" && m.Value == 1);
+    }
+
 }

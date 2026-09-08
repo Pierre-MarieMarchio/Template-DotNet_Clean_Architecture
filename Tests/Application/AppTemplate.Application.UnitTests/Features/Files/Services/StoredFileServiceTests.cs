@@ -2,6 +2,7 @@
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using NSubstitute;
@@ -17,7 +18,7 @@ namespace AppTemplate.Application.UnitTests.Features.Files.Services;
 /// </summary>
 public sealed class StoredFileServiceTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
     private readonly IStoredFileRepository _repository = Substitute.For<IStoredFileRepository>();
 

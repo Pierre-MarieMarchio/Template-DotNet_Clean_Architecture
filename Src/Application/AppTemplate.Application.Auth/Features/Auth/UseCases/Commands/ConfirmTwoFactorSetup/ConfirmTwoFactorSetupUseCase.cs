@@ -44,7 +44,7 @@ public sealed class ConfirmTwoFactorSetupUseCase(
         }
 
         var confirmation = await enrollment.ConfirmAsync(
-            userId.Value, request.CurrentPassword, request.Code, cancellationToken);
+            userId.Value.Value, request.CurrentPassword, request.Code, cancellationToken);
 
         if (confirmation.Status is TwoFactorConfirmationStatus.IncorrectPassword)
         {
@@ -56,11 +56,11 @@ public sealed class ConfirmTwoFactorSetupUseCase(
             return Result.Failure<ConfirmTwoFactorSetupOutcome>(AuthErrors.InvalidTwoFactorCode);
         }
 
-        securityEventLog.Record(SecurityEvent.TwoFactorEnabled(userId.Value));
+        securityEventLog.Record(SecurityEvent.TwoFactorEnabled(userId.Value.Value));
 
         // Arming two-factor sign-in is a security-posture change every other session must
         // re-authenticate under.
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value.Value, cancellationToken);
 
         return Result.Success(new ConfirmTwoFactorSetupOutcome(confirmation.RecoveryCodes!));
     }

@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 
@@ -29,7 +30,7 @@ internal static class AStoredFile
     /// <summary>A registration exactly as <see cref="StoredFile.Register"/> makes one: pending, with
     /// a key reserved and nothing deposited.</summary>
     internal static StoredFile PendingOwnedBy(
-        Guid ownerId,
+        UserId ownerId,
         DateTimeOffset? registeredAt = null,
         string name = "holiday.png",
         long sizeInBytes = SizeInBytes,
@@ -42,7 +43,7 @@ internal static class AStoredFile
             Sha256Checksum.Create(checksum),
             registeredAt ?? StubDateTimeProvider.DefaultInstant);
 
-    internal static StoredFile PendingOwnedBySomebodyElseThan(Guid notThisUserId) =>
+    internal static StoredFile PendingOwnedBySomebodyElseThan(UserId notThisUserId) =>
         PendingOwnedBy(AnotherOwnerThan(notThisUserId), name: "somebody else's file.png");
 
     /// <summary>
@@ -51,7 +52,7 @@ internal static class AStoredFile
     /// store to have reported what it holds.
     /// </summary>
     internal static StoredFile AvailableOwnedBy(
-        Guid ownerId,
+        UserId ownerId,
         long sizeInBytes = SizeInBytes,
         string checksum = Checksum) =>
         StoredFile.Rehydrate(
@@ -67,7 +68,7 @@ internal static class AStoredFile
             StubDateTimeProvider.DefaultInstant.AddMinutes(1),
             []);
 
-    internal static StoredFile AvailableOwnedBySomebodyElseThan(Guid notThisUserId) =>
+    internal static StoredFile AvailableOwnedBySomebodyElseThan(UserId notThisUserId) =>
         AvailableOwnedBy(AnotherOwnerThan(notThisUserId));
 
     /// <summary>
@@ -75,7 +76,7 @@ internal static class AStoredFile
     /// inspection pass loads, and what a client polling for its upload sees in the meantime.
     /// </summary>
     internal static StoredFile DepositedOwnedBy(
-        Guid ownerId,
+        UserId ownerId,
         DateTimeOffset? registeredAt = null,
         string mediaType = MediaType)
     {
@@ -96,7 +97,7 @@ internal static class AStoredFile
     /// A file whose content was examined and refused, rehydrated the way a store loads one — and
     /// therefore with no availability instant, which the aggregate refuses to load one without.
     /// </summary>
-    internal static StoredFile QuarantinedOwnedBy(Guid ownerId) =>
+    internal static StoredFile QuarantinedOwnedBy(UserId ownerId) =>
         StoredFile.Rehydrate(
             Guid.CreateVersion7(),
             ownerId,
@@ -113,7 +114,7 @@ internal static class AStoredFile
     /// <summary>Placed at <paramref name="version"/> the way the store places a freshly loaded
     /// aggregate. Goes through <see cref="IVersioned"/> because that is the only way anything writes
     /// a version.</summary>
-    internal static StoredFile AvailableOwnedByAtVersion(Guid ownerId, uint version)
+    internal static StoredFile AvailableOwnedByAtVersion(UserId ownerId, uint version)
     {
         var storedFile = AvailableOwnedBy(ownerId);
         ((IVersioned)storedFile).SetVersion(version);
@@ -121,9 +122,9 @@ internal static class AStoredFile
         return storedFile;
     }
 
-    private static Guid AnotherOwnerThan(Guid notThisUserId)
+    private static UserId AnotherOwnerThan(UserId notThisUserId)
     {
-        var otherOwnerId = Guid.CreateVersion7();
+        var otherOwnerId = UserId.Create(Guid.CreateVersion7());
 
         if (otherOwnerId == notThisUserId)
         {

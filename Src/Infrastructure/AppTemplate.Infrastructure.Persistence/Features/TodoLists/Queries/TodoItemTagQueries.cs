@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Features.TodoLists.Ports.TodoItemTagQueries;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,11 +12,11 @@ namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Queries;
 internal sealed class TodoItemTagQueries(AppDbContext context) : ITodoItemTagQueries
 {
     public async Task<IReadOnlyList<string>> GetUsedTagsForOwnerAsync(
-        Guid ownerId,
+        UserId ownerId,
         CancellationToken cancellationToken = default) =>
         await context.TodoLists
             .AsNoTracking()
-            .Where(list => list.OwnerId == ownerId)
+            .Where(list => list.OwnerId == ownerId.Value)
             .SelectMany(list => list.Items)
             .SelectMany(item => item.Tags)
             .Select(tag => tag.Value)

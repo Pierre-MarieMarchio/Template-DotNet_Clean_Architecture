@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Features.Reminders.Mapping;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;
 using Shouldly;
 using Xunit;
@@ -9,7 +10,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.Mapping;
 
 public sealed class ReminderDtoMappingTests
 {
-    private static readonly Guid _ownerId = Guid.CreateVersion7();
+    private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
 
     [Fact]
     public void ToDto_MapsEveryField()

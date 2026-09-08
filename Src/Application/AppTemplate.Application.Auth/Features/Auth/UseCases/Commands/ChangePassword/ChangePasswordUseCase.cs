@@ -42,7 +42,7 @@ public sealed class ChangePasswordUseCase(
         }
 
         var change = await accounts.ChangePasswordAsync(
-            userId.Value,
+            userId.Value.Value,
             request.CurrentPassword,
             request.NewPassword,
             cancellationToken);
@@ -59,7 +59,7 @@ public sealed class ChangePasswordUseCase(
                     change.RejectionMessage ?? "The submitted password does not meet the required policy."));
         }
 
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value.Value, cancellationToken);
 
         return Result.Success();
     }

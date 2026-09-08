@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using Shouldly;
 using Xunit;
@@ -18,7 +19,7 @@ public sealed class TodoListAuditTests
     [Fact]
     public void ANewAggregate_HasNoAuditStamps()
     {
-        var list = TodoList.Create(Guid.CreateVersion7(), "Groceries", _now);
+        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", _now);
 
         list.CreatedAt.ShouldBe(default);
         list.CreatedBy.ShouldBeNull();
@@ -29,7 +30,7 @@ public sealed class TodoListAuditTests
     [Fact]
     public void SetCreated_StampsTheCreationValues()
     {
-        var list = TodoList.Create(Guid.CreateVersion7(), "Groceries", _now);
+        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", _now);
         var actor = Guid.CreateVersion7();
 
         ((IAuditable)list).SetCreated(_now, actor);
@@ -43,7 +44,7 @@ public sealed class TodoListAuditTests
     [Fact]
     public void SetLastModified_StampsTheModificationValues()
     {
-        var list = TodoList.Create(Guid.CreateVersion7(), "Groceries", _now);
+        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", _now);
         var actor = Guid.CreateVersion7();
 
         ((IAuditable)list).SetLastModified(_now, actor);
@@ -57,7 +58,7 @@ public sealed class TodoListAuditTests
     [Fact]
     public void TheActingUser_MayBeAbsent()
     {
-        var list = TodoList.Create(Guid.CreateVersion7(), "Groceries", _now);
+        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", _now);
 
         ((IAuditable)list).SetCreated(_now, null);
         ((IAuditable)list).SetLastModified(_now, null);

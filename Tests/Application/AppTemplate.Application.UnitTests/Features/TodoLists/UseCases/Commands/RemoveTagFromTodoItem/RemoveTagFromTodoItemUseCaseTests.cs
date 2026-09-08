@@ -3,6 +3,7 @@ using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.RemoveTagFromTodoItem;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using NSubstitute;
 using Shouldly;
@@ -12,7 +13,7 @@ namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Commands
 
 public sealed class RemoveTagFromTodoItemUseCaseTests
 {
-    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
     private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();

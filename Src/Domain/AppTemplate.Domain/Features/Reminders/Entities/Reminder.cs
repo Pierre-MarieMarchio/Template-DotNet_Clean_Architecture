@@ -23,17 +23,14 @@ public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
     /// here, so scheduling and loading cannot disagree about what a reminder must carry — a rule
     /// written twice is a rule that only has to be edited once to start meaning two things.
     /// </summary>
-    private Reminder(Guid id, Guid ownerId, Guid todoListId, Guid todoItemId, DateTimeOffset dueAt)
+    private Reminder(Guid id, UserId ownerId, Guid todoListId, Guid todoItemId, DateTimeOffset dueAt)
         : base(id)
     {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
         if (id == Guid.Empty)
         {
             throw new DomainException("A reminder must have an id.");
-        }
-
-        if (ownerId == Guid.Empty)
-        {
-            throw new DomainException("A reminder must have an owner.");
         }
 
         if (todoListId == Guid.Empty || todoItemId == Guid.Empty)
@@ -57,7 +54,7 @@ public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
     /// reminder without loading an aggregate from another feature. Safe because ownership is
     /// assigned once and never changes.
     /// </summary>
-    public Guid OwnerId { get; private set; }
+    public UserId OwnerId { get; private set; }
 
     /// <summary>
     /// Carried so that deleting a list can retire its reminders without first reading the items it
@@ -100,7 +97,7 @@ public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
     /// <param name="now">Injected rather than read from the clock, so the aggregate has no ambient
     /// dependency and its behaviour is reproducible in a test.</param>
     public static Reminder Schedule(
-        Guid ownerId,
+        UserId ownerId,
         Guid todoListId,
         Guid todoItemId,
         DateTimeOffset dueAt,
@@ -133,7 +130,7 @@ public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
     /// </summary>
     public static Reminder Rehydrate(
         Guid id,
-        Guid ownerId,
+        UserId ownerId,
         Guid todoListId,
         Guid todoItemId,
         DateTimeOffset dueAt,

@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Domain.Core.Common.Events;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using AppTemplate.Infrastructure.Persistence.Common.Saving.DomainEvents;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +18,7 @@ public sealed class DomainEventDispatcherTests
 {
     private static readonly TodoListCreatedDomainEvent _created = new(
         Guid.CreateVersion7(),
-        Guid.CreateVersion7(),
+        UserId.Create(Guid.CreateVersion7()),
         "Groceries",
         new DateTimeOffset(2026, 2, 3, 4, 5, 6, TimeSpan.Zero));
 

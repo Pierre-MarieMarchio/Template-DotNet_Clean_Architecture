@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Events;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using Shouldly;
@@ -21,7 +22,7 @@ public sealed class TodoListCreatedDomainEventTests
     [Fact]
     public void TheEvent_CarriesTheIdOfTheListThatWasCreated()
     {
-        var list = TodoList.Create(Guid.CreateVersion7(), "Groceries", _now);
+        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", _now);
 
         EventRaisedBy(list).TodoListId.ShouldBe(list.Id);
     }
@@ -29,7 +30,7 @@ public sealed class TodoListCreatedDomainEventTests
     [Fact]
     public void TheEvent_CarriesTheOwner()
     {
-        var ownerId = Guid.CreateVersion7();
+        var ownerId = UserId.Create(Guid.CreateVersion7());
 
         var list = TodoList.Create(ownerId, "Groceries", _now);
 
@@ -39,7 +40,7 @@ public sealed class TodoListCreatedDomainEventTests
     [Fact]
     public void TheEvent_CarriesTheNormalisedName()
     {
-        var list = TodoList.Create(Guid.CreateVersion7(), "  Groceries  ", _now);
+        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "  Groceries  ", _now);
 
         EventRaisedBy(list).Name.ShouldBe("Groceries");
     }
@@ -53,7 +54,7 @@ public sealed class TodoListCreatedDomainEventTests
     {
         var instant = new DateTimeOffset(1999, 12, 31, 23, 59, 59, TimeSpan.Zero);
 
-        var list = TodoList.Create(Guid.CreateVersion7(), "Groceries", instant);
+        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", instant);
 
         EventRaisedBy(list).OccurredOn.ShouldBe(instant);
     }
@@ -61,7 +62,7 @@ public sealed class TodoListCreatedDomainEventTests
     [Fact]
     public void TheEvent_IsADomainEvent()
     {
-        var list = TodoList.Create(Guid.CreateVersion7(), "Groceries", _now);
+        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", _now);
 
         EventRaisedBy(list).ShouldBeAssignableTo<IDomainEvent>();
     }

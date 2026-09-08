@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Events;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -30,7 +31,7 @@ public sealed class ReclaimContentOnStoredFileDeletedConsumerTests
         new(_content, NullLogger<ReclaimContentOnStoredFileDeletedConsumer>.Instance);
 
     private static StoredFileDeletedDomainEvent AnEvent(ObjectKey key) =>
-        new(Guid.CreateVersion7(), Guid.CreateVersion7(), key, DateTimeOffset.UtcNow);
+        new(Guid.CreateVersion7(), UserId.Create(Guid.CreateVersion7()), key, DateTimeOffset.UtcNow);
 
     [Fact]
     public async Task ItDeletes_TheObjectTheEventNames()

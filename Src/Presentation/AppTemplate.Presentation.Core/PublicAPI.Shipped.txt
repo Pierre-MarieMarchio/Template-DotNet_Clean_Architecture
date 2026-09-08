@@ -20,7 +20,6 @@ AppTemplate.Presentation.Core.Common.Observability.TelemetryOptions.TracesSampli
 AppTemplate.Presentation.Core.Common.Outbound.OutboundHttpExtensions
 AppTemplate.Presentation.Core.Common.Security.NoCallerCurrentUser
 AppTemplate.Presentation.Core.Common.Security.NoCallerCurrentUser.NoCallerCurrentUser() -> void
-AppTemplate.Presentation.Core.Common.Security.NoCallerCurrentUser.UserId.get -> System.Guid?
 AppTemplate.Presentation.Core.PresentationCoreModule
 const AppTemplate.Presentation.Core.Common.Localization.LocalizationOptions.SectionName = "Localization" -> string!
 const AppTemplate.Presentation.Core.Common.Observability.TelemetryOptions.SectionName = "OpenTelemetry" -> string!

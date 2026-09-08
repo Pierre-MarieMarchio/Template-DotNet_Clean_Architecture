@@ -41,7 +41,7 @@ public sealed class LockAccountUseCase(
         }
 
         var guard = SelfAdministrationPolicy.EnsureNotSelf(
-            callerId.Value,
+            callerId.Value.Value,
             request.UserId,
             AuthErrors.CannotLockOwnAccount);
 

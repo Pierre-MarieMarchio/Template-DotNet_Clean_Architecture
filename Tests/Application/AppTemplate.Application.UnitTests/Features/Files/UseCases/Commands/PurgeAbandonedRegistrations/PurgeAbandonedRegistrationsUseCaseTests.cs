@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Events;
 using AppTemplate.Domain.Features.Files.Repositories;
@@ -82,7 +83,7 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
     [Fact]
     public async Task ARegistrationTheAggregateDoesNotCallAbandoned_IsLeftAlone()
     {
-        var young = AStoredFile.PendingOwnedBy(Guid.CreateVersion7(), registeredAt: _now.AddMinutes(-1));
+        var young = AStoredFile.PendingOwnedBy(UserId.Create(Guid.CreateVersion7()), registeredAt: _now.AddMinutes(-1));
         GivenTheRepositoryReturns(young);
 
         var result = await UseCase().ExecuteAsync(TestToken);
@@ -106,7 +107,7 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
     [Fact]
     public async Task ABatchWithNothingActuallyAbandoned_CommitsNothing()
     {
-        GivenTheRepositoryReturns(AStoredFile.PendingOwnedBy(Guid.CreateVersion7(), registeredAt: _now));
+        GivenTheRepositoryReturns(AStoredFile.PendingOwnedBy(UserId.Create(Guid.CreateVersion7()), registeredAt: _now));
 
         await UseCase().ExecuteAsync(TestToken);
 
@@ -161,7 +162,7 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
 
     private static StoredFile AbandonedFile() =>
         AStoredFile.PendingOwnedBy(
-            Guid.CreateVersion7(),
+            UserId.Create(Guid.CreateVersion7()),
             registeredAt: _now - PurgeAbandonedRegistrationsUseCase.AbandonedAfter - TimeSpan.FromMinutes(1));
 
     private void GivenTheRepositoryReturns(params StoredFile[] files) =>

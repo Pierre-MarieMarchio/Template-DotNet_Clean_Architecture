@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Events;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using Shouldly;
@@ -20,7 +21,7 @@ public sealed class TodoItemCompletedDomainEventTests
         string title = "Buy milk",
         DateTimeOffset? completedAt = null)
     {
-        list = TodoList.Create(Guid.CreateVersion7(), "Groceries", _now);
+        list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", _now);
         itemId = list.AddItem(title, null);
         list.ClearDomainEvents();
         list.CompleteItem(itemId, completedAt ?? _now);
@@ -89,7 +90,7 @@ public sealed class TodoItemCompletedDomainEventTests
     [Fact]
     public void OneEvent_IsRaisedPerCompletion()
     {
-        var list = TodoList.Create(Guid.CreateVersion7(), "Groceries", _now);
+        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", _now);
         var itemId = list.AddItem("Buy milk", null);
         list.ClearDomainEvents();
 

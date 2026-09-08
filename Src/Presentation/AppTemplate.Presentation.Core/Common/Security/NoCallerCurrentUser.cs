@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Domain.Core.Common.Primitives;
 
 namespace AppTemplate.Presentation.Core.Common.Security;
 
@@ -18,7 +19,7 @@ public sealed class NoCallerCurrentUser : ICurrentUser
 {
     /// <summary>Always throws. There is no caller to identify.</summary>
     /// <exception cref="NotSupportedException">Always.</exception>
-    public Guid? UserId => throw new NotSupportedException(
+    public UserId? UserId => throw new NotSupportedException(
         "This host has no current user: it runs with no request and no principal. A use case that " +
         $"reads {nameof(ICurrentUser)}.{nameof(UserId)} cannot run unmodified from here.");
 

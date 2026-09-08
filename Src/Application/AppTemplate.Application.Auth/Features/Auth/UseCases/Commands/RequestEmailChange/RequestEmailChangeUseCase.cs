@@ -44,7 +44,7 @@ public sealed class RequestEmailChangeUseCase(
         }
 
         var issued = await emailChangeTokens.IssueAsync(
-            userId.Value,
+            userId.Value.Value,
             request.CurrentPassword,
             request.NewEmail,
             cancellationToken);

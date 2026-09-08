@@ -41,16 +41,16 @@ public sealed class DisableTwoFactorUseCase(
             return userId;
         }
 
-        var disabled = await enrollment.DisableAsync(userId.Value, request.CurrentPassword, cancellationToken);
+        var disabled = await enrollment.DisableAsync(userId.Value.Value, request.CurrentPassword, cancellationToken);
 
         if (disabled.Status is TwoFactorDisableStatus.IncorrectPassword)
         {
             return Result.Failure(AuthErrors.IncorrectCurrentPassword);
         }
 
-        securityEventLog.Record(SecurityEvent.TwoFactorDisabled(userId.Value));
+        securityEventLog.Record(SecurityEvent.TwoFactorDisabled(userId.Value.Value));
 
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value.Value, cancellationToken);
 
         return Result.Success();
     }

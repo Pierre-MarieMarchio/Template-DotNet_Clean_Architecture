@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Domain.Common.Tagging;
 using AppTemplate.Domain.Core.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 using Shouldly;
@@ -16,7 +17,7 @@ public sealed class TodoItemTests
 {
     private static readonly DateTimeOffset _now = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
 
-    private static TodoList ANewList() => TodoList.Create(Guid.CreateVersion7(), "Groceries", _now);
+    private static TodoList ANewList() => TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Groceries", _now);
 
     private static TodoItem AnItem(string title = "Buy milk", string? description = null)
     {

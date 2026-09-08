@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Domain.Core.Common.Primitives;
 using Shouldly;
 using Xunit;
 
@@ -6,14 +7,18 @@ namespace AppTemplate.Application.Core.UnitTests.Common.Ports;
 
 public sealed class CurrentUserExtensionsTests
 {
-    private sealed class StubCurrentUser(Guid? userId) : ICurrentUser
+    private sealed class StubCurrentUser(UserId? userId) : ICurrentUser
     {
-        /// <summary>No id at all, rather than <c>Guid.Empty</c>.</summary>
+        /// <summary>No id at all, rather than an owner whose id happens to be empty.</summary>
         public static StubCurrentUser Anonymous { get; } = new(null);
 
-        public static StubCurrentUser WithId(Guid userId) => new(userId);
+        /// <summary>
+        /// The factory call is qualified because this class has a member of the same name.
+        /// </summary>
+        public static StubCurrentUser WithId(Guid userId) =>
+            new(AppTemplate.Domain.Core.Common.Primitives.UserId.Create(userId));
 
-        public Guid? UserId => userId;
+        public UserId? UserId => userId;
     }
 
     [Fact]
@@ -24,30 +29,20 @@ public sealed class CurrentUserExtensionsTests
         var result = StubCurrentUser.WithId(id).RequireUserId();
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(id);
+        result.Value.Value.ShouldBe(id);
     }
 
+    /// <summary>
+    /// The only failure this narrowing has. An empty id is not a second one: <see cref="UserId"/>
+    /// refuses one at construction, so the port has none to answer with —
+    /// <c>UserIdTests.Create_Rejects_AnEmptyIdentifier</c> holds that, and
+    /// <c>CreateOptional_AnswersNull_ForAnEmptyIdentifier</c> is what makes an empty claim read as
+    /// an anonymous request rather than as an owner.
+    /// </summary>
     [Fact]
     public void RequireUserId_Fails_WhenTheCallerIsAnonymous()
     {
         var result = StubCurrentUser.Anonymous.RequireUserId();
-
-        result.IsFailure.ShouldBeTrue();
-
-        var error = result.Error;
-
-        error.ShouldNotBeNull();
-        error.Code.ShouldBe("auth.required");
-    }
-
-    /// <summary>
-    /// No real authenticated caller carries an empty id: <c>Result&lt;Guid&gt;.Success</c> only
-    /// refuses <c>null</c>, so an empty id would otherwise sail through as a success.
-    /// </summary>
-    [Fact]
-    public void RequireUserId_Fails_WhenTheIdIsEmpty()
-    {
-        var result = StubCurrentUser.WithId(Guid.Empty).RequireUserId();
 
         result.IsFailure.ShouldBeTrue();
 

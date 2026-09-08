@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Core.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using Shouldly;
 using Xunit;
@@ -26,7 +27,7 @@ namespace AppTemplate.Domain.UnitTests.Features.TodoLists.Entities;
 public sealed class TodoListRehydrationTests
 {
     private static readonly Guid _listId = new("0199a3c4-1111-7000-8000-000000000001");
-    private static readonly Guid _ownerId = new("4b7f1d92-4c8a-4f4b-9a1e-0d2f3c4b5a60");
+    private static readonly UserId _ownerId = UserId.Create(new("4b7f1d92-4c8a-4f4b-9a1e-0d2f3c4b5a60"));
     private static readonly Guid _itemId = new("aaaaaaaa-0000-0000-0000-000000000001");
     private static readonly Guid _otherListId = new("0199a3c4-1111-7000-8000-000000000002");
 
@@ -99,9 +100,9 @@ public sealed class TodoListRehydrationTests
     }
 
     [Fact]
-    public void Rehydrate_RefusesAnEmptyOwner()
+    public void Rehydrate_RefusesAnAbsentOwner()
     {
-        Should.Throw<DomainException>(() => TodoList.Rehydrate(_listId, Guid.Empty, "Groceries", []));
+        Should.Throw<ArgumentNullException>(() => TodoList.Rehydrate(_listId, null!, "Groceries", []));
     }
 
     [Fact]
@@ -222,10 +223,10 @@ public sealed class TodoListRehydrationTests
         list.LastModifiedBy.ShouldBeNull();
 
         var storedAt = new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
-        ((IAuditable)list).SetCreated(storedAt, _ownerId);
+        ((IAuditable)list).SetCreated(storedAt, _ownerId.Value);
 
         list.CreatedAt.ShouldBe(storedAt);
-        list.CreatedBy.ShouldBe(_ownerId);
+        list.CreatedBy.ShouldBe(_ownerId.Value);
         list.LastModifiedAt.ShouldBeNull();
     }
 

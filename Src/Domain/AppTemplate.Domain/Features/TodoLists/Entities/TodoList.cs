@@ -24,7 +24,7 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
 
     private readonly List<TodoItem> _items = [];
 
-    private TodoList(Guid id, Guid ownerId, TodoListName name) : base(id)
+    private TodoList(Guid id, UserId ownerId, TodoListName name) : base(id)
     {
         OwnerId = ownerId;
         Name = name;
@@ -34,7 +34,7 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
     /// Assigned at creation and never changed: every authorisation check in the application
     /// layer rests on ownership, so a setter would make those checks racy.
     /// </summary>
-    public Guid OwnerId { get; private set; }
+    public UserId OwnerId { get; private set; }
 
     public TodoListName Name { get; private set; }
 
@@ -57,12 +57,9 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
 
     /// <param name="now">Injected rather than read from the clock, so the aggregate has
     /// no ambient dependency and its behaviour is reproducible in a test.</param>
-    public static TodoList Create(Guid ownerId, string name, DateTimeOffset now)
+    public static TodoList Create(UserId ownerId, string name, DateTimeOffset now)
     {
-        if (ownerId == Guid.Empty)
-        {
-            throw new DomainException("A to-do list must have an owner.");
-        }
+        ArgumentNullException.ThrowIfNull(ownerId);
 
         var list = new TodoList(Guid.CreateVersion7(), ownerId, TodoListName.Create(name));
         list.RaiseDomainEvent(new TodoListCreatedDomainEvent(list.Id, ownerId, list.Name.Value, now));
@@ -97,18 +94,14 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
     /// <param name="ownerId">The stored owner.</param>
     /// <param name="name">The stored name, re-validated.</param>
     /// <param name="items">The stored items, in any order, each re-checked against the item set.</param>
-    public static TodoList Rehydrate(Guid id, Guid ownerId, string name, IEnumerable<TodoItem> items)
+    public static TodoList Rehydrate(Guid id, UserId ownerId, string name, IEnumerable<TodoItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(ownerId);
 
         if (id == Guid.Empty)
         {
             throw new DomainException("A stored to-do list must have an id.");
-        }
-
-        if (ownerId == Guid.Empty)
-        {
-            throw new DomainException("A to-do list must have an owner.");
         }
 
         var list = new TodoList(id, ownerId, TodoListName.Create(name));

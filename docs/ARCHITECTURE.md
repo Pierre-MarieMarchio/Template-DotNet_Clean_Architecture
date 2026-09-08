@@ -21,20 +21,24 @@ one exists.
 | Application | `AppTemplate.Application.Core` | the mechanisms a use case is written *from*: `Result`/`Error`, the `IUseCase` marker, validation, offset and cursor pagination, idempotency, optimistic concurrency, the cross-cutting ports | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application` | the business features' use cases, feature ports, DTOs, validators | `AppTemplate.Domain` + `AppTemplate.Application.Core` |
 | Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind twenty ports; it names no domain type | `AppTemplate.Application.Core` |
-| Infrastructure | `AppTemplate.Infrastructure.*` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) |
+| Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
+| Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Identity`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
 | Presentation | `AppTemplate.Presentation.Core` | what any host needs whatever its transport: one outbound HTTP policy, the language a flow is written in, OTLP traces and metrics, the identity of a process with no caller — and no framework reference, deliberately | `AppTemplate.Application.Core` |
-| Presentation | `AppTemplate.Api`, `AppTemplate.Worker` | controllers or a background service, composition root, host concerns | `AppTemplate.Presentation.Core` + the application projects it needs + the modules that host needs |
+| Presentation | `AppTemplate.Api.Core` | the half of an HTTP host that knows no feature: the whole pipeline behind one `UseCorePipeline()` — problem details, ETags, idempotency, rate limiting, CORS, security headers, versioning, the health endpoints | `AppTemplate.Application.Core` + `AppTemplate.Presentation.Core`, plus a `FrameworkReference` on ASP.NET Core |
+| Presentation | `AppTemplate.Api`, `AppTemplate.Worker` | controllers or a background service, composition root, host concerns | `AppTemplate.Api.Core` (the API only) + `AppTemplate.Presentation.Core` + the application projects it needs + the modules that host needs |
 
 ```mermaid
 graph RL
     Api[AppTemplate.Api<br/>controllers, composition root]
     Worker[AppTemplate.Worker<br/>three BackgroundServices, composition root]
-    PresCore[AppTemplate.Presentation.Core<br/>one outbound HTTP policy, the default language,<br/>OTLP traces and metrics, the no-caller identity]
+    ApiCore[AppTemplate.Api.Core<br/>the HTTP pipeline behind one UseCorePipeline:<br/>problem details, ETags, idempotency, rate limiting,<br/>security headers, versioning, health]
+    PresCore[AppTemplate.Presentation.Core<br/>one outbound HTTP policy, the default language,<br/>OTLP traces and metrics, the no-caller identity,<br/>the loop recurring work runs on]
     Ident[AppTemplate.Infrastructure.Identity<br/>ASP.NET Identity policy, JWT, refresh tokens]
     Mail[AppTemplate.Infrastructure.Email<br/>MailKit SMTP]
     Store[AppTemplate.Infrastructure.Storage<br/>S3-compatible object store]
     Mem[AppTemplate.Infrastructure.InMemory<br/>in-memory ports]
     Pers[AppTemplate.Infrastructure.Persistence<br/>the one DbContext, interceptors, unit of work,<br/>per-feature models, mapping, repositories, queries]
+    InfraCore[AppTemplate.Infrastructure.Core<br/>multilingual mail from a module's own templates,<br/>the cache adapter behind ICacheStore]
     App[AppTemplate.Application<br/>the business features: use cases, feature ports, DTOs]
     Auth[AppTemplate.Application.Auth<br/>sign-in, accounts, tokens, two-factor,<br/>behind twenty ports — no domain type]
     AppCore[AppTemplate.Application.Core<br/>Result, IUseCase, validation, pagination,<br/>idempotency, concurrency, cross-cutting ports]
@@ -47,14 +51,19 @@ graph RL
     App --> AppCore
     Auth --> AppCore
     PresCore --> AppCore
+    ApiCore --> AppCore
+    ApiCore --> PresCore
+    InfraCore --> AppCore
     Pers --> App
     Pers --> AppCore
     Ident --> Auth
     Ident --> AppCore
     Ident --> Pers
+    Ident --> InfraCore
     Mail --> App
     Mail --> Auth
     Mail --> AppCore
+    Mail --> InfraCore
     Store --> App
     Store --> AppCore
     Mem --> App
@@ -63,7 +72,9 @@ graph RL
     Api --> App
     Api --> Auth
     Api --> AppCore
+    Api --> ApiCore
     Api --> PresCore
+    Api --> InfraCore
     Api --> Pers
     Api --> Ident
     Api --> Mail
@@ -72,6 +83,7 @@ graph RL
     Worker --> Auth
     Worker --> AppCore
     Worker --> PresCore
+    Worker --> InfraCore
     Worker --> Pers
     Worker --> Ident
     Worker --> Mail
@@ -85,7 +97,7 @@ to find an address), the in-memory doubles, and both hosts. `AppTemplate.Infrast
 declares no arrow to `AppTemplate.Application` at all — it implements twenty Auth ports and nothing
 else.
 
-`AppTemplate.Application.Core` is drawn by ten arrows rather than reached through one, and that
+`AppTemplate.Application.Core` is drawn by twelve arrows rather than reached through one, and that
 is the point of it: nothing carries it transitively as a favour. Every project that names a
 `Result`, an `IUseCase` or a cross-cutting port declares the reference itself, so removing a
 business project or a module never silently takes the mechanisms with it.
@@ -117,11 +129,20 @@ knows a feature, and nothing in it ever may; that is the whole claim of those pr
 features: a value object three features spend, a DTO two features answer with, a policy that spans
 them. The sorting test is one question — **does it know a feature?** If it names a feature, or would
 have to the moment a second feature used it, it belongs in the business project's `Common/`; if it
-does not and never will, it belongs one project inwards. `AppTemplate.Domain/Common/` and
-`AppTemplate.Application/Common/` are empty today, which is a fact about this template's example
-features rather than a rule: everything that would have sat there turned out to be agnostic.
-`LayoutConventionTests` records that as a `null` vocabulary entry, checked in both directions, and
-its failure message asks which of the two kinds the new folder is before naming its words.
+does not and never will, it belongs one project inwards.
+
+**Tagging is what occupies the business half, in both layers.** Two example features accept tags —
+a to-do item and a stored file — which is what makes a tag business-shared rather than either
+feature's own. `AppTemplate.Domain/Common/Tagging/` holds `Tag`, the normalised free-text label, and
+`TagSet`, the three rules that govern a set of them: held once however many times it is sent, capped,
+and replaced totally rather than merged. `AppTemplate.Application/Common/Tagging/` holds
+`TagValidation`, so a caller gets one 400 naming every tag it got wrong rather than the first, and
+`UsedTagsCache`, which is where the key and the lifetime of the used-tag read are decided once
+instead of once per feature. Every one of those names a tag and nothing narrower, and none of them
+names a feature — which is the sorting test above, answered in the direction that keeps them out of
+the two `.Core` projects. `LayoutConventionTests` holds the vocabulary of both folders, checked in
+both directions, and its failure message asks which of the two kinds a new folder is before naming
+its words.
 
 `AppTemplate.Application.Core` is the same shape one layer out, and it holds the application layer's
 *mechanisms* rather than any of its business: `Result` and `Error`, the `IUseCase` marker every
@@ -159,11 +180,12 @@ public surface in `Src/Application/AppTemplate.Application.Auth/PublicAPI.Shippe
 `dotnet pack` over it, and no version.
 
 `AppTemplate.Presentation.Core` is the presentation layer's fourth `.Core` and the outermost of
-them: what any host needs whatever its transport, and nothing that names one. Four subjects, one
+them: what any host needs whatever its transport, and nothing that names one. Five subjects, one
 file each — the outbound HTTP policy installed on `IHttpClientFactory`'s defaults, the
 `LocalizationOptions` naming the language a flow is written in when nobody said which to read, the
-`TelemetryOptions` and the OTLP tracer and meter over it, and `NoCallerCurrentUser`, the answer a
-process with no request gives to "who is calling". It references `AppTemplate.Application.Core` and
+`TelemetryOptions` and the OTLP tracer and meter over it, `NoCallerCurrentUser`, the answer a
+process with no request gives to "who is calling", and `PeriodicJob`, the loop a host's recurring
+work is written on — see the Worker below for what that primitive does and does not decide. It references `AppTemplate.Application.Core` and
 nothing else, and it is written package-grade for the same reasons the three projects inwards are: a
 tracked public surface in `Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Shipped.txt` and
 `Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Unshipped.txt`, `CS1591` re-enabled so a
@@ -221,7 +243,11 @@ Two rules that a compiler cannot state on its own, so state them here:
 - **Modules reference `Persistence`, never the reverse.** `Persistence` owns the
   mechanics of saving; it must not know which capabilities exist.
 - **Modules do not reference each other.** Anything two modules both need belongs in
-  Application (as a port) or in Persistence (as mechanics).
+  Application (as a port), in `AppTemplate.Infrastructure.Core` (as an agnostic mechanism), or in
+  Persistence (as mechanics). `InfrastructureModules_ReferenceOnlyPersistenceHorizontally` is the
+  rule, and it permits exactly those two horizontal edges — `Persistence`, and the layer's own
+  package-grade half — while asserting that both are really taken, so neither permission can
+  quietly become a hole nothing uses.
 
 Direction is enforced by the project graph, and is worth an architecture test —
 `NetArchTest.Rules` is pinned in `Directory.Packages.props` for exactly that — so a
@@ -255,6 +281,7 @@ split runs there rather than putting every port in one layer:
 | `IDateTimeProvider` | `AppTemplate.Application.Core` | `SystemDateTimeProvider` |
 | `ILeaderLease` | `AppTemplate.Application.Core` | `PostgresLeaderLease`, a session-level advisory lock |
 | `IIdempotencyStore` | `AppTemplate.Application.Core` | `IdempotencyStore`, the claim/complete/release state machine over one table |
+| `ICacheStore` | `AppTemplate.Application.Core` | `HybridCacheStore`, in process until a deployment registers a distributed second level |
 | `IUserAccountsService` | `AppTemplate.Application.Auth` | `UserManager` / `SignInManager` wrapper |
 | `IEmailConfirmationTokensService` | `AppTemplate.Application.Auth` | ASP.NET Identity's default token provider |
 | `IAccessTokenIssuer` | `AppTemplate.Application.Auth` | signed JWT over the account's current claims |
@@ -295,6 +322,22 @@ storage — one DbContext in one schema:
 | `AppTemplate.Infrastructure.Storage` | `IFileContentStore`, `IFileContentInventory`, storage options | one S3-compatible bucket |
 | `AppTemplate.Infrastructure.InMemory` | in-memory port implementations for tests and demos | — |
 
+**`AppTemplate.Infrastructure.Core` is not in that table, because it is not a capability.** It is
+the layer's agnostic half: the mechanisms a module needs and no module owns. A module may not
+reference a sibling, so without it two modules needing one mechanism have nowhere to put it and each
+keeps a copy. Multilingual mail rendering is the case that pays for the project: the identity module
+and the email module both send mail, so each would otherwise carry its own renderer. It holds that
+one engine, `EmailTemplate`, which
+renders a module's *own* embedded resources and reads the subject out of the template so a caller
+never states it twice; and `HybridCacheStore`, the one adapter behind `ICacheStore`. It registers
+one thing, `AddCacheStore()`, because the template engine is a type a module news up rather than
+resolves. Like the other five package-grade projects it carries a tracked public surface, `CS1591`
+re-enabled, `dotnet pack` over it, and no version.
+
+Its `Common/` is held to the rule below by construction rather than by that rule: an SDK project
+may reference only SDK projects, so it cannot name `AppTemplate.Application` or
+`AppTemplate.Domain` at all, and a type there could not name a feature if it tried.
+
 **How many features a module serves is not what distinguishes it.** Two modules serve
 several: `Persistence` carries `Auth`, `TodoLists`, `Reminders` and `Files`, and
 `InMemory` carries `Auth`, `Files` and `Reminders` — five ports under those three feature
@@ -334,13 +377,14 @@ feature therefore lives with that feature, as
 rather than two, and why EF maps rows rather than aggregates.
 
 **One DI module per project, and the application layer is composed a feature at a time.** Both
-hosts' composition roots are the same nine lines, in the same order — `AddTodoLists()`,
+hosts' composition roots are the same ten lines, in the same order — `AddTodoLists()`,
 `AddReminders()`, `AddFiles()`, then `AddAuthApplication()`, then
-`AddPurgeExpiredIdempotencyKeys()`, then `AddPersistenceModule(builder.Configuration)`,
-`AddIdentityModule`, `AddEmailModule` and `AddStorageModule`. The first five take no argument,
-because nothing in the application layer binds a configuration section of its own; the four modules
-each take one. Adding a capability adds one line there and touches nothing else; removing one
-deletes a project and a line.
+`AddPurgeExpiredIdempotencyKeys()`, then `AddCacheStore()`, then
+`AddPersistenceModule(builder.Configuration)`, `AddIdentityModule`, `AddEmailModule` and
+`AddStorageModule`. The first six take no argument, because nothing in the application layer binds a
+configuration section of its own and the cache decides its lifetimes at each call site; the four
+modules each take one. Adding a capability adds one line there and touches nothing else; removing
+one deletes a project and a line.
 
 Three further lines are common to both hosts and are not among the nine, because they compose host
 concerns rather than capabilities: `AddOutboundHttp()`, the localisation binding — reached through
@@ -407,6 +451,21 @@ timers, because their costs are three orders of magnitude apart:
 `IInspectDepositedFilesUseCase`, which is not a sweep at all — it is the only thing that
 moves a file from `deposited` to `available`, so its interval is a latency a user feels
 rather than a background cost.
+
+**All three are written on one loop primitive, and it is a primitive rather than a base class.**
+`PeriodicJob.RunAsync`, in `AppTemplate.Presentation.Core/Common/Jobs/`, runs one iteration
+immediately, then one per interval, and returns when the stopping token is cancelled — whether the
+stop arrives while waiting for the next tick or from inside an iteration, so a shutdown log after
+the call always runs. Ticks that elapse during a slow iteration coalesce into one, so an iteration
+never overlaps itself. A service composes one instance or three, which is what lets
+`FileBackgroundService` run three passes on three intervals without three classes; a base class
+would have given each loop one interval and made that shape the exception.
+
+What it deliberately does not decide is everything a base class would have taken: each service keeps
+its own start-up log, its own span and counter names, its own scope granularity, and its own
+treatment of a pass switched off. Exclusivity between two processes is not its business either —
+that belongs to the operation, which is why `ILeaderLease` is taken inside the use cases that need
+it and by no loop here.
 
 The Worker proves that the Application layer is composable by a non-HTTP host — it
 references neither `AppTemplate.Api` nor `AppTemplate.Domain` (verified in
@@ -619,10 +678,9 @@ mapping the to-do list, reminder and file features' rows. Every table names its 
 own `IEntityTypeConfiguration`, so no default schema is set and a mapping cannot drift
 into the wrong schema by omission.
 
-It resolves from the **single `ConnectionStrings:Default`**. There was previously a
-`DefaultConnection` and an `IdentityConnection` describing two databases that were
-always the same one — two names for one thing, so they could be configured
-inconsistently and nothing would notice until runtime.
+It resolves from the **single `ConnectionStrings:Default`**, and one key is what one database is
+owed: a second key pointing at the same server is a second thing to keep in step, free to be
+configured inconsistently, and nothing notices until runtime.
 
 **Why one context and not two.** Two existed so that each module could be migrated
 independently from its own project. Once all persistence lives in one project that
@@ -698,7 +756,14 @@ change tracker useful without it ever seeing the aggregate.
 | Swashbuckle | Replaced by the built-in `Microsoft.AspNetCore.OpenApi` plus Scalar for the UI (development only). |
 | A refresh-token cookie | The refresh token is returned in the response body: opaque, rotated on every presentation, and stored only as a SHA-256 hash. |
 | Migrations at startup in production | Development only; a deployment applies them as an explicit step. |
-| An outbox | Domain-event handlers run in-process. If a handler must reach another system, add one — do not do the I/O inline. |
+| An outbox | Domain-event handlers run in-process, after the commit, so delivery is at-most-once and there is no reliable integration with another system. If a handler must reach one, add an outbox — do not do the I/O inline. |
+| Permissions, policies, or tenants | Authorisation is one role. `AuthorizationPolicies.Administrator` requires the `Admin` role and is the only policy beside the default-deny fallback, and nothing anywhere carries a tenant. Policies extend where that one is registered, in `AppTemplate.Api/Common/Security/AuthorizationPolicies.cs`, or through ASP.NET Core's own `IAuthorizationPolicyProvider` for a permission set computed rather than listed. A tenant is not a policy, though: every owned aggregate holds a bare `Guid OwnerId`, and a tenant would be a second column beside it on every table and in every ownership check. |
+| Machine-to-machine authentication | No API keys and no client-credentials flow: every token this template mints belongs to a person who signed in. The extension point is a second authentication scheme beside the bearer one `AddIdentityModule` registers, and `IAccessTokenIssuer` is the port a client-credentials grant would mint through. |
+| A message bus or queue port | The Worker polls the database on a timer, and the operations that must not run twice at once take `ILeaderLease` — a Postgres advisory lock — rather than relying on a single consumer. A broker would arrive the way every other capability does: a port in `AppTemplate.Application.Core/Common/Ports/`, an adapter in a module of its own, one line in each host's composition. |
+| Minimal APIs | Everything is MVC. The idempotency filter is an action filter, `ApiControllerBase` does the result-to-response mapping, and the ETag handling hangs off the same machinery — so a minimal endpoint mapped beside the controllers inherits none of it and is not supported. Nothing stops one being mapped; what it costs is those three, each of which would have to be re-expressed as an endpoint filter. |
+| SMS, push notifications, feature flags, a business audit log | `IEmailSender` is the only notification port, and a second channel is a second port beside it rather than a widening of that one. The audit columns are not a log: they record who last wrote a row, not what changed, so a history is a table of its own — the interceptor pipeline in `AppTemplate.Infrastructure.Persistence/Common/` is where one would be written. |
+| Output caching | There is a cache — `ICacheStore` over `HybridCache` — and it is deliberately not wired to responses. Output caching keys on the request, and every read here is a per-caller one behind default-deny authorisation, so a response cache is a chance to serve one caller's list to another. What is cached is a value a use case asked for, by a key naming the owner. Revalidation is what the HTTP layer offers instead: `ETag`, `If-None-Match`, and `private, no-cache`. |
+| A client contracts package | A front end talking HTTP needs the request and response types or a client generated from them, and the OpenAPI document each API version publishes is the intended route. A shared contracts assembly is deliberately not offered: it couples client and server binaries and undercuts the versioning this template maintains one document per version to keep. |
 | A trusted-proxy list | The hops in front of this API are a property of your topology rather than of this code, so both lists ship empty and `ReverseProxy:Enabled` defaults to `false`. The mechanism that reads them is not absent — see below. |
 
 **The trust set is the blank, not the mechanism.** `ForwardedHeaders` is wired in full:

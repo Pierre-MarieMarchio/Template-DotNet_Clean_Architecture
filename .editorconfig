@@ -13,6 +13,13 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+charset = utf-8-bom
+
+# The plan documents carry no BOM, so the two halves of the convention are both written down
+# rather than one being deducible by counting files. Nothing enforces either: dotnet format
+# reads charset for the documents in the compilation, and a .md file is not one.
+[docs/plans/*.md]
+charset = utf-8
 
 [*.cs]
 indent_size = 4

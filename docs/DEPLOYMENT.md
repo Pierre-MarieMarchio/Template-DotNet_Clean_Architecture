@@ -1,4 +1,4 @@
-# Deployment
+﻿# Deployment
 
 This is the narrative behind [`deploy/kubernetes/`](../deploy/kubernetes/): what each manifest
 assumes, and the reasoning three of its numbers share. It complements

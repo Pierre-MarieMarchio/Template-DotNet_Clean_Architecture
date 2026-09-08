@@ -46,7 +46,7 @@ public sealed class ApplicationModuleTests
     /// abandonment purge, the orphan reclamation and the deposit inspection, are reached only from
     /// the worker.
     /// </summary>
-    private const int _knownUseCaseCount = 29;
+    private const int _knownUseCaseCount = 30;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];

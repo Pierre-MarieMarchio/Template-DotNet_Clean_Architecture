@@ -1,5 +1,5 @@
-﻿using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Domain.Features.TodoLists.ValueObjects;
+﻿using AppTemplate.Application.Common.Tagging;
+using AppTemplate.Domain.Features.TodoLists.Entities;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands.ReplaceTodoItemTags;
@@ -14,17 +14,10 @@ public sealed class ReplaceTodoItemTagsCommandValidator : AbstractValidator<Repl
         RuleFor(command => command.TodoItemId)
             .NotEmpty().WithMessage("An item id is required.");
 
-        // Stops at the first failure: the count rule below dereferences the set.
         RuleFor(command => command.Tags)
-            .Cascade(CascadeMode.Stop)
-            .NotNull().WithMessage("A tag set is required; send an empty list to clear the item's tags.")
-            .Must(tags => tags.Count <= TodoItem.MaxTags)
-            .WithMessage($"An item cannot carry more than {TodoItem.MaxTags} tags.");
+            .IsATagSet(TodoItem.MaxTags, "to-do item");
 
         RuleForEach(command => command.Tags)
-            .Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("A tag cannot be blank.")
-            .Must(tag => tag.Trim().Length <= Tag.MaxLength)
-            .WithMessage($"A tag cannot exceed {Tag.MaxLength} characters.");
+            .IsATag();
     }
 }

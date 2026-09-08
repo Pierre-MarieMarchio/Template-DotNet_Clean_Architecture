@@ -36,7 +36,8 @@ internal sealed class StoredFileMapper : IStoredFileMapper
             Sha256Checksum.Create(record.Checksum),
             record.State,
             record.RegisteredAt,
-            record.AvailableAt);
+            record.AvailableAt,
+            record.Tags.Select(tag => tag.Value));
 
         // The version and the audit stamps are read back through StoredStamps, not assigned here: the
         // aggregate exposes them as read-only properties, settable only through the explicit interfaces
@@ -50,7 +51,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
     {
         ArgumentNullException.ThrowIfNull(aggregate);
 
-        return new StoredFileRecord
+        var record = new StoredFileRecord
         {
             Id = aggregate.Id,
             OwnerId = aggregate.OwnerId,
@@ -79,6 +80,36 @@ internal sealed class StoredFileMapper : IStoredFileMapper
             LastModifiedAt = aggregate.LastModifiedAt,
             LastModifiedBy = aggregate.LastModifiedBy,
         };
+
+        // Tags are a collection with no setter, so they are reconciled rather than assigned — and
+        // reconciling an empty record against the aggregate is exactly an insert of each tag, which
+        // keeps one method responsible for the tag rows on both paths.
+        ReconcileTags(aggregate, record);
+
+        return record;
+    }
+
+    /// <summary>
+    /// The tag rows this file should end up with. By hand, and in both directions: a tag the
+    /// aggregate holds and the row does not is inserted, one the row holds and the aggregate does
+    /// not is deleted.
+    /// </summary>
+    private static void ReconcileTags(StoredFile aggregate, StoredFileRecord record)
+    {
+        var unmatched = record.Tags.ToDictionary(tag => tag.Value, StringComparer.Ordinal);
+
+        foreach (var tag in aggregate.Tags)
+        {
+            if (!unmatched.Remove(tag.Value))
+            {
+                record.Tags.Add(new StoredFileTagRecord { StoredFileId = aggregate.Id, Value = tag.Value });
+            }
+        }
+
+        foreach (var orphan in unmatched.Values)
+        {
+            record.Tags.Remove(orphan);
+        }
     }
 
     public void WriteTo(StoredFile aggregate, StoredFileRecord record)
@@ -100,6 +131,8 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         record.State = aggregate.State;
         record.RegisteredAt = aggregate.RegisteredAt;
         record.AvailableAt = aggregate.AvailableAt;
+
+        ReconcileTags(aggregate, record);
 
         // Version, CreatedAt, CreatedBy, LastModifiedAt and LastModifiedBy are deliberately NOT written
         // here. The concurrency token belongs to PostgreSQL and the audit stamps belong to the

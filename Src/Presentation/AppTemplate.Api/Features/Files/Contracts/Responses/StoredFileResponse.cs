@@ -27,4 +27,5 @@ public sealed record StoredFileResponse(
     string Checksum,
     string Status,
     DateTimeOffset RegisteredAt,
-    DateTimeOffset? AvailableAt);
+    DateTimeOffset? AvailableAt,
+    IReadOnlyList<string> Tags);

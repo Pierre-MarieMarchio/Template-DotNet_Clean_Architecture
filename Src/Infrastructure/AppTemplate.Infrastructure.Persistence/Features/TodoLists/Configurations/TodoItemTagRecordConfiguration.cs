@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Features.TodoLists.ValueObjects;
+﻿using AppTemplate.Domain.Common.Tagging;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 using Microsoft.EntityFrameworkCore;

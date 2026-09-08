@@ -64,7 +64,8 @@ internal static class AStoredFile
             Sha256Checksum.Create(checksum),
             StoredFileState.Available,
             StubDateTimeProvider.DefaultInstant,
-            StubDateTimeProvider.DefaultInstant.AddMinutes(1));
+            StubDateTimeProvider.DefaultInstant.AddMinutes(1),
+            []);
 
     internal static StoredFile AvailableOwnedBySomebodyElseThan(Guid notThisUserId) =>
         AvailableOwnedBy(AnotherOwnerThan(notThisUserId));
@@ -106,7 +107,8 @@ internal static class AStoredFile
             Sha256Checksum.Create(Checksum),
             StoredFileState.Quarantined,
             StubDateTimeProvider.DefaultInstant,
-            null);
+            null,
+            []);
 
     /// <summary>Placed at <paramref name="version"/> the way the store places a freshly loaded
     /// aggregate. Goes through <see cref="IVersioned"/> because that is the only way anything writes

@@ -17,7 +17,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -153,6 +153,20 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_StoredFiles_OwnerId_RegisteredAt_Id");
 
                     b.ToTable("StoredFiles", "files");
+                });
+
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileTagRecord", b =>
+                {
+                    b.Property<Guid>("StoredFileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("StoredFileId", "Value");
+
+                    b.ToTable("StoredFileTags", "files");
                 });
 
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Identity.Models.AppRole", b =>
@@ -554,6 +568,15 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("UserTokens", "identity");
                 });
 
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileTagRecord", b =>
+                {
+                    b.HasOne("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileRecord", null)
+                        .WithMany("Tags")
+                        .HasForeignKey("StoredFileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Identity.Models.RefreshToken", b =>
                 {
                     b.HasOne("AppTemplate.Infrastructure.Persistence.Features.Identity.Models.AppUser", "User")
@@ -632,6 +655,11 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileRecord", b =>
+                {
+                    b.Navigation("Tags");
                 });
 
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Identity.Models.AppUser", b =>

@@ -14,6 +14,7 @@ using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUpload;
 using AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
+using AppTemplate.Application.Features.Files.UseCases.Commands.ReplaceStoredFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
@@ -49,6 +50,9 @@ public sealed class FilesControllerTests
     private readonly IIssueFileDownloadUseCase _issueFileDownload = Substitute.For<IIssueFileDownloadUseCase>();
     private readonly IRegisterFileUseCase _registerFile = Substitute.For<IRegisterFileUseCase>();
     private readonly IConfirmFileUploadUseCase _confirmFileUpload = Substitute.For<IConfirmFileUploadUseCase>();
+    private readonly IReplaceStoredFileTagsUseCase _replaceStoredFileTags =
+        Substitute.For<IReplaceStoredFileTagsUseCase>();
+
     private readonly IDeleteStoredFileUseCase _deleteStoredFile = Substitute.For<IDeleteStoredFileUseCase>();
 
     #region Listing
@@ -457,7 +461,8 @@ public sealed class FilesControllerTests
             Checksum: new string('a', 64),
             state,
             _registeredAt,
-            state == StoredFileState.Available ? _registeredAt.AddMinutes(1) : null);
+            state == StoredFileState.Available ? _registeredAt.AddMinutes(1) : null,
+            Tags: []);
 
     /// <summary>
     /// Not <c>HttpContextFactory</c>: this class runs an <see cref="ActionResult"/> through MVC's own
@@ -504,7 +509,14 @@ public sealed class FilesControllerTests
     }
 
     private FilesController AController(HttpContext? httpContext = null) =>
-        new(_getStoredFiles, _getStoredFile, _issueFileDownload, _registerFile, _confirmFileUpload, _deleteStoredFile)
+        new(
+            _getStoredFiles,
+            _getStoredFile,
+            _issueFileDownload,
+            _registerFile,
+            _confirmFileUpload,
+            _replaceStoredFileTags,
+            _deleteStoredFile)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext ?? AContext() },
         };
@@ -528,8 +540,8 @@ public sealed class FilesControllerTests
             .ToList();
 
         actions.Count.ShouldBe(
-            6,
-            "This controller no longer has the six actions every attribute rule in this class is "
+            7,
+            "This controller no longer has the seven actions every attribute rule in this class is "
             + "written against, so those rules have stopped describing it.");
 
         return

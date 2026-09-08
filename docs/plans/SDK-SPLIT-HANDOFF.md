@@ -1,7 +1,8 @@
 # Handoff — where the SDK split stands, and what is left
 
 **Written:** 2026-09-07, at the end of wave 4. **Amended 2026-09-08**, when wave 6's five open
-questions were settled and the separation of authentication was scheduled.
+questions were settled and the separation of authentication was scheduled, and again at the end of
+wave 7.
 **Read this before touching anything.**
 
 This directory is exempt from `Tools/CheckDocPaths.cs`, so paths below may name a tree that does not
@@ -43,14 +44,17 @@ co-author trailer. Leave your own work staged (`git add -A` at the end of a wave
 | 5 | `AppTemplate.Api.Core` | done |
 | — | The audit pass, all three strands | done |
 | 6 | The missing pieces | done |
-| 7 | Documentation and close | not started |
+| 7 | Documentation and close | done, except one gate step this machine cannot run — see below |
 | — | `docs/plans/AUTH-SEPARATION.md`, waves A to D | not started, scheduled after 7 |
 | — | The comment-convention cleanup pass | not started, scheduled last |
 
-Measured at the end of the audit pass, not remembered:
+Measured at the end of wave 7, not remembered:
 
-- **15 projects** under `Src/`, **18** under `Tests/`.
+- **15 projects** under `Src/`, **18** under `Tests/` — 15 unit, 1 architecture, 2 integration.
 - **3328 tests**, 0 failing, 0 skipped (`dotnet test --solution AppTemplate.sln`).
+- **Line coverage 94.87%** in Debug (7329/7725) and **96.09%** in Release (6099/6347), both with
+  Docker present so both integration suites contribute. The floor is **90**, up from 88, by the
+  same arithmetic the previous move used: the margin is held constant and the number follows.
 - **131 architecture rules**, all passing — two more than wave 4 left, both added because the split
   created the gap they close: a host must install the core pipeline before any middleware of its
   own, and an SDK project without the ASP.NET framework reference may not acquire it from a package.
@@ -136,22 +140,43 @@ One rule is amended by wave 6: `InfrastructureModules_ReferenceOnlyPersistenceHo
 "only Persistence or the infrastructure `.Core`", keeping its non-vacuity assertion. That is what
 makes a shared infrastructure foundation legal without opening sideways references generally.
 
-### Wave 7 — documentation and close
+### Wave 7 — documentation and close. Done; nine lots, and what each produced.
 
-Its nine lots and their order are in `docs/plans/SDK-SPLIT-PLAN.md`; decisions 39 to 42 settle what
-was open. The subject is documentation, and the one measurement in it is the coverage floor. Three
-things are worth knowing before starting:
+The lots and their order are in `docs/plans/SDK-SPLIT-PLAN.md`; decisions 39 to 42 settled what was
+open. Lot 1 was committed ahead of the rest, which is why the arbitrations of this wave exist in
+these documents rather than only in a conversation.
 
-- **`AppTemplate.Infrastructure.Core` is named in no document at all** — not in the five the path
-  gate checks, not in `README.md`, not in `CONTRIBUTING.md`, not in `CHANGELOG.md` — while the other
-  five `.Core` projects are already described everywhere. It is the largest gap of the wave, and the
-  gate does not see it: the gate checks that a cited path exists, never that an existing project is
-  cited.
-- **The coverage lot runs alone and early.** It runs the whole suite, and a test host still holding
-  the DLLs fails the next build with MSB3021.
-- **The test-project counts to write are 15 unit plus 1 architecture**, out of 18 under `Tests/`.
-  Question 5 below carried "thirteen non-integration ones", measured before `Api.Core.UnitTests` and
-  `Infrastructure.Core.UnitTests` existed.
+Three findings worth keeping, because none of them was predicted by the plan:
+
+- **`Api.Core` was missing from `docs/ARCHITECTURE.md`'s layer table and Mermaid diagram**, not only
+  `Infrastructure.Core`. The claim above that "the other five `.Core` projects are already described
+  everywhere" was false of that document, and the path gate cannot see it: it checks that a cited
+  path exists, never that an existing project is cited. Both projects are in the table and the
+  diagram now, and the arrow count in the prose beneath it was re-counted twice as a result.
+- **Four other statements were stale rather than merely incomplete**, each found by reading the code
+  the sentence described: both hosts compose **ten** lines and not nine (`AddCacheStore` is the
+  sixth); `CONTRIBUTING.md` claimed three business `Common/` entries were null when tagging occupies
+  two of them, and put the project-walk floor at thirteen where the rule says fourteen; the
+  canonical tree carried the pre-split `AppTemplate.Api` folder list and had no `Api.Core` or
+  `Infrastructure.Core` row; and `README.md` said `AppTemplate.Application` has "no `Common/`
+  today". A count in prose is worth re-reading off the thing it counts, every time.
+- **`--configuration` does not reach `Tools/Tasks.cs` without a `--` separator**, because
+  `dotnet run` claims that option for itself. A "Release" coverage run without it executes the
+  `bin/Debug` DLLs and reports the Debug figure under the Release heading — it looked plausible
+  because it *was* a real measurement, of the wrong thing. `coverage.minimum` now states the
+  invocation. The file's own doc comment had said so all along.
+
+**One exit-gate step cannot run on this machine**, and it is the environment rather than the tree:
+`dotnet run Tools/Tasks.cs verify` ends on
+`dotnet ef migrations has-pending-model-changes`, and `dotnet tool restore` fails with
+`Settings file 'DotnetToolSettings.xml' was not found in the package`. The nupkg downloads and is
+well-formed — it carries `tools/net8.0/any/DotnetToolSettings.xml` — but the SDK extracts nothing to
+`~/.nuget/packages/dotnet-ef/`, leaving the directory empty. Not `rollForward`: a scratch manifest
+with `rollForward: true` fails identically, and it fails the same way with the sandbox disabled. The
+guarantee that step buys is asserted anyway by `PendingModelChangesTests`, which needs no database
+and passed among the 3328. Everything else in the gate is green: build with 0 warnings, all six
+gates and their self-tests, `dotnet format --verify-no-changes`, six clean `dotnet pack`s, and both
+container images.
 
 ### Then, two chantiers of their own
 

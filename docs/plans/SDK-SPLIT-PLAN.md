@@ -1,6 +1,9 @@
 # Splitting the template — plan of record
 
-**Status:** agreed, not started. **Decided:** 2026-09-07.
+**Status:** waves 0 to 7 done, on `main`. **Decided:** 2026-09-07. **Wave 7 closed:** 2026-09-08 —
+`docs/plans/SDK-SPLIT-HANDOFF.md` carries the state, the measurements and the one gate step this
+machine cannot run. What remains is the two chantiers named at the end: the separation of
+authentication, and the comment-convention cleanup pass.
 
 This directory is exempt from `Tools/CheckDocPaths.cs` (see its `ExemptDirectoryNames`): a plan
 cites the tree it intends to create, so its paths are claims about a future tree.

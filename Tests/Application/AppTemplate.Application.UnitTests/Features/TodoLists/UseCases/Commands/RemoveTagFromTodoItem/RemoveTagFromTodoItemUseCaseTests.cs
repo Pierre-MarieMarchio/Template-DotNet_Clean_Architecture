@@ -16,6 +16,7 @@ public sealed class RemoveTagFromTodoItemUseCaseTests
 
     private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly RecordingCacheStore _cache = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -73,7 +74,7 @@ public sealed class RemoveTagFromTodoItemUseCaseTests
     }
 
     private RemoveTagFromTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(new TodoListService(_repository, currentUser), _unitOfWork, new RemoveTagFromTodoItemCommandValidator());
+        new(new TodoListService(_repository, currentUser), _unitOfWork, _cache, new RemoveTagFromTodoItemCommandValidator());
 
     private RemoveTagFromTodoItemUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

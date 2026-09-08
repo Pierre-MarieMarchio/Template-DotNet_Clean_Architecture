@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Core.Common.Concurrency;
+﻿using AppTemplate.Application.Common.Tagging;
+using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -16,6 +17,7 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.ReplaceStored
 public sealed class ReplaceStoredFileTagsUseCase(
     IStoredFileService files,
     IUnitOfWork unitOfWork,
+    ICacheStore cache,
     IValidator<ReplaceStoredFileTagsCommand> validator) : IReplaceStoredFileTagsUseCase
 {
     public async Task<Result<Versioned<StoredFileDto>>> ExecuteAsync(
@@ -51,6 +53,10 @@ public sealed class ReplaceStoredFileTagsUseCase(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await cache.RemoveAsync(
+            UsedTagsCache.KeyFor(UsedTagsCache.FileScope, file.OwnerId),
+            cancellationToken);
 
         return StoredFileDtoMapping.ToVersioned(file);
     }

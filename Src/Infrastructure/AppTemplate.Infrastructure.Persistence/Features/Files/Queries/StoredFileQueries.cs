@@ -71,6 +71,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
                 file.Version))
             .FirstOrDefaultAsync(cancellationToken);
 
+
     public async Task<OwnerStorageUsage> GetUsageForOwnerAsync(
         Guid ownerId,
         CancellationToken cancellationToken = default)

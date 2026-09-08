@@ -463,21 +463,33 @@ missing, not a folder.
 
 ## Comments
 
-Minimal, short, and about *why*. The test is: **if I delete this comment, can someone introduce a
-bug?** If not, it goes.
+Minimal and short. A comment says **what** something does, or **how** it works, when the signature
+does not. It never says why the thing has this shape rather than another. The test is: **if I delete
+this comment, can someone introduce a bug?** If not, it goes.
+
+A developer arriving on this repository has to be able to understand the architecture and the code
+by navigating them. So:
+
+- **No paraphrase of the code.**
+- **No orchestration or construction commentary** — what was weighed, what was rejected, why this
+  call sits here. That is noise between the next reader and the code.
+- **No narration of the repository's own history.**
+- **XML doc only when it says something the signature does not**, and not on every public member by
+  reflex.
+
+**Rationale lives in `docs/`.** Measurements, rejected options and arbitrations belong in
+`docs/ARCHITECTURE.md` and in `docs/plans/`, where a reader who wants them can address them
+directly. A design decision worth keeping is worth a section there, not a paragraph above a method.
 
 <!-- narrative-ok: stating this rule requires quoting the phrases it bans -->
-Specifically banned: comments that paraphrase the code, and comments that narrate the repository's
-own history ("this used to…", "the old implementation…", "fixed the bug where…"). Git holds that.
-XML doc only when it says something the signature does not.
-
-`Tools/CheckNarrativeComments.cs` executes the second half of that rule over every
-`.cs` and `.md` file, `CHANGELOG.md` excepted — narrating history is what a changelog is for. Its
-pattern list is deliberately narrow, because the same words are legitimate or banned depending on
-the tense they carry: "a v2 added later would show up inside the v1" is design rationale, and no
-regular expression separates it from a sentence about this repository's past. A line that cannot
-avoid the construction carries a `narrative-ok: <reason>` marker, and the marker count is printed
-so exemptions cannot spread unnoticed.
+`Tools/CheckNarrativeComments.cs` executes the history half of that rule over every `.cs` and
+`.md` file, `CHANGELOG.md` excepted — narrating history is what a changelog is for. Its pattern
+list ("this used to…", "the old implementation…", "fixed the bug where…") is deliberately narrow,
+because the same words are legitimate or banned depending on the tense they carry: "a v2 added
+later would show up inside the v1" is design rationale, and no regular expression separates it from
+a sentence about this repository's past. A line that cannot avoid the construction carries a
+`narrative-ok: <reason>` marker, and the marker count is printed so exemptions cannot spread
+unnoticed.
 
 ## Tests
 

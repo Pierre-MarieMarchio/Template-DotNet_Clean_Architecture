@@ -55,6 +55,9 @@ dotnet format AppTemplate.sln --verify-no-changes  # clean
 dotnet ef migrations has-pending-model-changes \
   --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
   --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
+dotnet ef migrations has-pending-model-changes \
+  --project Src/Infrastructure/AppTemplate.Infrastructure.Auth \
+  --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Auth
 dotnet list package --vulnerable --include-transitive   # reports nothing
 dotnet run Tools/Tasks.cs coverage         # line coverage >= coverage.minimum
 dotnet run Tools/Tasks.cs hygiene          # doc paths resolve, workflows are sound
@@ -148,13 +151,14 @@ AppTemplate.Application.Auth/
                                   UseCases/{Commands,Queries}/<Operation>}
                    one feature, so nothing is shared between features here
 AppTemplate.Infrastructure.Core/
-                   Common/{Caching,Saving/{Auditing,DomainEvents,Tracking},Templating,Time}
+                   Common/{Caching,Contexts,Options,Saving/{Auditing,DomainEvents,Tracking},
+                           Templating,Time}
                    no Features/: a mechanism a module needs and no module owns
 AppTemplate.Infrastructure.Persistence/
-                   Common/{Contexts,Idempotency,Leases,Options}
+                   Common/{Contexts,Idempotency,Leases}
                    Features/<F>/{Models,Configurations,Mapping,Tracking,Repositories,Queries,
-                                 Observability,Seeding,Tables}
-                   Migrations/
+                                 Observability}
+                   Migrations/            the business half's, one history
 AppTemplate.Presentation.Core/
                    Common/{Jobs,Localization,Observability,Outbound,Security}
                    no Features/: what any host needs whatever its transport belongs
@@ -170,9 +174,11 @@ AppTemplate.Worker/         Common/{Observability,Security}
                    Features/<F>/            one BackgroundService, its options, its metrics
 AppTemplate.Infrastructure.Email/       Common/{Http,Smtp}       Features/<F>/
 AppTemplate.Infrastructure.InMemory/    Common/{Email,Time}      Features/<F>/
-AppTemplate.Infrastructure.Identity/    Common/{Directories,Options}
-                   Features/Auth/{Directories,Factories,Issuers,Logs,Options,Providers,
-                                  Services,Templates,Verifiers}
+AppTemplate.Infrastructure.Auth/    Common/{Contexts,Directories,Options}
+                   Features/Auth/{Configurations,Directories,Factories,Issuers,Logs,Models,
+                                  Options,Providers,Seeding,Services,Tables,Templates,
+                                  Verifiers}
+                   Migrations/            its own, in the identity schema
 AppTemplate.Infrastructure.Storage/     Common/{Budgets,Factories,Options}
                    Features/Files/{Inspectors,Inventories,Options,Scanners,Stores}
 Tests/             a 1:1 mirror of Src/

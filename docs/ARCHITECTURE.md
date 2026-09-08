@@ -33,11 +33,11 @@ graph RL
     Worker[AppTemplate.Worker<br/>three BackgroundServices, composition root]
     ApiCore[AppTemplate.Api.Core<br/>the HTTP pipeline behind one UseCorePipeline:<br/>problem details, ETags, idempotency, rate limiting,<br/>security headers, versioning, health]
     PresCore[AppTemplate.Presentation.Core<br/>one outbound HTTP policy, the default language,<br/>OTLP traces and metrics, the no-caller identity,<br/>the loop recurring work runs on]
-    Ident[AppTemplate.Infrastructure.Identity<br/>ASP.NET Identity policy, JWT, refresh tokens]
+    Ident[AppTemplate.Infrastructure.Auth<br/>ASP.NET Identity policy, JWT, refresh tokens]
     Mail[AppTemplate.Infrastructure.Email<br/>MailKit SMTP]
     Store[AppTemplate.Infrastructure.Storage<br/>S3-compatible object store]
     Mem[AppTemplate.Infrastructure.InMemory<br/>in-memory ports]
-    Pers[AppTemplate.Infrastructure.Persistence<br/>the one DbContext, interceptors, unit of work,<br/>per-feature models, mapping, repositories, queries]
+    Pers[AppTemplate.Infrastructure.Persistence<br/>the business context, per-feature models,<br/>mapping, trackers, repositories, queries,<br/>the idempotency table, the Postgres lease]
     InfraCore[AppTemplate.Infrastructure.Core<br/>the unit of work, the three save interceptors,<br/>the aggregate tracker, the clock, multilingual mail,<br/>the cache adapter behind ICacheStore]
     App[AppTemplate.Application<br/>the business features: use cases, feature ports, DTOs]
     Auth[AppTemplate.Application.Auth<br/>sign-in, accounts, tokens, two-factor,<br/>behind twenty ports — no domain type]
@@ -93,7 +93,7 @@ graph RL
 **Authentication is never carried transitively.** Nothing in `AppTemplate.Application.Core` and
 nothing in `AppTemplate.Application` names `AppTemplate.Application.Auth`, so a project that needs
 it declares it: the identity module, the email module (its reminder notifier resolves a user profile
-to find an address), the in-memory doubles, and both hosts. `AppTemplate.Infrastructure.Identity`
+to find an address), the in-memory doubles, and both hosts. `AppTemplate.Infrastructure.Auth`
 declares no arrow to `AppTemplate.Application` at all — it implements twenty Auth ports and nothing
 else.
 
@@ -316,12 +316,12 @@ project names no aggregate: an account here is what its ports say about it.
 ## Infrastructure is split per capability, with no per-technology sub-split
 
 Each capability gets one project, one DI extension method, and — where it needs
-storage — one DbContext in one schema:
+storage — one DbContext over the schemas it owns:
 
 | Module | Registers | Storage |
 |---|---|---|
-| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, the interceptor pipeline, `IUnitOfWork`, `ILeaderLease`, the aggregate repositories and read-side ports, `IRefreshTokenTable`, `IIdentitySeeder` | `AppDbContext` → `identity`, `todo`, `reminders`, `files`, `platform` |
-| `AppTemplate.Infrastructure.Identity` | the authentication ports, ASP.NET Identity, JWT bearer, refresh-token rotation | — (uses the shared context) |
+| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, `IUnitOfWork`, `ILeaderLease`, the aggregate repositories and read-side ports, the idempotency store | `AppDbContext` → `todo`, `reminders`, `files`, `platform` |
+| `AppTemplate.Infrastructure.Auth` | the authentication ports, ASP.NET Identity, JWT bearer, refresh-token rotation, `IRefreshTokenTable`, `IIdentitySeeder` | `AuthDbContext` → `identity` |
 | `AppTemplate.Infrastructure.Email` | `IEmailSender`, `IReminderNotifier`, email options | — |
 | `AppTemplate.Infrastructure.Storage` | `IFileContentStore`, `IFileContentInventory`, storage options | one S3-compatible bucket |
 | `AppTemplate.Infrastructure.InMemory` | in-memory port implementations for tests and demos | — |
@@ -402,7 +402,7 @@ rather than two, and why EF maps rows rather than aggregates.
 hosts' composition roots are the same ten lines, in the same order — `AddTodoLists()`,
 `AddReminders()`, `AddFiles()`, then `AddAuthApplication()`, then
 `AddPurgeExpiredIdempotencyKeys()`, then `AddCacheStore()`, then
-`AddPersistenceModule(builder.Configuration)`, `AddIdentityModule`, `AddEmailModule` and
+`AddPersistenceModule(builder.Configuration)`, `AddAuthModule`, `AddEmailModule` and
 `AddStorageModule`. The first six take no argument, because nothing in the application layer binds a
 configuration section of its own and the cache decides its lifetimes at each call site; the four
 modules each take one. Adding a capability adds one line there and touches nothing else; removing
@@ -427,7 +427,7 @@ neither `AppTemplate.Application` nor `AppTemplate.Application.Core` names anyth
 
 What does **not** hold is the larger claim that a container builds without authentication. In this
 template it does not, and
-`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer`
+`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
 pins the two reasons so they cannot quietly stop being the reasons. `IIdentitySeeder` is registered
 by the *persistence* module and needs a `UserManager` that only the identity module supplies, so
 persistence alone cannot be composed. And `IReminderNotifier`, which the reminder feature's own use
@@ -677,7 +677,7 @@ answers that as `409` with the stable code `concurrency.conflict` in an
 `application/problem+json` body. Nothing is retried: re-applying a decision made against
 state that no longer exists is the lost update the token exists to prevent.
 
-## One DbContext, one database, five schemas
+## Two contexts, one database, five schemas
 
 | Schema | Tables |
 |---|---|
@@ -689,44 +689,69 @@ state that no longer exists is the lost update the token exists to prevent.
 
 Four of those name a feature; `platform` is the one that does not, and it exists precisely so
 that a table belonging to no feature — the idempotency key store is the first of them — is not
-filed under a feature that would be a lie. `__EFMigrationsHistory` sits in `public`, outside
-every module schema, for the same reason taken one step further: it describes the database
-rather than anything in it. The constants are on `AppDbContext` (`IdentitySchema`, `TodoSchema`,
-`RemindersSchema`, `FilesSchema`, `PlatformSchema`, `MigrationsHistorySchema`), so a schema name
+filed under a feature that would be a lie. The business half's `__EFMigrationsHistory` sits in
+`public`, outside every module schema, for the same reason taken one step further: it describes the
+database rather than anything in it. The authentication half's carries the same name inside
+`identity`, beside the tables it records, so the two histories on this database are told apart by
+the same thing that tells their tables apart. Each context declares the schema names it owns as
+constants — `TodoSchema`, `RemindersSchema`, `FilesSchema`, `PlatformSchema` and
+`MigrationsHistorySchema` on `AppDbContext`, `IdentitySchema` on `AuthDbContext` — so a schema name
 is spelled once.
 
-There is one `AppDbContext`, deriving from `IdentityDbContext<AppUser, AppRole, Guid>` and also
-mapping the to-do list, reminder and file features' rows. Every table names its own schema in its
-own `IEntityTypeConfiguration`, so no default schema is set and a mapping cannot drift
-into the wrong schema by omission.
+There are two contexts, and the line between them is what the halves of this system are.
+`AppDbContext`, in `AppTemplate.Infrastructure.Persistence`, maps the to-do list, reminder and file
+features' rows and the idempotency table. `AuthDbContext`, in `AppTemplate.Infrastructure.Auth`,
+derives from `IdentityDbContext<AppUser, AppRole, Guid>` and maps everything in `identity`. Every
+table names its own schema in its own `IEntityTypeConfiguration`, so no default schema is set and a
+mapping cannot drift into the wrong schema by omission.
 
 It resolves from the **single `ConnectionStrings:Default`**, and one key is what one database is
 owed: a second key pointing at the same server is a second thing to keep in step, free to be
 configured inconsistently, and nothing notices until runtime.
 
-**Why one context and not two.** Two existed so that each module could be migrated
-independently from its own project. Once all persistence lives in one project that
-premise is gone, and one context buys something the split could not: a real transaction
-spanning an identity write and a domain write. It also removes a class of deployment
-state the split makes reachable — two histories that disagree about what has been
-applied, leaving one feature's schema ahead of the other's.
+**Why two contexts and not one.** Authentication is the part of this template a derived project is
+most likely to replace wholesale, and a module cannot be replaced while its tables are mapped by
+somebody else's model. Each context has its own migrations history — the business half's in `public`,
+the authentication half's in `identity`, beside the tables it records — so each half migrates without
+the other's permission and removing one is deleting a project rather than editing a shared model.
 
-**The boundary the split was protecting is kept by other means.** The risk of one model
-was a domain entity acquiring a navigation property to `AppUser` — a foreign key from
-the domain to the identity provider, which is what makes swapping the provider later
-impossible. That cannot happen now for a stronger reason than context separation: EF does
-not map the domain entities at all. `TodoListRecord.OwnerId` is a bare `Guid` column with
-no navigation, and `TodoList.OwnerId` is a bare `Guid` in a project that has no reference
-to EF Core or to ASP.NET Identity. The architecture tests assert both.
+**What that costs, stated rather than discovered.** Two contexts are two units of work, so no
+transaction spans an identity write and a business write. Nothing needs one: no code path commits
+both, which was measured before the split rather than hoped for. And two histories can disagree
+about what has been applied — the API's Development bootstrap applies both in one pass to keep that
+window as short as one process can make it, and a deployment applies each as its own explicit step.
+
+**The commit boundary is typed, because the untyped one cannot tell them apart.** A container
+registers `IUnitOfWork` once; a module whose writes were staged on the second context would have
+them committed by the first, and `SaveChangesAsync` on a context with nothing tracked succeeds
+reporting zero rows. So a module that owns a context takes
+`IContextUnitOfWork<TContext>`, and the unnamed port a use case takes is registered by the module
+that owns the business context. That is the one failure this split could have introduced silently,
+and it is designed out rather than tested for.
+
+**No foreign key crosses the line, and two things keep it that way.** The risk is a domain entity
+acquiring a navigation property to `AppUser` — a foreign key from the business to the identity
+provider, which is what makes swapping the provider later impossible. Separate contexts make it
+impossible to declare: EF cannot relate entities in two models. And it could not happen inside one
+either, because EF does not map the domain entities at all — `TodoListRecord.OwnerId` is a bare
+`Guid` column with no navigation, and `TodoList.OwnerId` is a `UserId`, an opaque owner in a project
+with no reference to EF Core or to ASP.NET Identity. The architecture tests assert both.
 
 **Why one database.** Two databases would mean two connection strings, two backup
 schedules, and no transaction spanning both. Separate *schemas* give the isolation that
 matters — no table-name collisions, grantable separately — at none of that cost.
 
-`AppDbContextFactory` is a design-time factory reading `ConnectionStrings__Default` from
-the environment, with a visible localhost fallback, so `dotnet ef` works without booting
-the host. Two contexts on one database were tried first and merged: a second context bought a
-boundary the schema already had, and cost a second migration history.
+Each context has a design-time factory — `AppDbContextFactory` and `AuthDbContextFactory` — reading
+`ConnectionStrings__Default` from the environment with a visible localhost fallback, so `dotnet ef`
+works on either without booting a host. Each names its own history table there as well as at
+runtime: configured in only one of the two places, the tool would record a migration where the
+runtime does not look, which with two histories on one database means the other half's.
+
+**One connection string means one pool.** Npgsql pools per connection string, so both contexts
+building the identical string share a single pool bounded by `Database:MaxPoolSize`. That is why
+`DatabaseOptions` lives in `AppTemplate.Infrastructure.Core` and both modules bind the same section
+into it: two modules deriving the bound separately would give a deployment two pools of that size
+instead of one.
 
 ### Why a separate row type at all
 
@@ -780,7 +805,7 @@ change tracker useful without it ever seeing the aggregate.
 | Migrations at startup in production | Development only; a deployment applies them as an explicit step. |
 | An outbox | Domain-event handlers run in-process, after the commit, so delivery is at-most-once and there is no reliable integration with another system. If a handler must reach one, add an outbox — do not do the I/O inline. |
 | Permissions, policies, or tenants | Authorisation is one role. `AuthorizationPolicies.Administrator` requires the `Admin` role and is the only policy beside the default-deny fallback, and nothing anywhere carries a tenant. Policies extend where that one is registered, in `AppTemplate.Api/Common/Security/AuthorizationPolicies.cs`, or through ASP.NET Core's own `IAuthorizationPolicyProvider` for a permission set computed rather than listed. A tenant is not a policy, though: every owned aggregate holds a bare `Guid OwnerId`, and a tenant would be a second column beside it on every table and in every ownership check. |
-| Machine-to-machine authentication | No API keys and no client-credentials flow: every token this template mints belongs to a person who signed in. The extension point is a second authentication scheme beside the bearer one `AddIdentityModule` registers, and `IAccessTokenIssuer` is the port a client-credentials grant would mint through. |
+| Machine-to-machine authentication | No API keys and no client-credentials flow: every token this template mints belongs to a person who signed in. The extension point is a second authentication scheme beside the bearer one `AddAuthModule` registers, and `IAccessTokenIssuer` is the port a client-credentials grant would mint through. |
 | A message bus or queue port | The Worker polls the database on a timer, and the operations that must not run twice at once take `ILeaderLease` — a Postgres advisory lock — rather than relying on a single consumer. A broker would arrive the way every other capability does: a port in `AppTemplate.Application.Core/Common/Ports/`, an adapter in a module of its own, one line in each host's composition. |
 | Minimal APIs | Everything is MVC. The idempotency filter is an action filter, `ApiControllerBase` does the result-to-response mapping, and the ETag handling hangs off the same machinery — so a minimal endpoint mapped beside the controllers inherits none of it and is not supported. Nothing stops one being mapped; what it costs is those three, each of which would have to be re-expressed as an endpoint filter. |
 | SMS, push notifications, feature flags, a business audit log | `IEmailSender` is the only notification port, and a second channel is a second port beside it rather than a widening of that one. The audit columns are not a log: they record who last wrote a row, not what changed, so a history is a table of its own — the interceptor pipeline in `AppTemplate.Infrastructure.Persistence/Common/` is where one would be written. |

@@ -20,7 +20,8 @@ different stores — enough to show an aggregate, a read/write port split and a
 
 - **.NET 10** (`net10.0`), SDK pinned by `global.json`
 - **PostgreSQL** through `Npgsql.EntityFrameworkCore.PostgreSQL`, one connection
-  string, one `DbContext`, one migrations history, five schemas
+  string and one pool, two `DbContext`s — business and authentication — with a
+  migrations history each, over five schemas
 - **ASP.NET Identity** + JWT bearer, opaque refresh tokens that rotate on every
   use, email confirmation by POST, logout that actually revokes
 - **Default-deny authorisation** — a fallback policy requires an authenticated
@@ -622,7 +623,7 @@ curl -s -X POST http://localhost:8080/api/v1/auth/register \
 ```
 
 **Adding a language is adding files.** Drop `<Mail>EmailTemplate.<tag>.html` beside the ones
-in `Src/Infrastructure/AppTemplate.Infrastructure.Identity/Features/Auth/Templates/` and
+in `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates/` and
 `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/`, and that language
 is available — there is no list to update, because a list could name a language no template
 backs. `EmailTemplateCoverageTests` refuses a language added to one folder and not the other,
@@ -910,14 +911,16 @@ Src/
                                       ICacheStore: a mechanism a module needs and no module
                                       owns, written as a package and vendored
                                       -> Application.Core only
-    AppTemplate.Infrastructure.Persistence/    ALL persistence: the one DbContext, the per-feature
-                                      models, mapping, trackers, repositories, queries and
-                                      stores, the idempotency table and the Postgres lease.
-                                      What it saves *through* is Infrastructure.Core's
+    AppTemplate.Infrastructure.Persistence/    the business half's persistence: its DbContext, the
+                                      per-feature models, mapping, trackers, repositories,
+                                      queries and stores, the idempotency table and the
+                                      Postgres lease. What it saves *through* is
+                                      Infrastructure.Core's; authentication stores its own
                                       -> Application.Core + Application + Infrastructure.Core
-    AppTemplate.Infrastructure.Identity/       ASP.NET Identity policy, JWT, refresh-token rotation
-                                      (no database of its own)
-                                      -> Application.Core + Application.Auth + Persistence
+    AppTemplate.Infrastructure.Auth/       ASP.NET Identity policy, JWT, refresh-token rotation,
+                                      and the storage behind them: AuthDbContext over the
+                                      identity schema, with a migrations history of its own
+                                      -> Application.Core + Application.Auth
                                       + Infrastructure.Core
     AppTemplate.Infrastructure.Email/          MailKit SMTP sender, email options
                                       -> Application.Core + Application + Application.Auth
@@ -963,7 +966,7 @@ Tests/
                                         exception translation, and the event dispatcher
   Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/
                                         the domain <-> row mapper, reflection-driven
-  Infrastructure/AppTemplate.Infrastructure.Identity.UnitTests/  the authentication adapters
+  Infrastructure/AppTemplate.Infrastructure.Auth.UnitTests/  the authentication adapters
   Infrastructure/AppTemplate.Infrastructure.Email.UnitTests/     the MailKit sender, in isolation
   Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests/   the S3 adapters, without a network
   Infrastructure/AppTemplate.Infrastructure.InMemory.UnitTests/  the test/demo doubles themselves
@@ -978,7 +981,7 @@ Tests/
   Presentation/AppTemplate.Worker.UnitTests/     the three loops, their options and their resilience
   Architecture/AppTemplate.Architecture.Tests/   layer/module rules + container composition
   Integration/AppTemplate.Api.IntegrationTests/  the real host over HTTP, real PostgreSQL
-  Integration/AppTemplate.Infrastructure.Identity.IntegrationTests/
+  Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/
                                         the refresh-token rotation race, two concurrent
                                         AppDbContext instances against real PostgreSQL
 
@@ -1195,7 +1198,7 @@ test forced it there.
 
 The word "Module" is kept for exactly one thing: dependency-injection registration classes
 — `ApplicationCoreModule`, `ApplicationModule`, `ApplicationAuthModule`,
-`PresentationCoreModule`, `PersistenceModule`, `IdentityModule`, `EmailModule`, `StorageModule` and
+`PresentationCoreModule`, `PersistenceModule`, `AuthModule`, `EmailModule`, `StorageModule` and
 `InMemoryModule`. That is a composition
 concept, not a business partition. `ApplicationCoreModule` is the odd one: it offers the
 registration helpers the layer above composes with — `AddUseCasesFrom`, `AddUseCases`,
@@ -1214,7 +1217,7 @@ the assembly manifests: neither the business features nor the mechanisms name an
 `AppTemplate.Application.Auth`. So the application layer is genuinely free of it.
 
 The infrastructure underneath is not, and
-`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByTwoInfrastructureCouplings_NotByTheApplicationLayer`
+`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
 names the two that hold it: `IIdentitySeeder`, registered by the *persistence* module and needing a
 `UserManager` only the identity module supplies, so that pair is bidirectional; and
 `IReminderNotifier`, whose one adapter is in the email module, whose own reminder notifier resolves
@@ -1244,7 +1247,7 @@ name it. Neither is
 `AppTemplate.Application.Auth`, and for a sharper reason — a project that needs authentication
 declares it, so that a project which does not can drop it. Five do declare it: the identity module
 (twenty ports), the email module (its reminder notifier resolves a user profile to find an
-address), the in-memory doubles, and both hosts. `AppTemplate.Infrastructure.Identity` declares no
+address), the in-memory doubles, and both hosts. `AppTemplate.Infrastructure.Auth` declares no
 reference to `AppTemplate.Application` at all. Only `AppTemplate.Api` knows about all of them, and
 only to wire them up. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

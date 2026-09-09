@@ -92,7 +92,9 @@ of the contract.
 | `precondition.failed` | 412 — the `If-Match` a write named is stale, unrecognised, or `*` against a missing/foreign resource |
 | `precondition.required` | 428 — only when `Concurrency:IfMatch` is `Required`; the write named no version at all |
 | `precondition.malformed` | 400 — `If-Match` is present but is neither `*` nor a comma-separated list of quoted entity tags |
+| `concurrency.conflict` | 409 — a lost update: the row changed between the read and the save, and the write was not conditioned on a version that would have caught it first. Reload and apply the change again |
 | `idempotency.keyInvalid` | 400 — the `Idempotency-Key` header is blank or over 128 characters |
+| `idempotency.callerNotIdentifiable` | 400 — an `Idempotency-Key` was sent on a request with no caller this server can identify. Keys are scoped per user, so there is nothing to scope it to |
 | `idempotency.keyReused` | 409 — the same key with a different body |
 | `idempotency.inProgress` | 409 — the first request under this key has not finished |
 | `idempotency.notReplayable` | 409 — the stored response cannot be replayed |

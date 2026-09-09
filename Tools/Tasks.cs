@@ -379,7 +379,7 @@ internal static class Tasks
     /// No JRE on the machine, which is the whole reason this is a task rather than a paragraph
     /// telling you to install one. SonarScanner for .NET is a .NET tool that shells out to Java,
     /// and <c>Tools/sonar-scanner.Dockerfile</c> is where that Java lives, so the prerequisites
-    /// stay what <c>CONTRIBUTING.md</c> says they are: the SDK from <c>global.json</c>, and Docker.
+    /// stay what <c>docs/BUILD-AND-CI.md</c> says they are: the SDK from <c>global.json</c>, and Docker.
     /// </para>
     /// <para>
     /// Build output goes to <c>artifacts/sonar</c>, which is gitignored: the per-project

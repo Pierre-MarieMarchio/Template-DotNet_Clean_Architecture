@@ -10,7 +10,7 @@
 /// assembly, so nothing outside it can write a grant that skipped those decisions.
 /// </para>
 /// <para>
-/// A <em>table</em> rather than a repository or a store. <c>CONTRIBUTING.md</c> sets out what each
+/// A <em>table</em> rather than a repository or a store. <c>docs/DECISIONS.md</c> sets out what each
 /// of those four storage words names and why this contract is a table;
 /// <c>StorageVocabularyTests</c> holds the distinction.
 /// </para>

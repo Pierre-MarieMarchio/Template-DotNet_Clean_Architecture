@@ -385,3 +385,13 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Agent worktrees
+# A git worktree created here is a second checkout sitting inside this one, and everything
+# that walks the tree finds it: `dotnet format` compiles its copy of the solution,
+# Tools/CheckNarrativeComments.cs scans every file twice, and Tools/CheckDocPaths.cs resolves
+# its documents against THIS root, where a file the worktree has just added does not exist —
+# so a correct citation is reported as a broken one. Those gates ask git for the ignore list
+# rather than reimplementing it, which is what makes one line here enough for all of them.
+# It also keeps `git add -A` from committing a whole nested repository.
+.claude/worktrees/

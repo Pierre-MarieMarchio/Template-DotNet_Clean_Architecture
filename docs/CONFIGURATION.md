@@ -201,6 +201,20 @@ Types are the bound CLR types. "Required" means startup fails without it. Defaul
 the property initialisers on the options class, which apply when the key is absent —
 they are **not** the values in `appsettings.Development.json`, which override them.
 
+**Find your section.** The two entries at the end are the ones to read even when no key sends you
+there: what is deliberately not configurable, and how a key becomes an environment variable.
+
+| | Sections |
+|---|---|
+| Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Storage`](#storage) · [`ContentInspection`](#contentinspection) |
+| Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
+| Mail | [`Email:Transport`](#emailtransport--smtp-or-an-http-api) · [`Email`](#email) · [`Postmark`](#postmark) · [`EmailConfirmation`](#emailconfirmation) · [`PasswordReset`](#passwordreset) · [`EmailChange`](#emailchange) · [`Localization`](#localization) |
+| The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [rate limiting](#rate-limiting--one-seam-one-implementation-and-no-redis) |
+| Correctness mechanisms | [`Concurrency`](#concurrency) · [`Idempotency`](#idempotency) · [`IdempotencyPurge`](#idempotencypurge) |
+| Lifecycle and observability | [`Shutdown`](#shutdown) · [`OpenTelemetry`](#opentelemetry) · [standard ASP.NET Core keys](#standard-aspnet-core-keys) |
+| `AppTemplate.Worker` only | [`FileWorker`](#fileworker--apptemplateworker-only) · [`MaintenanceWorker`](#maintenanceworker--apptemplateworker-only) · [`ReminderWorker`](#reminderworker--apptemplateworker-only) |
+| Read these anyway | [not configurable, and why](#not-configurable--and-why-that-is-worth-knowing) · [outbound HTTP](#outbound-http--deliberately-not-configurable) · [environment-variable mapping](#environment-variable-mapping) |
+
 ### `ConnectionStrings`
 
 | Key | Type | Default | Notes |

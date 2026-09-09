@@ -1,6 +1,6 @@
 ﻿# Adding a feature
 
-A worked walkthrough of the vertical `CONTRIBUTING.md`'s "Adding a feature" section
+A worked walkthrough of the vertical [`../CONTRIBUTING.md`](../CONTRIBUTING.md#adding-a-feature)
 summarises: aggregate → EF model → mapper → tracker → repository → use case (with its
 named interface) → controller → tests → migration. `TodoLists` is the real example
 running through every step below — open the file next to the paragraph describing
@@ -33,6 +33,23 @@ conventions require, and nothing else — no property the domain has not been as
 nobody stated. **It creates files and edits none**, because registration is opt-in per feature
 precisely so that a feature nobody composes is visibly registered nowhere; it prints the five edits
 instead. Read the sections below for what to put in what it wrote.
+
+**The vertical, in order**
+
+1. [Domain — the aggregate](#1-domain--the-aggregate)
+2. [Application — the use case and its port](#2-application--the-use-case-and-its-port)
+3. [Persistence — model, mapping, tracker, repository](#3-persistence--model-mapping-tracker-repository)
+4. [API — controller and contracts](#4-api--controller-and-contracts)
+5. [Tests](#5-tests)
+6. [Migration](#6-migration)
+
+**When your feature is not shaped like `TodoLists`**
+
+- [Not only rows — the `Files` example](#4b-when-the-feature-is-not-only-rows--the-files-example)
+- [No child entities — the `Reminders` example](#4c-when-the-aggregate-has-no-child-entities--the-reminders-example)
+- [It shares, caches, or runs on a timer](#4d-when-the-feature-shares-caches-or-runs-on-a-timer)
+- [The closed lists a new feature lands in](#5b-the-closed-lists-a-new-feature-lands-in) — the
+  dictionaries that fail the build until they name your feature
 
 ## 1. Domain — the aggregate
 
@@ -283,7 +300,7 @@ Four rules, and they are the whole reason this is safe:
 4. **The filter is typed, never a string that becomes a predicate.** Each filter
    is a named parameter with a CLR type and a validating factory returning
    `Result<T>`; free text goes through `SearchTerm`, which bounds its length. See
-   `CONTRIBUTING.md` for why there is no expression language.
+   [`DECISIONS.md`](DECISIONS.md) for why there is no expression language.
 
 The feature's binder is what is left once the shared half is shared: its policy, its filter and
 which of its sortable fields holds an instant.
@@ -327,7 +344,8 @@ Queries/<Aggregate>Queries.cs                read-side projections, if the featu
 
 **The record is not the aggregate.** `TodoListRecord` is a settable class with no
 rules; `TodoList` is the aggregate with all of them. This split is
-the subject of `CONTRIBUTING.md`'s Persistence paragraph — read it before changing any of the four pieces below,
+the subject of [`CONVENTIONS.md`](CONVENTIONS.md#design-conventions)'s Persistence paragraph — read
+it before changing any of the four pieces below,
 because they exist specifically to keep the split intact:
 
 1. **Record** (`Models/`) — implements `IAuditable`; carries the EF-visible shape
@@ -478,8 +496,8 @@ Stores}`, one plural per nature of file and nothing else inside. A new infrastru
 module of your own gets the same treatment — and so does a new project in any layer, because
 `LayoutConventionTests.EveryProjectOnDisk_HasAVocabularyOfItsOwn` reads every project under `Src/`
 off the disk rather than the infrastructure modules alone, and will not
-let it build until its vocabulary is written into `CONTRIBUTING.md`'s layout tree and
-into the rule's own dictionary. An entry of `null` is how a project says it has no such folder at
+let it build until its vocabulary is written into [`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md)'s folder
+map and into the rule's own dictionary. An entry of `null` is how a project says it has no such folder at
 all, and that claim is checked in both directions: the folder appearing where the entry says none
 fails, and so does the folder vanishing from under a list of words.
 
@@ -561,7 +579,7 @@ ownership check every feature performs and the paginated read every feature expo
 both duplicated and both agnostic, so they belong inwards and not here.
 
 Adding a folder to either `Common/` means adding its word to the `Common/` vocabulary
-`LayoutConventionTests` holds and to `CONTRIBUTING.md`'s tree, and the entry
+`LayoutConventionTests` holds and to [`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md)'s folder map, and the entry
 is checked in both directions — a folder appearing where the dictionary says none fails,
 and so does a word whose folder has gone.
 
@@ -689,9 +707,9 @@ command. Read it together with the caution in section 3: it compares the model t
 snapshot, and a configuration that was never applied is missing from both, so a green
 result here is not on its own evidence that your table exists.
 
-See `CONTRIBUTING.md` for why the API applies migrations at startup only in
-Development, and `SECURITY.md` for what a real deployment still has to do with the
-migration bundle.
+[`MIGRATIONS.md`](MIGRATIONS.md) is the whole subject, both contexts: why the API applies migrations
+at startup only in Development, and what a deployment does instead. `SECURITY.md` says what it owes
+beyond the mechanics.
 
 ## Removing the sample instead
 
@@ -708,7 +726,6 @@ If you want it gone anyway, follow `docs/REMOVING-THE-EXAMPLE-FEATURES.md` rathe
 improvising from the tree. Deleting the folders is the easy half. The removal takes
 `Reminders` with it, because a reminder is scheduled against a to-do item and that
 feature does not compile without this one; and the migration is where guessing costs
-data, since `AddExampleFeatures` carries
-`todo` and `reminders` together and what to do with it depends on whether a database
-has already applied it. That document names every file, every edit and the state each
+data, since the business context's one initial migration carries `todo`, `reminders` and `files`
+together and what to do with it depends on whether a database has already applied it. That document names every file, every edit and the state each
 test suite is left in.

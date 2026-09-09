@@ -1395,7 +1395,7 @@ its first, and that is the honest shape of the thing.
 
 Six single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond
 the SDK `global.json` pins — no interpreter to find, no package to install, and the same line
-typed on Windows, Linux and macOS. The seventh entry below is the one exception, and it is a
+typed on Windows, Linux and macOS. The last entry below is the one exception, and it is a
 Dockerfile rather than an app.
 
 | File | What it is |

@@ -68,13 +68,13 @@ foreach (string versionGroup in builder.Services.CoreApiVersionGroups())
 }
 
 // Authenticated by default: an endpoint reachable anonymously has to opt out explicitly.
-builder.Services.AddAuthorization(options =>
-    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build());
 
-// Every AddAuthorization delegate runs against the same options, so this second call adds its
-// policy without touching the fallback above.
+// Both builders configure the same options, so this second one adds its policy without touching
+// the fallback above.
 builder.Services.AddApiAuthorizationPolicies();
 
 // AddCoreHealthChecks brings the shutdown check; the two database checks are this host's own.

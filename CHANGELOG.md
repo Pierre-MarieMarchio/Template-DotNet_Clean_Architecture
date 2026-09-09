@@ -21,6 +21,14 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **A feature scaffolder: `dotnet run Tools/Tasks.cs new-feature Widgets Widget`.**
+  Twenty-six files across the four layers — folders, namespaces, base types and the members each
+  layer's conventions require — and no business logic invented. The product prefix is read off the
+  tree rather than assumed, so it works in a project generated under its own name, which is the only
+  place it matters. **It creates files and edits none:** a vertical composes only once its
+  registrations are written by hand, and that is deliberate everywhere else here, so the five edits
+  and the closed lists are printed instead. Its `--self-test` runs with the other hygiene gates, so
+  the templates cannot drift from the shapes the architecture rules check.
 - **An aggregate no longer declares its own audit and version stamps.**
   `AuditableAggregateRoot<TId>` in `AppTemplate.Domain.Core` holds the five properties and the two
   explicitly implemented interfaces that were byte-identical in all three aggregates, so a new

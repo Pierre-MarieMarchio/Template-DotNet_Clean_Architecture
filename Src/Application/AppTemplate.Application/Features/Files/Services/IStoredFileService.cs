@@ -10,11 +10,8 @@ namespace AppTemplate.Application.Features.Files.Services;
 /// <c>ITodoListService</c> and <c>IReminderService</c>: identity, ownership and the version
 /// precondition, in that order.
 /// <para>
-/// The third instance of the pattern rather than a generalisation of the first two. What the three
-/// share is a shape, not a rule: each names its own aggregate, its own repository and its own
-/// not-found error, and a generic gate would have to be handed all three — at which point the
-/// caller is writing the gate again with extra ceremony. See <c>CONTRIBUTING.md</c> on extracting
-/// only what two real cases prove identical.
+/// The three share the mechanism and not the policy: <c>OwnedAggregate.Require</c> checks
+/// ownership and the precondition, and each feature hands it the error its own callers see.
 /// </para>
 /// </summary>
 public interface IStoredFileService

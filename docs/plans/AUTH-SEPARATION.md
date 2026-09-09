@@ -1,10 +1,10 @@
 # Separating authentication — plan of record
 
-**Status:** agreed, deferred. **Decided:** 2026-09-08. **Not started.**
+**Status:** done. All four waves, and all four forks closed — the last two on 2026-09-09.
 
-Scheduled after wave 7 of `docs/plans/SDK-SPLIT-PLAN.md`. This document is self-contained on
-purpose: everything it asserts about the tree was measured on 2026-09-08 and is stated with the
-path and the count, so the analysis is never redone. Where a claim is a judgement rather than a
+Taken after wave 7 of `docs/plans/SDK-SPLIT-PLAN.md`. This document is self-contained on
+purpose: everything it asserts about the tree was measured on 2026-09-08, or on 2026-09-09 where an
+entry says so, and is stated with the path and the count, so the analysis is never redone. Where a claim is a judgement rather than a
 measurement, it says so.
 
 This directory is exempt from `Tools/CheckDocPaths.cs`, so paths below may name a tree that does
@@ -283,20 +283,32 @@ only business schemas.
 template cannot take this change without a migration of its own. That is a note in
 `docs/REMOVING-THE-EXAMPLE-FEATURES.md` and `docs/DEPLOYMENT.md`, not a blocker here.
 
-### A6. The reminder notifier keeps its lookup, and the alternative is priced
+### A6. The reminder notifier keeps its lookup, and the door is the answer rather than a deferral
 
-**Decided.** `EmailReminderNotifier` goes on resolving the owner's address through the auth module's
-profile port. It becomes the single, named business-to-auth door, documented in
-`docs/ARCHITECTURE.md`.
+**Decided, and the fork is closed** (owner, 2026-09-09). `EmailReminderNotifier` goes on resolving
+the owner's address through the auth module's profile port. It becomes the single, named
+business-to-auth door, documented in `docs/ARCHITECTURE.md`.
 
-**Reason.** The owner's instruction is that no separate auth API is built now, and the two
-alternatives both cost more than the coupling does while it stays in-process.
+**Reason, and it is not only that the coupling is cheap in process.** The lookup is correct by
+construction: it answers with the address the account has now. It also sits in a background loop
+rather than on a request path, which is the cheapest place in the system to pay for a call that one
+day crosses a process — nobody is waiting, a retry costs nothing, and the loop already tolerates a
+failed iteration. And the day the module leaves, the port is the joint: `IUserProfilesService` stays
+what it is, its adapter becomes an HTTP or gRPC call, and nothing business-side is touched. That is
+what one named door buys.
 
-**Rejected for now — the reminder copies the contact at scheduling time.** This is the honest
-service-boundary answer and it is deferred rather than refused: it removes the read entirely, at
-the price of a migration adding two columns to `Reminders`, and of a stored address that does not
-follow a later change. Offer it again on the day the module moves out of process, when it stops
-being optional.
+**Rejected — the reminder copies the contact at scheduling time.** It reads as the honest
+service-boundary answer and it trades the wrong property away: a copy is stale from the first time
+someone changes their address, and a reminder sent to the old one fails silently, which is the worst
+failure mode a notification feature has. Keeping it accurate needs an email-changed event from the
+auth module and a handler updating `Reminders` — more coupling than the read it removes, and
+asynchronous, so less visible. It also costs a migration adding two columns.
+
+**What would reopen this, and it is not the module moving out of process.** Deployment does not make
+a copy more accurate. The signal is an availability requirement — the reminder loop has to keep
+working while authentication is unavailable. On that day the shape to reach for is a contact cached
+and refreshed on an event, not a column frozen at scheduling time, because that is the shape that
+keeps the correctness the lookup has today.
 
 **Rejected — a business-declared port implemented by the auth module.** It looks like the clean
 inversion and it breaks a rule:
@@ -305,10 +317,13 @@ declared in the application layer to have a consumer *in* that layer, and nothin
 needs a user's contact details. This is the trap decision 5 of `docs/plans/SDK-SPLIT-DECISIONS.md`
 records for `IAuditActor`, in the same shape.
 
-### A7. `AppTemplate.Api.Auth` is a separate question, taken last
+### A7. The auth HTTP surface stays in `AppTemplate.Api`
 
-**Decided.** The auth HTTP surface stays in `AppTemplate.Api` through waves A to D. Whether it
-becomes its own presentation project is decided afterwards, on a measured tree.
+**Decided, and the fork is closed** (owner, 2026-09-09). The 25 files stay where they are. The
+mechanism costs nothing — the bench below measures both criteria this entry was waiting on — but a
+project and its test mirror buy no boundary while the module runs in the same process, and the
+controllers are the half of authentication that a derived application is most likely to replace
+anyway.
 
 **Reason.** Decision 1 of `docs/plans/SDK-SPLIT-DECISIONS.md` rejected it, and priced three costs:
 a cross-assembly `<see cref>`, an application-part discovery question, and an ordering constraint
@@ -320,6 +335,47 @@ storage split rather than by the project boundary.
 **What decides it later.** Whether the controllers can be discovered from a class library without
 the host naming them one by one, and what `AddCoreOpenApiPerVersion`'s absence (decision 28) implies
 for a document assembled from two assemblies.
+
+**Measured on 2026-09-09, and both criteria came out the other way.** A two-project bench — a
+`Microsoft.NET.Sdk.Web` host referencing a plain class library, on the SDK and the
+`Microsoft.AspNetCore.OpenApi` version this repository pins — answers both:
+
+- **A library's controllers are discovered by a plain `AddControllers()`.** No `AddApplicationPart`,
+  no `[ApplicationPart]`: the library's route is served and appears in the document. It holds for a
+  library with **no package reference at all**, carrying only
+  `<FrameworkReference Include="Microsoft.AspNetCore.App" />`.
+- **The XML documentation of a referenced assembly reaches the document** — a schema's `description`
+  and an operation's `summary` both — with the `AddOpenApi` loop staying in the host. What carries it
+  is the reference's documentation file: setting `GenerateDocumentationFile` to false on that library
+  makes its own description and its own summary null and leaves every other one intact.
+  `Directory.Build.props:36` sets it for the whole repository, so the condition is met already.
+
+**Decision 28 is not contradicted, and it measured the other direction.** There the `AddOpenApi` call
+sat in `Api.Core`, which cannot reference the host, so the host's contracts were invisible to the
+generator that fired. `Api.Auth` would be referenced *by* the host that makes the call, which is the
+direction that works. The third cost decision 1 priced — an ordering constraint against the
+per-version loop — does not arise: the library declares no `AddOpenApi` call of its own.
+
+**What the move would cost on this tree, measured.**
+
+| Item | Measured |
+|---|---|
+| The surface that moves | 25 files, 889 lines: `AuthController` 477, `AccountAdministrationController` 112, `AuthResponseMapping` 96, then 15 requests and 7 responses |
+| The one coupling that runs the wrong way | `AccountAdministrationController` names `AuthorizationPolicies.Administrator`, declared in the host's `Common/Security/`, and that type names `IdentityRoles` in `Infrastructure.Auth`. It is one of the three files decision 25's executable criterion keeps in the host |
+| The cross-assembly `<see cref>` decision 1 priced | **1** when this was measured, **0** now: the comment pass moved that mapping class's `<remarks>` into `docs/ARCHITECTURE.md`, and it was the only place a business feature named an auth contract |
+| `AuthController`'s own reach into the host | **none**: its usings name `Api.Core`, `Application.Auth` and its own feature only |
+| The mirror | `AppTemplate.Api.Auth.UnitTests` takes `AuthControllerTests` (436 lines) and `AuthResponseMappingTests` (329). The 2591 lines of auth integration tests compose the real host, so they stay where wave C's lease tests went |
+
+**What the fork came down to, and it is not the mechanism.** Either `AuthorizationPolicies` travels
+into `Api.Auth`, where it names an infrastructure module and decision 25's list of host `Common/`
+files drops from three to two; or `AccountAdministrationController` stops naming it and the policy
+name is declared beside the controller, which is one name in two places. Neither is bought: the
+controllers stay.
+
+**What to read this entry for on the day the module leaves the process.** The two measurements above
+hold whatever is decided about the project, and they are the ones that are expensive to retake: a
+class library's controllers need no `AddApplicationPart`, and a referenced assembly's XML
+documentation reaches the document as long as it is built with `GenerateDocumentationFile`.
 
 ### A8. The auth module gets its own unit of work
 
@@ -434,7 +490,7 @@ seeder leaves with the module. So the claim the correction inside decision 7 cou
 becomes assertable except for the notifier, and A6 is the entry that keeps that honest: the test is
 rewritten to name **one** coupling, not two, and its message says which.
 
-### Wave D — close and document. **Done with the storage, 2026-09-08, except A7.**
+### Wave D — close and document. **Done, 2026-09-08; A7 closed 2026-09-09.**
 
 Written as each change landed rather than afterwards, because a document that describes a tree it no
 longer matches is what this whole chantier kept finding. `docs/ARCHITECTURE.md`'s context section is
@@ -445,6 +501,16 @@ owner; and `CONTRIBUTING.md`'s tree and `README.md`'s two trees follow the proje
 
 **`Api.Auth` (A7) is not decided and not started.** It is the one part of this plan that was always
 to be taken last, on the tree as it then stands — which is now this one.
+
+**The coverage floor is re-measured, and it stays at 90.** With Docker present so both integration
+suites contribute, and with the `--` separator: **94.76%** in Debug (7376/7784) and **95.98%** in
+Release (6143/6400), over **3336** tests with none failing and none skipped. 4.76 points of margin
+locally is the margin the rule in `coverage.minimum` asks for, so the number does not move; the file
+records both rows and the assemblies that sit under the floor, which are still two of fifteen.
+
+**`Api.Auth` (A7) is measured and closed: the controllers stay.** The bench that settled its two open
+criteria is in A7 above, and it is worth keeping — it is what a later move out of process no longer
+has to measure.
 
 ## Blast radius
 
@@ -475,7 +541,8 @@ and whether the data-protection key ring's move changes anything for tokens issu
 template question only in that a derived deployment would have live key material.
 
 **Judgement, not measurement:** A1 (no auth domain), A6 (which of the three doors to keep) and A7
-(whether the controllers move). Each states its reasoning above so it can be disagreed with.
+(whether the controllers move). Each states its reasoning above so it can be disagreed with, and A6
+and A7 also state the condition under which the answer changes.
 
 ## Open forks left to the owner
 
@@ -494,5 +561,8 @@ template question only in that a derived deployment would have live key material
    So the rename is: edit `AppTemplate.sln` by hand rather than through the CLI, keep the existing
    guid, then verify nesting by reading the file. The mirror test project renames with it, by the
    1:1 rule.
-3. **A6 again, at the end of wave D:** keep the door, or take the denormalisation.
-4. **A7:** `Api.Auth`, or the controllers stay.
+3. ~~**A6 again, at the end of wave D:** keep the door, or take the denormalisation.~~ **Closed: the
+   door is kept** (owner, 2026-09-09). A6 says what decided it, and rewrites the condition that would
+   reopen it in terms of availability rather than of deployment.
+4. ~~**A7:** `Api.Auth`, or the controllers stay.~~ **Closed: they stay** (owner, 2026-09-09). A7
+   records what the bench measured and why the project buys nothing in process.

@@ -499,9 +499,6 @@ three obstacles that no longer exist and gains the already-deployed caveat (A5);
 business-to-auth door is named in both (A6); `CONFIGURATION.md` follows the two sections that changed
 owner; and `CONTRIBUTING.md`'s tree and `README.md`'s two trees follow the projects.
 
-**`Api.Auth` (A7) is not decided and not started.** It is the one part of this plan that was always
-to be taken last, on the tree as it then stands — which is now this one.
-
 **The coverage floor is re-measured, and it stays at 90.** With Docker present so both integration
 suites contribute, and with the `--` separator: **94.76%** in Debug (7376/7784) and **95.98%** in
 Release (6143/6400), over **3336** tests with none failing and none skipped. 4.76 points of margin

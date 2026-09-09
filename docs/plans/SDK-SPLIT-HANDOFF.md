@@ -46,7 +46,7 @@ co-author trailer. Leave your own work staged (`git add -A` at the end of a wave
 | 6 | The missing pieces | done |
 | 7 | Documentation and close | done; the whole gate runs, and the step that used to be the exception is explained below |
 | — | `docs/plans/AUTH-SEPARATION.md`, waves A to D | done; A7 closed on 2026-09-09 — the controllers stay in `AppTemplate.Api`, and that entry carries the bench that measured why the project was free to build and bought nothing |
-| — | The comment-convention cleanup pass | not started, scheduled last |
+| — | The comment-convention cleanup pass | done, 2026-09-09; all fifteen projects under `Src/`, and the standard it settled on is below |
 
 Measured at the end of wave 7, not remembered:
 
@@ -125,7 +125,7 @@ Two things to know about it:
   **Proved it can still fail**, rather than assumed: changing the product's stop log line to
   something else fails the test in 78 ms. Then `verify` twice end to end, 3336 tests, none failing.
 
-## What is left
+## What each wave produced, and the one thing offered but never scheduled
 
 ### Wave 5 and the audit pass — done, and what they left behind
 
@@ -142,8 +142,6 @@ decision 27 and retracted it.
 
 **Read decisions 19 to 32 before touching either presentation project or either business `Common/`.**
 Four of them exist because a test caught something a reading had missed, and each says which test.
-
-### What is still open
 
 ### Wave 6 — the missing pieces. Every question it was blocked on is answered.
 
@@ -208,7 +206,7 @@ developer and CI uses, and downgrading all of them to work around one machine's 
 is a wide change for a local problem. **Rejected — installing the tool globally:** a local manifest
 takes precedence, so it would not be the one that runs.
 
-### Then, two chantiers of their own
+### Two chantiers of their own, both done
 
 **The separation of authentication** — `docs/plans/AUTH-SEPARATION.md`. **Done**, and its four forks
 are closed — A6 and A7 on 2026-09-09.
@@ -415,8 +413,8 @@ Read them in `docs/plans/SDK-SPLIT-DECISIONS.md`; summarised here so nothing is 
 The repository owner has asked explicitly for no invention and no silent assumption. **All seven are
 now closed**; 5, 6 and 7 were answered on 2026-09-08 and each says which wave-7 lot carries it.
 Everything wave 6 was blocked on was
-settled on 2026-09-08 and is recorded as decisions 33 to 38; the questions the separation of
-authentication leaves open are listed at the end of its own document. Ask; do not pick.
+settled on 2026-09-08 and is recorded as decisions 33 to 38, and the four forks the separation of
+authentication left are closed at the end of its own document. Ask; do not pick.
 
 1. ~~**The `.Core` `Common/` shape**~~ — **closed.** Shape A is kept, for all five `.Core` projects,
    and the reason is not the one decision 4 gave: see decision 19. No rename happens, and `Api.Core`

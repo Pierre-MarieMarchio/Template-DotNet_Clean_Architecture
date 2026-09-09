@@ -1,4 +1,4 @@
-# What a derived project writes itself — plan of record
+﻿# What a derived project writes itself — plan of record
 
 **Status:** closed, 2026-09-09. Wave E implemented D1 to D4 and withdrew D5; wave G is done, having
 been released by the owner after the forks were closed. Every fork is closed — four of them

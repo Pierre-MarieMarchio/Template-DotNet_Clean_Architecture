@@ -1,4 +1,4 @@
-# Plans of record
+﻿# Plans of record
 
 A plan of record states what a piece of work set out to do, what it decided, and — the half worth
 more than the diff — what it refused and why. These are kept for that reasoning.
@@ -8,10 +8,14 @@ and one superseded by a later plan is not edited to agree with it. For the curre
 [`../README.md`](../README.md) and the documents it lists; where a plan disagrees with them, the
 plan is the out-of-date half.
 
-Two conventions apply here and nowhere else in `docs/`. These files carry no byte-order mark
-(`.editorconfig` says so), and they are the one place in the repository where measurements,
-rejected options and arbitrations belong — [`../CONVENTIONS.md`](../CONVENTIONS.md) keeps them out
-of code comments.
+**This directory does not ship.** `.template.config/template.json` excludes it, so a project
+generated from this template inherits none of it — these plans record how the template came to be
+shaped as it is, which is the template's history and not a derived product's. Everything a derived
+project needs is in the documents [`../README.md`](../README.md) lists.
+
+What a derived project does inherit is the convention: measurements, rejected options and
+arbitrations belong in a document rather than in a comment above a method, which is what
+[`../CONVENTIONS.md`](../CONVENTIONS.md) requires and what a plan of record is the long form of.
 
 | Plan | What it decided |
 |---|---|

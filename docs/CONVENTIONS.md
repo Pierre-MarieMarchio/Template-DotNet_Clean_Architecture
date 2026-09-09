@@ -118,8 +118,9 @@ by navigating them. So:
   reflex.
 
 **Rationale lives in `docs/`.** Measurements, rejected options and arbitrations belong in
-[`ARCHITECTURE.md`](ARCHITECTURE.md) and in [`plans/`](plans/), where a reader who wants them can address them
-directly. A design decision worth keeping is worth a section there, not a paragraph above a method.
+[`ARCHITECTURE.md`](ARCHITECTURE.md), in [`DECISIONS.md`](DECISIONS.md), or in a plan of record
+under this directory — where a reader who wants them can address them directly. A design decision
+worth keeping is worth a section there, not a paragraph above a method.
 
 <!-- narrative-ok: stating this rule requires quoting the phrases it bans -->
 `Tools/CheckNarrativeComments.cs` executes the history half of that rule over every `.cs` and

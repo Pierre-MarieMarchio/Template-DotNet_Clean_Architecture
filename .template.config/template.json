@@ -97,7 +97,8 @@
             "artifacts/**",
             "TestResults/**",
             ".env",
-            ".vs/**"
+            ".vs/**",
+            "docs/plans/**"
           ]
         }
       ]

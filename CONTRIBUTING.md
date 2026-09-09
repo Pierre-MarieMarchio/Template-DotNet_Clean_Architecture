@@ -101,8 +101,8 @@ rather than a plausible-looking name.
 `Tools/CheckNarrativeComments.cs` holds the comment rule over `.cs` and `.md` alike, `CHANGELOG.md`
 excepted — narrating history is what a changelog is for. **Rationale belongs in `docs/`**, not in a
 paragraph above a method: measurements, rejected options and arbitrations go in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/DECISIONS.md`](docs/DECISIONS.md) or
-[`docs/plans/`](docs/plans/).
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/DECISIONS.md`](docs/DECISIONS.md) or a plan
+of record — see [`docs/README.md`](docs/README.md#plans-of-record).
 
 So: a change that moves a file updates the document that cites it, and a new architectural
 constraint becomes a section in the document that owns the subject *and* an executable rule in

@@ -6,8 +6,8 @@ months. If one of them is wrong for your project, change it deliberately: change
 *and* the test that holds it, in the same commit.
 
 Two neighbours. [`ARCHITECTURE.md`](ARCHITECTURE.md) argues the layer boundaries and lists what is
-deliberately absent; [`plans/`](plans/) holds the closed plans of record, where the measurements and
-the rejected options live.
+deliberately absent, and the template repository's own plans of record hold the measurements and
+the rejected options behind each of these — see [`README.md`](README.md#plans-of-record).
 
 **Writes are named operations. There is no `PATCH`.** A partial update whose semantics depend on
 which keys the client happened to send cannot be validated against an invariant, because the

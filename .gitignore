@@ -84,6 +84,12 @@ artifacts/
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 
+# SonarQube
+# The scanner's working directory: analysis config, the ruleset it generates and the
+# protobuf output of each project. Written into the checkout by `begin`, read by `end`, and
+# meaningless once the run is over.
+.sonarqube/
+
 # StyleCop
 StyleCopReport.xml
 

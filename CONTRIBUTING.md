@@ -120,6 +120,60 @@ After creating or moving any file:
 dotnet run Tools/Tasks.cs format-fix     # i.e. dotnet format AppTemplate.sln
 ```
 
+## Static analysis, and where its verdict lives
+
+SonarQube is wired up, and it is deliberately **not** one of the six gates above. Those six are the
+ones you can run from a clone — no account, no token, no third party — and that list is unchanged.
+Sonar cannot promise that, so it lives in its own workflow with its own verdict.
+
+**It can still fail your pull request, and it is meant to.** The job blocks on the quality gate, so a
+red gate is a red check. What saves that from being unbearable is that the gate judges **new code**:
+its conditions are all `new_*` metrics, so the debt already in the tree blocks nobody, and nothing
+dirty gets added on top of it. Fixing an old smell is never the price of merging; adding a new one
+is.
+
+So the honest reading of the six above is "what a clone can tell you before you push", not "the only
+thing that can stop a merge".
+
+In CI, `.github/workflows/sonarqube.yml` analyses nothing until the repository is configured for it.
+The job is skipped unless the repository variables `SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` are
+both set, and it is skipped for pull requests from forks, which get no secrets. That is the correct
+state for a template: a generated project inherits the workflow without inheriting somebody else's
+dashboard, and an unconfigured repository is green rather than broken.
+
+One thing to expect rather than debug: the first analysis of `main` can come back red, because a
+project with no previous analysis has no baseline and everything reads as new code. It settles as
+soon as that first run becomes the baseline.
+
+Locally, the same analysis runs against a SonarQube Community server in Docker:
+
+```bash
+docker compose --profile sonar up -d --wait sonarqube   # http://localhost:9111, admin/admin
+# generate a token under My Account > Security, put it in .env as SONAR_TOKEN
+dotnet run Tools/Tasks.cs sonar
+```
+
+The profile matters: `compose-up` gives you the application stack, and a 3 GB JVM that only the
+analysis needs has no business in it. Port 9111 and not 9000 because minio already publishes 9000.
+
+**The scanner needs Java, and you do not.** SonarScanner for .NET is a .NET tool that shells out to
+a JRE, so `Tools/sonar-scanner.Dockerfile` supplies one — Java 21, because analyses on a runtime
+below 21 stopped being supported on 20 July 2026. The prerequisites at the top of this file stay
+true: the SDK `global.json` pins, and Docker.
+
+Two things about that local run are worth knowing before they surprise you:
+
+- **It reports less coverage than CI does.** There is no Docker daemon inside the scanner container,
+  so the Testcontainers suite cannot run there; the set is the one `test --no-integration` uses.
+  CI runs the whole suite and is what reports the real figure.
+- **It does not touch your `bin/` and `obj/`.** The container builds into `artifacts/sonar`, which
+  is gitignored, so your next build on the machine still works. That path is inside the checkout on
+  purpose: the architecture suite finds the repository root by climbing from its own assembly, and
+  built anywhere outside the tree every one of its rules fails before it runs.
+
+The scanner's version is pinned in `.config/dotnet-tools.json`, next to `dotnet-ef`, so the scanner
+CI runs and the scanner your machine runs are the same one.
+
 ## Layout
 
 Four layers, and each one has the same shape, so that changing layer does not mean learning a new

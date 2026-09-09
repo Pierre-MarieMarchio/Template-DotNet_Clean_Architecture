@@ -396,6 +396,11 @@ internal static class Tasks
     /// message saying where to generate one, which beats an authentication error raised deep inside
     /// the scanner.
     /// </para>
+    /// <para>
+    /// What the container writes is handed back to the owner of the checkout before it exits. The
+    /// SDK image runs as root, so without that the two directories an analysis creates are owned by
+    /// root inside a developer's own tree, and removing them needs sudo.
+    /// </para>
     /// </remarks>
     private static void Sonar(string repoRoot)
     {
@@ -456,6 +461,21 @@ internal static class Tasks
               echo "My Account > Security, and set SONAR_TOKEN in .env." >&2
               exit 1
             fi
+            # The image is the .NET SDK's, whose user is root, so everything written through the
+            # mount lands owned by root -- inside the developer's own checkout. Left that way,
+            # artifacts/sonar and .sonarqube cannot be deleted, `git clean` fails on them, and the
+            # tree needs sudo to tidy. The owner of the checkout is read off a file that is
+            # certainly in it, and the outputs are handed back on the way out.
+            #
+            # artifacts and not artifacts/sonar: the parent is created by the same root process and
+            # stays root-owned otherwise, which blocks removing the directory just as effectively.
+            # Anything else already under artifacts belongs to that owner, so it is chowned to what
+            # it already is.
+            #
+            # A trap and not a last line: the build or the tests failing is exactly when this is
+            # skipped otherwise, and `set -e` would leave the mess behind on the runs that already
+            # went badly.
+            trap 'chown -R "$(stat -c %u:%g /repo/AppTemplate.sln)" /repo/artifacts /repo/.sonarqube 2>/dev/null || true' EXIT
             dotnet tool restore
             dotnet restore AppTemplate.sln --artifacts-path artifacts/sonar
             dotnet sonarscanner begin \

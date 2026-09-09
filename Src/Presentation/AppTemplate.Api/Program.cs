@@ -112,10 +112,3 @@ if (app.Environment.IsDevelopment())
 }
 
 await app.RunAsync();
-
-/// <summary>
-/// The host's entry point, named so that a test host can locate this assembly through
-/// <c>WebApplicationFactory&lt;Program&gt;</c>. Top-level statements compile into a class the
-/// compiler declares <c>internal</c>; this declaration makes the name public without adding a member.
-/// </summary>
-public partial class Program;

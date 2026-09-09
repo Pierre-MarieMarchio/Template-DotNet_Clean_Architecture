@@ -86,10 +86,11 @@ public sealed class PeriodicJobTests
     {
         using var cancellation = new CancellationTokenSource(_tinyInterval);
 
-        await PeriodicJob.RunAsync(
-            TimeSpan.FromMinutes(10),
-            _ => Task.CompletedTask,
-            cancellation.Token);
+        await Should.NotThrowAsync(
+            () => PeriodicJob.RunAsync(
+                TimeSpan.FromMinutes(10),
+                _ => Task.CompletedTask,
+                cancellation.Token));
     }
 
     /// <summary>

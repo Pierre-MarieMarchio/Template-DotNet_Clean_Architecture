@@ -94,11 +94,8 @@ internal sealed class TwoFactorChallengeService(
             return TwoFactorRedemptionOutcome.InvalidChallenge;
         }
 
-        // Belt and braces, and deliberately not the primary bound: the write below removes a
-        // challenge as it reaches the ceiling, so a stored value that still carries a maxed-out count
-        // is one whose removal did not happen — a process that stopped between the two writes, or an
-        // operator who edited the row. Refused without looking at the code, because the one thing
-        // this path must never do is answer one more guess.
+        // Not the primary bound: the write below removes a challenge as it reaches the ceiling, so a
+        // maxed-out count means that removal did not happen. Refused without looking at the code.
         if (attempts >= options.Value.MaxChallengeAttempts)
         {
             await userManager.RemoveAuthenticationTokenAsync(user, _loginProvider, _tokenName);
@@ -123,11 +120,9 @@ internal sealed class TwoFactorChallengeService(
 
         if (!recovery.Succeeded)
         {
-            // The challenge stays live for a mistyped code — forcing the caller back through /login
-            // for a password they proved a moment ago is a cost paid by the owner, not the attacker —
-            // but it stays live a bounded number of times. Account lockout counts failed password
-            // checks and a code is not one, so this counter is the only thing between somebody
-            // holding the password and the whole six-digit space.
+            // The challenge survives a mistyped code, a bounded number of times. Account lockout
+            // counts failed password checks and a code is not one, so this counter is the only thing
+            // between somebody holding the password and the whole six-digit space.
             int spent = attempts + 1;
 
             if (spent >= options.Value.MaxChallengeAttempts)
@@ -136,9 +131,9 @@ internal sealed class TwoFactorChallengeService(
             }
             else
             {
-                // Rewritten rather than incremented in place: SetAuthenticationTokenAsync overwrites,
-                // and the expiry and hash are carried over verbatim so that spending an attempt can
-                // never extend a challenge's life or change what it authorises.
+                // SetAuthenticationTokenAsync overwrites, so the expiry and hash are carried over
+                // verbatim: spending an attempt must not extend the challenge or change what it
+                // authorises.
                 await userManager.SetAuthenticationTokenAsync(
                     user,
                     _loginProvider,
@@ -203,8 +198,8 @@ internal sealed class TwoFactorChallengeService(
             return false;
         }
 
-        // An unparseable or negative count is read as the ceiling rather than as zero: the one thing
-        // a corrupted counter must not do is hand back an unlimited number of guesses.
+        // An unparseable or negative count reads as the ceiling, never as zero: a corrupted counter
+        // must not hand back unlimited guesses.
         if (parts.Length == 3
             && (!int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out attempts) || attempts < 0))
         {

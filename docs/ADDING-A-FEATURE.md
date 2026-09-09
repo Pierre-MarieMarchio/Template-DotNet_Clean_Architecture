@@ -397,6 +397,19 @@ commands, and turns `Result`/`Error` into the right status via `ErrorMapping` (s
 installs a default-deny fallback policy — so an anonymous endpoint needs an
 explicit `[AllowAnonymous]`, not the absence of an attribute.
 
+**Three conventions every controller here shares, and a new one is expected to.**
+`ProducesResponseType` only ever adds, so statuses are declared action by action: 409 on
+a write that can violate an invariant or lose a race, 404 where an aggregate has to be
+found first, 400 wherever a body, a query string or an `If-Match` header is read. 401
+goes on the controller when every action needs authentication, and 413, 415, 429 and 500
+come from `ApiControllerBase`. **A conditional request is decoded here and compared in
+the use case** — the controller turns `If-Match` into a `VersionPrecondition` and hands
+it over, because only the use case holds the aggregate it loaded and can compare without
+leaving a window for someone else to commit; the transport verdicts on a malformed or
+missing header come from `ApiControllerBase.ReadPrecondition`. **And a write answers with
+the representation it produced and that representation's new `ETag`**, so a caller never
+re-reads what it just changed in order to keep writing.
+
 Two things about the HTTP surface are decided for you, and `HttpSurfaceTests` holds
 both. **There is no `PATCH`**: a partial update means an omitted field is ambiguous
 between *absent* and *unchanged*, and an invariant is a property of the whole

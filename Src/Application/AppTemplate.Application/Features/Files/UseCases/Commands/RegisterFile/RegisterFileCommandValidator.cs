@@ -14,12 +14,12 @@ public sealed class RegisterFileCommandValidator : AbstractValidator<RegisterFil
     public RegisterFileCommandValidator()
     {
         RuleFor(command => command.Name)
-            // Every Must below dereferences the value, and FluentValidation runs the remaining rules
-            // for a property even after NotEmpty has failed.
+            // FluentValidation runs the remaining rules even after NotEmpty fails, and every Must
+            // below dereferences the value.
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("A file name is required.")
-            // Measured after the same normalisation the domain applies, or a name the domain would
-            // accept is refused here for a length it does not have once trimmed.
+            // Measured after the normalisation the domain applies, or a name it would accept is
+            // refused here for a length it does not have once trimmed.
             .Must(name => Normalize(name).Length is > 0 and <= StoredFileName.MaxLength)
             .WithMessage($"A file name cannot exceed {StoredFileName.MaxLength} characters.");
 
@@ -36,8 +36,7 @@ public sealed class RegisterFileCommandValidator : AbstractValidator<RegisterFil
         RuleFor(command => command.Checksum)
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("A checksum is required.")
-            // Length only. Whether the characters are hexadecimal is the value object's rule, and
-            // stating it twice is how the two answers drift apart.
+            // Length only: whether the characters are hexadecimal is the value object's rule.
             .Must(checksum => checksum.Trim().Length == Sha256Checksum.Length)
             .WithMessage($"A SHA-256 checksum is exactly {Sha256Checksum.Length} hexadecimal characters.");
     }

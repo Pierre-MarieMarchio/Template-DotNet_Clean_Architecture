@@ -11,8 +11,7 @@ using AppTemplate.Application.Core.Common.Results;
 namespace AppTemplate.Api.Features.Auth.Mapping;
 
 /// <summary>
-/// Projects use-case output onto the HTTP contract, by hand — this repository rejects mapping
-/// libraries: a projection the compiler cannot check is a runtime failure waiting for a rename.
+/// Projects use-case output onto the HTTP contract.
 /// </summary>
 /// <remarks>
 /// Each lift tests <see cref="Result.IsFailure"/> on its own line before touching

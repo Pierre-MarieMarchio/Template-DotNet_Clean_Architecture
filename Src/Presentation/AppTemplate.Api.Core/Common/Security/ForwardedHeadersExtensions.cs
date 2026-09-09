@@ -40,10 +40,8 @@ internal static class ForwardedHeadersExtensions
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             options.ForwardLimit = proxy.ForwardLimit;
 
-            // The framework seeds both lists with loopback. Leaving that in place would trust a
-            // forwarding header from anything sharing the host — a sidecar, another container on the
-            // same network namespace, or a process a local attacker started. The trust set is
-            // exactly what configuration names, so a loopback proxy has to be listed like any other.
+            // The framework seeds both lists with loopback, which would trust a forwarding header
+            // from anything sharing the host. The trust set is exactly what configuration names.
             options.KnownProxies.Clear();
             options.KnownIPNetworks.Clear();
 
@@ -63,9 +61,8 @@ internal static class ForwardedHeadersExtensions
                 }
             }
 
-            // X-Forwarded-Host is deliberately absent from ForwardedHeaders above: honouring it lets
-            // a trusted proxy's client influence link generation and host-based routing, and
-            // AllowedHosts is the control for that instead.
+            // X-Forwarded-Host is absent from ForwardedHeaders above: honouring it would let a
+            // client influence link generation and host-based routing. AllowedHosts controls that.
         });
 
         return services;

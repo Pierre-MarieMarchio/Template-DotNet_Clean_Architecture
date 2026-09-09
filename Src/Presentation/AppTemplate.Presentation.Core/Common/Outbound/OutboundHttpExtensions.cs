@@ -29,51 +29,32 @@ public static class OutboundHttpExtensions
 
         services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler(options =>
         {
-            // These numbers are chosen against the tightest enclosing budget any host imposes,
-            // which in this template is the API's 5-minute inbound request timeout. An outbound
-            // call happens inside that request, and the enclosing budget has to be the longer of
-            // the two, or the outer timeout cancels work that was still retrying correctly
-            // underneath and reports the caller's deadline instead of the dependency's failure.
-            // 30 s inside 300 s leaves a factor of ten, so a request that calls several
-            // dependencies in turn still finishes inside its own budget. A host with no inbound
-            // request has nothing forcing the ratio, and keeps it anyway: one policy is the point.
-            // If either number moves, re-check this ratio.
+            // 30 s total inside the API's 5-minute inbound timeout, a factor of ten, so a request
+            // calling several dependencies in turn still finishes inside its own budget. The outer
+            // budget must stay the longer of the two, or it cancels work that was still retrying
+            // and reports the caller's deadline instead of the dependency's failure.
             //
-            // Per attempt, 10 s: a dependency that has not answered in 10 s does not answer better
-            // at 60, it just holds the caller longer.
-            //
-            // The package validates the combination at start-up, not at the first call: the total
-            // timeout must exceed the attempt timeout, and the circuit breaker's sampling window
-            // (30 s, left at the default below) must be at least twice the attempt timeout.
-            // 10 s / 30 s satisfies both, with no margin on the second — doubling the attempt
-            // timeout alone would fail a host's own start-up validation.
+            // The package validates the combination at start-up: the total must exceed the attempt
+            // timeout, and the circuit breaker's 30 s sampling window must be at least twice it.
+            // 10 s / 30 s satisfies both with no margin on the second.
             options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
             options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
 
             options.Retry.MaxRetryAttempts = 3;
             options.Retry.BackoffType = DelayBackoffType.Exponential;
 
-            // Jitter, because several replicas failing against the same dependency otherwise retry
-            // in the same millisecond, which is the worst moment to arrive together.
+            // Without jitter, replicas failing against the same dependency retry in the same
+            // millisecond.
             options.Retry.UseJitter = true;
 
-            // Retry is decided per verb, as an allow-list of the safe ones. The package ships
-            // DisableForUnsafeHttpMethods(), which is the deny-list POST, PATCH, PUT, DELETE,
-            // CONNECT — close, but not this rule: any verb it does not name (a WebDAV method, a
-            // future one) would still be retried. A default that covers every client in the host
-            // has to be the one that is never wrong; relaxing it for a client whose server is known
-            // is one line, and discovering it was wrong costs an incident.
+            // An allow-list of safe verbs, not the package's DisableForUnsafeHttpMethods() deny-list,
+            // which would still retry a verb it does not name. PUT and DELETE are out although the
+            // specification calls them idempotent: that promise belongs to servers nobody here
+            // controls, and replaying a large PUT doubles the bytes.
             //
-            // PUT and DELETE are out even though the specification calls them idempotent, because
-            // that promise belongs to the server at the other end and a default applies to servers
-            // nobody here controls. Replaying a 200 MiB PUT because the response was slow doubles
-            // the bytes, and against a server that does not keep the promise it writes twice.
-            //
-            // The verb is read from the resilience context, not from the outcome's response: a
-            // failed attempt frequently has no response at all — a timeout or a connection failure
-            // arrives as an exception — and an allow-list that could not see the verb there would
-            // refuse exactly the retries this policy exists for. Wrapping the existing predicate
-            // rather than replacing it keeps the package's own definition of a transient failure.
+            // The verb comes from the resilience context, not the outcome's response: a timeout or
+            // a connection failure arrives as an exception with no response at all. Wrapping the
+            // existing predicate keeps the package's own definition of a transient failure.
             var isTransientFailure = options.Retry.ShouldHandle;
 
             options.Retry.ShouldHandle = args =>
@@ -81,10 +62,8 @@ public static class OutboundHttpExtensions
                     ? isTransientFailure(args)
                     : PredicateResult.False();
 
-            // The circuit breaker and the concurrency limiter keep the package's defaults. The
-            // limiter is the part that matters most here: it is what stops one slow dependency
-            // from occupying every thread that wanted to call it, and a number invented in this
-            // file would be a number no one could justify later.
+            // The circuit breaker and the concurrency limiter keep the package's defaults; the
+            // limiter is what stops one slow dependency occupying every thread that calls it.
         }));
 
         return services;

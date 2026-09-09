@@ -29,31 +29,9 @@ namespace AppTemplate.Api.Features.TodoLists.Controllers;
 /// aggregate boundary means: no route can reach an item without naming the list that owns it.
 /// </summary>
 /// <remarks>
-/// Authorisation is not declared here: <c>Program.cs</c> installs a fallback policy requiring an
-/// authenticated user, so every endpoint is protected unless it opts out with
-/// <c>[AllowAnonymous]</c>.
-/// <para>
-/// Response statuses are declared action by action, because
-/// <c>ProducesResponseType</c> only ever adds: 409 goes on the writes that can violate an invariant
-/// or lose a race, 404 where an aggregate has to be found first, 400 wherever a body, a query string
-/// or an <c>If-Match</c> header is read. 401 sits on the controller because every action here
-/// requires authentication; 413, 415, 429 and 500 come from <see cref="ApiControllerBase"/>.
-/// </para>
-/// <para>
-/// <b>Conditional requests.</b> Every read that names one aggregate publishes its version as a
-/// strong <c>ETag</c>, and every write of one honours <c>If-Match</c>. The comparison itself
-/// belongs to the use case, which is the only place holding the aggregate it loaded and can therefore
-/// compare without leaving a window for somebody else to commit; what this controller does is decode
-/// the header into a <c>VersionPrecondition</c> and hand it over. The transport verdicts on the
-/// header — malformed, or missing where configuration requires one — come from
-/// <c>ApiControllerBase.ReadPrecondition</c>.
-/// </para>
-/// <para>
-/// <b>Bodies.</b> Every write answers with the representation it produced and that representation's
-/// new <c>ETag</c>, so a caller never has to re-read what it just changed to keep writing. Nothing
-/// here serialises an application DTO: <see cref="TodoListResponseMapping"/> projects onto this feature's own
-/// contracts.
-/// </para>
+/// Every read that names one aggregate publishes its version as a strong <c>ETag</c>, and every
+/// write of one honours <c>If-Match</c>. See <c>docs/ADDING-A-FEATURE.md</c> for the conventions
+/// this surface shares with the others.
 /// </remarks>
 [Route("api/v{version:apiVersion}/todo-lists")]
 [Asp.Versioning.ApiVersion("1.0")]

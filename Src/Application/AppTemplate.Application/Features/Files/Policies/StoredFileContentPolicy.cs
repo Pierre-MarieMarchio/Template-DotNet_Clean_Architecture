@@ -27,8 +27,7 @@ public static class StoredFileContentPolicy
         ArgumentNullException.ThrowIfNull(declared);
         ArgumentNullException.ThrowIfNull(inspection);
 
-        // Checked before anything else, so that an outage can never be read as a pass. Everything
-        // below this line is a verdict about bytes somebody actually looked at.
+        // Before anything else, so an outage is never read as a pass.
         if (inspection.Status == ContentInspectionStatus.Unavailable)
         {
             return ContentDecision.Retry;
@@ -39,11 +38,8 @@ public static class StoredFileContentPolicy
             return ContentDecision.Quarantine;
         }
 
-        // Content no scanner will ever look at is refused rather than left waiting. The condition is
-        // permanent — the object is past a limit the object cannot change — so retrying would park
-        // the file for ever, and releasing it would make "upload something larger than the scanner
-        // accepts" the way to skip the scan. Refusing is the only one of the three that neither
-        // strands the file nor rewards the size.
+        // A permanent condition, so retrying would park the file for ever and releasing it would
+        // make "upload something larger than the scanner accepts" the way to skip the scan.
         if (inspection.Status == ContentInspectionStatus.NotInspectable)
         {
             return ContentDecision.Quarantine;
@@ -58,28 +54,20 @@ public static class StoredFileContentPolicy
     /// </summary>
     private static ContentDecision DecideFromContent(DeclaredMediaType declared, ReadOnlySpan<byte> head)
     {
-        // First, and regardless of what was declared. A script container is refused even when it is
-        // declared honestly as one: nothing in this template sanitises an SVG, and the download path
-        // cannot make one safe either — it hands out a signed URL to an origin this application does
-        // not control, so whether the object is served as an attachment is a property of that
-        // store's configuration rather than of any code here. Refusing the format is the only rule
-        // this layer can actually enforce, and SECURITY.md names this as the gap most likely to be
-        // exploited.
+        // First, and regardless of what was declared. Nothing here sanitises an SVG and the download
+        // path cannot make one safe: it hands out a signed URL to a store this application does not
+        // configure. Refusing the format is the only rule this layer can enforce — SECURITY.md names
+        // it as the likeliest gap, and a project that needs SVG owes a sanitiser with it.
         //
-        // A project that genuinely needs SVG changes this deliberately, and owes a sanitiser and a
-        // serving path that cannot execute what it stores.
-        // Two checks, because one of them is bounded and the other cannot be. The search reads a
-        // prefix, so markup pushed past it is markup nothing sees; what an author cannot push is the
-        // start of the document, and a well-formed SVG's first meaningful byte is '<' however much
-        // comment sits between that and its root element. See MediaTypeSignatures.BeginsAsMarkup.
+        // Two checks: the signature search reads a prefix, so markup pushed past it goes unseen,
+        // while the start of the document is what an author cannot push.
         if (MediaTypeSignatures.IsScriptContainer(head) || MediaTypeSignatures.BeginsAsMarkup(head))
         {
             return ContentDecision.Quarantine;
         }
 
-        // Second: the content named itself. Deliberately exact — a spelling this template does not
-        // recognise, 'image/jpg' for a JPEG say, is refused rather than guessed at, because a table
-        // of aliases is a second place for the two sides to disagree.
+        // Second: the content named itself. Exact, so an unrecognised spelling — 'image/jpg' for a
+        // JPEG — is refused rather than guessed at; a table of aliases is a second place to disagree.
         if (MediaTypeSignatures.DetectedMediaTypeOf(head) is { } detected)
         {
             return string.Equals(detected, declared.Value, StringComparison.Ordinal)
@@ -88,14 +76,12 @@ public static class StoredFileContentPolicy
         }
 
         // Third: the content named nothing, so the declaration is checked in the other direction. A
-        // file claiming to be a PNG has to start like a PNG; that it starts like nothing this table
-        // knows is enough to say it is not one. Without this the whole check would be evadable by
-        // uploading a format the table has no signature for.
+        // file claiming to be a PNG has to start like one. Without this, uploading a format the
+        // table has no signature for would evade the whole check.
         //
-        // The types with no signature — CSV, JSON, plain text, and every ZIP-based document format,
-        // for the reason the table gives — reach here and are released. That is the deliberate limit
-        // of what leading bytes can decide, and it is why the rule above it exists: the one format
-        // that is dangerous *because* it has no signature is recognised from its markup instead.
+        // The types with no signature — CSV, JSON, plain text, every ZIP-based document format —
+        // reach here and are released. That is the limit of what leading bytes decide, and why the
+        // markup rule above exists.
         return MediaTypeSignatures.IsRecognisable(declared.Value)
             ? ContentDecision.Quarantine
             : ContentDecision.Release;

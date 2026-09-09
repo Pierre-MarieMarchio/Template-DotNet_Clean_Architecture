@@ -13,15 +13,11 @@ namespace AppTemplate.Api.Core.Common.Controllers;
 /// Turns a <see cref="Result"/> into an HTTP response, so a controller action binds, calls one use
 /// case and maps: no business logic, no try/catch, no hand-rolled error shapes.
 /// </summary>
-// Only genuinely universal statuses belong here: ProducesResponseType adds to an action's set
-// and cannot be removed by it, so anything conditional has to be declared per action.
-// 429 comes from the global rate limiter, which every endpoint passes through; 413 and 415 are
-// reachable at the same layer, ahead of every action, for the same reason.
+// Only universal statuses: ProducesResponseType adds to an action's set and cannot be removed by
+// it. 429, 413 and 415 all arrive ahead of every action.
 //
-// No [Produces("application/json")]: it is a result filter that unconditionally overwrites
-// ObjectResult.ContentTypes, including the "application/problem+json" that ErrorMapping sets on
-// every error response. System.Text.Json is the only output formatter registered, so a success
-// response still negotiates to JSON without it.
+// No [Produces("application/json")]: it overwrites ObjectResult.ContentTypes, including the
+// "application/problem+json" ErrorMapping sets on every error response.
 [ApiController]
 [ProducesResponseType(StatusCodes.Status413PayloadTooLarge, Type = typeof(ProblemDetails))]
 [ProducesResponseType(StatusCodes.Status415UnsupportedMediaType, Type = typeof(ProblemDetails))]
@@ -209,10 +205,8 @@ public abstract class ApiControllerBase : ControllerBase
             : result;
     }
 
-    // A base class cannot demand IOptions<ConcurrencyOptions> as a constructor parameter without
-    // forcing it on every controller that derives from it, present and future, whether or not that
-    // controller ever calls ReadPrecondition. Resolving it here, once, from the request's own
-    // container is the one place in this project a service locator is justified.
+    // Demanding IOptions<ConcurrencyOptions> in the constructor would force it on every derived
+    // controller, including those that never call ReadPrecondition.
     private bool IfMatchIsRequired() =>
         HttpContext.RequestServices.GetRequiredService<IOptions<ConcurrencyOptions>>().Value.IfMatch
             == IfMatchRequirement.Required;

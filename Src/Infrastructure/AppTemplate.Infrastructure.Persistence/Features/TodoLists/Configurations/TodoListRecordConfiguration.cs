@@ -21,24 +21,20 @@ internal sealed class TodoListRecordConfiguration : IEntityTypeConfiguration<Tod
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        // The schema is named here rather than as a context-wide default, because this context holds
-        // two schemas. Every table states its own, so none can drift into the wrong one by omission.
+        // This context holds two schemas, so every table names its own rather than inheriting one.
         builder.ToTable("TodoLists", AppDbContext.TodoSchema);
 
         builder.HasKey(list => list.Id);
 
-        // Ids are UUIDv7, created by the domain: sequential enough to keep index inserts
-        // local, and known before the insert so a use case can return one without a
-        // round trip. The database must therefore not try to generate them.
+        // Ids are UUIDv7, created by the domain: sequential enough to keep index inserts local, and
+        // known before the insert.
         builder.Property(list => list.Id).ValueGeneratedNever();
 
         builder.Property(list => list.OwnerId).IsRequired();
 
-        // One composite index per sortable field, each leading with OwnerId — every read filters by
-        // it — and ending in Id, the same tiebreaker TodoListSortMap always appends, so both the
-        // ORDER BY and the keyset comparison that resumes it stay index-ordered instead of falling
-        // back to a sort. A field made sortable is a field that gets an index: that is the cost of
-        // adding one to the whitelist, and the reason the whitelist stays short.
+        // One index per sortable field, leading with OwnerId, which every read filters by, and
+        // ending in Id, the tiebreaker TodoListSortMap always appends. A field made sortable is a
+        // field that gets an index.
         builder.HasIndex(list => new { list.OwnerId, list.Name, list.Id })
             .HasDatabaseName("IX_TodoLists_OwnerId_Name_Id");
 
@@ -52,11 +48,9 @@ internal sealed class TodoListRecordConfiguration : IEntityTypeConfiguration<Tod
             .HasMaxLength(TodoListName.MaxLength)
             .IsRequired();
 
-        // PostgreSQL's xmin system column. It already exists on every table, so nothing
-        // is created here; the mapping just tells EF to read it back after a write and to
-        // include it in the WHERE clause of the next one. The token lives on the root only,
-        // because the root is the consistency boundary — a concurrent edit to any item is a
-        // conflict on the list.
+        // PostgreSQL's xmin system column, which already exists: EF reads it back after a write and
+        // puts it in the WHERE clause of the next one. On the root only — a concurrent edit to any
+        // item is a conflict on the list.
         builder.Property(list => list.Version)
             .HasColumnName("xmin")
             .HasColumnType("xid")
@@ -68,10 +62,8 @@ internal sealed class TodoListRecordConfiguration : IEntityTypeConfiguration<Tod
         builder.Property(list => list.LastModifiedAt);
         builder.Property(list => list.LastModifiedBy);
 
-        // Cascade, deliberately: an item has no meaning without its list, so a list
-        // deleted while its items survive would leave rows no code path can ever reach.
-        // The alternative — restricting the delete — would make deleting a list a
-        // two-step operation the caller has to get right.
+        // Cascade: an item has no meaning without its list, and surviving items would be rows no
+        // code path can reach.
         builder.HasMany(list => list.Items)
             .WithOne()
             .HasForeignKey(item => item.TodoListId)

@@ -42,9 +42,8 @@ public sealed class LoginUseCase(
             request.Password,
             cancellationToken);
 
-        // Every refusal collapses to one error, whatever the reason: an unknown address, a wrong
-        // password, an unconfirmed address and a locked-out account are exactly what a probe is
-        // trying to tell apart. Branching on the outcome here is what would let it.
+        // Every refusal collapses to one error: an unknown address, a wrong password, an unconfirmed
+        // address and a lockout are exactly what a probe is trying to tell apart.
         if (credential is not { Status: CredentialCheckStatus.Verified, Account: { } account })
         {
             securityEventLog.Record(SecurityEvent.AuthenticationFailed(credential.Account?.UserId, credential.Status));
@@ -52,11 +51,9 @@ public sealed class LoginUseCase(
             return Result.Failure<LoginOutcome>(AuthErrors.InvalidCredentials);
         }
 
-        // A verified password on a two-factor account is only half a login: the challenge issued here
-        // proves nothing on its own, and LoginSucceeded/the token pair wait for VerifyTwoFactorUseCase
-        // to redeem it. Checked after the credential, never before — see the comment above for why
-        // the order matters: an unauthenticated caller must learn nothing about the account from a
-        // guess alone, and this branch is only reached once the password already matched.
+        // A verified password on a two-factor account is half a login: the challenge issued here is
+        // redeemed by VerifyTwoFactorUseCase, which is what mints the tokens. After the credential
+        // check, never before, so a guess alone reveals nothing about the account.
         if (account.TwoFactorEnabled)
         {
             var challenge = await twoFactorChallenge.IssueAsync(account.UserId, cancellationToken);

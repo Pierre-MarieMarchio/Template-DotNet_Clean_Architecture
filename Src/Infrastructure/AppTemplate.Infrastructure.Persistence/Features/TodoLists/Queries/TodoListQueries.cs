@@ -28,8 +28,6 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        // Ownership is in the WHERE clause: every read filters by owner, whatever the caller's
-        // sort, filter or cursor claims.
         var owned = context.TodoLists
             .AsNoTracking()
             .Where(list => list.OwnerId == ownerId.Value);
@@ -52,8 +50,8 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
         CancellationToken cancellationToken = default) =>
         context.TodoLists
             .AsNoTracking()
-            // Ownership is in the WHERE clause. A query that fetched by id and compared the
-            // owner afterwards would have already read another user's row into this process.
+            // One query, so a missing list and someone else's list are indistinguishable. Fetching
+            // by id and comparing the owner afterwards would read another user's row first.
             .Where(list => list.Id == id && list.OwnerId == ownerId.Value)
             .Select(list => new Versioned<TodoListDetailDto>(
                 new TodoListDetailDto(
@@ -100,8 +98,6 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
         TodoListPageRequest request,
         CancellationToken cancellationToken)
     {
-        // Counted server-side. Materialising the page and calling Count() on the result would
-        // report the page's size, not the total, which is the classic pagination bug.
         int totalCount = await filtered.CountAsync(cancellationToken);
 
         int page = request.Paging.Page!.Value;
@@ -121,8 +117,8 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
         TodoListPageRequest request,
         CancellationToken cancellationToken)
     {
-        // Cursor mode never carries more than one sort term — the use case already refuses a
-        // multi-term sort under paging=cursor — so this is always the one term to compare against.
+        // The use case refuses a multi-term sort under paging=cursor, so there is always exactly one
+        // term here.
         var term = request.Sort.Terms[0];
         int pageSize = request.Paging.PageSize;
 
@@ -130,7 +126,7 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
             ? TodoListSortMap.ApplyKeyset(filtered, term, cursor)
             : filtered;
 
-        // One extra row is how "is there a next page" is answered without a second query.
+        // One row beyond the page answers "is there a next page" without a second query.
         var items = await TodoListSortMap.ApplyOrder(keysetSource, request.Sort)
             .Take(pageSize + 1)
             .Select(_toSummary)
@@ -143,8 +139,6 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
 
         if (hasNext)
         {
-            // The cursor names the last row this page actually served, read off the projection —
-            // nothing is materialised to produce it.
             var last = page[^1];
 
             nextCursor = Cursor.After(term, TodoListSortMap.KeyOf(last, term.Field), last.Id).Encode();

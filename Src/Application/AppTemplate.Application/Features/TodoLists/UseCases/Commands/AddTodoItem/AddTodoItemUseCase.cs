@@ -36,9 +36,9 @@ public sealed class AddTodoItemUseCase(
 
         var todoList = access.Value;
 
-        // Caught: a duplicate title or a full list depends on the aggregate's current contents,
-        // so the caller could not have avoided it by sending better input. A malformed tag is not
-        // caught here any more — the validator above already rejects it as a 400.
+        // Caught: a duplicate title or a full list depends on the aggregate's current contents, so
+        // the caller could not have avoided it by sending better input. A malformed tag is not one
+        // of these — the validator above rejects it as a 400.
         var itemId = DomainGuard.Try(() =>
         {
             var id = todoList.AddItem(command.Title, command.Description);

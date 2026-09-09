@@ -230,17 +230,9 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
     {
         ArgumentNullException.ThrowIfNull(tags);
 
-        // The state and the instant are two records of the same fact. Where they disagree the row
-        // describes a file that no sequence of operations could have produced, and loading it would
-        // put the contradiction inside an aggregate, where it surfaces far from the row that caused
-        // it — as a file that can never be confirmed, or as one served without its bytes ever having
-        // been checked.
-        //
-        // Written as an equivalence over the whole enum rather than as one rule per state, because
-        // the two rules it replaced were a rule about Available and a rule about Pending, and adding
-        // a member to the enum quietly exempted it from both. Only MakeAvailable ever writes the
-        // instant, so "has an instant" and "is available" are the same fact and neither may appear
-        // without the other.
+        // Only MakeAvailable writes the instant, so "has an instant" and "is available" are the same
+        // fact and neither may appear without the other. An equivalence over the whole enum rather
+        // than a rule per state, so a member added to the enum is not exempt from it.
         if ((state == StoredFileState.Available) != (availableAt is not null))
         {
             throw new DomainException(
@@ -255,9 +247,8 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
             AvailableAt = availableAt,
         };
 
-        // Through the set rather than around it: a stored row that somehow holds more tags than the
-        // cap allows, or the same tag twice, is refused here rather than loaded into an aggregate
-        // that no sequence of operations could have produced.
+        // Through the set, so a row holding more tags than the cap allows, or the same tag twice, is
+        // refused rather than loaded.
         file.SetTags(tags);
 
         return file;

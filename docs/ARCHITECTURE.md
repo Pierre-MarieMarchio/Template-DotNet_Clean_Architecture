@@ -160,7 +160,9 @@ mechanism this one lacks copies it and tunes it. Its single use case,
 `Features/Maintenance/UseCases/Commands/PurgeExpiredIdempotencyKeys/`, is the idempotency
 mechanism's own housekeeping and names no business type; a host opts into it with
 `AddPurgeExpiredIdempotencyKeys()`, so one that has neither a maintenance endpoint nor a
-maintenance loop is not made to supply the two ports it resolves. There is deliberately no
+maintenance loop is not made to supply the two ports it resolves. Both purges are reachable two
+ways in this template: `MaintenanceController`, for a scheduler outside the process — a Kubernetes
+CronJob, a cloud scheduler — and the worker's maintenance loop, whose interval is configuration. There is deliberately no
 `AddApplicationCore()` beside it: this project declares ports, results and markers, none of which
 anything registers, and an umbrella call that registered nothing would read like the seam that
 makes the project work.
@@ -428,12 +430,16 @@ neither `AppTemplate.Application` nor `AppTemplate.Application.Core` names anyth
 What does **not** hold is the larger claim that a container builds without authentication. In this
 template it does not, and
 `ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
-pins the two reasons so they cannot quietly stop being the reasons. `IIdentitySeeder` is registered
-by the *persistence* module and needs a `UserManager` that only the identity module supplies, so
-persistence alone cannot be composed. And `IReminderNotifier`, which the reminder feature's own use
-case takes, has its single adapter in the email module — whose reminder notifier in turn resolves
-`IUserProfilesService`, an authentication port, to find the address a due reminder is rung at. And
-`AddReminders()` is not independent of `AddTodoLists()`: scheduling a reminder reaches into the
+pins the one reason so it cannot quietly stop being the reason: `IReminderNotifier`, which the
+reminder feature's own use case takes, has its single adapter in the email module — whose reminder
+notifier in turn resolves `IUserProfilesService`, an authentication port, to find the address a due
+reminder is rung at. That is **the single business-to-auth door**, it is deliberate, and the port is
+the joint that lets the adapter become a call across a process without anything business-side
+changing.
+
+`IIdentitySeeder` is not a second reason. The seeder belongs to the authentication module, so
+removing that module takes it away, and the same test asserts that absence rather than trusting it.
+And `AddReminders()` is not independent of `AddTodoLists()`: scheduling a reminder reaches into the
 to-do list's read port, the only ownership check made before a reminder is created. The example
 features are not four symmetric modules, and saying so is cheaper than a start-up failure that does
 not explain itself.
@@ -776,6 +782,14 @@ change tracker useful without it ever seeing the aggregate.
   and, in Development only, so do the two OpenAPI endpoints. One consequence: because
   the fallback policy also applies when no endpoint matched, an unknown route answers
   401 to an anonymous caller rather than 404.
+- **A provider name is a field, never a route segment.** `POST /auth/external` takes the provider
+  in its body. Routing is the one layer that answers before any code does, so a provider in the path
+  makes "is this provider configured?" a question the router can be made to answer — by a
+  constraint, a catch-all that does not match, or a second route added later — and an unknown
+  provider becomes a 404 where a configured one is a 401. One route and one handler disclose
+  nothing. It also keeps `SignInWithExternalProviderCommandValidator`'s presence rule reachable: a
+  route segment can never bind empty, so a missing provider would be a 404 instead of the 400 every
+  other required field produces.
 - **No HTTPS redirection.** TLS terminates upstream and the container listens on plain
   8080; redirection would 307 the orchestrator's health probe.
 - **Liveness has no dependency check**; readiness checks the database and whether the host
@@ -788,6 +802,16 @@ change tracker useful without it ever seeing the aggregate.
   have the orchestrator restart a process that is merely busy. Behind a proxy the partition
   key is only correct once `ReverseProxy:Enabled` is turned on — see below; the mechanism is
   shipped, the trust list is what your topology has to supply.
+- **A wire contract is this layer's own type, never an application or port type reused.** Every
+  feature projects onto its own records in `Contracts/`, by hand, through one `Mapping/` class.
+  Three of those projections are what the boundary is for, and the rest look like ceremony because
+  field-for-field is the common case: `ReminderResponseMapping` answers with a string status so no
+  client depends on the declaration order of a domain enum; `RegisterResponse` withholds the user id
+  its application outcome carries, because nothing downstream of sign-up addresses the account by
+  id; and `StoredFileResponseMapping` republishes the content store's upload grant under a contract
+  of this layer, so a field added to `IssuedUploadGrant` by the next object-store adapter is not
+  published to every client by that edit alone. None of the three survives a contract that *is* the
+  application type.
 - **Structured JSON logs.** `AddJsonConsole` replaces the default unstructured
   formatter, so production logs are queryable without taking on a third-party logging
   dependency the template would then have to maintain.

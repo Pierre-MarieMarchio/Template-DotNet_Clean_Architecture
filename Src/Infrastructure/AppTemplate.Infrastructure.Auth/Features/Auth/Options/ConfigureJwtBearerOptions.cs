@@ -48,20 +48,16 @@ internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
         {
             ValidateIssuerSigningKey = true,
 
-            // Never conditional, and never derived from whether a value is present: a check that
-            // switches itself off when its configuration is blank refuses nothing while looking
-            // like it does. JwtOptionsValidator requires both values, so there is nothing left to
-            // be conditional about.
+            // Never derived from whether a value is present: a check that switches itself off when
+            // its configuration is blank refuses nothing. JwtOptionsValidator requires both values.
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
 
-            // Small, not zero. The issuer stamps nbf and exp from IDateTimeProvider while this check
-            // reads the machine clock, so the two are the same instant only while that machine's
-            // clock holds still. At zero tolerance a single backward step — an NTP correction, a
-            // resumed VM — refuses every token already in circulation as "not yet valid", across
-            // every instance behind the load balancer at once. Far below the framework's five-minute
-            // default, which is loose enough to keep a stolen token alive well past its expiry.
+            // Small, not zero: the issuer stamps nbf and exp from IDateTimeProvider while this check
+            // reads the machine clock, so one backward step — an NTP correction, a resumed VM —
+            // would refuse every token in circulation. The framework's default is five minutes,
+            // which keeps a stolen token alive well past its expiry.
             ClockSkew = TimeSpan.FromSeconds(30),
             ValidIssuer = settings.Issuer,
             ValidAudience = settings.Audience,
@@ -73,10 +69,8 @@ internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
 
         options.Events = new JwtBearerEvents
         {
-            // 401 and 403 are the two most common failures this API produces, so they get the same
-            // treatment as every other error: application/problem+json carrying a stable,
-            // machine-readable `code`, not a bare `{"message":"..."}` a client would have to
-            // special-case as the one response shaped differently from all the rest.
+            // application/problem+json with a stable `code`, like every other error this API
+            // produces, rather than the handler's own body shape.
             OnChallenge = context =>
             {
                 ArgumentNullException.ThrowIfNull(context);

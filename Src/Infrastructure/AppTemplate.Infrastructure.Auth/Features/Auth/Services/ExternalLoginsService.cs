@@ -103,18 +103,15 @@ internal sealed class ExternalLoginsService(
                 UserName = userName,
                 Email = email,
 
-                // The whole point of this flag being set here. The provider verified the address —
-                // that is the precondition ExternalAccountLinkPolicy checked before allowing this
-                // call — so an account left unconfirmed would be created successfully and then
-                // refused at the very next step by SignInManager.CanSignInAsync, on every single
-                // first sign-in, invisibly to anything but a run against a real store.
+                // The provider verified the address, which ExternalAccountLinkPolicy checked before
+                // this call. Left unconfirmed, the account would be created and then refused by
+                // SignInManager.CanSignInAsync on every first sign-in.
                 EmailConfirmed = true,
 
                 CreatedAt = dateTimeProvider.UtcNow,
             };
 
-            // No password overload: an account reached through a provider has no secret to invent
-            // and none the user could ever be told.
+            // No password overload: an account reached through a provider has no secret to invent.
             var created = await userManager.CreateAsync(user);
 
             if (created.Succeeded)
@@ -122,9 +119,8 @@ internal sealed class ExternalLoginsService(
                 return await LinkNewAccountAsync(user, provider, subject);
             }
 
-            // A taken user name is the one failure another candidate fixes. A taken address is not:
-            // somebody claimed it between the caller's lookup and this call, and that is exactly
-            // what ExternalAccountProvisionStatus.Refused describes.
+            // A taken user name is the one failure another candidate fixes. A taken address means
+            // somebody claimed it between the caller's lookup and this call.
             if (!IsDuplicateUserName(created))
             {
                 return ExternalAccountProvisionOutcome.Refused;
@@ -189,9 +185,8 @@ internal sealed class ExternalLoginsService(
         int at = email.IndexOf('@', StringComparison.Ordinal);
         string candidate = Keep(at < 0 ? email : email[..at], allowed);
 
-        // Nothing of the address survived the allowed set, so the name comes from an identifier
-        // instead. Its hexadecimal digits are in every plausible allowed set, and unlike the address
-        // it cannot be empty.
+        // Nothing of the address survived the allowed set, so the name comes from an identifier:
+        // hexadecimal digits are in every plausible allowed set and cannot be empty.
         if (candidate.Length == 0)
         {
             candidate = Keep(Guid.CreateVersion7().ToString("N"), allowed);

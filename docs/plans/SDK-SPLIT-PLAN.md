@@ -1,4 +1,4 @@
-# Splitting the template — plan of record
+﻿# Splitting the template — plan of record
 
 **Status:** waves 0 to 7 done, on `main`. **Decided:** 2026-09-07. **Wave 7 closed:** 2026-09-08 —
 `docs/plans/SDK-SPLIT-HANDOFF.md` carries the state, the measurements and the one gate step this

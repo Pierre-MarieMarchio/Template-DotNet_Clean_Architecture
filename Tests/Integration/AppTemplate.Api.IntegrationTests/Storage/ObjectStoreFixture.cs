@@ -294,7 +294,7 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
 
     private async Task<HttpResponseMessage> Send(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        for (var attempt = 1; ; attempt++)
+        for (int attempt = 1; ; attempt++)
         {
             // A new client per call, and cheap: the factory pools the handler underneath, so this
             // costs an object rather than a connection pool. Awaited inside the using, not returned

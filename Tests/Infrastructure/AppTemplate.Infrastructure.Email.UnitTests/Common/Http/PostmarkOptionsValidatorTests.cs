@@ -16,10 +16,8 @@ public sealed class PostmarkOptionsValidatorTests
     private static readonly PostmarkOptionsValidator _validator = new();
 
     [Fact]
-    public void Validate_AcceptsATokenAndTheProvidersOwnEndpoint()
-    {
+    public void Validate_AcceptsATokenAndTheProvidersOwnEndpoint() =>
         _validator.Validate(name: null, Valid()).Succeeded.ShouldBeTrue();
-    }
 
     [Theory]
     [InlineData("")]
@@ -62,7 +60,7 @@ public sealed class PostmarkOptionsValidatorTests
         var options = Valid();
         options.ApiBaseUrl = "http://mail-proxy.example.invalid/";
 
-        var message = RejectionMessageFor(options);
+        string message = RejectionMessageFor(options);
 
         message.ShouldContain("ServerToken");
         message.ShouldContain("readable on the wire");
@@ -130,17 +128,15 @@ public sealed class PostmarkOptionsValidatorTests
     }
 
     [Fact]
-    public void Validate_ThrowsWhenThereAreNoOptionsToValidate()
-    {
+    public void Validate_ThrowsWhenThereAreNoOptionsToValidate() =>
         Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
-    }
 
     private static string RejectionMessageFor(PostmarkOptions options)
     {
         var result = _validator.Validate(name: null, options);
 
         result.Failed.ShouldBeTrue();
-        var message = result.FailureMessage;
+        string message = result.FailureMessage;
         message.ShouldNotBeNull();
 
         return message;

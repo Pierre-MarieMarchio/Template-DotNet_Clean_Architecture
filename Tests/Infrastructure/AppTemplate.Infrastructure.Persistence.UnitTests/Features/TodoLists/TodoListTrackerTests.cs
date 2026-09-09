@@ -44,10 +44,8 @@ public sealed class TodoListTrackerTests
     }
 
     [Fact]
-    public void Find_ReturnsNothing_ForAnAggregateNobodyLoaded()
-    {
+    public void Find_ReturnsNothing_ForAnAggregateNobodyLoaded() =>
         ATracker().Find(Guid.CreateVersion7()).ShouldBeNull();
-    }
 
     [Fact]
     public void Find_StopsReturningARemovedAggregate_ButItsRowIsStillThere()
@@ -180,10 +178,7 @@ public sealed class TodoListTrackerTests
     }
 
     [Fact]
-    public void Restore_RejectsNull()
-    {
-        Should.Throw<ArgumentNullException>(() => ATracker().Restore(null!));
-    }
+    public void Restore_RejectsNull() => Should.Throw<ArgumentNullException>(() => ATracker().Restore(null!));
 
     // ---- Fixture -------------------------------------------------------------------------------
 

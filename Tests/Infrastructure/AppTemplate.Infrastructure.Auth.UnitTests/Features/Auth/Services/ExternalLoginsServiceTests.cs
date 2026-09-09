@@ -82,10 +82,8 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task FindByEmailAsync_ReturnsNothingWhenNoAccountHoldsTheAddress()
-    {
+    public async Task FindByEmailAsync_ReturnsNothingWhenNoAccountHoldsTheAddress() =>
         (await CreateService().FindByEmailAsync("nobody@example.com", TestToken)).ShouldBeNull();
-    }
 
     [Fact]
     public async Task LinkAsync_AttachesThePairToAnExistingAccount()

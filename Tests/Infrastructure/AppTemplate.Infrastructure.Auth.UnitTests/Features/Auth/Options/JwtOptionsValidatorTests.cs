@@ -42,10 +42,8 @@ public sealed class JwtOptionsValidatorTests
     }
 
     [Fact]
-    public void Validate_RejectsAMissingKey()
-    {
+    public void Validate_RejectsAMissingKey() =>
         _validator.Validate(name: null, Valid(key: "   ")).Failed.ShouldBeTrue();
-    }
 
     private static JwtOptions Valid(string key) => new()
     {

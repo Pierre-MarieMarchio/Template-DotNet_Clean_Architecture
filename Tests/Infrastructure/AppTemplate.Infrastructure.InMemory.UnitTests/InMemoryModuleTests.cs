@@ -165,10 +165,8 @@ public sealed class InMemoryModuleTests
     }
 
     [Fact]
-    public void AddInMemoryModule_ThrowsWhenThereIsNoContainerToComposeInto()
-    {
+    public void AddInMemoryModule_ThrowsWhenThereIsNoContainerToComposeInto() =>
         Should.Throw<ArgumentNullException>(() => InMemoryModule.AddInMemoryModule(services: null!));
-    }
 
     [Fact]
     public void AddInMemoryModule_ReturnsTheCollectionItWasGiven()

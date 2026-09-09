@@ -65,10 +65,8 @@ public sealed class StoredObjectsTests
     }
 
     [Fact]
-    public void Find_AnswersWithNothingForAKeyNobodyDepositedUnder()
-    {
+    public void Find_AnswersWithNothingForAKeyNobodyDepositedUnder() =>
         new StoredObjects(_clock).Find(_objectKey).ShouldBeNull();
-    }
 
     /// <summary>
     /// Ordered, because the listing the orphan sweep walks is ordered and its paging depends on it.
@@ -104,8 +102,6 @@ public sealed class StoredObjectsTests
     [InlineData("https://files.in-memory.invalid/t0/202601/a?method=GET&expires=99999999999&signature=00")]
     [InlineData("https://example.invalid/t0/202601/a?method=GET&expires=99999999999&signature=00")]
     [InlineData("not a url at all")]
-    public void IsGrantValid_RefusesAnythingItDidNotSign(string url)
-    {
+    public void IsGrantValid_RefusesAnythingItDidNotSign(string url) =>
         new StoredObjects(_clock).IsGrantValid(url, "GET", _clock.UtcNow).ShouldBeFalse();
-    }
 }

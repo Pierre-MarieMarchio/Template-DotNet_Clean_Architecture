@@ -19,16 +19,12 @@ public sealed class ExternalIdentityOptionsValidatorTests
     /// use it.
     /// </summary>
     [Fact]
-    public void Validate_AcceptsADeploymentWithNoProviderAtAll()
-    {
+    public void Validate_AcceptsADeploymentWithNoProviderAtAll() =>
         _validator.Validate(name: null, new ExternalIdentityOptions()).Succeeded.ShouldBeTrue();
-    }
 
     [Fact]
-    public void Validate_AcceptsAFullyConfiguredProvider()
-    {
+    public void Validate_AcceptsAFullyConfiguredProvider() =>
         _validator.Validate(name: null, With(Google())).Succeeded.ShouldBeTrue();
-    }
 
     [Fact]
     public void Validate_AcceptsAProviderAddressedByItsDiscoveryDocument()

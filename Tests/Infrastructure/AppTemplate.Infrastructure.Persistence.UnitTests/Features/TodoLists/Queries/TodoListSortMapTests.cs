@@ -198,10 +198,8 @@ public sealed class TodoListSortMapTests
     }
 
     [Fact]
-    public void KeyOf_AFieldNotOnTheWhitelist_Throws()
-    {
+    public void KeyOf_AFieldNotOnTheWhitelist_Throws() =>
         Should.Throw<InvalidOperationException>(() => TodoListSortMap.KeyOf(ASummary(), "bogus"));
-    }
 
     private static TodoListSummaryDto ASummary(string name = "Any", DateTimeOffset createdAt = default) =>
         new(Guid.CreateVersion7(), name, ItemCount: 0, CompletedItemCount: 0, createdAt);

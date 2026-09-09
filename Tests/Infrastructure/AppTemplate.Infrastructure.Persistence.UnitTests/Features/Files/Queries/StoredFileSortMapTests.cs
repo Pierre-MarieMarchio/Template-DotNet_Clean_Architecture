@@ -231,10 +231,8 @@ public sealed class StoredFileSortMapTests
     }
 
     [Fact]
-    public void KeyOf_AFieldNotOnTheWhitelist_Throws()
-    {
+    public void KeyOf_AFieldNotOnTheWhitelist_Throws() =>
         Should.Throw<InvalidOperationException>(() => StoredFileSortMap.KeyOf(ADto(), "bogus"));
-    }
 
     private static StoredFileDto ADto(string name = "any.bin", DateTimeOffset registeredAt = default) =>
         new(

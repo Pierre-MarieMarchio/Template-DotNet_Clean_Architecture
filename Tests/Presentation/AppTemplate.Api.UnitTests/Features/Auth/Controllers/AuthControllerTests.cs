@@ -165,10 +165,8 @@ public sealed class AuthControllerTests
     /// password sign-in parses this without a second code path.
     /// </summary>
     [Fact]
-    public void TheTwoBranches_AreTaggedTheSameWayLoginsAre()
-    {
+    public void TheTwoBranches_AreTaggedTheSameWayLoginsAre() =>
         DiscriminatorsOf(typeof(ExternalLoginResponse)).ShouldBe(DiscriminatorsOf(typeof(LoginResponse)));
-    }
 
     #endregion
 
@@ -274,10 +272,7 @@ public sealed class AuthControllerTests
     /// reason <see cref="IdempotentAttribute"/> gives for staying off every authentication endpoint.
     /// </summary>
     [Fact]
-    public void NoAuthenticationAction_IsIdempotent()
-    {
-        ActionsWith<IdempotentAttribute>().ShouldBeEmpty();
-    }
+    public void NoAuthenticationAction_IsIdempotent() => ActionsWith<IdempotentAttribute>().ShouldBeEmpty();
 
     /// <summary>
     /// An <c>id_token</c> is a few kilobytes of base64url at its largest, so the 64 KiB inbound cap

@@ -64,7 +64,7 @@ internal sealed class ReverseProxyOptionsValidator : IValidateOptions<ReversePro
                 "would then be accepted from any caller. List the proxy, or set 'Enabled' to false.");
         }
 
-        foreach (var proxy in options.KnownProxies)
+        foreach (string proxy in options.KnownProxies)
         {
             if (!IPAddress.TryParse(proxy, out _))
             {
@@ -74,7 +74,7 @@ internal sealed class ReverseProxyOptionsValidator : IValidateOptions<ReversePro
             }
         }
 
-        foreach (var network in options.KnownNetworks)
+        foreach (string network in options.KnownNetworks)
         {
             if (!IPNetwork.TryParse(network, out _))
             {

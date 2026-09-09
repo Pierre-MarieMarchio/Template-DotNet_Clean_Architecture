@@ -319,7 +319,7 @@ public sealed class TwoFactorChallengeServiceTests
         // ResetAuthenticatorKeyAsync produces. Encoding is not RFC 6238: it carries no cryptographic
         // meaning of its own, only how the random bytes below are spelled.
         const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-        var bytes = new byte[20];
+        byte[] bytes = new byte[20];
         Random.Shared.NextBytes(bytes);
 
         var builder = new System.Text.StringBuilder();

@@ -252,7 +252,7 @@ public sealed class ReminderTests
         var claimedAt = _now.AddMinutes(-10);
         var reminder = ARehydratedReminder(claimedAt: claimedAt);
 
-        var claimed = reminder.TryClaim(_now, TimeSpan.FromMinutes(5));
+        bool claimed = reminder.TryClaim(_now, TimeSpan.FromMinutes(5));
 
         claimed.ShouldBeTrue();
         reminder.ClaimedAt.ShouldBe(_now);

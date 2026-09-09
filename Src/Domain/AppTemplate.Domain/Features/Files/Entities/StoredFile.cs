@@ -33,7 +33,7 @@ namespace AppTemplate.Domain.Features.Files.Entities;
 /// its owner can see and delete, not a tombstone every query has to filter out.
 /// </para>
 /// </summary>
-public sealed class StoredFile : AuditableAggregateRoot<Guid>
+public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
     /// <summary>How many tags one file carries. The rules that govern them are <see cref="TagSet"/>'s.</summary>
     public const int MaxTags = 20;

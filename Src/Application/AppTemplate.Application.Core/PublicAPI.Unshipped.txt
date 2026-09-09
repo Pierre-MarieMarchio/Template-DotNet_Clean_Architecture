@@ -1,3 +1,5 @@
 #nullable enable
+AppTemplate.Application.Core.Common.Ownership.OwnedAggregate
 AppTemplate.Application.Core.Common.Ports.ICurrentUser.UserId.get -> AppTemplate.Domain.Core.Common.Primitives.UserId?
+static AppTemplate.Application.Core.Common.Ownership.OwnedAggregate.Require<TAggregate>(TAggregate? aggregate, AppTemplate.Domain.Core.Common.Primitives.UserId! ownerId, AppTemplate.Application.Core.Common.Results.Error! notFound, AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition? precondition) -> AppTemplate.Application.Core.Common.Results.Result<TAggregate!>!
 static AppTemplate.Application.Core.Common.Ports.CurrentUserExtensions.RequireUserId(this AppTemplate.Application.Core.Common.Ports.ICurrentUser! currentUser) -> AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Domain.Core.Common.Primitives.UserId!>!

@@ -47,6 +47,15 @@ public sealed class CurrentLanguageTests
         CurrentLanguage.Candidates(tag).ToList().ShouldBe(expected);
 
     /// <summary>
+    /// Refused on the call and not on the first enumeration. Nothing here enumerates the result,
+    /// which is the whole assertion: a renderer that asks for candidates and passes them on would
+    /// otherwise raise the caller's mistake somewhere else entirely.
+    /// </summary>
+    [Fact]
+    public void ANullTag_IsRefusedByTheCallItself() =>
+        Should.Throw<ArgumentNullException>(() => CurrentLanguage.Candidates(null!));
+
+    /// <summary>
     /// A tag the caller sent is never taken on trust: a malformed one leaves the ambient value unset
     /// rather than storing something a renderer would then try to match.
     /// </summary>

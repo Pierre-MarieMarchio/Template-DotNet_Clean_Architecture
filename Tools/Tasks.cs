@@ -230,16 +230,30 @@ internal static class Tasks
                 break;
 
             case "migration-bundle":
-                // Self-contained executable that applies pending migrations. This is how a
+                // Self-contained executables that apply pending migrations. This is how a
                 // deployment migrates: the API applies migrations at startup in Development only.
-                Step(
-                    "dotnet", "ef", "migrations", "bundle",
-                    "--project", persistence,
-                    "--startup-project", persistence,
-                    "--configuration", configuration,
-                    "--self-contained",
-                    "--force",
-                    "--output", Path.Combine(repoRoot, "artifacts", "migrate"));
+                //
+                // One per context, because one bundle covers one context: a single bundle would
+                // leave the other schema absent, and an API whose identity tables do not exist
+                // starts and then fails the first sign-in. The order they run in is not a
+                // correctness requirement -- no foreign key crosses the two schemas -- but
+                // authentication goes first, as it does in the Development bootstrap.
+                foreach ((string project, string output) in new[]
+                {
+                    (auth, "efbundle-identity"),
+                    (persistence, "efbundle"),
+                })
+                {
+                    Step(
+                        "dotnet", "ef", "migrations", "bundle",
+                        "--project", project,
+                        "--startup-project", project,
+                        "--configuration", configuration,
+                        "--self-contained",
+                        "--force",
+                        "--output", Path.Combine(repoRoot, "artifacts", "migrate", output));
+                }
+
                 break;
 
             case "run":

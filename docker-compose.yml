@@ -72,7 +72,7 @@ services:
       - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
       # SMTP, published on loopback as well. The API in this stack reaches mailpit
       # over the compose network and does not need this mapping; it exists so that
-      # the "run on the host" path in README.md — `docker compose up -d db mailpit`
+      # the "run on the host" path in docs/GETTING-STARTED.md — `docker compose up -d db mailpit`
       # plus `dotnet run` — can actually deliver mail. Without it,
       # appsettings.Development.json's Email:Host=localhost:1025 has nothing
       # listening and registration returns confirmationEmailSent=false.

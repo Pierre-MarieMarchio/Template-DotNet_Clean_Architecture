@@ -103,7 +103,7 @@ internal sealed partial class SecurityEventLog(ILogger<SecurityEventLog> logger)
 
     /// <summary>
     /// The field is <c>{Status}</c> because what it carries is a <see cref="CredentialCheckStatus"/>.
-    /// In this repository's vocabulary (CONTRIBUTING.md, Naming) an <c>…Outcome</c> is the record an
+    /// In this repository's vocabulary (docs/CONVENTIONS.md, Naming) an <c>…Outcome</c> is the record an
     /// operation hands back and a <c>…Status</c> is the closed enum of ways it went, so the old
     /// <c>{Outcome}</c> named the wrong one of the two in the JSON an operator queries.
     /// </summary>

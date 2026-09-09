@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>CONTRIBUTING.md</c> bans comments that say what the code <i>was</i> rather than what it
+/// <c>docs/CONVENTIONS.md</c> bans comments that say what the code <i>was</i> rather than what it
 /// <i>is</i>: a reader who did not live that past cannot use the information, and the sentence rots
 /// on its own the next time anything moves. Git holds the history. A rule that is written down,
 /// understood and quoted is still broken in scores of places for as long as nothing executes it.
@@ -34,7 +34,7 @@ using System.Text.RegularExpressions;
 /// and fails when that count is zero, rather than congratulating an empty tree.
 /// </para>
 /// <para>
-/// An unavoidable sentence -- the paragraph in <c>CONTRIBUTING.md</c> that states this rule has to
+/// An unavoidable sentence -- the paragraph in <c>docs/CONVENTIONS.md</c> that states this rule has to
 /// quote the phrases it bans -- carries a marker with a reason. A marker exempts the rest of its
 /// paragraph, and the markers are counted in the output so they cannot spread unnoticed.
 /// </para>

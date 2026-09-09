@@ -255,15 +255,18 @@ into one object would put every pod one credential away from being able to alter
 Migrations run as an explicit step, never inside the serving process, and a Kubernetes `Job` is
 exactly the right shape for that step: it runs once, to completion, with its own credentials, and
 its success or failure is a thing the cluster records rather than a line in a pod's log.
-`migration-job.yaml` is that Job — it runs the self-contained `efbundle` executable
+`migration-job.yaml` is that Job — it runs the two self-contained executables
 `.github/workflows/release.yml`'s `migration-bundle` job already produces, against the
-DDL-capable principal above. Two things this
-manifest assumes but does not itself provide:
+DDL-capable principal above. There are two because there are two contexts: `efbundle-identity`
+carries the `identity` schema and `efbundle` the business one, and each has its own history table,
+so applying one leaves the other absent. The Job runs the first as an initContainer and the second
+as its container, which is what makes them sequential — containers in a Pod start in parallel. Two
+things this manifest assumes but does not itself provide:
 
-- **An image to run it in.** The release workflow uploads `efbundle` as a plain workflow
-  artifact today, not a container image — packaging it (a base image, a non-root user, an
-  `ENTRYPOINT` pointing at the bundle) is a pipeline change this manifest names but does not
-  make.
+- **An image to run them in.** The release workflow uploads both as plain workflow
+  artifacts today, not a container image — packaging them (a base image, a non-root user, and the
+  two bundles at the `/app` paths the Job's containers name) is a pipeline change this manifest
+  names but does not make.
 - **Ordering.** `kubectl apply -f deploy/kubernetes/` does not wait for a `Job` to reach
   `condition: complete` before touching a `Deployment`. Run the migration, wait for it, then roll
   the Deployments — see [`deploy/kubernetes/README.md`](../deploy/kubernetes/README.md) for the

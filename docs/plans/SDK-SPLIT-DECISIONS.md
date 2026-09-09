@@ -660,8 +660,8 @@ this project's composition. That method cannot exist without losing the descript
 
 ## 29. The host declares its own entry point
 
-**Decided.** `Program.cs` ends with `public partial class Program;`, and the integration factory is a
-`WebApplicationFactory<Program>`.
+**Decided.** The integration factory is a `WebApplicationFactory<Program>`, and `Program.cs` needs
+nothing at its end to make that legal.
 
 **Reason.** `WebApplicationFactory<TEntryPoint>` uses the type argument to find the assembly that
 owns the entry point, and refuses one whose assembly has none. The factory used the API's base
@@ -670,12 +670,14 @@ controller became part of a class library. Of the host's remaining public types,
 static, and so cannot be a type argument, or a feature's controller, which would tie the test host
 to a feature.
 
-**Why this rather than a grant.** Top-level statements compile into a class the compiler declares
-`internal`, and the usual alternative is an `InternalsVisibleTo` for the integration project. This
-repository grants internals to exactly one assembly per project — its own mirror — and a second
-grant out of the host for a test-host detail is a worse trade than a type declaration that costs the
-host no member. It also makes `TEntryPoint` name the entry point, which is what the parameter is
-called.
+**Why neither a grant nor a declaration.** Top-level statements once compiled into a class the
+compiler declared `internal`, so naming `Program` from the test project needed either an
+`InternalsVisibleTo` for the integration project or a `public partial class Program;` at the end of
+the file. This repository grants internals to exactly one assembly per project — its own mirror —
+and preferred the declaration, which costs the host no member. The SDK now emits that class public
+on its own, and `ASP0027` reports the declaration as no longer required, so `TEntryPoint` resolves
+with neither. What the entry does still decide is that the type argument names the entry point,
+which is what the parameter is called.
 
 ## 30. The AV0029 suppression is about a generated file, not about controllers
 

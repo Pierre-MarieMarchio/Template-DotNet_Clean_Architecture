@@ -105,8 +105,8 @@
          same Testcontainers core package, which each one pins to its own version. Two different
          bands would resolve one core for both and leave one module compiled against a different
          one. -->
-    <PackageVersion Include="Testcontainers.Minio" Version="4.14.0" />
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />
+    <PackageVersion Include="Testcontainers.Minio" Version="4.15.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.0" />
   </ItemGroup>
 

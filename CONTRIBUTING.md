@@ -120,6 +120,47 @@ After creating or moving any file:
 dotnet run Tools/Tasks.cs format-fix     # i.e. dotnet format AppTemplate.sln
 ```
 
+## Static analysis, and why it is not in the gate
+
+SonarQube is wired up, and it is deliberately **not** one of the six gates above. That count is
+unchanged: a change is still done when those six pass. The gate has to be answerable from a clone
+alone — no account, no token, no third party — and Sonar cannot promise that, so it lives in its own
+workflow with its own verdict.
+
+In CI, `.github/workflows/sonarqube.yml` analyses nothing until the repository is configured for it.
+The job is skipped unless the repository variables `SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` are
+both set, and it is skipped for pull requests from forks, which get no secrets. That is the correct
+state for a template: a generated project inherits the workflow without inheriting somebody else's
+dashboard, and an unconfigured repository is green rather than broken.
+
+Locally, the same analysis runs against a SonarQube Community server in Docker:
+
+```bash
+docker compose --profile sonar up -d --wait sonarqube   # http://localhost:9100, admin/admin
+# generate a token under My Account > Security, put it in .env as SONAR_TOKEN
+dotnet run Tools/Tasks.cs sonar
+```
+
+The profile matters: `compose-up` gives you the application stack, and a 3 GB JVM that only the
+analysis needs has no business in it. Port 9100 and not 9000 because minio already publishes 9000.
+
+**The scanner needs Java, and you do not.** SonarScanner for .NET is a .NET tool that shells out to
+a JRE, so `Tools/sonar-scanner.Dockerfile` supplies one — Java 21, because analyses on a runtime
+below 21 stopped being supported on 20 July 2026. The prerequisites at the top of this file stay
+true: the SDK `global.json` pins, and Docker.
+
+Two things about that local run are worth knowing before they surprise you:
+
+- **It reports less coverage than CI does.** There is no Docker daemon inside the scanner container,
+  so the Testcontainers suite cannot run there; the set is the one `test --no-integration` uses.
+  CI runs the whole suite and is what reports the real figure.
+- **It does not touch your `bin/` and `obj/`.** The container builds into `/build`, a path outside
+  the mounted checkout. Without that, your tree would end up holding paths that exist only inside a
+  container, and your next build would fail on a restore you did not ask for.
+
+The scanner's version is pinned in `.config/dotnet-tools.json`, next to `dotnet-ef`, so the scanner
+CI runs and the scanner your machine runs are the same one.
+
 ## Layout
 
 Four layers, and each one has the same shape, so that changing layer does not mean learning a new

@@ -1353,6 +1353,26 @@ it they all pass. Every test still runs exactly once. Do not merge those two ste
 image to GHCR with an SBOM and a signed provenance attestation, and uploads a self-contained
 migration bundle built from the same commit. It needs no secret beyond the automatic `GITHUB_TOKEN`.
 
+`.github/workflows/sonarqube.yml` is separate from the gate on purpose. The gate answers "is this
+change correct" and must stay answerable from a clone alone — six steps, no account, no token. Sonar
+answers "what does Sonar think", which needs a service a fork or a derived project may not have, so
+merging the two would make an unconfigured repository look broken.
+
+It analyses nothing until it is configured, and that is the intended state for a template: the job
+is skipped unless the repository variables `SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` are both
+set, and it is skipped for pull requests from forks, which get no secrets. Set those two variables
+and the `SONAR_TOKEN` secret in the repository settings to switch it on. A hard-coded organisation
+key would have been inherited by every generated project, which is why they are variables.
+
+The analysis re-builds and re-tests rather than reusing `build-test`'s output: SonarScanner for .NET
+learns which file belongs to which project by observing MSBuild between its `begin` and `end` calls,
+so a build that already happened is invisible to it. Coverage reaches Sonar through
+`sonar.cs.cobertura.reportsPaths`, reading the same Cobertura reports and the same
+`coverage.runsettings` the coverage gate uses.
+
+Locally, `dotnet run Tools/Tasks.cs sonar` runs the same analysis against a SonarQube Community
+server in Docker — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Where to look next
 
 | File | For |
@@ -1375,7 +1395,8 @@ its first, and that is the honest shape of the thing.
 
 Six single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond
 the SDK `global.json` pins — no interpreter to find, no package to install, and the same line
-typed on Windows, Linux and macOS.
+typed on Windows, Linux and macOS. The seventh entry below is the one exception, and it is a
+Dockerfile rather than an app.
 
 | File | What it is |
 |---|---|
@@ -1385,6 +1406,7 @@ typed on Windows, Linux and macOS.
 | [Tools/CoverageGate.cs](Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |
 | [Tools/CheckNarrativeComments.cs](Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
 | [Tools/TestSummary.cs](Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
+| [Tools/sonar-scanner.Dockerfile](Tools/sonar-scanner.Dockerfile) | not a C# app: the image the local Sonar analysis runs in, which is where its JRE lives instead of on your machine |
 
 The four gates each take a `--self-test` flag that runs them against faulted and sound
 fixtures, so a green is contrasted with a red before any of them judges the repository.

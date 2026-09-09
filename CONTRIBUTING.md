@@ -120,18 +120,30 @@ After creating or moving any file:
 dotnet run Tools/Tasks.cs format-fix     # i.e. dotnet format AppTemplate.sln
 ```
 
-## Static analysis, and why it is not in the gate
+## Static analysis, and where its verdict lives
 
-SonarQube is wired up, and it is deliberately **not** one of the six gates above. That count is
-unchanged: a change is still done when those six pass. The gate has to be answerable from a clone
-alone — no account, no token, no third party — and Sonar cannot promise that, so it lives in its own
-workflow with its own verdict.
+SonarQube is wired up, and it is deliberately **not** one of the six gates above. Those six are the
+ones you can run from a clone — no account, no token, no third party — and that list is unchanged.
+Sonar cannot promise that, so it lives in its own workflow with its own verdict.
+
+**It can still fail your pull request, and it is meant to.** The job blocks on the quality gate, so a
+red gate is a red check. What saves that from being unbearable is that the gate judges **new code**:
+its conditions are all `new_*` metrics, so the debt already in the tree blocks nobody, and nothing
+dirty gets added on top of it. Fixing an old smell is never the price of merging; adding a new one
+is.
+
+So the honest reading of the six above is "what a clone can tell you before you push", not "the only
+thing that can stop a merge".
 
 In CI, `.github/workflows/sonarqube.yml` analyses nothing until the repository is configured for it.
 The job is skipped unless the repository variables `SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` are
 both set, and it is skipped for pull requests from forks, which get no secrets. That is the correct
 state for a template: a generated project inherits the workflow without inheriting somebody else's
 dashboard, and an unconfigured repository is green rather than broken.
+
+One thing to expect rather than debug: the first analysis of `main` can come back red, because a
+project with no previous analysis has no baseline and everything reads as new code. It settles as
+soon as that first run becomes the baseline.
 
 Locally, the same analysis runs against a SonarQube Community server in Docker:
 

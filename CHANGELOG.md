@@ -25,7 +25,9 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `.github/workflows/sonarqube.yml` analyses the solution on SonarQube Cloud, and the six gates are
   unchanged: the gate stays answerable from a clone alone, with no account and no token, so a
   verdict that needs a third-party service gets its own file. A generated project inherits the
-  workflow switched off — the job is skipped unless the repository variables `SONAR_ORGANIZATION`
+  workflow blocks on the quality gate, so a red gate is a red check — affordable because the default
+  gate judges new code only, which lets existing debt sit while keeping new work clean. It arrives
+  switched off — the job is skipped unless the repository variables `SONAR_ORGANIZATION`
   and `SONAR_PROJECT_KEY` are both set, and skipped for pull requests from forks, which get no
   secrets. Hard-coding an organisation key would have pointed every generated project at somebody
   else's dashboard. Coverage reaches Sonar from the Cobertura reports and the `coverage.runsettings`

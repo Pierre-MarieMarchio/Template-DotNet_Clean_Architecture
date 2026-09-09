@@ -1358,6 +1358,10 @@ change correct" and must stay answerable from a clone alone — six steps, no ac
 answers "what does Sonar think", which needs a service a fork or a derived project may not have, so
 merging the two would make an unconfigured repository look broken.
 
+The job blocks on the quality gate, so a red gate is a red check on the pull request. That is
+affordable because the default gate judges **new code** — its conditions are all `new_*` metrics —
+so existing debt blocks nobody while nothing dirty gets added on top of it.
+
 It analyses nothing until it is configured, and that is the intended state for a template: the job
 is skipped unless the repository variables `SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` are both
 set, and it is skipped for pull requests from forks, which get no secrets. Set those two variables

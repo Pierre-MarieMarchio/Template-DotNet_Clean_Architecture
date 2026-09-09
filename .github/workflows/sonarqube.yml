@@ -112,6 +112,12 @@ jobs:
       - name: Restore
         run: dotnet restore "$SOLUTION"
 
+      # The report pattern matches the extension and not a fixed file name, for the reason
+      # Tools/CoverageGate.cs already had to work out: the platform writes either
+      # '<guid>.cobertura.xml' flat, or 'coverage.cobertura.xml' inside a directory of its own, and
+      # which one it picks depends on how the run was invoked. A pattern naming the fixed form
+      # matches nothing in the other shape, and a coverage sensor that finds no report does not
+      # fail -- it reports 0%, which looks like a project with no tests.
       - name: Begin analysis
         run: |
           dotnet sonarscanner begin \
@@ -119,7 +125,7 @@ jobs:
             /o:"$SONAR_ORGANIZATION" \
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.host.url="$SONAR_HOST_URL" \
-            /d:sonar.cs.cobertura.reportsPaths="TestResults/**/coverage.cobertura.xml" \
+            /d:sonar.cs.cobertura.reportsPaths="TestResults/**/*.cobertura.xml" \
             /d:sonar.scanner.scanAll=false
 
       # No --no-restore and no reuse of a previous build: this build is the analysis. It is also

@@ -154,9 +154,10 @@ Two things about that local run are worth knowing before they surprise you:
 - **It reports less coverage than CI does.** There is no Docker daemon inside the scanner container,
   so the Testcontainers suite cannot run there; the set is the one `test --no-integration` uses.
   CI runs the whole suite and is what reports the real figure.
-- **It does not touch your `bin/` and `obj/`.** The container builds into `/build`, a path outside
-  the mounted checkout. Without that, your tree would end up holding paths that exist only inside a
-  container, and your next build would fail on a restore you did not ask for.
+- **It does not touch your `bin/` and `obj/`.** The container builds into `artifacts/sonar`, which
+  is gitignored, so your next build on the machine still works. That path is inside the checkout on
+  purpose: the architecture suite finds the repository root by climbing from its own assembly, and
+  built anywhere outside the tree every one of its rules fails before it runs.
 
 The scanner's version is pinned in `.config/dotnet-tools.json`, next to `dotnet-ef`, so the scanner
 CI runs and the scanner your machine runs are the same one.

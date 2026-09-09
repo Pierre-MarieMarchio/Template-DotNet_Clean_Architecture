@@ -382,10 +382,14 @@ internal static class Tasks
     /// stay what <c>CONTRIBUTING.md</c> says they are: the SDK from <c>global.json</c>, and Docker.
     /// </para>
     /// <para>
-    /// Build output goes to <c>/build</c>, a path inside the container and deliberately outside the
-    /// mounted checkout. A container writing to the repository's own <c>obj/</c> would leave it
-    /// holding paths that exist only in that container, and the next build on the machine would
-    /// fail on a restore nobody asked for.
+    /// Build output goes to <c>artifacts/sonar</c>, which is gitignored: the per-project
+    /// <c>bin/</c> and <c>obj/</c> the host build owns are left alone, so an analysis does not
+    /// leave the tree holding paths that exist only inside a container and the next build on the
+    /// machine still works. It stays <em>inside</em> the checkout, and that part is not a detail --
+    /// the architecture suite finds the repository root by climbing from its own assembly, looking
+    /// for the directory holding both <c>Directory.Packages.props</c> and <c>Src</c>. Built to a
+    /// path outside the checkout, all of it fails in the type initialiser before a single rule
+    /// runs.
     /// </para>
     /// <para>
     /// The token is never read here: Compose takes it from <c>.env</c> and refuses to start with a
@@ -411,6 +415,15 @@ internal static class Tasks
     /// a build that already happened is invisible to it and nothing here may skip one.
     /// </summary>
     /// <remarks>
+    /// SCM is off here and on in CI, which is not an oversight in either place. Locally it buys
+    /// nothing -- blame dates, issue authorship and a new-code baseline are noise on a throwaway
+    /// instance -- and it costs correctness: in a git worktree, <c>.git</c> is a file naming an
+    /// absolute path on the host, so the scanner's git client finds no repository inside the
+    /// container and fails the whole run at the very end, after the build and the tests. CI
+    /// analyses a plain clone with full history, where blame is the thing that makes "new code"
+    /// mean anything.
+    /// </remarks>
+    /// <remarks>
     /// The Testcontainers suite is left out, and the coverage this reports is lower than CI's
     /// because of it. There is no Docker daemon inside the scanner container, so those tests cannot
     /// run there at all; the set is the same one <c>test --no-integration</c> uses, derived from
@@ -424,9 +437,9 @@ internal static class Tasks
             .Select(project =>
                 $"""
                 dotnet test "{project}" \
-                  --artifacts-path /build \
+                  --artifacts-path artifacts/sonar \
                   --no-build \
-                  --results-directory /build/TestResults \
+                  --results-directory artifacts/sonar/TestResults \
                   --coverage \
                   --coverage-settings coverage.runsettings \
                   --coverage-output-format cobertura
@@ -444,14 +457,15 @@ internal static class Tasks
               exit 1
             fi
             dotnet tool restore
-            dotnet restore AppTemplate.sln --artifacts-path /build
+            dotnet restore AppTemplate.sln --artifacts-path artifacts/sonar
             dotnet sonarscanner begin \
               /k:"$SONAR_PROJECT_KEY" \
               /d:sonar.token="$SONAR_TOKEN" \
               /d:sonar.host.url="$SONAR_HOST_URL" \
-              /d:sonar.cs.cobertura.reportsPaths="/build/TestResults/**/coverage.cobertura.xml" \
-              /d:sonar.scanner.scanAll=false
-            dotnet build AppTemplate.sln --artifacts-path /build --no-restore
+              /d:sonar.cs.cobertura.reportsPaths="artifacts/sonar/TestResults/**/*.cobertura.xml" \
+              /d:sonar.scanner.scanAll=false \
+              /d:sonar.scm.disabled=true
+            dotnet build AppTemplate.sln --artifacts-path artifacts/sonar --no-restore
             {string.Join(Environment.NewLine, tests)}
             dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
             """;

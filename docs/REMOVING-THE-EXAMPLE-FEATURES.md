@@ -451,9 +451,10 @@ Four things lose their only example, and one of them is measured.
 - **The conditional-GET round trip.** `TodoLists`' detail endpoint is the only one that publishes an
   `ETag` a client revalidates with `If-None-Match` for a `304`, which is what
   `Tests/Integration/AppTemplate.Api.IntegrationTests/Caching/CacheHeaderTests.cs` exercises. The
-  `If-Match` write side survives: `FilesController` reads preconditions on two actions through the
-  same `ApiControllerBase.ReadPrecondition`, and `Versioned<StoredFileDto>` crosses
-  `ConfirmFileUploadUseCase`, so `412`/`428` and `Versioned<T>` stay demonstrated.
+  `If-Match` write side survives: three actions read preconditions through the same
+  `ApiControllerBase.ReadPrecondition` — confirm and delete on `FilesController`, tag replacement on
+  `FileTagsController` — and `Versioned<StoredFileDto>` crosses `ConfirmFileUploadUseCase`, so
+  `412`/`428` and `Versioned<T>` stay demonstrated.
 - **An aggregate with child entities.** `TodoList` owns `TodoItem`, and the tracker's flush enrols
   a root whose own columns did not move so the root's `xmin` arbitrates the whole aggregate.
   `Reminder` and `StoredFile` are both flat, so what remains proves the simpler half only. Tagging
@@ -466,7 +467,7 @@ Everything else keeps a live example, because `Files` is one:
 |---|---|
 | `IUnitOfWork` | six files under `Src/Application/AppTemplate.Application/Features/Files/` |
 | The aggregate tracker / identity map, registered under three contracts | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Tracking/StoredFileTracker.cs` |
-| The default-deny fallback authorisation policy | `Src/Presentation/AppTemplate.Api/Features/Files/Controllers/FilesController.cs` carries no `[Authorize]` and no `[AllowAnonymous]`, on the class or on any action |
+| The default-deny fallback authorisation policy | both `Src/Presentation/AppTemplate.Api/Features/Files/Controllers/FilesController.cs` and `Src/Presentation/AppTemplate.Api/Features/Files/Controllers/FileTagsController.cs` carry no `[Authorize]` and no `[AllowAnonymous]`, on the class or on any action |
 | Domain events at all | three under `Src/Domain/AppTemplate.Domain/Features/Files/Events/`, one with a consumer |
 | `ICollectionPolicy` | `Src/Application/AppTemplate.Application/Features/Files/Policies/StoredFileCollectionPolicy.cs` |
 | Ownership isolation for a resource addressed by id | five `{fileId:guid}` routes, four on `FilesController` and the tag replacement on `FileTagsController` |

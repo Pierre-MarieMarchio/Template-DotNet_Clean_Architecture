@@ -36,7 +36,7 @@ at a credential.
 | POST | `/api/v1/auth/resend-confirmation-email` | 204 | Always 204, whether or not the address exists. |
 | POST | `/api/v1/auth/logout` | 204 | Revokes the presented refresh token. Idempotent. |
 | POST | `/api/v1/auth/logout-all` | 204 | Authenticated. Revokes every refresh token grant the caller holds. |
-| GET | `/api/v1/auth/me` | 200 | Authenticated. The caller's own profile; takes no input. |
+| GET, HEAD | `/api/v1/auth/me` | 200 | Authenticated. The caller's own profile; takes no input. |
 | POST | `/api/v1/auth/change-password` | 204 | Authenticated. The current password is presented again as proof the session is not a stolen token. |
 | POST | `/api/v1/auth/two-factor/setup` | 200 | Authenticated. Provisions a shared key; arms nothing on its own. **It rotates the security stamp, so the access token that called it stops working** — sign in again before calling `two-factor/confirm`. |
 | POST | `/api/v1/auth/two-factor/confirm` | 200 | Authenticated, and requires the current password: arming a second factor is the irreversible direction, so a stolen session alone must not do it. Confirms enrollment, arms two-factor sign-in, and returns ten recovery codes shown once. |

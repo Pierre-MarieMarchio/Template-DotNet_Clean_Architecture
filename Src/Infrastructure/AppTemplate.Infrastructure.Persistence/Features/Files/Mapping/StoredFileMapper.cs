@@ -25,18 +25,20 @@ internal sealed class StoredFileMapper : IStoredFileMapper
 
         // Rebuilt through each value object's factory, so a row that predates a tightened rule is
         // refused on the way in. ObjectKey.Create is looser than ObjectKey.New for that reason.
-        var aggregate = StoredFile.Rehydrate(
-            record.Id,
-            UserId.Create(record.OwnerId),
-            ObjectKey.Create(record.ObjectKey),
-            StoredFileName.Create(record.Name),
-            DeclaredMediaType.Create(record.DeclaredMediaType),
-            FileSize.Create(record.SizeInBytes),
-            Sha256Checksum.Create(record.Checksum),
-            record.State,
-            record.RegisteredAt,
-            record.AvailableAt,
-            record.Tags.Select(tag => tag.Value));
+        var aggregate = StoredFile.Rehydrate(new StoredFileSnapshot
+        {
+            Id = record.Id,
+            OwnerId = UserId.Create(record.OwnerId),
+            ObjectKey = ObjectKey.Create(record.ObjectKey),
+            Name = StoredFileName.Create(record.Name),
+            DeclaredMediaType = DeclaredMediaType.Create(record.DeclaredMediaType),
+            Size = FileSize.Create(record.SizeInBytes),
+            Checksum = Sha256Checksum.Create(record.Checksum),
+            State = record.State,
+            RegisteredAt = record.RegisteredAt,
+            AvailableAt = record.AvailableAt,
+            Tags = record.Tags.Select(tag => tag.Value),
+        });
 
         StoredStamps.ApplyTo(aggregate, record, record.Version, record.Id, "Stored file");
 

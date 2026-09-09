@@ -7,6 +7,7 @@ using AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedF
 using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
 using AppTemplate.Presentation.Core.Common.Jobs;
+using AppTemplate.Worker.Common.Observability;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Worker.Features.Files;
@@ -117,8 +118,8 @@ internal sealed class FileBackgroundService(
                     // unreadable.
                     FileInstruments.Iterations.Add(
                         1,
-                        new KeyValuePair<string, object?>("task", label),
-                        new KeyValuePair<string, object?>("outcome", "disabled"));
+                        new KeyValuePair<string, object?>(WorkerTags.Task, label),
+                        new KeyValuePair<string, object?>(WorkerTags.Outcome, "disabled"));
 
                     logger.LogWarning(
                         "The {Label} sweep is disabled; skipping this pass. {Consequence}",
@@ -138,7 +139,7 @@ internal sealed class FileBackgroundService(
         using Activity? activity = FileInstruments.ActivitySource.StartActivity("files.sweep");
         activity?.SetTag("files.task", label);
 
-        KeyValuePair<string, object?> taskTag = new("task", label);
+        KeyValuePair<string, object?> taskTag = new(WorkerTags.Task, label);
 
         try
         {
@@ -149,7 +150,7 @@ internal sealed class FileBackgroundService(
 
             if (result.IsSuccess)
             {
-                FileInstruments.Iterations.Add(1, taskTag, new("outcome", "success"));
+                FileInstruments.Iterations.Add(1, taskTag, new(WorkerTags.Outcome, "success"));
                 volume.Add(result.Value, taskTag);
                 activity?.SetTag("files.removed", result.Value);
 
@@ -163,7 +164,7 @@ internal sealed class FileBackgroundService(
             else
             {
                 Error error = result.Error!;
-                FileInstruments.Iterations.Add(1, taskTag, new("outcome", "failure"));
+                FileInstruments.Iterations.Add(1, taskTag, new(WorkerTags.Outcome, "failure"));
                 activity?.SetStatus(ActivityStatusCode.Error, error.Code);
                 logger.LogWarning(
                     "Sweeping {Label} reported a failure: {ErrorCode} — {ErrorMessage}.",
@@ -179,7 +180,7 @@ internal sealed class FileBackgroundService(
         }
         catch (Exception exception)
         {
-            FileInstruments.Iterations.Add(1, taskTag, new("outcome", "exception"));
+            FileInstruments.Iterations.Add(1, taskTag, new(WorkerTags.Outcome, "exception"));
             activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
             logger.LogError(exception, "Sweeping {Label} failed unexpectedly; will retry at the next interval.", label);
         }

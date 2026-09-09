@@ -64,7 +64,7 @@ public sealed class HybridCacheStoreTests
             .Select(_ => Store.GetOrCreateAsync(key, Factory, _lifetime, TestToken))
             .ToArray();
 
-        var values = await Task.WhenAll(reads);
+        string[] values = await Task.WhenAll(reads);
 
         values.Distinct(StringComparer.Ordinal).Count().ShouldBe(1);
         factoryRuns.ShouldBe(1);

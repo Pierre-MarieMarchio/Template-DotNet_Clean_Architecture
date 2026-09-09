@@ -36,7 +36,7 @@ public sealed class ModelStateProblemExtensionsTests
             ValidationError.Code,
             "One or more fields are invalid.",
             applicationDetails);
-        ObjectResult applicationResult = (ObjectResult)applicationError.ToActionResult(httpContext);
+        var applicationResult = (ObjectResult)applicationError.ToActionResult(httpContext);
 
         bindingResult.StatusCode.ShouldBe(applicationResult.StatusCode);
         bindingResult.Value.ShouldBeOfType<ValidationProblemDetails>();

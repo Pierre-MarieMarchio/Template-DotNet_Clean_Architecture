@@ -79,16 +79,12 @@ public sealed class BucketClientFactoryTests
     }
 
     [Fact]
-    public void Create_RefusesToBuildAClientFromNothing()
-    {
+    public void Create_RefusesToBuildAClientFromNothing() =>
         Should.Throw<ArgumentNullException>(() => BucketClientFactory.Create(options: null!));
-    }
 
     [Fact]
-    public void CreateForSigning_RefusesToBuildAClientFromNothing()
-    {
+    public void CreateForSigning_RefusesToBuildAClientFromNothing() =>
         Should.Throw<ArgumentNullException>(() => BucketClientFactory.CreateForSigning(options: null!));
-    }
 
     /// <summary>
     /// The presigning client is built on the name a client outside this process can resolve, and the
@@ -162,7 +158,7 @@ public sealed class BucketClientFactoryTests
 
             using var signing = BucketClientFactory.CreateForSigning(options);
 
-            for (var minted = 0; minted < 5; minted++)
+            for (int minted = 0; minted < 5; minted++)
             {
                 string url = await signing.GetPreSignedURLAsync(new GetPreSignedUrlRequest
                 {

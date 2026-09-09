@@ -59,7 +59,7 @@ public sealed class ObservabilityRegistrationTests
     [Fact]
     public void EveryDiagnosticsNameAHostDeclares_IsRegisteredByThatHost()
     {
-        var checkedInstruments = 0;
+        int checkedInstruments = 0;
         var offenders = new List<string>();
 
         foreach (var host in ProjectReferenceGraph.Hosts)

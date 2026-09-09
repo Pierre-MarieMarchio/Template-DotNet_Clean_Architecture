@@ -76,11 +76,26 @@ internal sealed class ReverseProxyOptionsValidator : IValidateOptions<ReversePro
 
         foreach (string network in options.KnownNetworks)
         {
-            if (!IPNetwork.TryParse(network, out _))
+            if (!IPNetwork.TryParse(network, out var parsed))
             {
                 failures.Add(
                     $"'{ReverseProxyOptions.SectionName}:KnownNetworks' contains '{network}', which is " +
                     "not a CIDR block whose address is the network address, such as '10.0.0.0/8'.");
+
+                continue;
+            }
+
+            // TryParse accepts an address carrying bits outside its own prefix and masks them away:
+            // '10.0.0.7/8' parses, and parses as the whole of 10.0.0.0/8. Accepting it would trust
+            // sixteen million addresses on the strength of an entry naming one, and forwarded headers
+            // from any of them would be believed -- so the entry is refused, and the block the prefix
+            // actually names is offered in its place.
+            if (!AddressIsItsOwnNetwork(network, parsed))
+            {
+                failures.Add(
+                    $"'{ReverseProxyOptions.SectionName}:KnownNetworks' contains '{network}', whose " +
+                    $"address is not the network address of its own prefix. Write '{parsed}' to trust " +
+                    "that block, or narrow the prefix to the address you meant.");
             }
         }
 
@@ -91,5 +106,19 @@ internal sealed class ReverseProxyOptionsValidator : IValidateOptions<ReversePro
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+
+    /// <summary>
+    /// Whether the address the deployer wrote is the one the prefix names, rather than an address
+    /// inside the block. Compared as addresses and not as text, so an equivalent spelling of the same
+    /// address is accepted and an IPv6 entry is judged the same way.
+    /// </summary>
+    private static bool AddressIsItsOwnNetwork(string entry, IPNetwork parsed)
+    {
+        int slash = entry.IndexOf('/');
+
+        return slash > 0
+            && IPAddress.TryParse(entry.AsSpan(0, slash), out var written)
+            && written.Equals(parsed.BaseAddress);
     }
 }

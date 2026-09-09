@@ -102,7 +102,7 @@ internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
             {
                 // The security stamp is what makes a password change or a forced sign-out take
                 // effect before the access token expires.
-                if (context.Principal?.Identity is not ClaimsIdentity identity || identity.Claims.Any() is false)
+                if (context.Principal?.Identity is not ClaimsIdentity identity || !identity.Claims.Any())
                 {
                     context.Fail("This token carries no claims.");
                     return;

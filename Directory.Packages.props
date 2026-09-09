@@ -101,10 +101,10 @@
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
-    <!-- Same 4.14.0 as Testcontainers.PostgreSql, and it has to be: both are thin modules over the
-         same Testcontainers core package, which each one pins to its own version. Two different
-         bands would resolve one core for both and leave one module compiled against a different
-         one. -->
+    <!-- Kept on the same version as Testcontainers.PostgreSql, and it has to be: both are thin
+         modules over the same Testcontainers core package, which each one pins to its own version.
+         Two different bands would resolve one core for both and leave one module compiled against
+         a different one. -->
     <PackageVersion Include="Testcontainers.Minio" Version="4.15.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.0" />

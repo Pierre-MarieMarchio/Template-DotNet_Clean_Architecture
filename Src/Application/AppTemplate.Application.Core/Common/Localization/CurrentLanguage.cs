@@ -85,13 +85,21 @@ public static class CurrentLanguage
     {
         ArgumentNullException.ThrowIfNull(tag);
 
-        for (int cut = tag.Length; cut > 0; cut = tag.LastIndexOf('-', cut - 1))
-        {
-            yield return tag[..cut];
+        return Narrow(tag);
 
-            if (!tag[..cut].Contains('-', StringComparison.Ordinal))
+        // The guard is outside the iterator on purpose. A method containing `yield` runs no
+        // statement until something enumerates it, so a null tag would have been refused at the
+        // first `foreach` -- in a renderer, several call frames away from the caller that passed it.
+        static IEnumerable<string> Narrow(string tag)
+        {
+            for (int cut = tag.Length; cut > 0; cut = tag.LastIndexOf('-', cut - 1))
             {
-                yield break;
+                yield return tag[..cut];
+
+                if (!tag[..cut].Contains('-', StringComparison.Ordinal))
+                {
+                    yield break;
+                }
             }
         }
     }

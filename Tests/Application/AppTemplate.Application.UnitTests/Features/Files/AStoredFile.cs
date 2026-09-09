@@ -55,18 +55,20 @@ internal static class AStoredFile
         UserId ownerId,
         long sizeInBytes = SizeInBytes,
         string checksum = Checksum) =>
-        StoredFile.Rehydrate(
-            Guid.CreateVersion7(),
-            ownerId,
-            ObjectKey.New(StubDateTimeProvider.DefaultInstant),
-            StoredFileName.Create("holiday.png"),
-            DeclaredMediaType.Create(MediaType),
-            FileSize.Create(sizeInBytes),
-            Sha256Checksum.Create(checksum),
-            StoredFileState.Available,
-            StubDateTimeProvider.DefaultInstant,
-            StubDateTimeProvider.DefaultInstant.AddMinutes(1),
-            []);
+        StoredFile.Rehydrate(new StoredFileSnapshot
+        {
+            Id = Guid.CreateVersion7(),
+            OwnerId = ownerId,
+            ObjectKey = ObjectKey.New(StubDateTimeProvider.DefaultInstant),
+            Name = StoredFileName.Create("holiday.png"),
+            DeclaredMediaType = DeclaredMediaType.Create(MediaType),
+            Size = FileSize.Create(sizeInBytes),
+            Checksum = Sha256Checksum.Create(checksum),
+            State = StoredFileState.Available,
+            RegisteredAt = StubDateTimeProvider.DefaultInstant,
+            AvailableAt = StubDateTimeProvider.DefaultInstant.AddMinutes(1),
+            Tags = [],
+        });
 
     internal static StoredFile AvailableOwnedBySomebodyElseThan(UserId notThisUserId) =>
         AvailableOwnedBy(AnotherOwnerThan(notThisUserId));
@@ -98,18 +100,20 @@ internal static class AStoredFile
     /// therefore with no availability instant, which the aggregate refuses to load one without.
     /// </summary>
     internal static StoredFile QuarantinedOwnedBy(UserId ownerId) =>
-        StoredFile.Rehydrate(
-            Guid.CreateVersion7(),
-            ownerId,
-            ObjectKey.New(StubDateTimeProvider.DefaultInstant),
-            StoredFileName.Create("holiday.png"),
-            DeclaredMediaType.Create(MediaType),
-            FileSize.Create(SizeInBytes),
-            Sha256Checksum.Create(Checksum),
-            StoredFileState.Quarantined,
-            StubDateTimeProvider.DefaultInstant,
-            null,
-            []);
+        StoredFile.Rehydrate(new StoredFileSnapshot
+        {
+            Id = Guid.CreateVersion7(),
+            OwnerId = ownerId,
+            ObjectKey = ObjectKey.New(StubDateTimeProvider.DefaultInstant),
+            Name = StoredFileName.Create("holiday.png"),
+            DeclaredMediaType = DeclaredMediaType.Create(MediaType),
+            Size = FileSize.Create(SizeInBytes),
+            Checksum = Sha256Checksum.Create(Checksum),
+            State = StoredFileState.Quarantined,
+            RegisteredAt = StubDateTimeProvider.DefaultInstant,
+            AvailableAt = null,
+            Tags = [],
+        });
 
     /// <summary>Placed at <paramref name="version"/> the way the store places a freshly loaded
     /// aggregate. Goes through <see cref="IVersioned"/> because that is the only way anything writes

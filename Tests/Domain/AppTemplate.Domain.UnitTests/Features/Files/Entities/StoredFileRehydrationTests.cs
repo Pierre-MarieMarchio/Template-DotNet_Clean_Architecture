@@ -35,20 +35,48 @@ public sealed class StoredFileRehydrationTests
         DateTimeOffset? registeredAt = null,
         DateTimeOffset? availableAt = null,
         IEnumerable<string>? tags = null) =>
-        StoredFile.Rehydrate(
-            id ?? Guid.CreateVersion7(),
-            _ownerId,
-            _objectKey,
-            _name,
-            _mediaType,
-            _size,
-            _checksum,
-            state,
-            registeredAt ?? _registeredAt,
-            availableAt,
-            tags ?? []);
+        StoredFile.Rehydrate(new StoredFileSnapshot
+        {
+            Id = id ?? Guid.CreateVersion7(),
+            OwnerId = _ownerId,
+            ObjectKey = _objectKey,
+            Name = _name,
+            DeclaredMediaType = _mediaType,
+            Size = _size,
+            Checksum = _checksum,
+            State = state,
+            RegisteredAt = registeredAt ?? _registeredAt,
+            AvailableAt = availableAt,
+            Tags = tags ?? [],
+        });
 
     #region What a stored row must carry
+
+    [Fact]
+    public void Rehydrate_Rejects_AnAbsentSnapshot() =>
+        Should.Throw<ArgumentNullException>(() => StoredFile.Rehydrate(null!));
+
+    /// <summary>
+    /// <c>Tags</c> is <c>required</c>, so it cannot be forgotten -- but it can be written as
+    /// <c>null</c>, and the set below would then fail somewhere less obvious than the way in.
+    /// </summary>
+    [Fact]
+    public void Rehydrate_Rejects_AnAbsentTagSequence() =>
+        Should.Throw<ArgumentNullException>(
+            () => StoredFile.Rehydrate(new StoredFileSnapshot
+            {
+                Id = Guid.CreateVersion7(),
+                OwnerId = _ownerId,
+                ObjectKey = _objectKey,
+                Name = _name,
+                DeclaredMediaType = _mediaType,
+                Size = _size,
+                Checksum = _checksum,
+                State = StoredFileState.Pending,
+                RegisteredAt = _registeredAt,
+                AvailableAt = null,
+                Tags = null!,
+            }));
 
     [Fact]
     public void Rehydrate_Rejects_AnEmptyId()
@@ -61,18 +89,20 @@ public sealed class StoredFileRehydrationTests
     [Fact]
     public void Rehydrate_Rejects_AnAbsentOwner() =>
         Should.Throw<ArgumentNullException>(
-            () => StoredFile.Rehydrate(
-                Guid.CreateVersion7(),
-                null!,
-                _objectKey,
-                _name,
-                _mediaType,
-                _size,
-                _checksum,
-                StoredFileState.Pending,
-                _registeredAt,
-                null,
-                []));
+            () => StoredFile.Rehydrate(new StoredFileSnapshot
+            {
+                Id = Guid.CreateVersion7(),
+                OwnerId = null!,
+                ObjectKey = _objectKey,
+                Name = _name,
+                DeclaredMediaType = _mediaType,
+                Size = _size,
+                Checksum = _checksum,
+                State = StoredFileState.Pending,
+                RegisteredAt = _registeredAt,
+                AvailableAt = null,
+                Tags = [],
+            }));
 
     /// <summary>
     /// Without it, a pending row could not answer how long it has been waiting, and the abandonment
@@ -88,18 +118,20 @@ public sealed class StoredFileRehydrationTests
     [Fact]
     public void Rehydrate_Rejects_ANullValueObject() =>
         Should.Throw<ArgumentNullException>(
-            () => StoredFile.Rehydrate(
-                Guid.CreateVersion7(),
-                _ownerId,
-                null!,
-                _name,
-                _mediaType,
-                _size,
-                _checksum,
-                StoredFileState.Pending,
-                _registeredAt,
-                null,
-                []));
+            () => StoredFile.Rehydrate(new StoredFileSnapshot
+            {
+                Id = Guid.CreateVersion7(),
+                OwnerId = _ownerId,
+                ObjectKey = null!,
+                Name = _name,
+                DeclaredMediaType = _mediaType,
+                Size = _size,
+                Checksum = _checksum,
+                State = StoredFileState.Pending,
+                RegisteredAt = _registeredAt,
+                AvailableAt = null,
+                Tags = [],
+            }));
 
     #endregion
 
@@ -173,18 +205,20 @@ public sealed class StoredFileRehydrationTests
         var id = Guid.CreateVersion7();
         var availableAt = _registeredAt.AddMinutes(1);
 
-        var file = StoredFile.Rehydrate(
-            id,
-            _ownerId,
-            _objectKey,
-            _name,
-            _mediaType,
-            _size,
-            _checksum,
-            StoredFileState.Available,
-            _registeredAt,
-            availableAt,
-            ["Urgent", "urgent ", "home"]);
+        var file = StoredFile.Rehydrate(new StoredFileSnapshot
+        {
+            Id = id,
+            OwnerId = _ownerId,
+            ObjectKey = _objectKey,
+            Name = _name,
+            DeclaredMediaType = _mediaType,
+            Size = _size,
+            Checksum = _checksum,
+            State = StoredFileState.Available,
+            RegisteredAt = _registeredAt,
+            AvailableAt = availableAt,
+            Tags = ["Urgent", "urgent ", "home"],
+        });
 
         file.Id.ShouldBe(id);
         file.OwnerId.ShouldBe(_ownerId);

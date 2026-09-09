@@ -190,8 +190,7 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
         }
 
         // Upper case is the one worth naming: a bucket created as `AppFiles` exists under that name
-        // in nobody's S3, and the request fails with a signature or a redirect rather than with
-        // anything that mentions casing.
+        // nowhere, and the request fails with a signature or a redirect that never mentions casing.
         if (!bucket.All(IsBucketNameCharacter))
         {
             failures.Add(
@@ -253,9 +252,8 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
             return;
         }
 
-        // Named for the key that actually carries the value. A deployment that never wrote
-        // PublicEndpoint has no such key in its file, and a message telling it to correct one would
-        // send it looking for a line that is not there.
+        // Named for the key that carries the value: a deployment that never wrote PublicEndpoint
+        // would otherwise be sent looking for a line that is not in its file.
         string key = string.IsNullOrWhiteSpace(options.PublicEndpoint)
             ? nameof(StorageOptions.Endpoint)
             : nameof(StorageOptions.PublicEndpoint);
@@ -273,9 +271,8 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
         bool hasKeyId = !string.IsNullOrWhiteSpace(options.AccessKeyId);
         bool hasSecret = !string.IsNullOrWhiteSpace(options.SecretAccessKey);
 
-        // Neither is the supported case — the SDK's credential chain then supplies an instance
-        // role's short-lived credentials. One of the two is always a mistake, and the shape it takes
-        // is a process that starts and signs everything with an anonymous identity.
+        // Neither is the supported case: the SDK's credential chain supplies an instance role's
+        // credentials. One of the two is a process that starts and signs anonymously.
         if (hasKeyId != hasSecret)
         {
             failures.Add(

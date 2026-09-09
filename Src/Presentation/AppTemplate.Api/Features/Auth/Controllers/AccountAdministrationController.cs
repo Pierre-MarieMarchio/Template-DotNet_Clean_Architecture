@@ -20,8 +20,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// </summary>
 /// <remarks>
 /// No <see cref="RateLimitingExtensions.Authentication"/> budget: nothing here handles a credential,
-/// so none of it belongs on the allowance that exists to slow brute-force login guessing down. An
-/// administrator's own request is already behind a valid access token and the Administrator policy.
+/// and every request is already behind an access token and the Administrator policy.
 /// </remarks>
 [Route("api/v{version:apiVersion}/auth/accounts")]
 [Asp.Versioning.ApiVersion("1.0")]

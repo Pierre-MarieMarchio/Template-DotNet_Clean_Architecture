@@ -32,28 +32,21 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// Authentication endpoints.
 /// </summary>
 /// <remarks>
-/// The application's fallback policy requires authentication, so most of this surface opts out with
-/// <c>[AllowAnonymous]</c> — action by action, never on the controller. <c>AllowAnonymous</c> short
-/// circuits authorisation wherever it is found in an endpoint's metadata, so one declared on the
-/// class would silently defeat the <c>[Authorize]</c> on <see cref="GetCurrentUser"/> and
-/// <see cref="ChangePassword"/> and serve the caller's own profile to anyone.
+/// <c>[AllowAnonymous]</c> goes action by action, never on the controller: it short circuits
+/// authorisation wherever an endpoint's metadata carries it, so one on the class would defeat the
+/// <c>[Authorize]</c> on <see cref="GetCurrentUser"/> and <see cref="ChangePassword"/> and serve the
+/// caller's own profile to anyone.
 /// <para>
-/// The refresh token is returned in the response body rather than an <c>HttpOnly</c> cookie, which
-/// suits every client type and carries no CSRF surface. For a browser-only SPA an
-/// <c>HttpOnly; Secure; SameSite</c> cookie is the stronger choice against XSS: set it here and
-/// drop the field from the response instead of serialising both.
+/// The tight <see cref="RateLimitingExtensions.Authentication"/> budget goes on each action handling
+/// a credential — a password, a TOTP code, a recovery code — and on no other.
+/// <see cref="GetCurrentUser"/> and <see cref="LogoutEverywhere"/> stay on the global limiter, so
+/// polling a profile cannot spend the allowance that slows brute force down.
 /// </para>
 /// <para>
-/// The tight <see cref="RateLimitingExtensions.Authentication"/> budget is declared on each action that
-/// handles a credential — a password, a TOTP code, a recovery code — and on none that does not.
-/// <see cref="GetCurrentUser"/> and <see cref="LogoutEverywhere"/> are the exceptions and stay on the
-/// global limiter: putting either on the credential budget would let a client that polls its profile
-/// or cleans up its sessions spend the allowance that exists to slow brute force down.
-/// </para>
-/// <para>
-/// Responses carrying a token, a two-factor shared key or a set of recovery codes are
-/// <c>[NoStore]</c>: RFC 6749 §5.1 forbids any cache from storing an OAuth-style credential, and the
-/// same reasoning covers a secret that is just as capable of signing in on its own.
+/// Responses carrying a token, a two-factor shared key or recovery codes are <c>[NoStore]</c>: RFC
+/// 6749 §5.1 forbids a cache from storing an OAuth-style credential. The refresh token travels in
+/// the body; for a browser-only SPA, set an <c>HttpOnly; Secure; SameSite</c> cookie here and drop
+/// the field from the response rather than serialising both.
 /// </para>
 /// </remarks>
 [Route("api/v{version:apiVersion}/auth")]

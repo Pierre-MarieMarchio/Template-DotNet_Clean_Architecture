@@ -26,16 +26,14 @@ internal sealed class EmailChangeTokensService(
         var user = await directory.FindByIdAsync(userId, cancellationToken);
 
         // The caller already authenticated as this id, so there is no address to protect from
-        // enumeration here, for the reason UserAccountsService.ChangePasswordAsync gives: an absent account
-        // only means it was deleted after the token that authenticated this request was issued.
+        // enumeration: an absent account only means it was deleted after the token was issued.
         if (user is null)
         {
             return EmailChangeRequestOutcome.IncorrectCurrentPassword;
         }
 
-        // Not userManager.CheckPasswordAsync: it rewrites the stored hash on a rehash-needed result,
-        // which rotates the security stamp — and would invalidate the very session submitting this
-        // request before the change it is asking for was even confirmed. VerifyHashedPassword alone
+        // Not CheckPasswordAsync: it rewrites the stored hash on a rehash-needed result, rotating the
+        // security stamp and invalidating the session submitting this request. VerifyHashedPassword
         // has no such side effect.
         if (user.PasswordHash is not { } hash ||
             userManager.PasswordHasher.VerifyHashedPassword(user, hash, currentPassword)
@@ -46,9 +44,8 @@ internal sealed class EmailChangeTokensService(
 
         var existing = await userManager.FindByEmailAsync(newEmail);
 
-        // Suppressed rather than reported: revealing that the address is already registered — to
-        // someone else, or to this same account — would turn "request a change" into a way to test
-        // which addresses exist.
+        // Suppressed rather than reported: revealing that the address is registered would turn this
+        // into a way to test which addresses exist.
         if (existing is not null)
         {
             return EmailChangeRequestOutcome.Suppressed;
@@ -76,11 +73,8 @@ internal sealed class EmailChangeTokensService(
             return EmailChangeConfirmationOutcome.NoSuchAccount;
         }
 
-        // UserName is left untouched: Register lets a caller pick one independent of Email (see
-        // RegisterCommand), so the two stay decoupled here too — moving the address must not
-        // silently rename the account's sign-in identity. ChangeEmailAsync rotates the security
-        // stamp as a side effect; the caller is responsible for revoking refresh tokens, which it
-        // does not touch.
+        // UserName is left untouched: moving the address must not rename the account's sign-in
+        // identity. ChangeEmailAsync rotates the security stamp but touches no refresh token.
         var result = await userManager.ChangeEmailAsync(user, newEmail, token);
 
         if (result.Succeeded)

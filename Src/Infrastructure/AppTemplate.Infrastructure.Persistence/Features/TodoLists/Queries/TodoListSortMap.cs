@@ -149,10 +149,8 @@ internal static class TodoListSortMap
         SortDirection direction,
         Cursor cursor)
     {
-        // CursorKeys validates that a "createdAt" cursor's key parses as a date before the
-        // use case ever calls this port, so an unparseable key here means that check was bypassed —
-        // a defect in this template, not in the request, and it must stay loud rather than silently
-        // ordering by nothing.
+        // CursorKeys has already validated that the key parses, so failing here is a defect rather
+        // than a bad request, and it must stay loud instead of ordering by nothing.
         if (!DateTimeOffset.TryParse(
             cursor.Key,
             CultureInfo.InvariantCulture,

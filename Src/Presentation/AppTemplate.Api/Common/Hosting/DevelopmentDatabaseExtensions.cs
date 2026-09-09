@@ -13,16 +13,11 @@ namespace AppTemplate.Api.Common.Hosting;
 /// process that serves requests: that needs DDL rights at runtime and races between replicas on
 /// <c>__EFMigrationsHistory</c>. Failures are logged with context before rethrowing.
 /// <para>
-/// Two histories, one per context, applied one after the other. That leaves a window in which the
-/// first schema exists and the second does not — and a lasting one if the second call fails, which
-/// is why the failure is rethrown rather than logged and stepped over. Applying both from one
-/// bootstrap is what keeps the window as short as a single process can make it; a deployment
-/// applies each as its own explicit step, where the order is a deployment's to decide.
-/// </para>
-/// <para>
-/// No hand-rolled retry loop: Npgsql's <c>EnableRetryOnFailure</c> handles transient unavailability.
-/// Seeding is delegated to <see cref="IIdentitySeeder"/>, which is opt-in and refuses to run outside
-/// Development.
+/// Two histories, one per context, applied one after the other: between the two calls the first
+/// schema exists and the second does not, and a failure on the second leaves it that way, which is
+/// why it is rethrown rather than stepped over. Transient unavailability is Npgsql's
+/// <c>EnableRetryOnFailure</c> and not a loop here. Seeding is <see cref="IIdentitySeeder"/>, opt-in
+/// and refusing to run outside Development.
 /// </para>
 /// </remarks>
 internal static class DevelopmentDatabaseExtensions

@@ -52,10 +52,9 @@ public sealed class RegisterUseCase(
 
         securityEventLog.Record(SecurityEvent.Registered(creation.UserId));
 
-        // The account is committed before anything is delivered. Letting an unreachable relay fail
-        // the call would leave an unconfirmable account behind with its address taken and no way to
-        // ask for another link, so the outcome travels as a flag and the resend endpoint is the
-        // recovery path.
+        // The account is committed before delivery: an unreachable relay failing the call would
+        // leave an account whose address is taken and which nothing can confirm. The outcome travels
+        // as a flag, and the resend endpoint is the recovery path.
         bool confirmationEmailSent = await TrySendConfirmationEmailAsync(
             creation.UserId,
             request.Email,
@@ -81,8 +80,8 @@ public sealed class RegisterUseCase(
     {
         try
         {
-            // Issued after the account exists, because the token is derived from the stored account:
-            // one minted before the row was written could not confirm it.
+            // The token is derived from the stored account, so one minted before the row was written
+            // could not confirm it.
             var pending = await confirmationTokens.IssueAsync(email, cancellationToken);
 
             if (pending is null)
@@ -102,8 +101,8 @@ public sealed class RegisterUseCase(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Any transport or template failure. The caller is told delivery did not happen; the
-            // exception itself never reaches the client.
+            // Any transport or template failure. The caller is told delivery did not happen, and the
+            // exception reaches the log only.
             logger.LogError(exception, "Failed to send the confirmation email for user {UserId}.", userId);
 
             return false;

@@ -41,10 +41,8 @@ internal sealed class S3FileContentInspector(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);
 
-        // One budget over both halves. The scanner's own total happens to be the same number, and
-        // the two are deliberately not added together: an inspection that has taken thirty seconds
-        // has failed whichever half was slow, and a file whose read and scan each take twenty-nine
-        // seconds is a file this deployment cannot inspect at the size it is accepting.
+        // One budget over both halves, not one each: an inspection that has taken the whole budget
+        // has failed whichever half was slow.
         using var budget = ScannerBudget.Start(cancellationToken);
 
         try
@@ -57,10 +55,8 @@ internal sealed class S3FileContentInspector(
 
             byte[] head = new byte[ContentInspectionOutcome.MaxHeadBytes];
 
-            // ReadAtLeastAsync, not ReadAsync: a single read of a network stream returns whatever
-            // has arrived, which for a large object is routinely a few hundred bytes. Sniffing from
-            // a short prefix would make detection depend on packet timing — the same file would be
-            // recognised on one pass and not on the next.
+            // ReadAtLeastAsync, not ReadAsync: one read of a network stream returns whatever has
+            // arrived, so sniffing from it would make detection depend on packet timing.
             int read = await content.ReadAtLeastAsync(
                 head,
                 head.Length,
@@ -71,17 +67,15 @@ internal sealed class S3FileContentInspector(
 
             if (string.IsNullOrWhiteSpace(inspection.Value.ScannerHost))
             {
-                // No scanner: the head is still read and the type check above this port still runs.
-                // Reported as Clean because nothing was found — nothing looked — and the deployment
-                // chose that. SECURITY.md is where it is written down for whoever inherits it.
+                // No scanner, so nothing looked and nothing was found. The head is still read and
+                // the type check above this port still runs — SECURITY.md records the gap.
                 return new ContentInspectionOutcome(ContentInspectionStatus.Clean, prefix, null);
             }
 
             if (response.ContentLength > inspection.Value.MaxScannableBytes)
             {
-                // Decided before a byte is streamed, which is the point of holding the ceiling here
-                // as well as in the daemon: the alternative is discovering it half-way through a
-                // transfer, as a broken pipe that has already cost the bandwidth.
+                // The ceiling is held here as well as in the daemon, so this is decided before a
+                // byte is streamed rather than as a broken pipe half-way through.
                 return new ContentInspectionOutcome(ContentInspectionStatus.NotInspectable, prefix, null);
             }
 
@@ -96,11 +90,9 @@ internal sealed class S3FileContentInspector(
         }
         catch (AmazonS3Exception exception) when (exception.StatusCode == HttpStatusCode.NotFound)
         {
-            // The row says a deposit was confirmed and the store has nothing under the key, so
-            // something removed the object from underneath a live row. Reported as no verdict rather
-            // than as a refusal: nothing was found in content nobody read, and quarantining on the
-            // strength of an absence would refuse a file over an object-store fault. It will be
-            // offered again on the next pass, and the warning is what makes a permanent one visible.
+            // A confirmed deposit whose object is gone: something removed it from under a live row.
+            // No verdict rather than a refusal, since quarantining on an absence would refuse a file
+            // over a store fault. The next pass offers it again.
             logger.LogWarning(
                 "Nothing is stored under '{ObjectKey}', although a file's deposit was confirmed " +
                 "against it. Its content cannot be inspected and it stays unavailable.",
@@ -120,8 +112,7 @@ internal sealed class S3FileContentInspector(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Shutdown, not a failed inspection. Rethrowing keeps cancellation honest rather than
-            // reporting a stopping host as an unreachable store.
+            // Shutdown, not a failed inspection.
             throw;
         }
         catch (OperationCanceledException)

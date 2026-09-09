@@ -72,13 +72,10 @@ internal sealed class EmailOptionsValidator : IValidateOptions<EmailOptions>
 
         var failures = new List<string>();
 
-        // A deployment that sends over HTTP has no relay, so demanding a host, a port and a TLS mode
-        // from it would be demanding values for a transport it does not use — and the only values it
-        // could invent would be ones that satisfy the rules below while meaning nothing.
-        //
-        // The comparison is against SMTP by name rather than "anything that is not the HTTP one", so
-        // an unrecognised value is reported as itself and nothing else: piling three relay failures
-        // on top of a misspelt transport buries the one mistake that caused them.
+        // A deployment sending over HTTP has no relay, so a host, a port and a TLS mode would be
+        // values for a transport it does not use. Compared against SMTP by name rather than "not
+        // the HTTP one", so a misspelt transport is reported as itself instead of as three relay
+        // failures.
         bool isSmtp = string.Equals(options.Transport, EmailOptions.SmtpTransport, StringComparison.OrdinalIgnoreCase);
 
         if (!isSmtp && !string.Equals(options.Transport, EmailOptions.PostmarkTransport, StringComparison.OrdinalIgnoreCase))
@@ -118,10 +115,9 @@ internal sealed class EmailOptionsValidator : IValidateOptions<EmailOptions>
             yield return $"'{EmailOptions.SectionName}:Port' must be between 1 and 65535.";
         }
 
-        // Every mode below can end up sending in the clear. `Auto` belongs in this list because
-        // MailKit resolves it to StartTlsWhenAvailable on any port other than 465 — so allowing it
-        // would reopen, under a friendlier name, exactly the downgrade the other two modes are
-        // rejected for. That gap is how a development compose file ended up with opportunistic TLS.
+        // Every mode below can end up sending in the clear. `Auto` is in the list because MailKit
+        // resolves it to StartTlsWhenAvailable on any port but 465, which is the same downgrade the
+        // other two are refused for, under a friendlier name.
         if (IsDowngradable(options.Security) && !IsLoopback(options.Host) && !options.AllowInsecureTransport)
         {
             yield return

@@ -41,22 +41,14 @@ using Npgsql;
 namespace AppTemplate.Infrastructure.Persistence;
 
 /// <summary>
-/// Composes all persistence: the one context, the interceptor pipeline, the clock, the unit of work, and
-/// each feature's mapper, tracker, repository, queries and stores.
-/// <para>
-/// Every registration is explicit and named, each interface paired by hand with its implementation, so a
-/// rename fails the build instead of producing a container that starts fine and throws on first use.
-/// </para>
+/// Composes all persistence: the one context, the interceptor pipeline, the clock, the unit of work,
+/// and each feature's mapper, tracker, repository, queries and stores.
 /// </summary>
 public static class PersistenceModule
 {
     /// <summary>
-    /// Registers everything that touches the database.
-    /// <para>
-    /// Idempotent, and deliberately so. It is called once from the host for visible ordering, and again
-    /// by the identity module — which needs the context and the clock, and says so rather than depending
-    /// on the host having composed it first.
-    /// </para>
+    /// Registers everything that touches the database. Idempotent: the host calls it, and so does the
+    /// authentication module, which needs the context and the clock.
     /// </summary>
     /// <param name="services">The container being composed.</param>
     /// <param name="configuration">Must supply the <c>Default</c> connection string.</param>
@@ -67,15 +59,11 @@ public static class PersistenceModule
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        // Guard rather than TryAdd everywhere: TryAdd would cover the services below, but AddDbContext
-        // has no Try- form and would happily register a second context and a second options object. One
-        // check at the top is both cheaper and easier to reason about than a rule per registration.
-        if (services.Any(descriptor => descriptor.ServiceType == typeof(AppDbContext)))
+        if (AlreadyComposed(services))
         {
             return services;
         }
 
-        // Fail here, at composition time, rather than on the first request that needs a database.
         string connectionString = DefaultConnectionString.Require(configuration);
 
         AddDatabaseOptions(services, configuration);
@@ -91,6 +79,29 @@ public static class PersistenceModule
     }
 
 
+    /// <summary>
+    /// <c>AddDbContext</c> has no <c>Try</c> form, so a second call would register a second context
+    /// and a second options object.
+    /// </summary>
+    private static bool AlreadyComposed(IServiceCollection services) =>
+        services.Any(descriptor => descriptor.ServiceType == typeof(AppDbContext));
+
+    /// <summary>
+    /// One tracker per request, resolved under every contract that needs it: the repository takes the
+    /// identity map, the flush interceptor the flusher, the dispatch interceptor the event source.
+    /// Registering the three separately would give each its own instance and its own empty identity
+    /// map, and every write would silently do nothing.
+    /// </summary>
+    private static void AddScopedTracker<TTracker, TTrackerPort>(IServiceCollection services)
+        where TTracker : class, TTrackerPort, IAggregateFlusher, IDomainEventSource
+        where TTrackerPort : class
+    {
+        services.TryAddScoped<TTracker>();
+        services.TryAddScoped<TTrackerPort>(provider => provider.GetRequiredService<TTracker>());
+        services.AddScoped<IAggregateFlusher>(provider => provider.GetRequiredService<TTracker>());
+        services.AddScoped<IDomainEventSource>(provider => provider.GetRequiredService<TTracker>());
+    }
+
     private static void AddDatabaseOptions(IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<DatabaseOptions>()
@@ -103,39 +114,23 @@ public static class PersistenceModule
     {
         services.AddSystemClock();
 
-        // Singleton, and it has to be: the lease holds nothing between calls, but the background
-        // services that take it are singletons, and a scoped dependency captured by one is what
-        // ValidateScopes exists to refuse. Its connection is deliberately unpooled and lives only
-        // for the duration of one guarded run — see PostgresLeaderLease, and docs/CONFIGURATION.md
-        // for what that costs against the Database:MaxPoolSize budget.
+        // Singleton because the background services that take it are singletons, and ValidateScopes
+        // refuses a scoped dependency captured by one.
         services.TryAddSingleton<ILeaderLease, PostgresLeaderLease>();
 
-        // Scoped, because auditing needs the caller of the current request, the flush pipeline needs the
-        // aggregates loaded in it, and event dispatch accumulates the events of the current save.
         services.AddCoreSaving<AppDbContext>();
 
-        // The unnamed port, which every use case takes, resolves the business context. A
-        // container registers it once, so the module that owns that context is the one that
-        // maps it — a second module doing the same would silently commit its writes here.
+        // The unnamed port is registered once per container, by the module owning the context a use
+        // case should commit through. A second module mapping it would commit those writes here.
         services.TryAddScoped<IUnitOfWork>(
             provider => provider.GetRequiredService<IContextUnitOfWork<AppDbContext>>());
     }
 
     private static void AddTodoListsFeature(IServiceCollection services)
     {
-        // Stateless and EF-free, so one instance serves the whole process.
         services.TryAddSingleton<ITodoListMapper, TodoListMapper>();
 
-        // One tracker per request, resolvable under three contracts because three callers need three
-        // different views of it: the repository uses the identity map, the flush interceptor uses the
-        // flusher, and the dispatch interceptor uses the event source. Registered through a factory
-        // rather than three times over, because three registrations would mean three instances — and
-        // then the repository would fill one identity map while the interceptor flushed a different,
-        // empty one, and every write would silently do nothing.
-        services.TryAddScoped<TodoListTracker>();
-        services.TryAddScoped<ITodoListTracker>(provider => provider.GetRequiredService<TodoListTracker>());
-        services.AddScoped<IAggregateFlusher>(provider => provider.GetRequiredService<TodoListTracker>());
-        services.AddScoped<IDomainEventSource>(provider => provider.GetRequiredService<TodoListTracker>());
+        AddScopedTracker<TodoListTracker, ITodoListTracker>(services);
 
         services.TryAddScoped<ITodoListRepository, TodoListRepository>();
         services.TryAddScoped<ITodoListQueries, TodoListQueries>();
@@ -146,14 +141,7 @@ public static class PersistenceModule
     {
         services.TryAddSingleton<IStoredFileMapper, StoredFileMapper>();
 
-        // Same factory-over-one-scoped-instance as the two features above, for the same reason. It
-        // matters more here than anywhere else: the mapper's ObjectKey round trip is what keeps the
-        // orphan sweep from deleting a live file's bytes, and a repository filling one identity map
-        // while the interceptor flushes another would break that quietly.
-        services.TryAddScoped<StoredFileTracker>();
-        services.TryAddScoped<IStoredFileTracker>(provider => provider.GetRequiredService<StoredFileTracker>());
-        services.AddScoped<IAggregateFlusher>(provider => provider.GetRequiredService<StoredFileTracker>());
-        services.AddScoped<IDomainEventSource>(provider => provider.GetRequiredService<StoredFileTracker>());
+        AddScopedTracker<StoredFileTracker, IStoredFileTracker>(services);
 
         services.TryAddScoped<IStoredFileRepository, StoredFileRepository>();
         services.TryAddScoped<IStoredFileQueries, StoredFileQueries>();
@@ -164,20 +152,10 @@ public static class PersistenceModule
     {
         services.TryAddSingleton<IReminderMapper, ReminderMapper>();
 
-        // See AddTodoListsFeature for why this is a factory over one scoped instance rather than three
-        // separate registrations: the repository, the flush interceptor and the dispatch interceptor
-        // must all resolve the very same tracker, or each would hold its own empty identity map.
-        services.TryAddScoped<ReminderTracker>();
-        services.TryAddScoped<IReminderTracker>(provider => provider.GetRequiredService<ReminderTracker>());
-        services.AddScoped<IAggregateFlusher>(provider => provider.GetRequiredService<ReminderTracker>());
-        services.AddScoped<IDomainEventSource>(provider => provider.GetRequiredService<ReminderTracker>());
+        AddScopedTracker<ReminderTracker, IReminderTracker>(services);
 
         services.TryAddScoped<IReminderRepository, ReminderRepository>();
         services.TryAddScoped<IReminderTargetQueries, ReminderTargetQueries>();
-
-        // Wraps a static Meter/Counter pair (see ReminderDiagnostics), so one instance per process
-        // is a choice made for clarity, not a requirement: a scoped registration would have been
-        // just as correct.
         services.TryAddSingleton<IReminderDiagnostics, ReminderDiagnostics>();
     }
 
@@ -188,8 +166,6 @@ public static class PersistenceModule
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<IdempotencyPurgeOptions>, IdempotencyPurgeOptionsValidator>();
 
-        // Scoped: the factory itself is stateless, but IDbContextFactory<T> is conventionally scoped
-        // alongside the context it stands beside, and nothing here needs it to outlive a request.
         services.TryAddScoped<IIdempotencyStore, IdempotencyStore>();
     }
 
@@ -201,9 +177,6 @@ public static class PersistenceModule
 
             options
                 .UseNpgsql(WithMaxPoolSize(connectionString, database.MaxPoolSize), npgsql => npgsql
-                    // Transient connection failures are the driver's problem to solve. A retry loop
-                    // hand-rolled around startup instead swallows configuration errors as if they were
-                    // network blips, and then fails much later, somewhere unrelated.
                     .EnableRetryOnFailure(
                         maxRetryCount: 5,
                         maxRetryDelay: TimeSpan.FromSeconds(10),
@@ -214,43 +187,25 @@ public static class PersistenceModule
                         AppDbContext.MigrationsHistoryTableName,
                         AppDbContext.MigrationsHistorySchema))
 
-                // The order of these three is load-bearing, which is why they are added here in one place
-                // rather than wherever was convenient. Flushing comes first: it is what writes an
-                // aggregate's state onto its rows, so nothing downstream can see a change until it has
-                // run. Audit stamping comes second, because it only acts on an entry that is already
-                // Added or Modified — and the flush is what makes a root Modified when only a child
-                // changed. Event dispatch comes last, because it publishes after the commit the other two
-                // prepared.
                 .AddCoreSavingInterceptors(serviceProvider);
         });
     }
 
     /// <summary>
-    /// Applies <see cref="DatabaseOptions.MaxPoolSize"/> to the connection string rather than
-    /// appending it as text at the call site, so a value that is already present (a deployment that
-    /// sets it directly in <c>ConnectionStrings:Default</c>) is overridden consistently instead of
-    /// producing a string with the key twice.
+    /// Overrides <see cref="DatabaseOptions.MaxPoolSize"/> in the connection string, so a deployment
+    /// that sets it in <c>ConnectionStrings:Default</c> does not end up with the key twice.
     /// </summary>
     private static string WithMaxPoolSize(string connectionString, int maxPoolSize) =>
         new NpgsqlConnectionStringBuilder(connectionString) { MaxPoolSize = maxPoolSize }.ConnectionString;
 
     /// <summary>
     /// A second way to create an <see cref="AppDbContext"/>, for <see cref="IdempotencyStore"/>
-    /// alone: a fresh instance — its own change tracker, its own connection, its own commit — rather
-    /// than the ambient request-scoped one <c>IUnitOfWork</c> owns.
+    /// alone: its own change tracker, connection and commit, rather than the request-scoped one.
     /// <para>
-    /// <b>It registers no options of its own, and the lifetime below is load-bearing.</b>
-    /// <c>AddDbContextFactory</c> adds <c>DbContextOptions&lt;AppDbContext&gt;</c> with
-    /// <c>TryAdd</c>, and <see cref="AddContext"/> has already registered one, scoped, with the
-    /// flush/audit/dispatch interceptors attached, so the options action below is never invoked and
-    /// exists only so the call reads as intentional. The default lifetime (<c>Singleton</c>) would
-    /// make the factory depend on that scoped options object, which
-    /// <c>BuildServiceProvider(validateScopes: true)</c> refuses outright; <c>Scoped</c> consumes it
-    /// safely. Every context the factory then creates carries <see cref="AddContext"/>'s options —
-    /// the interceptor pipeline, which is harmless because none of those interceptors recognise
-    /// <c>IdempotencyRecord</c> as an aggregate root or an auditable entity, and the pool limit, so
-    /// <see cref="IdempotencyStore"/>'s extra connections count against
-    /// <see cref="DatabaseOptions.MaxPoolSize"/> rather than a second pool with a bound of its own.
+    /// <c>Scoped</c> is load-bearing. <c>AddDbContextFactory</c> registers the options with
+    /// <c>TryAdd</c>, so <see cref="AddContext"/>'s scoped options win and the action below is never
+    /// invoked; the default <c>Singleton</c> lifetime would make the factory depend on those scoped
+    /// options, which <c>BuildServiceProvider(validateScopes: true)</c> refuses.
     /// </para>
     /// </summary>
     private static void AddContextFactory(IServiceCollection services, string connectionString)

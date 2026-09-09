@@ -7,24 +7,9 @@ using AppTemplate.Application.Features.TodoLists.Dtos;
 namespace AppTemplate.Api.Features.TodoLists.Mapping;
 
 /// <summary>
-/// Projects the feature's application DTOs onto its wire contracts, by hand.
+/// Projects the feature's application DTOs onto its wire contracts. Positional records plus
+/// <c>TreatWarningsAsErrors</c> make a member added on either side fail the build here.
 /// </summary>
-/// <remarks>
-/// By hand, for the reason this repository gives
-/// for the other boundary: positional records plus <c>TreatWarningsAsErrors</c> make a member added
-/// on either side fail the build here, where a convention-based mapper would have turned the
-/// forgotten field into a naming rule nobody reads.
-/// <para>
-/// Every projection here happens to be field for field, which makes the boundary look like pure
-/// ceremony; it is the common case, not the reason the boundary exists. Two places in this
-/// repository show what it buys:
-/// <see cref="AppTemplate.Api.Features.Reminders.Mapping.ReminderResponseMapping"/> answers with a
-/// string status so that no client ever depends on the declaration order of a domain enum, and
-/// <see cref="AppTemplate.Api.Features.Auth.Contracts.Responses.RegisterResponse"/> withholds the
-/// user id its application outcome carries, because nothing downstream of sign-up addresses the
-/// account by id. Neither choice survives a contract that is the application type.
-/// </para>
-/// </remarks>
 internal static class TodoListResponseMapping
 {
     public static TodoItemResponse ToResponse(TodoItemDto item)

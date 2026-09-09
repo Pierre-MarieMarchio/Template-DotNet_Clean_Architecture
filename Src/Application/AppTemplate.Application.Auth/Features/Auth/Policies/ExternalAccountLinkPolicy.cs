@@ -29,14 +29,12 @@ public static class ExternalAccountLinkPolicy
         // confirmed and passwordless.
         null => ExternalAccountLinkDecision.Provision,
 
-        // Someone holds it and proved they can read mail there, and the provider says the same thing
-        // about the person signing in now. Two independent proofs of the same address are the best
-        // evidence either side has that this is one person, so the accounts are joined.
+        // Someone holds it and proved they can read mail there, and the provider says the same of the
+        // person signing in now: two independent proofs of one address.
         { EmailConfirmed: true } => ExternalAccountLinkDecision.Link,
 
-        // Someone holds it and never proved anything. This is the whole reason the rule exists: an
-        // attacker registers victim@example.com, never confirms it, waits, and an automatic link
-        // hands them the account the victim believes they are creating through their provider.
+        // Someone holds it and never proved anything: an attacker registers victim@example.com,
+        // never confirms it, and an automatic link would hand them the victim's account.
         _ => ExternalAccountLinkDecision.Refuse,
     };
 }

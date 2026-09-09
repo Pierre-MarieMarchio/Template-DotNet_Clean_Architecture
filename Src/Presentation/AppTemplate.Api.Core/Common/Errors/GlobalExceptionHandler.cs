@@ -20,17 +20,10 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         Exception exception,
         CancellationToken cancellationToken)
     {
-        // A request timeout expires by cancelling the same RequestAborted token a client disconnect
-        // cancels, so the exception type alone cannot tell a deadline from a hangup. This feature is
-        // the only thing that can.
-        //
-        // Like the DomainException arm below, this is a net rather than a path: with the framework's
-        // own RequestTimeoutsMiddleware, a timeout is answered by the policy's WriteTimeoutResponse
-        // (see HostLifecycleExtensions) while the response has not started, and once it has, the middleware
-        // clears this feature before rethrowing — and ExceptionHandlerMiddleware skips every handler
-        // on a started response anyway. So this arm does not fire today. It is what keeps a deadline
-        // from being logged and measured as a client hangup should anything ever relay one here, and
-        // that misclassification is precisely the failure this file exists to prevent.
+        // A timeout cancels the same RequestAborted token a client disconnect does, so the exception
+        // type cannot tell a deadline from a hangup and this feature is the only thing that can.
+        // A net rather than a path: RequestTimeoutsMiddleware answers a timeout itself, so nothing
+        // reaches this arm today. It keeps a deadline from being measured as a client hangup.
         bool isServerTimeout = exception is OperationCanceledException
             && httpContext.Features.Get<IHttpRequestTimeoutFeature>() is not null;
 
@@ -43,14 +36,10 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
                 "The resource was changed by another request. Reload it and apply the change again."),
 
             // 400 rather than 500: a DomainException is a caller driving an aggregate into a
-            // forbidden state, so the response describes the request, not the defect behind it.
-            //
-            // This branch is a net, not a path. Every write use case already catches
-            // DomainException at its own boundary and returns a Result, so reaching here means one
-            // of them forgot to — and a 400 naming a broken rule beats a 500 naming nothing. Note
-            // that the type is only visible through AppTemplate.Application's own reference to the domain;
-            // that is deliberate, so do not "fix" the missing ProjectReference to AppTemplate.Domain, and do
-            // not delete this arm because nothing appears to exercise it.
+            // forbidden state. A net, not a path — every write use case catches it at its own
+            // boundary — so nothing appears to exercise this arm, and it must stay. The type is
+            // visible only through AppTemplate.Application's reference to the domain, which is why
+            // this project has no ProjectReference to AppTemplate.Domain.
             DomainException => (
                 StatusCodes.Status400BadRequest,
                 "Invalid request",
@@ -75,13 +64,9 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
 
         if (status == StatusCodes.Status499ClientClosedRequest)
         {
-            // ExceptionHandlerMiddleware has already put 500 on the response before calling this
-            // method; nothing overwrites that below because this branch returns early. Left alone,
-            // every client cancellation would report as a server error to both the request log
-            // (which reads the status this call leaves behind) and the request-duration metric —
-            // the 5xx rate would be dominated by callers hanging up, not by anything worth paging on.
-            // No body follows: nothing can be written to a client that has already hung up, and
-            // HasStarted guards against a status change once the framework has begun the response.
+            // ExceptionHandlerMiddleware has already put 500 on the response, and left alone every
+            // client cancellation would report as a server error to the request log and the duration
+            // metric. No body follows: the client has hung up.
             if (!httpContext.Response.HasStarted)
             {
                 httpContext.Response.StatusCode = status;
@@ -109,8 +94,7 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         }
         else if (status == StatusCodes.Status504GatewayTimeout)
         {
-            // Unlike a client hangup, this is the service failing to keep its own deadline —
-            // loud enough to alert on, distinct enough from 500 to page differently.
+            // The service failing its own deadline, not a client hanging up: loud enough to alert on.
             if (logger.IsEnabled(LogLevel.Warning))
             {
                 logger.LogWarning(

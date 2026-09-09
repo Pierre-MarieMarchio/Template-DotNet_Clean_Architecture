@@ -95,8 +95,7 @@ public static class ObservabilityExtensions
                 builder.SetSampler(
                     new ParentBasedSampler(new TraceIdRatioBasedSampler(telemetry.TracesSamplingRatio)));
 
-                // The modules that call outwards are composed by more than one host, and a call
-                // made without a span is a call nobody can see failed.
+                // A call made without a span is a call nobody can see failed.
                 builder.AddHttpClientInstrumentation();
 
                 // Before the exporter, so a host can still set sampling or add a processor.
@@ -112,9 +111,8 @@ public static class ObservabilityExtensions
             {
                 builder.AddHttpClientInstrumentation();
 
-                // Built into the runtime — no extra package. GC, thread-pool and process counters
-                // are the only way to tell "the box is under pressure" apart from "the box is slow
-                // for some other reason", and that question is asked of every host.
+                // Built into the runtime, no extra package. GC, thread-pool and process counters are
+                // what tell "under pressure" apart from "slow for another reason".
                 builder.AddMeter("System.Runtime");
 
                 metrics?.Invoke(builder);

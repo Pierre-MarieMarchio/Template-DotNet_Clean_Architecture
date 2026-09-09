@@ -28,10 +28,6 @@ internal sealed class ReminderMapper : IReminderMapper
             record.ClaimedAt,
             record.NotifiedAt);
 
-        // The version and the audit stamps are read back through StoredStamps, not assigned here: the
-        // aggregate exposes them as read-only properties, settable only through the explicit interfaces
-        // that mark this as the persistence layer, and the four-line tail that does that is identical
-        // to TodoListMapper's — see StoredStamps for why it lives there instead of in a base class.
         StoredStamps.ApplyTo(aggregate, record, record.Version, record.Id, "Reminder");
 
         return aggregate;
@@ -52,14 +48,11 @@ internal sealed class ReminderMapper : IReminderMapper
             ClaimedAt = aggregate.ClaimedAt,
             NotifiedAt = aggregate.NotifiedAt,
 
-            // Carried even though the store owns it. On an insert PostgreSQL assigns xmin itself and EF
-            // ignores whatever is here, but writing it keeps this method total — and a total method is
-            // what the round-trip fidelity test can check.
+            // Overwritten on insert, where PostgreSQL assigns xmin. Carried so the round trip stays
+            // total and the fidelity test can check it.
             Version = aggregate.Version,
 
-            // Likewise carried, and likewise overwritten: the audit interceptor stamps every Added entry
-            // after this runs. For an aggregate being inserted these are the type's defaults; for one
-            // being re-inserted after a round trip they are the values it was loaded with.
+            // Overwritten by the audit interceptor, which runs after this.
             CreatedAt = aggregate.CreatedAt,
             CreatedBy = aggregate.CreatedBy,
             LastModifiedAt = aggregate.LastModifiedAt,
@@ -72,8 +65,7 @@ internal sealed class ReminderMapper : IReminderMapper
         ArgumentNullException.ThrowIfNull(aggregate);
         ArgumentNullException.ThrowIfNull(record);
 
-        // Assigned, not replaced. EF compares each value against the one it read and writes a column
-        // only if it actually differs, so an unchanged aggregate produces no UPDATE at all.
+        // Assigned, not replaced: EF writes a column only if the value differs from the one it read.
         record.OwnerId = aggregate.OwnerId.Value;
         record.TodoListId = aggregate.TodoListId;
         record.TodoItemId = aggregate.TodoItemId;
@@ -82,9 +74,7 @@ internal sealed class ReminderMapper : IReminderMapper
         record.ClaimedAt = aggregate.ClaimedAt;
         record.NotifiedAt = aggregate.NotifiedAt;
 
-        // Version, CreatedAt, CreatedBy, LastModifiedAt and LastModifiedBy are deliberately NOT written
-        // here. The concurrency token belongs to PostgreSQL and the audit stamps belong to the
-        // interceptor; the aggregate received both on load and receives them again after each save. A
-        // second writer for either would be a second opinion, and the two would eventually differ.
+        // Version and the audit stamps are not written here: the token is PostgreSQL's, the stamps
+        // are the interceptor's, and a second writer for either would eventually disagree.
     }
 }

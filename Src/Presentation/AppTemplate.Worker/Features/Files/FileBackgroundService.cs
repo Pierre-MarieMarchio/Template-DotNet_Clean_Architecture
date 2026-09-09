@@ -47,9 +47,7 @@ internal sealed class FileBackgroundService(
 
         if (logger.IsEnabled(LogLevel.Information))
         {
-            // The abandonment delay is in the line because it is configurable nowhere: an operator
-            // wondering why a registration is still there after an hour can read what the answer
-            // actually is instead of looking for a setting that does not exist.
+            // The abandonment delay is in the line because no setting carries it.
             logger.LogInformation(
                 "File worker starting. Abandoned-registration purge enabled: {PurgeEnabled}, every " +
                 "{PurgeInterval}, giving up on a registration after {AbandonedAfter}. Orphaned-content " +
@@ -114,10 +112,9 @@ internal sealed class FileBackgroundService(
                 }
                 else
                 {
-                    // Counted, not skipped: an operator reading a flat Iterations series has to be
-                    // able to tell a loop switched off from a loop that died, and on this feature
-                    // that distinction is sharpest — a stopped inspection loop leaves every upload
-                    // permanently unreadable.
+                    // Counted, not skipped: a flat Iterations series must distinguish a loop switched
+                    // off from one that died, and a stopped inspection loop leaves every upload
+                    // unreadable.
                     FileInstruments.Iterations.Add(
                         1,
                         new KeyValuePair<string, object?>("task", label),
@@ -156,9 +153,8 @@ internal sealed class FileBackgroundService(
                 volume.Add(result.Value, taskTag);
                 activity?.SetTag("files.removed", result.Value);
 
-                // Unconditional: both sweeps report zero for long stretches in a healthy system, so
-                // a line that only appeared when something was removed would make a sweep broken for
-                // weeks look exactly like one with nothing to do.
+                // Unconditional: both sweeps report zero for long stretches, so a line that appeared
+                // only on a removal would make a broken sweep look like an idle one.
                 if (logger.IsEnabled(LogLevel.Information))
                 {
                     logger.LogInformation("Sweep of {Label} completed: {Count} removed.", label, result.Value);

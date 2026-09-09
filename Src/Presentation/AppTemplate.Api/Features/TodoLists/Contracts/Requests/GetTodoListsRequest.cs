@@ -6,9 +6,8 @@
 /// <remarks>
 /// <c>page</c> and <c>pageSize</c> are typed as <see cref="int"/>?, so a value that is not a number
 /// never reaches the controller: model binding answers 400 with <c>request.validationFailed</c> and
-/// names the offending field in <c>errors</c>. That is the same code an Application-layer validation
-/// failure carries, deliberately — see <c>ModelStateProblemExtensions</c>, which argues that a
-/// client should not have to tell a rejected shape from a rejected value to know what to do.
+/// names the offending field in <c>errors</c> — the same code an Application-layer validation
+/// failure carries, so a client need not tell a rejected shape from a rejected value.
 /// Everything else named here — an unknown sort field, a filter out of bounds, a bad cursor, a page
 /// past the ceiling — is a contract violation the Application layer decides on, and comes back under
 /// its own specific code, because those a client can act on differently.

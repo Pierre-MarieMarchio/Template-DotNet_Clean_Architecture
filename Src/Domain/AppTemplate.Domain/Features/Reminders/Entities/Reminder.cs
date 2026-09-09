@@ -103,10 +103,9 @@ public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
         DateTimeOffset dueAt,
         DateTimeOffset now)
     {
-        // Built before the check below rather than after, so the constructor's invariants are the
-        // first thing an ill-formed call meets. Being due in the future cannot join them there: it
-        // is a precondition of scheduling, not a property of the state, and the load path must be
-        // able to rebuild a reminder for which it holds no longer.
+        // Built first, so the constructor's invariants are what an ill-formed call meets. Being due
+        // in the future is not among them: it is a precondition of scheduling, and the load path
+        // must rebuild a reminder for which it no longer holds.
         var reminder = new Reminder(Guid.CreateVersion7(), ownerId, todoListId, todoItemId, dueAt);
 
         if (dueAt <= now)
@@ -138,13 +137,9 @@ public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
         DateTimeOffset? claimedAt,
         DateTimeOffset? notifiedAt)
     {
-        // The identity and due-date invariants are the constructor's, reached at the bottom of this
-        // method. What is checked here is the part a constructor cannot see: whether the three
-        // stored values that describe a reminder's progress agree with each other.
-        //
-        // A fired reminder keeps the claim it was notified under — MarkNotified requires one and
-        // does not clear it. Cancel does clear it, so a cancelled row still holding one is a row no
-        // sequence of operations could have written.
+        // What the constructor at the bottom of this method cannot see: whether the three stored
+        // values describing progress agree. MarkNotified requires a claim and keeps it, Cancel
+        // clears it, so a cancelled row still holding one could not have been written.
         if (state == ReminderState.Cancelled && claimedAt is not null)
         {
             throw new DomainException("A cancelled reminder cannot still hold a claim.");

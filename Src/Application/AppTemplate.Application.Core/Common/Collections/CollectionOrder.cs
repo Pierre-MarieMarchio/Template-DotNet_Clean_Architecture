@@ -60,21 +60,17 @@ public sealed record CollectionOrder
         var order = sortResult.Value;
 
         // A keyset comparison over more than one key plus the id tiebreaker is a row comparison this
-        // template does not implement. Checked here rather than left to PageRequest.Create, and
-        // unconditionally rather than only once a cursor is actually sent, so a caller cannot be let
-        // through on page 1 only to be refused on page 2.
+        // template does not implement. Checked whether or not a cursor was sent, so a caller is not
+        // let through on page 1 and refused on page 2.
         if (mode == PagingMode.Cursor && order.Terms.Count > 1)
         {
             return Result.Failure<CollectionOrder>(
                 CollectionErrors.InvalidCursor("Cursor paging supports a single sort field."));
         }
 
-        // The same reasoning, for the field rather than the count. Cursor.Decode already refuses a
-        // cursor minted over an offset-only field, but the first cursor page carries no cursor to
-        // refuse: without this, a caller ordering by a nullable column is served page 1 and the mint
-        // of nextCursor then asks the read side for a key that field has no translation for, whose
-        // only recourse is to throw. That is a 500 for what is a rule the caller broke, so it is
-        // refused here with the code every other broken rule in this contract carries.
+        // The same, for the field rather than the count. Cursor.Decode refuses a cursor minted over
+        // an offset-only field, but the first cursor page carries no cursor to refuse: minting one
+        // would then ask the read side for a key that field cannot translate, and throw.
         if (mode == PagingMode.Cursor)
         {
             var field = policy.SortableFields.First(
@@ -108,10 +104,8 @@ public sealed record CollectionOrder
     {
         Cursor? decoded = null;
 
-        // Decoded whenever a cursor was sent, regardless of mode: a cursor sent with paging=offset
-        // must still fail — through PageRequest.Create, which is the one place that already knows
-        // the two are alternatives — rather than being silently ignored because the mode did not
-        // match.
+        // Decoded whenever a cursor was sent, whatever the mode: one sent with paging=offset must
+        // fail through PageRequest.Create rather than be silently ignored.
         if (!string.IsNullOrWhiteSpace(cursor))
         {
             var cursorResult = Cursor.Decode(cursor, _policy);
@@ -130,17 +124,10 @@ public sealed record CollectionOrder
 
             decoded = keyResult.Value;
 
-            // The cursor names the order it was minted under, and the read side compares the cursor's
-            // key using the *request's* sort term — so the two disagreeing is not a difference of
-            // opinion to resolve, it is a comparison between a value and a column that do not match.
-            // Left unchecked, resuming a name-ordered cursor under a date-ordered sort would parse a
-            // name as a date, and the only recourse the persistence layer has at that point is to
-            // throw, which is a 500 for what is really a malformed request. Refused here, where it is
-            // a 400 like every other broken rule.
-            //
-            // Deliberately not resolved by preferring one over the other: silently ignoring `sort`
-            // because a cursor was sent would serve a page in an order the caller did not ask for,
-            // and silently re-minting the cursor would skip or repeat rows.
+            // The read side compares the cursor's key using the request's sort term, so resuming a
+            // name-ordered cursor under a date-ordered sort would parse a name as a date and throw.
+            // Not resolved by preferring one over the other: ignoring `sort` would serve an order
+            // the caller did not ask for, and re-minting the cursor would skip or repeat rows.
             if (Mode == PagingMode.Cursor
                 && (!string.Equals(decoded.Field, Sort.Terms[0].Field, StringComparison.Ordinal)
                     || decoded.Direction != Sort.Terms[0].Direction))

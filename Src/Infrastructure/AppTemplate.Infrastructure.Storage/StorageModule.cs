@@ -63,20 +63,15 @@ public static class StorageModule
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<ContentInspectionOptions>, ContentInspectionOptionsValidator>();
 
-        // One client for the process. It is thread-safe, it owns a connection pool and a retry
-        // schedule, and a second one would silently double both — so it is a singleton, and the
-        // container disposes it at shutdown.
+        // One client for the process: it is thread-safe and owns a connection pool and a retry
+        // schedule, which a second one would double.
         services.AddSingleton<IAmazonS3>(provider =>
             BucketClientFactory.Create(provider.GetRequiredService<IOptions<StorageOptions>>().Value));
 
-        // The presigning client, and the one place the sentence above does not apply. It exists
-        // because Storage:PublicEndpoint may name a host this process never connects to — the
-        // browser's name for a store the API reaches under another — and a Signature Version 4 URL
-        // covers the host it was signed for, so the name has to be right at signing time rather than
-        // rewritten afterwards by anyone. It doubles no pool and no retry schedule: presigning is a
-        // keyed hash computed locally and opens no socket at all, which is what makes a second client
-        // affordable here and nowhere else in this module. Keyed, because two IAmazonS3 registrations
-        // differ by endpoint and by nothing the container could tell apart on its own.
+        // A second client, for presigning only. Storage:PublicEndpoint may name a host this process
+        // never connects to, and a Signature Version 4 URL covers the host it was signed for, so the
+        // name has to be right at signing time. It doubles no pool: presigning is a local hash and
+        // opens no socket. Keyed, because the two differ only by endpoint.
         services.AddKeyedSingleton<IAmazonS3>(
             BucketClientFactory.SigningClientKey,
             (provider, _) =>

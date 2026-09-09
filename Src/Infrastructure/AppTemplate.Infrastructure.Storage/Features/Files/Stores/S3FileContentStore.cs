@@ -78,10 +78,9 @@ internal sealed class S3FileContentStore(
         var expiresAt = ExpiryFor(lifetime);
         var request = PreSignedRequest(objectKey, HttpVerb.PUT, expiresAt);
 
-        // Every header set here is covered by the signature, which is the whole mechanism: the store
-        // recomputes the signature from what the deposit actually sends, so a client that declared
-        // one media type or one size and deposits another is refused by the store rather than at
-        // confirmation, with nothing written.
+        // Every header set here is covered by the signature, which the store recomputes from what
+        // the deposit actually sends: a client that deposits something else is refused there, with
+        // nothing written.
         request.Headers.ContentType = declaredMediaType;
         request.Headers.ContentLength = sizeInBytes;
         request.Headers[_checksumHeader] = Base64DigestOf(declaredSha256);
@@ -107,9 +106,9 @@ internal sealed class S3FileContentStore(
         var request = PreSignedRequest(objectKey, HttpVerb.GET, expiresAt);
 
         // Overrides travel as signed query parameters, so the client cannot change what the store
-        // will answer with. The disposition is an attachment rather than inline: the declared media
-        // type is the client's own claim about bytes nothing here has read, and a store that offered
-        // to render it would be letting an uploader choose what a viewer's browser executes.
+        // answers with. An attachment rather than inline: the media type is the uploader's own claim
+        // about bytes nothing here has read, and rendering it would let them choose what a browser
+        // executes.
         request.ResponseHeaderOverrides.ContentType = declaredMediaType;
         request.ResponseHeaderOverrides.ContentDisposition = AttachmentDispositionFor(downloadFileName);
 
@@ -150,8 +149,7 @@ internal sealed class S3FileContentStore(
                     BucketName = options.Value.BucketName,
                     Key = objectKey,
 
-                    // Without this the store returns the checksum it stored for nobody: the header
-                    // is omitted from the response unless the caller asks for it.
+                    // The store omits the checksum header unless the caller asks for it.
                     ChecksumMode = ChecksumMode.ENABLED,
                 },
                 budget.Token);
@@ -178,9 +176,9 @@ internal sealed class S3FileContentStore(
         }
         catch (AmazonS3Exception exception) when (exception.StatusCode == HttpStatusCode.NotFound)
         {
-            // S3 itself answers 204 for a key that is not there, which is what the port requires.
-            // A compatible store that answers 404 instead must not turn the fast path and the sweep
-            // reaching the same key into an error, since neither is coordinated with the other.
+            // S3 answers 204 for a key that is not there, which is what the port requires. A
+            // compatible store answering 404 must not make the fast path and the sweep reaching the
+            // same key an error.
         }
     }
 
@@ -227,10 +225,9 @@ internal sealed class S3FileContentStore(
 
         var granted = lifetime <= options.Value.MaxGrantLifetime ? lifetime : options.Value.MaxGrantLifetime;
 
-        // The system clock, deliberately, and not the injectable one. The signature's own validity
-        // window is computed by the SDK from the machine's clock; an expiry taken from a clock a
-        // test can move would disagree with the signature the same call produced, and the grant
-        // would announce a deadline the store does not honour.
+        // The system clock, not the injectable one: the SDK computes the signature's validity from
+        // the machine's clock, so an expiry a test could move would announce a deadline the store
+        // does not honour.
         return DateTimeOffset.UtcNow.Add(granted);
     }
 
@@ -241,10 +238,9 @@ internal sealed class S3FileContentStore(
             Key = objectKey,
             Verb = verb,
 
-            // The SDK defaults this to HTTPS whatever the endpoint says, so a store reached over
-            // plain HTTP would be handed URLs whose scheme it does not answer on. Whether an
-            // unencrypted signing endpoint is acceptable at all is decided once, by
-            // StorageOptionsValidator; here it only has to be described accurately.
+            // The SDK defaults to HTTPS whatever the endpoint says, so a store reached over plain
+            // HTTP would be handed URLs whose scheme it does not answer on. Whether that is
+            // acceptable at all is StorageOptionsValidator's decision.
             Protocol = InsecureEndpoint() ? Protocol.HTTP : Protocol.HTTPS,
             Expires = expiresAt.UtcDateTime,
         };

@@ -48,10 +48,8 @@ public sealed class SignInWithExternalProviderUseCase(
 
         var verification = await verifier.VerifyAsync(request.Provider, request.IdToken, cancellationToken);
 
-        // Nothing about the token is believed until the signature, issuer, audience and validity
-        // window all hold. Every refusal — a forged token, an expired one, a provider nobody
-        // configured — answers the same way, so the endpoint cannot be used to find out which
-        // providers this installation accepts.
+        // Every refusal — a forged token, an expired one, an unconfigured provider — answers the
+        // same way, so this cannot be used to learn which providers the installation accepts.
         if (verification.Status is not ExternalIdentityStatus.Verified || verification.Identity is null)
         {
             securityEventLog.Record(
@@ -67,17 +65,15 @@ public sealed class SignInWithExternalProviderUseCase(
             identity.Subject,
             cancellationToken);
 
-        // Case 1 — the provider identity is already on file. The address is not consulted at all,
-        // which is the point: Apple returns one only on the first authorisation, so a resolution by
-        // address would work in development and fail on every user's second sign-in.
+        // Case 1 — the provider identity is already on file, and the address is not consulted:
+        // Apple returns one only on the first authorisation.
         if (linked is not null)
         {
             return await CompleteSignInAsync(linked, accountCreated: false, cancellationToken);
         }
 
-        // First link, and the only step at which the address is used for anything. An address the
-        // provider did not state it had checked is an address the caller chose, so it resolves
-        // nothing — and a token with no address at all cannot open a first link either.
+        // First link, and the only step that uses the address. An address the provider did not state
+        // it had checked is one the caller chose, so it resolves nothing.
         if (!identity.EmailVerified || string.IsNullOrWhiteSpace(identity.Email))
         {
             securityEventLog.Record(
@@ -96,9 +92,8 @@ public sealed class SignInWithExternalProviderUseCase(
             ExternalAccountLinkDecision.Link =>
                 await LinkAsync(match!.Account, identity, cancellationToken),
 
-            // Case 4 — the address belongs to an account nobody ever confirmed. Refusing is what
-            // stops whoever registered that address from being handed the account the real owner
-            // believes they are creating through their provider.
+            // Case 4 — the address belongs to an unconfirmed account. Refusing stops whoever
+            // registered it from being handed the account its real owner is creating.
             _ => RefuseUnconfirmedLink(match!.Account),
         };
     }

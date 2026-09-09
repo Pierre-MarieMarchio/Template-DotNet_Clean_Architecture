@@ -36,8 +36,15 @@ internal sealed class FakeFireDueRemindersUseCase : IFireDueRemindersUseCase
 /// </summary>
 internal sealed class HangingFireDueRemindersUseCase : IFireDueRemindersUseCase
 {
+    private volatile bool _hasEntered;
+
+    /// <summary>True from the moment the pass starts, before it blocks.</summary>
+    public bool HasEntered => _hasEntered;
+
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
     {
+        _hasEntered = true;
+
         await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
 
         throw new UnreachableException();

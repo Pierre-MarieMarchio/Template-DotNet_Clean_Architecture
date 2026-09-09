@@ -89,8 +89,9 @@ public sealed class MaintenanceBackgroundServiceTests
     [Fact]
     public async Task StopAsync_ReturnsPromptly_InsteadOfWaitingOutTheInterval()
     {
+        var idempotencyPurge = new HangingUseCase();
         var services = new ServiceCollection();
-        services.AddScoped<IPurgeExpiredIdempotencyKeysUseCase>(_ => new HangingUseCase());
+        services.AddScoped<IPurgeExpiredIdempotencyKeysUseCase>(_ => idempotencyPurge);
         services.AddScoped<IPurgeExpiredRefreshTokensUseCase>(_ => new FakeRefreshTokenPurge());
         using var provider = services.BuildServiceProvider();
 
@@ -104,8 +105,9 @@ public sealed class MaintenanceBackgroundServiceTests
 
         await service.StartAsync(CancellationToken.None);
 
-        // Give the hanging use case a moment to actually be mid-flight before asking it to stop.
-        await Task.Delay(TimeSpan.FromMilliseconds(50), TestContext.Current.CancellationToken);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => idempotencyPurge.HasEntered,
+            "the idempotency purge to be in flight");
 
         var stopTask = service.StopAsync(CancellationToken.None);
         var completed = await Task.WhenAny(stopTask, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
@@ -146,8 +148,9 @@ public sealed class MaintenanceBackgroundServiceTests
     [Fact]
     public async Task Stopping_IsLogged_EvenWhenTheStopLandsMidIteration()
     {
+        var idempotencyPurge = new HangingUseCase();
         var services = new ServiceCollection();
-        services.AddScoped<IPurgeExpiredIdempotencyKeysUseCase>(_ => new HangingUseCase());
+        services.AddScoped<IPurgeExpiredIdempotencyKeysUseCase>(_ => idempotencyPurge);
         services.AddScoped<IPurgeExpiredRefreshTokensUseCase>(_ => new FakeRefreshTokenPurge());
         using var provider = services.BuildServiceProvider();
 
@@ -162,8 +165,9 @@ public sealed class MaintenanceBackgroundServiceTests
 
         await service.StartAsync(CancellationToken.None);
 
-        // Give the hanging use case a moment to actually be mid-flight before asking it to stop.
-        await Task.Delay(TimeSpan.FromMilliseconds(50), TestContext.Current.CancellationToken);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => idempotencyPurge.HasEntered,
+            "the idempotency purge to be in flight");
 
         await service.StopAsync(CancellationToken.None);
 

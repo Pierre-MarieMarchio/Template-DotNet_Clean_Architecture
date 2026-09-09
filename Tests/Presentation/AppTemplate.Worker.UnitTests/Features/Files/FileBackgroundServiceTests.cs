@@ -135,9 +135,10 @@ public sealed class FileBackgroundServiceTests
     [Fact]
     public async Task StopAsync_ReturnsPromptly_InsteadOfWaitingOutTheInterval()
     {
+        var sweep = new HangingOrphanedContentSweep();
         var services = new ServiceCollection();
         services.AddScoped<IPurgeAbandonedRegistrationsUseCase>(_ => new FakeAbandonedRegistrationPurge());
-        services.AddScoped<IReclaimOrphanedContentUseCase>(_ => new HangingOrphanedContentSweep());
+        services.AddScoped<IReclaimOrphanedContentUseCase>(_ => sweep);
         using var provider = services.BuildServiceProvider();
 
         var options = EnabledOptions();
@@ -151,8 +152,9 @@ public sealed class FileBackgroundServiceTests
 
         await service.StartAsync(TestContext.Current.CancellationToken);
 
-        // Give the hanging sweep a moment to actually be mid-flight before asking it to stop.
-        await Task.Delay(TimeSpan.FromMilliseconds(50), TestContext.Current.CancellationToken);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => sweep.HasEntered,
+            "the orphan sweep to be in flight");
 
         var stopTask = service.StopAsync(TestContext.Current.CancellationToken);
         var completed = await Task.WhenAny(

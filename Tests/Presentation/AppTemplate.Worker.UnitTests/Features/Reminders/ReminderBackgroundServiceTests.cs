@@ -61,8 +61,9 @@ public sealed class ReminderBackgroundServiceTests
     [Fact]
     public async Task StopAsync_ReturnsPromptly_InsteadOfWaitingOutTheInterval()
     {
+        var useCase = new HangingFireDueRemindersUseCase();
         var services = new ServiceCollection();
-        services.AddScoped<IFireDueRemindersUseCase>(_ => new HangingFireDueRemindersUseCase());
+        services.AddScoped<IFireDueRemindersUseCase>(_ => useCase);
         using var provider = services.BuildServiceProvider();
 
         var options = EnabledOptions();
@@ -75,8 +76,9 @@ public sealed class ReminderBackgroundServiceTests
 
         await service.StartAsync(TestContext.Current.CancellationToken);
 
-        // Give the hanging use case a moment to actually be mid-flight before asking it to stop.
-        await Task.Delay(TimeSpan.FromMilliseconds(50), TestContext.Current.CancellationToken);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => useCase.HasEntered,
+            "the reminder pass to be in flight");
 
         var stopTask = service.StopAsync(TestContext.Current.CancellationToken);
         var completed = await Task.WhenAny(
@@ -94,8 +96,9 @@ public sealed class ReminderBackgroundServiceTests
     [Fact]
     public async Task Stopping_IsLogged_EvenWhenTheStopLandsMidIteration()
     {
+        var useCase = new HangingFireDueRemindersUseCase();
         var services = new ServiceCollection();
-        services.AddScoped<IFireDueRemindersUseCase>(_ => new HangingFireDueRemindersUseCase());
+        services.AddScoped<IFireDueRemindersUseCase>(_ => useCase);
         using var provider = services.BuildServiceProvider();
 
         var options = EnabledOptions();
@@ -109,8 +112,9 @@ public sealed class ReminderBackgroundServiceTests
 
         await service.StartAsync(CancellationToken.None);
 
-        // Give the hanging use case a moment to actually be mid-flight before asking it to stop.
-        await Task.Delay(TimeSpan.FromMilliseconds(50), TestContext.Current.CancellationToken);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => useCase.HasEntered,
+            "the reminder pass to be in flight");
 
         await service.StopAsync(CancellationToken.None);
 

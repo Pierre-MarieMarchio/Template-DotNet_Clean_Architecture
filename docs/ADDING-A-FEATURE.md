@@ -34,9 +34,13 @@ Repositories/I<Aggregate>Repository.cs   the repository contract, in domain type
 ```
 
 Everything the aggregate is built *from* comes from one project inwards,
-`AppTemplate.Domain.Core`: the root derives from its `AggregateRoot<TId>`, a child entity from
-its `Entity<TId>`, each event implements its `IDomainEvent`, and a violated invariant throws its
-`DomainException`. A feature adds nothing to that project. It is written as a package and vendored
+`AppTemplate.Domain.Core`: the root derives from its `AuditableAggregateRoot<TId>` — or from
+`AggregateRoot<TId>` when it wants neither audit columns nor a concurrency token — a child entity
+from its `Entity<TId>`, each event implements its `IDomainEvent`, and a violated invariant throws
+its `DomainException`. The audit values and the version are **not written out**: the base holds
+them and implements `IAuditable` and `IVersioned` explicitly, so the store writes them and nothing
+holding the aggregate can. An owned aggregate also declares `IOwnedAggregate`, which is what lets
+the shared ownership gate below check it. A feature adds nothing to that project. It is written as a package and vendored
 rather than published — it references nothing at all, its public surface is tracked in
 `Src/Domain/AppTemplate.Domain.Core/PublicAPI.Shipped.txt` and
 `Src/Domain/AppTemplate.Domain.Core/PublicAPI.Unshipped.txt`, and every public member of it is
@@ -89,6 +93,7 @@ feature used it, it goes in this project's `Common/`. If it does not and never w
 project inwards. Everything the feature is built *from* is one project inwards,
 in `AppTemplate.Application.Core`: `Result` and `Error`, the `IUseCase` marker the named interface
 derives from, `PageRequest`, `SortOrder` and the rest of the paging vocabulary,
+`CollectionBinding.Bind` and `FeaturePageRequest<TFilter>`, `OwnedAggregate.Require`,
 `VersionPrecondition` and `Versioned<T>`, the validation extensions, `DomainGuard`,
 `IDomainEventConsumer`, and the cross-cutting ports — the clock, the caller's identity, the commit
 boundary, the mail relay, the leader lease, the idempotency store. A feature adds nothing to that
@@ -118,8 +123,10 @@ has no `Consumers/`. `Dtos/` holds only shapes more than one operation returns; 
 response type only one operation produces stays in that operation's own folder instead.
 A type that appears in a port's signature never moves into a use case's folder, however
 many use cases call that port — otherwise `Ports/` would depend on `UseCases/`.
-`TodoListPageRequest` is the real example: it is `ITodoListQueries`'s parameter, so it
-lives in `Ports/TodoListQueries/`, not inside any one query's own folder.
+`TodoListFilter` is the real example: it is half of `ITodoListQueries`'s parameter, so it
+lives in `Ports/TodoListQueries/`, not inside any one query's own folder. The other half,
+`FeaturePageRequest<TodoListFilter>`, is not the feature's to place at all — it comes from one
+project inwards.
 
 **A feature is registered by its own `AddX()` in `ApplicationModule`, which a host calls or does
 not.** `AddTodoLists()`, `AddReminders()` and `AddFiles()` are the three that exist, and there is
@@ -134,7 +141,12 @@ that method.** A domain-event consumer is bound to its event with
 scanned, so a consumer nothing reaches is an absence you can see in the file instead of a silence at
 runtime. A collaborator under `Services/` has no request or response shape of its own, so the
 marker-based discovery below never sees it either: bind it with its own
-`services.AddScoped<TContract, TImplementation>()` in the same method. Skip either line and the code
+`services.AddScoped<TContract, TImplementation>()` in the same method. The collaborator every owned
+feature has is the load gate, and it is four lines: narrow the caller with `RequireUserId()`, then
+hand `OwnedAggregate.Require` the aggregate the repository answered, that caller, **this feature's
+own not-found error** and the precondition. Which error says "absent" stays the feature's decision —
+that is why the gate takes one instead of minting one — and it is what answers a non-owner exactly
+as an unknown id. Skip either line and the code
 still compiles — the consumer simply never fires, and the use case that takes the collaborator
 throws on its first resolution.
 
@@ -197,13 +209,14 @@ Sorting, filtering and paging are already built, once, in
 ```
 Policies/<Aggregate>CollectionPolicy.cs              the sortable whitelist and the bounds
 Ports/<Aggregate>Queries/<Aggregate>Filter.cs       the typed filter surface + its validation
-Ports/<Aggregate>Queries/<Aggregate>PageRequest.cs  the one validated type the port accepts
 ```
 
-The filter and the page request travel with the read-side port they are the parameter
-of — `TodoListFilter` and `TodoListPageRequest` live in `Ports/TodoListQueries/`, next to
-`ITodoListQueries` itself — because they are that port's signature, not one use case's
-private concern.
+The filter travels with the read-side port it is the parameter of — `TodoListFilter` lives in
+`Ports/TodoListQueries/`, next to `ITodoListQueries` itself — because it is that port's signature,
+not one use case's private concern. **There is no per-feature page-request type**: the port takes
+`FeaturePageRequest<TFilter>`, which only `CollectionBinding.Bind` can build, so a request that
+skipped validation cannot exist. The feature's query record declares `ICollectionQuery` — its five
+paging members, and so the OpenAPI parameters it publishes, are unchanged by doing so.
 
 The policy is the whitelist, and it lives in the feature's own `Policies/` folder rather than
 beside `ICollectionPolicy` in `AppTemplate.Application.Core/Common/Policies/`, because only the
@@ -260,14 +273,22 @@ Four rules, and they are the whole reason this is safe:
    `Result<T>`; free text goes through `SearchTerm`, which bounds its length. See
    `CONTRIBUTING.md` for why there is no expression language.
 
-The use case parses the raw query into the validated types and hands the port a
-single `<Aggregate>PageRequest` — which has no public constructor, so a request that
-skipped validation cannot be built at all:
+The feature's binder is what is left once the shared half is shared: its policy, its filter and
+which of its sortable fields holds an instant.
+
+```csharp
+public static Result<FeaturePageRequest<TodoListFilter>> Bind(GetTodoListsQuery query) =>
+    CollectionBinding.Bind(
+        query,
+        TodoListCollectionPolicy.Instance,
+        () => TodoListFilter.Create(query.Search, query.CreatedAfter, query.CreatedBefore),
+        TodoListCollectionPolicy.CreatedAtField);
+```
 
 ```csharp
 Task<PagedResult<TodoListSummaryDto>> GetForOwnerAsync(
-    Guid ownerId,
-    TodoListPageRequest request,
+    UserId ownerId,
+    FeaturePageRequest<TodoListFilter> request,
     CancellationToken cancellationToken = default);
 ```
 
@@ -492,7 +513,7 @@ child collection, so `ReminderRepository` loads a row and maps it, where
 `TodoListRepository` needs `.Include(list => list.Items).ThenInclude(item => item.Tags)`
 and `.AsSplitQuery()`. There is no `Policies/` folder either: reminders are read one
 item's worth at a time, so the feature has no collection endpoint, and therefore no
-`CollectionPolicy`, no `Filter`, no `PageRequest` and no `SortMap`. Section 2b simply
+`CollectionPolicy`, no `Filter`, no request binder and no `SortMap`. Section 2b simply
 does not apply to it. Skipping all of that is the default, not a shortcut — build the
 collection machinery when a feature has a list to page, and not before.
 
@@ -599,6 +620,31 @@ is that barrier, and the mapper says so in its own file.
 A test that cannot fail is not a guarantee. For anything security- or
 correctness-shaped: break the production code, watch the new test go red, then
 restore it.
+
+## 5b. The closed lists a new feature lands in
+
+Nothing here is a hoop. Each of these is a list somebody has to change **on purpose**, and each
+exists because a rule that discovers everything automatically also accepts everything
+automatically. What follows is the set a feature actually reaches, so you meet them as a list rather
+than one red test at a time.
+
+| What you added | What has to say so |
+|---|---|
+| A folder under `Common/` or `Features/<F>/` | the two vocabularies in `Rules/LayoutConventionTests.cs`, checked in both directions — a word without its folder fails as loudly as a folder without its word |
+| A feature folder | `Rules/FeatureFolderVocabularyTests.cs` |
+| An aggregate | `_expectedEntities` in `Rules/DomainModelTests.cs`, which is what stops the reflection rules passing over nothing |
+| A domain event | a consumer, **or** its name in `_deliberatelyUnconsumed` in `Rules/DomainEventTests.cs` with the reason. Publishing a fact nothing wants yet is good design; leaving a reader unable to tell that from a forgotten consumer is not |
+| A registration in a module | the five compositions in `Composition/HostComposition.cs`, and `Composition/ContainerCompositionTests.cs` if a host must resolve it |
+| A public interface under `Common/` | it joins the port population by default. If it is not a port — something inside this layer implements it, not a module — it goes in `ApplicationPorts.NotPorts` with its reason, beside `ICollectionPolicy` and `ICollectionQuery` |
+| An anonymous endpoint | `_anonymousActions` in `Rules/HttpSurfaceTests.cs` |
+| A background service | the floor in `Rules/BackgroundWorkTests.cs`, and an instrument means `Rules/ObservabilityRegistrationTests.cs` |
+| A new project | guids in `AppTemplate.sln` **and** `.template.config/template.json` (`Rules/TemplatePackagingTests.cs` guards the list), a `COPY` line in both Dockerfiles, a mirror under `Tests/`, and the project floors in `Rules/ModuleDependencyTests.cs` |
+| Anything at all, eventually | `coverage.minimum`, whose own rule says when the floor moves and demands Docker before it is touched |
+
+**Two habits are worth more than the table.** Raise an anti-vacuity floor when you pass it, rather
+than leaving it describing a smaller tree — a floor that no longer bites is a rule that has stopped
+reading. And when you add to a hand-maintained list, ask which direction it cannot see: this suite
+has been bitten twice by a list that checked words against folders and never folders against words.
 
 ## 6. Migration
 

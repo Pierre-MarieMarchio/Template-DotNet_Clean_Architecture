@@ -139,7 +139,7 @@ AppTemplate.Domain/         Common/{Tagging}
                    *as business*. The primitives are AppTemplate.Domain.Core's
 AppTemplate.Application.Core/
                    Common/{Collections,Concurrency,Events,Idempotency,Localization,
-                           Policies,Ports,Results,UseCases,Validation}
+                           Ownership,Policies,Ports,Results,UseCases,Validation}
                    Features/Maintenance/UseCases/Commands/<Operation>
 AppTemplate.Application/    Common/{Tagging}
                    Features/<F>/{UseCases/{Commands,Queries}/<Operation>,Ports/<Port>,
@@ -695,7 +695,8 @@ by the compiler, so run `dotnet test Tests/Architecture` before pushing.
    operations. Read models more than one operation shares go in `Dtos/`; the feature's failure
    vocabulary goes in `Errors/`. Validate against the *trimmed* value if the domain normalises.
    Everything the feature is built *from* — `Result`, `Error`, `IUseCase`, `PageRequest`,
-   `SortOrder`, `VersionPrecondition`, the cross-cutting ports — comes from
+   `SortOrder`, `CollectionBinding.Bind`, `OwnedAggregate.Require`, `VersionPrecondition`, the
+   cross-cutting ports — comes from
    `AppTemplate.Application.Core`, and a feature adds nothing to that project either.
    Then give the feature its own `AddX()` in `ApplicationModule`, and call it from each host that
    offers the feature: registration is opt-in per feature, so a feature nobody composes is

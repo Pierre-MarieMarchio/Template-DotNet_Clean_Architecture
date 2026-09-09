@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
+﻿using AppTemplate.Application.Core.Common.Collections;
+
+namespace AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
 
 /// <param name="Paging">"offset" (the default) or "cursor". Blank means offset.</param>
 /// <param name="Page">1-based page number. Offset mode only.</param>
@@ -19,7 +21,7 @@ public sealed record GetStoredFilesQuery(
     string? Cursor,
     string? Sort,
     string? Search,
-    string? State)
+    string? State) : ICollectionQuery
 {
     /// <summary>The common case: offset paging, nothing sorted, filtered or resumed.</summary>
     public static GetStoredFilesQuery Offset(int? page, int? pageSize) =>

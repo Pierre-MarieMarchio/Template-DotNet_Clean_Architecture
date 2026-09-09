@@ -24,7 +24,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
 {
     public async Task<PagedResult<StoredFileDto>> GetForOwnerAsync(
         UserId ownerId,
-        StoredFilePageRequest request,
+        FeaturePageRequest<StoredFileFilter> request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -141,7 +141,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
 
     private static async Task<PagedResult<StoredFileDto>> GetOffsetPageAsync(
         IQueryable<StoredFileRecord> filtered,
-        StoredFilePageRequest request,
+        FeaturePageRequest<StoredFileFilter> request,
         CancellationToken cancellationToken)
     {
         int totalCount = await filtered.CountAsync(cancellationToken);
@@ -160,7 +160,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
 
     private static async Task<PagedResult<StoredFileDto>> GetKeysetPageAsync(
         IQueryable<StoredFileRecord> filtered,
-        StoredFilePageRequest request,
+        FeaturePageRequest<StoredFileFilter> request,
         CancellationToken cancellationToken)
     {
         // GetStoredFilesRequestBinder refuses a multi-term sort under paging=cursor, so there is

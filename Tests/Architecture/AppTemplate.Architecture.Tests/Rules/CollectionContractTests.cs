@@ -13,8 +13,8 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// <summary>
 /// What the sorting/filtering/paging surface guarantees about the shapes it hands between layers.
 /// <para>
-/// Every collection contract — a <c>SortOrder</c>, a <c>Cursor</c>, a feature's own
-/// <c>TodoListPageRequest</c> — is a record built only by a validating factory. The value of that
+/// Every collection contract — a <c>SortOrder</c>, a <c>Cursor</c>, a
+/// <c>FeaturePageRequest&lt;TFilter&gt;</c> — is a record built only by a validating factory. The value of that
 /// convention is only real if nothing can construct one having skipped the factory, so these rules
 /// check the constructor surface itself rather than trusting the convention was followed.
 /// </para>
@@ -46,14 +46,15 @@ public sealed class CollectionContractTests
         candidates.ShouldNotBeEmpty(
             "No record type was found in a namespace matching " +
             $"'{_collectionsNamespacePattern}', so this rule is no longer describing the shared " +
-            "collection contracts (SortableField, SortTerm, SortOrder, Cursor, PageRequest, " +
-            "SearchTerm). Either the convention was renamed or the rule is stale.");
+            "collection contracts (SortableField, SortTerm, SortOrder, CollectionOrder, Cursor, " +
+            "PageRequest, SearchTerm, FeaturePageRequest). Either the convention was renamed or the " +
+            "rule is stale.");
 
-        // SortableField, SortOrder, SortTerm, Cursor, PageRequest, SearchTerm. A feature's own
-        // paging contracts are not counted here: they travel with the port that accepts them, and
-        // NoPortParameter_IsPartlyValidated is what holds them to the same standard.
+        // SortableField, SortOrder, SortTerm, CollectionOrder, Cursor, PageRequest, SearchTerm and
+        // FeaturePageRequest. A feature's own filter is not counted here: it travels with the port
+        // that accepts it, and NoPortParameter_IsPartlyValidated holds it to the same standard.
         candidates.Count.ShouldBeGreaterThanOrEqualTo(
-            6,
+            8,
             "Fewer collection-contract records were found than this template is known to declare. " +
             "The discovery in this rule has stopped matching them.");
 
@@ -214,8 +215,8 @@ public sealed class CollectionContractTests
             .Where(HasAValidatingFactory)
             .ToList();
 
-        // Cursor, PageRequest, SearchTerm, SortOrder from Common/Collections, the feature's own
-        // TodoListFilter and TodoListPageRequest, wherever the layout puts them.
+        // Cursor, PageRequest, SearchTerm, SortOrder from Common/Collections, and the feature's own
+        // TodoListFilter and StoredFileFilter, wherever the layout puts them.
         validated.Count.ShouldBeGreaterThanOrEqualTo(
             6,
             "Fewer self-validating records were found than this template is known to declare. The " +

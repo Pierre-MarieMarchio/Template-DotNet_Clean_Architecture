@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Core.Common.Concurrency;
+﻿using AppTemplate.Application.Core.Common.Collections;
+using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using AppTemplate.Application.Features.TodoLists.Policies;
@@ -19,7 +20,7 @@ public interface ITodoListQueries
     /// </summary>
     Task<PagedResult<TodoListSummaryDto>> GetForOwnerAsync(
         UserId ownerId,
-        TodoListPageRequest request,
+        FeaturePageRequest<TodoListFilter> request,
         CancellationToken cancellationToken = default);
 
     /// <returns>The list and the aggregate's version, or <c>null</c> when it does not exist or is

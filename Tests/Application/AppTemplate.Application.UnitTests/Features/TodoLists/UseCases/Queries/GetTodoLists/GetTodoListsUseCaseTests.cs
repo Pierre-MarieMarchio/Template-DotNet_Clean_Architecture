@@ -41,7 +41,7 @@ public sealed class GetTodoListsUseCaseTests
 
         await _queries.DidNotReceive().GetForOwnerAsync(
             Arg.Any<UserId>(),
-            Arg.Any<TodoListPageRequest>(),
+            Arg.Any<FeaturePageRequest<TodoListFilter>>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -75,7 +75,7 @@ public sealed class GetTodoListsUseCaseTests
 
         await _queries.Received(1).GetForOwnerAsync(
             _callerId,
-            Arg.Any<TodoListPageRequest>(),
+            Arg.Any<FeaturePageRequest<TodoListFilter>>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -90,11 +90,11 @@ public sealed class GetTodoListsUseCaseTests
 
         await _queries.Received(1).GetForOwnerAsync(
             otherCallerId,
-            Arg.Any<TodoListPageRequest>(),
+            Arg.Any<FeaturePageRequest<TodoListFilter>>(),
             Arg.Any<CancellationToken>());
         await _queries.DidNotReceive().GetForOwnerAsync(
             _callerId,
-            Arg.Any<TodoListPageRequest>(),
+            Arg.Any<FeaturePageRequest<TodoListFilter>>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -124,7 +124,7 @@ public sealed class GetTodoListsUseCaseTests
 
         await _queries.DidNotReceive().GetForOwnerAsync(
             Arg.Any<UserId>(),
-            Arg.Any<TodoListPageRequest>(),
+            Arg.Any<FeaturePageRequest<TodoListFilter>>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -134,7 +134,7 @@ public sealed class GetTodoListsUseCaseTests
     public async Task TheRequestedPage_IsHandedBackUnchanged()
     {
         var page = PagedResult.Offset<TodoListSummaryDto>([ASummary()], 2, 10, 42);
-        _queries.GetForOwnerAsync(_callerId, Arg.Any<TodoListPageRequest>(), Arg.Any<CancellationToken>())
+        _queries.GetForOwnerAsync(_callerId, Arg.Any<FeaturePageRequest<TodoListFilter>>(), Arg.Any<CancellationToken>())
             .Returns(page);
 
         var result = await UseCase().ExecuteAsync(GetTodoListsQuery.Offset(2, 10), TestToken);
@@ -154,7 +154,7 @@ public sealed class GetTodoListsUseCaseTests
 
         await _queries.Received(1).GetForOwnerAsync(
             _callerId,
-            Arg.Is<TodoListPageRequest>(request =>
+            Arg.Is<FeaturePageRequest<TodoListFilter>>(request =>
                 request != null
                 && request.Paging.Mode == PagingMode.Offset
                 && request.Paging.Page == 3
@@ -174,7 +174,7 @@ public sealed class GetTodoListsUseCaseTests
 
         await UseCase().ExecuteAsync(GetTodoListsQuery.Offset(1, 10), cancellation.Token);
 
-        await _queries.Received(1).GetForOwnerAsync(_callerId, Arg.Any<TodoListPageRequest>(), cancellation.Token);
+        await _queries.Received(1).GetForOwnerAsync(_callerId, Arg.Any<FeaturePageRequest<TodoListFilter>>(), cancellation.Token);
     }
 
     #endregion
@@ -189,7 +189,7 @@ public sealed class GetTodoListsUseCaseTests
     private void GivenThePageIsEmpty() =>
         _queries.GetForOwnerAsync(
                 Arg.Any<UserId>(),
-                Arg.Any<TodoListPageRequest>(),
+                Arg.Any<FeaturePageRequest<TodoListFilter>>(),
                 Arg.Any<CancellationToken>())
             .Returns(PagedResult.Offset<TodoListSummaryDto>([], 1, 10, 0));
 }

@@ -1,5 +1,24 @@
 #nullable enable
+AppTemplate.Application.Core.Common.Collections.CollectionBinding
+AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>
+AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>.<Clone>$() -> AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>!
+AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>.Equals(AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>? other) -> bool
+AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>.Filter.get -> TFilter
+AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>.Paging.get -> AppTemplate.Application.Core.Common.Collections.PageRequest!
+AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>.Sort.get -> AppTemplate.Application.Core.Common.Collections.SortOrder!
+AppTemplate.Application.Core.Common.Collections.ICollectionQuery
+AppTemplate.Application.Core.Common.Collections.ICollectionQuery.Cursor.get -> string?
+AppTemplate.Application.Core.Common.Collections.ICollectionQuery.Page.get -> int?
+AppTemplate.Application.Core.Common.Collections.ICollectionQuery.PageSize.get -> int?
+AppTemplate.Application.Core.Common.Collections.ICollectionQuery.Paging.get -> string?
+AppTemplate.Application.Core.Common.Collections.ICollectionQuery.Sort.get -> string?
 AppTemplate.Application.Core.Common.Ownership.OwnedAggregate
 AppTemplate.Application.Core.Common.Ports.ICurrentUser.UserId.get -> AppTemplate.Domain.Core.Common.Primitives.UserId?
+override AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>.Equals(object? obj) -> bool
+override AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>.GetHashCode() -> int
+override AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>.ToString() -> string!
+static AppTemplate.Application.Core.Common.Collections.CollectionBinding.Bind<TFilter>(AppTemplate.Application.Core.Common.Collections.ICollectionQuery! query, AppTemplate.Application.Core.Common.Policies.ICollectionPolicy! policy, System.Func<AppTemplate.Application.Core.Common.Results.Result<TFilter>!>! createFilter, params string![]! dateKeyFields) -> AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>!>!
+static AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>.operator !=(AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>? left, AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>? right) -> bool
+static AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>.operator ==(AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>? left, AppTemplate.Application.Core.Common.Collections.FeaturePageRequest<TFilter>? right) -> bool
 static AppTemplate.Application.Core.Common.Ownership.OwnedAggregate.Require<TAggregate>(TAggregate? aggregate, AppTemplate.Domain.Core.Common.Primitives.UserId! ownerId, AppTemplate.Application.Core.Common.Results.Error! notFound, AppTemplate.Application.Core.Common.Concurrency.VersionPrecondition? precondition) -> AppTemplate.Application.Core.Common.Results.Result<TAggregate!>!
 static AppTemplate.Application.Core.Common.Ports.CurrentUserExtensions.RequireUserId(this AppTemplate.Application.Core.Common.Ports.ICurrentUser! currentUser) -> AppTemplate.Application.Core.Common.Results.Result<AppTemplate.Domain.Core.Common.Primitives.UserId!>!

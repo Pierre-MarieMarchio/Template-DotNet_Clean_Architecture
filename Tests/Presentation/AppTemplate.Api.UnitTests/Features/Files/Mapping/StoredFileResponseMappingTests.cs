@@ -241,7 +241,7 @@ public sealed class StoredFileResponseMappingTests
     /// The mapping is an exhaustive switch that throws on anything it does not name, so a state
     /// added to the domain without a word here is a 500 on the first read of a file in it — and no
     /// test built around a file this suite constructs would see it, because those files are never
-    /// in the new state. That is the defect CONTRIBUTING.md records against a switch over an event
+    /// in the new state. That is the defect docs/TESTING.md records against a switch over an event
     /// enum, arriving at the same place by the same route.
     /// <para>
     /// It also pins the words to what <c>StoredFileFilter</c> accepts. A client must be able to

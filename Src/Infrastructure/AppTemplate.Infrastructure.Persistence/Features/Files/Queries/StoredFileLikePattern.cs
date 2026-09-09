@@ -9,7 +9,7 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 /// </summary>
 /// <remarks>
 /// A deliberate twin of <c>TodoListLikePattern</c> rather than a shared helper. The two are the first
-/// pair of cases that agree, and <c>CONTRIBUTING.md</c>'s rule is to extract what two real cases prove
+/// pair of cases that agree, and <c>docs/DECISIONS.md</c>'s rule is to extract what two real cases prove
 /// identical; the reason this one stays is different and stronger — a helper shared between the two
 /// would make deleting the example to-do feature break the file feature's search, which is exactly the
 /// coupling per-feature folders exist to prevent. Promote it to <c>Common/</c> the day a third feature

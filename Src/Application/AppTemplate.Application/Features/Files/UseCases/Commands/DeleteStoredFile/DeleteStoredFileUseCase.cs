@@ -9,7 +9,7 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredF
 
 /// <summary>
 /// Deleting a file is removing its row. There is no deleted state and no deletion instant — see
-/// <c>CONTRIBUTING.md</c>'s "No soft delete" — so this use case has nothing to set and nothing to
+/// <c>docs/DECISIONS.md</c>'s "No soft delete" — so this use case has nothing to set and nothing to
 /// project back.
 /// <para>
 /// <c>StoredFile.Delete</c> is called alongside the removal rather than instead of it. It writes

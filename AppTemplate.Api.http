@@ -227,7 +227,7 @@ Authorization: Bearer {{accessToken}}
 
 ###
 # 16c. Replace the item's title and description. A PUT carrying the whole representation of the
-#      operation, never a PATCH — see CONTRIBUTING.md's "Writes are named operations", held by
+#      operation, never a PATCH — see docs/DECISIONS.md's "Writes are named operations", held by
 #      NoEndpoint_AcceptsPatch. A field left out is a field cleared.
 PUT {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
 Authorization: Bearer {{accessToken}}

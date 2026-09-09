@@ -79,7 +79,7 @@ data:
   # idempotent, and the reclamation's safety comes from listing the store before reading the rows,
   # not from being alone. At replicas: 2 the reclamation does cost a second full walk of the store
   # every cycle; that is a price, not a bug, and the day it stops being worth paying the lease
-  # belongs in the use case rather than in the loop. See CONTRIBUTING.md.
+  # belongs in the use case rather than in the loop. See docs/DECISIONS.md.
   FileWorker__PurgeAbandonedRegistrationsInterval: "01:00:00"
   FileWorker__PurgeAbandonedRegistrationsEnabled: "true"
   FileWorker__ReclaimOrphanedContentInterval: "12:00:00"

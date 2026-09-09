@@ -6,7 +6,7 @@ namespace AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 
 /// <summary>
 /// The file feature's own filter: a closed set of typed parameters, never an expression a caller
-/// composes — see <c>CONTRIBUTING.md</c> for why there is no filter language. Adding a filter here
+/// composes — see <c>docs/DECISIONS.md</c> for why there is no filter language. Adding a filter here
 /// means adding a parameter and a test, which is the point.
 /// <para>
 /// <see cref="Search"/> matches the file's name only, case-insensitively, as a contains. The name is

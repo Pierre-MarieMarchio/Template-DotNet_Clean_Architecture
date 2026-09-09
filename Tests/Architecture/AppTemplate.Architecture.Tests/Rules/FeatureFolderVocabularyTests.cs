@@ -5,7 +5,7 @@ using Xunit;
 namespace AppTemplate.Architecture.Tests.Rules;
 
 /// <summary>
-/// <c>CONTRIBUTING.md</c> says a folder under <c>Features/&lt;F&gt;/</c> is the plural of the nature
+/// <c>docs/PROJECT-LAYOUT.md</c> says a folder under <c>Features/&lt;F&gt;/</c> is the plural of the nature
 /// word its files carry — a <c>…Repository</c> in <c>Repositories/</c>, a <c>…Mapper</c> in
 /// <c>Mapping/</c> — and that is what makes the tree navigable in both directions: a type name tells
 /// you its folder, and a folder tells you what nature of thing is in it.

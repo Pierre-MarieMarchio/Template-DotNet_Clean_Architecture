@@ -19,7 +19,7 @@ namespace AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 /// </para>
 /// <para>
 /// That is the shape this repository requires of every consumer, because domain events are
-/// dispatched in-process, after commit, at most once, with no outbox — see CONTRIBUTING.md. The
+/// dispatched in-process, after commit, at most once, with no outbox — see docs/DECISIONS.md. The
 /// effect re-derives its own precondition: running twice deletes an object that is already gone,
 /// which the store treats as success, and never running leaves the system consistent but holding
 /// bytes for longer than it needed to.

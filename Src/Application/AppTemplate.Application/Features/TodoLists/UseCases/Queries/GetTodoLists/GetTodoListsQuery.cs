@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;
+﻿using AppTemplate.Application.Core.Common.Collections;
+
+namespace AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;
 
 /// <param name="Paging">"offset" (the default) or "cursor". Blank means offset.</param>
 /// <param name="Page">1-based page number. Offset mode only.</param>
@@ -21,7 +23,7 @@ public sealed record GetTodoListsQuery(
     string? Sort,
     string? Search,
     string? CreatedAfter,
-    string? CreatedBefore)
+    string? CreatedBefore) : ICollectionQuery
 {
     /// <summary>The common case: offset paging, nothing sorted, filtered or resumed.</summary>
     public static GetTodoListsQuery Offset(int? page, int? pageSize) =>

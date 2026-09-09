@@ -23,7 +23,7 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
 {
     public async Task<PagedResult<TodoListSummaryDto>> GetForOwnerAsync(
         UserId ownerId,
-        TodoListPageRequest request,
+        FeaturePageRequest<TodoListFilter> request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -95,7 +95,7 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
 
     private static async Task<PagedResult<TodoListSummaryDto>> GetOffsetPageAsync(
         IQueryable<TodoListRecord> filtered,
-        TodoListPageRequest request,
+        FeaturePageRequest<TodoListFilter> request,
         CancellationToken cancellationToken)
     {
         int totalCount = await filtered.CountAsync(cancellationToken);
@@ -114,7 +114,7 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
 
     private static async Task<PagedResult<TodoListSummaryDto>> GetKeysetPageAsync(
         IQueryable<TodoListRecord> filtered,
-        TodoListPageRequest request,
+        FeaturePageRequest<TodoListFilter> request,
         CancellationToken cancellationToken)
     {
         // The use case refuses a multi-term sort under paging=cursor, so there is always exactly one

@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.Policies;
 using AppTemplate.Application.Core.Common.UseCases;
@@ -26,7 +27,9 @@ internal static class ApplicationPorts
     /// <see cref="IUseCase"/> and its arities are the marker registration discovers use cases
     /// through; <see cref="IDomainEventConsumer"/> is implemented by the application layer rather
     /// than consumed from it; <see cref="ICollectionPolicy"/> is a strategy whose implementations
-    /// are application types reached through a static instance, never resolved from the container.
+    /// are application types reached through a static instance, never resolved from the container;
+    /// <see cref="ICollectionQuery"/> is a shape the caller's own query record satisfies, so it is
+    /// declared for something inside this layer rather than for a module.
     /// </para>
     /// </summary>
     private static readonly Type[] _notPorts =
@@ -37,6 +40,7 @@ internal static class ApplicationPorts
         typeof(IDomainEventConsumer),
         typeof(IDomainEventConsumer<>),
         typeof(ICollectionPolicy),
+        typeof(ICollectionQuery),
     ];
 
     /// <summary>

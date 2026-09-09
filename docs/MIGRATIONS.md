@@ -115,14 +115,20 @@ or from a self-contained bundle, which is what a deployment should prefer becaus
 own runtime and needs no SDK on the target:
 
 ```bash
-dotnet run Tools/Tasks.cs migration-bundle      # the business context
+dotnet run Tools/Tasks.cs migration-bundle      # both contexts
 ```
 
-**Two limits to know before you rely on that path.** `migration-bundle` and
-`.github/workflows/release.yml`'s `migration-bundle` job both build the **business** context's
-bundle only, so the `identity` schema is not in it; and `deploy/kubernetes/migration-job.yaml`
-assumes an image around a bundle that the release workflow uploads as a plain artifact rather than
-packaging. Both are named in [`DEPLOYMENT.md`](DEPLOYMENT.md), which is where the ordering
+**One bundle per context, and you need both.** `migration-bundle` and
+`.github/workflows/release.yml`'s `migration-bundle` job each build two: `efbundle-identity` for the
+`identity` schema and `efbundle` for the business one. Applying one and not the other leaves half
+the schema absent — an API whose identity tables do not exist starts and then fails the first
+sign-in. Their order is not a correctness requirement, since no foreign key crosses the two schemas,
+but both run authentication first, as the Development bootstrap does.
+
+**The limit that remains.** `deploy/kubernetes/migration-job.yaml` assumes an image around the two
+bundles that the release workflow uploads as plain artifacts rather than packaging; the manifest runs
+`efbundle-identity` as an initContainer and `efbundle` as its container, so they apply in sequence
+rather than racing. It is named in [`DEPLOYMENT.md`](DEPLOYMENT.md), which is where the ordering
 requirement lives too — the migration finishes, successfully, before any pod that expects the new
 schema starts taking traffic.
 

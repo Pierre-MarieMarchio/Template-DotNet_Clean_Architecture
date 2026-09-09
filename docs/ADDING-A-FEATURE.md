@@ -34,6 +34,23 @@ nobody stated. **It creates files and edits none**, because registration is opt-
 precisely so that a feature nobody composes is visibly registered nowhere; it prints the five edits
 instead. Read the sections below for what to put in what it wrote.
 
+**The vertical, in order**
+
+1. [Domain — the aggregate](#1-domain--the-aggregate)
+2. [Application — the use case and its port](#2-application--the-use-case-and-its-port)
+3. [Persistence — model, mapping, tracker, repository](#3-persistence--model-mapping-tracker-repository)
+4. [API — controller and contracts](#4-api--controller-and-contracts)
+5. [Tests](#5-tests)
+6. [Migration](#6-migration)
+
+**When your feature is not shaped like `TodoLists`**
+
+- [Not only rows — the `Files` example](#4b-when-the-feature-is-not-only-rows--the-files-example)
+- [No child entities — the `Reminders` example](#4c-when-the-aggregate-has-no-child-entities--the-reminders-example)
+- [It shares, caches, or runs on a timer](#4d-when-the-feature-shares-caches-or-runs-on-a-timer)
+- [The closed lists a new feature lands in](#5b-the-closed-lists-a-new-feature-lands-in) — the
+  dictionaries that fail the build until they name your feature
+
 ## 1. Domain — the aggregate
 
 `Src/Domain/AppTemplate.Domain/Features/<Feature>/`

@@ -1038,7 +1038,8 @@ AppTemplate.Application/
     TodoLists/
       Errors/                   TodoListErrors.cs — the feature's failure vocabulary
       Policies/                 TodoListCollectionPolicy — the sortable whitelist
-      Ports/TodoListQueries/    ITodoListQueries, TodoListFilter, TodoListPageRequest
+      Ports/TodoListQueries/    ITodoListQueries and TodoListFilter — the paging contract itself
+                                is FeaturePageRequest<TodoListFilter>, one project inwards
       Services/                 ITodoListService — the one gate every command loads its aggregate through
       Extensions/               TodoListItemExtensions — a known-item id turned into the same 404 everywhere
       Mapping/                  TodoListDtoMapping — the aggregate a write just staged, read back as a DTO

@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Api.Features.Files.Contracts.Requests;
+﻿using System.Text.Json.Serialization;
+
+namespace AppTemplate.Api.Features.Files.Contracts.Requests;
 
 /// <summary>
 /// What the client says about a file it is about to deposit. Metadata only — the bytes never travel
@@ -11,8 +13,12 @@
 /// reads the bytes to check it. A client that learns the word here is not surprised to meet it in
 /// the response.
 /// </param>
-/// <param name="SizeInBytes">Bound into the upload grant, so a deposit of a different length is
-/// refused by the store rather than at confirmation.</param>
+/// <param name="SizeInBytes">
+/// Bound into the upload grant, so a deposit of a different length is refused by the store rather
+/// than at confirmation. Required in the body: an omitted length binds to zero and is then
+/// refused for being under the minimum, which reads as a rejected file rather than a missing
+/// field.
+/// </param>
 /// <param name="Checksum">
 /// SHA-256 of the content, 64 hexadecimal characters. Asked for now rather than at confirmation:
 /// a digest supplied after the upload would be the client agreeing with itself.
@@ -20,5 +26,5 @@
 public sealed record RegisterFileRequest(
     string Name,
     string DeclaredMediaType,
-    long SizeInBytes,
+    [property: JsonRequired] long SizeInBytes,
     string Checksum);

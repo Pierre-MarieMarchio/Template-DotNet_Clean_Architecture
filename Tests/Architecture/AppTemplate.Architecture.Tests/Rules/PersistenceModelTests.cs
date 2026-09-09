@@ -20,12 +20,13 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// anything that reads the model. The claim worth checking is the one about the call, so this reads
 /// the call.
 /// </remarks>
-public sealed class PersistenceModelTests
+public sealed partial class PersistenceModelTests
 {
     /// <summary>Matches <c>builder.ApplyConfiguration(new SomethingConfiguration());</c>.</summary>
-    private static readonly Regex _applyConfiguration = new(
+    [GeneratedRegex(
         @"ApplyConfiguration\(\s*new\s+([A-Za-z0-9_]+)\s*\(",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        RegexOptions.CultureInvariant)]
+    private static partial Regex ApplyConfiguration();
 
     private static readonly string _contextPath = Path.Combine(
         ProjectReferenceGraph.RepositoryRoot,
@@ -135,7 +136,7 @@ public sealed class PersistenceModelTests
             $"'{_contextPath}' was not found, so this rule cannot read the calls it exists to check. "
             + "The context moved and this path did not follow it.");
 
-        var names = _applyConfiguration
+        var names = ApplyConfiguration()
             .Matches(File.ReadAllText(_contextPath))
             .Select(match => match.Groups[1].Value)
             .ToHashSet(StringComparer.Ordinal);

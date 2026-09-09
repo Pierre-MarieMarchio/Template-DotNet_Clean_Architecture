@@ -18,7 +18,7 @@ at `/scalar/v1`.
 
 ## Authentication — `api/v1/auth/*`
 
-Ten of the controller's eighteen actions are explicitly `[AllowAnonymous]`; the
+Ten of the eighteen actions here are explicitly `[AllowAnonymous]`; the
 other eight require `[Authorize]` (`logout-all`, `me`, `change-password`, the three
 `two-factor/*` actions, `change-email`, `confirm-email-change`). Sixteen of the
 eighteen are rate-limited to **10 requests per minute per client IP**; `logout-all`
@@ -82,9 +82,8 @@ creating a list or an item (`201`) and deleting a list (`204`).
 
 ## Reminders — `api/v1/.../reminders` and `api/v1/reminders/*`
 
-Authentication required (no opt-out) — like `TodoListsController`, `RemindersController`
-declares neither `[Authorize]` nor `[AllowAnonymous]` and relies entirely on the
-default-deny fallback policy. A reminder is its own aggregate root, addressed
+Authentication required (no opt-out) — as with to-do lists, these actions declare neither
+`[Authorize]` nor `[AllowAnonymous]` and rely entirely on the default-deny fallback policy. A reminder is its own aggregate root, addressed
 independently of the list or item it is about once scheduled — scheduling and listing
 go through the item, rescheduling and cancelling go through the reminder's own id.
 

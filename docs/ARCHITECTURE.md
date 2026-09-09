@@ -804,7 +804,7 @@ change tracker useful without it ever seeing the aggregate.
   error shapes.
 - **Authorisation is default-deny.** `Program.cs` installs an authorization fallback
   policy requiring an authenticated user, so an endpoint is protected unless it opts
-  out. Ten of `AuthController`'s eighteen actions and the two health endpoints do —
+  out. Ten of the eighteen authentication actions and the two health endpoints do —
   and, in Development only, so do the two OpenAPI endpoints. One consequence: because
   the fallback policy also applies when no endpoint matched, an unknown route answers
   401 to an anonymous caller rather than 404.

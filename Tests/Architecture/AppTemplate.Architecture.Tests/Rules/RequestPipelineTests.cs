@@ -19,7 +19,7 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// this test project deliberately references neither — the same reason <c>HttpSurfaceTests</c> and
 /// <c>ObservabilityRegistrationTests</c> read their subjects that way.
 /// </remarks>
-public sealed class RequestPipelineTests
+public sealed partial class RequestPipelineTests
 {
     private static readonly string _pipelinePath = Path.Combine(
         ProjectReferenceGraph.RepositoryRoot,
@@ -36,9 +36,10 @@ public sealed class RequestPipelineTests
         "Program.cs");
 
     /// <summary>Matches <c>app.UseSomething(</c> at the start of a statement.</summary>
-    private static readonly Regex _middleware = new(
+    [GeneratedRegex(
         @"^\s*app\.(Use[A-Za-z0-9_]+)\s*\(",
-        RegexOptions.Multiline | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        RegexOptions.Multiline | RegexOptions.CultureInvariant)]
+    private static partial Regex Middleware();
 
     [Fact]
     public void RequestLogging_IsRegisteredBeforeTheSizeLimit()
@@ -103,7 +104,7 @@ public sealed class RequestPipelineTests
             $"'{path}' was not found, so this rule cannot read the pipeline it exists to "
             + "check. What it reads moved and this path did not follow it.");
 
-        var order = _middleware
+        var order = Middleware()
             .Matches(File.ReadAllText(path))
             .Select(match => match.Groups[1].Value)
             .ToList();

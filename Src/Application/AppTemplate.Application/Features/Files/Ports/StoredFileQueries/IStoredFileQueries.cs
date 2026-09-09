@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Core.Common.Concurrency;
+﻿using AppTemplate.Application.Core.Common.Collections;
+using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Policies;
@@ -22,7 +23,7 @@ public interface IStoredFileQueries
     /// </summary>
     Task<PagedResult<StoredFileDto>> GetForOwnerAsync(
         UserId ownerId,
-        StoredFilePageRequest request,
+        FeaturePageRequest<StoredFileFilter> request,
         CancellationToken cancellationToken = default);
 
     /// <returns>The file and the aggregate's version, or <c>null</c> when it does not exist or is

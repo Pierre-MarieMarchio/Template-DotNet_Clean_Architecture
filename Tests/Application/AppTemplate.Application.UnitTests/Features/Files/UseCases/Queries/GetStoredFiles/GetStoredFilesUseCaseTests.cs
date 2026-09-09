@@ -24,7 +24,7 @@ public sealed class GetStoredFilesUseCaseTests
     public GetStoredFilesUseCaseTests() =>
         _queries.GetForOwnerAsync(
                 Arg.Any<UserId>(),
-                Arg.Any<StoredFilePageRequest>(),
+                Arg.Any<FeaturePageRequest<StoredFileFilter>>(),
                 Arg.Any<CancellationToken>())
             .Returns(PagedResult.Offset<StoredFileDto>([], 1, 20, 0));
 
@@ -46,7 +46,7 @@ public sealed class GetStoredFilesUseCaseTests
         await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(GetStoredFilesQuery.Offset(1, 20), TestToken);
 
         await _queries.DidNotReceive().GetForOwnerAsync(
-            Arg.Any<UserId>(), Arg.Any<StoredFilePageRequest>(), Arg.Any<CancellationToken>());
+            Arg.Any<UserId>(), Arg.Any<FeaturePageRequest<StoredFileFilter>>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -60,7 +60,7 @@ public sealed class GetStoredFilesUseCaseTests
         await UseCase().ExecuteAsync(GetStoredFilesQuery.Offset(1, 20), TestToken);
 
         await _queries.Received(1).GetForOwnerAsync(
-            _callerId, Arg.Any<StoredFilePageRequest>(), Arg.Any<CancellationToken>());
+            _callerId, Arg.Any<FeaturePageRequest<StoredFileFilter>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class GetStoredFilesUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("sort.invalid");
         await _queries.DidNotReceive().GetForOwnerAsync(
-            Arg.Any<UserId>(), Arg.Any<StoredFilePageRequest>(), Arg.Any<CancellationToken>());
+            Arg.Any<UserId>(), Arg.Any<FeaturePageRequest<StoredFileFilter>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public sealed class GetStoredFilesUseCaseTests
 
         await _queries.Received(1).GetForOwnerAsync(
             _callerId,
-            Arg.Is<StoredFilePageRequest>(request =>
+            Arg.Is<FeaturePageRequest<StoredFileFilter>>(request =>
                 request != null && request.Filter.State == StoredFileState.Pending),
             Arg.Any<CancellationToken>());
     }

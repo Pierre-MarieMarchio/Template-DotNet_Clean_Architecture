@@ -97,10 +97,9 @@ its new home.
 
 ## `.cs` files must be UTF-8 with BOM
 
-`.editorconfig` sets `charset = utf-8-bom`, for `.md` as well as `.cs` — the one exception being
-`docs/plans/`, which says so on the spot. A file created without the BOM fails
-`dotnet format --verify-no-changes` on encoding alone, with a message that does not obviously say
-so. After creating or moving any file:
+`.editorconfig` sets `charset = utf-8-bom`, for `.md` as well as `.cs`, with no exception. A file
+created without the BOM fails `dotnet format --verify-no-changes` on encoding alone, with a message
+that does not obviously say so. After creating or moving any file:
 
 ```bash
 dotnet run Tools/Tasks.cs format-fix     # i.e. dotnet format AppTemplate.sln

@@ -1,4 +1,4 @@
-# Handoff — where the SDK split stands, and what is left
+﻿# Handoff — where the SDK split stands, and what is left
 
 **Written:** 2026-09-07, at the end of wave 4. **Amended 2026-09-08**, when wave 6's five open
 questions were settled and the separation of authentication was scheduled, and again at the end of

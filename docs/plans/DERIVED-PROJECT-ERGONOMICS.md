@@ -1,9 +1,9 @@
 # What a derived project writes itself — plan of record
 
-**Status:** closed, 2026-09-09. Wave E implemented D1 to D4 and withdrew D5. Every fork at the end
-is closed — four of them refusals, and the first is a refusal that started as this document's
-strongest recommendation. Wave G is the one thing left offered, and the section on it says what
-wave E measured about its scope.
+**Status:** closed, 2026-09-09. Wave E implemented D1 to D4 and withdrew D5; wave G is done, having
+been released by the owner after the forks were closed. Every fork is closed — four of them
+refusals, and the first is a refusal that started as this document's strongest recommendation.
+Nothing here is left open.
 
 Taken after `docs/plans/AUTH-SEPARATION.md`, which was itself taken after wave 7 of
 `docs/plans/SDK-SPLIT-PLAN.md`. This document is self-contained: every count in it was measured on
@@ -327,15 +327,45 @@ Two things it has to state rather than hide:
   the example features as their sensitivity probe — decision 14 names them. That is a fact to write
   into the generated project's own documentation, not one to discover.
 
-### Wave G — a feature scaffolder. **Offered, not scheduled.**
+### Wave G — a feature scaffolder. **Done, 2026-09-09**, released by the owner.
 
-`dotnet run Tools/Tasks.cs new-feature <Feature> <Aggregate>`, emitting the vertical
-`docs/ADDING-A-FEATURE.md` describes. What makes it defensible here rather than in a general
-project: the layout is rule-enforced, namespace equals project plus folder path over some 600 files,
-and 131 architecture rules already run over the tree — **the oracle for the generator's output
-already exists.** The honest gate is a test that scaffolds into a throwaway directory and runs the
-architecture suite over the result, so a generator emitting a stale shape fails rather than
-teaching it.
+`dotnet run Tools/Tasks.cs new-feature Widgets Widget` writes **26 files** across the four layers.
+What makes it defensible here rather than in a general project: the layout is rule-enforced,
+namespace equals project plus folder path over some 600 files, and 131 architecture rules already
+run over the tree — the oracle for its output already exists.
+
+**Three decisions shape it, and each is the same one this repository keeps making.**
+
+- **It creates files and edits none.** A vertical does not compose until its registrations are
+  written by hand, and that is deliberate everywhere else: registration is opt-in per feature so a
+  feature nobody composes is visibly registered nowhere. A generator reaching into a composition
+  root would take that property away, so it prints the five edits instead.
+- **It invents no business logic.** The aggregate has an owner and the two factories every
+  aggregate here has; it has no property nobody asked for. What it saves is the typing.
+- **The product prefix is read off the tree.** A tool that hard-coded `AppTemplate` would work only
+  in the repository it was written in, which is the one place it is least needed.
+
+**Proved end to end rather than asserted.** The vertical was generated into this tree and built:
+eight compile errors, all in persistence, all tracing to the two `AppDbContext` members the tool's
+own report names. Adding those two, the build is **0 errors and 0 warnings** — which validated the
+guesses that could have been wrong: `OwnedAggregate.Require`, `Result.Success()`, `result.Map`,
+`IUseCase<Result<Guid>>`, `OkOrProblem`, `CreatedOrProblem`, `NoContentOrProblem`, `[Idempotent]`.
+It found one real template defect on the way: `CreatedOrProblem` has an overload taking a plain
+object, so an untyped lambda is ambiguous. Then the whole thing was regenerated from the corrected
+template and built clean, and the trial was reverted.
+
+**What the run measured about the closed lists, and it corrected this document's own guide.** With
+the context wired and nothing else, **four** of 131 rules are red, and all four are composition. The
+layout and vocabulary rules stay green, because a feature using the shape's own words is what they
+are checking for. Two rows of `docs/ADDING-A-FEATURE.md` section 5b were wrong as written:
+`_expectedEntities` and `FeatureFolderVocabularyTests` both assert that what is known to be there is
+still there, so neither is touched by a new aggregate or a new feature folder. The section says so
+now, and says it is the opposite of the obvious guess.
+
+**Its `--self-test` runs with the other hygiene gates**, which is the idiom every `Tools/` file here
+follows: it generates into a throwaway tree and checks what this tool is responsible for — a BOM on
+every file, LF endings, a namespace that is the project plus the folder path, a declared type named
+exactly like its file, no token left unsubstituted, and a refusal to scaffold twice.
 
 ## Blast radius
 
@@ -432,13 +462,12 @@ removal — which is wave G's subject, not wave F's.
 
 ### 4. Wave G stays offered, and is now scoped by what wave E learned
 
-Not started here: a generator is a chantier on the scale of a wave of the split, and it was not
-among the forks released. What wave E establishes about it is worth keeping, because it is the
-expensive half to rediscover — **the mechanical typing is no longer where the cost is.** D1 to D4
-removed four of the shapes a new feature used to retype. What is left is the part a generator cannot
-write anyway: the closed lists a feature lands in. Those are now enumerated in
-`docs/ADDING-A-FEATURE.md`, section 5b, which is the half of a scaffolder that carries knowledge
-rather than keystrokes — and it is worth having whether or not the other half is ever built.
+It was refused here as a chantier not among the forks released, and the owner then released it; the
+wave G section above records what it became and what proving it measured. The judgement that stood
+behind the refusal still holds and is worth keeping: **the mechanical typing is no longer where the
+cost is.** D1 to D4 removed four of the shapes a new feature used to retype, and what remains is the
+part a generator cannot write — the closed lists, in `docs/ADDING-A-FEATURE.md` section 5b. The
+generator is worth having on top of that, not instead of it.
 
 ### 5. D5 stays withdrawn, bound parser included
 

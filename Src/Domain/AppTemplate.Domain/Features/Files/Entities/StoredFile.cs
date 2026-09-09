@@ -33,7 +33,7 @@ namespace AppTemplate.Domain.Features.Files.Entities;
 /// its owner can see and delete, not a tombstone every query has to filter out.
 /// </para>
 /// </summary>
-public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
+public sealed class StoredFile : AuditableAggregateRoot<Guid>
 {
     /// <summary>How many tags one file carries. The rules that govern them are <see cref="TagSet"/>'s.</summary>
     public const int MaxTags = 20;
@@ -134,10 +134,10 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
     /// <summary>
     /// When the file was registered and its key reserved.
     /// <para>
-    /// Deliberately not <see cref="CreatedAt"/>, which looks like the same fact. That one is written
-    /// by the store's auditing interceptor at flush time, so it is <c>default</c> for the entire
-    /// life of the aggregate in memory and an unsaved file could not answer "how long have I been
-    /// pending?". More importantly, abandonment is a domain rule — see <see cref="IsAbandoned"/> —
+    /// Deliberately not <see cref="IAuditable.CreatedAt"/>, which looks like the same fact. That
+    /// one is written by the store's auditing interceptor at flush time, so it is <c>default</c>
+    /// for the entire life of the aggregate in memory and an unsaved file could not answer "how
+    /// long have I been pending?". More importantly, abandonment is a domain rule — see <see cref="IsAbandoned"/> —
     /// and a domain rule reads a value the domain owns rather than an audit stamp whose meaning
     /// belongs to the persistence layer and could reasonably be redefined there.
     /// </para>
@@ -158,16 +158,6 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
     /// <see cref="Rehydrate"/> refuses a row where the two disagree.
     /// </summary>
     public DateTimeOffset? AvailableAt { get; private set; }
-
-    public uint Version { get; private set; }
-
-    public DateTimeOffset CreatedAt { get; private set; }
-
-    public Guid? CreatedBy { get; private set; }
-
-    public DateTimeOffset? LastModifiedAt { get; private set; }
-
-    public Guid? LastModifiedBy { get; private set; }
 
     /// <summary>
     /// Reserves a place for a file whose bytes have not been sent yet. Raises no domain event: at
@@ -417,18 +407,4 @@ public sealed class StoredFile : AggregateRoot<Guid>, IAuditable, IVersioned
 
         _tags.Replace(tags.Select(Tag.Create));
     }
-
-    void IAuditable.SetCreated(DateTimeOffset at, Guid? by)
-    {
-        CreatedAt = at;
-        CreatedBy = by;
-    }
-
-    void IAuditable.SetLastModified(DateTimeOffset at, Guid? by)
-    {
-        LastModifiedAt = at;
-        LastModifiedBy = by;
-    }
-
-    void IVersioned.SetVersion(uint version) => Version = version;
 }

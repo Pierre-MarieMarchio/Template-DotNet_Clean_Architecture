@@ -21,6 +21,29 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **An aggregate no longer declares its own audit and version stamps.**
+  `AuditableAggregateRoot<TId>` in `AppTemplate.Domain.Core` holds the five properties and the two
+  explicitly implemented interfaces that were byte-identical in all three aggregates, so a new
+  aggregate wanting audit columns and optimistic concurrency derives from it and writes none of
+  them. The guarantee is unchanged — the setters are still reachable only by casting to
+  `IAuditable` or `IVersioned` — and `DomainModelTests` now reads it off the whole inheritance chain,
+  so a stamp declared on a base is checked rather than skipped. Adopting this in an existing project:
+  a `<see cref>` naming an inherited stamp through the aggregate stops resolving, and names the
+  interface instead.
+- **Ownership and the version precondition are checked in one place.**
+  `OwnedAggregate.Require` in `AppTemplate.Application.Core/Common/Ownership/` takes the loaded
+  aggregate, the caller, the feature's own not-found error and the precondition, and answers the
+  aggregate or the first refusal. An aggregate declares `IOwnedAggregate`; a feature's service keeps
+  its named interface and its error, and its body is a call. Which error says "absent" stays the
+  feature's decision, so a non-owner goes on being answered exactly as an unknown id.
+- **One paginated collection contract instead of one per feature.**
+  `FeaturePageRequest<TFilter>` and `CollectionBinding.Bind` in
+  `AppTemplate.Application.Core/Common/Collections/` replace the page-request record and the
+  binder each collection was carrying its own copy of. A feature declares `ICollectionQuery` on its
+  query record — its positional members, and so the OpenAPI parameters it publishes, are untouched —
+  and writes only what it alone knows: its policy, its filter and its tiebreaker field. The request
+  is unconstructible outside the project that validates it, which is stronger than the per-feature
+  records were.
 - **Six projects are written to package grade, and a derived project writes only its own features.**
   `AppTemplate.Domain.Core` holds the primitives an aggregate is built from;
   `AppTemplate.Application.Core` the mechanisms a use case is written *from* — `Result`, the

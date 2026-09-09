@@ -1,0 +1,153 @@
+name: SonarQube
+
+# Static analysis, deliberately kept out of ci.yml.
+#
+# The gate in ci.yml answers "is this change correct" and must stay answerable from a clone alone:
+# six steps, no account, no token, no third party. This workflow answers "what does Sonar think",
+# which needs a service that a fork or a derived project may not have. Merging the two would make
+# an unconfigured repository look broken, so they are separate files with separate verdicts.
+#
+# The analysis also cannot reuse ci.yml's build. SonarScanner for .NET observes MSBuild between its
+# `begin` and `end` calls -- that is how it maps a C# file to a project at all -- so the build has
+# to happen inside this job, under the scanner. Reusing the other job's artifacts would produce an
+# analysis of nothing.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Same policy as ci.yml: a new push supersedes the previous run, except on main, which always
+# reaches a conclusive result.
+concurrency:
+  group: sonarqube-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  CONFIGURATION: Release
+  SOLUTION: AppTemplate.sln
+
+jobs:
+  analysis:
+    name: Analyse
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Three conditions, each guarding a different way this job would otherwise fail for reasons
+    # that say nothing about the code:
+    #
+    #   * The keys are repository variables rather than literals because this repository is a
+    #     template. A hard-coded organisation would be inherited by every generated project and
+    #     would analyse someone else's code into someone else's dashboard. Unset means "this
+    #     project has no Sonar", which is a legitimate state and must be green by being skipped.
+    #   * A pull request from a fork gets no secrets, so SONAR_TOKEN would arrive empty and the
+    #     scanner would fail on authentication. That is a property of the trust boundary, not a
+    #     finding.
+    if: >-
+      vars.SONAR_ORGANIZATION != ''
+      && vars.SONAR_PROJECT_KEY != ''
+      && (github.event_name != 'pull_request'
+          || github.event.pull_request.head.repo.full_name == github.repository)
+
+    env:
+      SONAR_HOST_URL: https://sonarcloud.io
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    steps:
+      # fetch-depth: 0, and it is not an optimisation to undo. Sonar attributes each issue to a
+      # commit and an author through git blame, and decides what counts as "new code" from the
+      # history. A shallow clone leaves it with one commit, so every line reads as new and the new
+      # code quality gate judges the whole repository on every run.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # The scanner is a .NET tool that shells out to a JRE, so the runner needs both. Java 21 and
+      # not 17: analyses running on a runtime below 21 stopped being supported on 20 July 2026.
+      - name: Set up JDK 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # Sonar keeps its own cache of analysis state, keyed by the running Java version because a
+      # cache written by one scanner runtime is not readable by another.
+      - name: Cache SonarQube analysis
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.sonar/cache
+          key: sonar-${{ runner.os }}-java21-${{ hashFiles('**/*.csproj') }}
+          restore-keys: sonar-${{ runner.os }}-java21-
+
+      # From the manifest, not `dotnet tool install`. The version is pinned in
+      # .config/dotnet-tools.json next to dotnet-ef, so the scanner that runs here is the one the
+      # repository names, and a new scanner release cannot change a verdict on its own.
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Restore
+        run: dotnet restore "$SOLUTION"
+
+      - name: Begin analysis
+        run: |
+          dotnet sonarscanner begin \
+            /k:"$SONAR_PROJECT_KEY" \
+            /o:"$SONAR_ORGANIZATION" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.host.url="$SONAR_HOST_URL" \
+            /d:sonar.cs.cobertura.reportsPaths="TestResults/**/coverage.cobertura.xml" \
+            /d:sonar.scanner.scanAll=false
+
+      # No --no-restore and no reuse of a previous build: this build is the analysis. It is also
+      # the one place in this repository where a build runs with the Sonar analysers injected, and
+      # that is deliberate -- `begin` relaxes warnings-as-errors for its own rules so that a Sonar
+      # finding cannot fail a build. Nothing here overrides TreatWarningsAsErrors from the command
+      # line; ci.yml remains the authority on whether the solution compiles clean.
+      - name: Build under the scanner
+        run: dotnet build "$SOLUTION" --configuration "$CONFIGURATION" --no-restore
+
+      # Coverage is measured again rather than downloaded from ci.yml, because the report has to
+      # describe the assemblies this job just built. The switches are Microsoft.Testing.Platform's
+      # and match Tools/Tasks.cs exactly, coverage.runsettings included, so the figure Sonar
+      # receives is the figure the coverage gate enforces.
+      - name: Test with coverage
+        run: |
+          dotnet test \
+            --solution "$SOLUTION" \
+            --configuration "$CONFIGURATION" \
+            --no-build \
+            --results-directory TestResults \
+            --coverage \
+            --coverage-settings coverage.runsettings \
+            --coverage-output-format cobertura
+
+      # Uploads the analysis and waits for the quality gate. Runs even when the tests failed, so a
+      # red run still produces a report to read -- but the coverage it reports is then whatever the
+      # partial run measured, which is why this workflow is not the coverage gate.
+      - name: End analysis
+        if: always()
+        run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"

@@ -19,6 +19,7 @@ dotnet run Tools/Tasks.cs restore
 dotnet run Tools/Tasks.cs build
 dotnet run Tools/Tasks.cs test                   # everything
 dotnet run Tools/Tasks.cs test --no-integration  # skips the Testcontainers suite
+dotnet run Tools/Tasks.cs new-feature Widgets Widget   # the skeleton of one vertical
 dotnet run Tools/Tasks.cs hygiene                # doc paths, workflow structure, comment tense
 dotnet run Tools/Tasks.cs verify                 # the whole gate, in CI's order
 ```

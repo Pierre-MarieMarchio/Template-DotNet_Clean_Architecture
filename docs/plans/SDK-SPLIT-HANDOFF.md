@@ -378,6 +378,11 @@ Read them in `docs/plans/SDK-SPLIT-DECISIONS.md`; summarised here so nothing is 
   `EnforceCodeStyleInBuild` plus `TreatWarningsAsErrors` turn a missing one into a build error whose
   message does not say so. `.csproj` files carry **no** BOM (`[*]` is `utf-8`), even though ten
   existing ones do.
+- **A file-based app under `Tools/` can run from a stale cache.** `dotnet run Tools/Tasks.cs` keeps
+  compiled artefacts under `~/.local/share/dotnet/runfile/`, and an edit to the file is not always
+  picked up: a new task was absent from the printed task list while the source plainly declared it.
+  Deleting that directory's contents rebuilds. Suspect it whenever a change to a `Tools/` file
+  appears to have had no effect at all.
 - **Do not touch `dotnet_diagnostic.CA1515.severity = none`.** It is what makes every deliberate
   `public` type legal; without it the split cannot compile.
 

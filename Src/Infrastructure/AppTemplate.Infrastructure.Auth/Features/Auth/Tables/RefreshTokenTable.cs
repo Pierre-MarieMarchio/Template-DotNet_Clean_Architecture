@@ -49,8 +49,8 @@ internal sealed class RefreshTokenTable(AuthDbContext context) : IRefreshTokenTa
         ArgumentException.ThrowIfNullOrWhiteSpace(replacementTokenHash);
 
         // One statement, and the liveness test is inside it. The database therefore picks the winner
-        // between two simultaneous presentations and reports the outcome as the affected-row count;
-        // nothing about the decision depends on what a preceding read saw.
+        // between two simultaneous presentations and reports the outcome as the affected-row count.
+        // Nothing about the decision depends on what a preceding read saw.
         int consumed = await context.RefreshTokens
             .Where(token => token.TokenHash == presentedTokenHash && token.RevokedAt == null)
             .ExecuteUpdateAsync(

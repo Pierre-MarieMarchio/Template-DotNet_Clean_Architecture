@@ -13,7 +13,7 @@ namespace AppTemplate.Domain.Features.TodoLists.Entities;
 /// existence, and making them separately addressable would leave no single object able to
 /// enforce a rule that spans them.
 /// </summary>
-public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
+public sealed class TodoList : AuditableAggregateRoot<Guid>
 {
     /// <summary>
     /// A write loads the whole aggregate, so this cap is the only bound on the cost of every
@@ -39,21 +39,6 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
     public TodoListName Name { get; private set; }
 
     public IReadOnlyCollection<TodoItem> Items => _items.AsReadOnly();
-
-    /// <summary>
-    /// Optimistic concurrency token: an opaque value the store owns, replaced by the store on
-    /// every write. It lives on the root only, because the root is the consistency boundary: a
-    /// concurrent edit to any item is a conflict on the list.
-    /// </summary>
-    public uint Version { get; private set; }
-
-    public DateTimeOffset CreatedAt { get; private set; }
-
-    public Guid? CreatedBy { get; private set; }
-
-    public DateTimeOffset? LastModifiedAt { get; private set; }
-
-    public Guid? LastModifiedBy { get; private set; }
 
     /// <param name="now">Injected rather than read from the clock, so the aggregate has
     /// no ambient dependency and its behaviour is reproducible in a test.</param>
@@ -169,20 +154,6 @@ public sealed class TodoList : AggregateRoot<Guid>, IAuditable, IVersioned
     public void AddTagToItem(Guid itemId, string tag) => RequireItem(itemId).AddTag(Tag.Create(tag));
 
     public void RemoveTagFromItem(Guid itemId, string tag) => RequireItem(itemId).RemoveTag(Tag.Create(tag));
-
-    void IAuditable.SetCreated(DateTimeOffset at, Guid? by)
-    {
-        CreatedAt = at;
-        CreatedBy = by;
-    }
-
-    void IAuditable.SetLastModified(DateTimeOffset at, Guid? by)
-    {
-        LastModifiedAt = at;
-        LastModifiedBy = by;
-    }
-
-    void IVersioned.SetVersion(uint version) => Version = version;
 
     /// <summary>
     /// The single gate into the item set, used by both <see cref="AddItem"/> and

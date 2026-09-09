@@ -51,18 +51,9 @@ public sealed class ExternalIdentityOptions
     /// name arrives from a client, and refusing <c>Google</c> because the section says <c>google</c>
     /// would be an outage nobody could read from the response.
     /// </summary>
-    internal ExternalIdentityProviderOptions? Find(string name)
-    {
-        foreach (var provider in Providers)
-        {
-            if (string.Equals(provider.Name, name, StringComparison.OrdinalIgnoreCase))
-            {
-                return provider;
-            }
-        }
-
-        return null;
-    }
+    internal ExternalIdentityProviderOptions? Find(string name) =>
+        Providers.FirstOrDefault(
+            provider => string.Equals(provider.Name, name, StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>

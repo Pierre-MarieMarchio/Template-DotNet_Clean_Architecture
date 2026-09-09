@@ -8,7 +8,7 @@ wave 7.
 This directory is exempt from `Tools/CheckDocPaths.cs`, so paths below may name a tree that does not
 exist yet.
 
-Read these five first. They are the plan of record and the analysis behind them must not be
+Read these six first. They are the plan of record and the analysis behind them must not be
 redone:
 
 | Document | Answers |
@@ -18,6 +18,7 @@ redone:
 | `docs/plans/SDK-SPLIT-DECISIONS.md` | Why, including every rejected option and its reason — **45 entries now, 42 numbered** |
 | `docs/plans/SDK-SPLIT-BLAST-RADIUS.md` | What else changes: rules, tests, tooling, docs, and the known gaps |
 | `docs/plans/AUTH-SEPARATION.md` | The separation of authentication: measured state, decisions A1 to A8, waves A to D. Scheduled after wave 7, self-contained |
+| `docs/plans/DERIVED-PROJECT-ERGONOMICS.md` | What a derived project writes itself: the duplication re-measured, decisions D1 to D6, wave E scheduled, waves F and G offered. Taken after the separation of authentication, self-contained |
 
 `SDK-SPLIT-DECISIONS.md` has grown thirteen entries and two corrections since it was written.
 Entries **15 to 32** and the two sections at the end (`Two corrections to …TARGET.md`, and the
@@ -70,11 +71,13 @@ Each carries: `IsPackable`, `PackageId`, `Description`, `Authors`, **no version*
 `PublicAPI.Unshipped.txt`; `CS1591` re-enabled via `<NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>`
 so every public member is documented; and an `InternalsVisibleTo` naming exactly its own mirror.
 
-Public API baselines were generated mechanically from the analyser's own `RS0016` output — 31, 322,
-1260, 28 and 134 symbols respectively. **Regenerate the same way** rather than hand-editing: build
-the project, collect the symbol from each `error RS0016`, sort, write with a `#nullable enable`
-first line. `RS0017` is the other direction and matters as much: it names a symbol the baseline
-holds and the code no longer has, so a removal is as explicit a diff as an addition.
+Public API baselines were generated mechanically from the analyser's own `RS0016` output.
+**Regenerate the same way** rather than hand-editing: build the project, collect the symbol from
+each `error RS0016`, sort, write with a `#nullable enable` first line. The counts are deliberately
+not written here — the two `PublicAPI` files of each project are the only place they stay true, and
+a number in this sentence had already drifted twice by the time anyone read it. `RS0017` is the
+other direction and matters as much: it names a symbol the baseline holds and the code no longer
+has, so a removal is as explicit a diff as an addition.
 
 `Api.Core`'s 134 is the number decision 26 produced: everything internal first, then exactly the
 promotions the compiler demanded. Five types were promoted and each has a reason a reader can
@@ -275,7 +278,7 @@ they are the OpenAPI document's own `description` and `summary`, which `OpenApiD
 on. In the six packable projects `CS1591` is re-enabled, so a public one can be shortened and never
 removed. What was cut there is repository-internal argument inside a client-facing sentence.
 
-### Roughly 126 lines of measured, agnostic duplication — offered to the owner, not yet scheduled
+### Roughly 126 lines of measured, agnostic duplication — now scheduled, and re-measured larger
 
 Found by the search that preceded decision 32, and measured with `diff` rather than judged. All of
 it is agnostic, so all of it belongs in a `.Core` project and none of it in a business `Common/` —
@@ -290,8 +293,13 @@ which is why it is listed apart from wave 6 rather than inside it.
 | `Application.Core` | `SearchTerm.CreateOptional` — 13 strictly identical lines, twice | ~22 |
 
 It is pure DRY with no product decision in it, and it touches two frozen public surfaces and their
-`PublicAPI` baselines, which is the whole of its cost. **The owner has been shown this table and has
-not scheduled it; do not start it unasked.**
+`PublicAPI` baselines, which is the whole of its cost.
+
+**Scheduled on 2026-09-09**, in `docs/plans/DERIVED-PROJECT-ERGONOMICS.md`, which re-measured every
+row against the tree as it then stood and found the total larger rather than smaller: the ownership
+guard decision 27 withdrew, and the optional-search-term block, belong on this table and were not on
+it. Read that document rather than this table — it carries the shape each extraction takes, what
+each one rejected, and the two rows this one is missing.
 
 ## Decisions taken while implementing, which amend the plan
 

@@ -35,6 +35,8 @@ public sealed class IdempotentActionsAreAlwaysPostTests
         typeof(FilesController),
         typeof(MaintenanceController),
         typeof(RemindersController),
+        typeof(TodoItemsController),
+        typeof(TodoItemTagsController),
         typeof(TodoListsController),
     ];
 

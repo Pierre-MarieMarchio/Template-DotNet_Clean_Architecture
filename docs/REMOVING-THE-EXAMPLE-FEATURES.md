@@ -469,13 +469,15 @@ Everything else keeps a live example, because `Files` is one:
 | The default-deny fallback authorisation policy | `Src/Presentation/AppTemplate.Api/Features/Files/Controllers/FilesController.cs` carries no `[Authorize]` and no `[AllowAnonymous]`, on the class or on any action |
 | Domain events at all | three under `Src/Domain/AppTemplate.Domain/Features/Files/Events/`, one with a consumer |
 | `ICollectionPolicy` | `Src/Application/AppTemplate.Application/Features/Files/Policies/StoredFileCollectionPolicy.cs` |
-| Ownership isolation for a resource addressed by id | five `{fileId:guid}` routes on `FilesController` |
+| Ownership isolation for a resource addressed by id | five `{fileId:guid}` routes, four on `FilesController` and the tag replacement on `FileTagsController` |
 | `[Idempotent]` | `FilesController`'s registration action; the count drops from four to three |
 
 Three of those need their test repointed rather than kept as is.
 `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/DefaultDenyAuthorizationTests.cs`
-enumerates every verb on `TodoListsController` by hand and asserts the enumeration is complete;
-repoint it at `FilesController`, which relies on the fallback the same way.
+enumerates every verb on the three classes answering the `todo-lists` prefix -- `TodoListsController`,
+`TodoItemsController` and `TodoItemTagsController` -- by hand, and asserts the enumeration covers all
+sixteen actions across them; repoint it at `FilesController` and `FileTagsController`, which rely on
+the fallback the same way.
 `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/OwnershipIsolationTests.cs` and
 `Tests/Integration/AppTemplate.Api.IntegrationTests/Idempotency/IdempotencyTests.cs` both drive
 `TodoLists` over real HTTP; both have a `Files` equivalent to be rewritten against.

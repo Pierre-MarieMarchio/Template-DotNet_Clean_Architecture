@@ -29,13 +29,15 @@
 #   2026-09-08   94.87%  (7329/7725)  3328 tests   extension, Debug    (the lower of the two)
 #   2026-09-09   95.98%  (6143/6400)  3336 tests   extension, Release  (what CI enforces)
 #   2026-09-09   94.76%  (7376/7784)  3336 tests   extension, Debug    (the lower of the two)
+#   2026-09-09   95.92%  (6036/6293)  3350 tests   extension, Release  (what CI enforces)
+#   2026-09-09   94.69%  (7269/7677)  3350 tests   extension, Debug    (the lower of the two)
 #
-# Two of the fifteen assemblies sit under the floor: AppTemplate.Infrastructure.Auth at 85.99%
-# (884/1028) and AppTemplate.Api.Core at 89.33% (929/1040). Then AppTemplate.Infrastructure.Storage
-# at 94.28%, AppTemplate.Presentation.Core at 94.31%, AppTemplate.Infrastructure.Persistence at
-# 94.39% and AppTemplate.Infrastructure.Core at 94.51%. Highest are AppTemplate.Domain and
+# Two of the fifteen assemblies sit under the floor: AppTemplate.Infrastructure.Auth at 85.78%
+# (869/1013) and AppTemplate.Api.Core at 89.20% (917/1028). Then AppTemplate.Presentation.Core at
+# 93.62%, AppTemplate.Infrastructure.Persistence and AppTemplate.Infrastructure.Storage both at
+# 94.26%, and AppTemplate.Infrastructure.Core at 94.51%. Highest are AppTemplate.Domain and
 # AppTemplate.Domain.Core at 100.00%, then AppTemplate.Application.Auth at 99.62% and
-# AppTemplate.Application at 99.05%. Read from the Debug row, which is the lower one.
+# AppTemplate.Application at 99.00%. Read from the Debug row, which is the lower one.
 # The total is what the gate enforces rather than any one assembly, which is what lets those two sit
 # below it — and equally what lets a large new project with no tests pull the total down while every
 # other one improves. Read this list as of the last dated measurement above and no later: it is
@@ -75,10 +77,14 @@
 # cannot fail a gate that CI would pass: a floor that depends on which configuration you happened to
 # build is not a floor. Measured first, rule read second, and not the other way round.
 #
-# 90 is re-measured against the 2026-09-09 rows and stays: 4.76 points locally and 5.98 in CI, which
-# is the margin the rule asks for. The Debug total fell 0.11 points between the two measurements,
-# over a tree that gained a project scoring 94.51% — below the total, so it dilutes it. That is the
-# effect the assembly list above names, and it is why the floor is read off the total.
+# 90 is re-measured against the last 2026-09-09 rows and stays: 4.69 points locally and 5.92 in CI,
+# which is the margin the rule asks for. The Debug total has fallen twice while the floor held —
+# 0.11 points, then 0.07 — and neither fall is a test going missing. The first is dilution: the tree
+# gained a project scoring 94.51%, below the total. The second is arithmetic on the denominator:
+# resorbing two duplicated types into one shared generic record brings compiler-generated equality
+# members no test calls, so a handful of measurable lines move from covered to not while nothing
+# stops being exercised. Both are the effect the assembly list above names, and both are why the
+# floor is read off the total rather than off any one assembly.
 #
 # Measured with Docker present, so both integration suites contributed. Re-measure that way before
 # touching this number again: without a daemon the two suites run nothing and the figure is not

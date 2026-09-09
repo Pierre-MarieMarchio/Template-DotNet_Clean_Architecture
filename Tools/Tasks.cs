@@ -54,6 +54,7 @@ internal static class Tasks
         "coverage",
         "format",
         "format-fix",
+        "new-feature",
         "migration-add",
         "database-update",
         "migration-bundle",
@@ -86,6 +87,9 @@ internal static class Tasks
     {
         string? task = null;
         string? name = null;
+
+        // Only 'new-feature' takes two: the folder in the plural and the type in the singular.
+        string? second = null;
         bool noIntegration = false;
         string configuration = "Debug";
 
@@ -124,6 +128,10 @@ internal static class Tasks
             else if (name is null)
             {
                 name = argument;
+            }
+            else if (second is null)
+            {
+                second = argument;
             }
             else
             {
@@ -195,6 +203,15 @@ internal static class Tasks
                 // Also rewrites *.cs without the UTF-8 BOM that .editorconfig requires. Run this
                 // after creating a file by hand, or the next 'format' task fails on encoding alone.
                 Step("dotnet", "format", solution);
+                break;
+
+            case "new-feature":
+                // Two names, not one: the folder is the plural and the type is the singular.
+                Step(
+                    "dotnet", "run", Path.Combine(repoRoot, "Tools", "NewFeature.cs"),
+                    RequiredName(task, name),
+                    RequiredSecond(task, second),
+                    repoRoot);
                 break;
 
             case "migration-add":
@@ -300,9 +317,12 @@ internal static class Tasks
         return 0;
     }
 
-    /// <summary>The four hygiene gates, each preceded by the fixtures that prove it can go red.</summary>
+    /// <summary>The five hygiene gates, each preceded by the fixtures that prove it can go red.</summary>
     private static void Gates(string repoRoot)
     {
+        // The scaffolder is not a gate over the tree, but its self-test is what keeps its templates
+        // from drifting away from the shapes the rules below check.
+        Step("dotnet", "run", Gate(repoRoot, "NewFeature.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "CheckDocPaths.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "CheckDocPaths.cs"), repoRoot);
         Step("dotnet", "run", Gate(repoRoot, "CheckWorkflows.cs"), "--self-test");
@@ -349,6 +369,17 @@ internal static class Tasks
     private static string Gate(string repoRoot, string fileName) => Path.Combine(repoRoot, "Tools", fileName);
 
     private static string TaskList() => "  " + string.Join(", ", KnownTasks);
+
+    private static string RequiredSecond(string task, string? second)
+    {
+        if (string.IsNullOrWhiteSpace(second))
+        {
+            throw new InvalidOperationException(
+                $"The '{task}' task needs two names, e.g. dotnet run Tools/Tasks.cs {task} Widgets Widget");
+        }
+
+        return second;
+    }
 
     private static string RequiredName(string task, string? name)
     {

@@ -170,8 +170,9 @@ internal sealed class IdempotencyStore(
             batchCt => DeleteBatchAsync(asOf, batchSize, batchCt),
             ct);
 
-        // The IsEnabled guard keeps this off the hot path when Information logging is off (CA1873);
-        // total > 0 additionally keeps a no-op purge silent instead of logging every empty sweep.
+        // The IsEnabled guard keeps this off the hot path when Information logging is off (CA1873).
+        // Requiring a non-zero count as well keeps a no-op purge silent instead of logging every
+        // empty sweep.
         if (total > 0 && logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(

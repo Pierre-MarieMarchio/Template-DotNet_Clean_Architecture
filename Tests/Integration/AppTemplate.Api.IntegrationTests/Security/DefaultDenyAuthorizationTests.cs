@@ -23,6 +23,18 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     private static readonly Guid _someListId = Guid.CreateVersion7();
     private static readonly Guid _someItemId = Guid.CreateVersion7();
 
+    /// <summary>
+    /// The three classes answering the one route prefix. Every rule below is a claim about that
+    /// surface rather than about a class of it, so each reads all three: a rule counting one would
+    /// go on passing while covering a third of the endpoints.
+    /// </summary>
+    private static readonly Type[] _todoListControllers =
+    [
+        typeof(TodoListsController),
+        typeof(TodoItemsController),
+        typeof(TodoItemTagsController),
+    ];
+
     public static TheoryData<string, string> TodoListEndpoints => new()
     {
         { "GET", TodoListsRoute },
@@ -90,7 +102,7 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     [Fact]
     public void TheEnumerationCoversEveryActionOnTheController()
     {
-        var actions = ActionsOf(typeof(TodoListsController));
+        var actions = _todoListControllers.SelectMany(ActionsOf).ToList();
 
         actions.Count.ShouldBe(
             TodoListEndpoints.Count,
@@ -105,14 +117,16 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     [Fact]
     public void NoTodoListEndpoint_OptsOutOfAuthorisation()
     {
-        typeof(TodoListsController)
-            .GetCustomAttributes<AllowAnonymousAttribute>(inherit: true)
-            .ShouldBeEmpty();
-
-        foreach (var action in ActionsOf(typeof(TodoListsController)))
+        foreach (var controller in _todoListControllers)
         {
-            action.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true)
-                .ShouldBeEmpty($"{action.Name} opts out of the fallback policy.");
+            controller.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true)
+                .ShouldBeEmpty($"{controller.Name} opts out of the fallback policy for every action on it.");
+
+            foreach (var action in ActionsOf(controller))
+            {
+                action.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true)
+                    .ShouldBeEmpty($"{controller.Name}.{action.Name} opts out of the fallback policy.");
+            }
         }
     }
 

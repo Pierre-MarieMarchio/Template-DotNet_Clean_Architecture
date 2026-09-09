@@ -9,7 +9,7 @@ internal sealed class IdempotencyRecordConfiguration : IEntityTypeConfiguration<
     /// <summary>The largest header value <c>IdempotencyOptions.MaxKeyLength</c> may ever be configured to.</summary>
     internal const int MaxKeyLength = 512;
 
-    /// <summary>Method and path, e.g. <c>POST /api/v1/todo-lists/{id}/items</c>.</summary>
+    /// <summary>Method and path, e.g. <c>POST /api/v1/orders/{id}/lines</c>.</summary>
     internal const int MaxEndpointLength = 256;
 
     /// <summary>Hex SHA-256 is always 64 characters.</summary>

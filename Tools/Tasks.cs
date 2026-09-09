@@ -439,7 +439,7 @@ internal static class Tasks
             # the braced spelling does not compile. Compose always defines SONAR_TOKEN, defaulting
             # it to empty, so the plain form is safe under `set -u`.
             if [ -z "$SONAR_TOKEN" ]; then
-              echo "SONAR_TOKEN is empty. Open http://localhost:9100, generate a token under" >&2
+              echo "SONAR_TOKEN is empty. Open http://localhost:9111, generate a token under" >&2
               echo "My Account > Security, and set SONAR_TOKEN in .env." >&2
               exit 1
             fi

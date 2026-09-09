@@ -408,22 +408,27 @@ services:
       # writes to.
       SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
     ports:
-      # 9100, not 9000: minio above already publishes 9000 for its S3 API, and two services cannot
-      # share a host port. Inside the network the server is still plain http://sonarqube:9000, which
-      # is what the scanner below talks to.
-      - "127.0.0.1:9100:9000"   # the web UI — http://localhost:9100, admin/admin on first boot
+      # Not 9000: minio above already publishes it for its S3 API, and two services cannot share a
+      # host port. Not 9100 either, which looks like the obvious neighbour and is a poor choice --
+      # it is the JetDirect printing port, reserved on a stock Windows box, where Docker refuses the
+      # binding with a 500 from its forwarder rather than with anything that mentions a port.
+      # Inside the network the server is still plain http://sonarqube:9000, which is what the
+      # scanner below talks to.
+      - "127.0.0.1:9111:9000"   # the web UI — http://localhost:9111, admin/admin on first boot
     volumes:
       - sonarqube-data:/opt/sonarqube/data
       - sonarqube-logs:/opt/sonarqube/logs
       - sonarqube-extensions:/opt/sonarqube/extensions
     healthcheck:
-      # The server's own readiness endpoint, which reports UP only once Elasticsearch has joined —
-      # a plain TCP check on 9000 passes minutes before the API will accept an analysis.
+      # The status has to be read, not merely fetched. This endpoint answers 200 while it is still
+      # reporting "STARTING", so a check that only asks whether it responded goes healthy a minute
+      # before the API will accept an analysis, and `up --wait` hands back a server that then
+      # refuses the scan. Only "UP" means the web server and Elasticsearch have both joined.
       #
       # curl and not wget: this image ships no wget, and a healthcheck whose binary is missing does
       # not report "missing", it reports unhealthy for ever, which reads exactly like a server that
       # will not start.
-      test: ["CMD-SHELL", "curl --silent --fail http://localhost:9000/api/system/status || exit 1"]
+      test: ["CMD-SHELL", "curl --silent --fail http://localhost:9000/api/system/status | grep -q '\"status\":\"UP\"'"]
       interval: 10s
       timeout: 5s
       # Deliberately generous: a first boot builds the database and the search indices, which takes

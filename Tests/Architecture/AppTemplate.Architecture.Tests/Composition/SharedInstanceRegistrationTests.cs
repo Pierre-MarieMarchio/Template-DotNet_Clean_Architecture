@@ -87,8 +87,8 @@ public sealed class SharedInstanceRegistrationTests
         using var first = provider.CreateScope();
         using var second = provider.CreateScope();
 
-        var fromFirst = first.ServiceProvider.GetRequiredService(contract);
-        var fromSecond = second.ServiceProvider.GetRequiredService(contract);
+        object fromFirst = first.ServiceProvider.GetRequiredService(contract);
+        object fromSecond = second.ServiceProvider.GetRequiredService(contract);
 
         ReferenceEquals(fromFirst, fromSecond).ShouldBeFalse(
             "the tracker holds a per-request identity map; sharing it across scopes would carry one " +

@@ -12,16 +12,12 @@ namespace AppTemplate.Infrastructure.InMemory.UnitTests.Common.Time;
 public sealed class FixedDateTimeProviderTests
 {
     [Fact]
-    public void UtcNow_StartsAtTheDefaultInstantRatherThanTheMachineClock()
-    {
+    public void UtcNow_StartsAtTheDefaultInstantRatherThanTheMachineClock() =>
         new FixedDateTimeProvider().UtcNow.ShouldBe(FixedDateTimeProvider.DefaultInstant);
-    }
 
     [Fact]
-    public void DefaultInstant_IsExpressedInUtc()
-    {
+    public void DefaultInstant_IsExpressedInUtc() =>
         FixedDateTimeProvider.DefaultInstant.Offset.ShouldBe(TimeSpan.Zero);
-    }
 
     /// <summary>
     /// The read is stable while real time passes underneath it. The wall clock is watched until it

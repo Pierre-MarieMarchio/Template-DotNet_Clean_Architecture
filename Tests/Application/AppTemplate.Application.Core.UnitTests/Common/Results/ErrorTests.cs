@@ -71,10 +71,7 @@ public sealed class ErrorTests
     }
 
     [Fact]
-    public void ErrorsWithoutDetails_AreStillEqual()
-    {
-        Error.NotFound("a.b", "m").ShouldBe(Error.NotFound("a.b", "m"));
-    }
+    public void ErrorsWithoutDetails_AreStillEqual() => Error.NotFound("a.b", "m").ShouldBe(Error.NotFound("a.b", "m"));
 
     /// <summary>
     /// The compiler-generated equality would compare <see cref="Error.Details"/> by reference: two

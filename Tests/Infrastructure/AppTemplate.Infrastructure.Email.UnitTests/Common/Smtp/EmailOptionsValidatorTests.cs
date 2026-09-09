@@ -40,7 +40,7 @@ public sealed class EmailOptionsValidatorTests
 
             foreach (var security in _downgradableModes)
             {
-                foreach (var host in _loopbackHosts)
+                foreach (string host in _loopbackHosts)
                 {
                     pairs.Add(security, host);
                 }
@@ -51,10 +51,8 @@ public sealed class EmailOptionsValidatorTests
     }
 
     [Fact]
-    public void Validate_AcceptsARelayConfiguredForMandatoryStartTls()
-    {
+    public void Validate_AcceptsARelayConfiguredForMandatoryStartTls() =>
         _validator.Validate(name: null, Valid()).Succeeded.ShouldBeTrue();
-    }
 
     [Theory]
     [InlineData(SecureSocketOptions.StartTls)]
@@ -74,7 +72,7 @@ public sealed class EmailOptionsValidatorTests
         var options = Valid();
         options.Security = security;
 
-        var message = RejectionMessageFor(options);
+        string message = RejectionMessageFor(options);
 
         message.ShouldContain("plaintext");
         message.ShouldContain(security.ToString());
@@ -329,7 +327,7 @@ public sealed class EmailOptionsValidatorTests
         var options = Valid();
         options.Transport = transport;
 
-        var message = RejectionMessageFor(options);
+        string message = RejectionMessageFor(options);
 
         message.ShouldContain("Transport");
         message.ShouldContain(EmailOptions.SmtpTransport);
@@ -352,10 +350,8 @@ public sealed class EmailOptionsValidatorTests
     }
 
     [Fact]
-    public void Validate_ThrowsWhenThereAreNoOptionsToValidate()
-    {
+    public void Validate_ThrowsWhenThereAreNoOptionsToValidate() =>
         Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
-    }
 
     /// <summary>Asserts the configuration was refused, and hands back the reasons it gave.</summary>
     private static IReadOnlyList<string> RejectionsFor(EmailOptions options)
@@ -375,7 +371,7 @@ public sealed class EmailOptionsValidatorTests
         var result = _validator.Validate(name: null, options);
 
         result.Failed.ShouldBeTrue();
-        var message = result.FailureMessage;
+        string message = result.FailureMessage;
         message.ShouldNotBeNull();
 
         return message;

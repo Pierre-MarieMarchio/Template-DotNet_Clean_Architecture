@@ -21,10 +21,7 @@ public sealed class StorageOptionsValidatorTests
     private readonly StorageOptionsValidator _validator = new();
 
     [Fact]
-    public void ADeployedConfiguration_IsAccepted()
-    {
-        Validate(StorageFixture.Options()).Succeeded.ShouldBeTrue();
-    }
+    public void ADeployedConfiguration_IsAccepted() => Validate(StorageFixture.Options()).Succeeded.ShouldBeTrue();
 
     /// <summary>
     /// No credentials at all is the shape a deployment with an instance role has: the SDK's own
@@ -45,10 +42,8 @@ public sealed class StorageOptionsValidatorTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void ABucketWithNoName_IsRefused(string bucketName)
-    {
+    public void ABucketWithNoName_IsRefused(string bucketName) =>
         Failures(storage => storage.BucketName = bucketName).ShouldContain(failure => failure.Contains("BucketName"));
-    }
 
     /// <summary>
     /// Every one of these is refused by S3 itself, so accepting it here only moves the failure to the
@@ -60,25 +55,19 @@ public sealed class StorageOptionsValidatorTests
     [InlineData("app_files")]
     [InlineData("-app-files")]
     [InlineData("app-files-")]
-    public void AMalformedBucketName_IsRefused(string bucketName)
-    {
+    public void AMalformedBucketName_IsRefused(string bucketName) =>
         Failures(storage => storage.BucketName = bucketName).ShouldContain(failure => failure.Contains("BucketName"));
-    }
 
     [Fact]
-    public void ARegionThatIsNotStated_IsRefused()
-    {
+    public void ARegionThatIsNotStated_IsRefused() =>
         Failures(storage => storage.Region = " ").ShouldContain(failure => failure.Contains("Region"));
-    }
 
     [Theory]
     [InlineData("minio:9000")]
     [InlineData("ftp://objects.example")]
     [InlineData("/objects")]
-    public void AnEndpointThatIsNotAnHttpUrl_IsRefused(string endpoint)
-    {
+    public void AnEndpointThatIsNotAnHttpUrl_IsRefused(string endpoint) =>
         Failures(storage => storage.Endpoint = endpoint).ShouldContain(failure => failure.Contains("Endpoint"));
-    }
 
     [Fact]
     public void APlaintextEndpointAgainstAHostThatIsNotLoopback_IsRefused()

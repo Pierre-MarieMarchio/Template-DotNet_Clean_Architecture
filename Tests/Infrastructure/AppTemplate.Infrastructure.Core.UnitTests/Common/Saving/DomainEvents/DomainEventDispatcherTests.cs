@@ -44,9 +44,12 @@ public sealed class DomainEventDispatcherTests
     {
         await using var provider = new ServiceCollection().BuildServiceProvider();
 
-        await Dispatcher(provider).DispatchAsync(
-            _created,
-            TestContext.Current.CancellationToken);
+        await Should.NotThrowAsync(
+            () => Dispatcher(provider).DispatchAsync(
+                _created,
+                TestContext.Current.CancellationToken));
+
+        _logger.Entries.ShouldBeEmpty("an event nobody consumes is not a consumer failure");
     }
 
     [Fact]

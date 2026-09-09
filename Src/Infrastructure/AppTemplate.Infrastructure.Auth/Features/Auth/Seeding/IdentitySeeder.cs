@@ -37,22 +37,33 @@ internal sealed class IdentitySeeder(
     /// </summary>
     public const string AdminRoleName = IdentityRoles.Administrator;
 
+    /// <summary>
+    /// The setting that turns seeding on, named once. The disabled message and the refusal outside
+    /// Development both quote it back to the reader, and one constant keeps those two spellings from
+    /// drifting apart.
+    /// </summary>
+    private const string EnabledSettingKey = IdentitySeedOptions.SectionName + ":Enabled";
+
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
         var settings = options.Value;
 
         if (!settings.Enabled)
         {
-            logger.LogInformation(
-                "Identity seeding is disabled ('" + IdentitySeedOptions.SectionName +
-                ":Enabled' is false); no roles or accounts were created.");
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation(
+                    "Identity seeding is disabled ('{SettingKey}' is false); no roles or accounts were created.",
+                    EnabledSettingKey);
+            }
+
             return;
         }
 
         if (!environment.IsDevelopment())
         {
             throw new InvalidOperationException(
-                $"'{IdentitySeedOptions.SectionName}:Enabled' is true in the '{environment.EnvironmentName}' " +
+                $"'{EnabledSettingKey}' is true in the '{environment.EnvironmentName}' " +
                 "environment. Seeding a privileged account is only permitted in Development.");
         }
 

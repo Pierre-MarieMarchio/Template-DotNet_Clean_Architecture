@@ -94,6 +94,7 @@ internal sealed class S3FileContentInspector(
             // No verdict rather than a refusal, since quarantining on an absence would refuse a file
             // over a store fault. The next pass offers it again.
             logger.LogWarning(
+                exception,
                 "Nothing is stored under '{ObjectKey}', although a file's deposit was confirmed " +
                 "against it. Its content cannot be inspected and it stays unavailable.",
                 objectKey);
@@ -115,9 +116,10 @@ internal sealed class S3FileContentInspector(
             // Shutdown, not a failed inspection.
             throw;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException exception)
         {
             logger.LogWarning(
+                exception,
                 "Inspecting '{ObjectKey}' ran past its {Budget} budget; the next pass will try again.",
                 objectKey,
                 ScannerBudget.TotalTimeout);

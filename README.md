@@ -1374,6 +1374,13 @@ so a build that already happened is invisible to it. Coverage reaches Sonar thro
 `sonar.cs.cobertura.reportsPaths`, reading the same Cobertura reports and the same
 `coverage.runsettings` the coverage gate uses.
 
+Duplication detection excludes `**/*.html`, which is the mail templates and nothing else. Each is a
+standalone document a client receives whole, with its CSS inline because a mail client drops a
+linked stylesheet, so the eight shipped templates share a 45-line `<style>` block by construction
+and the detector reports each as a near clone of the other seven. Duplication only: every rule that
+judges the markup itself still applies, and a change touching several templates at once no longer
+fails the new-code duplication condition for saying the same thing in each.
+
 Locally, `dotnet run Tools/Tasks.cs sonar` runs the same analysis against a SonarQube Community
 server in Docker — see [CONTRIBUTING.md](CONTRIBUTING.md).
 

@@ -478,11 +478,15 @@ internal static class Tasks
             trap 'chown -R "$(stat -c %u:%g /repo/AppTemplate.sln)" /repo/artifacts /repo/.sonarqube 2>/dev/null || true' EXIT
             dotnet tool restore
             dotnet restore AppTemplate.sln --artifacts-path artifacts/sonar
+            # The flags match .github/workflows/sonarqube.yml, duplication exclusion included, for
+            # the reasons stated there. A local run reaching a different verdict from CI's would be
+            # a second analysis rather than a preview of the one that decides.
             dotnet sonarscanner begin \
               /k:"$SONAR_PROJECT_KEY" \
               /d:sonar.token="$SONAR_TOKEN" \
               /d:sonar.host.url="$SONAR_HOST_URL" \
               /d:sonar.cs.cobertura.reportsPaths="artifacts/sonar/TestResults/**/*.cobertura.xml" \
+              /d:sonar.cpd.exclusions="**/*.html" \
               /d:sonar.scanner.scanAll=false \
               /d:sonar.scm.disabled=true
             dotnet build AppTemplate.sln --artifacts-path artifacts/sonar --no-restore

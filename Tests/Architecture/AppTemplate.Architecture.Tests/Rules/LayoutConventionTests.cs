@@ -121,8 +121,8 @@ public sealed class LayoutConventionTests
         // Features/<F>/Ports/ uses — and the two interfaces the layer implements itself sit with the
         // subject they are about instead.
         ["Src/Application/AppTemplate.Application.Core"] =
-            ["Collections", "Concurrency", "Events", "Idempotency", "Localization", "Policies",
-             "Ports", "Results", "UseCases", "Validation"],
+            ["Collections", "Concurrency", "Events", "Idempotency", "Localization", "Ownership",
+             "Policies", "Ports", "Results", "UseCases", "Validation"],
 
         // The business half of this layer's Common/, and it pairs with the domain's: what several
         // features share as business here is the input validation over the domain's tag rules. It

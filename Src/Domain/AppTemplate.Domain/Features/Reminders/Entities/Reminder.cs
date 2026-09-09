@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Core.Common.Exceptions;
+﻿using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.Events;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;
@@ -15,7 +16,7 @@ namespace AppTemplate.Domain.Features.Reminders.Entities;
 /// would make each firing load an aggregate — with its items and their tags — to reach one row.
 /// </para>
 /// </summary>
-public sealed class Reminder : AuditableAggregateRoot<Guid>
+public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
     /// <summary>
     /// The one place the identity invariants are stated. Both factories reach the aggregate through

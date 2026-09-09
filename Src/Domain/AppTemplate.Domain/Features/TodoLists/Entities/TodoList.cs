@@ -13,7 +13,7 @@ namespace AppTemplate.Domain.Features.TodoLists.Entities;
 /// existence, and making them separately addressable would leave no single object able to
 /// enforce a rule that spans them.
 /// </summary>
-public sealed class TodoList : AuditableAggregateRoot<Guid>
+public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
     /// <summary>
     /// A write loads the whole aggregate, so this cap is the only bound on the cost of every

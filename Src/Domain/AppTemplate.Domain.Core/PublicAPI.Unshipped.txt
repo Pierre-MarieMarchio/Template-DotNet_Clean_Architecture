@@ -1,4 +1,6 @@
 #nullable enable
+AppTemplate.Domain.Core.Common.Abstractions.IOwnedAggregate
+AppTemplate.Domain.Core.Common.Abstractions.IOwnedAggregate.OwnerId.get -> AppTemplate.Domain.Core.Common.Primitives.UserId!
 AppTemplate.Domain.Core.Common.Primitives.AuditableAggregateRoot<TId>
 AppTemplate.Domain.Core.Common.Primitives.AuditableAggregateRoot<TId>.AuditableAggregateRoot(TId id) -> void
 AppTemplate.Domain.Core.Common.Primitives.AuditableAggregateRoot<TId>.CreatedAt.get -> System.DateTimeOffset

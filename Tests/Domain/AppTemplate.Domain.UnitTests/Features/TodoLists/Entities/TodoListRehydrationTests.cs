@@ -259,8 +259,8 @@ public sealed class TodoListRehydrationTests
             .ShouldBeNull("SetVersion must be reachable only through IVersioned, never as a public method.");
 
         typeof(TodoList).GetProperty(nameof(TodoList.Version))!
-            .SetMethod!.IsPublic
-            .ShouldBeFalse("Version is set by the store through IVersioned, not by assignment.");
+            .GetSetMethod(nonPublic: false)
+            .ShouldBeNull("Version is set by the store through IVersioned, not by assignment.");
     }
 
     private static TodoItem AnItemTitled(string title) =>

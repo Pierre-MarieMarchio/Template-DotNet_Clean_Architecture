@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Features.TodoLists.Dtos;
+using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 
 namespace AppTemplate.Application.Features.TodoLists.Mapping;
@@ -11,8 +12,8 @@ namespace AppTemplate.Application.Features.TodoLists.Mapping;
 /// <remarks>
 /// Sound only because <c>TodoListTracker</c> writes the store-assigned version and the refreshed
 /// audit timestamps back onto the aggregate inside <c>SaveChangesAsync</c> — so once that call
-/// has returned, <see cref="TodoList.Version"/>, <see cref="TodoList.CreatedAt"/> and
-/// <see cref="TodoList.LastModifiedAt"/> already hold the values the row was just committed
+/// has returned, <see cref="IVersioned.Version"/>, <see cref="IAuditable.CreatedAt"/> and
+/// <see cref="IAuditable.LastModifiedAt"/> already hold the values the row was just committed
 /// with. Reading them back through <c>ITodoListQueries</c> instead would run a second, unrelated
 /// query outside the transaction, with a window in which another writer commits and makes that
 /// second read describe a version newer than the one this call produced.

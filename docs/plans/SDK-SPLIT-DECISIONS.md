@@ -1,4 +1,4 @@
-# Decisions, and what was rejected
+﻿# Decisions, and what was rejected
 
 Companion to `docs/plans/SDK-SPLIT-PLAN.md`. This document exists so the analysis behind the split
 is never redone. Each entry states the decision, then the reason, then what was rejected and why —

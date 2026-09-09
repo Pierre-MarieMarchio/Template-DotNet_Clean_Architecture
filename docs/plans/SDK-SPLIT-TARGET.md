@@ -1,4 +1,4 @@
-# Target layout — the six package-grade projects
+﻿# Target layout — the six package-grade projects
 
 Companion to `docs/plans/SDK-SPLIT-PLAN.md`. This is the document to keep open while implementing.
 

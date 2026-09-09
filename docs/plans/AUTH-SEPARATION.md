@@ -1,4 +1,4 @@
-# Separating authentication — plan of record
+﻿# Separating authentication — plan of record
 
 **Status:** done. All four waves, and all four forks closed — the last two on 2026-09-09.
 

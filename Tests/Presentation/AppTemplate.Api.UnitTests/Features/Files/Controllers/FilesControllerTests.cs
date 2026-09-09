@@ -416,10 +416,8 @@ public sealed class FilesControllerTests
     /// would buy.
     /// </summary>
     [Fact]
-    public void RegisteringIsTheOnlyIdempotentAction()
-    {
+    public void RegisteringIsTheOnlyIdempotentAction() =>
         ActionsWith<IdempotentAttribute>().ShouldBe([nameof(FilesController.Register)]);
-    }
 
     /// <summary>
     /// The bodies here are metadata — a name, a media type, a length, a digest — and the file's bytes

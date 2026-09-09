@@ -45,7 +45,7 @@ internal static class ForwardedHeadersExtensions
             options.KnownProxies.Clear();
             options.KnownIPNetworks.Clear();
 
-            foreach (var address in proxy.KnownProxies)
+            foreach (string address in proxy.KnownProxies)
             {
                 if (IPAddress.TryParse(address, out var parsed))
                 {
@@ -53,7 +53,7 @@ internal static class ForwardedHeadersExtensions
                 }
             }
 
-            foreach (var network in proxy.KnownNetworks)
+            foreach (string network in proxy.KnownNetworks)
             {
                 if (IPNetwork.TryParse(network, out var parsed))
                 {

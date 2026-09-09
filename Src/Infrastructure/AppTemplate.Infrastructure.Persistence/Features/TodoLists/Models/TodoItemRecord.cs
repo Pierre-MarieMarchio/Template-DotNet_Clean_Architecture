@@ -21,5 +21,5 @@ internal sealed class TodoItemRecord
 
     public DateTimeOffset? CompletedAt { get; set; }
 
-    public ICollection<TodoItemTagRecord> Tags { get; } = new List<TodoItemTagRecord>();
+    public ICollection<TodoItemTagRecord> Tags { get; } = [];
 }

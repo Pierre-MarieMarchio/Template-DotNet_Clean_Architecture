@@ -52,7 +52,7 @@ internal sealed class StoredFileRecord : IAuditable
     public DateTimeOffset? AvailableAt { get; set; }
 
     /// <summary>The tag rows, reconciled by hand — see <see cref="StoredFileTagRecord"/>.</summary>
-    public ICollection<StoredFileTagRecord> Tags { get; } = new List<StoredFileTagRecord>();
+    public ICollection<StoredFileTagRecord> Tags { get; } = [];
 
     /// <summary>
     /// PostgreSQL's <c>xmin</c> system column. Never written by this process: the database moves it on

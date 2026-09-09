@@ -112,6 +112,15 @@ jobs:
       - name: Restore
         run: dotnet restore "$SOLUTION"
 
+      # sonar.cpd.exclusions covers the mail templates, which are the only HTML in the repository
+      # (ten files: four mails, two languages each, plus a test fixture). Each one is a standalone
+      # document a client receives whole, with its CSS inline because a mail client drops a linked
+      # stylesheet, so the eight shipped templates share a 45-line <style> block by construction.
+      # The duplication detector reads that as copied code and reports every template as a near
+      # clone of the other seven -- which says nothing a reader can act on, and puts the new-code
+      # duplication gate at 50% for a change that edits two lines in each file. Excluded from
+      # duplication only: every rule that judges the markup itself still applies.
+      #
       # The report pattern matches the extension and not a fixed file name, for the reason
       # Tools/CoverageGate.cs already had to work out: the platform writes either
       # '<guid>.cobertura.xml' flat, or 'coverage.cobertura.xml' inside a directory of its own, and
@@ -126,6 +135,7 @@ jobs:
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.host.url="$SONAR_HOST_URL" \
             /d:sonar.cs.cobertura.reportsPaths="TestResults/**/*.cobertura.xml" \
+            /d:sonar.cpd.exclusions="**/*.html" \
             /d:sonar.scanner.scanAll=false \
             /d:sonar.qualitygate.wait=true
 

@@ -17,7 +17,7 @@
 // globs one of them declares a whole file sound without opening it.
 //
 // **The gate refuses to pass on nothing.** A directory with no workflow in it establishes no
-// candidate set, and reporting success over it is the vacuity `CONTRIBUTING.md` bans for the
+// candidate set, and reporting success over it is the vacuity `docs/TESTING.md` bans for the
 // architecture rules, where `RuleAssertions.RequireTypes` enforces the same thing. So the count is
 // printed and a zero is a failure.
 //

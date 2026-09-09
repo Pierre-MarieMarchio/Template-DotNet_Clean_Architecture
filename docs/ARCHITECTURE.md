@@ -5,9 +5,9 @@ decisions and, more usefully, the reasons — including the things this template
 deliberately does **not** do.
 
 The decisions this template already made, and the shape they impose, are in
-[CONTRIBUTING.md](../CONTRIBUTING.md#decisions-already-made-and-the-shape-they-impose) — each one
-held by a test where a test can hold it. This
-page is the map; that section and the tests it names are the argument.
+[`DECISIONS.md`](DECISIONS.md) — each one held by a test where a test can hold it. This page is the
+map; that document and the tests it names are the argument. Where the files themselves go is
+[`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md).
 
 ## The four layers and the dependency rule
 
@@ -22,7 +22,7 @@ one exists.
 | Application | `AppTemplate.Application` | the business features' use cases, feature ports, DTOs, validators | `AppTemplate.Domain` + `AppTemplate.Application.Core` |
 | Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind twenty ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: what a context saves through — the unit of work, the three interceptors, the aggregate tracker — plus the system clock, multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
-| Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Identity`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
+| Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Auth`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
 | Presentation | `AppTemplate.Presentation.Core` | what any host needs whatever its transport: one outbound HTTP policy, the language a flow is written in, OTLP traces and metrics, the identity of a process with no caller — and no framework reference, deliberately | `AppTemplate.Application.Core` |
 | Presentation | `AppTemplate.Api.Core` | the half of an HTTP host that knows no feature: the whole pipeline behind one `UseCorePipeline()` — problem details, ETags, idempotency, rate limiting, CORS, security headers, versioning, the health endpoints | `AppTemplate.Application.Core` + `AppTemplate.Presentation.Core`, plus a `FrameworkReference` on ASP.NET Core |
 | Presentation | `AppTemplate.Api`, `AppTemplate.Worker` | controllers or a background service, composition root, host concerns | `AppTemplate.Api.Core` (the API only) + `AppTemplate.Presentation.Core` + the application projects it needs + the modules that host needs |
@@ -542,7 +542,7 @@ checks the wiring instead of a runtime registry.
 This is not an argument against MediatR in general. It is an argument that a template
 should not pay for it before there is a pipeline to put in it. Adding it later is
 mechanical; removing it once every handler assumes it is not. See
-`CONTRIBUTING.md`, which also names the package the architecture tests forbid.
+[`DECISIONS.md`](DECISIONS.md), which also names the package the architecture tests forbid.
 
 There is a read/write split, but it is the useful part of CQRS without the machinery —
 two ports rather than two stacks:
@@ -573,7 +573,8 @@ Two concrete defects a `BaseRepository<T>` carries, and that this shape exists t
    two transactions, with no way to roll back the first.
 
 Repository methods here only *stage* work; the commit belongs to `IUnitOfWork` and to the use
-case that calls it. See `CONTRIBUTING.md`.
+case that calls it. See [`DECISIONS.md`](DECISIONS.md) for the four words that name the four ways
+this template reaches storage, and which of them a contract is allowed to be.
 
 ## Aggregates and domain events
 
@@ -651,7 +652,7 @@ there is no second copy of the rule in Application that could drift from the fir
 Costs, honestly: every use case signature carries `Result`, callers must check
 `IsSuccess`, and `Result` is a class, so there is an allocation per call. Both are
 worth it for making the failure set explicit at the boundary. See
-`CONTRIBUTING.md`.
+[`CONVENTIONS.md`](CONVENTIONS.md) for which failures take a `Result` and which take an exception.
 
 ## The transaction boundary, and who owns it
 

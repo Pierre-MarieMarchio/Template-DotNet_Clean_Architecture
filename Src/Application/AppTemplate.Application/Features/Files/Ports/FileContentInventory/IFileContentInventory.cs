@@ -8,7 +8,7 @@ namespace AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 /// reconciliation, rather than one object's life.
 /// <para>
 /// This is what the orphan sweep reads. Reclaiming storage cannot depend on a message being
-/// delivered — see <c>CONTRIBUTING.md</c>'s "Correctness does not depend on event delivery" — so it
+/// delivered — see <c>docs/DECISIONS.md</c>'s "Correctness does not depend on event delivery" — so it
 /// is done by difference: enumerate what is stored, ask which of those keys a live row still names,
 /// and delete the rest. Nothing survives a deleted row to say what is owed, because nothing has to.
 /// </para>

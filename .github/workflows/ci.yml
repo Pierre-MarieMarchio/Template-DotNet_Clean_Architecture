@@ -447,7 +447,8 @@ jobs:
       # generated project's own namespace falls among FluentValidation, Microsoft.* and
       # the rest — which no single committed ordering can satisfy for every possible name.
       # A generated project therefore fails the format check until formatted once, and the
-      # README tells an adopter to run `dotnet run Tools/Tasks.cs bootstrap` first. If that
+      # docs/USING-THE-TEMPLATE.md tells an adopter to run `dotnet run Tools/Tasks.cs bootstrap`
+      # first. If that
       # one run ever stopped being enough, this step is what would say so.
       - name: Bootstrap formatting, then verify it is stable
         working-directory: ${{ runner.temp }}/generated

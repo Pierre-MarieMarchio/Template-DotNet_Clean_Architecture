@@ -99,9 +99,9 @@ internal sealed class TelemetryOptionsValidator : IValidateOptions<TelemetryOpti
                 "blank. Remove the key to fall back to the assembly name.");
         }
 
-        // Written as the range that passes, then negated: with NaN every direct comparison is
-        // false, so a check written as "<= 0 or > 1" would silently let NaN through.
-        if (!(options.TracesSamplingRatio > 0 && options.TracesSamplingRatio <= 1))
+        // Written as the range that passes, then negated: with NaN every comparison is false, so a
+        // check written as "is <= 0 or > 1" would silently let NaN through.
+        if (options.TracesSamplingRatio is not (> 0 and <= 1))
         {
             failures.Add(
                 $"'{TelemetryOptions.SectionName}:{nameof(TelemetryOptions.TracesSamplingRatio)}' must be " +

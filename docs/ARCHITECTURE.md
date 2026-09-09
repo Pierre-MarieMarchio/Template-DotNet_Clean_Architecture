@@ -9,6 +9,28 @@ The decisions this template already made, and the shape they impose, are in
 map; that document and the tests it names are the argument. Where the files themselves go is
 [`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md).
 
+**The shape**
+
+- [The four layers and the dependency rule](#the-four-layers-and-the-dependency-rule)
+- [Ports are named for business intent, not for technology](#ports-are-named-for-business-intent-not-for-technology)
+- [Infrastructure is split per capability](#infrastructure-is-split-per-capability-with-no-per-technology-sub-split)
+- [A second host: `AppTemplate.Worker`](#a-second-host-apptemplateworker)
+- [The HTTP boundary](#the-http-boundary)
+
+**How the pieces behave**
+
+- [Aggregates and domain events](#aggregates-and-domain-events)
+- [Errors: `Result` for expected failures, exceptions for bugs](#errors-result-for-expected-failures-exceptions-for-bugs)
+- [The transaction boundary, and who owns it](#the-transaction-boundary-and-who-owns-it)
+- [Two contexts, one database, five schemas](#two-contexts-one-database-five-schemas)
+
+**What is not here**
+
+- [No MediatR, no CQRS ceremony](#no-mediatr-no-cqrs-ceremony)
+- [No generic repository](#no-generic-repository)
+- [What is deliberately absent](#what-is-deliberately-absent) — read this one before deciding the
+  template forgot something
+
 ## The four layers and the dependency rule
 
 Source dependencies point inward, always. Nothing in an inner layer knows an outer

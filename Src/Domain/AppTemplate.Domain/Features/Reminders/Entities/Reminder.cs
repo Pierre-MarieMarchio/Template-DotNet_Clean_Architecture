@@ -1,5 +1,4 @@
-﻿using AppTemplate.Domain.Core.Common.Abstractions;
-using AppTemplate.Domain.Core.Common.Exceptions;
+﻿using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.Events;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;
@@ -16,7 +15,7 @@ namespace AppTemplate.Domain.Features.Reminders.Entities;
 /// would make each firing load an aggregate — with its items and their tags — to reach one row.
 /// </para>
 /// </summary>
-public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
+public sealed class Reminder : AuditableAggregateRoot<Guid>
 {
     /// <summary>
     /// The one place the identity invariants are stated. Both factories reach the aggregate through
@@ -83,16 +82,6 @@ public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
 
     /// <summary>When the notification actually went out.</summary>
     public DateTimeOffset? NotifiedAt { get; private set; }
-
-    public uint Version { get; private set; }
-
-    public DateTimeOffset CreatedAt { get; private set; }
-
-    public Guid? CreatedBy { get; private set; }
-
-    public DateTimeOffset? LastModifiedAt { get; private set; }
-
-    public Guid? LastModifiedBy { get; private set; }
 
     /// <param name="now">Injected rather than read from the clock, so the aggregate has no ambient
     /// dependency and its behaviour is reproducible in a test.</param>
@@ -253,18 +242,4 @@ public sealed class Reminder : AggregateRoot<Guid>, IAuditable, IVersioned
         DueAt = dueAt;
         ClaimedAt = null;
     }
-
-    void IAuditable.SetCreated(DateTimeOffset at, Guid? by)
-    {
-        CreatedAt = at;
-        CreatedBy = by;
-    }
-
-    void IAuditable.SetLastModified(DateTimeOffset at, Guid? by)
-    {
-        LastModifiedAt = at;
-        LastModifiedBy = by;
-    }
-
-    void IVersioned.SetVersion(uint version) => Version = version;
 }

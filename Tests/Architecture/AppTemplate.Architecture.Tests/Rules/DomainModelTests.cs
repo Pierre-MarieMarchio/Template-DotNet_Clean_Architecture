@@ -55,6 +55,11 @@ public sealed class DomainModelTests
     /// <summary>
     /// A public setter on an audit or ownership field would let application code assign
     /// <c>OwnerId</c> — the value every authorisation check reads — and forge <c>CreatedBy</c>.
+    /// <para>
+    /// Read over the inheritance chain rather than over the entity alone, for the reason
+    /// <see cref="WithBases"/> gives: a stamp declared one level up would otherwise be skipped
+    /// rather than checked, and the rule would stay green over a smaller population.
+    /// </para>
     /// </summary>
     [Fact]
     public void Entities_HaveNoPubliclySettableState()
@@ -64,17 +69,24 @@ public sealed class DomainModelTests
 
         foreach (var entity in entities)
         {
-            foreach (var property in entity.GetProperties(
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            foreach (var declaring in WithBases(entity))
             {
-                var setter = property.SetMethod;
-
-                if (setter is null || !setter.IsPublic || TypeFacts.IsInitOnly(setter))
+                foreach (var property in declaring.GetProperties(_declaredState))
                 {
-                    continue;
-                }
+                    var setter = property.SetMethod;
 
-                offenders.Add($"{property.DeclaringType?.Name}.{property.Name} has a public setter");
+                    if (setter is null || !setter.IsPublic || TypeFacts.IsInitOnly(setter))
+                    {
+                        continue;
+                    }
+
+                    string offence = $"{property.DeclaringType?.Name}.{property.Name} has a public setter";
+
+                    if (!offenders.Contains(offence, StringComparer.Ordinal))
+                    {
+                        offenders.Add(offence);
+                    }
+                }
             }
         }
 
@@ -92,9 +104,18 @@ public sealed class DomainModelTests
 
         foreach (var entity in entities)
         {
-            foreach (var field in entity.GetFields(BindingFlags.Public | BindingFlags.Instance))
+            foreach (var declaring in WithBases(entity))
             {
-                offenders.Add($"{field.DeclaringType?.Name}.{field.Name} is a public field");
+                foreach (var field in declaring.GetFields(
+                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                {
+                    string offence = $"{field.DeclaringType?.Name}.{field.Name} is a public field";
+
+                    if (!offenders.Contains(offence, StringComparer.Ordinal))
+                    {
+                        offenders.Add(offence);
+                    }
+                }
             }
         }
 
@@ -163,6 +184,30 @@ public sealed class DomainModelTests
                 "Everything in an Events namespace is a sealed domain event implementing " +
                 "IDomainEvent. The persistence dispatcher finds consumers through that marker, so a " +
                 "type that misses it is collected by nothing and silently never dispatched.");
+    }
+
+    /// <summary>
+    /// The state accessors a type declares itself, at every accessibility. <c>DeclaredOnly</c> is
+    /// what makes the chain walk necessary and what makes it correct.
+    /// </summary>
+    private const BindingFlags _declaredState =
+        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+
+    /// <summary>
+    /// An entity and every base it inherits state from, up to <see cref="object"/>.
+    /// <para>
+    /// A chain rather than one <c>GetProperties</c> call, because a private setter declared on a
+    /// base is invisible from the derived type: the accessor reads as absent, so a rule looking only
+    /// at the entity skips every stamp <c>AuditableAggregateRoot&lt;TId&gt;</c> declares instead of
+    /// checking it.
+    /// </para>
+    /// </summary>
+    private static IEnumerable<Type> WithBases(Type entity)
+    {
+        for (var type = entity; type is not null && type != typeof(object); type = type.BaseType)
+        {
+            yield return type;
+        }
     }
 
     /// <summary>

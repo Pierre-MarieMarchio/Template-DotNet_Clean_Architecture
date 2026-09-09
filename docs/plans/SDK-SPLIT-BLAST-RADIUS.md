@@ -1,4 +1,4 @@
-# Blast radius, and the SDK's known gaps
+﻿# Blast radius, and the SDK's known gaps
 
 Companion to `docs/plans/SDK-SPLIT-PLAN.md`. Two halves: everything outside `Src/` that the split
 forces, and the list of what the SDK still will not do.

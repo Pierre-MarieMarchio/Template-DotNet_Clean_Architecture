@@ -18,15 +18,17 @@ internal sealed class ReminderMapper : IReminderMapper
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        var aggregate = Reminder.Rehydrate(
-            record.Id,
-            UserId.Create(record.OwnerId),
-            record.TodoListId,
-            record.TodoItemId,
-            record.DueAt,
-            record.State,
-            record.ClaimedAt,
-            record.NotifiedAt);
+        var aggregate = Reminder.Rehydrate(new ReminderSnapshot
+        {
+            Id = record.Id,
+            OwnerId = UserId.Create(record.OwnerId),
+            TodoListId = record.TodoListId,
+            TodoItemId = record.TodoItemId,
+            DueAt = record.DueAt,
+            State = record.State,
+            ClaimedAt = record.ClaimedAt,
+            NotifiedAt = record.NotifiedAt,
+        });
 
         StoredStamps.ApplyTo(aggregate, record, record.Version, record.Id, "Reminder");
 

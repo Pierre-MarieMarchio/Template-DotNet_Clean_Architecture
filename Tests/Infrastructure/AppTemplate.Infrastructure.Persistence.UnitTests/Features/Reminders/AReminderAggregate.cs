@@ -42,15 +42,17 @@ internal static class AReminderAggregate
     /// <summary>A fully populated aggregate, as if it had just been loaded after firing.</summary>
     internal static Reminder FullyPopulated()
     {
-        var aggregate = Reminder.Rehydrate(
-            ReminderId,
-            OwnerId,
-            TodoListId,
-            TodoItemId,
-            DueAt,
-            State,
-            ClaimedAt,
-            NotifiedAt);
+        var aggregate = Reminder.Rehydrate(new ReminderSnapshot
+        {
+            Id = ReminderId,
+            OwnerId = OwnerId,
+            TodoListId = TodoListId,
+            TodoItemId = TodoItemId,
+            DueAt = DueAt,
+            State = State,
+            ClaimedAt = ClaimedAt,
+            NotifiedAt = NotifiedAt,
+        });
 
         ((IVersioned)aggregate).SetVersion(Version);
         ((IAuditable)aggregate).SetCreated(CreatedAt, CreatedBy);
@@ -67,15 +69,17 @@ internal static class AReminderAggregate
     /// </summary>
     internal static Reminder DifferentInEveryDomainOwnedValue()
     {
-        var aggregate = Reminder.Rehydrate(
-            ReminderId,
-            OtherOwnerId,
-            OtherTodoListId,
-            OtherTodoItemId,
-            OtherDueAt,
-            OtherState,
-            OtherClaimedAt,
-            OtherNotifiedAt);
+        var aggregate = Reminder.Rehydrate(new ReminderSnapshot
+        {
+            Id = ReminderId,
+            OwnerId = OtherOwnerId,
+            TodoListId = OtherTodoListId,
+            TodoItemId = OtherTodoItemId,
+            DueAt = OtherDueAt,
+            State = OtherState,
+            ClaimedAt = OtherClaimedAt,
+            NotifiedAt = OtherNotifiedAt,
+        });
 
         ((IVersioned)aggregate).SetVersion(OtherVersion);
         ((IAuditable)aggregate).SetCreated(OtherCreatedAt, OtherCreatedBy);

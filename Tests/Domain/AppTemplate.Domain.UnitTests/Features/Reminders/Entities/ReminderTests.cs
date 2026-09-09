@@ -29,15 +29,17 @@ public sealed class ReminderTests
         DateTimeOffset? dueAt = null,
         DateTimeOffset? claimedAt = null,
         DateTimeOffset? notifiedAt = null) =>
-        Reminder.Rehydrate(
-            id ?? Guid.CreateVersion7(),
-            _ownerId,
-            _todoListId,
-            _todoItemId,
-            dueAt ?? _now.AddDays(-1),
-            state,
-            claimedAt,
-            notifiedAt);
+        Reminder.Rehydrate(new ReminderSnapshot
+        {
+            Id = id ?? Guid.CreateVersion7(),
+            OwnerId = _ownerId,
+            TodoListId = _todoListId,
+            TodoItemId = _todoItemId,
+            DueAt = dueAt ?? _now.AddDays(-1),
+            State = state,
+            ClaimedAt = claimedAt,
+            NotifiedAt = notifiedAt,
+        });
 
     #region Scheduling
 
@@ -127,33 +129,51 @@ public sealed class ReminderTests
     [Fact]
     public void Rehydrate_Rejects_TheDefaultDueDate() =>
         Should.Throw<DomainException>(
-            () => Reminder.Rehydrate(
-                Guid.CreateVersion7(),
-                _ownerId,
-                _todoListId,
-                _todoItemId,
-                default,
-                ReminderState.Pending,
-                null,
-                null));
+            () => Reminder.Rehydrate(new ReminderSnapshot
+            {
+                Id = Guid.CreateVersion7(),
+                OwnerId = _ownerId,
+                TodoListId = _todoListId,
+                TodoItemId = _todoItemId,
+                DueAt = default,
+                State = ReminderState.Pending,
+                ClaimedAt = null,
+                NotifiedAt = null,
+            }));
+
+    [Fact]
+    public void Rehydrate_Rejects_AnAbsentSnapshot() =>
+        Should.Throw<ArgumentNullException>(() => Reminder.Rehydrate(null!));
 
     [Fact]
     public void Rehydrate_Rejects_AnAbsentOwner() =>
         Should.Throw<ArgumentNullException>(
-            () => Reminder.Rehydrate(
-                Guid.CreateVersion7(),
-                null!,
-                _todoListId,
-                _todoItemId,
-                _now.AddHours(1),
-                ReminderState.Pending,
-                null,
-                null));
+            () => Reminder.Rehydrate(new ReminderSnapshot
+            {
+                Id = Guid.CreateVersion7(),
+                OwnerId = null!,
+                TodoListId = _todoListId,
+                TodoItemId = _todoItemId,
+                DueAt = _now.AddHours(1),
+                State = ReminderState.Pending,
+                ClaimedAt = null,
+                NotifiedAt = null,
+            }));
 
     [Fact]
     public void Rehydrate_Rejects_AnEmptyId() =>
         Should.Throw<DomainException>(
-            () => Reminder.Rehydrate(Guid.Empty, _ownerId, _todoListId, _todoItemId, _now.AddHours(1), ReminderState.Pending, null, null));
+            () => Reminder.Rehydrate(new ReminderSnapshot
+            {
+                Id = Guid.Empty,
+                OwnerId = _ownerId,
+                TodoListId = _todoListId,
+                TodoItemId = _todoItemId,
+                DueAt = _now.AddHours(1),
+                State = ReminderState.Pending,
+                ClaimedAt = null,
+                NotifiedAt = null,
+            }));
 
     /// <summary>
     /// The single most important test in this file. Being in the future is a precondition of
@@ -169,7 +189,17 @@ public sealed class ReminderTests
         var overdueBy = _now.AddDays(-1);
 
         var reminder = Should.NotThrow(
-            () => Reminder.Rehydrate(Guid.CreateVersion7(), _ownerId, _todoListId, _todoItemId, overdueBy, ReminderState.Pending, null, null));
+            () => Reminder.Rehydrate(new ReminderSnapshot
+            {
+                Id = Guid.CreateVersion7(),
+                OwnerId = _ownerId,
+                TodoListId = _todoListId,
+                TodoItemId = _todoItemId,
+                DueAt = overdueBy,
+                State = ReminderState.Pending,
+                ClaimedAt = null,
+                NotifiedAt = null,
+            }));
 
         reminder.DueAt.ShouldBe(overdueBy);
         reminder.State.ShouldBe(ReminderState.Pending);
@@ -182,7 +212,17 @@ public sealed class ReminderTests
         var dueAt = _now.AddHours(2);
         var claimedAt = _now.AddMinutes(-1);
 
-        var reminder = Reminder.Rehydrate(id, _ownerId, _todoListId, _todoItemId, dueAt, ReminderState.Pending, claimedAt, null);
+        var reminder = Reminder.Rehydrate(new ReminderSnapshot
+        {
+            Id = id,
+            OwnerId = _ownerId,
+            TodoListId = _todoListId,
+            TodoItemId = _todoItemId,
+            DueAt = dueAt,
+            State = ReminderState.Pending,
+            ClaimedAt = claimedAt,
+            NotifiedAt = null,
+        });
 
         reminder.Id.ShouldBe(id);
         reminder.OwnerId.ShouldBe(_ownerId);
@@ -513,15 +553,17 @@ public sealed class ReminderTests
     [Fact]
     public void Rehydrate_Rejects_AClaimHeldByACancelledReminder() =>
         Should.Throw<DomainException>(
-            () => Reminder.Rehydrate(
-                Guid.CreateVersion7(),
-                _ownerId,
-                _todoListId,
-                _todoItemId,
-                _now.AddDays(-1),
-                ReminderState.Cancelled,
-                _now.AddMinutes(-1),
-                null));
+            () => Reminder.Rehydrate(new ReminderSnapshot
+            {
+                Id = Guid.CreateVersion7(),
+                OwnerId = _ownerId,
+                TodoListId = _todoListId,
+                TodoItemId = _todoItemId,
+                DueAt = _now.AddDays(-1),
+                State = ReminderState.Cancelled,
+                ClaimedAt = _now.AddMinutes(-1),
+                NotifiedAt = null,
+            }));
 
     /// <summary>
     /// The converse, and the reason the rule above names only one state: notifying requires a claim
@@ -533,15 +575,17 @@ public sealed class ReminderTests
         var claimedAt = _now.AddMinutes(-2);
 
         var reminder = Should.NotThrow(
-            () => Reminder.Rehydrate(
-                Guid.CreateVersion7(),
-                _ownerId,
-                _todoListId,
-                _todoItemId,
-                _now.AddDays(-1),
-                ReminderState.Fired,
-                claimedAt,
-                _now.AddMinutes(-1)));
+            () => Reminder.Rehydrate(new ReminderSnapshot
+            {
+                Id = Guid.CreateVersion7(),
+                OwnerId = _ownerId,
+                TodoListId = _todoListId,
+                TodoItemId = _todoItemId,
+                DueAt = _now.AddDays(-1),
+                State = ReminderState.Fired,
+                ClaimedAt = claimedAt,
+                NotifiedAt = _now.AddMinutes(-1),
+            }));
 
         reminder.ClaimedAt.ShouldBe(claimedAt);
     }
@@ -598,30 +642,34 @@ public sealed class ReminderTests
     [Fact]
     public void Rehydrate_Rejects_AFiredReminderWithNoNotificationInstant() =>
         Should.Throw<DomainException>(
-            () => Reminder.Rehydrate(
-                Guid.CreateVersion7(),
-                _ownerId,
-                _todoListId,
-                _todoItemId,
-                _now.AddDays(-1),
-                ReminderState.Fired,
-                _now.AddDays(-1),
-                null));
+            () => Reminder.Rehydrate(new ReminderSnapshot
+            {
+                Id = Guid.CreateVersion7(),
+                OwnerId = _ownerId,
+                TodoListId = _todoListId,
+                TodoItemId = _todoItemId,
+                DueAt = _now.AddDays(-1),
+                State = ReminderState.Fired,
+                ClaimedAt = _now.AddDays(-1),
+                NotifiedAt = null,
+            }));
 
     [Theory]
     [InlineData(ReminderState.Pending)]
     [InlineData(ReminderState.Cancelled)]
     public void Rehydrate_Rejects_ANotificationInstantOnAReminderThatNeverFired(ReminderState state) =>
         Should.Throw<DomainException>(
-            () => Reminder.Rehydrate(
-                Guid.CreateVersion7(),
-                _ownerId,
-                _todoListId,
-                _todoItemId,
-                _now.AddDays(-1),
-                state,
-                null,
-                _now.AddDays(-1)));
+            () => Reminder.Rehydrate(new ReminderSnapshot
+            {
+                Id = Guid.CreateVersion7(),
+                OwnerId = _ownerId,
+                TodoListId = _todoListId,
+                TodoItemId = _todoItemId,
+                DueAt = _now.AddDays(-1),
+                State = state,
+                ClaimedAt = null,
+                NotifiedAt = _now.AddDays(-1),
+            }));
 
     #endregion
 }

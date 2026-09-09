@@ -61,6 +61,7 @@ internal static class Tasks
         "run",
         "compose-up",
         "compose-down",
+        "sonar",
         "bootstrap",
         "hygiene",
         "verify",
@@ -260,6 +261,10 @@ internal static class Tasks
                 Step("docker", "compose", "down");
                 break;
 
+            case "sonar":
+                Sonar(repoRoot);
+                break;
+
             case "bootstrap":
                 // The local tools first. `verify` runs `dotnet ef`, and the manifest under .config/
                 // pins it as a local tool, so without this the task documented as the first thing to
@@ -364,6 +369,92 @@ internal static class Tasks
             "dotnet", "run", Gate(repoRoot, "CoverageGate.cs"),
             "--root", results,
             "--minimum", minimum);
+    }
+
+    /// <summary>
+    /// The local Sonar analysis: a server and a scanner, both in containers.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// No JRE on the machine, which is the whole reason this is a task rather than a paragraph
+    /// telling you to install one. SonarScanner for .NET is a .NET tool that shells out to Java,
+    /// and <c>Tools/sonar-scanner.Dockerfile</c> is where that Java lives, so the prerequisites
+    /// stay what <c>CONTRIBUTING.md</c> says they are: the SDK from <c>global.json</c>, and Docker.
+    /// </para>
+    /// <para>
+    /// Build output goes to <c>/build</c>, a path inside the container and deliberately outside the
+    /// mounted checkout. A container writing to the repository's own <c>obj/</c> would leave it
+    /// holding paths that exist only in that container, and the next build on the machine would
+    /// fail on a restore nobody asked for.
+    /// </para>
+    /// <para>
+    /// The token is never read here: Compose takes it from <c>.env</c> and refuses to start with a
+    /// message saying where to generate one, which beats an authentication error raised deep inside
+    /// the scanner.
+    /// </para>
+    /// </remarks>
+    private static void Sonar(string repoRoot)
+    {
+        // Waited on, not assumed. A first boot builds the database and the search indices, and an
+        // analysis sent before the API is ready fails in a way that reads like a bad token.
+        Step("docker", "compose", "--profile", "sonar", "up", "--detach", "--wait", "sonarqube");
+
+        Step(
+            "docker", "compose", "--profile", "sonar",
+            "run", "--rm", "--build", "sonar-scanner",
+            "/bin/sh", "-c", ScanScript(repoRoot));
+    }
+
+    /// <summary>
+    /// The analysis, in the one order the scanner accepts: <c>begin</c>, a build it can watch, then
+    /// <c>end</c>. The scanner learns which file belongs to which project by observing MSBuild, so
+    /// a build that already happened is invisible to it and nothing here may skip one.
+    /// </summary>
+    /// <remarks>
+    /// The Testcontainers suite is left out, and the coverage this reports is lower than CI's
+    /// because of it. There is no Docker daemon inside the scanner container, so those tests cannot
+    /// run there at all; the set is the same one <c>test --no-integration</c> uses, derived from
+    /// the projects themselves rather than listed. CI runs the whole suite, and
+    /// <c>.github/workflows/sonarqube.yml</c> is what reports the real figure.
+    /// </remarks>
+    private static string ScanScript(string repoRoot)
+    {
+        IEnumerable<string> tests = TestProjects(repoRoot, dockerFreeOnly: true)
+            .Select(project => Path.GetRelativePath(repoRoot, project).Replace('\\', '/'))
+            .Select(project =>
+                $"""
+                dotnet test "{project}" \
+                  --artifacts-path /build \
+                  --no-build \
+                  --results-directory /build/TestResults \
+                  --coverage \
+                  --coverage-settings coverage.runsettings \
+                  --coverage-output-format cobertura
+                """);
+
+        return $"""
+            set -eu
+            # The name carries no braces on purpose. This script is built from a C# interpolated
+            # raw string, so a brace opens an interpolation hole rather than a shell expansion, and
+            # the braced spelling does not compile. Compose always defines SONAR_TOKEN, defaulting
+            # it to empty, so the plain form is safe under `set -u`.
+            if [ -z "$SONAR_TOKEN" ]; then
+              echo "SONAR_TOKEN is empty. Open http://localhost:9100, generate a token under" >&2
+              echo "My Account > Security, and set SONAR_TOKEN in .env." >&2
+              exit 1
+            fi
+            dotnet tool restore
+            dotnet restore AppTemplate.sln --artifacts-path /build
+            dotnet sonarscanner begin \
+              /k:"$SONAR_PROJECT_KEY" \
+              /d:sonar.token="$SONAR_TOKEN" \
+              /d:sonar.host.url="$SONAR_HOST_URL" \
+              /d:sonar.cs.cobertura.reportsPaths="/build/TestResults/**/coverage.cobertura.xml" \
+              /d:sonar.scanner.scanAll=false
+            dotnet build AppTemplate.sln --artifacts-path /build --no-restore
+            {string.Join(Environment.NewLine, tests)}
+            dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+            """;
     }
 
     private static string Gate(string repoRoot, string fileName) => Path.Combine(repoRoot, "Tools", fileName);

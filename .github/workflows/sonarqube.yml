@@ -126,7 +126,8 @@ jobs:
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.host.url="$SONAR_HOST_URL" \
             /d:sonar.cs.cobertura.reportsPaths="TestResults/**/*.cobertura.xml" \
-            /d:sonar.scanner.scanAll=false
+            /d:sonar.scanner.scanAll=false \
+            /d:sonar.qualitygate.wait=true
 
       # No --no-restore and no reuse of a previous build: this build is the analysis. It is also
       # the one place in this repository where a build runs with the Sonar analysers injected, and
@@ -151,9 +152,18 @@ jobs:
             --coverage-settings coverage.runsettings \
             --coverage-output-format cobertura
 
-      # Uploads the analysis and waits for the quality gate. Runs even when the tests failed, so a
-      # red run still produces a report to read -- but the coverage it reports is then whatever the
-      # partial run measured, which is why this workflow is not the coverage gate.
+      # Uploads the analysis, then blocks on the quality gate and fails the job when it is red.
+      # Without that wait this job is green whatever Sonar found, which is a workflow that cannot
+      # ever say no -- and one that never says no stops being read.
+      #
+      # It is affordable because the default gate judges NEW code: its four conditions are all
+      # new_* metrics, so the debt already in the tree blocks nobody and nothing dirty gets in on
+      # top of it. Measured rather than assumed -- the gate on the pull request that added this
+      # workflow came back OK on all four while the whole-code ratings sat at C.
+      #
+      # Runs even when the tests failed, so a red run still produces a report to read -- but the
+      # coverage it reports is then whatever the partial run measured, which is why this workflow
+      # is not the coverage gate.
       - name: End analysis
         if: always()
         run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"

@@ -1,4 +1,4 @@
-name: Release
+﻿name: Release
 
 # Tag-driven. `v1.2.3` publishes 1.2.3, 1.2, 1 and latest; `v1.2.3-rc.1` publishes only the
 # full prerelease tag and never moves `latest`.
@@ -110,7 +110,23 @@ jobs:
       #   ./efbundle --connection "$CONNECTION_STRING"
       # Use a migration-time principal with DDL rights, NOT the application's
       # runtime user — the app should not be able to alter its own schema.
-      - name: Build bundle
+      # One bundle per context, and both, because one bundle covers one context. A release
+      # carrying only the business bundle leaves the `identity` schema absent, and an API whose
+      # identity tables do not exist starts and then fails the first sign-in. The two are
+      # independent -- no foreign key crosses the schemas -- so the order below is for consistency
+      # with the Development bootstrap rather than a correctness requirement.
+      - name: Build the identity bundle
+        run: |
+          dotnet ef migrations bundle \
+            --project Src/Infrastructure/AppTemplate.Infrastructure.Auth \
+            --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Auth \
+            --configuration "$CONFIGURATION" \
+            --self-contained \
+            --target-runtime linux-x64 \
+            --force \
+            --output efbundle-identity
+
+      - name: Build the business bundle
         run: |
           dotnet ef migrations bundle \
             --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
@@ -121,16 +137,25 @@ jobs:
             --force \
             --output efbundle
 
-      - name: Assert the bundle exists and is executable
+      # Both, named: a job that asserted one of them would go green on the release that shipped
+      # half a schema, which is the failure this step exists to catch.
+      - name: Assert both bundles exist and are executable
         run: |
-          test -x efbundle || { echo "::error title=No bundle::efbundle was not produced."; exit 1; }
-          ls -l efbundle
+          for bundle in efbundle-identity efbundle; do
+            test -x "$bundle" || {
+              echo "::error title=No bundle::$bundle was not produced."
+              exit 1
+            }
+          done
+          ls -l efbundle-identity efbundle
 
-      - name: Upload bundle
+      - name: Upload bundles
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: migration-bundle-${{ inputs.tag || github.ref_name }}
-          path: efbundle
+          path: |
+            efbundle-identity
+            efbundle
           if-no-files-found: error
           retention-days: 90
 

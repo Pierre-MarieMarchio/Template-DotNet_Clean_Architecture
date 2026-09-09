@@ -1,16 +1,20 @@
-# The "explicit step" docs/MIGRATIONS.md requires instead of migrating at
+﻿# The "explicit step" docs/MIGRATIONS.md requires instead of migrating at
 # application startup, and a Kubernetes Job running `database update` is its shape here. Apply
 # this and wait for it to complete BEFORE api-deployment.yaml or worker-deployment.yaml rolls;
 # see deploy/kubernetes/README.md for why `kubectl apply -f deploy/kubernetes/` alone does not
 # give you that ordering.
 #
 # The image is NOT one of the two this repository's Dockerfiles build. .github/workflows/release.yml
-# already builds the artifact this Job needs to run — the `migration-bundle` job produces a
-# self-contained `efbundle` executable (dotnet ef migrations bundle --self-contained) and uploads
-# it as a workflow artifact — but that workflow stops at the artifact; it does not package it into
-# a container image. Packaging `efbundle` into a minimal image (COPY it into a base image with a
-# non-root user, ENTRYPOINT ["/app/efbundle"]) is a release-pipeline change this manifest assumes
-# but does not itself make.
+# already builds the artifacts this Job needs to run — the `migration-bundle` job produces two
+# self-contained executables (dotnet ef migrations bundle --self-contained) and uploads
+# them as a workflow artifact — but that workflow stops at the artifact; it does not package them
+# into a container image. Packaging both into one minimal image (COPY `efbundle-identity` and
+# `efbundle` into a base image with a non-root user, at the `/app` paths the containers below name)
+# is a release-pipeline change this manifest assumes but does not itself make.
+#
+# Two bundles because there are two contexts: `identity` and the business schema each have their own
+# migrations and their own history table, so one bundle applies one of them and leaves the other
+# absent.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -41,6 +45,41 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      # An initContainer and not a second entry under `containers:`, and the difference is
+      # load-bearing: containers in a Pod start in parallel, so two entries there would run two
+      # migrations against the same database at once. initContainers run to completion, in order,
+      # before the container below starts.
+      #
+      # Which order does not matter for correctness -- no foreign key crosses the two schemas --
+      # but it matches the Development bootstrap, where authentication goes first.
+      initContainers:
+        - name: migrate-identity
+          image: ghcr.io/OWNER/REPO/migration-bundle:1.0.0
+          # Both bundles are expected in the one image, so each container names the one it runs.
+          # The bundle is self-contained (embeds its own .NET runtime) and takes the connection
+          # string as a CLI argument, not through the application's configuration system — it is
+          # not the application, it has no appsettings.json and reads none of the ConfigMaps in
+          # this directory.
+          command: ["/app/efbundle-identity"]
+          args: ["--connection", "$(CONNECTION_STRING)"]
+          env:
+            - name: CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: app-template-migration-db-credentials
+                  key: ConnectionString
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
       containers:
         - name: migrate
           image: ghcr.io/OWNER/REPO/migration-bundle:1.0.0
@@ -48,6 +87,7 @@ spec:
           # string as a CLI argument, not through the application's configuration system — it is
           # not the application, it has no appsettings.json and reads none of the ConfigMaps in
           # this directory.
+          command: ["/app/efbundle"]
           args: ["--connection", "$(CONNECTION_STRING)"]
           env:
             - name: CONNECTION_STRING

@@ -117,39 +117,33 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// firing query exists to find.
     /// </para>
     /// </summary>
-    public static Reminder Rehydrate(
-        Guid id,
-        UserId ownerId,
-        Guid todoListId,
-        Guid todoItemId,
-        DateTimeOffset dueAt,
-        ReminderState state,
-        DateTimeOffset? claimedAt,
-        DateTimeOffset? notifiedAt)
+    public static Reminder Rehydrate(ReminderSnapshot stored)
     {
+        ArgumentNullException.ThrowIfNull(stored);
+
         // What the constructor at the bottom of this method cannot see: whether the three stored
         // values describing progress agree. MarkNotified requires a claim and keeps it, Cancel
         // clears it, so a cancelled row still holding one could not have been written.
-        if (state == ReminderState.Cancelled && claimedAt is not null)
+        if (stored.State == ReminderState.Cancelled && stored.ClaimedAt is not null)
         {
             throw new DomainException("A cancelled reminder cannot still hold a claim.");
         }
 
-        if (state == ReminderState.Fired && notifiedAt is null)
+        if (stored.State == ReminderState.Fired && stored.NotifiedAt is null)
         {
             throw new DomainException("A fired reminder must record when it was notified.");
         }
 
-        if (state != ReminderState.Fired && notifiedAt is not null)
+        if (stored.State != ReminderState.Fired && stored.NotifiedAt is not null)
         {
             throw new DomainException("Only a fired reminder can record a notification instant.");
         }
 
-        return new Reminder(id, ownerId, todoListId, todoItemId, dueAt)
+        return new Reminder(stored.Id, stored.OwnerId, stored.TodoListId, stored.TodoItemId, stored.DueAt)
         {
-            State = state,
-            ClaimedAt = claimedAt,
-            NotifiedAt = notifiedAt,
+            State = stored.State,
+            ClaimedAt = stored.ClaimedAt,
+            NotifiedAt = stored.NotifiedAt,
         };
     }
 

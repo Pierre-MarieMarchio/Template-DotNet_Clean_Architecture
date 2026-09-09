@@ -29,7 +29,7 @@ using System.Text.RegularExpressions;
 /// <para>
 /// <b>The gate refuses to pass on nothing.</b> A scan that reads no Markdown, or that finds no path
 /// worth checking, has established no candidate set and therefore proves nothing. That is the
-/// vacuity <c>CONTRIBUTING.md</c> bans for the architecture rules, where
+/// vacuity <c>docs/TESTING.md</c> bans for the architecture rules, where
 /// <c>RuleAssertions.RequireTypes</c> enforces it; here the counts are printed and a zero of either
 /// one is a failure.
 /// </para>

@@ -10,12 +10,36 @@ same use cases as the API. A derived project deletes what it has read and keeps 
 exactly the same rank as the other two — its own aggregate, its own use cases, its own controller,
 its own worker loop, its own migration — so everything below gives it a column. But unlike the other
 two it is also a working capability: a project that stores files re-points it at its own bucket and
-its own metadata instead of deleting it. `README.md` says the same thing from the other side. So
+its own metadata instead of deleting it. [`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md) says the
+same thing from the other side. So
 read the `Files` column as *what it costs to remove*, not as *what you are expected to do*.
 
-`docs/ADDING-A-FEATURE.md` says a clean removal means rewriting the tests that use an example as
-their subject, rather than only deleting files. This document is that rewrite, written as a
-procedure.
+[`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md) says a clean removal means rewriting the tests that use
+an example as their subject, rather than only deleting files. This document is that rewrite, written
+as a procedure.
+
+**Read first, in this order**
+
+- [What this document promises](#what-this-document-promises) — which removals were actually carried
+  out, and which are reasoned
+- [The dependency you need to know about first](#the-dependency-you-need-to-know-about-first) —
+  `Reminders` does not compile without `TodoLists`
+- [What stops being demonstrated](#what-stops-being-demonstrated) — the cost, before you pay it
+
+**The procedure**
+
+- [What to delete](#what-to-delete)
+- [What to edit](#what-to-edit)
+- [The migrations](#the-migrations)
+- [Configuration, deployment and the sample requests](#configuration-deployment-and-the-sample-requests)
+- [What else fails](#what-else-fails)
+- [Verification](#verification)
+
+**The two questions that come up**
+
+- [Does the Worker still have a reason to exist?](#does-the-worker-still-have-a-reason-to-exist)
+- [If you are keeping some and removing others](#if-you-are-keeping-some-and-removing-others)
+- [Removing authentication](#removing-authentication)
 
 ## What this document promises
 

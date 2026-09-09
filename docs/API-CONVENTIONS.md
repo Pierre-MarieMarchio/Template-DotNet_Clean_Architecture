@@ -30,7 +30,7 @@ deleted the day a second version exists.
 
 `Program.cs` installs an authorization fallback policy requiring an authenticated
 user. An endpoint is protected **unless it explicitly opts out** with
-`[AllowAnonymous]`; ten of `AuthController`'s eighteen actions and the two health
+`[AllowAnonymous]`; ten of the eighteen authentication actions and the two health
 endpoints do — and, in Development only, so do the two OpenAPI endpoints (see
 [`GETTING-STARTED.md`](GETTING-STARTED.md#with-compose)).
 

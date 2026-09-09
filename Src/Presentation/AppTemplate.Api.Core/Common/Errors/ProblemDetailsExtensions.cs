@@ -28,11 +28,8 @@ internal static class ProblemDetailsExtensions
         services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
             ProblemDetailsNormaliser.Normalise(context.ProblemDetails, context.HttpContext));
 
-        // Registered here rather than beside UseExceptionHandler, because the two halves are one
-        // decision: the handler is what turns an escaped exception into the same document every
-        // other failure produces, and a host that installed the pipeline without it would answer a
-        // bare 500 to exactly the failures that most need a code — a concurrency conflict among
-        // them.
+        // Beside the problem-details registration, not beside UseExceptionHandler: without the
+        // handler a host answers a bare 500 to the failures that most need a code.
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
         return services;

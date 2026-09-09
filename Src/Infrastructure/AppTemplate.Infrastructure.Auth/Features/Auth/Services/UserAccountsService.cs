@@ -88,8 +88,7 @@ internal sealed class UserAccountsService(
             return CredentialCheckOutcome.Refused(CredentialCheckStatus.NoSuchAccount);
         }
 
-        // lockoutOnFailure is what bounds brute force: without it AccessFailedCount never moves and
-        // password guessing is unlimited.
+        // lockoutOnFailure is what bounds brute force: without it AccessFailedCount never moves.
         var result = await signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
         var identity = new AccountIdentity(
             user.Id,
@@ -109,19 +108,16 @@ internal sealed class UserAccountsService(
             _ => CredentialCheckStatus.IncorrectPassword,
         };
 
-        // CheckPasswordSignInAsync runs its lockout/confirmation check before deriving a key, so a
-        // locked-out or unconfirmed account answers without paying for PBKDF2 while a wrong password
-        // does. Burn the same key derivation here, result ignored, so the two refusals cost the same.
-        // Not userManager.CheckPasswordAsync: it rewrites the stored hash on a rehash-needed result,
-        // which would rotate the security stamp on a login that was just refused.
+        // CheckPasswordSignInAsync checks lockout and confirmation before deriving a key, so those
+        // refusals would answer faster than a wrong password. Burn the same derivation, result
+        // ignored. Not CheckPasswordAsync: it would rotate the security stamp on a refused login.
         if (outcome is CredentialCheckStatus.LockedOut or CredentialCheckStatus.EmailNotConfirmed)
         {
             userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash ?? AbsentUserPasswordHash, password);
         }
 
-        // The lockout threshold itself is Identity's own state machine; nothing outside this adapter
-        // can see it cross, so recording it here is not a decision moved out of the use case, it is
-        // one the use case has no way to make.
+        // The threshold is Identity's own state machine, and nothing outside this adapter sees it
+        // cross.
         if (outcome is CredentialCheckStatus.LockedOut)
         {
             securityEventLog.Record(SecurityEvent.AccountLockedOut(user.Id));

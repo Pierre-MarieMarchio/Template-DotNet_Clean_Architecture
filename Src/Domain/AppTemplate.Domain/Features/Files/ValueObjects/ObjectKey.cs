@@ -73,9 +73,8 @@ public sealed record ObjectKey
     /// the sweep described on <see cref="TimeSegmentFor"/> would look for a file's bytes under a
     /// prefix they are not in.</param>
     public static ObjectKey New(DateTimeOffset registeredAt) =>
-        // Routed through Create rather than returning directly, so the minting path and the loading
-        // path can never disagree about what a valid key is: a change to the rules below that this
-        // no longer satisfies fails on the first file registered, not on the first file reloaded.
+        // Through Create, so minting and loading cannot disagree about what a valid key is: a rule
+        // this no longer satisfies fails on the first file registered, not the first one reloaded.
         Create(
             $"{UnpartitionedPrefix}/{TimeSegmentFor(registeredAt)}/" +
             RandomNumberGenerator.GetHexString(NameLength, lowercase: true));
@@ -118,9 +117,8 @@ public sealed record ObjectKey
             throw new DomainException("An object key cannot be empty.");
         }
 
-        // Not trimmed, unlike every other text value object here. Whitespace is significant to the
-        // store: " a/b" and "a/b" name two different objects, so silently trimming would hand back a
-        // key addressing bytes the caller did not ask for. Refusing is the only safe normalisation.
+        // Not trimmed, unlike every other text value object here: " a/b" and "a/b" name two
+        // different objects, so trimming would hand back a key addressing other bytes.
         if (value.Length > MaxLength)
         {
             throw new DomainException($"An object key cannot exceed {MaxLength} characters.");
@@ -133,10 +131,9 @@ public sealed record ObjectKey
 
         string[] segments = value.Split('/');
 
-        // Two, not three, although New mints three. Parsing is deliberately looser than minting: the
-        // whole reason a key is stored rather than derived is that the scheme may change, and a
-        // parser that insisted on today's shape would refuse to load the keys of yesterday's files —
-        // which is exactly the "changing the scheme means moving the bytes" cost being avoided.
+        // Two, although New mints three: parsing is looser than minting on purpose. A key is stored
+        // rather than derived precisely because the scheme may change, and a parser insisting on
+        // the current shape could not load keys minted under an older one.
         if (segments.Length < 2)
         {
             throw new DomainException("An object key must have a prefix segment and a name segment.");
@@ -144,11 +141,10 @@ public sealed record ObjectKey
 
         foreach (string segment in segments)
         {
-            // An empty segment is a leading slash, a trailing slash or a doubled one, each of which
-            // some store clients normalise away and others do not. A '.' or '..' segment is path
-            // traversal: the store resolves keys literally, but the proxies, signers and CLI tools
-            // in front of it do not all agree, and a key escaping its own prefix would escape the
-            // tenant partition the prefix exists to enforce.
+            // An empty segment is a leading, trailing or doubled slash, which some store clients
+            // normalise away and others do not. '.' and '..' are path traversal: the store resolves
+            // keys literally but the proxies and signers in front of it do not all agree, and a key
+            // escaping its prefix escapes the partition that prefix enforces.
             if (segment.Length == 0 || segment is "." or "..")
             {
                 throw new DomainException("An object key cannot contain an empty, '.' or '..' segment.");

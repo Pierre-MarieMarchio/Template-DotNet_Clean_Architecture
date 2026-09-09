@@ -51,11 +51,9 @@ internal sealed class EmailConfirmationTokensService(UserManager<AppUser> userMa
             return EmailConfirmationStatus.InvalidToken;
         }
 
-        // Unlike ChangePasswordAsync, ResetPasswordAsync and ChangeEmailAsync, ConfirmEmailAsync does
-        // not rotate the security stamp on its own. Every token minted by a DataProtectorTokenProvider
-        // embeds the stamp at generation time and is rejected once it no longer matches the user's
-        // current one — without this call, the token just redeemed stays both valid and replayable
-        // until it expires, even though ConfirmEmailCommand documents it as single-use.
+        // ConfirmEmailAsync does not rotate the security stamp, unlike ChangePasswordAsync and
+        // ChangeEmailAsync. A DataProtectorTokenProvider token embeds the stamp and is refused once
+        // it no longer matches, so without this the token just redeemed stays replayable.
         await userManager.UpdateSecurityStampAsync(user);
 
         return EmailConfirmationStatus.Confirmed;

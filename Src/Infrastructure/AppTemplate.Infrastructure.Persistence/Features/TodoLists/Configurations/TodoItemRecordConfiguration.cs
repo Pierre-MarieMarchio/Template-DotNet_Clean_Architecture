@@ -33,11 +33,9 @@ internal sealed class TodoItemRecordConfiguration : IEntityTypeConfiguration<Tod
 
         builder.Property(item => item.CompletedAt);
 
-        // No unique index on (TodoListId, Title). The domain rule is case-insensitive and a B-tree
-        // unique index is not, so a unique index here would enforce a *different* and weaker rule
-        // than the aggregate does — two rules where there should be one. The aggregate can enforce
-        // the real rule because a write always loads all of its items; this foreign-key index is
-        // what the queries actually need.
+        // No unique index on (TodoListId, Title): the domain rule is case-insensitive and a B-tree
+        // unique index is not, so it would enforce a weaker second rule. The aggregate enforces the
+        // real one, because a write always loads every item.
         builder.HasIndex(item => item.TodoListId);
 
         builder.HasMany(item => item.Tags)

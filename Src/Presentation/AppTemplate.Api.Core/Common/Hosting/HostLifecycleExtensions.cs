@@ -35,9 +35,8 @@ internal static class HostLifecycleExtensions
 
         services.AddSingleton<IValidateOptions<ShutdownOptions>, ShutdownOptionsValidator>();
 
-        // HostOptions.ShutdownTimeout is what the Generic Host waits for IHostedService.StopAsync —
-        // and, transitively, for Kestrel to drain in-flight connections — once shutdown starts.
-        // Same idiom as RequestLimitsExtensions configuring KestrelServerOptions from its own options.
+        // HostOptions.ShutdownTimeout is what the Generic Host waits for IHostedService.StopAsync,
+        // and so for Kestrel to drain in-flight connections.
         services.AddOptions<HostOptions>()
             .Configure<IOptions<ShutdownOptions>>(
                 static (hostOptions, shutdown) => hostOptions.ShutdownTimeout = shutdown.Value.Timeout);
@@ -48,10 +47,9 @@ internal static class HostLifecycleExtensions
 
         services.AddSingleton<IValidateOptions<RequestTimeoutsOptions>, RequestTimeoutsOptionsValidator>();
 
-        // AddRequestTimeouts builds its policies once, synchronously, at registration time — there
-        // is no per-request IOptions access here — so the section is read eagerly, the same way
-        // AddApiObservability reads TelemetryOptions before deciding what to wire. ValidateOnStart
-        // above still fails the host on an out-of-range value; this is what actually acts on it.
+        // AddRequestTimeouts builds its policies once at registration time, with no per-request
+        // IOptions access, so the section is read eagerly here. ValidateOnStart above still fails
+        // the host on an out-of-range value.
         var requestTimeouts = configuration.GetSection(RequestTimeoutsOptions.SectionName).Get<RequestTimeoutsOptions>()
             ?? new RequestTimeoutsOptions();
 
@@ -108,8 +106,8 @@ internal static class HostLifecycleExtensions
         problem.Extensions["code"] = "request.timeout";
         ProblemDetailsNormaliser.Normalise(problem, httpContext);
 
-        // httpContext.RequestAborted is the timeout's own cancellation token, already signalled —
-        // that is why this method is running at all. Passing it to the write would fail instantly.
+        // RequestAborted is the timeout's own token, already signalled, so passing it to the write
+        // would fail instantly.
         await httpContext.Response.WriteAsJsonAsync(
             problem,
             options: null,

@@ -40,11 +40,8 @@ public sealed class DomainEventDispatcher(
 
         foreach (object? consumer in serviceProvider.GetServices(consumerType))
         {
-            // Unreachable through the interface hierarchy, and loud rather than silent if a
-            // registration ever makes it reachable: skipping a consumer in a mechanism whose whole
-            // job is a side effect is the one failure nobody would notice. Thrown outside the
-            // try/catch below, so this isolation cannot turn this composition bug into a silent
-            // no-op.
+            // Unreachable through the interface hierarchy, and thrown outside the try/catch below so
+            // that a registration making it reachable is loud rather than a skipped side effect.
             if (consumer is not IDomainEventConsumer typedConsumer)
             {
                 throw new InvalidOperationException(
@@ -58,8 +55,7 @@ public sealed class DomainEventDispatcher(
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // A cancelled request is not a failed consumer: rethrowing keeps cancellation
-                // honest instead of logging every cancelled request as a consumer failure.
+                // A cancelled request is not a failed consumer.
                 throw;
             }
             catch (Exception exception)

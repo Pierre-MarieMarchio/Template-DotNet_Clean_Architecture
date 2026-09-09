@@ -52,11 +52,9 @@ internal sealed class ReverseProxyOptionsValidator : IValidateOptions<ReversePro
 
         var failures = new List<string>();
 
-        // An empty trust set is the one configuration that must not boot. ASP.NET Core's
-        // ForwardedHeadersMiddleware only verifies the peer when at least one proxy or network is
-        // known; with both lists empty it accepts X-Forwarded-For from anyone, so every caller
-        // could pick its own rate-limit partition. That is strictly worse than leaving the
-        // middleware out, which is what Enabled=false does.
+        // ForwardedHeadersMiddleware verifies the peer only when at least one proxy or network is
+        // known. With both lists empty it accepts X-Forwarded-For from anyone, so every caller could
+        // pick its own rate-limit partition — worse than Enabled=false.
         if (options.KnownProxies.Count == 0 && options.KnownNetworks.Count == 0)
         {
             failures.Add(

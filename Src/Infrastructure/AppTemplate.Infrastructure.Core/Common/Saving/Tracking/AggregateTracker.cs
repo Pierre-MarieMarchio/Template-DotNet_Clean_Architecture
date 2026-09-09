@@ -78,8 +78,8 @@ public abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint> 
             return;
         }
 
-        // An aggregate reconstructed outside this request is in no identity map, and an aggregate that
-        // is not tracked is never drained: the events its own deletion raised would be undeliverable.
+        // An aggregate reconstructed outside this request is in no identity map, and an untracked one
+        // is never drained, so the events its deletion raised would be undeliverable.
         _tracked[aggregate.Id] = new TrackedAggregate(aggregate, record) { IsRemoved = true };
     }
 
@@ -104,13 +104,11 @@ public abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint> 
 
             var record = tracked.Record;
 
-            // The token PostgreSQL just assigned. Without this the aggregate a use case is still
-            // holding would carry the version it was loaded at, and a second write in the same request
-            // would fail against a token it had itself moved.
+            // The token PostgreSQL just assigned: without it a second write in the same request would
+            // fail against a version this one had itself moved.
             ((IVersioned)tracked.Aggregate).SetVersion(version(record));
 
-            // The stamps the audit interceptor decided. The aggregate is told rather than asked: the
-            // interceptor is the only writer, and this is how its decision reaches the domain object.
+            // The stamps the audit interceptor decided, which is the only writer of them.
             ((IAuditable)tracked.Aggregate).SetCreated(record.CreatedAt, record.CreatedBy);
 
             if (record.LastModifiedAt is { } lastModifiedAt)
@@ -146,8 +144,8 @@ public abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint> 
             drained ??= [];
             drained.AddRange(tracked.Aggregate.DomainEvents);
 
-            // Drained, not read. An event that has been taken cannot be taken again by a later save of
-            // the same aggregate in the same request, which is what makes delivery exactly-once.
+            // Drained, not read: an event taken here cannot be taken again by a later save of the
+            // same aggregate in the same request.
             tracked.Aggregate.ClearDomainEvents();
         }
 
@@ -163,9 +161,8 @@ public abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint> 
     {
         ArgumentNullException.ThrowIfNull(domainEvents);
 
-        // Held here rather than pushed back into the aggregates: raising an event is the domain's own
-        // act and the persistence layer has no way to perform it a second time. The next drain returns
-        // them, so a retried save publishes them exactly once.
+        // Held here rather than pushed back into the aggregates, which have no way to raise an event
+        // twice. The next drain returns them, so a retried save publishes them once.
         _restored.AddRange(domainEvents);
     }
 

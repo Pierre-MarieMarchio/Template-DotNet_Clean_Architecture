@@ -53,9 +53,8 @@ internal sealed class TodoListTracker(ITodoListMapper mapper)
         {
             var entry = context.Entry(tracked.Record);
 
-            // A row staged for deletion, or one this context is not tracking at all, is not something
-            // to write the aggregate onto. Writing to a Deleted entry would resurrect columns EF is
-            // about to drop, and writing to a Detached one would silently do nothing.
+            // A Deleted entry would resurrect columns EF is about to drop, and a Detached one would
+            // silently take the write.
             if (tracked.IsRemoved || entry.State is EntityState.Deleted or EntityState.Detached)
             {
                 continue;
@@ -68,14 +67,14 @@ internal sealed class TodoListTracker(ITodoListMapper mapper)
 
             if (entry.State != EntityState.Added)
             {
-                // Setting the original value does not mark the property modified — EF keeps modified
-                // as a flag rather than deriving it — so this only ever affects the WHERE clause.
+                // Setting the original value does not mark the property modified, so this reaches the
+                // WHERE clause only.
                 entry.Property(record => record.Version).OriginalValue = tracked.Aggregate.Version;
             }
         }
 
-        // Mapping added and removed rows to collections EF has not looked at yet, so the states read
-        // below are the real ones. Called again by the interceptor afterwards, harmlessly.
+        // The states read below are only the real ones once EF has looked at the collections mapping
+        // just changed.
         context.ChangeTracker.DetectChanges();
 
         CollectRootsWithDirtyChildren(context, rootsNeedingATouch);
@@ -128,10 +127,9 @@ internal sealed class TodoListTracker(ITodoListMapper mapper)
 
             if (entry.State == EntityState.Unchanged)
             {
-                // One property, not the whole entry. Setting the state to Modified marks every column
-                // modified, so a change to a single item would rewrite the root's CreatedAt and
-                // CreatedBy as well. Marking the stamp the audit interceptor is about to move is
-                // already enough to make the entry Modified, put it in the UPDATE, and advance xmin.
+                // One property, not the whole entry: Modified on the entry marks every column, which
+                // would rewrite the root's CreatedAt and CreatedBy. One stamp is enough to make the
+                // entry Modified and advance xmin.
                 entry.Property(record => record.LastModifiedAt).IsModified = true;
             }
         }

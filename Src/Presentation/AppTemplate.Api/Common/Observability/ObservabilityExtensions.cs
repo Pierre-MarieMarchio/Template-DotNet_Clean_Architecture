@@ -9,10 +9,9 @@ namespace AppTemplate.Api.Common.Observability;
 /// <see cref="AppTemplate.Api.Core.Common.Observability.ObservabilityExtensions"/>.
 /// </summary>
 /// <remarks>
-/// The database instrumentation stays here because its package pulls the PostgreSQL driver, and a
-/// shared presentation project would then hand a database driver to any host that referenced it.
-/// The assembly is passed for a second reason: <c>service.name</c> is read from it, so a shared
-/// project reading its own would make both processes report as one service.
+/// <c>service.name</c> is read from the assembly passed in, so each host reports under its own name.
+/// The database instrumentation is registered here rather than in the shared project because its
+/// package carries the PostgreSQL driver.
 /// </remarks>
 public static class ObservabilityExtensions
 {

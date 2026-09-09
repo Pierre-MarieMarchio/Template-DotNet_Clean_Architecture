@@ -66,11 +66,9 @@ public sealed record StoredFileName
             throw new DomainException("A file name cannot be empty.");
         }
 
-        // Trailing dots go with the surrounding whitespace: Windows strips both when it creates the
-        // file and reports nothing, so "report.txt " and "report.txt" are already one name by the
-        // time anyone could notice. Normalising here makes them one name in this system's equality
-        // too — and incidentally leaves nothing of "." or "..", which are names for a directory
-        // rather than for a file.
+        // Trailing dots go with the whitespace: Windows strips both when it creates the file, so
+        // "report.txt " and "report.txt" are already one name there. This leaves nothing of "."
+        // or ".." either.
         string normalised = value.Trim().TrimEnd(' ', '.');
 
         if (normalised.Length == 0)
@@ -90,9 +88,8 @@ public sealed record StoredFileName
 
         foreach (char character in normalised)
         {
-            // Includes the NUL byte, which truncates the name in any consumer that hands it to a C
-            // API, and the newline, which would let a name inject a second header line into the
-            // Content-Disposition it is written to.
+            // Includes NUL, which truncates the name in any consumer handing it to a C API, and the
+            // newline, which would inject a second header line into a Content-Disposition.
             if (char.IsControl(character))
             {
                 throw new DomainException("A file name cannot contain a control character.");

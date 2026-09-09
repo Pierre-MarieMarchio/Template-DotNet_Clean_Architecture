@@ -31,24 +31,21 @@ internal sealed class TodoListRepository(
 {
     public async Task<TodoList?> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        // The identity map first. Two use cases in one request asking for the same list must get the
-        // same object, or each would decide against its own copy and the flush would keep whichever it
-        // saw last.
+        // The identity map first: two use cases in one request must get the same object, or the flush
+        // would keep whichever copy it saw last.
         if (tracker.Find(id) is { } alreadyLoaded)
         {
             return alreadyLoaded;
         }
 
         var record = await context.TodoLists
-            // Tracked, deliberately: the tracked row is what the flush pipeline writes onto and what
-            // holds the original concurrency token. Loading the children is not an optimisation but a
-            // correctness requirement — the aggregate's invariants (unique titles, item cap) can only
-            // be checked against all of its items, and tags are part of an item's state.
+            // The children are a correctness requirement, not an optimisation: unique titles and the
+            // item cap can only be checked against all of them, and tags are part of an item's state.
             .Include(list => list.Items)
             .ThenInclude(item => item.Tags)
 
-            // One query per collection instead of one join. A single join returns root x items x tags,
-            // so a list of 100 items carrying 5 tags each arrives as 500 copies of the root row.
+            // One query per collection: a single join returns root x items x tags, so 100 items with
+            // 5 tags each would arrive as 500 copies of the root row.
             .AsSplitQuery()
             .FirstOrDefaultAsync(list => list.Id == id, cancellationToken);
 
@@ -71,8 +68,8 @@ internal sealed class TodoListRepository(
 
         context.TodoLists.Add(record);
 
-        // Tracked like any other: the flush pipeline will map onto this row again before the save, which
-        // is how a mutation made after Add — and the domain events raised by Create — still land.
+        // Tracked like any other, so a mutation made after Add — and the events Create raised — are
+        // mapped onto this row before the save.
         tracker.Track(todoList, record);
     }
 
@@ -80,10 +77,9 @@ internal sealed class TodoListRepository(
     {
         ArgumentNullException.ThrowIfNull(todoList);
 
-        // Ordinarily the row is already tracked, because a delete follows a load. The fallback attaches
-        // a stub carrying the key and the version, so a caller who reconstructed an aggregate elsewhere
-        // still gets a delete rather than a silent no-op — and still gets it checked against the token
-        // it decided on, because attaching snapshots the current values as the original ones.
+        // Ordinarily already tracked, because a delete follows a load. The fallback attaches a stub
+        // carrying the key and the version, so the delete still happens and is still checked against
+        // the token the caller decided on.
         var record = tracker.FindRecord(todoList.Id)
             ?? new TodoListRecord { Id = todoList.Id, Version = todoList.Version };
 

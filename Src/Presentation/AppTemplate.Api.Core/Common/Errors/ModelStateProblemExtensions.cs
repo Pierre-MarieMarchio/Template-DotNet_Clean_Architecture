@@ -22,12 +22,10 @@ internal static class ModelStateProblemExtensions
 
         services.Configure<ApiBehaviorOptions>(options => options.InvalidModelStateResponseFactory = CreateResponse);
 
-        // The other half of "no exception message reaches a client". Left on, the JSON input
-        // formatter copies a JsonException's text into the model error, and that text names the CLR
-        // type it was binding and the byte offset it stopped at. Turned off, the entry carries the
-        // exception without a message, and CreateResponse answers with its own sentence.
-        // Qualified: Microsoft.AspNetCore.Http.Json carries a JsonOptions of its own, and the one
-        // that governs a controller's input formatter is MVC's.
+        // Left on, the JSON input formatter copies a JsonException's text — the CLR type it was
+        // binding and the byte offset it stopped at — into the model error, and out to the client.
+        // Qualified because Microsoft.AspNetCore.Http.Json declares a JsonOptions of its own; a
+        // controller's input formatter reads MVC's.
         services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(
             options => options.AllowInputFormatterExceptionMessages = false);
 
@@ -43,10 +41,8 @@ internal static class ModelStateProblemExtensions
             .ToDictionary(
                 entry => NormalizeKey(entry.Key),
                 entry => entry.Value!.Errors
-                    // An entry MVC produced from a deserialisation failure carries the exception
-                    // and no text. Its message names internal types, byte offsets and paths, so the
-                    // fixed sentence stands in for it: what a caller can act on is the field, which
-                    // is the dictionary key, not the reason the parser gave up.
+                    // A deserialisation failure carries the exception and no text, so the fixed
+                    // sentence stands in: what a caller can act on is the field, which is the key.
                     .Select(error => string.IsNullOrEmpty(error.ErrorMessage)
                         ? "The value is invalid."
                         : error.ErrorMessage)
@@ -71,8 +67,8 @@ internal static class ModelStateProblemExtensions
         };
     }
 
-    // Model-binding keys are not guaranteed camelCase (a route parameter or an [FromForm] field can
-    // arrive PascalCase), unlike ValidationError.From's, which are already normalised at the source.
+    // Model-binding keys are not guaranteed camelCase: a route parameter or an [FromForm] field can
+    // arrive PascalCase.
     private static string NormalizeKey(string key) =>
         string.Join('.', key.Split('.').Select(NormalizeSegment));
 

@@ -23,15 +23,13 @@ internal sealed class InProcessRateLimitCounters : IRateLimitCounters
             PermitLimit = budget.PermitLimit,
             Window = budget.Window,
 
-            // Not part of the budget: queueing is how an implementation refuses, not how much it
-            // permits. A caller over budget is told so immediately rather than parked on a request
-            // thread, which is the only answer that sheds load instead of holding it.
+            // A caller over budget is refused immediately rather than parked on a request thread,
+            // which sheds load instead of holding it.
             QueueLimit = 0,
         };
 
-        // Built here rather than inside the factory, so a budget costs one options object instead of
-        // one per partition. Sharing it is safe because nothing mutates it after this line, and the
-        // factory runs only when a partition key is met for the first time.
+        // One options object for every partition rather than one each. Safe to share: nothing
+        // mutates it after this line.
         return httpContext => RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: RateLimiterPartitionKeys.ForAddress(httpContext),
             factory: _ => options);

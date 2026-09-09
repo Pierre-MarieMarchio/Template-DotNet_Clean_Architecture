@@ -13,10 +13,8 @@ namespace AppTemplate.Api.Features.Maintenance.Controllers;
 /// Administrative operations with no user-facing counterpart.
 /// </summary>
 /// <remarks>
-/// One endpoint rather than an in-process scheduled timer: a timer is one more thing that runs
-/// differently in a test host than in production, and the actual schedule — hourly, nightly,
-/// whatever an operator picks — is a deployment concern, not a template default. A scheduled job
-/// (a Kubernetes CronJob, a cloud scheduler) is expected to call this endpoint on that cadence.
+/// Both purges here are also run by the worker's maintenance loop. This endpoint is what a
+/// scheduler outside the process calls — a Kubernetes CronJob, a cloud scheduler.
 /// </remarks>
 [Route("api/v{version:apiVersion}/maintenance")]
 [Asp.Versioning.ApiVersion("1.0")]

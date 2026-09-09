@@ -23,26 +23,20 @@ internal static class CorsExtensions
         {
             if (allowedOrigins.Length == 0)
             {
-                // Nothing configured means allow nothing, not allow everything. Same-origin callers
-                // are unaffected: CORS only governs cross-origin requests.
+                // Nothing configured means allow nothing. CORS governs only cross-origin requests,
+                // so same-origin callers are unaffected.
                 return;
             }
 
             policy.WithOrigins(allowedOrigins)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
-                // A browser hands script only the CORS-safelisted response headers unless the
-                // server names the rest, so every header this API expects a client to act on has
-                // to be listed here or it reads as absent. Retry-After for a 429; ETag because
-                // If-Match is how every conditional write in this template is made, and a client
-                // that cannot read one cannot send one back; Location for the 201s; and
-                // Idempotency-Replayed so a caller retrying a POST can tell a stored answer from
-                // a fresh one, which is the whole point of having sent the key.
+                // A browser hands script only the CORS-safelisted response headers, so a header a
+                // client must act on reads as absent unless it is named here.
                 .WithExposedHeaders("Retry-After", "ETag", "Location", "Idempotency-Replayed")
                 .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
 
-            // AllowCredentials is deliberately not set: tokens travel in the Authorization header,
-            // not a cookie, and it is that combination that turns a permissive policy into a hole.
+            // No AllowCredentials: tokens travel in the Authorization header, not a cookie.
         }));
 
         return services;

@@ -85,16 +85,14 @@ public sealed class InspectDepositedFilesUseCase(
 
         if (decided == 0)
         {
-            // Nothing staged, so there is nothing to commit and no round trip is worth paying for to
-            // prove it — the same reasoning the abandonment purge gives.
+            // Nothing staged, so nothing to commit.
             ReportDeferrals(deferred);
 
             return decided;
         }
 
-        // One commit for the batch. Each file's transition is independent of every other's, so a
-        // failure here loses a pass's decisions rather than corrupting any of them, and the next
-        // pass finds exactly the same files still deposited and reaches the same verdicts.
+        // One commit for the batch: each transition is independent, so a failure loses a pass's
+        // decisions and the next pass reaches the same verdicts.
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         ReportDeferrals(deferred);
@@ -117,11 +115,9 @@ public sealed class InspectDepositedFilesUseCase(
 
         storedFile.Quarantine(now);
 
-        // The one place the detail of a refusal is recorded at all, and it is a log line rather than
-        // a column or a response: it names a third party's signature, which is an operator's
-        // business and must not reach the person who uploaded the file. Error level because a
-        // refusal is a thing somebody should look at — it is either an attack, or a user whose file
-        // will never work and who is not being told why.
+        // The only record of why a file was refused, and a log line rather than a column or a
+        // response: it names a third party's signature, which must not reach the uploader. Error
+        // level because it is either an attack or a user who is not being told why.
         logger.LogError(
             "Stored file {StoredFileId} was quarantined. Declared {DeclaredMediaType}, inspection " +
             "{InspectionStatus}, signature {MalwareSignature}.",

@@ -23,10 +23,8 @@ internal sealed class StoredFileMapper : IStoredFileMapper
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        // Every value object is rebuilt through its own factory rather than assigned, so a row that
-        // predates a tightened rule is refused on the way in instead of becoming an aggregate that
-        // breaks it. ObjectKey.Create is deliberately looser than ObjectKey.New for exactly this
-        // reason — see the value object.
+        // Rebuilt through each value object's factory, so a row that predates a tightened rule is
+        // refused on the way in. ObjectKey.Create is looser than ObjectKey.New for that reason.
         var aggregate = StoredFile.Rehydrate(
             record.Id,
             UserId.Create(record.OwnerId),
@@ -40,9 +38,6 @@ internal sealed class StoredFileMapper : IStoredFileMapper
             record.AvailableAt,
             record.Tags.Select(tag => tag.Value));
 
-        // The version and the audit stamps are read back through StoredStamps, not assigned here: the
-        // aggregate exposes them as read-only properties, settable only through the explicit interfaces
-        // that mark this as the persistence layer.
         StoredStamps.ApplyTo(aggregate, record, record.Version, record.Id, "Stored file");
 
         return aggregate;
@@ -57,9 +52,8 @@ internal sealed class StoredFileMapper : IStoredFileMapper
             Id = aggregate.Id,
             OwnerId = aggregate.OwnerId.Value,
 
-            // The key the upload grant was minted against. Verbatim: nothing here may normalise it,
-            // because the store resolves keys literally and a key this row does not match is a key
-            // the orphan sweep treats as belonging to nobody.
+            // Verbatim, never normalised: the store resolves keys literally, and a key this row does
+            // not match is one the orphan sweep treats as belonging to nobody.
             ObjectKey = aggregate.ObjectKey.Value,
             Name = aggregate.Name.Value,
             DeclaredMediaType = aggregate.DeclaredMediaType.Value,
@@ -69,22 +63,17 @@ internal sealed class StoredFileMapper : IStoredFileMapper
             RegisteredAt = aggregate.RegisteredAt,
             AvailableAt = aggregate.AvailableAt,
 
-            // Carried even though the store owns it. On an insert PostgreSQL assigns xmin itself and EF
-            // ignores whatever is here, but writing it keeps this method total — and a total method is
-            // what the round-trip fidelity test can check.
+            // Overwritten on insert, where PostgreSQL assigns xmin. Carried so the round trip stays
+            // total and the fidelity test can check it.
             Version = aggregate.Version,
 
-            // Likewise carried, and likewise overwritten: the audit interceptor stamps every Added entry
-            // after this runs.
+            // Overwritten by the audit interceptor, which runs after this.
             CreatedAt = aggregate.CreatedAt,
             CreatedBy = aggregate.CreatedBy,
             LastModifiedAt = aggregate.LastModifiedAt,
             LastModifiedBy = aggregate.LastModifiedBy,
         };
 
-        // Tags are a collection with no setter, so they are reconciled rather than assigned — and
-        // reconciling an empty record against the aggregate is exactly an insert of each tag, which
-        // keeps one method responsible for the tag rows on both paths.
         ReconcileTags(aggregate, record);
 
         return record;
@@ -118,12 +107,11 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         ArgumentNullException.ThrowIfNull(aggregate);
         ArgumentNullException.ThrowIfNull(record);
 
-        // Assigned, not replaced. EF compares each value against the one it read and writes a column
-        // only if it actually differs, so an unchanged aggregate produces no UPDATE at all.
+        // Assigned, not replaced: EF writes a column only if the value differs from the one it read.
         record.OwnerId = aggregate.OwnerId.Value;
 
-        // Written on every flush although no operation can move it, and that is the point: the column
-        // is asserted to still hold the key the bytes are under rather than left alone and assumed to.
+        // Written on every flush although no operation moves it, so the column is asserted rather
+        // than assumed.
         record.ObjectKey = aggregate.ObjectKey.Value;
         record.Name = aggregate.Name.Value;
         record.DeclaredMediaType = aggregate.DeclaredMediaType.Value;
@@ -135,9 +123,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
 
         ReconcileTags(aggregate, record);
 
-        // Version, CreatedAt, CreatedBy, LastModifiedAt and LastModifiedBy are deliberately NOT written
-        // here. The concurrency token belongs to PostgreSQL and the audit stamps belong to the
-        // interceptor; the aggregate received both on load and receives them again after each save. A
-        // second writer for either would be a second opinion, and the two would eventually differ.
+        // Version and the audit stamps are not written here: the token is PostgreSQL's, the stamps
+        // are the interceptor's, and a second writer for either would eventually disagree.
     }
 }

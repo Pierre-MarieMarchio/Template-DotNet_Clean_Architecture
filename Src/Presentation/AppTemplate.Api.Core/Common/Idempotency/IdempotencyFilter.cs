@@ -70,13 +70,9 @@ internal sealed class IdempotencyFilter(
             return;
         }
 
-        // No user to scope a key to. In practice the fallback authorisation policy has already
-        // refused an unauthenticated request before a resource filter runs, so nothing reaches this
-        // branch today — but a future caller ICurrentUser cannot resolve to a Guid (a machine caller
-        // with no such subject, say) would otherwise lose the guarantee on every single request it
-        // sends, silently, which is exactly backwards: that profile replays by design and needs this
-        // protection the most. Refuse rather than proceed unprotected, so the day such a caller
-        // exists its author has to decide how idempotency keys are scoped for it.
+        // No user to scope a key to. Refuse rather than proceed unprotected: a caller ICurrentUser
+        // cannot resolve — a machine caller with no subject, say — would otherwise lose the guarantee
+        // silently, and that profile is the one that replays by design.
         if (currentUser.UserId is not { } userId)
         {
             logger.LogWarning(
@@ -134,17 +130,10 @@ internal sealed class IdempotencyFilter(
         }
         catch
         {
-            // Response writing only starts once the action has produced a result, and every
-            // [Idempotent] action returns one only once its use case has committed. An exception
-            // caught here with the response already under way — a client disconnecting mid-write,
-            // say — is therefore downstream of that commit, and releasing the claim would let a
-            // retry run the write again for real.
-            //
-            // The converse is the safer guess rather than a certainty: a failure between the commit
-            // and the first byte — serialising the result, for instance — releases a claim whose
-            // write did land. That window is narrow and the alternative is worse, because never
-            // releasing would hold every genuinely failed request's key until its lease runs out.
-            // The lease is what bounds the mistake either way.
+            // A started response means the action produced its result, so the write has committed
+            // and releasing the claim would let a retry run it again. The converse is a guess: a
+            // failure between the commit and the first byte releases a claim whose write did land.
+            // The lease bounds the mistake either way.
             if (!httpContext.Response.HasStarted)
             {
                 await store.ReleaseAsync(key, CancellationToken.None);
@@ -161,16 +150,15 @@ internal sealed class IdempotencyFilter(
                 response = BuildResponse(httpContext, objectResult, settings.MaxStoredResponseBytes);
                 break;
 
-            // A NoContentResult (204) is a StatusCodeResult, not an ObjectResult: without this branch
-            // every idempotent action that answers 204 fell into the "not worth replaying" case below
-            // and had its key released, so a retry ran the write again for real.
+            // A NoContentResult (204) is a StatusCodeResult, not an ObjectResult, so without this
+            // branch it falls into the "not worth replaying" case below and a retry writes again.
             case StatusCodeResult { StatusCode: >= 200 and < 300 } statusCodeResult:
                 response = BuildResponse(httpContext, statusCodeResult);
                 break;
 
             default:
-                // A non-2xx result (a validation failure, a conflict) is not something worth
-                // replaying, and holding the claim would block a corrected retry under the same key.
+                // A non-2xx result is not worth replaying, and holding the claim would block a
+                // corrected retry under the same key.
                 await store.ReleaseAsync(key, CancellationToken.None);
                 return;
         }
@@ -209,17 +197,16 @@ internal sealed class IdempotencyFilter(
             ?.Value.JsonSerializerOptions
             ?? _fallbackJsonOptions;
 
-        // The declared type, not the runtime type: a [JsonPolymorphic] discriminator is only written
-        // when serialisation starts at the polymorphic base, and the replay below hands this string
-        // straight to the client with no formatter left to fix it if the type were wrong here.
+        // The declared type, not the runtime one: a [JsonPolymorphic] discriminator is written only
+        // when serialisation starts at the base, and the replay has no formatter left to fix it.
         string? body = result.Value is null
             ? null
             : JsonSerializer.Serialize(result.Value, result.DeclaredType ?? result.Value.GetType(), jsonOptions);
 
         if (body is not null && Encoding.UTF8.GetByteCount(body) > maxStoredResponseBytes)
         {
-            // Dropped rather than truncated: a truncated JSON body is not valid JSON, and a replay
-            // must either be the real response or an honest refusal, never a corrupted document.
+            // Dropped rather than truncated: truncated JSON is not JSON, and a replay must be the
+            // real response or an honest refusal.
             body = null;
         }
 
@@ -239,8 +226,8 @@ internal sealed class IdempotencyFilter(
             ? httpContext.Response.Headers.Location.ToString()
             : null;
 
-    // Set by the action before this filter observes the result: a write that publishes an ETag does
-    // so on Response.Headers directly, which is already populated by the time next() returns here.
+    // A write publishes its ETag on Response.Headers directly, so it is already there when next()
+    // returns.
     private static string? ReadETag(HttpContext httpContext) =>
         httpContext.Response.Headers.ETag.Count > 0
             ? httpContext.Response.Headers.ETag.ToString()
@@ -257,8 +244,8 @@ internal sealed class IdempotencyFilter(
             httpResponse.Headers.Location = response.Location;
         }
 
-        // Without this a replayed create or update would hand the caller a body with no validator
-        // at all, leaving it unable to make the conditional request the ETag exists to support.
+        // Without this a replay hands back a body with no validator, and the caller cannot make the
+        // conditional request the ETag exists for.
         if (response.ETag is not null)
         {
             httpResponse.Headers.ETag = response.ETag;

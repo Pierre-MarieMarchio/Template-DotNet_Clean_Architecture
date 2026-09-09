@@ -15,32 +15,16 @@ namespace AppTemplate.Api.Features.Reminders.Controllers;
 /// The reminder aggregate's HTTP surface.
 /// </summary>
 /// <remarks>
-/// Authorisation is not declared here for the same reason as <c>TodoListsController</c>:
-/// <c>Program.cs</c> installs a fallback policy requiring an authenticated user.
-/// <para>
 /// <b>Two addressing schemes, not one.</b> Scheduling and listing are reached through the item a
 /// reminder is about, because <see cref="ScheduleReminderCommand"/> and
 /// <see cref="GetRemindersQuery"/> both need that context. Rescheduling and cancelling are reached
-/// by the reminder's own id alone, because <see cref="RescheduleReminderCommand"/> and
-/// <see cref="CancelReminderCommand"/> name only <c>ReminderId</c> — a reminder is its own
-/// aggregate root, addressed independently of the list or item it is about,
-/// unlike a <c>TodoItem</c> which is reachable only through its list.
-/// </para>
+/// by the reminder's own id alone: a reminder is its own aggregate root, unlike a <c>TodoItem</c>,
+/// which is reachable only through its list.
 /// <para>
-/// <b>Conditional requests.</b> Scheduling and rescheduling answer with the reminder's own version
-/// as a strong <c>ETag</c>; rescheduling and cancelling honour <c>If-Match</c> against it, decoded
-/// by <c>ApiControllerBase.ReadPrecondition</c> the same way as every other feature. Scheduling
-/// itself takes no precondition — <see cref="ScheduleReminderCommand"/> carries none, the same as
-/// creating any resource that does not yet exist to have a version. Listing carries no
-/// <c>ETag</c> either: <see cref="GetRemindersQuery"/> answers a plain list with no per-reminder
-/// version attached, so there is nothing for <c>If-Match</c> to compare against.
-/// </para>
-/// <para>
-/// <b>No single-reminder <c>GET</c>.</b> The application layer exposes only a query scoped to a
-/// <c>TodoItemId</c>, never one reminder by its own id, so a created reminder's <c>Location</c>
-/// points at the collection it now appears in rather than at a resource this surface has no other
-/// way to address. The response body already carries the full representation and its <c>ETag</c>,
-/// so a caller loses nothing by that.
+/// Scheduling takes no precondition and listing carries no <c>ETag</c>: neither
+/// <see cref="ScheduleReminderCommand"/> nor <see cref="GetRemindersQuery"/> has a version for
+/// <c>If-Match</c> to compare against. There is no single-reminder <c>GET</c> either — the
+/// application layer exposes only the query scoped to a <c>TodoItemId</c>.
 /// </para>
 /// </remarks>
 [Route("api/v{version:apiVersion}")]
@@ -88,8 +72,6 @@ public sealed class RemindersController(
         var command = new ScheduleReminderCommand(todoListId, todoItemId, request.DueAt);
         var result = ReminderResponseMapping.ToReminderResponse(await scheduleReminder.ExecuteAsync(command, cancellationToken));
 
-        // No get-by-id to name (see the class remarks): Location addresses the collection this
-        // reminder now appears in.
         return CreatedOrProblem(result, nameof(GetForItem), _ => new { todoListId, todoItemId });
     }
 

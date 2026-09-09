@@ -15,7 +15,7 @@ internal sealed class ReminderRecordConfiguration : IEntityTypeConfiguration<Rem
 
         builder.HasKey(reminder => reminder.Id);
 
-        // Ids are UUIDv7, created by the domain, so the database must not try to generate one.
+        // Ids are UUIDv7, created by the domain.
         builder.Property(reminder => reminder.Id).ValueGeneratedNever();
 
         builder.Property(reminder => reminder.OwnerId).IsRequired();
@@ -24,19 +24,17 @@ internal sealed class ReminderRecordConfiguration : IEntityTypeConfiguration<Rem
         builder.Property(reminder => reminder.DueAt).IsRequired();
         builder.Property(reminder => reminder.State).IsRequired();
 
-        // Serves the firing host's "State = Pending AND DueAt <= now" scan, ordered by DueAt: State
-        // leads because it is an equality filter, DueAt trails because it is both the range predicate
-        // and the sort key. Without it, every pass over the due reminders is a full table scan.
+        // "State = Pending AND DueAt <= now", ordered by DueAt: State leads as the equality filter,
+        // DueAt trails as both the range predicate and the sort key.
         builder.HasIndex(reminder => new { reminder.State, reminder.DueAt })
             .HasDatabaseName("IX_Reminders_State_DueAt");
 
-        // Serves looking up every reminder for one item, whatever its state, when the item is completed
-        // or removed.
+        // Every reminder for one item, whatever its state, for when the item is completed or removed.
         builder.HasIndex(reminder => reminder.TodoItemId)
             .HasDatabaseName("IX_Reminders_TodoItemId");
 
-        // PostgreSQL's xmin system column. Nothing is created here; the mapping just tells EF to read it
-        // back after a write and to include it in the WHERE clause of the next one.
+        // PostgreSQL's xmin system column, which already exists: EF reads it back after a write and
+        // puts it in the WHERE clause of the next one.
         builder.Property(reminder => reminder.Version)
             .HasColumnName("xmin")
             .HasColumnType("xid")

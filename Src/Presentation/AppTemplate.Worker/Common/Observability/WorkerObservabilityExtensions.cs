@@ -33,30 +33,22 @@ public static class WorkerObservabilityExtensions
         return services.AddObservability(
             configuration,
             typeof(WorkerObservabilityExtensions).Assembly,
-            // Each loop's own span per task, plus the Npgsql span for the statements it issues —
-            // the same pairing an HTTP host gets for a request and its query. One AddSource per
-            // host-owned ActivitySource, and
-            // ObservabilityRegistrationTests.EveryDiagnosticsNameAHostDeclares_IsRegisteredByThatHost
-            // fails the build for one that is missing.
+            // Each loop's own span per task, plus the Npgsql span for the statements it issues. One
+            // AddSource per host-owned ActivitySource, and ObservabilityRegistrationTests fails the
+            // build for a missing one.
             tracing => tracing
                 .AddSource(FileInstruments.Name)
                 .AddSource(MaintenanceInstruments.Name)
                 .AddSource(ReminderInstruments.Name)
                 .AddNpgsql(),
-            // The three loops' iteration counters and volume counters. All three are the heartbeat
-            // an alert watches, and a meter this host declares but does not name here is measured
-            // and thrown away at no lower cost than working — which is why
-            // ObservabilityRegistrationTests fails the build for one that is missing rather than
-            // leaving it to review.
+            // The three loops' iteration and volume counters. A meter this host declares but does
+            // not name here is measured and thrown away, so the same test guards these.
             metrics => metrics
                 .AddMeter(FileInstruments.Name)
                 .AddMeter(MaintenanceInstruments.Name)
                 .AddMeter(ReminderInstruments.Name)
-                // "AppTemplate.Reminders": AppTemplate.Infrastructure.Persistence.Features
-                // .Reminders.Observability.ReminderDiagnostics's own missed-cancellation counter. A
-                // literal rather than a shared constant because that class is internal to a
-                // different project — see its own doc for why — the same way "Npgsql" below names a
-                // meter this host does not own either.
+                // ReminderDiagnostics's missed-cancellation counter. A literal because that class is
+                // internal to another project, as "Npgsql" below is a meter this host does not own.
                 .AddMeter("AppTemplate.Reminders")
                 .AddMeter("Npgsql"));
     }

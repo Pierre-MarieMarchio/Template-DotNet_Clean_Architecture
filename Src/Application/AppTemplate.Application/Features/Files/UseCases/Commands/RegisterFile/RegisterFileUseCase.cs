@@ -72,9 +72,8 @@ public sealed class RegisterFileUseCase(
             return quota.To<RegisterFileOutcome>();
         }
 
-        // Caught rather than left to throw: the value objects refuse things the validator above
-        // cannot state without restating their rules — a reserved device name, a wildcard media
-        // type, a checksum that is the right length and not hexadecimal.
+        // The value objects refuse what the validator cannot state without restating their rules: a
+        // reserved device name, a wildcard media type, a hex-shaped checksum that is not hex.
         var registration = DomainGuard.Try(() => StoredFile.Register(
             userId.Value,
             StoredFileName.Create(command.Name),
@@ -98,9 +97,8 @@ public sealed class RegisterFileUseCase(
             storedFile.DeclaredMediaType.Value,
             storedFile.Size.Bytes,
 
-            // The digest the client declared, bound into the grant so the store refuses any other
-            // bytes. Taken from the aggregate rather than from the command: the value object is what
-            // guarantees it is a SHA-256 at all.
+            // Bound into the grant, so the store refuses any other bytes. From the aggregate rather
+            // than the command, because the value object is what guarantees it is a SHA-256.
             storedFile.Checksum.Value,
             _uploadWindow,
             cancellationToken);

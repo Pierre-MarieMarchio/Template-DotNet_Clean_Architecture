@@ -38,12 +38,7 @@ public sealed class ReverseProxyOptionsValidatorTests
         result.FailureMessage.ShouldContain("ReverseProxy:KnownProxies");
     }
 
-    /// <summary>
-    /// A bare address and a word are both refused. Whether a prefix written off its own network
-    /// address is refused is left unasserted on purpose: <c>IPNetwork.TryParse</c> masks it down
-    /// instead, so pinning it here would settle a question the option's own documentation answers
-    /// the other way.
-    /// </summary>
+    /// <summary>A bare address and a word are both refused, as is nothing at all.</summary>
     [Theory]
     [InlineData("10.0.0.0")]
     [InlineData("not-a-network")]
@@ -57,6 +52,43 @@ public sealed class ReverseProxyOptionsValidatorTests
 
         result.Failed.ShouldBeTrue();
         result.FailureMessage.ShouldContain("ReverseProxy:KnownNetworks");
+    }
+
+    /// <summary>
+    /// The entry that parses and still means something else. <c>IPNetwork.TryParse</c> accepts
+    /// <c>10.0.0.7/8</c> and masks it to <c>10.0.0.0/8</c>, so a deployer naming one host with a
+    /// short prefix would have trusted sixteen million addresses. The refusal offers the block the
+    /// prefix actually names, because that is the entry they either wanted or need to narrow.
+    /// </summary>
+    [Theory]
+    [InlineData("10.0.0.1/8", "10.0.0.0/8")]
+    [InlineData("10.0.0.7/24", "10.0.0.0/24")]
+    [InlineData("192.168.1.5/16", "192.168.0.0/16")]
+    public void Validate_Fails_ForAPrefixThatDoesNotStartOnItsOwnNetwork(string network, string block)
+    {
+        var options = Enabled();
+        options.KnownNetworks.Add(network);
+
+        string message = _validator.Validate(name: null, options).FailureMessage.ShouldNotBeNull();
+
+        message.ShouldContain(network);
+        message.ShouldContain(block, Case.Sensitive, "the refusal has to say what to write instead.");
+    }
+
+    /// <summary>
+    /// The two entries that are their own network: a real block, and a single host as a <c>/32</c>,
+    /// which is the narrowest legitimate way to name one proxy.
+    /// </summary>
+    [Theory]
+    [InlineData("10.0.0.0/8")]
+    [InlineData("10.0.0.7/32")]
+    [InlineData("192.168.0.0/16")]
+    public void Validate_Succeeds_ForAPrefixThatStartsOnItsOwnNetwork(string network)
+    {
+        var options = Enabled();
+        options.KnownNetworks.Add(network);
+
+        _validator.Validate(name: null, options).Succeeded.ShouldBeTrue();
     }
 
     /// <summary>Every malformed entry is named, not just the first: a deployer fixes one round trip.</summary>

@@ -21,6 +21,19 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **SonarQube analysis, in its own workflow rather than in the gate.**
+  `.github/workflows/sonarqube.yml` analyses the solution on SonarQube Cloud, and the six gates are
+  unchanged: the gate stays answerable from a clone alone, with no account and no token, so a
+  verdict that needs a third-party service gets its own file. A generated project inherits the
+  workflow switched off — the job is skipped unless the repository variables `SONAR_ORGANIZATION`
+  and `SONAR_PROJECT_KEY` are both set, and skipped for pull requests from forks, which get no
+  secrets. Hard-coding an organisation key would have pointed every generated project at somebody
+  else's dashboard. Coverage reaches Sonar from the Cobertura reports and the `coverage.runsettings`
+  the coverage gate already uses. Locally, `dotnet run Tools/Tasks.cs sonar` runs the same analysis
+  against a SonarQube Community server behind the `sonar` Compose profile;
+  `Tools/sonar-scanner.Dockerfile` supplies the JRE the scanner needs, so the prerequisites are
+  still the SDK and Docker.
+
 - **A feature scaffolder: `dotnet run Tools/Tasks.cs new-feature Widgets Widget`.**
   Twenty-six files across the four layers — folders, namespaces, base types and the members each
   layer's conventions require — and no business logic invented. The product prefix is read off the

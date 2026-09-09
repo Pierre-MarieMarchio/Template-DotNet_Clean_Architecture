@@ -27,12 +27,15 @@
 #   2026-09-04   92.82%  (7029/7573)  3264 tests   extension, Debug    (the lower of the two)
 #   2026-09-08   96.09%  (6099/6347)  3328 tests   extension, Release  (what CI enforces)
 #   2026-09-08   94.87%  (7329/7725)  3328 tests   extension, Debug    (the lower of the two)
+#   2026-09-09   95.98%  (6143/6400)  3336 tests   extension, Release  (what CI enforces)
+#   2026-09-09   94.76%  (7376/7784)  3336 tests   extension, Debug    (the lower of the two)
 #
-# Two of the fifteen assemblies sit under the floor: AppTemplate.Infrastructure.Identity at 86.42%
-# and AppTemplate.Api.Core at 89.31%. Then AppTemplate.Infrastructure.Persistence at 93.89%,
-# AppTemplate.Presentation.Core at 94.31% and AppTemplate.Infrastructure.Storage at 94.28%. Highest
-# are AppTemplate.Domain and AppTemplate.Domain.Core at 100.00%, then AppTemplate.Application.Auth
-# at 99.62% and AppTemplate.Application at 99.05%. Read from the Debug row, which is the lower one.
+# Two of the fifteen assemblies sit under the floor: AppTemplate.Infrastructure.Auth at 85.99%
+# (884/1028) and AppTemplate.Api.Core at 89.33% (929/1040). Then AppTemplate.Infrastructure.Storage
+# at 94.28%, AppTemplate.Presentation.Core at 94.31%, AppTemplate.Infrastructure.Persistence at
+# 94.39% and AppTemplate.Infrastructure.Core at 94.51%. Highest are AppTemplate.Domain and
+# AppTemplate.Domain.Core at 100.00%, then AppTemplate.Application.Auth at 99.62% and
+# AppTemplate.Application at 99.05%. Read from the Debug row, which is the lower one.
 # The total is what the gate enforces rather than any one assembly, which is what lets those two sit
 # below it — and equally what lets a large new project with no tests pull the total down while every
 # other one improves. Read this list as of the last dated measurement above and no later: it is
@@ -71,6 +74,11 @@
 # was written. It is set against the Debug row because that is the lower of the two, so a local run
 # cannot fail a gate that CI would pass: a floor that depends on which configuration you happened to
 # build is not a floor. Measured first, rule read second, and not the other way round.
+#
+# 90 is re-measured against the 2026-09-09 rows and stays: 4.76 points locally and 5.98 in CI, which
+# is the margin the rule asks for. The Debug total fell 0.11 points between the two measurements,
+# over a tree that gained a project scoring 94.51% — below the total, so it dilutes it. That is the
+# effect the assembly list above names, and it is why the floor is read off the total.
 #
 # Measured with Docker present, so both integration suites contributed. Re-measure that way before
 # touching this number again: without a daemon the two suites run nothing and the figure is not

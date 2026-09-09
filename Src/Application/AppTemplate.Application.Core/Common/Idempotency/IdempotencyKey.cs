@@ -29,7 +29,7 @@ public sealed record IdempotencyKey
     /// <summary>The caller's own <c>Idempotency-Key</c> header value.</summary>
     public string Key { get; }
 
-    /// <summary>The method and path the key was presented against, e.g. <c>POST /api/v1/todo-lists</c>.</summary>
+    /// <summary>The method and path the key was presented against, e.g. <c>POST /api/v1/orders</c>.</summary>
     public string Endpoint { get; }
 
     /// <summary>Hex SHA-256 of the method, the path and the raw request body.</summary>

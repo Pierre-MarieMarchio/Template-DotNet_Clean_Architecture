@@ -34,7 +34,7 @@ internal sealed class RequestLimitsOptionsValidator : IValidateOptions<RequestLi
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        if (options.MaxRequestBodyBytes < _minBytes || options.MaxRequestBodyBytes > _maxBytes)
+        if (options.MaxRequestBodyBytes is < _minBytes or > _maxBytes)
         {
             return ValidateOptionsResult.Fail(
                 $"'{RequestLimitsOptions.SectionName}:{nameof(RequestLimitsOptions.MaxRequestBodyBytes)}' " +

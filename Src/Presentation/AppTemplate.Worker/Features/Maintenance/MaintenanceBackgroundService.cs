@@ -4,6 +4,7 @@ using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using AppTemplate.Presentation.Core.Common.Jobs;
+using AppTemplate.Worker.Common.Observability;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Worker.Features.Maintenance;
@@ -79,11 +80,11 @@ internal sealed class MaintenanceBackgroundService(
         CancellationToken stoppingToken)
         where TUseCase : IUseCase<Result<int>>
     {
-        KeyValuePair<string, object?> taskTag = new("task", label);
+        KeyValuePair<string, object?> taskTag = new(WorkerTags.Task, label);
 
         if (!enabled)
         {
-            MaintenanceInstruments.Iterations.Add(1, taskTag, new("outcome", "disabled"));
+            MaintenanceInstruments.Iterations.Add(1, taskTag, new(WorkerTags.Outcome, "disabled"));
 
             logger.LogWarning(
                 "The purge of {Label} is disabled; skipping this iteration. {Consequence}",
@@ -103,7 +104,7 @@ internal sealed class MaintenanceBackgroundService(
 
             if (result.IsSuccess)
             {
-                MaintenanceInstruments.Iterations.Add(1, taskTag, new("outcome", "success"));
+                MaintenanceInstruments.Iterations.Add(1, taskTag, new(WorkerTags.Outcome, "success"));
                 MaintenanceInstruments.Purged.Add(result.Value, taskTag);
                 activity?.SetTag("maintenance.purged", result.Value);
 
@@ -117,7 +118,7 @@ internal sealed class MaintenanceBackgroundService(
             else
             {
                 Error error = result.Error!;
-                MaintenanceInstruments.Iterations.Add(1, taskTag, new("outcome", "failure"));
+                MaintenanceInstruments.Iterations.Add(1, taskTag, new(WorkerTags.Outcome, "failure"));
                 activity?.SetStatus(ActivityStatusCode.Error, error.Code);
                 logger.LogWarning(
                     "Purging {Label} reported a failure: {ErrorCode} — {ErrorMessage}.",
@@ -133,7 +134,7 @@ internal sealed class MaintenanceBackgroundService(
         }
         catch (Exception exception)
         {
-            MaintenanceInstruments.Iterations.Add(1, taskTag, new("outcome", "exception"));
+            MaintenanceInstruments.Iterations.Add(1, taskTag, new(WorkerTags.Outcome, "exception"));
             activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
             logger.LogError(exception, "Purging {Label} failed unexpectedly; will retry at the next interval.", label);
         }

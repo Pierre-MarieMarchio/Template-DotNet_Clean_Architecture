@@ -2,6 +2,7 @@
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 using AppTemplate.Presentation.Core.Common.Jobs;
+using AppTemplate.Worker.Common.Observability;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Worker.Features.Reminders;
@@ -45,7 +46,7 @@ internal sealed class ReminderBackgroundService(
         {
             // Counted and logged every time: a loop switched off by configuration has to look
             // different both from a healthy quiet pass and from a loop that died.
-            ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "disabled"));
+            ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>(WorkerTags.Outcome, "disabled"));
 
             if (logger.IsEnabled(LogLevel.Information))
             {
@@ -68,7 +69,7 @@ internal sealed class ReminderBackgroundService(
             {
                 // Unconditional: a pass that notified nobody for days because the due-date query
                 // stopped matching has to look different from one that simply had nothing due.
-                ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "success"));
+                ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>(WorkerTags.Outcome, "success"));
                 ReminderInstruments.Notified.Add(result.Value);
                 activity?.SetTag("reminders.notified", result.Value);
 
@@ -80,7 +81,7 @@ internal sealed class ReminderBackgroundService(
             else
             {
                 Error error = result.Error!;
-                ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "failure"));
+                ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>(WorkerTags.Outcome, "failure"));
                 activity?.SetStatus(ActivityStatusCode.Error, error.Code);
                 logger.LogWarning(
                     "Firing due reminders reported a failure: {ErrorCode} — {ErrorMessage}.",
@@ -95,7 +96,7 @@ internal sealed class ReminderBackgroundService(
         }
         catch (Exception exception)
         {
-            ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>("outcome", "exception"));
+            ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>(WorkerTags.Outcome, "exception"));
             activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
             logger.LogError(exception, "Firing due reminders failed unexpectedly; will retry at the next interval.");
         }

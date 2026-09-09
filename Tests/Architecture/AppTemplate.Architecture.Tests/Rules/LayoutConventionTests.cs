@@ -21,7 +21,7 @@ public sealed class LayoutConventionTests
     /// The folders a feature may hold, per layer. Closed on purpose: a word outside this list is a
     /// concept a reader has to infer from its contents, and one feature inventing a word the others
     /// do not use is how a layout stops being an index. Adding a word is an edit to
-    /// CONTRIBUTING.md's Layout section and to this list, argued for in the pull request — not a
+    /// docs/PROJECT-LAYOUT.md's folder map and to this list, argued for in the pull request — not a
     /// mkdir.
     /// </summary>
     private static readonly Dictionary<string, string[]?> _vocabulary = new(StringComparer.Ordinal)
@@ -218,8 +218,8 @@ public sealed class LayoutConventionTests
 
         offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
             "Common/ is the half of a project that knows no feature, and a word invented there is " +
-            "read by everyone. Adding one is an edit to this list and to CONTRIBUTING.md's Layout " +
-            "section, argued for in the pull request.");
+            "read by everyone. Adding one is an edit to this list and to docs/PROJECT-LAYOUT.md's " +
+            "folder map, argued for in the pull request.");
     }
 
     /// <summary>
@@ -331,7 +331,7 @@ public sealed class LayoutConventionTests
             "A project exists that one of the two vocabularies does not name, so the rule that reads " +
             "it walks past that project and passes. Give it an entry in each — empty when its " +
             "features hold their files side by side, as Email and InMemory do — and write the words " +
-            "into CONTRIBUTING.md's Layout section.");
+            "into docs/PROJECT-LAYOUT.md's folder map.");
     }
 
     /// <summary>
@@ -646,7 +646,7 @@ public sealed class LayoutConventionTests
                     "Decide which of the two it is first: something that knows no feature belongs in " +
                     "this layer's Core project, and something several features share as business " +
                     "belongs here. Then give it the words it holds, and write them into " +
-                    "CONTRIBUTING.md's Layout section.");
+                    "docs/PROJECT-LAYOUT.md's folder map.");
             }
 
             return false;

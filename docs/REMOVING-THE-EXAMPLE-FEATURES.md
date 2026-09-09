@@ -10,7 +10,8 @@ same use cases as the API. A derived project deletes what it has read and keeps 
 exactly the same rank as the other two — its own aggregate, its own use cases, its own controller,
 its own worker loop, its own migration — so everything below gives it a column. But unlike the other
 two it is also a working capability: a project that stores files re-points it at its own bucket and
-its own metadata instead of deleting it. `README.md` says the same thing from the other side. So
+its own metadata instead of deleting it. [`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md) says the
+same thing from the other side. So
 read the `Files` column as *what it costs to remove*, not as *what you are expected to do*.
 
 `docs/ADDING-A-FEATURE.md` says a clean removal means rewriting the tests that use an example as

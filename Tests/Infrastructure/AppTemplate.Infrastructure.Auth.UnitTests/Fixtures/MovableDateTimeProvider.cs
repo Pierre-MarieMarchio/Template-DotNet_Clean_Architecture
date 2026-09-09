@@ -11,7 +11,7 @@ namespace AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;
 /// </para>
 /// <para>
 /// Nothing else here is testable this way. JWT validation and ASP.NET Identity both read
-/// <c>TimeProvider.System</c> and are untouched by this — see CONTRIBUTING.md.
+/// <c>TimeProvider.System</c> and are untouched by this — see docs/TESTING.md.
 /// </para>
 /// </summary>
 internal sealed class MovableDateTimeProvider : IDateTimeProvider

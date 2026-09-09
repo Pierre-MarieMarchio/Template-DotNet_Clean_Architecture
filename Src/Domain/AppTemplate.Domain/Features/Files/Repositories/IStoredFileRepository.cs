@@ -13,7 +13,7 @@ namespace AppTemplate.Domain.Features.Files.Repositories;
 /// properly. So is the set of live object keys that the orphan sweep subtracts from the store's
 /// listing: it is a column, not an aggregate, and loading a million files to read one field from
 /// each would be the worst possible way to get it. The four storage words and what each promises are
-/// set out in <c>CONTRIBUTING.md</c>.
+/// set out in <c>docs/DECISIONS.md</c>.
 /// </para>
 /// <para>
 /// Nothing here writes: <c>Add</c> and <c>Remove</c> stage, and <c>IUnitOfWork</c> is what commits.

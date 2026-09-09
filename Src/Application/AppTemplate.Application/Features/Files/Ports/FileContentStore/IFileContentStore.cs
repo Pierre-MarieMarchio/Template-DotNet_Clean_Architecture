@@ -17,7 +17,7 @@
 /// <para>
 /// <b>No signature here names a type from <c>AppTemplate.Domain.Features</c>, deliberately.</b>
 /// The word <c>Store</c> promises storage with no aggregate behind it — see
-/// <c>CONTRIBUTING.md</c>'s four storage words — so this speaks in <see cref="string"/>,
+/// <c>docs/DECISIONS.md</c>'s four storage words — so this speaks in <see cref="string"/>,
 /// <see cref="long"/> and the records beside it. An adapter for it needs no reference to the domain
 /// at all, and <c>StorageVocabularyTests</c> is what holds that.
 /// </para>

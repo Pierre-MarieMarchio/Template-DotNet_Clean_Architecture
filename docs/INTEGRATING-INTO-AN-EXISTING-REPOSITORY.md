@@ -1,7 +1,7 @@
 ﻿# Integrating into an existing repository
 
 The supported way to start is `dotnet new cleanarch-webapi -n Your.Name` into an empty directory,
-which `README.md` covers and a CI job rehearses on every push. This document covers the other
+which [`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md) covers and a CI job rehearses on every push. This document covers the other
 case: the repository already exists, already has a history, and the generated project has to move
 into it.
 
@@ -94,7 +94,8 @@ cd <host-repo>/services/api
 dotnet run Tools/Tasks.cs bootstrap
 ```
 
-`README.md` says this is mandatory. It is, and the reason is measurable: sorted `using` directives
+[`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md) says this is mandatory. It is, and the reason is
+measurable: sorted `using` directives
 depend on where the project's own namespace falls alphabetically among the third-party ones, which
 the template cannot know in advance. Before this ran, `dotnet format --verify-no-changes` exited 2
 on the moved tree; `dotnet format` then rewrote **11 files, 25 lines**, all of them import
@@ -156,9 +157,9 @@ Two gates then fail, and both are right to.
 with `no workflow file was examined, so this check proves nothing`. That is its anti-vacuity rule
 working: a validator that examined nothing has established nothing.
 
-`Tools/CheckDocPaths.cs` exits 1 on four citations that no longer resolve — six occurrences across
-`README.md`, `CONTRIBUTING.md` and `docs/DEPLOYMENT.md`, all naming the workflow files by their old
-paths. Rewrite them to where the files now are. Written as prose rather than in backticks they stop
+`Tools/CheckDocPaths.cs` exits 1 on every citation that no longer resolves — the documents naming a
+workflow file by its old path, which the gate lists one by one. Rewrite them to where the files now
+are. Written as prose rather than in backticks they stop
 being checkable claims about the tree, which is honest for a path that now lives above the scanned
 root; the alternative is to keep them in backticks and teach that gate a second base directory.
 After the rewrite it exited 0, checking 296 path references.
@@ -245,5 +246,7 @@ failing, 3 skipped; formatting clean; four gates green; 3 workflows validated, 0
 The coverage gate is the one thing left to decide rather than repair. `coverage.minimum` states a
 floor measured against this repository's own test suite. It is still the right floor for the
 generated project on day one, and it stops being the right floor the moment you add code of your
-own — re-measure and re-state it rather than carrying the number over unexamined. `CONTRIBUTING.md`
-says how that file is meant to be set.
+own — re-measure and re-state it rather than carrying the number over unexamined. That file's own
+comments record every measurement the floor was set from, and
+[`TESTING.md`](TESTING.md#with-coverage) says why two of those rows are not comparable to each
+other.

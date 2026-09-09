@@ -671,7 +671,7 @@ public sealed class StoredFileTests
     [Fact]
     public void TheStateMachine_HasNoStateMeaningDeleted()
     {
-        var states = Enum.GetNames<StoredFileState>();
+        string[] states = Enum.GetNames<StoredFileState>();
 
         states.ShouldBe(["Pending", "Deposited", "Available", "Quarantined"], ignoreOrder: true);
         states.Any(name => name.Contains("delete", StringComparison.OrdinalIgnoreCase)).ShouldBeFalse();

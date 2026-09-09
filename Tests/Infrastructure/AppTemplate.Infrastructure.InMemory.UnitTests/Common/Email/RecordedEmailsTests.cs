@@ -95,10 +95,8 @@ public sealed class RecordedEmailsTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void LastTo_RejectsAnAbsentRecipient(string? recipient)
-    {
+    public void LastTo_RejectsAnAbsentRecipient(string? recipient) =>
         Should.Throw<ArgumentException>(() => new RecordedEmails().LastTo(recipient!));
-    }
 
     [Fact]
     public async Task Snapshot_ListsEveryMessageOldestFirst()

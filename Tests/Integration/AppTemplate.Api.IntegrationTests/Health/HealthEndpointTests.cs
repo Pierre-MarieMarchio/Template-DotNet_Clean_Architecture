@@ -45,13 +45,11 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
     /// whether the host has begun shutting down. Both carry the tag the endpoint filters by.
     /// </summary>
     [Fact]
-    public void Readiness_CoversTheDatabaseAndTheShutdownSignal()
-    {
+    public void Readiness_CoversTheDatabaseAndTheShutdownSignal() =>
         // Which checks, not in which order: the predicate selects them by tag, and the order they
         // were registered in is an artefact of the shutdown check arriving with AddCoreHealthChecks
         // and the database check being chained onto the builder it returns.
         ReadyCheckNames().ShouldBe(["auth-database", "database", "shutdown"], ignoreOrder: true);
-    }
 
     /// <summary>
     /// Liveness must have no dependency at all: a database blip should not make an orchestrator

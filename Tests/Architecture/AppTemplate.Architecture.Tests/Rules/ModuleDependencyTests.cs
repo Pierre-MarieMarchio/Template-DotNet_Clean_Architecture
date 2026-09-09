@@ -89,7 +89,7 @@ public sealed class ModuleDependencyTests
     [Fact]
     public void EveryModuleCommon_KnowsNoFeature()
     {
-        var checkedModules = 0;
+        int checkedModules = 0;
 
         foreach ((string module, var assembly) in _moduleCommons)
         {

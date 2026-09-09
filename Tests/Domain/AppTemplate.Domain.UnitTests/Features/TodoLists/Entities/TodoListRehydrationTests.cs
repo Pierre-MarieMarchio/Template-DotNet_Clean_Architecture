@@ -88,22 +88,16 @@ public sealed class TodoListRehydrationTests
     /// rules.
     /// </summary>
     [Fact]
-    public void Rehydrate_RefusesAStoredNameThatViolatesTheInvariant()
-    {
+    public void Rehydrate_RefusesAStoredNameThatViolatesTheInvariant() =>
         Should.Throw<DomainException>(() => TodoList.Rehydrate(_listId, _ownerId, "   ", []));
-    }
 
     [Fact]
-    public void Rehydrate_RefusesAnEmptyId()
-    {
+    public void Rehydrate_RefusesAnEmptyId() =>
         Should.Throw<DomainException>(() => TodoList.Rehydrate(Guid.Empty, _ownerId, "Groceries", []));
-    }
 
     [Fact]
-    public void Rehydrate_RefusesAnAbsentOwner()
-    {
+    public void Rehydrate_RefusesAnAbsentOwner() =>
         Should.Throw<ArgumentNullException>(() => TodoList.Rehydrate(_listId, null!, "Groceries", []));
-    }
 
     [Fact]
     public void RehydrateItem_RefusesAnEmptyId()

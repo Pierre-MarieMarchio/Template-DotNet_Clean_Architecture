@@ -26,10 +26,8 @@ public sealed class RequestLanguageExtensionsTests
     // A wildcard says "anything", which is not a language.
     [InlineData("*", null)]
     [InlineData("*,fr", "fr")]
-    public async Task TheHeader_BecomesTheAmbientTag(string header, string? expected)
-    {
+    public async Task TheHeader_BecomesTheAmbientTag(string header, string? expected) =>
         (await TagAfterAsync(header)).ShouldBe(expected);
-    }
 
     [Theory]
     [InlineData("")]

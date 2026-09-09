@@ -358,7 +358,7 @@ public sealed class LayoutConventionTests
     [Fact]
     public void NoProjectRoot_HoldsAnythingButItsModule()
     {
-        var checkedProjects = 0;
+        int checkedProjects = 0;
         var offenders = new List<string>();
 
         foreach (var project in ProjectReferenceGraph.SourceProjects.Values)
@@ -428,7 +428,7 @@ public sealed class LayoutConventionTests
     [Fact]
     public void EverySourceFile_DeclaresTheNamespaceOfItsFolder()
     {
-        var examined = 0;
+        int examined = 0;
         var offenders = new List<string>();
 
         foreach (var project in ProjectReferenceGraph.SourceProjects.Values)

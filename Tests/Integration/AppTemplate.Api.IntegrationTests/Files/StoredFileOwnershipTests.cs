@@ -42,10 +42,13 @@ public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTe
     [Fact]
     public async Task AnotherUsersFile_IsNotFoundOnEveryEntryPointThatNamesOne()
     {
-        // Read off the controller rather than remembered: every action taking a file id has to be
-        // exercised below, so a route added later fails here instead of passing untested.
-        typeof(FilesController)
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        // Read off the controllers rather than remembered: every action taking a file id has to be
+        // exercised below, so a route added later fails here instead of passing untested. Both types,
+        // because ownership is a property of the URL and the tag route sits under the same prefix --
+        // counting one class would stop asking the question of the other.
+        new[] { typeof(FilesController), typeof(FileTagsController) }
+            .SelectMany(controller => controller
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             .Count(action => action.GetParameters().Any(parameter => parameter.Name == "fileId"))
             .ShouldBe(
                 _entryPointsNamingAFile,

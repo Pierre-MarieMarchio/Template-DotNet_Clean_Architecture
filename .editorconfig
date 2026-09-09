@@ -1,4 +1,4 @@
-root = true
+﻿root = true
 
 [*]
 charset = utf-8
@@ -107,6 +107,10 @@ dotnet_diagnostic.CA1716.severity = none
 # conversion from a value; the statics on `Result<T>` are the standard implementation of the
 # pattern. Removing them would break the contract both infrastructure modules build against.
 dotnet_diagnostic.CA1000.severity = none
+# S4136 asks that the `Success` and `Failure` overloads each be adjacent. They are ordered as two
+# pairs instead -- non-generic, then generic -- because each member's own documentation names the
+# other half of its pair as its counterpart. Grouping by name would break both readings.
+dotnet_diagnostic.S4136.severity = none
 
 [Src/Domain/AppTemplate.Domain.Core/Common/Exceptions/DomainException.cs]
 # CA1032 asks every exception type to offer the three standard constructors, including a
@@ -116,6 +120,103 @@ dotnet_diagnostic.CA1000.severity = none
 # constructors are deliberately the whole surface.
 dotnet_diagnostic.CA1032.severity = none
 
+[Src/Application/AppTemplate.Application.Auth/Features/Auth/UseCases/Commands/SignInWithExternalProvider/SignInWithExternalProviderUseCase.cs]
+# S107 counts eight constructor parameters. They are eight distinct collaborators -- a token
+# verifier, the external-login store, accounts, access tokens, refresh grants, the two-factor
+# challenge, the security log and the validator -- and this use case needs each exactly once. A
+# parameter object would group them by nothing, and the one grouping that is real (the token pair)
+# cannot live here: `AppTemplate.Application.Auth` registers no service, which
+# `LayoutConventionTests` enforces and states the reason for.
+dotnet_diagnostic.S107.severity = none
+
+[Src/Application/AppTemplate.Application/Features/Reminders/UseCases/Commands/FireDueReminders/FireDueRemindersUseCase.cs]
+# S107 counts eight constructor parameters: the repository, the target queries, the notifier, the
+# diagnostics, the unit of work, the clock, the leader lease and the logger. Each is used on a
+# different line of one pass, and no two of them share a subject -- any parameter object here would
+# be a bag named after its own arity.
+dotnet_diagnostic.S107.severity = none
+
+[Src/Domain/AppTemplate.Domain.Core/Common/Primitives/Entity.cs]
+# S4035 asks that a class implementing IEquatable<T> be sealed, because a derived type inheriting
+# the comparison can break symmetry. `Equals` compares `GetType() == other.GetType()` before the
+# ids, which is exactly the guard the rule is protecting -- and this is the abstract base every
+# aggregate derives from, so sealing it is not available.
+dotnet_diagnostic.S4035.severity = none
+
+[Src/Domain/AppTemplate.Domain/Features/Files/ValueObjects/Sha256Checksum.cs]
+# S3267 suggests `Where`. The loop it names throws on the first character that is not a lowercase
+# hexadecimal digit; `Where` collects rather than refuses, and this value object stays off
+# `IEnumerable<char>` deliberately -- the file beside it uses `AsSpan().ContainsAny`.
+dotnet_diagnostic.S3267.severity = none
+
+[Src/Domain/AppTemplate.Domain/Features/Files/ValueObjects/StoredFileName.cs]
+# S3267 suggests `Where` for a loop that throws on the first control character. A query would
+# collect them; nothing here wants the set, only the refusal.
+dotnet_diagnostic.S3267.severity = none
+
+[Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Providers/EmailChangeTokenProvider.cs]
+# S6672 asks that an injected `ILogger<T>` name its enclosing type. The base class
+# `DataProtectorTokenProvider<AppUser>` declares its constructor parameter as
+# `ILogger<DataProtectorTokenProvider<AppUser>>` and accepts no other type, so the rule asks for a
+# signature ASP.NET Core Identity does not offer.
+dotnet_diagnostic.S6672.severity = none
+
+[Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Providers/PasswordResetTokenProvider.cs]
+# S6672, and the same constraint as the provider beside it: the logger's type argument is fixed by
+# `DataProtectorTokenProvider<AppUser>`'s constructor, not chosen here.
+dotnet_diagnostic.S6672.severity = none
+
+[Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Contexts/DefaultConnectionString.cs]
+# S2068 sees the word `password` in a string literal. The literal is the local compose database's
+# design-time fallback, documented as such three lines above it: it picks a provider when a
+# migration is scaffolded and never reaches a server. A visible local default is the point --
+# hiding it would suggest it is a secret.
+dotnet_diagnostic.S2068.severity = none
+
+[Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Saving/IContextUnitOfWork.cs]
+# S2326 reports `TContext` as unused. Being unused is what it is for: it makes one closed generic
+# per context so a container can register a commit boundary per context, which the `<remarks>` on
+# the interface explains at length. A marker type parameter is the mechanism, not an oversight.
+dotnet_diagnostic.S2326.severity = none
+
+[Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Saving/Tracking/AggregateTracker.cs]
+# S3267 suggests `Select(tracked => tracked.Aggregate)`. The loop it names drains each aggregate's
+# events and then clears them, so a projection would do neither of the two things the loop is for.
+dotnet_diagnostic.S3267.severity = none
+
+[Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Mapping/StoredFileMapper.cs]
+# S3267 suggests `Where`. Each iteration of the reconciliation removes a tag from a dictionary and
+# adds a row -- two side effects, which is what makes it a reconciliation rather than a filter.
+dotnet_diagnostic.S3267.severity = none
+
+[Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Mapping/TodoListMapper.cs]
+# S3267 suggests `Where` for the same two-sided reconciliation the file-store mapper runs: remove
+# from the dictionary, add a row, and record that the structure changed.
+dotnet_diagnostic.S3267.severity = none
+
+[Src/Presentation/AppTemplate.Api/Common/Hosting/DevelopmentDatabaseExtensions.cs]
+# S2139 refuses logging an exception and rethrowing it. Both are wanted here and the comment at the
+# catch says why: a development host that cannot reach its database says so critically, once, at the
+# boundary that knows it is the database bootstrap, and then fails to start rather than serving.
+dotnet_diagnostic.S2139.severity = none
+
+[Src/Presentation/AppTemplate.Api.Core/ApiCoreModule.cs]
+# AV0011 reports that the default API version is stated explicitly as 1.0. In a template, reading
+# the version off a library's default is the less legible of the two -- the call site is where a
+# derived project looks for it.
+dotnet_diagnostic.AV0011.severity = none
+
+[Src/Presentation/AppTemplate.Api.Core/Common/Controllers/ApiControllerBase.cs]
+# S4136 asks that the `OkOrProblem` overloads be adjacent. The private helper between them carries
+# the `DeclaredType` argument that makes the first one correct, and sits under its only caller;
+# moving it away to group the overloads would separate the explanation from what it explains.
+dotnet_diagnostic.S4136.severity = none
+
+[Src/Presentation/AppTemplate.Api.Core/Common/Errors/ProblemTypes.cs]
+# S1075 reports a hard-coded URI. It is the default base for a `ProblemDetails` `type` member, on
+# the reserved `.example` TLD, and `ProblemTypeOptions.BaseUri` replaces it in any deployment that
+# publishes its own problem documents.
+dotnet_diagnostic.S1075.severity = none
 [**/Migrations/*.cs]
 generated_code = true
 dotnet_diagnostic.IDE0005.severity = none

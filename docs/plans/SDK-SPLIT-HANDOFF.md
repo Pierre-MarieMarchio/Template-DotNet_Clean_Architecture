@@ -45,7 +45,7 @@ co-author trailer. Leave your own work staged (`git add -A` at the end of a wave
 | — | The audit pass, all three strands | done |
 | 6 | The missing pieces | done |
 | 7 | Documentation and close | done; the whole gate runs, and the step that used to be the exception is explained below |
-| — | `docs/plans/AUTH-SEPARATION.md`, waves A to D | done, except the `Api.Auth` question (A7), which was always to be taken last |
+| — | `docs/plans/AUTH-SEPARATION.md`, waves A to D | done; A7 closed on 2026-09-09 — the controllers stay in `AppTemplate.Api`, and that entry carries the bench that measured why the project was free to build and bought nothing |
 | — | The comment-convention cleanup pass | not started, scheduled last |
 
 Measured at the end of wave 7, not remembered:
@@ -103,6 +103,27 @@ Two things to know about it:
   failed 2 of 4 full-suite runs at the end of wave 4, and passes 3/3 in isolation and 341/341 with
   its own project. It is a grant-lifetime assertion under parallel load; neither the test nor its
   subject is modified. It is **not** caused by the split. See the open questions.
+- **A second intermittent failure, found and fixed on 2026-09-09.**
+  `AppTemplate.Worker.UnitTests.Features.Reminders.ReminderBackgroundServiceTests.Stopping_IsLogged_EvenWhenTheStopLandsMidIteration`
+  failed once inside `dotnet run Tools/Tasks.cs verify`, then passed 3/3 on its own and 3336/3336 in
+  a full `dotnet test --solution`. The shape was in the test: a 50 ms `Task.Delay` was what put the
+  hanging use case mid-flight before the stop was asked for, and under full-solution parallel load
+  50 ms is not a guarantee that the iteration has started at all — so the stop could land on a loop
+  that had not begun, which is not the case the test names.
+
+  **The fix is a signal instead of a duration**, which is the shape decision 31 established: each of
+  the three hanging fakes exposes `HasEntered`, set as the pass starts, and each test waits on it
+  through `BackgroundServiceProbe.WaitUntilAsync` — the helper this suite already had, with its 30 s
+  ceiling and a failure message naming what did not happen. Five call sites across the three worker
+  loop suites, and the 50 ms sleep is gone from all of them.
+
+  **What was deliberately left alone:** `Loop_NeverCallsTheUseCase_WhenFiringIsDisabled` still sleeps
+  five intervals, because a negative assertion has no signal to wait for and its flakiness is
+  one-sided — load gives the loop *fewer* chances to call, never more, so a slow machine cannot make
+  `CallCount == 0` wrong.
+
+  **Proved it can still fail**, rather than assumed: changing the product's stop log line to
+  something else fails the test in 78 ms. Then `verify` twice end to end, 3336 tests, none failing.
 
 ## What is left
 
@@ -189,8 +210,10 @@ takes precedence, so it would not be the one that runs.
 
 ### Then, two chantiers of their own
 
-**The separation of authentication** — `docs/plans/AUTH-SEPARATION.md`. Read that document; it is
-self-contained and every measurement in it was taken on 2026-09-08, so nothing needs re-measuring.
+**The separation of authentication** — `docs/plans/AUTH-SEPARATION.md`. **Done**, and its four forks
+are closed — A6 and A7 on 2026-09-09.
+Read that document; it is self-contained and every measurement in it was taken on 2026-09-08, or on
+2026-09-09 where an entry says so, so nothing needs re-measuring.
 The short version: the business domain already knows only an opaque `Guid OwnerId` with **no**
 foreign key to the identity tables, `ICurrentUser` is already scheme-agnostic, and **no code path
 commits an identity write and a business write together** — so the real work is that the two halves
@@ -198,11 +221,61 @@ share one `DbContext`, one migrations history and one unit of work. Four waves: 
 move the agnostic EF mechanisms into `Infrastructure.Core`, give authentication its own storage,
 document and close. **There is no `Domain.Auth`** and decision A1 says why.
 
-**The comment-convention cleanup pass.** `CONTRIBUTING.md`'s `## Comments` section now forbids
+**The comment-convention cleanup pass.** `CONTRIBUTING.md`'s `## Comments` section forbids
 orchestration and construction commentary and sends rationale to `docs/`. Every file written or
-touched from 2026-09-08 follows it. The existing tree does not yet, and bringing it into line is a
-pass of its own — running it inside another wave would make that wave's diff unreadable. It goes
-last.
+touched from 2026-09-08 follows it; the existing tree is being brought into line one project at a
+time, because a single diff over the whole tree is unreadable and every deletion is a judgement.
+
+**All fifteen projects under `Src/` are done** (2026-09-09). Line comments across the tree: **1635
+to 934**, and the tree is **420 lines shorter**. `verify` green at 3336 tests after each project.
+Per project, the four that carried the most: `Infrastructure.Persistence` 330 to 164,
+`Infrastructure.Auth` 219 to 152, `Api.Core` 176 to 127, `Application` 170 to 132. `Api`'s
+`Program.cs` went from 124 comment lines to 33 and the worker's from 40 to 20. **Eleven blocks of
+five or more consecutive `//` lines remain in the tree**, each one a fact the code cannot state.
+
+**Three rules came out of doing it, and they are what the next project should be read against.**
+
+- **Rationale is moved, not deleted.** What a remark argued and `docs/` did not already carry went
+  into `docs/`: the HTTP-boundary section of `ARCHITECTURE.md` gained the wire-contract rule with the
+  three projections that earn it and the reason a provider name is a field rather than a route
+  segment, and `ADDING-A-FEATURE.md` gained the three controller conventions that four controllers
+  were each stating in their own words. Deleting those would have lost something a reader needs.
+- **A hazard is not commentary.** The test `CONTRIBUTING.md` states — can someone introduce a bug if
+  this goes — keeps a comment that a rule of thumb would cut: that `[AllowAnonymous]` on
+  `AuthController`'s class would defeat the `[Authorize]` on two actions and serve a caller's profile
+  to anyone, that the XML generator collects the comments of the assembly making the `AddOpenApi`
+  call, that the 64 KiB body cap is why depositing a file is two requests.
+- **In the API host, a `///` on a contract or an action is product output**, not internal
+  commentary: it becomes the OpenAPI document's `description` and `summary`, and
+  `OpenApiDocumentTests` asserts one of them. Those are trimmed of repository-internal argument and
+  otherwise left alone — the reader they serve is a client, not a maintainer.
+
+**Found while doing it, and both were stale rather than merely verbose.** `MaintenanceController`'s
+remark said the endpoint exists "rather than an in-process scheduled timer" — the worker's
+maintenance loop runs exactly those two use cases on exactly such a timer, so the sentence described
+a tree that no longer exists. And `docs/ARCHITECTURE.md` claimed two couplings hold authentication
+in place, naming `IIdentitySeeder` as one; wave C moved the seeder into the auth module, and the test
+had been renamed to say *one* coupling while the prose was not.
+
+**What the standard turned out to be, stated for whoever reads a diff of this pass.** A comment
+survives if deleting it lets someone introduce a bug. It is shortened if it states that fact in more
+words than the fact needs. It is deleted outright if it paraphrases the line under it, argues for the
+shape the code already has, points at another file for the reasoning, or narrates this repository's
+own past. And where a comment existed because the code was unclear, the **code** changed: the tracker
+registration became `AddScopedTracker<TTracker, TTrackerPort>`, and both composition guards became
+`AlreadyComposed(services)`.
+
+**Four statements were stale rather than merely verbose**, each found by reading the code the
+sentence described: `MaintenanceController` claimed to exist "rather than an in-process scheduled
+timer" while the worker runs those two use cases on exactly such a timer; `AuthModule.cs` said
+`IdentitySeedOptions` is bound by the persistence module, thirty lines below binding it itself;
+`docs/ARCHITECTURE.md` named two couplings holding authentication in place where the test it cites
+names one; and `AuthModule` explained a lockout setting by describing the defect that predated it.
+
+**The `///` half is barely touched**, by design: 10 589 lines across the tree, and in the API host
+they are the OpenAPI document's own `description` and `summary`, which `OpenApiDocumentTests` asserts
+on. In the six packable projects `CS1591` is re-enabled, so a public one can be shortened and never
+removed. What was cut there is repository-internal argument inside a client-facing sentence.
 
 ### Roughly 126 lines of measured, agnostic duplication — offered to the owner, not yet scheduled
 

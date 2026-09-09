@@ -308,14 +308,15 @@ record brings compiler-generated equality members no test calls**, so resorbing 
 into one moves a handful of measurable lines from covered to not while nothing stops being
 exercised. Two of fifteen assemblies still sit under the floor, the same two.
 
-### Wave F — `--no-examples` at generation time. **Offered, not scheduled.**
+### Wave F — `--no-examples` at generation time. **Refused, and the closure below says why.**
 
 `.template.config/template.json` exposes `name` and its derived symbols and nothing else, while
 `docs/REMOVING-THE-EXAMPLE-FEATURES.md` is a 689-line manual procedure.
 
-**The premise for this one changed too.** Decision 14 predicted that removal would become "deleting
-a folder and one call" once registration was opt-in per feature, and wave C then removed the
-`IIdentitySeeder` coupling. The conditional-source route is cheap now in a way it was not.
+**This entry claimed the premise had changed.** Decision 14 predicted that removal would become
+"deleting a folder and one call" once registration was opt-in per feature, and wave C then removed
+the `IIdentitySeeder` coupling — so the conditional-source route looked cheap in a way it had not
+been. Measured, it is not, and closure 3 carries the count that decided it.
 
 Two things it has to state rather than hide:
 

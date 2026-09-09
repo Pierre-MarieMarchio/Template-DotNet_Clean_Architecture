@@ -16,7 +16,7 @@ public sealed class IdempotencyStoreBatchedDeleteTests
     [Fact]
     public async Task RunBatchedDeleteAsync_StopsAfterOneCall_WhenTheFirstBatchIsSmallerThanTheBatchSize()
     {
-        var calls = 0;
+        int calls = 0;
 
         int total = await IdempotencyStore.RunBatchedDeleteAsync(
             batchSize: 100,
@@ -34,7 +34,7 @@ public sealed class IdempotencyStoreBatchedDeleteTests
     [Fact]
     public async Task RunBatchedDeleteAsync_KeepsGoing_WhileEveryBatchIsFull()
     {
-        var remainingFullBatches = 3;
+        int remainingFullBatches = 3;
 
         int total = await IdempotencyStore.RunBatchedDeleteAsync(
             batchSize: 100,
@@ -91,7 +91,7 @@ public sealed class IdempotencyStoreBatchedDeleteTests
     [Fact]
     public async Task RunBatchedDeleteAsync_MakesOneMoreCall_WhenTheLastBatchExactlyFillsTheBatchSize()
     {
-        var calls = 0;
+        int calls = 0;
 
         int total = await IdempotencyStore.RunBatchedDeleteAsync(
             batchSize: 50,

@@ -43,7 +43,7 @@ internal sealed class TodoListRecord : IAuditable
     /// <c>Items</c> is read-only over a private list, which is the difference between a model that
     /// enforces something and a row that stores it.
     /// </summary>
-    public ICollection<TodoItemRecord> Items { get; } = new List<TodoItemRecord>();
+    public ICollection<TodoItemRecord> Items { get; } = [];
 
     void IAuditable.SetCreated(DateTimeOffset at, Guid? by)
     {

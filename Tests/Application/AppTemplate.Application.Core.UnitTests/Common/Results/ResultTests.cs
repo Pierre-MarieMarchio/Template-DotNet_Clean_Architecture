@@ -49,10 +49,7 @@ public sealed class ResultTests
     /// declaration, which is indistinguishable from a real answer to the caller.
     /// </summary>
     [Fact]
-    public void Success_RefusesANullValue()
-    {
-        Should.Throw<ArgumentNullException>(() => Result<string>.Success(null!));
-    }
+    public void Success_RefusesANullValue() => Should.Throw<ArgumentNullException>(() => Result<string>.Success(null!));
 
     [Fact]
     public void TheImplicitConversion_RefusesANullValue()
@@ -219,7 +216,7 @@ public sealed class ResultTests
     [Fact]
     public void APropertyPatternNamingValueBeforeIsSuccess_ThrowsOnAFailure_InsteadOfFailingToMatch()
     {
-        Result<int> result = Result<int>.Failure(_anError);
+        var result = Result<int>.Failure(_anError);
 
         // A discard ("Value: var _") is elided by the compiler and never calls the getter at all,
         // so the pattern has to bind the value to a real variable to force the read this test pins.
@@ -233,7 +230,7 @@ public sealed class ResultTests
     [Fact]
     public void APropertyPatternNamingIsSuccessFirst_FailsToMatch_InsteadOfThrowing()
     {
-        Result<int> result = Result<int>.Failure(_anError);
+        var result = Result<int>.Failure(_anError);
 
         (result is { IsSuccess: true, Value: var capturedValue } && capturedValue >= 0).ShouldBeFalse();
     }

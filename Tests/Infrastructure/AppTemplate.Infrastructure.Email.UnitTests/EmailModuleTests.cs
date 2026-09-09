@@ -27,10 +27,8 @@ public sealed class EmailModuleTests
     /// sending its mail somewhere else after an upgrade.
     /// </summary>
     [Fact]
-    public void AddEmailModule_ComposesTheSmtpSenderWhenNoTransportIsNamed()
-    {
+    public void AddEmailModule_ComposesTheSmtpSenderWhenNoTransportIsNamed() =>
         SenderIn(Compose(SmtpSettings())).ShouldBeOfType<MailKitEmailSender>();
-    }
 
     [Theory]
     [InlineData("Smtp")]

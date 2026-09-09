@@ -39,10 +39,7 @@ public sealed class AuthResponseMappingTests
     /// publishing it hands out an internal identifier for nothing.
     /// </summary>
     [Fact]
-    public void RegisterResponse_PublishesNoUserId()
-    {
-        typeof(RegisterResponse).GetProperty("UserId").ShouldBeNull();
-    }
+    public void RegisterResponse_PublishesNoUserId() => typeof(RegisterResponse).GetProperty("UserId").ShouldBeNull();
 
     [Fact]
     public void ToRegisterResponse_PropagatesAFailure_WithoutReadingTheValue()
@@ -82,7 +79,7 @@ public sealed class AuthResponseMappingTests
     [Fact]
     public void LoginResponse_Authenticated_PublishesNoProfileField()
     {
-        var names = Array.ConvertAll(typeof(LoginResponse.Authenticated).GetProperties(), property => property.Name);
+        string[] names = Array.ConvertAll(typeof(LoginResponse.Authenticated).GetProperties(), property => property.Name);
 
         names.ShouldBe(["Tokens"]);
     }
@@ -177,7 +174,7 @@ public sealed class AuthResponseMappingTests
     [Fact]
     public void ExternalLoginResponse_Authenticated_PublishesNoProfileField()
     {
-        var names = Array.ConvertAll(
+        string[] names = Array.ConvertAll(
             typeof(ExternalLoginResponse.Authenticated).GetProperties(),
             property => property.Name);
 
@@ -295,7 +292,7 @@ public sealed class AuthResponseMappingTests
         string json = JsonSerializer.Serialize(response, _webJson);
 
         using var document = JsonDocument.Parse(json);
-        var names = document.RootElement.EnumerateObject().Select(property => property.Name).ToArray();
+        string[] names = document.RootElement.EnumerateObject().Select(property => property.Name).ToArray();
 
         names.ShouldBe(["status", "tokens"]);
     }

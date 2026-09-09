@@ -89,10 +89,8 @@ public sealed class ExternalIdentityOptionsTests
     }
 
     [Fact]
-    public void Find_ReturnsNothingForAProviderNobodyConfigured()
-    {
+    public void Find_ReturnsNothingForAProviderNobodyConfigured() =>
         new ExternalIdentityOptions().Find("google").ShouldBeNull();
-    }
 
     private static ExternalIdentityOptions Bind(Dictionary<string, string?> settings)
     {

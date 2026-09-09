@@ -94,11 +94,11 @@ public sealed class FeatureFolderVocabularyTests
     public void EveryFileUnderAFeature_CarriesItsFoldersNatureWord()
     {
         var offenders = new List<string>();
-        var checkedFiles = 0;
+        int checkedFiles = 0;
 
         foreach ((string folder, string relative, string file) in FeatureFiles())
         {
-            if (!_suffixes.TryGetValue(folder, out var suffixes))
+            if (!_suffixes.TryGetValue(folder, out string[]? suffixes))
             {
                 // Reported by EveryFeatureFolder_IsCovered, and reporting it twice would make one
                 // omission look like two.
@@ -183,7 +183,7 @@ public sealed class FeatureFolderVocabularyTests
 
             foreach (string file in Directory.EnumerateFiles(project, "*.cs", SearchOption.AllDirectories))
             {
-                var parts = Path.GetRelativePath(project, file).Split(Path.DirectorySeparatorChar);
+                string[] parts = Path.GetRelativePath(project, file).Split(Path.DirectorySeparatorChar);
 
                 // Features/<F>/<Word>/… — a file directly under a feature has no folder to match.
                 if (parts.Length < 3)

@@ -28,7 +28,7 @@ public sealed class CoverageFloorTests
     [Fact]
     public void TheFile_CarriesNoByteOrderMark()
     {
-        var first = File.ReadAllBytes(Path).Take(3).ToArray();
+        byte[] first = File.ReadAllBytes(Path).Take(3).ToArray();
 
         first.ShouldNotBe(
             [0xEF, 0xBB, 0xBF],

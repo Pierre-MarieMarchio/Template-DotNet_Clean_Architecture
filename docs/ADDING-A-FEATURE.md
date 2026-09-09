@@ -22,6 +22,18 @@ singular** — `TodoList`, `Reminder`, `StoredFile`. Folders under `Features/` c
 feature; file and type names carry the aggregate. `TodoListErrors` lives in
 `Features/TodoLists/Errors/`, and nothing in the tree is called `TodoListsErrors`.
 
+**There is a scaffolder, and it writes the shape so this document can be about the thinking.**
+
+```bash
+dotnet run Tools/Tasks.cs new-feature Widgets Widget
+```
+
+Twenty-six files across the four layers: folders, namespaces, base types, the members each layer's
+conventions require, and nothing else — no property the domain has not been asked for, no rule
+nobody stated. **It creates files and edits none**, because registration is opt-in per feature
+precisely so that a feature nobody composes is visibly registered nowhere; it prints the five edits
+instead. Read the sections below for what to put in what it wrote.
+
 ## 1. Domain — the aggregate
 
 `Src/Domain/AppTemplate.Domain/Features/<Feature>/`
@@ -628,18 +640,29 @@ exists because a rule that discovers everything automatically also accepts every
 automatically. What follows is the set a feature actually reaches, so you meet them as a list rather
 than one red test at a time.
 
+**Measured rather than listed.** Scaffolding a whole vertical with
+`dotnet run Tools/Tasks.cs new-feature Widgets Widget` and wiring only the context leaves **four**
+of the 131 rules red, and all four are composition: the use cases, the ports and the configuration
+are declared and nothing registers them. The layout and vocabulary rules stay green, because a
+feature that uses the shape's own words is what they are checking for. So the table below is what
+fires **when you do the thing in the left column**, not a list of chores a feature owes.
+
 | What you added | What has to say so |
 |---|---|
-| A folder under `Common/` or `Features/<F>/` | the two vocabularies in `Rules/LayoutConventionTests.cs`, checked in both directions — a word without its folder fails as loudly as a folder without its word |
-| A feature folder | `Rules/FeatureFolderVocabularyTests.cs` |
-| An aggregate | `_expectedEntities` in `Rules/DomainModelTests.cs`, which is what stops the reflection rules passing over nothing |
+| A registration a host must resolve | `Composition/ContainerCompositionTests.cs` and the five compositions in `Composition/HostComposition.cs`. These are the four that fire for any new vertical, and they are the wiring, not a list |
+| An `IEntityTypeConfiguration` | `AppDbContext.OnModelCreating`, checked in both directions by `Rules/PersistenceModelTests.cs`. A configuration nobody applies is inert and produces an *empty* migration, so the failure would otherwise arrive at the first query |
+| A **new word** for a folder under `Common/` or `Features/<F>/` | the two vocabularies in `Rules/LayoutConventionTests.cs`, checked in both directions — a word without its folder fails as loudly as a folder without its word. A feature using the existing words adds nothing here |
 | A domain event | a consumer, **or** its name in `_deliberatelyUnconsumed` in `Rules/DomainEventTests.cs` with the reason. Publishing a fact nothing wants yet is good design; leaving a reader unable to tell that from a forgotten consumer is not |
-| A registration in a module | the five compositions in `Composition/HostComposition.cs`, and `Composition/ContainerCompositionTests.cs` if a host must resolve it |
 | A public interface under `Common/` | it joins the port population by default. If it is not a port — something inside this layer implements it, not a module — it goes in `ApplicationPorts.NotPorts` with its reason, beside `ICollectionPolicy` and `ICollectionQuery` |
 | An anonymous endpoint | `_anonymousActions` in `Rules/HttpSurfaceTests.cs` |
 | A background service | the floor in `Rules/BackgroundWorkTests.cs`, and an instrument means `Rules/ObservabilityRegistrationTests.cs` |
 | A new project | guids in `AppTemplate.sln` **and** `.template.config/template.json` (`Rules/TemplatePackagingTests.cs` guards the list), a `COPY` line in both Dockerfiles, a mirror under `Tests/`, and the project floors in `Rules/ModuleDependencyTests.cs` |
 | Anything at all, eventually | `coverage.minimum`, whose own rule says when the floor moves and demands Docker before it is touched |
+
+`_expectedEntities` in `Rules/DomainModelTests.cs` and `Rules/FeatureFolderVocabularyTests.cs` are
+deliberately **not** on that list. Both assert that what is known to be there is still there, so a
+new aggregate or a new feature folder does not touch either — which is worth knowing, because the
+obvious guess is the opposite.
 
 **Two habits are worth more than the table.** Raise an anti-vacuity floor when you pass it, rather
 than leaving it describing a smaller tree — a floor that no longer bites is a rule that has stopped

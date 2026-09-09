@@ -192,6 +192,16 @@ jobs:
             --summary "$GITHUB_STEP_SUMMARY" \
             --json TestResults/coverage-summary.json
 
+      # The coverage pattern matches the extension, not a fixed file name. The platform writes
+      # '<guid>.cobertura.xml' directly under the results directory, and 'coverage.cobertura.xml'
+      # inside a directory of its own only in some invocations; Tools/CoverageGate.cs enumerates
+      # '*.cobertura.xml' for exactly that reason, and this has to agree with it or the two disagree
+      # about what a run produced.
+      #
+      # `if-no-files-found: error` does not catch a pattern that matches nothing here: it fires only
+      # when the whole path list finds nothing, and the .trx line always matches. So a coverage
+      # pattern that is wrong costs no failure and no warning -- the artefact simply arrives with
+      # the test results and without the coverage, which is what it did.
       - name: Upload test results and coverage
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -199,7 +209,7 @@ jobs:
           name: test-results
           path: |
             TestResults/**/*.trx
-            TestResults/**/coverage.cobertura.xml
+            TestResults/**/*.cobertura.xml
           if-no-files-found: error
           retention-days: 7
 

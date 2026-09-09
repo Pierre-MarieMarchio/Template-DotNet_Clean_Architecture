@@ -39,9 +39,8 @@ internal sealed class ReminderTracker(IReminderMapper mapper)
         {
             var entry = context.Entry(tracked.Record);
 
-            // A row staged for deletion, or one this context is not tracking at all, is not something
-            // to write the aggregate onto. Writing to a Deleted entry would resurrect columns EF is
-            // about to drop, and writing to a Detached one would silently do nothing.
+            // A Deleted entry would resurrect columns EF is about to drop, and a Detached one would
+            // silently take the write.
             if (tracked.IsRemoved || entry.State is EntityState.Deleted or EntityState.Detached)
             {
                 continue;
@@ -51,8 +50,8 @@ internal sealed class ReminderTracker(IReminderMapper mapper)
 
             if (entry.State != EntityState.Added)
             {
-                // Setting the original value does not mark the property modified — EF keeps modified as
-                // a flag rather than deriving it — so this only ever affects the WHERE clause.
+                // Setting the original value does not mark the property modified, so this reaches the
+                // WHERE clause only.
                 entry.Property(record => record.Version).OriginalValue = tracked.Aggregate.Version;
             }
         }

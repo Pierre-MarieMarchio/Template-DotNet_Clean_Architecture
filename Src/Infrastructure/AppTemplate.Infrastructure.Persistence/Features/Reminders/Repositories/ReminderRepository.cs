@@ -24,9 +24,8 @@ internal sealed class ReminderRepository(
 {
     public async Task<Reminder?> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        // The identity map first. Two use cases in one request asking for the same reminder must get
-        // the same object, or each would decide against its own copy and the flush would keep whichever
-        // it saw last.
+        // The identity map first: two use cases in one request must get the same object, or the flush
+        // would keep whichever copy it saw last.
         if (tracker.Find(id) is { } alreadyLoaded)
         {
             return alreadyLoaded;
@@ -72,8 +71,7 @@ internal sealed class ReminderRepository(
 
         context.Reminders.Add(record);
 
-        // Tracked like any other: the flush pipeline will map onto this row again before the save, which
-        // is how a mutation made after Add still lands.
+        // Tracked like any other, so a mutation made after Add is mapped onto this row before the save.
         tracker.Track(reminder, record);
     }
 
@@ -81,10 +79,9 @@ internal sealed class ReminderRepository(
     {
         ArgumentNullException.ThrowIfNull(reminder);
 
-        // Ordinarily the row is already tracked, because a delete follows a load. The fallback attaches
-        // a stub carrying the key and the version, so a caller who reconstructed an aggregate elsewhere
-        // still gets a delete rather than a silent no-op — and still gets it checked against the token
-        // it decided on, because attaching snapshots the current values as the original ones.
+        // Ordinarily already tracked, because a delete follows a load. The fallback attaches a stub
+        // carrying the key and the version, so the delete still happens and is still checked against
+        // the token the caller decided on.
         var record = tracker.FindRecord(reminder.Id)
             ?? new ReminderRecord { Id = reminder.Id, Version = reminder.Version };
 

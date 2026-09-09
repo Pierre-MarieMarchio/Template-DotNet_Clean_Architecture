@@ -6,11 +6,6 @@ namespace AppTemplate.Api.Common.Security;
 /// The one path this host serves that a JSON API's default-deny policy would leave blank, and the
 /// policy it needs instead.
 /// </summary>
-/// <remarks>
-/// It lives here rather than in <c>AppTemplate.Api.Core</c> because every directive below is an
-/// observation about a versioned third-party bundle, so it belongs beside the package reference that
-/// pins that version and beside the call that mounts the page.
-/// </remarks>
 internal static class ApiReferenceContentSecurityPolicy
 {
     /// <summary>Where the API-reference page and its own assets are served.</summary>

@@ -103,18 +103,14 @@ internal sealed class SigningKeyDirectory(
 
             return keys;
         }
-        // Broad on purpose, and narrowed only against the caller's own cancellation. The failures
-        // this has to survive are not a list anybody could keep correct: an HttpRequestException, a
-        // malformed key set, a timeout, and — the ones this project cannot even name — the circuit
-        // breaker's and the timeout strategy's own exception types, which live in Polly and are
-        // reachable from the host's default policy but from no reference this module has. A login
-        // must not become a 500 because a provider is unreachable in a way nobody enumerated.
+        // Broad on purpose: the failures to survive include Polly's own circuit-breaker and timeout
+        // exceptions, which this module has no reference to name. A login must not become a 500
+        // because a provider is unreachable in a way nobody enumerated.
         catch (Exception exception) when (exception is not OperationCanceledException
             || !cancellationToken.IsCancellationRequested)
         {
-            // Nothing about the token is logged, and nothing about the failure reaches the caller:
-            // every refusal answers the same way, so the operator's log is the only place the
-            // difference between "forged" and "our provider is down" is visible.
+            // Every refusal answers the caller the same way, so this log is the only place the
+            // difference between "forged" and "the provider is down" is visible.
             logger.LogWarning(
                 exception,
                 "Could not fetch the signing keys of external identity provider '{Provider}'. " +
@@ -143,9 +139,8 @@ internal sealed class SigningKeyDirectory(
 
         string json = await GetStringAsync(jwksUri, cancellationToken);
 
-        // GetSigningKeys is what turns the JSON into usable keys: it drops entries whose "use" is
-        // not "sig" and entries this platform cannot build a key from, rather than failing the whole
-        // set because one member is a key type nobody here understands.
+        // GetSigningKeys drops entries whose "use" is not "sig", and entries this platform cannot
+        // build a key from, rather than failing the whole set.
         return [.. JsonWebKeySet.Create(json).GetSigningKeys()];
     }
 

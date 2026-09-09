@@ -109,19 +109,13 @@ public static class AuthModule
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        // One guard at the top rather than a Try- form per registration, for the same reason the
-        // persistence module uses one: AddIdentity and AddAuthentication have no Try- form, and would
-        // duplicate a schema and a whole store on a second call.
-        if (services.Any(descriptor => descriptor.ServiceType == typeof(IUserAccountsService)))
+        if (AlreadyComposed(services))
         {
             return services;
         }
 
         AddValidatedOptions(services, configuration);
 
-        // This module's own storage: its context, what that context saves through, and the clock the
-        // rest of it reads. Called here rather than assumed, so the module says what it needs instead
-        // of depending on the host having composed it first.
         AddSeedingOptions(services, configuration);
         AddDatabaseOptions(services, configuration);
         AddContext(services, DefaultConnectionString.Require(configuration));
@@ -130,12 +124,10 @@ public static class AuthModule
 
         services.TryAddScoped<IRefreshTokenTable, RefreshTokenTable>();
 
-        // Constructible only once ASP.NET Identity is composed below, because seeding an account
-        // means hashing a password and generating a security stamp rather than writing a row.
+        // Constructible only once ASP.NET Identity is composed below: seeding hashes a password and
+        // generates a security stamp rather than writing a row.
         services.TryAddScoped<IIdentitySeeder, IdentitySeeder>();
 
-        // One adapter per capability port. Nothing in this module depends on a concrete class, so
-        // replacing one is a single line here.
         services.AddScoped<IUserAccountsService, UserAccountsService>();
         services.AddScoped<IUserProfilesService, UserProfilesService>();
         services.AddScoped<IAccountLockoutsService, AccountLockoutsService>();
@@ -157,7 +149,7 @@ public static class AuthModule
         services.AddScoped<IExternalIdentityVerifier, ExternalIdentityVerifier>();
         services.AddScoped<IExternalLoginsService, ExternalLoginsService>();
 
-        // Not a port: the account lookup and claim generation nine of the adapters above share.
+        // Not a port: the account lookup and claim generation the adapters above share.
         services.AddScoped<IAppUserDirectory, AppUserDirectory>();
 
         AddExternalIdentityKeys(services);
@@ -167,6 +159,13 @@ public static class AuthModule
 
         return services;
     }
+
+    /// <summary>
+    /// <c>AddIdentity</c> and <c>AddAuthentication</c> have no <c>Try</c> form, so a second call
+    /// would duplicate a scheme and a whole store.
+    /// </summary>
+    private static bool AlreadyComposed(IServiceCollection services) =>
+        services.Any(descriptor => descriptor.ServiceType == typeof(IUserAccountsService));
 
     private static void AddSeedingOptions(IServiceCollection services, IConfiguration configuration)
     {
@@ -262,15 +261,13 @@ public static class AuthModule
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<TwoFactorOptions>, TwoFactorOptionsValidator>();
 
-        // The one section that is allowed to be absent entirely: external sign-in is optional, and a
-        // deployment that does not offer it boots with no providers and refuses every attempt.
+        // The one section allowed to be absent: a deployment offering no external sign-in boots with
+        // no providers and refuses every attempt.
         services.AddOptions<ExternalIdentityOptions>()
             .Bind(configuration.GetSection(ExternalIdentityOptions.SectionName))
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<ExternalIdentityOptions>, ExternalIdentityOptionsValidator>();
 
-        // IdentitySeedOptions is deliberately absent: seeding is a persistence concern and the
-        // persistence module binds and validates that section. The section name is unchanged.
     }
 
     /// <summary>
@@ -301,14 +298,13 @@ public static class AuthModule
         services.AddIdentity<AppUser, AppRole>()
             .AddEntityFrameworkStores<AuthDbContext>()
             .AddDefaultTokenProviders()
-            // A provider of its own, not the "Default" one email confirmation resolves to — see
-            // PasswordResetTokenProviderName for why sharing it would tie the two lifespans together.
+            // Providers of their own, not the "Default" one email confirmation resolves to: sharing
+            // it would tie their lifespans together.
             .AddTokenProvider<PasswordResetTokenProvider>(PasswordResetTokenProviderName.Value)
-            // Same reasoning again, for the email-change token — see EmailChangeTokenProviderName.
             .AddTokenProvider<EmailChangeTokenProvider>(EmailChangeTokenProviderName.Value);
 
-        // Applied after AddIdentity's own defaults, and sourced from validated options rather than
-        // from a section read eagerly at composition time.
+        // After AddIdentity's own defaults, and from validated options rather than a section read
+        // eagerly at composition time.
         services.AddOptions<IdentityOptions>()
             .Configure<IOptions<IdentityPolicyOptions>>((identity, policyAccessor) =>
             {
@@ -325,27 +321,19 @@ public static class AuthModule
                 identity.Password.RequireUppercase = policy.PasswordRequireUppercase;
                 identity.Password.RequireNonAlphanumeric = policy.PasswordRequireNonAlphanumeric;
 
-                // Lockout was never configured, and CheckPasswordSignInAsync was called with
-                // lockoutOnFailure: false, so AccessFailedCount never moved and password guessing
-                // was unbounded.
                 identity.Lockout.AllowedForNewUsers = policy.LockoutEnabled;
                 identity.Lockout.MaxFailedAccessAttempts = policy.LockoutMaxFailedAccessAttempts;
                 identity.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(policy.LockoutDurationInMinutes);
 
-                // Points ResetPasswordAsync/GeneratePasswordResetTokenAsync at the named provider
-                // above instead of ASP.NET Identity's own "Default" — the value it and email
-                // confirmation would otherwise both resolve to.
+                // Without these two, ResetPasswordAsync and ChangeEmailAsync resolve "Default" and
+                // inherit email confirmation's one-day lifespan instead of their own.
                 identity.Tokens.PasswordResetTokenProvider = PasswordResetTokenProviderName.Value;
 
-                // Same reasoning again: ChangeEmailAsync/GenerateChangeEmailTokenAsync default to
-                // "Default" too, which would tie an email-change link to email confirmation's
-                // one-day lifespan instead of its own, shorter one.
                 identity.Tokens.ChangeEmailTokenProvider = EmailChangeTokenProviderName.Value;
             });
 
-        // Every provider AddDefaultTokenProviders just registered shares this one options type, so
-        // this is the single knob that currently exists for "how long is a minted token good for" —
-        // see IdentityTokenOptions for why that is one setting and not one per provider.
+        // Every provider AddDefaultTokenProviders registered shares this options type, so it is one
+        // lifespan for all of them.
         services.AddOptions<DataProtectionTokenProviderOptions>()
             .Configure<IOptions<IdentityTokenOptions>>(
                 (tokenOptions, identityTokenOptions) => tokenOptions.TokenLifespan = identityTokenOptions.Value.Lifespan);

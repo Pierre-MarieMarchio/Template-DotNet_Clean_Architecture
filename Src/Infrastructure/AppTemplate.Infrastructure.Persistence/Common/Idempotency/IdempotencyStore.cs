@@ -58,10 +58,8 @@ internal sealed class IdempotencyStore(
         }
         catch (DbUpdateException exception) when (IsPrimaryKeyViolation(exception))
         {
-            // The failed insert is still tracked as Added. Left alone, the next SaveChangesAsync on
-            // this context — there is none here, but the pattern is copied wherever this file is
-            // read from — would retry the exact same doomed insert instead of the read below ever
-            // running. Detaching it is what makes the re-read safe.
+            // The failed insert is still tracked as Added, and the next save would retry it.
+            // Detaching is what makes the re-read below safe.
             entry.State = EntityState.Detached;
 
             return await ClaimExistingAsync(context, key, expiresAt, claimedUntil, ct);
@@ -82,9 +80,8 @@ internal sealed class IdempotencyStore(
     {
         var existing = await ReadAsync(context, key, ct);
 
-        // A fingerprint mismatch means the same key string was reused for a genuinely different
-        // request — a client error, not an abandoned claim. Never reclaim on the strength of that,
-        // no matter how stale the row looks.
+        // A fingerprint mismatch is the same key reused for a different request — a client error,
+        // never a reclaimable row, however stale it looks.
         if (!string.Equals(existing.Fingerprint, key.Fingerprint, StringComparison.Ordinal))
         {
             return IdempotencyClaim.KeyReused();
@@ -95,9 +92,8 @@ internal sealed class IdempotencyStore(
             return Decide(key, existing);
         }
 
-        // Same two-participant rendezvous as RefreshTokenTable.TryRotateAsync: the WHERE clause
-        // restates every condition that made the row reclaimable, so the database — not this read —
-        // decides which of two simultaneous retries wins. Zero rows affected means we lost.
+        // The WHERE clause restates every condition that made the row reclaimable, so the database
+        // decides which of two simultaneous retries wins. Zero rows affected means this one lost.
         int reclaimed = await context.IdempotencyKeys
             .Where(record =>
                 record.UserId == key.UserId
@@ -115,9 +111,7 @@ internal sealed class IdempotencyStore(
             return IdempotencyClaim.Claimed();
         }
 
-        // Lost the reclaim race: another retry got there first, and may since have completed or
-        // renewed the lease again. Whatever its row says now is final enough to answer with — a
-        // caller that disagrees will simply retry.
+        // Lost the reclaim race, so answer with whatever the winner's row says now.
         return Decide(key, await ReadAsync(context, key, ct));
     }
 
@@ -193,9 +187,8 @@ internal sealed class IdempotencyStore(
     {
         await using var context = await contextFactory.CreateDbContextAsync(ct);
 
-        // Ordered by ExpiresAt, which is already indexed for this exact scan (see
-        // IdempotencyRecordConfiguration), so the oldest-expired rows go first and each batch is a
-        // short, index-driven range delete rather than a scan of the whole expired set.
+        // Ordered by ExpiresAt, which is indexed, so each batch is a short range delete rather than
+        // a scan of the whole expired set.
         return await context.IdempotencyKeys
             .Where(record => record.ExpiresAt <= asOf)
             .OrderBy(record => record.ExpiresAt)

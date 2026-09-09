@@ -81,8 +81,7 @@ internal static class ClamAvScanner
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // The caller's own cancellation — a host shutting down. Let it through, rather than
-            // reporting a shutdown as a scanner that could not be reached.
+            // The caller's own cancellation: a shutdown is not an unreachable scanner.
             throw;
         }
         catch (OperationCanceledException)
@@ -170,8 +169,8 @@ internal static class ClamAvScanner
         }
         catch (IOException)
         {
-            // Deliberately swallowed: see the caller. The reply is read either way, and a socket
-            // that really is gone fails there instead, where it is reported as no verdict.
+            // Swallowed: the reply is read either way, and a socket that really is gone fails there,
+            // where it is reported as no verdict.
         }
         finally
         {
@@ -244,9 +243,8 @@ internal static class ClamAvScanner
 
         if (reply.EndsWith("ERROR", StringComparison.Ordinal))
         {
-            // The one error that is an answer rather than a fault: the object is past the daemon's
-            // own StreamMaxLength, which no retry changes. Everything else — a database that failed
-            // to load, a daemon out of file descriptors — is a fault, and faults are retried.
+            // The one error that is an answer rather than a fault: past the daemon's own
+            // StreamMaxLength, which no retry changes. Every other error is retried.
             return reply.Contains("size limit", StringComparison.OrdinalIgnoreCase)
                 ? (ContentInspectionStatus.NotInspectable, null)
                 : (ContentInspectionStatus.Unavailable, null);

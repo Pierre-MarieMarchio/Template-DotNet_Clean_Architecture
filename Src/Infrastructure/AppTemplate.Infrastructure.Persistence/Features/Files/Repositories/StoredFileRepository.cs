@@ -24,19 +24,15 @@ internal sealed class StoredFileRepository(
 {
     public async Task<StoredFile?> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        // The identity map first. Two use cases in one request asking for the same file must get the
-        // same object, or each would decide against its own copy and the flush would keep whichever it
-        // saw last.
+        // The identity map first: two use cases in one request must get the same object, or the flush
+        // would keep whichever copy it saw last.
         if (tracker.Find(id) is { } alreadyLoaded)
         {
             return alreadyLoaded;
         }
 
-        // Every path that materialises a file includes its tags, this one included. The mapper
-        // reconciles them by hand in both directions, so a record loaded without them looks like a
-        // file that has none — and the next write re-inserts every tag it already holds, against a
-        // key that already exists. The identity map makes the hazard worse rather than better: a
-        // file loaded tag-less once is handed out tag-less for the rest of the request.
+        // Tags are included on every path that materialises a file: a record loaded without them
+        // looks like a file that has none, and the next write re-inserts every tag it already holds.
         var record = await context.StoredFiles
             .Include(file => file.Tags)
             .FirstOrDefaultAsync(file => file.Id == id, cancellationToken);
@@ -48,8 +44,7 @@ internal sealed class StoredFileRepository(
     {
         ArgumentNullException.ThrowIfNull(objectKey);
 
-        // The key is compared as the string it is stored as, ordinally, exactly as the object store
-        // resolves it. The unique index on this column is what makes at most one row match.
+        // Compared ordinally, as the store resolves it; the unique index makes at most one row match.
         var record = await context.StoredFiles
             .Include(file => file.Tags)
             .FirstOrDefaultAsync(file => file.ObjectKey == objectKey.Value, cancellationToken);
@@ -62,8 +57,7 @@ internal sealed class StoredFileRepository(
         int batchSize,
         CancellationToken cancellationToken)
     {
-        // Strictly before, as the contract says. Oldest first, so a backlog larger than one batch is
-        // worked through in registration order rather than a batch of the same rows every pass.
+        // Oldest first, so a backlog larger than one batch does not re-serve the same rows every pass.
         var records = await context.StoredFiles
             .Include(file => file.Tags)
             .Where(file => file.State == StoredFileState.Pending && file.RegisteredAt < registeredBefore)
@@ -78,10 +72,6 @@ internal sealed class StoredFileRepository(
         int batchSize,
         CancellationToken cancellationToken)
     {
-        // Served by IX_StoredFiles_State_RegisteredAt, the same index the abandonment sweep reads:
-        // State leads because it is an equality filter and RegisteredAt trails because it is the
-        // sort key. No new index is owed for this query, which is the whole reason it orders by
-        // RegisteredAt rather than by anything nearer to when the deposit arrived.
         var records = await context.StoredFiles
             .Include(file => file.Tags)
             .Where(file => file.State == StoredFileState.Deposited)
@@ -100,8 +90,7 @@ internal sealed class StoredFileRepository(
 
         context.StoredFiles.Add(record);
 
-        // Tracked like any other: the flush pipeline will map onto this row again before the save, which
-        // is how a mutation made after Add still lands.
+        // Tracked like any other, so a mutation made after Add is mapped onto this row before the save.
         tracker.Track(storedFile, record);
     }
 
@@ -109,10 +98,9 @@ internal sealed class StoredFileRepository(
     {
         ArgumentNullException.ThrowIfNull(storedFile);
 
-        // Ordinarily the row is already tracked, because a delete follows a load. The fallback attaches
-        // a stub carrying the key and the version, so a caller who reconstructed an aggregate elsewhere
-        // still gets a delete rather than a silent no-op — and still gets it checked against the token
-        // it decided on, because attaching snapshots the current values as the original ones.
+        // Ordinarily already tracked, because a delete follows a load. The fallback attaches a stub
+        // carrying the key and the version, so the delete still happens and is still checked against
+        // the token the caller decided on.
         var record = tracker.FindRecord(storedFile.Id)
             ?? new StoredFileRecord { Id = storedFile.Id, Version = storedFile.Version };
 

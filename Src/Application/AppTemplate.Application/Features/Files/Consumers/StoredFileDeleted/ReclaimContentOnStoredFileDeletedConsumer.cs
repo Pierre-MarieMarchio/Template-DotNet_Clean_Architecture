@@ -46,17 +46,13 @@ internal sealed class ReclaimContentOnStoredFileDeletedConsumer(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Shutdown, not a failure to reclaim: the sweep will find these bytes. Rethrowing keeps
-            // cancellation honest rather than reporting it as a store that refused.
+            // Shutdown, not a failure to reclaim: the sweep will find these bytes.
             throw;
         }
         catch (Exception exception)
         {
-            // Swallowed on purpose, and logged at warning rather than error: the object store being
-            // briefly unreachable is not a failure of the delete the user asked for — that already
-            // committed — and the sweep is what makes this recoverable without anyone retrying.
-            // Letting it propagate would surface a store outage as a failed deletion, which is the
-            // one thing that is not true.
+            // Swallowed: the delete the user asked for has already committed, and the sweep reclaims
+            // the bytes. Propagating would report a store outage as a failed deletion.
             logger.LogWarning(
                 exception,
                 "Reclaiming the content of stored file {StoredFileId} failed; the orphan sweep will " +

@@ -23,32 +23,22 @@ namespace AppTemplate.Api.Features.Files.Controllers;
 /// direction.
 /// </summary>
 /// <remarks>
-/// Authorisation is not declared here: <c>Program.cs</c> installs a fallback policy requiring an
-/// authenticated user, and nothing on this controller opts out.
-/// <para>
-/// <b>Depositing is two requests, and that is forced rather than chosen.</b>
-/// <c>RequestLimitsOptions.MaxRequestBodyBytes</c> caps an inbound body at 64 KiB (validated ceiling
-/// 30 MiB), and <see cref="IdempotencyFilter"/> buffers and SHA-256s the whole body of every
-/// <c>POST</c> before a handler sees it. So <see cref="Register"/> reserves a place and hands back a
-/// signed grant, the client deposits the bytes straight onto the object store, and
-/// <see cref="Confirm"/> makes the file readable. Every body on this controller is metadata — a
-/// name, a media type, a length, a digest — a few hundred characters whatever the file weighs, which
-/// is why no action here needs a request-size limit of its own and why none carries one. Raising the
-/// cap for this feature would be the mistake, not the omission.
-/// </para>
+/// <b>Depositing is two requests.</b> <c>RequestLimitsOptions.MaxRequestBodyBytes</c> caps an
+/// inbound body at 64 KiB, and <see cref="IdempotencyFilter"/> buffers and SHA-256s the whole body
+/// of every <c>POST</c> before a handler sees it — so no file's bytes pass through here.
+/// <see cref="Register"/> reserves a place and hands back a signed grant, the client deposits the
+/// bytes on the object store, and <see cref="Confirm"/> makes the file readable. Every body on this
+/// controller is metadata, so no action carries a request-size limit of its own.
 /// <para>
 /// <b>Reading is a redirect, never a body.</b> <see cref="GetContent"/> answers <c>302</c> with a
-/// short-lived signed URL and the content travels between the client and the store. Serving or
-/// transforming bytes here — resizing an image on the way out, say — would put unbounded CPU inside
-/// a process whose job is to answer in milliseconds, which is a denial of service a caller gets to
-/// choose the cost of.
+/// short-lived signed URL; the content travels between the client and the store, and no bytes are
+/// served or transformed in this process.
 /// </para>
 /// <para>
-/// <b>Conditional requests.</b> A file's content never changes, but the resource does: the version
-/// moves when a deposit is confirmed. So the reads that name one file publish that version as a
-/// strong <c>ETag</c>, and the two writes that name one file honour <c>If-Match</c> — see each
-/// action for what the condition buys. Registration takes none: there is no resource yet to have a
-/// version, and two callers registering files are not competing for one.
+/// <b>Conditional requests.</b> A file's content never changes but the resource does: the version
+/// moves when a deposit is confirmed. The reads naming one file publish it as a strong <c>ETag</c>
+/// and the two writes naming one file honour <c>If-Match</c>. Registration takes none — there is no
+/// resource yet to have a version.
 /// </para>
 /// </remarks>
 [Route("api/v{version:apiVersion}/files")]

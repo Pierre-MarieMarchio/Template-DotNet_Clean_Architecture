@@ -9,11 +9,8 @@ namespace AppTemplate.Api.Features.Auth.Contracts.Responses;
 /// yet.
 /// </summary>
 /// <remarks>
-/// A type of its own rather than <see cref="LoginResponse"/> reused, for one field:
-/// <see cref="Authenticated.AccountCreated"/> is meaningful only here, since a password sign-in
-/// cannot bring an account into existence. Carrying it on <see cref="LoginResponse"/> instead would
-/// publish a field that is <c>false</c> for every caller of <c>POST /auth/login</c> — a value with
-/// nothing behind it, which is worse than a second type.
+/// <see cref="Authenticated.AccountCreated"/> is meaningful only here: a password sign-in cannot
+/// bring an account into existence.
 /// </remarks>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "status")]
 [JsonDerivedType(typeof(Authenticated), "authenticated")]

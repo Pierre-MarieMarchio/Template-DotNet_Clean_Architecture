@@ -36,9 +36,7 @@ internal sealed class TwoFactorEnrollmentService(
 
         if (string.IsNullOrEmpty(key))
         {
-            // Rotates the security stamp as a side effect of ASP.NET Identity's own implementation —
-            // see SetUpTwoFactorUseCase for why the use case does not compensate for that with a full
-            // session wipe.
+            // Rotates the security stamp, as ASP.NET Identity's own implementation does.
             await userManager.ResetAuthenticatorKeyAsync(user);
             key = await userManager.GetAuthenticatorKeyAsync(user);
         }
@@ -59,10 +57,9 @@ internal sealed class TwoFactorEnrollmentService(
         var user = await directory.FindByIdAsync(userId, cancellationToken)
             ?? throw new InvalidOperationException($"No account with id '{userId}' exists.");
 
-        // Not userManager.CheckPasswordAsync: see EmailChangeTokensService.IssueAsync for why. A
-        // rehash-needed result would rotate the security stamp on its own, before the code below even
-        // gets a say — which would arm nothing yet still cost the caller every session it holds, on a
-        // password that was actually correct. VerifyHashedPassword alone has no such side effect.
+        // Not CheckPasswordAsync: a rehash-needed result rotates the security stamp, which would
+        // cost the caller every session it holds on a password that was correct. VerifyHashedPassword
+        // has no such side effect.
         if (user.PasswordHash is not { } hash ||
             userManager.PasswordHasher.VerifyHashedPassword(user, hash, currentPassword)
                 is PasswordVerificationResult.Failed)
@@ -80,13 +77,12 @@ internal sealed class TwoFactorEnrollmentService(
             return TwoFactorConfirmationOutcome.InvalidCode;
         }
 
-        // Rotates the security stamp — see ConfirmTwoFactorSetupUseCase for what that invalidates.
+        // Rotates the security stamp.
         var enabled = await userManager.SetTwoFactorEnabledAsync(user, true);
 
         if (!enabled.Succeeded)
         {
-            // Fails only on a store-level conflict, never on anything the caller submitted — there is
-            // no more specific outcome to report than the code check already covers.
+            // Fails only on a store-level conflict, never on anything the caller submitted.
             return TwoFactorConfirmationOutcome.InvalidCode;
         }
 
@@ -107,12 +103,9 @@ internal sealed class TwoFactorEnrollmentService(
         var user = await directory.FindByIdAsync(userId, cancellationToken);
 
         // The caller already authenticated as this id, so there is no address to protect from
-        // enumeration here — see IUserAccountsService.ChangePasswordAsync for the same reasoning. An absent
-        // account only means it was deleted after the token was issued.
-        //
-        // Verified through the hasher for the same reason ConfirmAsync above does it:
-        // CheckPasswordAsync rewrites the stored hash on a rehash-needed result, which rotates the
-        // security stamp — signing every device out on the way to *refusing* the request.
+        // enumeration: an absent account only means it was deleted after the token was issued.
+        // Verified through the hasher, as ConfirmAsync above is, to avoid CheckPasswordAsync's stamp
+        // rotation on the way to refusing the request.
         if (user is null
             || userManager.PasswordHasher.VerifyHashedPassword(
                 user, user.PasswordHash ?? string.Empty, currentPassword) == PasswordVerificationResult.Failed)
@@ -120,11 +113,11 @@ internal sealed class TwoFactorEnrollmentService(
             return TwoFactorDisableOutcome.IncorrectPassword;
         }
 
-        // Rotates the security stamp — see DisableTwoFactorUseCase for what that invalidates.
+        // Rotates the security stamp.
         await userManager.SetTwoFactorEnabledAsync(user, false);
 
-        // Invalidates the secret too, so a later re-enrollment starts from a fresh one instead of the
-        // same key every authenticator app already on file for this account still knows.
+        // Invalidates the secret, so a later re-enrollment does not reuse the key every authenticator
+        // app on file already knows.
         await userManager.ResetAuthenticatorKeyAsync(user);
 
         return TwoFactorDisableOutcome.Disabled;

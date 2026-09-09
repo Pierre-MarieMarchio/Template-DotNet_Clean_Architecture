@@ -71,9 +71,8 @@ internal sealed class ExternalIdentityVerifier(
         var keys = await signingKeys.GetAsync(configured, cancellationToken);
         var validation = await ValidateAsync(idToken, configured, keys);
 
-        // The token names a key the cached set does not hold, which is what a rotation looks like
-        // from here — and is not the same event as a bad signature, which no re-fetch would fix. The
-        // directory decides whether the request is actually made; this only asks.
+        // A key the cached set does not hold is what a rotation looks like from here, and is not a
+        // bad signature, which no re-fetch would fix. The directory decides whether to fetch.
         if (validation is { IsValid: false, Exception: SecurityTokenSignatureKeyNotFoundException })
         {
             keys = await signingKeys.RefreshAsync(configured, cancellationToken);
@@ -89,8 +88,8 @@ internal sealed class ExternalIdentityVerifier(
         if (!token.TryGetPayloadValue(JwtRegisteredClaimNames.Sub, out string? subject)
             || string.IsNullOrWhiteSpace(subject))
         {
-            // A token with no subject verifies but identifies nobody, and the pair (provider,
-            // subject) is the only key a local account is ever resolved by.
+            // A token with no subject verifies but identifies nobody, and (provider, subject) is the
+            // only key a local account is resolved by.
             return ExternalIdentityOutcome.Refused(ExternalIdentityStatus.InvalidToken);
         }
 
@@ -110,10 +109,8 @@ internal sealed class ExternalIdentityVerifier(
             idToken,
             new TokenValidationParameters
             {
-                // None of these is conditional on a value being present. A check that switches
-                // itself off when its configuration is blank is the defect JwtOptionsValidator
-                // exists to have prevented once already; here the options validator guarantees the
-                // values and these stay true unconditionally.
+                // Never conditional on a value being present: a check that switches itself off when
+                // its configuration is blank refuses nothing. The options validator guarantees them.
                 RequireSignedTokens = true,
                 RequireExpirationTime = true,
                 ValidateIssuerSigningKey = true,

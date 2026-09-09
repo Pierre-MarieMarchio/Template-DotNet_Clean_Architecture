@@ -45,12 +45,8 @@ internal sealed class PostgresLeaderLease(IConfiguration configuration, ILogger<
 
         long key = KeyOf(leaseName);
 
-        // Its own connection, opened here and closed when this call ends. An advisory lock is held
-        // by the session rather than by the command or the transaction that took it, so borrowing
-        // the DbContext's connection would hand the lock's lifetime to EF: the connection goes back
-        // to the pool still inside a lease this call believes it owns, and is disposed — releasing
-        // the lock — at a moment this call did not choose. Neither end of that lifetime is ours
-        // unless the connection is.
+        // An advisory lock is held by the session, not by the command or transaction that took it,
+        // so the lease owns its connection: a borrowed one would release the lock when EF chose to.
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -101,9 +97,8 @@ internal sealed class PostgresLeaderLease(IConfiguration configuration, ILogger<
 
             if (await command.ExecuteScalarAsync(CancellationToken.None) is not true)
             {
-                // The session did not hold the lock it just released. Either the connection was
-                // re-established under us — in which case the work ran without the exclusion it
-                // asked for — or two calls are sharing a session they should not be.
+                // The session did not hold the lock it just released: either the connection was
+                // re-established mid-lease, or two calls are sharing a session.
                 logger.LogWarning(
                     "The '{LeaseName}' lease was not held by this session at release time.",
                     leaseName);

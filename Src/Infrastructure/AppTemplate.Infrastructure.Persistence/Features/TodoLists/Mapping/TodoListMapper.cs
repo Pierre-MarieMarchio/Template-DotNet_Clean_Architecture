@@ -40,10 +40,6 @@ internal sealed class TodoListMapper : ITodoListMapper
 
         var aggregate = TodoList.Rehydrate(record.Id, UserId.Create(record.OwnerId), record.Name, items);
 
-        // The version and the audit stamps are read back through StoredStamps, not assigned here: the
-        // aggregate exposes them as read-only properties, settable only through the explicit interfaces
-        // that mark this as the persistence layer, and the four-line tail that does that is identical
-        // to ReminderMapper's — see StoredStamps for why it lives there instead of in a base class.
         StoredStamps.ApplyTo(aggregate, record, record.Version, record.Id, "To-do list");
 
         return aggregate;
@@ -59,15 +55,11 @@ internal sealed class TodoListMapper : ITodoListMapper
             OwnerId = aggregate.OwnerId.Value,
             Name = aggregate.Name.Value,
 
-            // Carried even though the store owns it. On an insert PostgreSQL assigns xmin itself and
-            // EF ignores whatever is here, but writing it keeps this method total — and a total method
-            // is what the round-trip fidelity test can check. A mapper with a deliberate hole in it is
-            // a mapper nobody can test for holes.
+            // Overwritten on insert, where PostgreSQL assigns xmin. Carried so the round trip stays
+            // total and the fidelity test can check it.
             Version = aggregate.Version,
 
-            // Likewise carried, and likewise overwritten: the audit interceptor stamps every Added
-            // entry after this runs. For an aggregate being inserted these are the type's defaults;
-            // for one being re-inserted after a round trip they are the values it was loaded with.
+            // Overwritten by the audit interceptor, which runs after this.
             CreatedAt = aggregate.CreatedAt,
             CreatedBy = aggregate.CreatedBy,
             LastModifiedAt = aggregate.LastModifiedAt,
@@ -87,15 +79,12 @@ internal sealed class TodoListMapper : ITodoListMapper
         ArgumentNullException.ThrowIfNull(aggregate);
         ArgumentNullException.ThrowIfNull(record);
 
-        // Assigned, not replaced. EF compares each value against the one it read and writes a column
-        // only if it actually differs, so an unchanged aggregate produces no UPDATE at all.
+        // Assigned, not replaced: EF writes a column only if the value differs from the one it read.
         record.OwnerId = aggregate.OwnerId.Value;
         record.Name = aggregate.Name.Value;
 
-        // Version, CreatedAt, CreatedBy, LastModifiedAt and LastModifiedBy are deliberately NOT
-        // written here. The concurrency token belongs to PostgreSQL and the audit stamps belong to the
-        // interceptor; the aggregate received both on load and receives them again after each save.
-        // A second writer for either would be a second opinion, and the two would eventually differ.
+        // Version and the audit stamps are not written here: the token is PostgreSQL's, the stamps
+        // are the interceptor's, and a second writer for either would eventually disagree.
         return ReconcileItems(aggregate, record);
     }
 
@@ -103,9 +92,8 @@ internal sealed class TodoListMapper : ITodoListMapper
     {
         bool structureChanged = false;
 
-        // Indexed by id, because an item's identity is its id and nothing else — matching by position
-        // or by title would turn a rename into a delete plus an insert, losing the row's history and
-        // its foreign keys with it.
+        // Indexed by id: matching by position or by title would turn a rename into a delete plus an
+        // insert, taking the row's foreign keys with it.
         var unmatched = record.Items.ToDictionary(item => item.Id);
 
         foreach (var item in aggregate.Items)
@@ -121,9 +109,8 @@ internal sealed class TodoListMapper : ITodoListMapper
             }
         }
 
-        // Whatever is left was removed from the aggregate. Taking it out of the tracked collection is
-        // what makes EF issue the DELETE; the relationship is required and cascading, so the row's
-        // tags go with it.
+        // Removing it from the tracked collection is what makes EF issue the DELETE; the relationship
+        // cascades, so the row's tags go with it.
         foreach (var orphan in unmatched.Values)
         {
             record.Items.Remove(orphan);

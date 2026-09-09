@@ -54,8 +54,8 @@ public sealed record DeclaredMediaType
             throw new DomainException("A media type cannot be empty.");
         }
 
-        // Both tokens are case-insensitive per RFC 9110, so normalising is what makes "IMAGE/PNG"
-        // and "image/png" one value rather than two rows the same query would have to match twice.
+        // Both tokens are case-insensitive per RFC 9110, so "IMAGE/PNG" and "image/png" are one
+        // value rather than two rows.
         string normalised = value.Trim().ToLowerInvariant();
 
         int separator = normalised.IndexOf('/');
@@ -78,18 +78,15 @@ public sealed record DeclaredMediaType
             throw new DomainException($"Neither half of a media type may exceed {MaxTokenLength} characters.");
         }
 
-        // Parameters are refused rather than stripped. "image/png; charset=utf-8" is a valid header
-        // value but not a valid answer to "what is this file", and a parser that discards what it
-        // does not understand is how two components end up disagreeing about the same string. The
-        // caller is told to send the bare type; the space and the ';' both fail the token test below.
+        // Parameters are refused rather than stripped: "image/png; charset=utf-8" is a valid header
+        // value and not an answer to "what is this file". The space and the ';' fail the token test.
         if (!IsToken(type) || !IsToken(subtype))
         {
             throw new DomainException("A media type may only contain token characters.");
         }
 
-        // '*' is a valid token character, so this has to be its own rule. A wildcard is what an
-        // Accept header carries — a statement about what a client will take — and it is never a
-        // statement about what one particular file is.
+        // '*' is a valid token character, so it needs its own rule: a wildcard says what a client
+        // will take, never what one file is.
         if (type == "*" || subtype == "*")
         {
             throw new DomainException("A media type cannot be a wildcard.");

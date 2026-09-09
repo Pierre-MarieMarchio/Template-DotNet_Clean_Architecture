@@ -10,19 +10,10 @@ using AppTemplate.Domain.Features.Files.ValueObjects;
 namespace AppTemplate.Api.Features.Files.Mapping;
 
 /// <summary>
-/// Projects the feature's application DTOs onto its wire contracts, by hand — for the reason
-/// <see cref="AppTemplate.Api.Features.TodoLists.Mapping.TodoListResponseMapping"/> gives:
-/// positional records plus <c>TreatWarningsAsErrors</c> make a member added on either side fail the
-/// build here.
+/// Projects the feature's application DTOs onto its wire contracts. <see cref="ToStatus"/> answers
+/// with the same two words <c>StoredFileFilter</c> parses on the way in, so a client filters with
+/// the value it just read.
 /// </summary>
-/// <remarks>
-/// Two of the projections below are the boundary earning its keep rather than ceremony.
-/// <see cref="ToStatus"/> turns <see cref="StoredFileState"/> into the same two words
-/// <c>StoredFileFilter</c> parses on the way in, so a client filters with the value it just read.
-/// And <see cref="ToResponse(RegisterFileOutcome)"/> republishes the port's grant under a contract
-/// of this layer's own, so that a field added to <see cref="IssuedUploadGrant"/> — by whoever next
-/// writes an object-store adapter — is not published to every client by that edit alone.
-/// </remarks>
 internal static class StoredFileResponseMapping
 {
     public static StoredFileResponse ToResponse(StoredFileDto file)

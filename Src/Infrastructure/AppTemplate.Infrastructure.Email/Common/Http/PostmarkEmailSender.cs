@@ -51,8 +51,8 @@ internal sealed class PostmarkEmailSender(
 
     private static readonly JsonSerializerOptions _json = new()
     {
-        // Postmark answers in PascalCase, but a case-insensitive read costs nothing and means an
-        // error document is still understood if that ever changes.
+        // Postmark answers in PascalCase; reading case-insensitively costs nothing and survives a
+        // change of theirs.
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
@@ -69,10 +69,8 @@ internal sealed class PostmarkEmailSender(
         var settings = email.Value;
         var options = postmark.Value;
 
-        // Parsed rather than passed through, exactly as the SMTP adapter does. Postmark reads To as a
-        // comma-separated list, so an unquoted display name containing a comma would silently become
-        // a second recipient — and parsing here also refuses a malformed address before spending a
-        // request on it.
+        // Postmark reads To as a comma-separated list, so an unquoted display name containing a comma
+        // would become a second recipient. Parsing also refuses a malformed address before the call.
         var to = MailboxAddress.Parse(recipient);
         var from = new MailboxAddress(settings.FromName, settings.FromAddress);
 
@@ -91,10 +89,8 @@ internal sealed class PostmarkEmailSender(
                 "application/json"),
         };
 
-        // On the request rather than on the client's default headers: the factory configures a client
-        // once and keeps that configuration for its lifetime, so a default header would pin whichever
-        // token was current at composition time and survive a rotation. Read per send, a rotated
-        // token takes effect on the next message.
+        // On the request, not the client's default headers: the factory configures a client once, so
+        // a default header would pin the token current at composition time across a rotation.
         request.Headers.TryAddWithoutValidation(ServerTokenHeader, options.ServerToken);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -145,8 +141,8 @@ internal sealed class PostmarkEmailSender(
         }
         catch (JsonException)
         {
-            // Not every refusal comes from Postmark: a proxy or a gateway in between answers in HTML,
-            // and a send that failed must not be reported as a parse error in this file.
+            // A proxy or gateway in between answers in HTML, and a failed send must not be reported
+            // as a parse error here.
             return _undiagnosed;
         }
     }

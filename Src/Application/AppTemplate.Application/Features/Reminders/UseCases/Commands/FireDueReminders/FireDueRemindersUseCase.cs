@@ -74,12 +74,9 @@ public sealed class FireDueRemindersUseCase(
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        // The lease takes work that returns nothing while this use case owes its caller a count, so
-        // the count comes back through a local the delegate closes over. It is assigned at most
-        // once — the port runs the work once per call, awaited on this path — so there is nothing
-        // to synchronise, and it is still zero on the standby path exactly because the delegate
-        // never ran. An out parameter cannot cross an async lambda and a field would make one
-        // instance's count visible to another's pass; the local is what has neither problem.
+        // The lease takes work that returns nothing, so the count comes back through a local the
+        // delegate closes over: assigned at most once, and still zero on the standby path because
+        // the delegate never ran.
         int notified = 0;
 
         bool ranHere = await lease.TryRunExclusivelyAsync(
@@ -89,10 +86,8 @@ public sealed class FireDueRemindersUseCase(
 
         if (!ranHere && logger.IsEnabled(LogLevel.Information))
         {
-            // A standby pass and a pass with nothing due both come back as zero, and
-            // ReminderBackgroundService logs that count on every single pass so that "nothing has
-            // fired for days" cannot be mistaken for "nothing was due". This line is what keeps the
-            // third way of reaching zero from collapsing into the other two.
+            // A standby pass and a pass with nothing due both report zero, and this line is what
+            // tells them apart in the log.
             logger.LogInformation(
                 "Reminder pass skipped: another host holds the '{LeaseName}' lease.",
                 _leaseName);
@@ -111,8 +106,7 @@ public sealed class FireDueRemindersUseCase(
             return 0;
         }
 
-        // One query for the whole batch: re-checking completion reminder by reminder would be
-        // exactly the round-trip cost GetDueAsync's own batching exists to avoid.
+        // One query for the whole batch, rather than one per reminder.
         Guid[] todoItemIds = [.. due.Select(reminder => reminder.TodoItemId).Distinct()];
         var completionStates = await targets.GetCompletionStatesAsync(todoItemIds, cancellationToken);
 
@@ -124,12 +118,8 @@ public sealed class FireDueRemindersUseCase(
 
             if (targetExists && isCompleted)
             {
-                // Everything GetDueAsync returns is Pending by contract, so an item already
-                // complete here is always a cancellation that never arrived: the completion event
-                // did not reach the consumer that watches for it, and this count is exactly that
-                // loss. Cancel() would throw on anything already fired, which is the same
-                // assumption stated twice — guarding one and not the other would only hide a
-                // broken contract behind a wrong number.
+                // GetDueAsync returns only Pending reminders, so an item already complete here is a
+                // cancellation that never arrived: the completion event did not reach its consumer.
                 diagnostics.RecordMissedCancellation();
                 reminder.Cancel();
 
@@ -138,8 +128,8 @@ public sealed class FireDueRemindersUseCase(
 
             if (!targetExists)
             {
-                // The item was removed, or its list was deleted — no event to have missed, since
-                // neither raises one. Not a divergence: this is the mechanism working as intended.
+                // The item was removed, or its list deleted; neither raises an event, so nothing was
+                // missed.
                 reminder.Cancel();
 
                 continue;
@@ -161,16 +151,13 @@ public sealed class FireDueRemindersUseCase(
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // A cancelled run is not a failed notification: rethrowing keeps cancellation
-                // honest instead of logging it as one.
+                // A cancelled run is not a failed notification.
                 throw;
             }
             catch (Exception exception)
             {
-                // Released rather than left to expire on its own, so the next pass retries this
-                // reminder immediately instead of waiting out the staleness window for nothing.
-                // The rest of the batch still runs: one owner's broken notification channel must
-                // not delay every other reminder due in the same pass.
+                // Released rather than left to expire, so the next pass retries it immediately. The
+                // rest of the batch still runs.
                 reminder.ReleaseClaim();
 
                 logger.LogWarning(

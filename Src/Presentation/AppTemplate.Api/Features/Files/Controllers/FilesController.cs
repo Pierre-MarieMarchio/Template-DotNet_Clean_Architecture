@@ -9,10 +9,8 @@ using AppTemplate.Api.Features.Files.Mapping;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUpload;
 using AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
-using AppTemplate.Application.Features.Files.UseCases.Commands.ReplaceStoredFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
-using AppTemplate.Application.Features.Files.UseCases.Queries.GetUsedFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 using Microsoft.AspNetCore.Mvc;
 
@@ -50,9 +48,7 @@ public sealed class FilesController(
     IIssueFileDownloadUseCase issueFileDownload,
     IRegisterFileUseCase registerFile,
     IConfirmFileUploadUseCase confirmFileUpload,
-    IReplaceStoredFileTagsUseCase replaceStoredFileTags,
-    IDeleteStoredFileUseCase deleteStoredFile,
-    IGetUsedFileTagsUseCase getUsedTags) : ApiControllerBase
+    IDeleteStoredFileUseCase deleteStoredFile) : ApiControllerBase
 {
     /// <summary>Lists the caller's own files, sorted, filtered and paginated.</summary>
     /// <remarks>
@@ -279,47 +275,6 @@ public sealed class FilesController(
         return UpdatedOrProblem(StoredFileResponseMapping.ToFileResponse(result));
     }
 
-    /// <summary>Replaces the labels a file carries.</summary>
-    /// <remarks>
-    /// <b>PUT and not PATCH</b>, and the request carries the whole set: what a partial update of a
-    /// set would mean is not a question this API answers, so an omitted tag is a tag removed and
-    /// the body says so. Sending an empty list is how a caller clears them.
-    /// <para>
-    /// Conditional for the ordinary reason: two clients relabelling the same file unconditionally
-    /// would each overwrite the other's set, and the loser would never learn. <c>If-Match</c> on
-    /// the version the caller read turns that into a 412.
-    /// </para>
-    /// <para>
-    /// The rules the set obeys — normalisation, de-duplication, the cap — are the domain's, and a
-    /// to-do item obeys the same ones through the same code. A refusal here therefore reads the
-    /// same as a refusal there.
-    /// </para>
-    /// </remarks>
-    [HttpPut("{fileId:guid}/tags")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(StoredFileResponse))]
-    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
-    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
-    [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
-    [ProducesResponseType(StatusCodes.Status412PreconditionFailed, Type = typeof(ProblemDetails))]
-    [ProducesResponseType(StatusCodes.Status428PreconditionRequired, Type = typeof(ProblemDetails))]
-    public async Task<ActionResult<StoredFileResponse>> ReplaceTags(
-        Guid fileId,
-        ReplaceStoredFileTagsRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (ReadPrecondition(out var precondition, out bool requiresExistence) is { } refusal)
-        {
-            return refusal;
-        }
-
-        var command = new ReplaceStoredFileTagsCommand(fileId, request?.Tags ?? [], precondition);
-        var result = RequiringExistence(
-            requiresExistence,
-            await replaceStoredFileTags.ExecuteAsync(command, cancellationToken));
-
-        return UpdatedOrProblem(StoredFileResponseMapping.ToFileResponse(result));
-    }
-
     /// <summary>Deletes a file and lets its bytes be reclaimed.</summary>
     /// <remarks>
     /// <b>A file's content is immutable, and a conditional delete is still worth having</b> — the two
@@ -354,16 +309,4 @@ public sealed class FilesController(
 
         return NoContentOrProblem(result);
     }
-
-    /// <summary>The tags the caller has already used on their files.</summary>
-    /// <remarks>
-    /// For a picker or a filter. Served from a cache with a short lifetime, so a tag added
-    /// moments ago may be missing: this is a suggestion, and no write depends on it.
-    /// </remarks>
-    [HttpGet("tags")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(UsedTagsResponse))]
-    public async Task<ActionResult<UsedTagsResponse>> GetUsedTags(
-        CancellationToken cancellationToken = default) =>
-        OkOrProblem(StoredFileResponseMapping.ToUsedTagsResponse(
-            await getUsedTags.ExecuteAsync(cancellationToken)));
 }

@@ -14,10 +14,8 @@ using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUpload;
 using AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
-using AppTemplate.Application.Features.Files.UseCases.Commands.ReplaceStoredFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
-using AppTemplate.Application.Features.Files.UseCases.Queries.GetUsedFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using Microsoft.AspNetCore.Http;
@@ -51,11 +49,8 @@ public sealed class FilesControllerTests
     private readonly IIssueFileDownloadUseCase _issueFileDownload = Substitute.For<IIssueFileDownloadUseCase>();
     private readonly IRegisterFileUseCase _registerFile = Substitute.For<IRegisterFileUseCase>();
     private readonly IConfirmFileUploadUseCase _confirmFileUpload = Substitute.For<IConfirmFileUploadUseCase>();
-    private readonly IReplaceStoredFileTagsUseCase _replaceStoredFileTags =
-        Substitute.For<IReplaceStoredFileTagsUseCase>();
 
     private readonly IDeleteStoredFileUseCase _deleteStoredFile = Substitute.For<IDeleteStoredFileUseCase>();
-    private readonly IGetUsedFileTagsUseCase _getUsedTags = Substitute.For<IGetUsedFileTagsUseCase>();
 
     #region Listing
 
@@ -515,9 +510,7 @@ public sealed class FilesControllerTests
             _issueFileDownload,
             _registerFile,
             _confirmFileUpload,
-            _replaceStoredFileTags,
-            _deleteStoredFile,
-            _getUsedTags)
+            _deleteStoredFile)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext ?? AContext() },
         };
@@ -535,14 +528,19 @@ public sealed class FilesControllerTests
 
     private static IReadOnlyList<string> ActionsWith<TAttribute>() where TAttribute : Attribute
     {
-        var actions = typeof(FilesController)
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        // Both controllers, because every rule in this class is a claim about the file surface rather
+        // than about one class of it: the caching contract, the idempotent action and the inbound
+        // body limit are properties a caller meets at a URL, and the tags live under the same route
+        // prefix. Splitting the surface across two types must not quietly halve what is checked.
+        var actions = new[] { typeof(FilesController), typeof(FileTagsController) }
+            .SelectMany(controller => controller
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             .Where(method => !method.IsSpecialName)
             .ToList();
 
         actions.Count.ShouldBe(
             8,
-            "This controller no longer has the eight actions every attribute rule in this class is "
+            "The file surface no longer has the eight actions every attribute rule in this class is "
             + "written against, so those rules have stopped describing it.");
 
         return

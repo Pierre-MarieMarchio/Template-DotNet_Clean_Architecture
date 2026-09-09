@@ -42,7 +42,7 @@ internal sealed class IdentitySeeder(
     /// Development both quote it back to the reader, and one constant keeps those two spellings from
     /// drifting apart.
     /// </summary>
-    private const string EnabledSettingKey = IdentitySeedOptions.SectionName + ":Enabled";
+    private const string _enabledSettingKey = IdentitySeedOptions.SectionName + ":Enabled";
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
@@ -54,7 +54,7 @@ internal sealed class IdentitySeeder(
             {
                 logger.LogInformation(
                     "Identity seeding is disabled ('{SettingKey}' is false); no roles or accounts were created.",
-                    EnabledSettingKey);
+                    _enabledSettingKey);
             }
 
             return;
@@ -63,7 +63,7 @@ internal sealed class IdentitySeeder(
         if (!environment.IsDevelopment())
         {
             throw new InvalidOperationException(
-                $"'{EnabledSettingKey}' is true in the '{environment.EnvironmentName}' " +
+                $"'{_enabledSettingKey}' is true in the '{environment.EnvironmentName}' " +
                 "environment. Seeding a privileged account is only permitted in Development.");
         }
 

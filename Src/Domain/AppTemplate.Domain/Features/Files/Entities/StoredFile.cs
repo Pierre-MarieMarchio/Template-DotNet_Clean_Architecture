@@ -205,41 +205,39 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// from.
     /// </para>
     /// </summary>
-    public static StoredFile Rehydrate(
-        Guid id,
-        UserId ownerId,
-        ObjectKey objectKey,
-        StoredFileName name,
-        DeclaredMediaType declaredMediaType,
-        FileSize size,
-        Sha256Checksum checksum,
-        StoredFileState state,
-        DateTimeOffset registeredAt,
-        DateTimeOffset? availableAt,
-        IEnumerable<string> tags)
+    public static StoredFile Rehydrate(StoredFileSnapshot stored)
     {
-        ArgumentNullException.ThrowIfNull(tags);
+        ArgumentNullException.ThrowIfNull(stored);
+        ArgumentNullException.ThrowIfNull(stored.Tags);
 
         // Only MakeAvailable writes the instant, so "has an instant" and "is available" are the same
         // fact and neither may appear without the other. An equivalence over the whole enum rather
         // than a rule per state, so a member added to the enum is not exempt from it.
-        if ((state == StoredFileState.Available) != (availableAt is not null))
+        if ((stored.State == StoredFileState.Available) != (stored.AvailableAt is not null))
         {
             throw new DomainException(
-                state == StoredFileState.Available
+                stored.State == StoredFileState.Available
                     ? "An available stored file must record when it was made available."
                     : "Only an available stored file may record when it was made available.");
         }
 
-        var file = new StoredFile(id, ownerId, objectKey, name, declaredMediaType, size, checksum, registeredAt)
+        var file = new StoredFile(
+            stored.Id,
+            stored.OwnerId,
+            stored.ObjectKey,
+            stored.Name,
+            stored.DeclaredMediaType,
+            stored.Size,
+            stored.Checksum,
+            stored.RegisteredAt)
         {
-            State = state,
-            AvailableAt = availableAt,
+            State = stored.State,
+            AvailableAt = stored.AvailableAt,
         };
 
         // Through the set, so a row holding more tags than the cap allows, or the same tag twice, is
         // refused rather than loaded.
-        file.SetTags(tags);
+        file.SetTags(stored.Tags);
 
         return file;
     }

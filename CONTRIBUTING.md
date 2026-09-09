@@ -136,13 +136,13 @@ dashboard, and an unconfigured repository is green rather than broken.
 Locally, the same analysis runs against a SonarQube Community server in Docker:
 
 ```bash
-docker compose --profile sonar up -d --wait sonarqube   # http://localhost:9100, admin/admin
+docker compose --profile sonar up -d --wait sonarqube   # http://localhost:9111, admin/admin
 # generate a token under My Account > Security, put it in .env as SONAR_TOKEN
 dotnet run Tools/Tasks.cs sonar
 ```
 
 The profile matters: `compose-up` gives you the application stack, and a 3 GB JVM that only the
-analysis needs has no business in it. Port 9100 and not 9000 because minio already publishes 9000.
+analysis needs has no business in it. Port 9111 and not 9000 because minio already publishes 9000.
 
 **The scanner needs Java, and you do not.** SonarScanner for .NET is a .NET tool that shells out to
 a JRE, so `Tools/sonar-scanner.Dockerfile` supplies one — Java 21, because analyses on a runtime

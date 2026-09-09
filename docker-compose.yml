@@ -386,9 +386,85 @@ services:
       "
     networks: [backend]
 
+  # --- Sonar --------------------------------------------------------------------------------
+  # Both services sit behind the `sonar` profile, so they start only when asked for:
+  #
+  #     docker compose --profile sonar up -d --wait sonarqube
+  #
+  # A profile rather than a plain service because `compose-up` is the "give me the stack" task
+  # every contributor runs, and a 3 GB JVM that only the analysis needs has no business being in
+  # it. Nothing in the application depends on either service.
+
+  sonarqube:
+    profiles: [sonar]
+    # Pinned to an exact Community Build version, like every other image here. `community` floats,
+    # and a server that silently changes version changes the rules an analysis is judged by.
+    image: sonarqube:26.9.0.129388-community
+    restart: unless-stopped
+    environment:
+      # The embedded database, which Community Build ships for exactly this case: a local instance
+      # whose history nobody needs to keep. It is not a production configuration and SonarQube says
+      # so on startup; the durable history lives in SonarQube Cloud, which .github/workflows/sonarqube.yml
+      # writes to.
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    ports:
+      # 9100, not 9000: minio above already publishes 9000 for its S3 API, and two services cannot
+      # share a host port. Inside the network the server is still plain http://sonarqube:9000, which
+      # is what the scanner below talks to.
+      - "127.0.0.1:9100:9000"   # the web UI — http://localhost:9100, admin/admin on first boot
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-logs:/opt/sonarqube/logs
+      - sonarqube-extensions:/opt/sonarqube/extensions
+    healthcheck:
+      # The server's own readiness endpoint, which reports UP only once Elasticsearch has joined —
+      # a plain TCP check on 9000 passes minutes before the API will accept an analysis.
+      #
+      # curl and not wget: this image ships no wget, and a healthcheck whose binary is missing does
+      # not report "missing", it reports unhealthy for ever, which reads exactly like a server that
+      # will not start.
+      test: ["CMD-SHELL", "curl --silent --fail http://localhost:9000/api/system/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      # Deliberately generous: a first boot builds the database and the search indices, which takes
+      # a few minutes on a cold machine. A tighter budget reports a failure that is really a wait.
+      retries: 60
+      start_period: 60s
+    networks: [backend]
+
+  # The analysis itself, as a one-shot container: it runs the scan and exits, like minio-bucket
+  # above. `dotnet run Tools/Tasks.cs sonar` is the supported way to invoke it.
+  sonar-scanner:
+    profiles: [sonar]
+    build:
+      context: .
+      dockerfile: Tools/sonar-scanner.Dockerfile
+    depends_on:
+      sonarqube:
+        condition: service_healthy
+    environment:
+      SONAR_HOST_URL: http://sonarqube:9000
+      # Defaulted to empty rather than declared required, and deliberately so. Compose interpolates
+      # this whole file before it decides which profiles are active, so a `${VAR:?}` here would fire
+      # for anyone running plain `docker compose config` — including the CI job that validates this
+      # file against .env.example, where the token is necessarily blank. The scan script checks the
+      # token instead, and says where to generate one.
+      SONAR_TOKEN: ${SONAR_TOKEN:-}
+      SONAR_PROJECT_KEY: ${SONAR_PROJECT_KEY:-app-template}
+    volumes:
+      # The checkout itself, because the scanner reports findings against real paths and a copy
+      # would name paths that exist nowhere. Builds inside the container are redirected to
+      # artifacts/sonar by the task that drives it, so this mount does not overwrite the bin/ and
+      # obj/ trees the host build owns.
+      - .:/repo
+    networks: [backend]
+
 volumes:
   db-data:
   minio-data:
+  sonarqube-data:
+  sonarqube-logs:
+  sonarqube-extensions:
 
 networks:
   # Declared explicitly rather than relying on the implicit default network, so

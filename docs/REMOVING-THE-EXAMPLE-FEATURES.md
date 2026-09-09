@@ -492,8 +492,10 @@ than passing over nothing:
 - `SharedInstanceRegistrationTests.EveryAggregateTracker_ResolvesAsOneInstanceUnderEveryContractItServes`
   — its floor is two trackers; the composed container has none.
 - `DefaultDenyAuthorizationTests` — no controller left that relies on the fallback policy.
-  `AuthController` decorates every action explicitly, and `MaintenanceController` and
-  `AccountAdministrationController` each declare their own policy at the controller level.
+  The five authentication controllers -- `RegistrationController`, `SessionsController`,
+  `AccountController`, `TwoFactorController` and `PasswordRecoveryController` -- decorate every one of
+  their eighteen actions explicitly, and `MaintenanceController` and `AccountAdministrationController`
+  each declare their own policy at the controller level.
 - `DomainModelTests` — `AppTemplate.Domain` declares no aggregate, no entity, no value object and no
   domain event: `Features/` is all that project holds, and it is empty. The primitives a real
   feature builds on are one project inwards, in `AppTemplate.Domain.Core`, and nothing about
@@ -661,7 +663,8 @@ is what says so and names why. So the first three steps are small: delete the
 `AddAuthApplication()` line from both `Program.cs` files, delete
 `Src/Application/AppTemplate.Application.Auth/` and `Src/Infrastructure/AppTemplate.Infrastructure.Auth/`
 with their test mirrors and solution entries, and delete
-`Src/Presentation/AppTemplate.Api/Features/Auth/` — `AuthController` and
+`Src/Presentation/AppTemplate.Api/Features/Auth/` — six controllers: `RegistrationController`,
+`SessionsController`, `AccountController`, `TwoFactorController`, `PasswordRecoveryController` and
 `AccountAdministrationController`.
 
 **Then four things answer back, and none of them is in either of those two projects.**

@@ -1,38 +1,21 @@
 ﻿using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AppTemplate.Api.Core.Common.Caching;
 using AppTemplate.Api.Core.Common.Errors;
-using AppTemplate.Api.Core.Common.Idempotency;
-using AppTemplate.Api.Core.Common.Security;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.Features.Auth.Controllers;
 using AppTemplate.Application.Auth.Features.Auth.Errors;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePassword;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEmail;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEmailChange;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DisableTwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Logout;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.LogoutEverywhere;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RefreshAccessToken;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Register;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestEmailChange;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestPasswordReset;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResendConfirmationEmail;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResetPassword;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SetUpTwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.VerifyTwoFactor;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.GetCurrentUser;
 using AppTemplate.Application.Core.Common.Results;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -48,9 +31,8 @@ namespace AppTemplate.Api.UnitTests.Features.Auth.Controllers;
 /// <remarks>
 /// The use case is substituted: which sign-ins are accepted is its own subject, and collapsing every
 /// refusal into one error is a guarantee it owns. What is left here is what no other layer can be
-/// asked about — that the body a client receives really carries the branch tag, that a second factor
-/// travels as a challenge rather than as a token pair, and that the credential budget, the caching
-/// rule and the anonymity of the endpoint are the ones this controller declares.
+/// asked about -- that the body a client receives really carries the branch tag, and that a second
+/// factor travels as a challenge rather than as a token pair.
 /// <para>
 /// The bodies are read from a response stream MVC wrote, never from
 /// <c>JsonSerializer.Serialize&lt;TBase&gt;(…)</c>: naming the polymorphic base in the test is what
@@ -58,8 +40,12 @@ namespace AppTemplate.Api.UnitTests.Features.Auth.Controllers;
 /// discriminator is only really there because <c>ApiControllerBase</c> sets
 /// <see cref="ObjectResult.DeclaredType"/>, and only a run through the output formatter can see that.
 /// </para>
+/// <para>
+/// The attribute rules for this surface live in <c>AuthenticationSurfaceTests</c>: they are claims
+/// about all five controllers answering the <c>auth</c> prefix, not about this one.
+/// </para>
 /// </remarks>
-public sealed class AuthControllerTests
+public sealed class SessionsControllerTests
 {
     private static readonly DateTimeOffset _accessExpiry = new(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
     private static readonly DateTimeOffset _refreshExpiry = new(2026, 1, 9, 3, 4, 5, TimeSpan.Zero);
@@ -221,79 +207,6 @@ public sealed class AuthControllerTests
     }
 
     #endregion
-
-    #region The attributes this endpoint stands on
-
-    /// <summary>
-    /// A sign-in endpoint outside the credential budget is a hole nothing else closes: account
-    /// lockout counts failures per account, and this endpoint has no account until a token verifies.
-    /// </summary>
-    [Fact]
-    public void EveryEndpointThatMintsATokenPair_IsOnTheCredentialBudget_AndIsNoStore()
-    {
-        string[] minting =
-        [
-            nameof(AuthController.Login),
-            nameof(AuthController.LoginWithExternalProvider),
-            nameof(AuthController.LoginWithTwoFactor),
-            nameof(AuthController.Refresh),
-        ];
-
-        foreach (string name in minting)
-        {
-            var action = ActionNamed(name);
-
-            action.GetCustomAttribute<EnableRateLimitingAttribute>()
-                .ShouldNotBeNull($"{name} answers with credentials and must be rate limited.")
-                .PolicyName.ShouldBe(RateLimitingExtensions.Authentication);
-
-            action.GetCustomAttribute<NoStoreAttribute>().ShouldNotBeNull(
-                $"RFC 6749 §5.1 forbids any cache from storing {name}'s response.");
-        }
-    }
-
-    [Fact]
-    public void LoginWithExternalProvider_IsTheVisibleExceptionToDefaultDeny()
-    {
-        var action = ActionNamed(nameof(AuthController.LoginWithExternalProvider));
-
-        action.GetCustomAttribute<AllowAnonymousAttribute>().ShouldNotBeNull(
-            "a caller signing in has no token yet, so the fallback policy has to be opted out of "
-            + "here — by name, and listed in HttpSurfaceTests along with every other exception.");
-
-        action.GetCustomAttribute<AuthorizeAttribute>().ShouldBeNull(
-            "carrying both resolves to anonymous, which hides the decision rather than declaring it.");
-    }
-
-    /// <summary>
-    /// Replaying a sign-in must mint a fresh pair, exactly as <c>POST /auth/login</c> does. Marking it
-    /// idempotent would put the issued pair in the idempotency store so a retry could be handed the
-    /// same one back — a credential at rest in a table whose purpose is to be read back — which is the
-    /// reason <see cref="IdempotentAttribute"/> gives for staying off every authentication endpoint.
-    /// </summary>
-    [Fact]
-    public void NoAuthenticationAction_IsIdempotent() => ActionsWith<IdempotentAttribute>().ShouldBeEmpty();
-
-    /// <summary>
-    /// An <c>id_token</c> is a few kilobytes of base64url at its largest, so the 64 KiB inbound cap
-    /// covers it many times over. An attribute widening it here would be the first sign somebody had
-    /// started posting something other than a token to this endpoint.
-    /// </summary>
-    [Fact]
-    public void NoAuthenticationAction_WidensTheInboundBodyLimit()
-    {
-        string[] offenders =
-        [
-            .. ActionsWith<RequestSizeLimitAttribute>(),
-            .. ActionsWith<DisableRequestSizeLimitAttribute>(),
-            .. ActionsWith<RequestFormLimitsAttribute>(),
-        ];
-
-        offenders.ShouldBeEmpty();
-    }
-
-    #endregion
-
     #region Fixture
 
     private static SignInWithExternalProviderRequest ARequest() => new("a-provider", "an.id.token");
@@ -376,56 +289,17 @@ public sealed class AuthControllerTests
         };
     }
 
-    private AuthController AController(HttpContext? httpContext = null) =>
+    private SessionsController AController(HttpContext? httpContext = null) =>
         new(
-            Substitute.For<IRegisterUseCase>(),
             Substitute.For<ILoginUseCase>(),
-            Substitute.For<IRefreshAccessTokenUseCase>(),
-            Substitute.For<IConfirmEmailUseCase>(),
-            Substitute.For<IResendConfirmationEmailUseCase>(),
-            Substitute.For<ILogoutUseCase>(),
-            Substitute.For<ILogoutEverywhereUseCase>(),
-            Substitute.For<IGetCurrentUserUseCase>(),
-            Substitute.For<IChangePasswordUseCase>(),
-            Substitute.For<IRequestEmailChangeUseCase>(),
-            Substitute.For<IConfirmEmailChangeUseCase>(),
-            Substitute.For<IRequestPasswordResetUseCase>(),
-            Substitute.For<IResetPasswordUseCase>(),
-            Substitute.For<ISetUpTwoFactorUseCase>(),
-            Substitute.For<IConfirmTwoFactorSetupUseCase>(),
-            Substitute.For<IDisableTwoFactorUseCase>(),
             Substitute.For<IVerifyTwoFactorUseCase>(),
-            _signInWithExternalProvider)
+            _signInWithExternalProvider,
+            Substitute.For<IRefreshAccessTokenUseCase>(),
+            Substitute.For<ILogoutUseCase>(),
+            Substitute.For<ILogoutEverywhereUseCase>())
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext ?? AContext() },
         };
-
-    private static MethodInfo ActionNamed(string name) =>
-        Actions().SingleOrDefault(method => string.Equals(method.Name, name, StringComparison.Ordinal))
-        ?? throw new InvalidOperationException($"{nameof(AuthController)} declares no action named '{name}'.");
-
-    private static IReadOnlyList<string> ActionsWith<TAttribute>() where TAttribute : Attribute =>
-    [
-        .. Actions()
-            .Where(method => method.GetCustomAttribute<TAttribute>() is not null)
-            .Select(method => method.Name)
-            .Order(StringComparer.Ordinal),
-    ];
-
-    private static List<MethodInfo> Actions()
-    {
-        var actions = typeof(AuthController)
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Where(method => !method.IsSpecialName)
-            .ToList();
-
-        actions.Count.ShouldBeGreaterThanOrEqualTo(
-            18,
-            "Far fewer actions were found than this controller declares, so every attribute rule in "
-            + "this class is passing over an empty set.");
-
-        return actions;
-    }
 
     #endregion
 }

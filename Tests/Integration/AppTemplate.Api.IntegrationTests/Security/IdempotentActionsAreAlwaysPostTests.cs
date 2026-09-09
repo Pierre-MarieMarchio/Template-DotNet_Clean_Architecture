@@ -31,14 +31,18 @@ public sealed class IdempotentActionsAreAlwaysPostTests
     private static readonly Type[] _controllers =
     [
         typeof(AccountAdministrationController),
-        typeof(AuthController),
+        typeof(AccountController),
         typeof(FilesController),
         typeof(FileTagsController),
         typeof(MaintenanceController),
+        typeof(PasswordRecoveryController),
+        typeof(RegistrationController),
         typeof(RemindersController),
+        typeof(SessionsController),
         typeof(TodoItemsController),
         typeof(TodoItemTagsController),
         typeof(TodoListsController),
+        typeof(TwoFactorController),
     ];
 
     [Fact]
@@ -82,7 +86,7 @@ public sealed class IdempotentActionsAreAlwaysPostTests
     [Fact]
     public void TheControllerList_CoversEveryControllerInTheApiAssembly()
     {
-        var actualControllers = typeof(AuthController).Assembly
+        var actualControllers = typeof(SessionsController).Assembly
             .GetTypes()
             .Where(type => type is { IsClass: true, IsAbstract: false }
                 && type.Name.EndsWith("Controller", StringComparison.Ordinal))

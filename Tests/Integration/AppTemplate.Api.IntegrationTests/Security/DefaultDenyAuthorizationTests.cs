@@ -24,6 +24,20 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     private static readonly Guid _someItemId = Guid.CreateVersion7();
 
     /// <summary>
+    /// The five classes answering the <c>auth</c> prefix. Every rule below reads all five, for the
+    /// same reason the todo-list rules read all three: default deny is a property of an endpoint, and
+    /// a rule enumerating one class stops asking the question of the others.
+    /// </summary>
+    private static readonly Type[] _authControllers =
+    [
+        typeof(RegistrationController),
+        typeof(SessionsController),
+        typeof(AccountController),
+        typeof(TwoFactorController),
+        typeof(PasswordRecoveryController),
+    ];
+
+    /// <summary>
     /// The three classes answering the one route prefix. Every rule below is a claim about that
     /// surface rather than about a class of it, so each reads all three: a rule counting one would
     /// go on passing while covering a third of the endpoints.
@@ -144,27 +158,29 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     [Fact]
     public void TheAuthenticationEndpoints_OptOutOneByOne()
     {
-        typeof(AuthController)
-            .GetCustomAttributes<AllowAnonymousAttribute>(inherit: true)
-            .ShouldBeEmpty(
-                "A controller-level [AllowAnonymous] on AuthController silently un-protects every "
-                + "authenticated action on it.");
-
-        foreach (var action in ActionsOf(typeof(AuthController)))
+        foreach (var controller in _authControllers)
         {
-            bool anonymous = action.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true).Any();
-            bool authorised = action.GetCustomAttributes<AuthorizeAttribute>(inherit: true).Any();
+            controller.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true)
+                .ShouldBeEmpty(
+                    $"A controller-level [AllowAnonymous] on {controller.Name} silently un-protects "
+                    + "every authenticated action on it.");
 
-            (anonymous ^ authorised).ShouldBeTrue(
-                $"{action.Name} must declare exactly one of [AllowAnonymous] or [Authorize]. Carrying "
-                + "neither leaves it to the fallback policy, where nobody reading the action can tell; "
-                + "carrying both resolves to anonymous.");
+            foreach (var action in ActionsOf(controller))
+            {
+                bool anonymous = action.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true).Any();
+                bool authorised = action.GetCustomAttributes<AuthorizeAttribute>(inherit: true).Any();
+
+                (anonymous ^ authorised).ShouldBeTrue(
+                    $"{controller.Name}.{action.Name} must declare exactly one of [AllowAnonymous] or "
+                    + "[Authorize]. Carrying neither leaves it to the fallback policy, where nobody "
+                    + "reading the action can tell; carrying both resolves to anonymous.");
+            }
         }
     }
 
     /// <summary>
     /// Which authentication actions require a token, enumerated so that adding one without deciding
-    /// fails here. Everything else on the controller is anonymous by necessity: a caller signing in,
+    /// fails here. Everything else on the five controllers is anonymous by necessity: a caller signing in,
     /// confirming an address or resetting a password has no token yet.
     /// </summary>
     [Fact]
@@ -172,7 +188,8 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     {
         string[] authenticated =
         [
-            .. ActionsOf(typeof(AuthController))
+            .. _authControllers
+                .SelectMany(ActionsOf)
                 .Where(action => action.GetCustomAttributes<AuthorizeAttribute>(inherit: true).Any())
                 .Select(action => action.Name)
                 .Order(StringComparer.Ordinal),
@@ -180,14 +197,14 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
 
         authenticated.ShouldBe(
             [
-                nameof(AuthController.ChangePassword),
-                nameof(AuthController.ConfirmEmailChange),
-                nameof(AuthController.ConfirmTwoFactorSetup),
-                nameof(AuthController.DisableTwoFactor),
-                nameof(AuthController.GetCurrentUser),
-                nameof(AuthController.LogoutEverywhere),
-                nameof(AuthController.RequestEmailChange),
-                nameof(AuthController.SetUpTwoFactor),
+                nameof(AccountController.ChangePassword),
+                nameof(AccountController.ConfirmEmailChange),
+                nameof(TwoFactorController.ConfirmTwoFactorSetup),
+                nameof(TwoFactorController.DisableTwoFactor),
+                nameof(AccountController.GetCurrentUser),
+                nameof(SessionsController.LogoutEverywhere),
+                nameof(AccountController.RequestEmailChange),
+                nameof(TwoFactorController.SetUpTwoFactor),
             ],
             "An authentication endpoint changed sides. Decide deliberately, then update this list.");
     }

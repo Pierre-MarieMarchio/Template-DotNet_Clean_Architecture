@@ -243,8 +243,8 @@ five or more consecutive `//` lines remain in the tree**, each one a fact the co
   were each stating in their own words. Deleting those would have lost something a reader needs.
 - **A hazard is not commentary.** The test `CONTRIBUTING.md` states — can someone introduce a bug if
   this goes — keeps a comment that a rule of thumb would cut: that `[AllowAnonymous]` on
-  `AuthController`'s class would defeat the `[Authorize]` on two actions and serve a caller's profile
-  to anyone, that the XML generator collects the comments of the assembly making the `AddOpenApi`
+  an authentication controller's class would defeat the `[Authorize]` on the actions beside it and
+  serve a caller's profile to anyone, that the XML generator collects the comments of the assembly making the `AddOpenApi`
   call, that the 64 KiB body cap is why depositing a file is two requests.
 - **In the API host, a `///` on a contract or an action is product output**, not internal
   commentary: it becomes the OpenAPI document's `description` and `summary`, and

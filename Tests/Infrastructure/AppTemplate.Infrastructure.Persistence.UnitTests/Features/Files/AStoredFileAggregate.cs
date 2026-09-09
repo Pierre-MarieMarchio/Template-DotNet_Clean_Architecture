@@ -52,18 +52,20 @@ internal static class AStoredFileAggregate
     /// <summary>A fully populated aggregate, as if it had just been loaded after confirmation.</summary>
     internal static StoredFile FullyPopulated()
     {
-        var aggregate = StoredFile.Rehydrate(
-            StoredFileId,
-            OwnerId,
-            ObjectKey.Create(ObjectKeyValue),
-            StoredFileName.Create(NameValue),
-            DeclaredMediaType.Create(DeclaredMediaTypeValue),
-            FileSize.Create(SizeInBytes),
-            Sha256Checksum.Create(ChecksumValue),
-            State,
-            RegisteredAt,
-            AvailableAt,
-            ["invoice", "2026"]);
+        var aggregate = StoredFile.Rehydrate(new StoredFileSnapshot
+        {
+            Id = StoredFileId,
+            OwnerId = OwnerId,
+            ObjectKey = ObjectKey.Create(ObjectKeyValue),
+            Name = StoredFileName.Create(NameValue),
+            DeclaredMediaType = DeclaredMediaType.Create(DeclaredMediaTypeValue),
+            Size = FileSize.Create(SizeInBytes),
+            Checksum = Sha256Checksum.Create(ChecksumValue),
+            State = State,
+            RegisteredAt = RegisteredAt,
+            AvailableAt = AvailableAt,
+            Tags = ["invoice", "2026"],
+        });
 
         ((IVersioned)aggregate).SetVersion(Version);
         ((IAuditable)aggregate).SetCreated(CreatedAt, CreatedBy);
@@ -86,18 +88,20 @@ internal static class AStoredFileAggregate
     /// </remarks>
     internal static StoredFile DifferentInEveryDomainOwnedValue()
     {
-        var aggregate = StoredFile.Rehydrate(
-            StoredFileId,
-            OtherOwnerId,
-            ObjectKey.Create(OtherObjectKeyValue),
-            StoredFileName.Create(OtherNameValue),
-            DeclaredMediaType.Create(OtherDeclaredMediaTypeValue),
-            FileSize.Create(OtherSizeInBytes),
-            Sha256Checksum.Create(OtherChecksumValue),
-            OtherState,
-            OtherRegisteredAt,
-            OtherAvailableAt,
-            ["receipt"]);
+        var aggregate = StoredFile.Rehydrate(new StoredFileSnapshot
+        {
+            Id = StoredFileId,
+            OwnerId = OtherOwnerId,
+            ObjectKey = ObjectKey.Create(OtherObjectKeyValue),
+            Name = StoredFileName.Create(OtherNameValue),
+            DeclaredMediaType = DeclaredMediaType.Create(OtherDeclaredMediaTypeValue),
+            Size = FileSize.Create(OtherSizeInBytes),
+            Checksum = Sha256Checksum.Create(OtherChecksumValue),
+            State = OtherState,
+            RegisteredAt = OtherRegisteredAt,
+            AvailableAt = OtherAvailableAt,
+            Tags = ["receipt"],
+        });
 
         ((IVersioned)aggregate).SetVersion(OtherVersion);
         ((IAuditable)aggregate).SetCreated(OtherCreatedAt, OtherCreatedBy);

@@ -66,13 +66,15 @@ internal static class AReminder
         Guid? id = null,
         Guid? todoListId = null,
         Guid? todoItemId = null) =>
-        Reminder.Rehydrate(
-            id ?? Guid.CreateVersion7(),
-            ownerId,
-            todoListId ?? Guid.CreateVersion7(),
-            todoItemId ?? Guid.CreateVersion7(),
-            dueAt,
-            state,
-            claimedAt,
-            notifiedAt);
+        Reminder.Rehydrate(new ReminderSnapshot
+        {
+            Id = id ?? Guid.CreateVersion7(),
+            OwnerId = ownerId,
+            TodoListId = todoListId ?? Guid.CreateVersion7(),
+            TodoItemId = todoItemId ?? Guid.CreateVersion7(),
+            DueAt = dueAt,
+            State = state,
+            ClaimedAt = claimedAt,
+            NotifiedAt = notifiedAt,
+        });
 }

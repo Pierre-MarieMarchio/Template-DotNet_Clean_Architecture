@@ -15,7 +15,8 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// <summary>
 /// Acting on somebody else's account: locking it out, granting or revoking a role, deleting it
 /// outright. Everything here is restricted to <see cref="AuthorizationPolicies.Administrator"/>, on the class —
-/// unlike <see cref="AuthController"/>, nothing on this surface has an anonymous or self-service
+/// unlike the five controllers answering the <c>auth</c> prefix, nothing on this surface has an
+/// anonymous or self-service
 /// counterpart, so there is no accidental <c>[AllowAnonymous]</c> for a class-level policy to defeat.
 /// </summary>
 /// <remarks>

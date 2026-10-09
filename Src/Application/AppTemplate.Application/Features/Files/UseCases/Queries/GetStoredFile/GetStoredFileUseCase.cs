@@ -10,16 +10,9 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 
 /// <summary>
-/// Reads one file's metadata through the read port rather than through
-/// <c>IStoredFileService</c>, because there is no aggregate to load: the projection answers with the
-/// version alongside the representation, from the same query, so the validator a caller is handed
-/// describes the body it came with.
-/// <para>
-/// The owner is passed to the port and the port answers <c>null</c> for a file that is not this
-/// caller's, exactly as it does for one that does not exist. The refusal is built into the query
-/// rather than applied after it, which is what stops a future edit from reading the row first and
-/// comparing afterwards.
-/// </para>
+/// Reads one file's metadata through the read port, so the version comes from the same query as the
+/// representation. The owner is passed to the query, which answers <c>null</c> for another caller's
+/// file exactly as for a missing one, so the check cannot be applied after the read.
 /// </summary>
 public sealed class GetStoredFileUseCase(
     IStoredFileQueries queries,

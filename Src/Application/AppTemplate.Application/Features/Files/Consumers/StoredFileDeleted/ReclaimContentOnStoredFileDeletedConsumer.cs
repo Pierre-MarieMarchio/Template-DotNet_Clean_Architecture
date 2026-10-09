@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Core.Common.Events;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Domain.Features.Files.Events;
 using Microsoft.Extensions.Logging;
@@ -7,26 +6,12 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 
 /// <summary>
-/// Deletes a file's bytes as soon as its row is gone, instead of waiting for the sweep to notice
-/// that nothing references them any more.
+/// Deletes a file's bytes as soon as its row is gone, instead of waiting for the sweep.
 /// <para>
-/// <b>This is a fast path, not the correctness guarantee.</b> Deleting this class would not leak a
-/// single byte: <c>ReclaimOrphanedContentUseCase</c> lists the store, subtracts the keys live rows
-/// name, and removes the difference — so an object this consumer never got to is reclaimed on the
-/// sweep's walk regardless. What the consumer buys is the interval: seconds instead of up to a few
-/// <c>FileWorker:ReclaimOrphanedContentInterval</c> periods, which ship at twelve hours because each
-/// pass walks a large part of the store.
-/// </para>
-/// <para>
-/// That is the shape this repository requires of every consumer, because domain events are
-/// dispatched in-process, after commit, at most once, with no outbox — see docs/DECISIONS.md. The
-/// effect re-derives its own precondition: running twice deletes an object that is already gone,
-/// which the store treats as success, and never running leaves the system consistent but holding
-/// bytes for longer than it needed to.
-/// </para>
-/// <para>
-/// It commits nothing, and needs no <see cref="IUnitOfWork"/>: it touches only the object store,
-/// and the row whose deletion triggered it was committed before this ran.
+/// A fast path, not the guarantee: <c>ReclaimOrphanedContentUseCase</c> reclaims whatever this never
+/// reached, so it only shortens the interval (see "Correctness does not depend on event delivery" in
+/// <c>docs/DECISIONS.md</c>). Running twice deletes an object already gone, which the store treats as
+/// success. It commits nothing: it touches only the object store.
 /// </para>
 /// </summary>
 internal sealed class ReclaimContentOnStoredFileDeletedConsumer(
@@ -51,8 +36,8 @@ internal sealed class ReclaimContentOnStoredFileDeletedConsumer(
         }
         catch (Exception exception)
         {
-            // Swallowed: the delete the user asked for has already committed, and the sweep reclaims
-            // the bytes. Propagating would report a store outage as a failed deletion.
+            // Swallowed: the deletion already committed and the sweep reclaims the bytes; propagating
+            // would report a store outage as a failed deletion.
             logger.LogWarning(
                 exception,
                 "Reclaiming the content of stored file {StoredFileId} failed; the orphan sweep will " +

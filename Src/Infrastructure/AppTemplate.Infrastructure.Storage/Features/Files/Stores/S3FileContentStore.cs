@@ -9,21 +9,15 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Stores;
 
 /// <summary>
-/// <see cref="IFileContentStore"/> over an S3-compatible bucket. Signed URLs are
-/// <c>S3FileDirectTransfer</c>'s; this class makes only the calls this process makes itself.
-/// <para>
-/// The AWS SDK builds its own <c>HttpClient</c> and escapes the hosts' outbound HTTP policy;
-/// <see cref="BucketBudget"/> restates that budget for it.
-/// </para>
+/// <see cref="IFileContentStore"/> over an S3-compatible bucket; signed URLs are
+/// <c>S3FileDirectTransfer</c>'s. The SDK escapes the outbound HTTP policy, so <see cref="BucketBudget"/>
+/// restates it.
 /// </summary>
 internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorageS3Options> options) : IFileContentStore
 {
     private const int _sha256DigestLength = 32;
 
-    /// <summary>
-    /// The error codes S3-compatible stores answer when a body disagrees with its declared length or
-    /// digest. The store refuses the whole request, so nothing is written.
-    /// </summary>
+    /// <summary>Codes answered when a body disagrees with its declared length or digest; nothing is written.</summary>
     private static readonly HashSet<string> _contentMismatchCodes = new(StringComparer.Ordinal)
     {
         "BadDigest",
@@ -35,11 +29,8 @@ internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorage
 
     /// <summary>
     /// <inheritdoc cref="IFileContentStore.WriteAsync"/>
-    /// <para>
-    /// One <c>PutObject</c> carrying the length and the SHA-256: the store verifies both and either
-    /// stores the whole object or nothing. No total budget, because a write lasts as long as its
-    /// body; the SDK's per-attempt timeout bounds a stalled request.
-    /// </para>
+    /// One <c>PutObject</c> carrying length and SHA-256, so the store keeps the whole object or nothing.
+    /// No total budget: a write lasts as long as its body.
     /// </summary>
     public async Task<ContentWriteOutcome> WriteAsync(
         string objectKey,
@@ -106,11 +97,8 @@ internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorage
 
     /// <summary>
     /// <inheritdoc cref="IFileContentStore.DescribeAsync"/>
-    /// <para>
-    /// The digest is the one the store recorded at write time — every grant and every write carries
-    /// it. An object without one was stored some other way, and is reported as a fault rather than
-    /// answered with another digest that would fail every confirmation.
-    /// </para>
+    /// The digest is the one the store recorded at write time; an object without one is a fault, not a
+    /// reason to answer another digest that would fail every confirmation.
     /// </summary>
     public async Task<StoredObjectDescription?> DescribeAsync(
         string objectKey,
@@ -161,10 +149,7 @@ internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorage
         }
     }
 
-    /// <summary>
-    /// The digest as S3 wants it: base64 of the raw bytes, where the domain carries hexadecimal.
-    /// A malformed value is a programming error — <c>Sha256Checksum</c> refuses one on the way in.
-    /// </summary>
+    /// <summary>The digest as S3 wants it: base64 of the raw bytes.</summary>
     internal static string Base64DigestOf(string sha256Hex)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sha256Hex);
@@ -179,10 +164,7 @@ internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorage
         return Convert.ToBase64String(Convert.FromHexString(sha256Hex));
     }
 
-    /// <summary>
-    /// The recorded digest as lower-case hexadecimal. The store reports base64 — the same 32 bytes,
-    /// written differently, so comparing the two strings would fail every confirmation.
-    /// </summary>
+    /// <summary>The recorded digest as lower-case hex; the store reports base64 of the same bytes.</summary>
     private static string HexChecksumOf(GetObjectMetadataResponse metadata, string objectKey)
     {
         if (string.IsNullOrWhiteSpace(metadata.ChecksumSHA256))

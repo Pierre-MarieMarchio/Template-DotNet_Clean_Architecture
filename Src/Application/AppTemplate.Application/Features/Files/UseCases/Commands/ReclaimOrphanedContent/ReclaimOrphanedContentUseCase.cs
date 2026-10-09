@@ -10,23 +10,14 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
 
 /// <summary>
-/// Deletes stored objects that no row names: the only thing in the feature that guarantees the bytes
-/// of a deleted file go away, whether or not a deletion event was delivered, and the only thing that
-/// reclaims bytes deposited against a registration purged before it was confirmed.
+/// Deletes stored objects that no row names: what guarantees the bytes of a deleted file, or of a
+/// registration purged before confirmation, go away whether or not an event was delivered.
+/// Background job: must not read <see cref="ICurrentUser"/>.
 /// <para>
-/// <b>Each page of keys is listed before the rows are asked about it.</b> A row is committed before
-/// its upload grant is minted, so a file registered during the pass either appears in a later page
-/// with its row already there or does not appear at all. Asking the rows first would delete the
-/// bytes of a file uploaded in between.
-/// </para>
-/// <para>
-/// <b>Retry guarantee.</b> One host at a time, under the <c>apptemplate.files.reclaim-orphans</c>
-/// lease. The walk goes through the keys in ordinal order from a persisted checkpoint, saved after
-/// each page once its orphans are deleted, and reset to the beginning when the end of the namespace
-/// is reached. Every object present when a walk starts is therefore visited within
-/// ⌈objects / per-pass budget⌉ + 1 passes, across restarts; a crash repeats at most the page in
-/// progress, and deleting an object twice is deleting it once. Runs from a background job and must
-/// not read <see cref="ICurrentUser"/>.
+/// Each page of keys is listed before the rows are asked about it: a row is committed before its
+/// upload grant is minted, so asking the rows first would delete the bytes of a file uploaded in
+/// between. Resumes from a persisted checkpoint (see <c>docs/DECISIONS.md</c>); deleting twice is
+/// deleting once.
 /// </para>
 /// </summary>
 public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCase
@@ -37,13 +28,10 @@ public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCa
     /// <summary>Pages per pass: a quarter of a million keys at the default page size.</summary>
     internal const int DefaultMaxPagesPerPass = 500;
 
-    /// <summary>
-    /// The lock key is derived from this name, so it is a contract across releases: renaming it lets
-    /// two releases of a rolling deploy both run the pass.
-    /// </summary>
+    /// <summary>The lock key derives from this name: a cross-release contract, renaming it lets two releases both run the pass.</summary>
     private const string _leaseName = "apptemplate.files.reclaim-orphans";
 
-    /// <summary>The whole key namespace: every key is minted under this partition.</summary>
+    /// <summary>The whole key namespace.</summary>
     private static readonly string _prefix = $"{ObjectKey.UnpartitionedPrefix}/";
 
     private readonly IFileContentInventory _inventory;

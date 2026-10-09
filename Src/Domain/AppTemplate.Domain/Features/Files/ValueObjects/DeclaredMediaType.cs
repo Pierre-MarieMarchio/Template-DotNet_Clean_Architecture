@@ -5,27 +5,15 @@ namespace AppTemplate.Domain.Features.Files.ValueObjects;
 /// <summary>
 /// The media type a client said its file would be.
 /// <para>
-/// <b>This validates the shape of the claim and nothing about the bytes.</b> It cannot: the bytes
-/// are deposited straight onto the object store and this aggregate never holds one of them. A file
-/// whose declared type is <c>image/png</c> may perfectly well be an HTML document, a ZIP archive or
-/// an executable, and every value produced here is exactly as trustworthy as the client that sent
-/// it — which is to say, not at all.
-/// </para>
-/// <para>
-/// Deciding what a file <em>is</em> means reading its content, and that belongs to whatever handles
-/// the bytes after the deposit. Anything that treats this value as a fact about content — serving it
-/// back as a <c>Content-Type</c> without <c>X-Content-Type-Options: nosniff</c>, choosing a decoder
-/// from it, or deciding a file is safe because it claims to be an image — is a vulnerability, not a
-/// shortcut. It is safe for exactly two things: showing the user what they said, and refusing a
-/// deposit whose declared type is not one this application accepts at all.
+/// It validates the shape of the claim and nothing about the bytes, which this aggregate never holds: a declared
+/// <c>image/png</c> may be HTML or an executable. It is safe for showing the user what they said and for refusing a
+/// type the application does not accept; anything treating it as a fact about content (serving it without
+/// <c>X-Content-Type-Options: nosniff</c>, choosing a decoder) is a vulnerability.
 /// </para>
 /// </summary>
 public sealed record DeclaredMediaType
 {
-    /// <summary>
-    /// IANA caps a registered type name and a registered subtype name at 127 characters each, so a
-    /// longer token is not a media type this or any other system will resolve.
-    /// </summary>
+    /// <summary>IANA caps a type name and a subtype name at 127 characters each.</summary>
     public const int MaxTokenLength = 127;
 
     /// <summary>Both tokens at their maximum, plus the separating slash.</summary>
@@ -41,7 +29,7 @@ public sealed record DeclaredMediaType
     /// <summary>The full <c>type/subtype</c>, lower-cased.</summary>
     public string Value { get; }
 
-    /// <summary>The top-level type — <c>image</c>, <c>audio</c>, <c>application</c>.</summary>
+    /// <summary>The top-level type, such as <c>image</c>.</summary>
     public string Type { get; }
 
     public string Subtype { get; }
@@ -54,8 +42,7 @@ public sealed record DeclaredMediaType
             throw new DomainException("A media type cannot be empty.");
         }
 
-        // Both tokens are case-insensitive per RFC 9110, so "IMAGE/PNG" and "image/png" are one
-        // value rather than two rows.
+        // Case-insensitive per RFC 9110, so "IMAGE/PNG" and "image/png" are one value.
         string normalised = value.Trim().ToLowerInvariant();
 
         int separator = normalised.IndexOf('/');
@@ -78,15 +65,13 @@ public sealed record DeclaredMediaType
             throw new DomainException($"Neither half of a media type may exceed {MaxTokenLength} characters.");
         }
 
-        // Parameters are refused rather than stripped: "image/png; charset=utf-8" is a valid header
-        // value and not an answer to "what is this file". The space and the ';' fail the token test.
+        // Parameters are refused rather than stripped; the space and ';' fail the token test.
         if (!IsToken(type) || !IsToken(subtype))
         {
             throw new DomainException("A media type may only contain token characters.");
         }
 
-        // '*' is a valid token character, so it needs its own rule: a wildcard says what a client
-        // will take, never what one file is.
+        // '*' is a token character, so it needs its own rule: a wildcard says what a client accepts.
         if (type == "*" || subtype == "*")
         {
             throw new DomainException("A media type cannot be a wildcard.");

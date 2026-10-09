@@ -28,8 +28,7 @@ internal sealed class StoredFileService(
             return userId.To<StoredFile>();
         }
 
-        // A file's bytes are addressed by a key nobody can guess, but its id travels in a URL, which
-        // is why answering a non-owner as absent matters here in particular.
+        // The id travels in URLs, so answering a non-owner as absent matters here in particular.
         return OwnedAggregate.Require(
             await repository.GetAsync(storedFileId, cancellationToken),
             userId.Value,

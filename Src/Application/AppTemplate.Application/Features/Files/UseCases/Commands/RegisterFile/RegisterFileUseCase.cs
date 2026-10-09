@@ -12,21 +12,13 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 
 /// <summary>
-/// Reserves a place for a file and hands back the right to deposit its bytes. The first half of an
-/// upload; <c>ConfirmFileUploadUseCase</c> is the second.
+/// Reserves a place for a file and hands back the right to deposit its bytes: the first half of an
+/// upload, <c>ConfirmFileUploadUseCase</c> is the second.
 /// <para>
-/// <b>The row is committed before the grant is minted, and the order is the whole safety
-/// argument.</b> A signed URL names a key, so a grant issued before the commit would authorise bytes
-/// against a key that no row names if the commit then failed — content nobody can reach and only the
-/// orphan sweep would ever remove. In this order the worst case is the opposite and much cheaper: a
-/// registration whose grant was never handed out, which is a pending row the abandonment sweep takes
-/// away on its own schedule.
-/// </para>
-/// <para>
-/// Everything that can refuse runs before anything is written: the category's rules (through the
-/// validator), its upload modes, a store that cannot sign, and the category's quota for this owner,
-/// checked and committed by <see cref="IStoredFileRegistrationService"/> — under the owner's quota
-/// lock for a strict category. The grant is minted after the lock is released.
+/// The row is committed before the grant is minted: a grant issued first would authorise bytes
+/// against a key no row names if the commit failed, whereas the worst case in this order is a
+/// pending row the abandonment sweep removes. Everything that can refuse runs before anything is
+/// written, and the grant is minted after the quota lock is released.
 /// </para>
 /// </summary>
 public sealed class RegisterFileUseCase(
@@ -37,10 +29,8 @@ public sealed class RegisterFileUseCase(
     IValidator<RegisterFileCommand> validator) : IRegisterFileUseCase
 {
     /// <summary>
-    /// How long the client has to deposit. Long enough for a slow connection to send five gigabytes,
-    /// short enough that a URL found in a log afterwards is worthless — and a client that misses it
-    /// registers again rather than being stuck, since the abandoned registration costs it nothing
-    /// but a slot it gets back.
+    /// Long enough for a slow connection to send a large file, short enough that a URL found in a log
+    /// afterwards is worthless; a client that misses it registers again.
     /// </summary>
     private static readonly TimeSpan _uploadWindow = TimeSpan.FromMinutes(30);
 
@@ -99,8 +89,7 @@ public sealed class RegisterFileUseCase(
             storedFile.DeclaredMediaType.Value,
             storedFile.Size.Bytes,
 
-            // Bound into the grant, so the store refuses any other bytes. From the aggregate rather
-            // than the command, because the value object is what guarantees it is a SHA-256.
+            // Bound into the grant, so the store refuses other bytes; from the aggregate, which guarantees a SHA-256.
             storedFile.Checksum.Value,
             _uploadWindow,
             cancellationToken);

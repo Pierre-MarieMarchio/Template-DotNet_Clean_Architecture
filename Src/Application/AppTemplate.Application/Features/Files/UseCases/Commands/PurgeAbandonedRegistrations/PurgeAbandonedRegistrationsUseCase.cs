@@ -7,16 +7,13 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 
 /// <summary>
-/// Removes registrations that were never deposited against, so the quota slot each one holds comes
-/// back. The query is the coarse filter and <see cref="StoredFile.IsAbandoned"/> the decision,
-/// re-checked per file. Each removal announces <see cref="StoredFile.Delete"/> so deposited but
-/// unconfirmed bytes are reclaimed promptly; <c>ReclaimOrphanedContentUseCase</c> reclaims them
-/// regardless. Runs from a background job and must not read <see cref="ICurrentUser"/>.
+/// Removes registrations never deposited against, so the quota slot each holds comes back. The query
+/// is the coarse filter, <see cref="StoredFile.IsAbandoned"/> the per-file decision. Each removal
+/// announces <see cref="StoredFile.Delete"/> so unconfirmed bytes are reclaimed promptly. Background
+/// job: must not read <see cref="ICurrentUser"/>.
 /// <para>
-/// <b>Retry guarantee.</b> One host at a time, under the <c>apptemplate.files.purge-abandoned</c>
-/// lease. Idempotent: a batch is one commit, and a pass that fails — a row confirmed or deleted
-/// meanwhile, an unreachable database — writes nothing and leaves rows the next pass selects again.
-/// A row that stopped being pending is no longer selected, so it cannot block the others.
+/// Idempotent: a batch is one commit, so a failed pass writes nothing and the next one selects the
+/// same rows again.
 /// </para>
 /// </summary>
 public sealed class PurgeAbandonedRegistrationsUseCase(
@@ -26,21 +23,16 @@ public sealed class PurgeAbandonedRegistrationsUseCase(
     ILeaderLease lease,
     ILogger<PurgeAbandonedRegistrationsUseCase> logger) : IPurgeAbandonedRegistrationsUseCase
 {
-    /// <summary>
-    /// The lock key is derived from this name, so it is a contract across releases: renaming it lets
-    /// two releases of a rolling deploy both run the pass.
-    /// </summary>
+    /// <summary>The lock key derives from this name: a cross-release contract, renaming it lets two releases both run the pass.</summary>
     private const string _leaseName = "apptemplate.files.purge-abandoned";
 
     /// <summary>
-    /// How long a registration may wait for its deposit. Longer than the upload window a grant is
-    /// minted for, so a client using its full window is never swept out from under a deposit still
-    /// in flight, and short enough that a quota slot comes back the same day.
+    /// How long a registration may wait for its deposit: longer than the upload window, so a deposit
+    /// still in flight is never swept, short enough that a quota slot comes back the same day.
     /// </summary>
     public static readonly TimeSpan AbandonedAfter = TimeSpan.FromHours(24);
 
-    /// <summary>Caps one pass to a bounded amount of work; a backlog beyond this is picked up by the
-    /// next run rather than loaded all at once.</summary>
+    /// <summary>Bounds one pass; a larger backlog is picked up by the next run.</summary>
     private const int _batchSize = 200;
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)

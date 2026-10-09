@@ -6,51 +6,30 @@ using AppTemplate.Application.Core.Common.Ports;
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
 /// <summary>
-/// The bucket <c>InMemoryFileContentStore</c>, <c>InMemoryFileDirectTransfer</c> and
-/// <c>InMemoryFileContentInventory</c> stand in for.
-/// Public and resolvable for the same reason <c>RecordedEmails</c> is: a double is only useful if a
+/// The bucket the in-memory content store, direct transfer and inventory stand in for. Public so a
 /// test can put something in it and read what came out.
 /// <para>
-/// <b>A deposit is something a test performs, never something issuing a grant performs.</b> That is
-/// not pedantry — it is the shape of the real feature. A grant is a right to write, the client
-/// writes directly to the store afterwards, and the case where a grant is issued and the deposit
-/// never happens is exactly what confirmation and the abandonment sweep exist for. A double that
-/// wrote the object when the grant was minted would make that case untestable.
-/// </para>
-/// <para>
-/// <b>The URLs it mints are signed, and they resolve nowhere.</b> The host is under <c>.invalid</c>,
-/// which RFC 2606 reserves so that it can never be registered: a test that follows one fails at DNS
-/// rather than reaching something real. The signature is an HMAC over the method, the key and the
-/// expiry, under a secret minted per instance — so a grant is a bearer right here too, one issued
-/// for reading does not authorise writing, and an expired one stops verifying. That is the property
-/// of a signed URL worth reproducing in a double; the bytes are not.
-/// </para>
-/// <para>
-/// A singleton for the life of the host, and internally locked, because an integration test deposits
-/// and sweeps from several requests at once.
+/// <b>A deposit is something a test performs, never something issuing a grant performs</b>: the case
+/// where a grant is issued and the deposit never happens is what confirmation and the abandonment
+/// sweep exist for. Minted URLs are HMAC-signed over method, key and expiry under a per-instance
+/// secret, so a grant is a bearer right here too (a read grant does not write, an expired one stops
+/// verifying) and resolves nowhere. A singleton, internally locked.
 /// </para>
 /// </summary>
 public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
 {
-    /// <summary>
-    /// The origin every minted URL is under. Reserved by RFC 2606 and therefore unresolvable
-    /// anywhere, for ever.
-    /// </summary>
+    /// <summary>The origin of every minted URL; under <c>.invalid</c> (RFC 2606), so it never resolves.</summary>
     public const string Origin = "https://files.in-memory.invalid";
 
     private readonly object _gate = new();
     private readonly Dictionary<string, DepositedObject> _objects = new(StringComparer.Ordinal);
 
-    /// <summary>
-    /// Minted per instance and never leaves it. A fixed secret would let one host verify a grant
-    /// another host issued, which is not a property any real signer has.
-    /// </summary>
+    /// <summary>Minted per instance, so one host cannot verify a grant another issued.</summary>
     private readonly byte[] _signingKey = RandomNumberGenerator.GetBytes(32);
 
     /// <summary>
-    /// Performs the deposit a client would have made against an upload grant: measures the bytes,
-    /// digests them, and files them under <paramref name="objectKey"/>. Depositing twice under one
-    /// key replaces the object, exactly as a store does.
+    /// Performs the deposit a client would make against an upload grant. Depositing twice under one key
+    /// replaces the object, as a store does.
     /// </summary>
     public DepositedObject Deposit(string objectKey, string mediaType, byte[] content)
     {
@@ -65,7 +44,7 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
             Convert.ToHexStringLower(SHA256.HashData(content)),
             dateTimeProvider.UtcNow,
 
-            // Copied rather than aliased: the caller still owns its array.
+            // Copied: the caller still owns its array.
             content.ToArray());
 
         lock (_gate)
@@ -87,11 +66,7 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
         }
     }
 
-    /// <summary>
-    /// Everything stored, ordered by key, as a snapshot that will not change underneath the caller.
-    /// Ordered because the listing the sweep reads is ordered, and a double that answered in hash
-    /// order would let a paging defect pass.
-    /// </summary>
+    /// <summary>Everything stored, ordered by key (as a listing is), as a snapshot.</summary>
     public IReadOnlyList<DepositedObject> Snapshot()
     {
         lock (_gate)
@@ -110,10 +85,8 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
     }
 
     /// <summary>
-    /// Whether <paramref name="url"/> is a grant this instance issued, for
-    /// <paramref name="expectedMethod"/>, still valid at <paramref name="atInstant"/>. This is what
-    /// a test asserts on instead of on the shape of a string: it is the only way to tell a grant
-    /// that expires from one that carries an expiry nothing reads.
+    /// Whether <paramref name="url"/> is a grant this instance issued for <paramref name="expectedMethod"/>
+    /// and still valid at <paramref name="atInstant"/>.
     /// </summary>
     public bool IsGrantValid(string url, string expectedMethod, DateTimeOffset atInstant)
     {
@@ -153,14 +126,13 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
             return false;
         }
 
-        // Fixed-time, because a double that compared signatures with string equality would teach
-        // whoever reads it the wrong lesson about how this comparison is written.
+        // Fixed-time, as a real signer would compare.
         return CryptographicOperations.FixedTimeEquals(expected, presented);
     }
 
     /// <summary>
-    /// Mints the URL a grant carries. Internal: the adapters issue grants, and a test that minted
-    /// one directly would be asserting against the double instead of against the port.
+    /// Mints a grant URL. Internal: only the adapters issue grants, so a test cannot assert against the
+    /// double instead of the port.
     /// </summary>
     internal string SignedUrl(
         string method,
@@ -194,10 +166,7 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
         }
     }
 
-    /// <summary>
-    /// The keys under a prefix, ordered — the same ordering an object store's listing has, which is
-    /// what the orphan sweep's paging depends on.
-    /// </summary>
+    /// <summary>The keys under a prefix, in the order a store's listing has.</summary>
     internal List<string> KeysUnder(string prefix)
     {
         lock (_gate)

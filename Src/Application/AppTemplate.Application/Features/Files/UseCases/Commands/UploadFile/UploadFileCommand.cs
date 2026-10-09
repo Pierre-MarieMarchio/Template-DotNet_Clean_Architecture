@@ -1,9 +1,6 @@
 ﻿namespace AppTemplate.Application.Features.Files.UseCases.Commands.UploadFile;
 
-/// <summary>
-/// A file whose bytes arrive with the request. The checksum is computed from
-/// <paramref name="Content"/>, not declared.
-/// </summary>
+/// <summary>A file whose bytes arrive with the request; the checksum is computed from them.</summary>
 /// <param name="Category">The configured category the file belongs to.</param>
 /// <param name="Name">A label to show and to offer as a download name. It addresses nothing.</param>
 /// <param name="MediaType">The media type the client declares for the content.</param>

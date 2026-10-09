@@ -6,7 +6,6 @@ namespace AppTemplate.Application.Features.Files.UseCases.Queries.GetUsedFileTag
 
 /// <summary>
 /// The tags this caller has already used on their files, for a picker or a filter. The owner comes
-/// from <see cref="ICurrentUser"/> and there is nothing else to ask for, so the operation takes no
-/// request.
+/// from <see cref="ICurrentUser"/>, so there is no request.
 /// </summary>
 public interface IGetUsedFileTagsUseCase : IUseCase<Result<IReadOnlyList<string>>>;

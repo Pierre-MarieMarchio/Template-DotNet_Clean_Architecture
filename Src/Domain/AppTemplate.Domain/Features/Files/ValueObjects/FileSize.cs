@@ -4,24 +4,20 @@ using AppTemplate.Domain.Core.Common.Exceptions;
 namespace AppTemplate.Domain.Features.Files.ValueObjects;
 
 /// <summary>
-/// How many bytes a file has. Declared by the client when the file is registered, and compared
-/// against what the object store reports before the file becomes available — so this type is what a
-/// size is checked <em>as</em>, not merely what it is stored in.
+/// How many bytes a file has: declared at registration, and compared with what the store reports before the file
+/// becomes available.
 /// </summary>
 public sealed record FileSize
 {
     /// <summary>
-    /// A zero-byte object and an upload that never happened look identical to the object store. The
-    /// whole point of registering before depositing is to be able to tell those two apart, so a
-    /// declared size of zero is refused rather than becoming a file that can never be confirmed.
+    /// A zero-byte object looks like an upload that never happened, and telling those apart is why files are
+    /// registered before they are deposited; zero is refused.
     /// </summary>
     public const long MinBytes = 1;
 
     /// <summary>
-    /// 5 GiB, which is the protocol's own ceiling on a single-part <c>PUT</c>. This feature offers
-    /// one signed upload URL and therefore exactly one part; anything larger needs a multipart
-    /// session, which is a different port with a different lifecycle, and accepting the registration
-    /// would mean promising a deposit that cannot physically be made.
+    /// 5 GiB, the ceiling of a single-part <c>PUT</c>. Registration offers one signed URL, so a larger file could not
+    /// physically be deposited.
     /// </summary>
     public const long MaxBytes = 5L * 1024 * 1024 * 1024;
 

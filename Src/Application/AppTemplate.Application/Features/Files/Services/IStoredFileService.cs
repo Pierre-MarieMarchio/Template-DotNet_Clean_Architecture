@@ -6,34 +6,25 @@ using AppTemplate.Domain.Features.Files.Entities;
 namespace AppTemplate.Application.Features.Files.Services;
 
 /// <summary>
-/// The one gate every file command loads its aggregate through, on the same model as
-/// <c>ITodoListService</c> and <c>IReminderService</c>: identity, ownership and the version
-/// precondition, in that order.
-/// <para>
-/// The three share the mechanism and not the policy: <c>OwnedAggregate.Require</c> checks
-/// ownership and the precondition, and each feature hands it the error its own callers see.
-/// </para>
+/// The gate every file command loads its aggregate through: identity, ownership and the version precondition, in that
+/// order, on the same mechanism as the other features (<c>OwnedAggregate.Require</c>).
 /// </summary>
 public interface IStoredFileService
 {
-    /// <returns>
-    /// The aggregate, or a failure — <see cref="StoredFileErrors.FileNotFound"/> for an anonymous
-    /// caller, an unknown id or somebody else's file, and
-    /// <see cref="ConcurrencyErrors.PreconditionFailed"/> once ownership is established but the
-    /// caller named a version the aggregate no longer holds.
-    /// </returns>
+    /// <summary>
+    /// The aggregate, or <see cref="StoredFileErrors.FileNotFound"/> for an anonymous caller, an unknown id or
+    /// someone else's file, or <see cref="ConcurrencyErrors.PreconditionFailed"/> once ownership is established but
+    /// the version is stale.
+    /// </summary>
     Task<Result<StoredFile>> LoadOwnedAsync(
         Guid storedFileId,
         VersionPrecondition? precondition,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads a file whose content the caller may read: their own file in any state, or somebody
-    /// else's <see cref="Domain.Features.Files.ValueObjects.StoredFileState.Available"/> file whose
-    /// category is readable by any signed-in user. A file in a category no longer configured is
-    /// treated as private.
+    /// Loads a file whose content the caller may read: their own in any state, or an available file of a category
+    /// readable by any signed-in user (a category no longer configured counts as private). Anything else is
+    /// <see cref="StoredFileErrors.FileNotFound"/>, so a non-owner learns nothing.
     /// </summary>
-    /// <returns>The aggregate, or <see cref="StoredFileErrors.FileNotFound"/> for anything else, so a
-    /// non-owner learns nothing about a file they cannot read.</returns>
     Task<Result<StoredFile>> LoadReadableAsync(Guid storedFileId, CancellationToken cancellationToken = default);
 }

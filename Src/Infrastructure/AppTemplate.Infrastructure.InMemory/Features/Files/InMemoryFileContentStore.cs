@@ -4,9 +4,8 @@ using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
 /// <summary>
-/// An <see cref="IFileContentStore"/> over <see cref="StoredObjects"/>. Internal: the observable
-/// surface is <see cref="StoredObjects"/>. It simulates no failure; a test needing a failing store
-/// substitutes one.
+/// An <see cref="IFileContentStore"/> over <see cref="StoredObjects"/>, simulating no failure; a test
+/// needing a failing store substitutes one.
 /// </summary>
 internal sealed class InMemoryFileContentStore(StoredObjects objects) : IFileContentStore
 {

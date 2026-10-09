@@ -4,18 +4,9 @@ using AppTemplate.Domain.Features.Files.ValueObjects;
 namespace AppTemplate.Domain.Features.Files.Entities;
 
 /// <summary>
-/// The stored values <see cref="StoredFile.Rehydrate"/> rebuilds a file from.
-/// <para>
-/// A parameter object rather than fourteen parameters. Eight of them are value objects the persistence
-/// layer builds in a row through their own factories, and two more are instants of the same type,
-/// so an argument in the wrong position compiles wherever the types happen to line up. Naming every
-/// value at the call site removes that class of mistake instead of relying on the order being read
-/// carefully.
-/// </para>
-/// <para>
-/// A class and not a record: it carries a sequence of tags, so value equality would compare that
-/// sequence by reference and mean nothing. Nothing compares two of these.
-/// </para>
+/// The stored values <see cref="StoredFile.Rehydrate"/> rebuilds a file from. A parameter object so
+/// every value is named at the call site: several share a type, and a misplaced argument would compile.
+/// A class and not a record, since value equality over the tag sequence would mean nothing.
 /// </summary>
 public sealed class StoredFileSnapshot
 {

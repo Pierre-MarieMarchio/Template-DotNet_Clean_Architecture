@@ -590,7 +590,7 @@ endpoint is a line somebody reviews rather than an attribute nobody notices.
 Everything above assumes a feature whose whole state is rows in the one database.
 `Files` is the third worked example and the one that breaks that assumption: half of
 a stored file is an aggregate in PostgreSQL, the other half is bytes in an
-S3-compatible object store. Read it when your feature has a second place where its
+S3-compatible bucket or a local directory. Read it when your feature has a second place where its
 state lives — a bucket, a search index, a queue.
 
 Five things it does differently, and none of them is optional once your feature has

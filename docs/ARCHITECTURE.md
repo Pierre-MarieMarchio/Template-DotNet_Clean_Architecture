@@ -55,7 +55,7 @@ graph RL
     PresCore[AppTemplate.Presentation.Core<br/>one outbound HTTP policy, the default language,<br/>OTLP traces and metrics, the no-caller identity,<br/>the loop recurring work runs on]
     Ident[AppTemplate.Infrastructure.Auth<br/>ASP.NET Identity policy, JWT, refresh tokens]
     Mail[AppTemplate.Infrastructure.Email<br/>MailKit SMTP]
-    Store[AppTemplate.Infrastructure.Storage<br/>S3-compatible object store]
+    Store[AppTemplate.Infrastructure.Storage<br/>S3-compatible or local file store]
     Mem[AppTemplate.Infrastructure.InMemory<br/>in-memory ports]
     Pers[AppTemplate.Infrastructure.Persistence<br/>the business context, per-feature models,<br/>mapping, trackers, repositories, queries,<br/>the idempotency table, the Postgres lease]
     InfraCore[AppTemplate.Infrastructure.Core<br/>the unit of work, the three save interceptors,<br/>the aggregate tracker, the clock, multilingual mail,<br/>the cache adapter behind ICacheStore]

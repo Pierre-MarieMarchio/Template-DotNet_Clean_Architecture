@@ -4,13 +4,8 @@ using AppTemplate.Application.Core.Common.Policies;
 namespace AppTemplate.Application.Features.Files.Policies;
 
 /// <summary>
-/// The file feature's own collection whitelist.
-/// <para>
-/// Three fields, and no more, because each name here is a promise that ordering by it is cheap —
-/// which means a composite index <c>(OwnerId, &lt;field&gt;, Id)</c> in the persistence
-/// configuration. Size is a plausible fourth and is deliberately absent: nobody has asked to sort
-/// files by weight, and adding the name before the index is how a whitelist stops meaning anything.
-/// </para>
+/// The Files collection whitelist. Each sortable name promises a cheap ordering, so it needs a composite index
+/// <c>(OwnerId, field, Id)</c>; size is absent until someone needs it and the index exists.
 /// </summary>
 public sealed class StoredFileCollectionPolicy : ICollectionPolicy
 {
@@ -19,9 +14,8 @@ public sealed class StoredFileCollectionPolicy : ICollectionPolicy
     public const string RegisteredAtField = "registeredAt";
 
     /// <summary>
-    /// Offset-only because the column is nullable — a file that was never confirmed has no
-    /// confirmation instant. A keyset comparison against <c>NULL</c> is neither true nor false, so
-    /// the row a cursor was minted from would be skipped rather than resumed from.
+    /// Offset-only: the column is nullable, and a keyset comparison against NULL would skip the row the cursor came
+    /// from.
     /// </summary>
     public const string AvailableAtField = "availableAt";
 

@@ -7,16 +7,14 @@
 public sealed class FileCategoryQuotaOptions
 {
     /// <summary>
-    /// The quota holds under concurrency, across every host sharing the database: the usage read, the
-    /// insert and its commit run under a lock on (owner, category). Costs one extra database
-    /// connection for the registration's duration and serialises one owner's registrations in one
-    /// category.
+    /// Holds under concurrency across hosts: usage read, insert and commit run under a lock on (owner, category), at
+    /// the cost of one extra connection and serialised registrations per owner and category.
     /// </summary>
     public const string StrictMode = "Strict";
 
     /// <summary>
-    /// Usage is read, then the row inserted, with no lock: a burst of N concurrent registrations of
-    /// one owner in one category can overshoot by at most N - 1 files and their declared bytes.
+    /// No lock: N concurrent registrations of one owner in one category can overshoot by at most N - 1 files and
+    /// their declared bytes.
     /// </summary>
     public const string IndicativeMode = "Indicative";
 

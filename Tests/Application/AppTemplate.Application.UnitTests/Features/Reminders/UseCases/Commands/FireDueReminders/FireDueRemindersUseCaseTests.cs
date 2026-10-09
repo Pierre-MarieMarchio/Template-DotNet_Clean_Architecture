@@ -2,6 +2,7 @@
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.UnitTests.TestDoubles;
@@ -26,15 +27,21 @@ public sealed class FireDueRemindersUseCaseTests
 {
     private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
     private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
+    private static readonly ReminderRecipient _recipient = new("someone", "someone@example.com");
 
     private readonly IReminderRepository _repository = Substitute.For<IReminderRepository>();
     private readonly ITodoItemQueries _todoItems = Substitute.For<ITodoItemQueries>();
     private readonly IReminderNotifier _notifier = Substitute.For<IReminderNotifier>();
+    private readonly IReminderRecipientDirectory _recipients = Substitute.For<IReminderRecipientDirectory>();
     private readonly IReminderDiagnostics _diagnostics = Substitute.For<IReminderDiagnostics>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly ILeaderLease _lease = Substitute.For<ILeaderLease>();
 
-    public FireDueRemindersUseCaseTests() => GivenTheLeaseIsGranted();
+    public FireDueRemindersUseCaseTests()
+    {
+        GivenTheLeaseIsGranted();
+        _recipients.FindAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>()).Returns(_recipient);
+    }
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -68,9 +75,30 @@ public sealed class FireDueRemindersUseCaseTests
         // A plain value rather than Arg.Is: ReminderNotification is a record, so NSubstitute
         // matches this call by structural equality without needing a predicate at all.
         await _notifier.Received(1).NotifyAsync(
-            new ReminderNotification(reminder.OwnerId, reminder.TodoItemId, reminder.DueAt),
+            new ReminderNotification(reminder.OwnerId, _recipient, reminder.TodoItemId, reminder.DueAt),
             TestToken);
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
+    }
+
+    /// <summary>
+    /// An owner who no longer names an account has nobody to ring, and retrying would not change
+    /// that: the reminder is retired, not counted as notified.
+    /// </summary>
+    [Fact]
+    public async Task AReminderWhoseOwnerIsGone_IsCancelledInsteadOfNotified()
+    {
+        var reminder = ADueReminder();
+        GivenDueReminders(reminder);
+        GivenCompletionStates((reminder.TodoItemId, false));
+        _recipients.FindAsync(reminder.OwnerId, Arg.Any<CancellationToken>()).Returns((ReminderRecipient?)null);
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.Value.ShouldBe(0);
+        reminder.State.ShouldBe(ReminderState.Cancelled);
+        await _notifier.DidNotReceive().NotifyAsync(Arg.Any<ReminderNotification>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
+        _diagnostics.DidNotReceive().RecordMissedCancellation();
     }
 
     [Fact]
@@ -131,7 +159,7 @@ public sealed class FireDueRemindersUseCaseTests
         GivenDueReminders(failing, succeeding);
         GivenCompletionStates((failing.TodoItemId, false), (succeeding.TodoItemId, false));
         _notifier.NotifyAsync(
-                new ReminderNotification(failing.OwnerId, failing.TodoItemId, failing.DueAt),
+                new ReminderNotification(failing.OwnerId, _recipient, failing.TodoItemId, failing.DueAt),
                 Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("the relay is down"));
 
@@ -210,7 +238,7 @@ public sealed class FireDueRemindersUseCaseTests
 
         result.Value.ShouldBe(0, "a notification whose commit lost is not counted as delivered");
         await _notifier.DidNotReceive().NotifyAsync(
-            new ReminderNotification(after.OwnerId, after.TodoItemId, after.DueAt),
+            new ReminderNotification(after.OwnerId, _recipient, after.TodoItemId, after.DueAt),
             Arg.Any<CancellationToken>());
         after.State.ShouldBe(ReminderState.Pending);
     }
@@ -294,6 +322,7 @@ public sealed class FireDueRemindersUseCaseTests
         _repository,
         _todoItems,
         _notifier,
+        _recipients,
         _diagnostics,
         _unitOfWork,
         new StubDateTimeProvider(_now),

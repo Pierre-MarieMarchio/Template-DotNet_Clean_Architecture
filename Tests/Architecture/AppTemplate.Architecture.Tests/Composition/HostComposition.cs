@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application;
 using AppTemplate.Application.Auth;
-using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Core;
@@ -215,14 +215,12 @@ internal static class HostComposition
     }
 
     /// <summary>
-    /// The background-only composition with the identity module left out, which is the question every
-    /// comment about the jobs' configuration surface answers wrongly. The obvious reason is
-    /// <c>ISessionTokensService</c>'s adapter; the operative one is that
-    /// <c>EmailReminderNotifier</c> — the adapter behind the reminder job — needs
-    /// <see cref="IAccountsService"/> to find the address it notifies. Moving the maintenance
-    /// adapter to another module would not free that composition of anything.
+    /// The background-only composition with authentication left out entirely: no
+    /// <c>AddAuthApplication</c> and no identity module. The reminder job reaches its owner through
+    /// <c>IReminderRecipientDirectory</c>, which the host supplies, so nothing the jobs run needs an
+    /// authentication port.
     /// </summary>
-    internal static ServiceCollection ComposeBackgroundOnlyWithoutTheAuthModule(IConfiguration configuration)
+    internal static ServiceCollection ComposeBackgroundOnlyWithoutAuthentication(IConfiguration configuration)
     {
         var services = new ServiceCollection();
 
@@ -232,7 +230,6 @@ internal static class HostComposition
         services.AddReminders();
         services.AddFiles();
         services.AddNotes();
-        services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
@@ -271,15 +268,10 @@ internal static class HostComposition
     }
 
     /// <summary>
-    /// The API's composition with authentication left out entirely — no <c>AddAuthApplication</c>,
-    /// no identity module, and no email module either.
-    /// <para>
-    /// The email module has to go with it, and that is the honest cost rather than an oversight:
-    /// its reminder notifier resolves a user profile to find the address a due reminder is rung at,
-    /// which is an authentication port. So this composition is what a derived project that brings
-    /// its own identity provider actually starts from — the three business features over
-    /// persistence and storage — and the point it proves is that such a container builds.
-    /// </para>
+    /// The API's composition with authentication left out entirely — no <c>AddAuthApplication</c>
+    /// and no identity module, every other module kept. What a derived project that brings its own
+    /// identity provider starts from, short of the adapter that resolves a reminder's recipient,
+    /// which the host supplies either way.
     /// </summary>
     internal static ServiceCollection ComposeApiWithoutAuthentication(IConfiguration configuration)
     {
@@ -294,6 +286,7 @@ internal static class HostComposition
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
+        services.AddEmailModule(configuration);
         services.AddStorageModule(configuration);
 
         AddHostSuppliedAdapters(services);
@@ -323,6 +316,7 @@ internal static class HostComposition
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, ArchitectureTestCurrentUser>();
         services.AddScoped<IAuditActor, ArchitectureTestAuditActor>();
+        services.AddScoped<IReminderRecipientDirectory, ArchitectureTestReminderRecipientDirectory>();
     }
 
     /// <summary>
@@ -334,6 +328,7 @@ internal static class HostComposition
     {
         services.AddScoped<ICurrentUser, ArchitectureTestBackgroundCurrentUser>();
         services.AddScoped<IAuditActor, ArchitectureTestBackgroundAuditActor>();
+        services.AddScoped<IReminderRecipientDirectory, ArchitectureTestReminderRecipientDirectory>();
     }
 }
 
@@ -363,6 +358,16 @@ internal sealed class ArchitectureTestBackgroundCurrentUser : ICurrentUser
     public UserId? UserId => throw new NotSupportedException(
         "A background scope has no current user. A use case that reads ICurrentUser.UserId cannot " +
         "run unmodified from there.");
+}
+
+/// <summary>
+/// Stands in for <c>AccountReminderRecipientDirectory</c>, which the API composes from the local
+/// accounts and which is internal to it.
+/// </summary>
+internal sealed class ArchitectureTestReminderRecipientDirectory : IReminderRecipientDirectory
+{
+    public Task<ReminderRecipient?> FindAsync(UserId ownerId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<ReminderRecipient?>(null);
 }
 
 /// <summary>Stands in for <c>AppTemplate.Api.Common.Security.BackgroundAuditActor</c>.</summary>

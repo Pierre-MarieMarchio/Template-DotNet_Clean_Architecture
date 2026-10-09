@@ -113,20 +113,15 @@ jobs' hosting adapters and their one composition call move into it, and the API 
 (`AddNoCallerIdentity()` and an `IAuditActor` that answers nobody, both of which already exist) and
 its own telemetry. Use cases, contracts and storage guarantees do not move.
 
-**What the jobs need from the other modules.** The reminder pass is the one that reaches furthest:
-`EmailReminderNotifier` resolves `IAccountsService` — an identity port — to find the address a due
-reminder is rung at, and `IReminderNotifier`'s only adapter lives in `AppTemplate.Infrastructure.Email`,
-which cannot be composed without validating `Email` at startup. So any process that fires reminders
-composes the identity module and the email module, with the `Jwt`, `RefreshToken`,
-`EmailConfirmation`, `PasswordReset`, `EmailChange` and `Email` sections they validate, whether or not
-it ever authenticates anybody. And `AddAuthApplication` registers every authentication use case, so
-under `ValidateOnBuild` — which a Development host turns on — every port that project declares has to
-be resolvable, not only the ones a job reaches.
-`TheBackgroundOnlyContainer_NeedsIdentityForTheReminderJob_NotOnlyForThePurgeAdapter` holds this, so
-the paragraph cannot drift back to the convenient version in which moving one purge adapter would
-free a composition of the identity module. Composing that module composes ASP.NET Identity, bearer
-validation and its configuration as a whole — there is no narrower call — which is a real cost of
-the current module boundary rather than an oversight.
+**What the jobs need from the other modules.** The reminder pass reaches its owner through
+`IReminderRecipientDirectory`, which Reminders owns and the host supplies — over the local accounts in
+this template — and mails them through `IReminderNotifier`, whose only adapter lives in
+`AppTemplate.Infrastructure.Email`, which cannot be composed without validating `Email` at startup.
+No job needs an authentication port of its own: `TheBackgroundOnlyContainer_BuildsWithoutAuthentication`
+holds that. A process that composes the identity module — the API does, for the account routes —
+validates the `Jwt`, `RefreshToken`, `EmailConfirmation`, `PasswordReset` and `EmailChange` sections
+as a whole, since composing that module composes ASP.NET Identity and bearer validation with no
+narrower call.
 
 **The refresh-token purge belongs to authentication.** It is not listed in the background
 composition: `AddAuthMaintenanceJobs`
@@ -688,9 +683,8 @@ as long as nobody opened the mail. See [`Localization`](#localization).
 
 **All three of `EmailConfirmation`, `PasswordReset` and `EmailChange` are validated at startup.**
 All three are bound by `AddAuthModule`, not by anything HTTP-specific, so a process that composes that
-module — for the reminder job's `IAccountsService` and `ISessionTokensService`'s
-adapter as much as for the account routes, see [above](#one-process-http-and-the-periodic-jobs) —
-requires all three URLs.
+module — for the account routes and the refresh-token purge, see
+[above](#one-process-http-and-the-periodic-jobs) — requires all three URLs.
 
 ### `Localization`
 

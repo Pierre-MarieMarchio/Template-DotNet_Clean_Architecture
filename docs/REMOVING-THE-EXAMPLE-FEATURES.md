@@ -449,8 +449,10 @@ business feature removes that feature's `AddX()` call and nothing else from the 
 shrink is authentication: the API calls `AddAuthApplication()`, and `ValidateOnBuild` then requires
 all nine ports `AppTemplate.Application.Auth` declares to resolve — not only the ports the jobs
 reach. That is why `AppTemplate.Infrastructure.Auth` and `AppTemplate.Infrastructure.Email` both stay
-composed after `Reminders` goes: those use cases take `IAccountsService` and `IEmailSender`, and
-they are registered whether or not anything calls them. `AppTemplate.Infrastructure.Storage` is the
+composed after `Reminders` goes: the authentication use cases take its ports and `IEmailSender`, and
+they are registered whether or not anything calls them. Removing `Reminders` also removes the line
+in `Program.cs` that registers `AccountReminderRecipientDirectory`, and its folder
+`Features/Reminders/Directories/`. `AppTemplate.Infrastructure.Storage` is the
 one module that leaves with a business feature, and only with `Files`.
 
 Either way the process still shows the template's actual claim: the same application layer answering
@@ -694,14 +696,12 @@ Authentication is not an example feature — it is the capability a derived proj
 keep and the second most likely to replace wholesale with its own identity provider. It is also the
 one removal that is **not** symmetrical with the three above, so it gets its own section.
 
-The composable half is genuinely composable, and asserted rather than claimed —  but it is the
-*application layer*, not the container.
+Both halves are asserted rather than claimed.
 `LayerDependencyTests.TheApplicationLayer_KnowsNothingOfAuthentication` reads the assembly manifests
 and finds that neither the business features nor the mechanisms name anything in
-`AppTemplate.Application.Auth`. A container of the business features with no `AddAuthApplication()`
-and no identity module does **not** build, and
-`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
-is what says so and names why. So the first steps are small: delete the
+`AppTemplate.Application.Auth`, and `ContainerCompositionTests.TheApiContainer_BuildsWithoutAuthentication`
+builds a container of every other module with no `AddAuthApplication()` and no identity module. So
+the first steps are small: delete the
 `AddAuthApplication()` and `AddAuthMaintenanceJobs(builder.Configuration)` lines from `Program.cs`,
 delete
 `Src/Application/AppTemplate.Application.Auth/` and `Src/Infrastructure/AppTemplate.Infrastructure.Auth/`
@@ -711,13 +711,12 @@ refresh-token purge's registration and its options, and six controllers: `Regist
 `SessionsController`, `AccountController`, `TwoFactorController`, `PasswordRecoveryController` and
 `AccountAdministrationController`.
 
-**Then four things answer back, and none of them is in either of those two projects.**
+**Then three things answer back, and none of them is in either of those two projects.**
 
-- **The email module will not compile without it.** `EmailReminderNotifier` resolves
-  `IAccountsService` — an authentication port — to find the address a due reminder is rung at.
-  That is `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/EmailReminderNotifier.cs`,
-  and it is why the module is absent from the container that test builds. Either the reminder loop
-  learns an address some other way, or it goes.
+- **The reminder's recipient needs another source.** `AccountReminderRecipientDirectory`, under
+  `Src/Presentation/AppTemplate.Api/Features/Reminders/Directories/`, reads the owner's name and
+  address from the local accounts. Replace it with an `IReminderRecipientDirectory` over your
+  identity provider, or drop `Reminders` with authentication.
 - **The business context does not know authentication exists.**
   `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs`
   derives from `DbContext` and maps the business tables and `IdempotencyKeys`.
@@ -726,18 +725,14 @@ refresh-token purge's registration and its options, and six controllers: `Regist
   with it.
 - **The seeder goes with its module.** `IIdentitySeeder` is registered by the authentication module,
   so nothing in the business half is left holding a dependency only that module could satisfy.
-  `ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
-  asserts the *absence* of that coupling, so it cannot come back unnoticed.
+  `ContainerCompositionTests.TheApiContainer_BuildsWithoutAuthentication` would fail if it came back.
 - **The migrations are already separate**, so removing authentication is deleting its migration
   along with its project. The business migration is untouched, and `platform` — the idempotency
   table that belongs to `AppTemplate.Application.Core`'s own mechanism, which every derived project
   keeps — was never in the same file.
 
-**What is left to answer for is one adapter.** `IReminderNotifier`'s only implementation is in the
-email module, and that implementation resolves `IAccountsService` to find the address a due
-reminder is rung at. Either drop the reminder feature with authentication, denormalise the address
-onto the reminder, or write a notifier that gets it elsewhere. That is the whole of it now: a
-project, a line in the composition, and that one door.
+**What is left to answer for is one adapter**, the reminder recipient directory above: a project, a
+line in the composition, and that one host-side adapter.
 
 ## Verification
 

@@ -481,18 +481,12 @@ claim into an assertion, and it asserts the half that is true: read off the asse
 neither `AppTemplate.Application` nor `AppTemplate.Application.Core` names anything in
 `AppTemplate.Application.Auth`.
 
-What does **not** hold is the larger claim that a container builds without authentication. In this
-template it does not, and
-`ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
-pins the one reason so it cannot quietly stop being the reason: `IReminderNotifier`, which the
-reminder feature's own use case takes, has its single adapter in the email module — whose reminder
-notifier in turn resolves `IAccountsService`, an authentication port, to find the address a due
-reminder is rung at. That is **the single business-to-auth door**, it is deliberate, and the port is
-the joint that lets the adapter become a call across a process without anything business-side
-changing.
-
-`IIdentitySeeder` is not a second reason. The seeder belongs to the authentication module, so
-removing that module takes it away, and the same test asserts that absence rather than trusting it.
+The larger claim holds too: a container builds without authentication.
+`ContainerCompositionTests.TheApiContainer_BuildsWithoutAuthentication` composes every other module with
+no `AddAuthApplication()` and no identity module. The one place the two meet is the reminder's
+recipient: `IReminderRecipientDirectory` is owned by Reminders, and the host supplies
+`AccountReminderRecipientDirectory`, which reads the local accounts. Neither feature names the other,
+and a host with another identity source supplies another directory.
 And `AddReminders()` is not independent of `AddTodoLists()`: scheduling a reminder reaches into the
 to-do list's read port, the only ownership check made before a reminder is created. The example
 features are not four symmetric modules, and saying so is cheaper than a start-up failure that does

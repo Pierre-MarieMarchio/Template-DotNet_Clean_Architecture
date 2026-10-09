@@ -52,8 +52,10 @@ public sealed class LayoutConventionTests
             ["Configurations", "Mapping", "Models", "Observability", "Queries", "Repositories", "Stores", "Tracking"],
         // Jobs/ holds what a feature runs on a timer: the hosted service, its options and its
         // instruments, side by side — the nature word for them, as Controllers/ is for the HTTP half.
+        // Directories/ holds an adapter the host supplies because it joins two features that may
+        // not name each other.
         ["Src/Presentation/AppTemplate.Api"] =
-            ["Contracts", "Controllers", "Jobs", "Mapping"],
+            ["Contracts", "Controllers", "Directories", "Jobs", "Mapping"],
 
         // Every word here is the plural of a nature word the file names already carry — the rule the
         // rest of the repository follows, where a …Repository is in Repositories/ and a …Tracker in

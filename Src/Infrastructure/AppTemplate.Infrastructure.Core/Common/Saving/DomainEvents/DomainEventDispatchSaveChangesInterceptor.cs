@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Events;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 
@@ -14,9 +15,12 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 /// delivered twice by a later save in the same request.
 /// </para>
 /// <para>
-/// <b>Where the events come from.</b> Every <see cref="IDomainEventSource"/> in the request scope is
-/// drained, because EF does not map the domain types and no aggregate is ever in its change tracker.
-/// Which source each event came from is remembered, so a failed save can hand it back.
+/// <b>Where the events come from.</b> Every <see cref="IDomainEventSource"/> in the request scope
+/// whose rows are staged on the context being saved is drained, because EF does not map the domain
+/// types and no aggregate is ever in its change tracker. A source staged elsewhere is left alone: a
+/// request also commits other contexts, and a second instance of this one for idempotency claims, and
+/// none of those commits is the write its events describe. Which source each event came from is
+/// remembered, so a failed save can hand it back.
 /// </para>
 /// <para>
 /// <b>A publish failure is not a commit failure.</b> By the time dispatch runs the transaction is
@@ -35,7 +39,9 @@ public sealed class DomainEventDispatchSaveChangesInterceptor(
     ILogger<DomainEventDispatchSaveChangesInterceptor> logger) : SaveChangesInterceptor
 {
     private readonly IDomainEventSource[] _sources = [.. sources];
-    private readonly List<(IDomainEventSource Source, IDomainEvent Event)> _pendingEvents = [];
+    // Keyed by the context whose save took them: one scoped instance serves every context instance
+    // the scope saves, and each save publishes, or hands back, only what it collected itself.
+    private readonly List<PendingEvent> _pendingEvents = [];
 
     /// <summary>Drains the tracked aggregates' events, to be dispatched once the save lands.</summary>
     /// <param name="eventData">EF's description of the save.</param>
@@ -47,7 +53,9 @@ public sealed class DomainEventDispatchSaveChangesInterceptor(
         InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
-        Collect();
+        ArgumentNullException.ThrowIfNull(eventData);
+
+        Collect(eventData.Context);
 
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
@@ -60,7 +68,9 @@ public sealed class DomainEventDispatchSaveChangesInterceptor(
         DbContextEventData eventData,
         InterceptionResult<int> result)
     {
-        Collect();
+        ArgumentNullException.ThrowIfNull(eventData);
+
+        Collect(eventData.Context);
 
         return base.SavingChanges(eventData, result);
     }
@@ -75,7 +85,9 @@ public sealed class DomainEventDispatchSaveChangesInterceptor(
         int result,
         CancellationToken cancellationToken = default)
     {
-        foreach (var domainEvent in TakePending())
+        ArgumentNullException.ThrowIfNull(eventData);
+
+        foreach (var domainEvent in TakePending(eventData.Context))
         {
             try
             {
@@ -96,7 +108,9 @@ public sealed class DomainEventDispatchSaveChangesInterceptor(
     /// dispatches; it blocks, which is why application code always uses the async one.</summary>
     public override int SavedChanges(SaveChangesCompletedEventData eventData, int result)
     {
-        foreach (var domainEvent in TakePending())
+        ArgumentNullException.ThrowIfNull(eventData);
+
+        foreach (var domainEvent in TakePending(eventData.Context))
         {
             try
             {
@@ -115,7 +129,9 @@ public sealed class DomainEventDispatchSaveChangesInterceptor(
     /// the sources they were drained from, ready for the retry.</summary>
     public override void SaveChangesFailed(DbContextErrorEventData eventData)
     {
-        RestorePending();
+        ArgumentNullException.ThrowIfNull(eventData);
+
+        RestorePending(eventData.Context);
         base.SaveChangesFailed(eventData);
     }
 
@@ -126,38 +142,46 @@ public sealed class DomainEventDispatchSaveChangesInterceptor(
         DbContextErrorEventData eventData,
         CancellationToken cancellationToken = default)
     {
-        RestorePending();
+        ArgumentNullException.ThrowIfNull(eventData);
+
+        RestorePending(eventData.Context);
 
         return base.SaveChangesFailedAsync(eventData, cancellationToken);
     }
 
-    private void Collect()
+    private void Collect(DbContext? context)
     {
-        foreach (var source in _sources)
+        if (context is null)
+        {
+            return;
+        }
+
+        foreach (var source in _sources.Where(source => source.IsStagedOn(context)))
         {
             foreach (var domainEvent in source.DrainDomainEvents())
             {
-                _pendingEvents.Add((source, domainEvent));
+                _pendingEvents.Add(new PendingEvent(context, source, domainEvent));
             }
         }
     }
 
-    private IDomainEvent[] TakePending()
-    {
-        IDomainEvent[] events = [.. _pendingEvents.Select(pending => pending.Event)];
-        _pendingEvents.Clear();
+    private IDomainEvent[] TakePending(DbContext? context) =>
+        [.. RemovePending(context).Select(pending => pending.Event)];
 
-        return events;
-    }
-
-    private void RestorePending()
+    private void RestorePending(DbContext? context)
     {
-        foreach (var bySource in _pendingEvents.GroupBy(pending => pending.Source))
+        foreach (var bySource in RemovePending(context).GroupBy(pending => pending.Source))
         {
             bySource.Key.Restore([.. bySource.Select(pending => pending.Event)]);
         }
+    }
 
-        _pendingEvents.Clear();
+    private List<PendingEvent> RemovePending(DbContext? context)
+    {
+        var taken = _pendingEvents.FindAll(pending => ReferenceEquals(pending.Context, context));
+        _pendingEvents.RemoveAll(pending => ReferenceEquals(pending.Context, context));
+
+        return taken;
     }
 
     private void LogDispatchFailure(IDomainEvent domainEvent, Exception exception) =>
@@ -167,4 +191,6 @@ public sealed class DomainEventDispatchSaveChangesInterceptor(
             + "committed. The commit stands and the remaining events are still published, but this "
             + "event did not reach that consumer and will not be retried.",
             domainEvent.GetType().Name);
+
+    private sealed record PendingEvent(DbContext Context, IDomainEventSource Source, IDomainEvent Event);
 }

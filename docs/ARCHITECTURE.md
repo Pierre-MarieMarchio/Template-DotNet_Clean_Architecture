@@ -341,18 +341,21 @@ keeps a copy. Multilingual mail rendering is the case that pays for the project:
 and the email module both send mail, so each would otherwise carry its own renderer.
 
 It holds three subjects. **What a context saves through** — `EfUnitOfWork` over whichever
-`DbContext` a module owns, the three interceptors that run in order (aggregates flushed onto their
-rows, rows stamped, the events that flush raised drained), and the `AggregateTracker` base every
-feature's tracker derives from. **The system clock**, behind `IDateTimeProvider`. And the mail
-engine, `EmailTemplate`, which
-renders a module's *own* embedded resources and reads the subject out of the template so a caller
-never states it twice; and `HybridCacheStore`, the one adapter behind `ICacheStore`. It registers
+`DbContext` a module owns, three interceptors a context attaches as its rows need them (aggregates
+flushed onto their rows, rows stamped, the events that flush raised collected for after the
+commit), and the `AggregateTracker` base every feature's tracker derives from. **The system
+clock**, behind `IDateTimeProvider`. And the mail engine, `EmailTemplate`, which renders a
+module's *own* embedded resources and reads the subject out of the template so a caller never
+states it twice; and `HybridCacheStore`, the one adapter behind `ICacheStore`. It registers
 one thing, `AddCacheStore()`, because the template engine is a type a module news up rather than
-resolves. Two calls compose the saving half: `AddCoreSaving<TContext>()` registers the mechanisms
-for one context, and `AddCoreSavingInterceptors()` attaches the three interceptors where that
-context's options are built. The context is a type argument rather than something resolved, because
-a deployment may own more than one and nothing registers the base `DbContext` for a container to
-pick from.
+resolves. The saving half is composed per context. `AddContextUnitOfWork<TContext>()` registers its
+commit boundary, which is all a context needs to commit — a feature storing plain records needs
+nothing more. `AddSavingInterceptors()` registers the three interceptors, and the context's options
+attach the ones its rows need with `UseAggregateFlushing`, `UseAuditStamping` and
+`UseDomainEventDispatch`, in that order. The business context attaches all three; the identity
+context attaches none, since none of its rows is audited and it has no aggregate and no event. The
+context is a type argument rather than something resolved, because a deployment may own more than
+one and nothing registers the base `DbContext` for a container to pick from.
 
 **Every adapter of an application port here stays `internal`, and that is what the calls are for.**
 `EfUnitOfWork`, `SystemDateTimeProvider` and `HybridCacheStore` are composed by making the call,
@@ -627,14 +630,19 @@ a hard bound on the cost of every single command.
 system column, and it lives **on the root only** — the root is the consistency
 boundary, so a concurrent edit to any item is a conflict on the list.
 
-Events are raised on the root (`RaiseDomainEvent`) and buffered, then collected and
-dispatched by `DomainEventDispatchSaveChangesInterceptor` when the transaction
-commits. Two consequences worth stating:
+Events are raised on the root (`RaiseDomainEvent`) and buffered, then collected by
+`DomainEventDispatchSaveChangesInterceptor` as the save of the context their rows are staged on
+begins, and dispatched once that save has committed. A save of any other context — the identity
+context, or the second instance of the business context an idempotency claim commits through —
+neither collects nor publishes them. Consequences worth stating:
 
-- An event is never observed for a transaction that rolled back.
-- Handlers run **in-process and in the same transaction**. This is not a message bus.
-  A handler that must reach another system should write to an outbox, not do the I/O
-  inline.
+- An event is never observed for a transaction that rolled back. A failed save hands its events
+  back to their tracker, so the retry publishes them.
+- Handlers run **in-process, after the commit, outside its transaction**. This is not a message
+  bus. A consumer that writes commits its own save through `IUnitOfWork`, on the same scoped
+  context and from inside the commit's callback; one that throws is logged and not retried, so
+  delivery is at most once. A handler that must reach another system should write to an outbox,
+  which this template does not ship, not do the I/O inline.
 
 Cross-cutting save behaviour lives in `ISaveChangesInterceptor` implementations
 (`AuditingSaveChangesInterceptor`, `DomainEventDispatchSaveChangesInterceptor`) rather
@@ -692,15 +700,18 @@ worth it for making the failure set explicit at the boundary. See
 - For a single `AppDbContext` that is exactly one `SaveChangesAsync`, which EF wraps
   in a transaction of its own: everything the use case staged either lands or none of
   it does.
-- Domain events dispatch inside that same save, via the interceptor.
+- That transaction belongs to one context instance. Domain events are published by the
+  interceptor after it commits, and only the events of the aggregates staged on that instance.
 
 The point of the indirection is not the one line of code in `UnitOfWork`. It is that a
 use case cannot commit by accident: it depends on an interface with one method instead
 of on a repository that saved inside every write.
 
-**Where the boundary reaches now.** With one context, `RefreshTokenGrants` commits
-through `IUnitOfWork` like everything else, so a refresh-token rotation and a domain
-write *can* share a transaction — which was impossible while the two contexts existed.
+**Where the boundary reaches now.** One save of one context instance. A refresh-token rotation
+commits through the identity context's own unit of work, and an idempotency claim through a second
+instance of the business context, so neither shares a transaction with a domain write — and
+neither flushes or publishes one. Versions are the store's `xmin`: a write staged against a stale
+one is rejected rather than retried.
 
 **Where it still does not reach.** ASP.NET Identity's own stores call
 `SaveChangesAsync` themselves: `UserManager.CreateAsync` commits before it returns, and
@@ -865,7 +876,7 @@ change tracker useful without it ever seeing the aggregate.
 | Machine-to-machine authentication | No API keys and no client-credentials flow: every token this template mints belongs to a person who signed in. The extension point is a second authentication scheme beside the bearer one `AddAuthModule` registers, and `IAccessTokenIssuer` is the port a client-credentials grant would mint through. |
 | A message bus or queue port | The background jobs poll the database on a timer, and the operations that must not run twice at once take `ILeaderLease` — a Postgres advisory lock — rather than relying on a single consumer. A broker would arrive the way every other capability does: a port in `AppTemplate.Application.Core/Common/Ports/`, an adapter in a module of its own, one line in each host's composition. |
 | Minimal APIs | Everything is MVC. The idempotency filter is an action filter, `ApiControllerBase` does the result-to-response mapping, and the ETag handling hangs off the same machinery — so a minimal endpoint mapped beside the controllers inherits none of it and is not supported. Nothing stops one being mapped; what it costs is those three, each of which would have to be re-expressed as an endpoint filter. |
-| SMS, push notifications, feature flags, a business audit log | `IEmailSender` is the only notification port, and a second channel is a second port beside it rather than a widening of that one. The audit columns are not a log: they record who last wrote a row, not what changed, so a history is a table of its own — the interceptor pipeline in `AppTemplate.Infrastructure.Persistence/Common/` is where one would be written. |
+| SMS, push notifications, feature flags, a business audit log | `IEmailSender` is the only notification port, and a second channel is a second port beside it rather than a widening of that one. The audit columns are not a log: they record who last wrote a row, not what changed, so a history is a table of its own — the interceptor pipeline in `AppTemplate.Infrastructure.Core/Common/Saving/` is where one would be written. |
 | Output caching | There is a cache — `ICacheStore` over `HybridCache` — and it is deliberately not wired to responses. Output caching keys on the request, and every read here is a per-caller one behind default-deny authorisation, so a response cache is a chance to serve one caller's list to another. What is cached is a value a use case asked for, by a key naming the owner. Revalidation is what the HTTP layer offers instead: `ETag`, `If-None-Match`, and `private, no-cache`. A deployment wanting a shared second level registers an `IDistributedCache` beside `AddCacheStore()` and changes no caller: that is configuration, not code, which is why a distributed cache is not on this list. |
 | A client contracts package | A front end talking HTTP needs the request and response types or a client generated from them, and the OpenAPI document each API version publishes is the intended route. A shared contracts assembly is deliberately not offered: it couples client and server binaries and undercuts the versioning this template maintains one document per version to keep. |
 | A trusted-proxy list | The hops in front of this API are a property of your topology rather than of this code, so both lists ship empty and `ReverseProxy:Enabled` defaults to `false`. The mechanism that reads them is not absent — see below. |

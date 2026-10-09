@@ -84,6 +84,23 @@ public abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint> 
     }
 
     /// <summary>
+    /// Whether <paramref name="context"/> is tracking one of this tracker's rows. That is what makes it
+    /// the context these aggregates are staged on: the repositories put each row in the request's
+    /// context, and no other context, nor another instance of the same one, ever sees it.
+    /// </summary>
+    /// <param name="context">The context being saved.</param>
+    /// <returns><see langword="true"/> when that context holds at least one of the rows.</returns>
+    public bool IsStagedOn(DbContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        // Asking a context about a row its model does not map throws rather than answering no.
+        return context.Model.FindEntityType(typeof(TRecord)) is not null
+            && _tracked.Values.Any(
+                tracked => context.Entry(tracked.Record).State != EntityState.Detached);
+    }
+
+    /// <summary>
     /// Writes every tracked aggregate's state onto its row and lets EF's own diff decide what to write.
     /// Left to each feature: see the type-level remarks for why.
     /// </summary>

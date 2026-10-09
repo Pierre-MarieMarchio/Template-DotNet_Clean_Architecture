@@ -7,6 +7,11 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 /// Runs every feature's <see cref="IAggregateFlusher"/> immediately before EF computes its diff, and
 /// reads the store's own values back immediately after a successful save.
 /// <para>
+/// <b>Only the flushers staged on the context being saved.</b> A request can save another context,
+/// or a second instance of this one, in a transaction of its own; mapping an aggregate onto that
+/// context would at best write nothing and at worst throw for a row its model does not have.
+/// </para>
+/// <para>
 /// <b>This must be the first interceptor added.</b> Audit stamping only sees an entry that is already
 /// <c>Added</c> or <c>Modified</c>, and event collection only sees aggregates whose state has been
 /// settled; both depend on the flush having happened. Interceptors run in the order they are added,
@@ -20,9 +25,9 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 /// </para>
 /// <para>
 /// It exists as an interceptor rather than as a step inside the unit of work so that a stray
-/// <c>context.SaveChanges()</c> — from a test, from ASP.NET Identity's own stores, from a future
-/// caller who forgets — still flushes. A flush that only happened on the blessed path would be a
-/// silent data-loss bug the first time somebody left it.
+/// <c>context.SaveChanges()</c> — from a test, from a future caller who forgets — still flushes. A
+/// flush that only happened on the blessed path would be a silent data-loss bug the first time
+/// somebody left it.
 /// </para>
 /// </summary>
 public sealed class AggregateFlushSaveChangesInterceptor(IEnumerable<IAggregateFlusher> flushers)
@@ -70,7 +75,9 @@ public sealed class AggregateFlushSaveChangesInterceptor(IEnumerable<IAggregateF
     /// <returns><paramref name="result"/>, unchanged.</returns>
     public override int SavedChanges(SaveChangesCompletedEventData eventData, int result)
     {
-        RefreshFromStore();
+        ArgumentNullException.ThrowIfNull(eventData);
+
+        RefreshFromStore(eventData.Context);
 
         return base.SavedChanges(eventData, result);
     }
@@ -85,7 +92,9 @@ public sealed class AggregateFlushSaveChangesInterceptor(IEnumerable<IAggregateF
         int result,
         CancellationToken cancellationToken = default)
     {
-        RefreshFromStore();
+        ArgumentNullException.ThrowIfNull(eventData);
+
+        RefreshFromStore(eventData.Context);
 
         return base.SavedChangesAsync(eventData, result, cancellationToken);
     }
@@ -97,19 +106,27 @@ public sealed class AggregateFlushSaveChangesInterceptor(IEnumerable<IAggregateF
             return;
         }
 
-        foreach (var flusher in _flushers)
+        var staged = StagedOn(context);
+
+        foreach (var flusher in staged)
         {
             flusher.FlushTo(context);
         }
 
-        context.ChangeTracker.DetectChanges();
+        if (staged.Length > 0)
+        {
+            context.ChangeTracker.DetectChanges();
+        }
     }
 
-    private void RefreshFromStore()
+    private void RefreshFromStore(DbContext? context)
     {
-        foreach (var flusher in _flushers)
+        foreach (var flusher in StagedOn(context))
         {
             flusher.RefreshFromStore();
         }
     }
+
+    private IAggregateFlusher[] StagedOn(DbContext? context) =>
+        context is null ? [] : [.. _flushers.Where(flusher => flusher.IsStagedOn(context))];
 }

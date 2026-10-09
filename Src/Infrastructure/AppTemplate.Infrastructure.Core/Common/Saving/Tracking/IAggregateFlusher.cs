@@ -22,6 +22,14 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 public interface IAggregateFlusher
 {
     /// <summary>
+    /// Whether <paramref name="context"/> is the context this flusher's rows are staged on. Only a
+    /// save of that context flushes them or reads the store's values back: a request can save other
+    /// contexts, and other instances of the same one, in transactions of their own.
+    /// </summary>
+    /// <param name="context">The context being saved.</param>
+    bool IsStagedOn(DbContext context);
+
+    /// <summary>
     /// Writes the state of every aggregate this flusher is holding onto its tracked rows, reconciles
     /// child collections, and marks a root modified when only a child changed.
     /// <para>

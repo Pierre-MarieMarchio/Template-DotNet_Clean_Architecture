@@ -1,9 +1,7 @@
-﻿using AppTemplate.Application.Core.Common.Concurrency;
-using AppTemplate.Application.Core.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
-using AppTemplate.Application.Features.TodoLists.Dtos;
-using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
+using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.Entities;
@@ -19,7 +17,7 @@ public sealed class ScheduleReminderUseCaseTests
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
     private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
 
-    private readonly ITodoListQueries _todoLists = Substitute.For<ITodoListQueries>();
+    private readonly ITodoItemQueries _todoItems = Substitute.For<ITodoItemQueries>();
     private readonly IReminderRepository _reminders = Substitute.For<IReminderRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly ScheduleReminderCommandValidator _validator = new();
@@ -47,8 +45,8 @@ public sealed class ScheduleReminderUseCaseTests
             new ScheduleReminderCommand(Guid.CreateVersion7(), Guid.CreateVersion7(), _now.AddHours(1)),
             TestToken);
 
-        await _todoLists.DidNotReceive().GetDetailAsync(
-            Arg.Any<Guid>(), Arg.Any<UserId>(), Arg.Any<CancellationToken>());
+        await _todoItems.DidNotReceive().ExistsForOwnerAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<UserId>(), Arg.Any<CancellationToken>());
         _reminders.DidNotReceive().Add(Arg.Any<Reminder>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
@@ -85,13 +83,17 @@ public sealed class ScheduleReminderUseCaseTests
 
     #region Target
 
+    /// <summary>
+    /// One answer for a missing item, a wrong list and somebody else's item: the port is asked with
+    /// the caller as owner and says no, and the use case cannot tell which of the three it was.
+    /// </summary>
     [Fact]
-    public async Task AListTheCallerDoesNotOwn_IsReportedAsTargetNotFound()
+    public async Task AnItemTheCallerCannotSee_IsReportedAsTargetNotFound()
     {
         var listId = Guid.CreateVersion7();
         var itemId = Guid.CreateVersion7();
-        _todoLists.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>())
-            .Returns((Versioned<TodoListDetailDto>?)null);
+        _todoItems.ExistsForOwnerAsync(listId, itemId, _callerId, Arg.Any<CancellationToken>())
+            .Returns(false);
 
         var result = await UseCase().ExecuteAsync(
             new ScheduleReminderCommand(listId, itemId, _now.AddHours(1)), TestToken);
@@ -102,28 +104,16 @@ public sealed class ScheduleReminderUseCaseTests
     }
 
     [Fact]
-    public async Task AnItemNotOnTheNamedList_IsReportedAsTargetNotFound()
-    {
-        var listId = Guid.CreateVersion7();
-        GivenTheListHasAnItemOtherThan(listId, out var itemId);
-
-        var result = await UseCase().ExecuteAsync(
-            new ScheduleReminderCommand(listId, itemId, _now.AddHours(1)), TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        result.Error!.Code.ShouldBe("reminder.targetNotFound");
-    }
-
-    [Fact]
     public async Task ATargetNotFound_DoesNotCommit()
     {
         var listId = Guid.CreateVersion7();
         var itemId = Guid.CreateVersion7();
-        _todoLists.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>())
-            .Returns((Versioned<TodoListDetailDto>?)null);
+        _todoItems.ExistsForOwnerAsync(listId, itemId, _callerId, Arg.Any<CancellationToken>())
+            .Returns(false);
 
         await UseCase().ExecuteAsync(new ScheduleReminderCommand(listId, itemId, _now.AddHours(1)), TestToken);
 
+        _reminders.DidNotReceive().Add(Arg.Any<Reminder>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -172,7 +162,7 @@ public sealed class ScheduleReminderUseCaseTests
     #endregion
 
     private ScheduleReminderUseCase UseCaseFor(ICurrentUser currentUser) => new(
-        _todoLists,
+        _todoItems,
         _reminders,
         _unitOfWork,
         currentUser,
@@ -181,20 +171,7 @@ public sealed class ScheduleReminderUseCaseTests
 
     private ScheduleReminderUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
-    private void GivenTheListHasTheItem(Guid listId, Guid itemId)
-    {
-        var item = new TodoItemDto(itemId, "Buy milk", null, false, null, []);
-        var detail = new TodoListDetailDto(listId, "Groceries", _now, null, [item]);
-        _todoLists.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>())
-            .Returns(new Versioned<TodoListDetailDto>(detail, 3));
-    }
-
-    private void GivenTheListHasAnItemOtherThan(Guid listId, out Guid missingItemId)
-    {
-        missingItemId = Guid.CreateVersion7();
-        var otherItem = new TodoItemDto(Guid.CreateVersion7(), "Buy milk", null, false, null, []);
-        var detail = new TodoListDetailDto(listId, "Groceries", _now, null, [otherItem]);
-        _todoLists.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>())
-            .Returns(new Versioned<TodoListDetailDto>(detail, 3));
-    }
+    private void GivenTheListHasTheItem(Guid listId, Guid itemId) =>
+        _todoItems.ExistsForOwnerAsync(listId, itemId, _callerId, Arg.Any<CancellationToken>())
+            .Returns(true);
 }

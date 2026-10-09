@@ -3,7 +3,8 @@ using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
-using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;
+using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemTagQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Domain.Features.Files.Repositories;
@@ -142,6 +143,7 @@ public static class PersistenceModule
 
         services.TryAddScoped<ITodoListRepository, TodoListRepository>();
         services.TryAddScoped<ITodoListQueries, TodoListQueries>();
+        services.TryAddScoped<ITodoItemQueries, TodoItemQueries>();
         services.TryAddScoped<ITodoItemTagQueries, TodoItemTagQueries>();
     }
 
@@ -163,7 +165,7 @@ public static class PersistenceModule
         AddScopedTracker<ReminderTracker, IReminderTracker>(services);
 
         services.TryAddScoped<IReminderRepository, ReminderRepository>();
-        services.TryAddScoped<IReminderTargetQueries, ReminderTargetQueries>();
+        services.TryAddScoped<IReminderQueries, ReminderQueries>();
         services.TryAddSingleton<IReminderDiagnostics, ReminderDiagnostics>();
     }
 

@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
-using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
+using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.Entities;
@@ -27,7 +27,7 @@ public sealed class FireDueRemindersUseCaseTests
     private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
 
     private readonly IReminderRepository _repository = Substitute.For<IReminderRepository>();
-    private readonly IReminderTargetQueries _targets = Substitute.For<IReminderTargetQueries>();
+    private readonly ITodoItemQueries _todoItems = Substitute.For<ITodoItemQueries>();
     private readonly IReminderNotifier _notifier = Substitute.For<IReminderNotifier>();
     private readonly IReminderDiagnostics _diagnostics = Substitute.For<IReminderDiagnostics>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
@@ -46,7 +46,7 @@ public sealed class FireDueRemindersUseCaseTests
         var result = await UseCase().ExecuteAsync(TestToken);
 
         result.Value.ShouldBe(0);
-        await _targets.DidNotReceive().GetCompletionStatesAsync(
+        await _todoItems.DidNotReceive().GetCompletionStatesAsync(
             Arg.Any<IReadOnlyList<Guid>>(), Arg.Any<CancellationToken>());
         await _notifier.DidNotReceive().NotifyAsync(Arg.Any<ReminderNotification>(), Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -194,7 +194,7 @@ public sealed class FireDueRemindersUseCaseTests
 
         await UseCase().ExecuteAsync(TestToken);
 
-        await _targets.Received(1).GetCompletionStatesAsync(
+        await _todoItems.Received(1).GetCompletionStatesAsync(
             Arg.Is<IReadOnlyList<Guid>>(ids => ids!.Count == 2 && ids.Contains(a.TodoItemId) && ids.Contains(b.TodoItemId)),
             TestToken);
     }
@@ -261,7 +261,7 @@ public sealed class FireDueRemindersUseCaseTests
 
     private FireDueRemindersUseCase UseCase() => new(
         _repository,
-        _targets,
+        _todoItems,
         _notifier,
         _diagnostics,
         _unitOfWork,
@@ -304,7 +304,7 @@ public sealed class FireDueRemindersUseCaseTests
     private void GivenCompletionStates(params (Guid TodoItemId, bool IsCompleted)[] states)
     {
         var dictionary = states.ToDictionary(state => state.TodoItemId, state => state.IsCompleted);
-        _targets.GetCompletionStatesAsync(Arg.Any<IReadOnlyList<Guid>>(), Arg.Any<CancellationToken>())
+        _todoItems.GetCompletionStatesAsync(Arg.Any<IReadOnlyList<Guid>>(), Arg.Any<CancellationToken>())
             .Returns((IReadOnlyDictionary<Guid, bool>)dictionary);
     }
 }

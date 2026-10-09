@@ -73,8 +73,8 @@ is what reads them; `dotnet run Tools/NewFeature.cs <Features> <Feature> ...` is
 | `--model` | `record` | `record` is the simple shape: one service, a write port (`I<Feature>Store`) and a read port (`I<Feature>Queries`), and the EF record is the only model. `aggregate` is the rich shape: a domain aggregate with its repository port, one use case per operation, a queries port, and a record, mapper and tracker. The question in [Choose the shape first](#choose-the-shape-first) decides, and nothing else does. |
 | `--concurrency` | `none` | `none`: an update replaces what is stored whatever its state, so **of two concurrent writers the last one wins**; the API publishes no `ETag` and reads no `If-Match`, and says so in its comments. `etag`: a persisted version (PostgreSQL's `xmin`), an `ETag` on reads, `If-Match` on writes, and a stale write refused at the database. |
 
-A port is capped at four operations by an architecture rule, which is why a `record` feature has a store and
-a queries port and not one of each kind of operation in a single port. A port whose operations are all
+A port is one capability, and staging writes is not reading, which is why a `record` feature has a store
+and a queries port rather than every operation in a single port. A port whose operations are all
 left out is not written: with only `get` and `list` there is no store, and with only `delete` there is
 no queries port.
 

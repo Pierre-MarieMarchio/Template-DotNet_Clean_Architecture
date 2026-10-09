@@ -65,6 +65,14 @@ public static class StoredFileErrors
         $"Category '{category}' does not accept direct uploads; upload the file through the API instead.");
 
     /// <summary>
+    /// An upload through the API was asked in a category configured for direct uploads only. The
+    /// deployment's choice: the client registers the file and deposits it on the store instead.
+    /// </summary>
+    public static Error ApiUploadNotAllowed(string category) => Error.Conflict(
+        "storedFile.apiUploadUnavailable",
+        $"Category '{category}' does not accept uploads through the API; register the file and deposit it directly instead.");
+
+    /// <summary>
     /// <paramref name="message"/> describes the caller's own allowance and never the store's
     /// capacity or anyone else's usage, so it is safe to return verbatim.
     /// </summary>

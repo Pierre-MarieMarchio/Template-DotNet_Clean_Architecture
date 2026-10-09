@@ -7,6 +7,7 @@ stops thinking about.
 - [Versioning](#versioning)
 - [Authorisation is default-deny](#authorisation-is-default-deny)
 - [Errors are RFC 7807, and clients branch on `code`](#errors-are-rfc-7807-and-clients-branch-on-code)
+- [Request bodies — JSON, and one multipart upload](#request-bodies--json-and-one-multipart-upload)
 - [Conditional requests — `ETag` and `If-Match`](#conditional-requests--etag-and-if-match)
 - [Retrying a `POST` safely — `Idempotency-Key`](#retrying-a-post-safely--idempotency-key)
 - [Collection queries — sorting, filtering, paging](#collection-queries--sorting-filtering-paging)
@@ -84,6 +85,7 @@ of the contract.
 | `storedFile.quotaExceeded` | 409 — the caller's own pending, file-count or byte allowance |
 | `storedFile.quotaBusy` | 409 — in a `Strict` category, another registration of the caller in the same category held the quota lock for more than 10 seconds. Nothing was written; retry |
 | `storedFile.directUploadUnavailable` | 409 — registration for a direct upload against a store that cannot sign URLs (the file system store), or in a category configured for uploads through the API only |
+| `storedFile.apiUploadUnavailable` | 409 — an upload through the API (`POST /api/v1/files/uploads`) in a category configured for direct uploads only |
 | `domain.invariantViolated` | 409 via `DomainGuard`; 400 if a use case's own catch is missing and `DomainException` reaches `GlobalExceptionHandler` |
 
 **The request itself**
@@ -106,7 +108,7 @@ of the contract.
 | `request.failed` | The fallback, for a status none of the above names. Seeing it means a producer answered a status this table has no entry for |
 | `request.methodNotAllowed` | 405 |
 | `request.notAcceptable` | 406 |
-| `request.tooLarge` | 413 — over `RequestLimits:MaxRequestBodyBytes`, refused before the body is buffered |
+| `request.tooLarge` | 413 — over `RequestLimits:MaxRequestBodyBytes`, or over `Files:ApiUploadMaxBytes` plus 16 KiB on the upload endpoint; refused before the body is read when it declares its length |
 | `request.unsupportedMediaType` | 415 |
 | `request.timeout` / `request.cancelled` | 408 / 499 |
 | `route.notFound` | 404 — an authenticated caller on a route that matched nothing; an anonymous one gets `auth.required` instead |
@@ -116,6 +118,16 @@ A 500 carries no exception text — only a sanitised message and a `traceId` tha
 correlates with the full stack trace in the logs.
 
 Every error response is served as `application/problem+json`.
+
+## Request bodies — JSON, and one multipart upload
+
+Every request body is `application/json`, at most `RequestLimits:MaxRequestBodyBytes` (64 KiB by
+default), with one exception: `POST /api/v1/files/uploads` takes `multipart/form-data` and carries
+a file's bytes. Its limit is `Files:ApiUploadMaxBytes` (10 MiB by default, 30 MiB at most) plus
+16 KiB of multipart framing, raised for that endpoint alone — on the declared length, on the
+server's own limit and on the multipart body. Beyond it the answer is `413` `request.tooLarge`,
+like any other oversized body. Any other content type on an endpoint is `415`
+`request.unsupportedMediaType`.
 
 ## Conditional requests — `ETag` and `If-Match`
 
@@ -163,7 +175,8 @@ curl -X POST "$API/todo-lists" -H "Authorization: Bearer $TOKEN" \
 
 Keys are scoped **per user**, so two callers may use the same key string without colliding.
 Only actions marked `[Idempotent]` participate — the auth endpoints deliberately do not,
-because replaying a login would mean storing a bearer token in the database.
+because replaying a login would mean storing a bearer token in the database, and neither does
+`POST /api/v1/files/uploads`, whose body is the file: a retried upload creates a second file.
 
 A completed key stays replayable for `Idempotency:Retention`, but **nothing prunes the
 table for you**: schedule `DELETE /api/v1/maintenance/idempotency-keys/expired`. That

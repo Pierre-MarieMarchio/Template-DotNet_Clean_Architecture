@@ -108,7 +108,9 @@ against your production system.
 - **This is only correct if `ReverseProxy` is configured — see the deployment obligations.**
 - Bounded aggregates: a maximum number of items per list and tags per item, so one request cannot
   make the server do unbounded work.
-- **An oversized body is refused before it is buffered, and the refusal is logged.**
+- **An oversized body is refused before it is buffered, and the refusal is logged.** The limit is
+  `RequestLimits:MaxRequestBodyBytes`, except on the file upload endpoint described under File
+  storage.
   `UseApiRequestLimits` answers `413` without calling the next middleware, which would ordinarily
   make the rejection invisible — so `Program.cs` registers `UseApiRequestLogging` *ahead* of it,
   and every `413` produces a log entry reporting the status the caller received. A flood of them
@@ -189,13 +191,20 @@ A file upload is the most dangerous surface an API can grow, so what is decided 
 written out rather than left to be inferred. Everything below is shipped behaviour except where it
 says otherwise.
 
-- **No upload passes through the API.** Registering a file returns a *signed upload grant* and the
-  client writes to the object store directly. This is not an optimisation.
-  `RequestLimits:MaxRequestBodyBytes` is 65 536 with a validated ceiling of 30 MiB, and
-  `IdempotencyFilter` buffers and SHA-256s the entire body of every `POST` — routing 200 MiB through
-  either would be untenable. A store that cannot sign (`Files:Storage:Provider` = `FileSystem`)
-  refuses direct-upload registration with `409` `storedFile.directUploadUnavailable` rather than
-  accepting bytes it has no safe way to receive.
+- **Bytes reach the API on one endpoint only, and only up to a configured ceiling.** A direct
+  upload registers the file, receives a *signed upload grant* and writes to the object store; no
+  byte passes through the API, and large files belong there. `POST /api/v1/files/uploads` is the
+  one endpoint whose body carries a file: `multipart/form-data`, bounded by
+  `Files:ApiUploadMaxBytes` (10 MiB by default, 30 MiB at most) plus 16 KiB of framing, a limit
+  raised for that endpoint alone while every other body keeps `RequestLimits:MaxRequestBodyBytes`
+  (65 536). A body over it is `413` before it is read when it declares its length, and is cut off
+  by Kestrel's per-request limit when it does not. It is not `[Idempotent]`, so
+  `IdempotencyFilter` never buffers or hashes it; the form buffers the file to a temporary file
+  above 64 KiB rather than in memory. The request never inspects the content: the file is stored
+  and left `Deposited`, and the background inspection decides, exactly as for a direct upload. A
+  category's `UploadModes` decides which of the two paths it accepts. A store that cannot sign
+  (`Files:Storage:Provider` = `FileSystem`) refuses direct-upload registration with `409`
+  `storedFile.directUploadUnavailable`, so with it bytes arrive through this endpoint only.
 - **Downloads are redirected when the store can sign, and streamed when it cannot.** With S3, reading
   returns a *signed download grant* and the controller answers `302`; no byte passes through the API.
   With the `FileSystem` provider the API carries the bytes itself: `200`, after the same ownership

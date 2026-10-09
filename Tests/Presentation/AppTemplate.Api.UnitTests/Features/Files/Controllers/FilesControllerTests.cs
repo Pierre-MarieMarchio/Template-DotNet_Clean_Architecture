@@ -2,6 +2,7 @@
 using AppTemplate.Api.Common.Caching;
 using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Errors;
+using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Features.Files.Contracts.Requests;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
@@ -10,10 +11,12 @@ using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Errors;
+using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUpload;
 using AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
+using AppTemplate.Application.Features.Files.UseCases.Commands.UploadFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
@@ -48,6 +51,7 @@ public sealed class FilesControllerTests
     private readonly IGetStoredFileUseCase _getStoredFile = Substitute.For<IGetStoredFileUseCase>();
     private readonly IIssueFileDownloadUseCase _issueFileDownload = Substitute.For<IIssueFileDownloadUseCase>();
     private readonly IRegisterFileUseCase _registerFile = Substitute.For<IRegisterFileUseCase>();
+    private readonly IUploadFileUseCase _uploadFile = Substitute.For<IUploadFileUseCase>();
     private readonly IConfirmFileUploadUseCase _confirmFileUpload = Substitute.For<IConfirmFileUploadUseCase>();
 
     private readonly IDeleteStoredFileUseCase _deleteStoredFile = Substitute.For<IDeleteStoredFileUseCase>();
@@ -183,10 +187,10 @@ public sealed class FilesControllerTests
     public void EveryActionCarryingACredential_IsNoStore()
     {
         ActionsWith<NoStoreAttribute>().ShouldBe(
-            [nameof(FilesController.GetContent), nameof(FilesController.Register)],
+            [nameof(FilesController.GetContent), nameof(FilesController.Register), nameof(FilesController.Upload)],
             "GetContent answers with a signed read URL in its Location, and Register answers with a "
-            + "signed write URL in its body. Those two responses carry a credential; the others "
-            + "carry metadata and take this API's ordinary caching contract.");
+            + "signed write URL in its body: those two carry a credential. Upload is a POST, which "
+            + "gets no Cache-Control of its own. The others take this API's ordinary caching contract.");
     }
 
     [Fact]
@@ -434,6 +438,118 @@ public sealed class FilesControllerTests
 
     #endregion
 
+    #region Uploading through the API
+
+    [Fact]
+    public async Task Upload_Answers201_LocatingTheFileWithItsEntityTag()
+    {
+        var httpContext = AContext();
+        var file = AFile(StoredFileState.Deposited);
+        _uploadFile.ExecuteAsync(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>())
+            .Returns(new Versioned<StoredFileDto>(file, 3));
+
+        var action = await AController(httpContext).Upload(
+            AnUploadRequest(httpContext, AFormFile("report.pdf")),
+            TestContext.Current.CancellationToken);
+
+        var created = action.Result.ShouldBeOfType<CreatedAtRouteResult>();
+        created.StatusCode.ShouldBe(StatusCodes.Status201Created);
+        created.RouteName.ShouldBe(nameof(FilesController.GetFile));
+        created.RouteValues!["fileId"].ShouldBe(file.Id);
+        created.Value.ShouldBeOfType<StoredFileResponse>().Status.ShouldBe("deposited");
+        httpContext.Response.Headers.ETag.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Upload_HandsTheFormToTheUseCase_WithThePartsMediaTypeAndLength()
+    {
+        var httpContext = AContext();
+        UploadFileCommand? captured = null;
+        byte[]? content = null;
+        _uploadFile
+            .ExecuteAsync(
+                Arg.Do<UploadFileCommand>(command =>
+                {
+                    captured = command;
+                    using var copy = new MemoryStream();
+                    command.Content.CopyTo(copy);
+                    content = copy.ToArray();
+                }),
+                Arg.Any<CancellationToken>())
+            .Returns(new Versioned<StoredFileDto>(AFile(StoredFileState.Deposited), 1));
+
+        await AController(httpContext).Upload(
+            AnUploadRequest(httpContext, AFormFile("report.pdf"), name: "Q3 report.pdf"),
+            TestContext.Current.CancellationToken);
+
+        captured.ShouldNotBeNull();
+        captured.Category.ShouldBe("document");
+        captured.Name.ShouldBe("Q3 report.pdf");
+        captured.MediaType.ShouldBe("application/pdf");
+        captured.SizeInBytes.ShouldBe(_uploadedBytes.Length);
+        content.ShouldBe(_uploadedBytes);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("  ")]
+    public async Task Upload_NamesTheFileAfterThePart_WhenNoNameIsGiven(string? name)
+    {
+        var httpContext = AContext();
+        UploadFileCommand? captured = null;
+        _uploadFile
+            .ExecuteAsync(Arg.Do<UploadFileCommand>(command => captured = command), Arg.Any<CancellationToken>())
+            .Returns(new Versioned<StoredFileDto>(AFile(StoredFileState.Deposited), 1));
+
+        await AController(httpContext).Upload(
+            AnUploadRequest(httpContext, AFormFile("scan.pdf"), name),
+            TestContext.Current.CancellationToken);
+
+        captured!.Name.ShouldBe("scan.pdf");
+    }
+
+    [Fact]
+    public async Task Upload_Answers400OnTheFile_WhenThereIsNone()
+    {
+        var httpContext = AContext();
+
+        var action = await AController(httpContext).Upload(
+            AnUploadRequest(httpContext, file: null),
+            TestContext.Current.CancellationToken);
+
+        ShouldBeRefusedOnTheFile(action.Result!);
+        await _uploadFile.DidNotReceive().ExecuteAsync(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Upload_Answers400OnTheFile_WhenThereAreTwo()
+    {
+        var httpContext = AContext();
+
+        var action = await AController(httpContext).Upload(
+            AnUploadRequest(httpContext, AFormFile("one.pdf"), extraFile: AFormFile("two.pdf")),
+            TestContext.Current.CancellationToken);
+
+        ShouldBeRefusedOnTheFile(action.Result!);
+        await _uploadFile.DidNotReceive().ExecuteAsync(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Upload_MapsACategoryWithoutApiUploads_To409()
+    {
+        var httpContext = AContext();
+        _uploadFile.ExecuteAsync(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<Versioned<StoredFileDto>>(StoredFileErrors.ApiUploadNotAllowed("document")));
+
+        var action = await AController(httpContext).Upload(
+            AnUploadRequest(httpContext, AFormFile("report.pdf")),
+            TestContext.Current.CancellationToken);
+
+        StatusOf(action.Result!).ShouldBe(StatusCodes.Status409Conflict);
+    }
+
+    #endregion
+
     #region What the surface deliberately does not do
 
     /// <summary>
@@ -447,23 +563,46 @@ public sealed class FilesControllerTests
         ActionsWith<IdempotentAttribute>().ShouldBe([nameof(FilesController.Register)]);
 
     /// <summary>
-    /// The bodies here are metadata — a name, a media type, a length, a digest — and the file's bytes
-    /// never enter the request pipeline. So no action needs the 64 KiB inbound cap widened, and an
-    /// attribute doing so would be the first sign somebody had started routing content through this
-    /// process after all.
+    /// The upload is the one action whose body carries a file, so it is the one action that raises
+    /// the inbound cap — and from configuration, through the attribute the request-limit middleware
+    /// reads, not through MVC's constant-valued attributes, which the middleware would never see.
     /// </summary>
     [Fact]
-    public void NoAction_WidensTheInboundBodyLimit()
+    public void OnlyTheUpload_WidensTheInboundBodyLimit()
     {
-        string[] offenders =
+        ActionsWith<RequestBodyLimitAttribute>().ShouldBe([nameof(FilesController.Upload)]);
+
+        string[] constantLimits =
         [
             .. ActionsWith<RequestSizeLimitAttribute>(),
             .. ActionsWith<DisableRequestSizeLimitAttribute>(),
             .. ActionsWith<RequestFormLimitsAttribute>(),
         ];
 
-        offenders.ShouldBeEmpty();
+        constantLimits.ShouldBeEmpty();
     }
+
+    [Fact]
+    public void TheUploadLimit_IsTheConfiguredCeilingPlusTheMultipartFraming()
+    {
+        var limit = typeof(FilesController)
+            .GetMethod(nameof(FilesController.Upload))!
+            .GetCustomAttribute<RequestBodyLimitAttribute>()!;
+        var services = new ServiceCollection()
+            .AddSingleton(Options.Create(new FilesOptions { ApiUploadMaxBytes = 2 * 1024 * 1024 }))
+            .BuildServiceProvider();
+
+        limit.MaxRequestBodyBytes(services).ShouldBe((2 * 1024 * 1024) + (16 * 1024));
+    }
+
+    /// <summary>
+    /// The idempotency filter buffers and hashes the whole body, which for an upload is the file.
+    /// </summary>
+    [Fact]
+    public void TheUpload_IsNotIdempotent() =>
+        typeof(FilesController).GetMethod(nameof(FilesController.Upload))!
+            .GetCustomAttribute<IdempotentAttribute>()
+            .ShouldBeNull();
 
     #endregion
 
@@ -471,6 +610,50 @@ public sealed class FilesControllerTests
 
     private static RegisterFileRequest ARequest() =>
         new("document", "quarterly-report.pdf", "application/pdf", 1024, new string('a', 64));
+
+    private static readonly byte[] _uploadedBytes = "%PDF-1.7 a small document"u8.ToArray();
+
+    private static FormFile AFormFile(string fileName) =>
+        new(new MemoryStream(_uploadedBytes), 0, _uploadedBytes.Length, "file", fileName)
+        {
+            Headers = new HeaderDictionary { ["Content-Type"] = "application/pdf" },
+        };
+
+    /// <summary>The bound request and the form it came from, as model binding leaves them.</summary>
+    private static UploadFileRequest AnUploadRequest(
+        HttpContext httpContext,
+        IFormFile? file,
+        string? name = null,
+        IFormFile? extraFile = null)
+    {
+        var files = new FormFileCollection();
+
+        if (file is not null)
+        {
+            files.Add(file);
+        }
+
+        if (extraFile is not null)
+        {
+            files.Add(extraFile);
+        }
+
+        httpContext.Request.Form = new FormCollection(
+            new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>(StringComparer.Ordinal)
+            {
+                ["category"] = "document",
+            },
+            files);
+
+        return new UploadFileRequest("document", file, name);
+    }
+
+    private static void ShouldBeRefusedOnTheFile(ActionResult action)
+    {
+        var problem = action.ShouldBeOfType<ObjectResult>();
+        problem.StatusCode.ShouldBe(StatusCodes.Status400BadRequest);
+        problem.Value.ShouldBeOfType<ValidationProblemDetails>().Errors.Keys.ShouldContain("file");
+    }
 
     private static IssuedUploadGrant AGrant() =>
         new(
@@ -542,6 +725,7 @@ public sealed class FilesControllerTests
             _getStoredFile,
             _issueFileDownload,
             _registerFile,
+            _uploadFile,
             _confirmFileUpload,
             _deleteStoredFile)
         {
@@ -572,8 +756,8 @@ public sealed class FilesControllerTests
             .ToList();
 
         actions.Count.ShouldBe(
-            8,
-            "The file surface no longer has the eight actions every attribute rule in this class is "
+            9,
+            "The file surface no longer has the nine actions every attribute rule in this class is "
             + "written against, so those rules have stopped describing it.");
 
         return

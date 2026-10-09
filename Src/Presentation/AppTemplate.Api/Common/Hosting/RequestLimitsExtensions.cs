@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Api.Common.Errors;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Options;
@@ -46,23 +47,50 @@ internal static class RequestLimitsExtensions
 
         long maxBytes = app.Services.GetRequiredService<IOptions<RequestLimitsOptions>>().Value.MaxRequestBodyBytes;
 
-        app.Use(async (context, next) =>
-        {
-            if (context.Request.ContentLength is { } contentLength && contentLength > maxBytes)
-            {
-                await WriteTooLargeAsync(context);
-                return;
-            }
-
-            await next(context);
-        });
+        app.Use((context, next) => LimitAsync(context, next, maxBytes));
 
         return app;
     }
 
+    /// <summary>
+    /// Answers 413 when the declared length exceeds the limit: <paramref name="maxBytes"/>, or the
+    /// endpoint's own <see cref="RequestBodyLimitAttribute"/>, which is then also applied to the
+    /// server's limit and to a multipart body for this request.
+    /// </summary>
+    internal static Task LimitAsync(HttpContext context, RequestDelegate next, long maxBytes)
+    {
+        long limit = maxBytes;
+
+        // The endpoint is known here: the host routes before the first middleware it is given.
+        if (context.GetEndpoint()?.Metadata.GetMetadata<RequestBodyLimitAttribute>() is { } raised)
+        {
+            limit = raised.MaxRequestBodyBytes(context.RequestServices);
+            Raise(context, limit);
+        }
+
+        if (context.Request.ContentLength is { } contentLength && contentLength > limit)
+        {
+            return WriteTooLargeAsync(context);
+        }
+
+        return next(context);
+    }
+
+    private static void Raise(HttpContext context, long limit)
+    {
+        // Kestrel's limit, for this request only; absent on TestServer, read-only once reading began.
+        if (context.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } serverLimit)
+        {
+            serverLimit.MaxRequestBodySize = limit;
+        }
+
+        context.Features.Set<IFormFeature>(
+            new FormFeature(context.Request, new FormOptions { MultipartBodyLengthLimit = limit }));
+    }
+
     // Written by hand rather than through IProblemDetailsService, which writes nothing when the
     // request's Accept header excludes JSON: a refusal has to carry its body whatever was asked for.
-    private static async Task WriteTooLargeAsync(HttpContext httpContext)
+    internal static async Task WriteTooLargeAsync(HttpContext httpContext)
     {
         const int status = StatusCodes.Status413PayloadTooLarge;
 

@@ -183,8 +183,8 @@ mechanism this one lacks copies it and tunes it. Its single use case,
 mechanism's own housekeeping and names no business type; a host opts into it with
 `AddPurgeExpiredIdempotencyKeys()`, so one that has neither a maintenance endpoint nor a
 maintenance loop is not made to supply the two ports it resolves. Both purges are reachable two
-ways in this template: `MaintenanceController`, for a scheduler outside the process — a Kubernetes
-CronJob, a cloud scheduler — and the worker's maintenance loop, whose interval is configuration. There is deliberately no
+ways in this template: `MaintenanceController`, for a scheduler outside the process, and the
+worker's maintenance loop, whose interval is configuration. There is deliberately no
 `AddApplicationCore()` beside it: this project declares ports, results and markers, none of which
 anything registers, and an umbrella call that registered nothing would read like the seam that
 makes the project work.
@@ -866,7 +866,7 @@ change tracker useful without it ever seeing the aggregate.
 **The trust set is the blank, not the mechanism.** `ForwardedHeaders` is wired in full:
 `Common/Security/ForwardedHeadersExtensions.cs` installs it first in the pipeline, ahead of anything
 that reads the client address or the scheme, `ReverseProxyOptions` binds the `ReverseProxy` section
-of `appsettings.json`, and `deploy/kubernetes/configmap-api.yaml` turns it on. Its validator refuses
+of `appsettings.json`; a deployment behind a proxy must configure it. Its validator refuses
 to start with `Enabled: true` and nothing trusted, because ASP.NET Core reads two empty lists as
 *trust everyone*, and a caller who can set `X-Forwarded-For` freely chooses its own rate-limit
 partition. The extension also clears the framework's default loopback entries before adding yours,

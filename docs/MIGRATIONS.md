@@ -125,12 +125,10 @@ the schema absent — an API whose identity tables do not exist starts and then 
 sign-in. Their order is not a correctness requirement, since no foreign key crosses the two schemas,
 but both run authentication first, as the Development bootstrap does.
 
-**The limit that remains.** `deploy/kubernetes/migration-job.yaml` assumes an image around the two
-bundles that the release workflow uploads as plain artifacts rather than packaging; the manifest runs
-`efbundle-identity` as an initContainer and `efbundle` as its container, so they apply in sequence
-rather than racing. It is named in [`DEPLOYMENT.md`](DEPLOYMENT.md), which is where the ordering
-requirement lives too — the migration finishes, successfully, before any pod that expects the new
-schema starts taking traffic.
+**The deployment step remains yours.** The release workflow uploads the two bundles as plain
+artifacts. Run both successfully with a migration-time database principal before starting a version
+of the API or Worker that expects the new schema. Neither serving process applies migrations outside
+Development.
 
 `SECURITY.md` states what a deployment owes here beyond the mechanics.
 

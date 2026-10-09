@@ -42,7 +42,8 @@ docker compose down -v          # stop and delete the database
 Every published port is bound to `127.0.0.1`, so nothing is reachable from your local network.
 **TLS is not terminated in the container** — it speaks plain HTTP on 8080 and nothing else, and
 `UseHttpsRedirection` is deliberately absent from the pipeline because it would 307 the
-orchestrator's health probe. [`DEPLOYMENT.md`](DEPLOYMENT.md) is where TLS belongs.
+orchestrator's health probe. A deployment must terminate TLS and enforce HTTPS upstream; see
+[`../SECURITY.md`](../SECURITY.md).
 
 `.env` is git-ignored. `.env.example` is tracked, contains no real secret, and every variable it
 defines is documented in [`CONFIGURATION.md`](CONFIGURATION.md).
@@ -182,7 +183,7 @@ switches, which `docker-compose.yml` and `.env.example` already set —
 ingress controller, reverse proxy or cloud load balancer — and HTTPS redirection is deliberately
 absent from the pipeline: the container listens on plain 8080, so `UseHttpsRedirection` would 307
 the orchestrator's health probe and every internal call. Enforce HTTPS at the ingress instead, which
-is also where HSTS belongs ([`DEPLOYMENT.md`](DEPLOYMENT.md)).
+is also where HSTS belongs (see [`../SECURITY.md`](../SECURITY.md)).
 
 An `EXPOSE 8081` with no certificate provisioned, no `ASPNETCORE_HTTPS_PORTS` set and nothing bound
 to the port is a published port that cannot answer. Half-configured TLS is worse than none, because

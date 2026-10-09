@@ -270,9 +270,8 @@ Both points are argued in full in
 
 Liveness deliberately touches no dependency, so an orchestrator does not restart a
 healthy API because the database was briefly unreachable. The Compose and Dockerfile
-healthchecks both target `/health`. What each probe should be wired to, and why readiness
-fails the instant shutdown starts, is in
-[`DEPLOYMENT.md`](DEPLOYMENT.md).
+healthchecks both target `/health`. Readiness fails when the database is unavailable or shutdown
+starts; a deployment that routes traffic through a readiness probe should use `/health/ready`.
 
 ## Mail is written in the reader's language
 
@@ -308,4 +307,3 @@ And an `EmbeddedResource` named `*.fr.html` needs `WithCulture="false"` in the `
 MSBuild compiles it into a satellite assembly and every mail throws at the first send.
 [`CONFIGURATION.md`](CONFIGURATION.md#localization) has the rest, including where a
 stored per-account preference would plug in.
-

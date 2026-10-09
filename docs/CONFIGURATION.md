@@ -139,8 +139,8 @@ real coupling cost of the current module boundary, not an oversight.
 **One consequence is worth separating from the rest: the worker needs the `Jwt` section, not the
 `Jwt:Key` value.** `AccessTokenIssuer` is the only thing that signs with it, no loop in this host
 resolves it, and bearer validation needs an inbound request this process does not have — so
-`docker-compose.yml` and `deploy/kubernetes/configmap-worker.yaml` give it a fixed, self-describing
-placeholder, and only the API's Deployment references the real key. `Jwt:Issuer` and `Jwt:Audience`
+`docker-compose.yml` gives it a fixed, self-describing placeholder, while the API receives the real
+key. Other deployments must preserve that separation. `Jwt:Issuer` and `Jwt:Audience`
 are kept identical between the two, because those are what the hosts have to agree about. See
 `SECURITY.md`.
 
@@ -447,7 +447,7 @@ time, which is what this key is.
 
 It matters wherever the store has two names. In `docker-compose.yml` the API reaches MinIO at
 `minio:9000` on the Docker network while a browser reaches it at `localhost:9000`; behind a
-Kubernetes service or a self-hosted gateway it is the same shape. The case where the need disappears
+private service or a self-hosted gateway it is the same shape. The case where the need disappears
 is AWS S3 itself, where `Endpoint` is empty. Left unset it defaults to `Endpoint`, so a deployment
 that never knew the key behaves exactly as before.
 
@@ -980,9 +980,8 @@ body is a few kilobytes.
 
 Read by `Src/Presentation/AppTemplate.Api.Core/Common/Hosting/HostLifecycleExtensions.cs`, which applies it to
 the framework's own `HostOptions.ShutdownTimeout` — how long the host waits for in-flight requests
-to drain once it starts stopping. 30 seconds matches the grace period Kubernetes gives a pod
-(`terminationGracePeriodSeconds`) before sending SIGKILL, so this host is not still draining when
-the orchestrator stops waiting for it.
+to drain once it starts stopping. A deployment must allow enough time after signalling shutdown
+for this timeout and any delay while traffic routing catches up.
 
 **Readiness turns unhealthy the instant shutdown starts, before this timer even matters.**
 `ShutdownHealthCheck` (tagged `ready`, alongside the database check) watches
@@ -1065,8 +1064,7 @@ knob: `IFireDueRemindersUseCase` takes no command, so how many reminders one pas
 `FireDueRemindersUseCase.BatchSize`'s concern and not something this host could pass through.
 
 - **Set outside 1 second – 1 hour** and the host fails `ValidateOnStart()` and does not boot.
-- `deploy/kubernetes/configmap-worker.yaml` sets both keys explicitly; they are not
-  worker-only in the sense of being undeclared.
+- `docker-compose.yml` sets both keys explicitly for local development.
 
 ### Not configurable — and why that is worth knowing
 

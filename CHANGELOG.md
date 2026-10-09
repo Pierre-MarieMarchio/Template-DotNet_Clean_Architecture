@@ -721,6 +721,13 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **CI generates and verifies every supported option combination.** The template acceptance job is
+  a five-leg matrix (the defaults, `--auth none` with its forced options, `--auth external` with `notes`
+  and with `all`, and `--auth local` without Files, workflows or Sonar). Each leg checks that the
+  template's name leaked nowhere, formats, builds, runs the Docker-free tests, compares the model of every
+  context it generated and runs the generated project's own hygiene gates. A second job asserts that
+  `--auth none` alone and with `--examples notes` are refused before any file is written.
+
 - **Authentication speaks through nine intent-shaped ports instead of twenty.** `IAccountsService`,
   `IEmailTokensService`, `ISessionTokensService`, `ITwoFactorService`,
   `IAccountAdministrationService`, `IExternalIdentityVerifier`, `IExternalLoginsService`,

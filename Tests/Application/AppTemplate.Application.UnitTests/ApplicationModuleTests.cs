@@ -14,6 +14,7 @@ using AppTemplate.Application.Features.Notes.Services;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemTagQueries;
@@ -258,6 +259,7 @@ public sealed class ApplicationModuleTests
         services.AddScoped(_ => Substitute.For<ITodoItemTagQueries>());
         services.AddScoped(_ => Substitute.For<IReminderRepository>());
         services.AddScoped(_ => Substitute.For<IReminderNotifier>());
+        services.AddScoped(_ => Substitute.For<IReminderRecipientDirectory>());
         services.AddScoped(_ => Substitute.For<IReminderQueries>());
         services.AddScoped(_ => Substitute.For<IReminderDiagnostics>());
         services.AddScoped(_ => Substitute.For<INoteQueries>());

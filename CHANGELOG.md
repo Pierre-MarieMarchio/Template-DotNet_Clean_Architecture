@@ -606,6 +606,13 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `AccountAdministrationOutcome`, and external verification returns the identity or `null`.
   `PortConventionTests` now caps a port at six operations instead of four. Routes, responses and
   error codes are unchanged.
+- **A reminder's recipient comes from a port Reminders owns, and authentication can be left out of
+  the container.** `FireDueRemindersUseCase` resolves the owner's name and address through
+  `IReminderRecipientDirectory` and hands them to `IReminderNotifier`; the host supplies
+  `AccountReminderRecipientDirectory`, over the local accounts. The email module no longer references
+  `AppTemplate.Application.Auth`, and a reminder whose owner has no account is cancelled instead of
+  being marked fired without a mail. `ContainerCompositionTests.TheApiContainer_BuildsWithoutAuthentication`
+  holds the result.
 - **The `Identity` section is the only password policy.** The request validators no longer copy its
   floor of eight; they check presence and a 256-character ceiling, and the store judges the rest
   with the configured rules. A short password is refused on the same field with the same code, with

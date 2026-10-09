@@ -3,9 +3,11 @@ using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Jobs;
 using AppTemplate.Api.Features.BackgroundJobs.Jobs;
+using AppTemplate.Api.Features.Reminders.Directories;
 using AppTemplate.Application;
 using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Core;
@@ -34,6 +36,10 @@ builder.Services.AddReminders();
 builder.Services.AddFiles();
 builder.Services.AddNotes();
 builder.Services.AddAuthApplication();
+
+// Who a due reminder rings, read from the local accounts. Neither feature names the other, so the
+// host is where they meet.
+builder.Services.AddScoped<IReminderRecipientDirectory, AccountReminderRecipientDirectory>();
 
 // Not covered by the calls above; the maintenance endpoint and the maintenance job both resolve it.
 builder.Services.AddPurgeExpiredIdempotencyKeys();

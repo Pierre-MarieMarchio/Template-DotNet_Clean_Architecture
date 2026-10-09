@@ -1,17 +1,15 @@
 ﻿using System.Globalization;
-using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Core.Common.Localization;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Infrastructure.Core.Common.Templating;
-using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Infrastructure.Email.Features.Reminders;
 
 /// <summary>
-/// Rings a reminder by email. Resolving the owner's address belongs here rather than in the use
-/// case: what "notify" means is an adapter's decision, and a use case that carried an address
-/// would have picked email on the caller's behalf.
+/// Rings a reminder by email, at the address the use case resolved through
+/// <c>IReminderRecipientDirectory</c>. Choosing email is this adapter's decision; the use case only
+/// says who the owner is.
 /// <para>
 /// The subject and the body both come from the embedded <c>ReminderEmailTemplate</c>, in
 /// <see cref="CurrentLanguage.Current"/> — which in a background job is the language
@@ -20,10 +18,7 @@ namespace AppTemplate.Infrastructure.Email.Features.Reminders;
 /// an account carries a stored preference; <c>docs/CONFIGURATION.md</c> says where that plugs in.
 /// </para>
 /// </summary>
-internal sealed class EmailReminderNotifier(
-    IAccountsService accounts,
-    IEmailSender emailSender,
-    ILogger<EmailReminderNotifier> logger) : IReminderNotifier
+internal sealed class EmailReminderNotifier(IEmailSender emailSender) : IReminderNotifier
 {
     private static readonly EmailTemplate _template = new(
         typeof(EmailReminderNotifier).Assembly,
@@ -35,30 +30,17 @@ internal sealed class EmailReminderNotifier(
     {
         ArgumentNullException.ThrowIfNull(notification);
 
-        var profile = await accounts.FindProfileAsync(notification.OwnerId.Value, cancellationToken);
-
-        if (profile is null)
-        {
-            // The account went away between scheduling and firing. Nothing to deliver to, and
-            // nothing wrong: the caller retires the reminder either way.
-            logger.LogWarning(
-                "Reminder for item {TodoItemId} has no account to notify.",
-                notification.TodoItemId);
-
-            return;
-        }
-
         var mail = _template.Render(
             CurrentLanguage.Current,
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["UserName"] = profile.UserName,
+                ["UserName"] = notification.Recipient.Name,
                 // Round-trip, not a culture-specific long date: this process builds with
                 // InvariantGlobalization, so there is no French date format to reach for. A reader
                 // gets an unambiguous instant rather than one formatted as if for somebody else.
                 ["DueAt"] = notification.DueAt.ToString("u", CultureInfo.InvariantCulture),
             });
 
-        await emailSender.SendAsync(profile.Email, mail.Subject, mail.Body, cancellationToken);
+        await emailSender.SendAsync(notification.Recipient.Email, mail.Subject, mail.Body, cancellationToken);
     }
 }

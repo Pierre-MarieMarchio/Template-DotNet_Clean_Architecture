@@ -197,7 +197,7 @@ public sealed class DeleteStoredFileUseCaseTests
     private DeleteStoredFileUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
     private DeleteStoredFileUseCase UseCaseFor(ICurrentUser currentUser) => new(
-        new StoredFileService(_repository, currentUser),
+        new StoredFileService(_repository, currentUser, FilesSettings.Default().AsOptions()),
         _repository,
         _unitOfWork,
         new StubDateTimeProvider(),

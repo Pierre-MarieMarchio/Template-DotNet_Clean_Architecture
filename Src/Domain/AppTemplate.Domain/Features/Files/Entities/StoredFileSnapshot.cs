@@ -6,7 +6,7 @@ namespace AppTemplate.Domain.Features.Files.Entities;
 /// <summary>
 /// The stored values <see cref="StoredFile.Rehydrate"/> rebuilds a file from.
 /// <para>
-/// A parameter object rather than eleven parameters. Seven of them are value objects the persistence
+/// A parameter object rather than twelve parameters. Eight of them are value objects the persistence
 /// layer builds in a row through their own factories, and two more are instants of the same type,
 /// so an argument in the wrong position compiles wherever the types happen to line up. Naming every
 /// value at the call site removes that class of mistake instead of relying on the order being read
@@ -24,6 +24,9 @@ public sealed class StoredFileSnapshot
 
     /// <summary>Who deposited the file.</summary>
     public required UserId OwnerId { get; init; }
+
+    /// <summary>The category the file was registered under.</summary>
+    public required FileCategory Category { get; init; }
 
     /// <summary>Where the content lives in the object store.</summary>
     public required ObjectKey ObjectKey { get; init; }

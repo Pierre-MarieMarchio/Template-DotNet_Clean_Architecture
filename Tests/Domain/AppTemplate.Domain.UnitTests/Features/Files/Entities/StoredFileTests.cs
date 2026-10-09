@@ -12,6 +12,7 @@ public sealed class StoredFileTests
 {
     private static readonly DateTimeOffset _now = new(2026, 8, 9, 12, 0, 0, TimeSpan.Zero);
     private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
+    private static readonly FileCategory _category = FileCategory.Create("document");
     private static readonly StoredFileName _name = StoredFileName.Create("quarterly-report.pdf");
     private static readonly DeclaredMediaType _mediaType = DeclaredMediaType.Create("application/pdf");
     private static readonly FileSize _size = FileSize.Create(4096);
@@ -23,7 +24,7 @@ public sealed class StoredFileTests
         Sha256Checksum.Create("2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae");
 
     private static StoredFile APendingFile(DateTimeOffset? registeredAt = null) =>
-        StoredFile.Register(_ownerId, _name, _mediaType, _size, _checksum, registeredAt ?? _now);
+        StoredFile.Register(_ownerId, _category, _name, _mediaType, _size, _checksum, registeredAt ?? _now);
 
     private static StoredFile ADepositedFile()
     {
@@ -57,7 +58,7 @@ public sealed class StoredFileTests
     public void Register_Rejects_AnAbsentOwner()
     {
         var exception = Should.Throw<ArgumentNullException>(
-            () => StoredFile.Register(null!, _name, _mediaType, _size, _checksum, _now));
+            () => StoredFile.Register(null!, _category, _name, _mediaType, _size, _checksum, _now));
 
         exception.ParamName.ShouldBe("ownerId");
     }
@@ -72,7 +73,7 @@ public sealed class StoredFileTests
     public void Register_Rejects_TheDefaultInstant()
     {
         var exception = Should.Throw<DomainException>(
-            () => StoredFile.Register(_ownerId, _name, _mediaType, _size, _checksum, default));
+            () => StoredFile.Register(_ownerId, _category, _name, _mediaType, _size, _checksum, default));
 
         exception.Message.ShouldContain("registered");
     }
@@ -81,13 +82,15 @@ public sealed class StoredFileTests
     public void Register_Rejects_ANullValueObject()
     {
         Should.Throw<ArgumentNullException>(
-            () => StoredFile.Register(_ownerId, null!, _mediaType, _size, _checksum, _now));
+            () => StoredFile.Register(_ownerId, null!, _name, _mediaType, _size, _checksum, _now));
         Should.Throw<ArgumentNullException>(
-            () => StoredFile.Register(_ownerId, _name, null!, _size, _checksum, _now));
+            () => StoredFile.Register(_ownerId, _category, null!, _mediaType, _size, _checksum, _now));
         Should.Throw<ArgumentNullException>(
-            () => StoredFile.Register(_ownerId, _name, _mediaType, null!, _checksum, _now));
+            () => StoredFile.Register(_ownerId, _category, _name, null!, _size, _checksum, _now));
         Should.Throw<ArgumentNullException>(
-            () => StoredFile.Register(_ownerId, _name, _mediaType, _size, null!, _now));
+            () => StoredFile.Register(_ownerId, _category, _name, _mediaType, null!, _checksum, _now));
+        Should.Throw<ArgumentNullException>(
+            () => StoredFile.Register(_ownerId, _category, _name, _mediaType, _size, null!, _now));
     }
 
     [Fact]
@@ -97,6 +100,7 @@ public sealed class StoredFileTests
 
         file.Id.ShouldNotBe(Guid.Empty);
         file.OwnerId.ShouldBe(_ownerId);
+        file.Category.ShouldBe(_category);
         file.Name.ShouldBe(_name);
         file.DeclaredMediaType.ShouldBe(_mediaType);
         file.Size.ShouldBe(_size);

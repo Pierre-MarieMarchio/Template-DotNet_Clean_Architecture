@@ -38,6 +38,7 @@ public sealed class StoredFileResponseMappingTests
         var response = StoredFileResponseMapping.ToResponse(file);
 
         response.Id.ShouldBe(file.Id);
+        response.Category.ShouldBe(file.Category);
         response.Name.ShouldBe(file.Name);
         response.DeclaredMediaType.ShouldBe(file.DeclaredMediaType);
         response.SizeInBytes.ShouldBe(file.SizeInBytes);
@@ -45,6 +46,17 @@ public sealed class StoredFileResponseMappingTests
         response.Status.ShouldBe("available");
         response.RegisteredAt.ShouldBe(file.RegisteredAt);
         response.AvailableAt.ShouldBe(_availableAt);
+    }
+
+    /// <summary>The category is on the wire under the name the request uses for it.</summary>
+    [Fact]
+    public void TheWireShape_CarriesTheCategory()
+    {
+        var response = StoredFileResponseMapping.ToResponse(AFile(StoredFileState.Available, _availableAt));
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(response, _mvcDefaults));
+
+        document.RootElement.GetProperty("category").GetString().ShouldBe("document");
     }
 
     [Fact]
@@ -217,6 +229,7 @@ public sealed class StoredFileResponseMappingTests
     private static StoredFileDto AFile(StoredFileState state, DateTimeOffset? availableAt) =>
         new(
             Guid.CreateVersion7(),
+            "document",
             "quarterly-report.pdf",
             "application/pdf",
             SizeInBytes: 1024,
@@ -261,6 +274,7 @@ public sealed class StoredFileResponseMappingTests
         {
             var dto = new StoredFileDto(
                 Guid.CreateVersion7(),
+                "image",
                 "photo.png",
                 "image/png",
                 12,

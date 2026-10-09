@@ -97,6 +97,7 @@ public sealed class GetStoredFileUseCaseTests
             .ShouldBe(
                 [
                     nameof(StoredFileDto.Id),
+                    nameof(StoredFileDto.Category),
                     nameof(StoredFileDto.Name),
                     nameof(StoredFileDto.DeclaredMediaType),
                     nameof(StoredFileDto.SizeInBytes),
@@ -124,6 +125,7 @@ public sealed class GetStoredFileUseCaseTests
     private static Versioned<StoredFileDto> ADetail(Guid fileId) => new(
         new StoredFileDto(
             fileId,
+            AStoredFile.Category,
             "holiday.png",
             AStoredFile.MediaType,
             AStoredFile.SizeInBytes,

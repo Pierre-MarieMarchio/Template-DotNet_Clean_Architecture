@@ -36,6 +36,8 @@ internal static class AStoredFileAggregate
     /// </summary>
     internal const string ObjectKeyValue = "t0/202606/0123456789abcdef0123456789abcdef";
 
+    internal const string CategoryName = "invoices";
+    internal const string OtherCategoryName = "contracts";
     internal const string NameValue = "quarterly-report.pdf";
     internal const string DeclaredMediaTypeValue = "application/pdf";
     internal const long SizeInBytes = 4_194_304L;
@@ -56,6 +58,7 @@ internal static class AStoredFileAggregate
         {
             Id = StoredFileId,
             OwnerId = OwnerId,
+            Category = FileCategory.Create(CategoryName),
             ObjectKey = ObjectKey.Create(ObjectKeyValue),
             Name = StoredFileName.Create(NameValue),
             DeclaredMediaType = DeclaredMediaType.Create(DeclaredMediaTypeValue),
@@ -92,6 +95,7 @@ internal static class AStoredFileAggregate
         {
             Id = StoredFileId,
             OwnerId = OtherOwnerId,
+            Category = FileCategory.Create(OtherCategoryName),
             ObjectKey = ObjectKey.Create(OtherObjectKeyValue),
             Name = StoredFileName.Create(OtherNameValue),
             DeclaredMediaType = DeclaredMediaType.Create(OtherDeclaredMediaTypeValue),

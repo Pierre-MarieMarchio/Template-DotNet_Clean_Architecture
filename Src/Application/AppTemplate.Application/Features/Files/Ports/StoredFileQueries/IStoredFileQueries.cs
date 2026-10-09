@@ -5,6 +5,7 @@ using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Policies;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Repositories;
+using AppTemplate.Domain.Features.Files.ValueObjects;
 
 namespace AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 
@@ -35,11 +36,13 @@ public interface IStoredFileQueries
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// One owner's totals, counted in the database rather than by loading their files. A quota check
-    /// that materialised every aggregate to add up four numbers would cost more than the upload it
-    /// is guarding.
+    /// One owner's totals in one category, counted in the database rather than by loading their
+    /// files: the quota is per (owner, category).
     /// </summary>
-    Task<OwnerStorageUsage> GetUsageForOwnerAsync(UserId ownerId, CancellationToken cancellationToken = default);
+    Task<OwnerStorageUsage> GetUsageForOwnerAsync(
+        UserId ownerId,
+        FileCategory category,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Which of <paramref name="candidateObjectKeys"/> some row still names. The orphan sweep's half

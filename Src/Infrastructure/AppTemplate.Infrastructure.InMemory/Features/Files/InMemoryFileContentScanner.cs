@@ -11,6 +11,7 @@ internal sealed class InMemoryFileContentScanner(ArrangedScans scans) : IFileCon
     public async Task<FileScanOutcome> ScanAsync(
         string objectKey,
         Stream content,
+        long sizeInBytes,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);

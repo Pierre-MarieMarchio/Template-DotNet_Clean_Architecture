@@ -74,6 +74,7 @@ public sealed class StoredFileMapperFidelityTests
 
         properties.ShouldContain(nameof(StoredFile.Id));
         properties.ShouldContain(nameof(StoredFile.OwnerId));
+        properties.ShouldContain(nameof(StoredFile.Category));
         properties.ShouldContain(nameof(StoredFile.ObjectKey));
         properties.ShouldContain(nameof(StoredFile.Name));
         properties.ShouldContain(nameof(StoredFile.DeclaredMediaType));

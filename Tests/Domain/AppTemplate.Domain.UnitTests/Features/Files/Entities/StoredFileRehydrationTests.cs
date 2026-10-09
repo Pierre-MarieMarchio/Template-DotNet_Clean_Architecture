@@ -22,6 +22,7 @@ public sealed class StoredFileRehydrationTests
     private static readonly ObjectKey _objectKey =
         ObjectKey.Create("t0/202608/0123456789abcdef0123456789abcdef");
 
+    private static readonly FileCategory _category = FileCategory.Create("document");
     private static readonly StoredFileName _name = StoredFileName.Create("quarterly-report.pdf");
     private static readonly DeclaredMediaType _mediaType = DeclaredMediaType.Create("application/pdf");
     private static readonly FileSize _size = FileSize.Create(4096);
@@ -39,6 +40,7 @@ public sealed class StoredFileRehydrationTests
         {
             Id = id ?? Guid.CreateVersion7(),
             OwnerId = _ownerId,
+            Category = _category,
             ObjectKey = _objectKey,
             Name = _name,
             DeclaredMediaType = _mediaType,
@@ -67,6 +69,7 @@ public sealed class StoredFileRehydrationTests
             {
                 Id = Guid.CreateVersion7(),
                 OwnerId = _ownerId,
+                Category = _category,
                 ObjectKey = _objectKey,
                 Name = _name,
                 DeclaredMediaType = _mediaType,
@@ -93,6 +96,26 @@ public sealed class StoredFileRehydrationTests
             {
                 Id = Guid.CreateVersion7(),
                 OwnerId = null!,
+                Category = _category,
+                ObjectKey = _objectKey,
+                Name = _name,
+                DeclaredMediaType = _mediaType,
+                Size = _size,
+                Checksum = _checksum,
+                State = StoredFileState.Pending,
+                RegisteredAt = _registeredAt,
+                AvailableAt = null,
+                Tags = [],
+            }));
+
+    [Fact]
+    public void Rehydrate_Rejects_AnAbsentCategory() =>
+        Should.Throw<ArgumentNullException>(
+            () => StoredFile.Rehydrate(new StoredFileSnapshot
+            {
+                Id = Guid.CreateVersion7(),
+                OwnerId = _ownerId,
+                Category = null!,
                 ObjectKey = _objectKey,
                 Name = _name,
                 DeclaredMediaType = _mediaType,
@@ -122,6 +145,7 @@ public sealed class StoredFileRehydrationTests
             {
                 Id = Guid.CreateVersion7(),
                 OwnerId = _ownerId,
+                Category = _category,
                 ObjectKey = null!,
                 Name = _name,
                 DeclaredMediaType = _mediaType,
@@ -209,6 +233,7 @@ public sealed class StoredFileRehydrationTests
         {
             Id = id,
             OwnerId = _ownerId,
+            Category = _category,
             ObjectKey = _objectKey,
             Name = _name,
             DeclaredMediaType = _mediaType,
@@ -222,6 +247,7 @@ public sealed class StoredFileRehydrationTests
 
         file.Id.ShouldBe(id);
         file.OwnerId.ShouldBe(_ownerId);
+        file.Category.ShouldBe(_category);
         file.ObjectKey.ShouldBe(_objectKey);
         file.Name.ShouldBe(_name);
         file.DeclaredMediaType.ShouldBe(_mediaType);

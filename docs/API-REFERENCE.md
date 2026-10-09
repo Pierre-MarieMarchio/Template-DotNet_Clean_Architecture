@@ -109,7 +109,7 @@ bytes.
 |---|---|---|
 | GET | `/api/v1/files?page=1&pageSize=20&sort=registeredAt:desc` | 200 — paged summaries of the caller's own files |
 | GET, HEAD | `/api/v1/files/{fileId}` | 200 — the file's metadata, and the `ETag` the two writes below are conditioned on; 304 to a matching `If-None-Match` |
-| GET | `/api/v1/files/{fileId}/content` | **302** + `Location` — a short-lived signed URL, and no body; or, with the file system store, **200** and the bytes as an attachment |
+| GET | `/api/v1/files/{fileId}/content` | **302** + `Location` — a short-lived signed URL, and no body; or, with the file system store, **200** and the bytes as an attachment. The owner's file, or any available file of an `Authenticated` category |
 | POST | `/api/v1/files` | 201 + `Location` — reserves a place and returns the upload grant |
 | POST | `/api/v1/files/{fileId}/confirm` | 200 — the file's metadata, with its new version |
 | PUT | `/api/v1/files/{fileId}/tags` | 200 — replaces the whole tag set, conditioned on the `ETag` above, by the same domain rules a to-do item's tags obey |
@@ -118,8 +118,10 @@ bytes.
 
 **Depositing, in order.**
 
-1. `POST /api/v1/files` with metadata only — `name`, `declaredMediaType`, `sizeInBytes`
-   and `checksum` (SHA-256, 64 hexadecimal characters). The answer is the file's `id` and
+1. `POST /api/v1/files` with metadata only — `category`, `name`, `declaredMediaType`,
+   `sizeInBytes` and `checksum` (SHA-256, 64 hexadecimal characters). The category is one of
+   `Files:Categories` and decides the media types, the maximum size, the upload modes, the
+   inspection and the quota that apply. The answer is the file's `id` and
    an `upload` grant: a signed `url`, the `method` the signature covers, the
    `requiredHeaders` the deposit must send back verbatim, and an `expiresAt`.
 2. Send the bytes straight at that URL, with the grant's `method` (`PUT` in both shipped
@@ -173,12 +175,18 @@ sweep, so a client resuming after a long upload gets `412` rather than a `404` i
 read as "wrong id". Registration takes no precondition — there is no resource yet to have
 a version.
 
-**What refuses a registration.** `409` `storedFile.directUploadUnavailable` when the store
-cannot sign (the file system store). `409` `storedFile.quotaExceeded` covers the three bounds
-one owner has: 20 uploads outstanding at once, 1 000 files, and 10 GiB of committed bytes
-(a single file may not exceed 5 GiB). `409` also carries a value the domain refuses that
-this layer cannot restate — a reserved device name, a wildcard media type, a checksum of
-the right length that is not hexadecimal.
+**What refuses a registration.** `400` on `category` for a category the deployment does not
+declare, on `mediaType` for a type the category does not allow, and on `sizeInBytes` above the
+category's maximum (a single file may never exceed 5 GiB). `409`
+`storedFile.directUploadUnavailable` when the store cannot sign (the file system store) or the
+category allows only uploads through the API. `409` `storedFile.quotaExceeded` covers the three
+bounds one owner has **in that category** — by default 20 uploads outstanding at once, 1 000
+files and 10 GiB of committed bytes, each set per category in configuration. `409` also carries
+a value the domain refuses that this layer cannot restate — a reserved device name, a wildcard
+media type, a checksum of the right length that is not hexadecimal.
+
+**Every file carries its `category`**, in every representation. A business feature that needs
+a file stores its `id` and names the category it registers under.
 
 Sorting is `name`, `registeredAt` and `availableAt`; `availableAt` is offset-only because
 its column is nullable — asking for it with `paging=cursor` is a `400` `cursor.invalid`.
@@ -187,7 +195,12 @@ Everything else in
 [Collection queries](API-CONVENTIONS.md#collection-queries--sorting-filtering-paging) applies unchanged.
 
 A file that belongs to somebody else answers exactly as an absent one does — `404`
-`storedFile.notFound` — because a `403` next to a `404` is how an id becomes a probe.
+`storedFile.notFound` — because a `403` next to a `404` is how an id becomes a probe. One
+exception, and only for the content: a category whose `Visibility` is `Authenticated` lets any
+signed-in user download an **available** file of it by its id. Its metadata, its tags, its
+confirmation and its deletion stay the owner's, and a non-owner asking for the content of such a
+file that is not available yet gets the same `404`. A file whose category was removed from
+configuration is treated as `Private`.
 
 ## Notes — `api/v1/notes/*`
 

@@ -1,4 +1,5 @@
 ﻿using Amazon.S3;
+using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
@@ -12,6 +13,7 @@ using AppTemplate.Infrastructure.Storage.Features.Files.Stores;
 using AppTemplate.Infrastructure.Storage.Features.Files.Transfers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage;
@@ -30,7 +32,8 @@ public static class StorageModule
 {
     /// <summary>
     /// Registers <see cref="IFileContentStore"/>, <see cref="IFileContentInventory"/>,
-    /// <see cref="IFileDirectTransfer"/> and <see cref="IFileContentScanner"/>.
+    /// <see cref="IFileDirectTransfer"/> and <see cref="IFileContentScanner"/>, and the checks of
+    /// <c>Files:Categories</c> against the chosen store and scanning.
     /// </summary>
     /// <param name="services">The container being composed.</param>
     /// <param name="configuration">
@@ -65,6 +68,13 @@ public static class StorageModule
         }
 
         AddScanner(services, configuration);
+
+        // The category rules that depend on this module's choices; the categories themselves are
+        // bound and validated by the application's AddFiles.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<FilesOptions>, FilesCategoriesStorageValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<FilesOptions>, FilesCategoriesScanningValidator>());
 
         return services;
     }

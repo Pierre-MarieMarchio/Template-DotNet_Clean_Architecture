@@ -205,6 +205,7 @@ public sealed class StoredFileTrackerTests
     /// </summary>
     private static StoredFile ARegisteredFile() => StoredFile.Register(
         AStoredFileAggregate.OwnerId,
+        FileCategory.Create(AStoredFileAggregate.CategoryName),
         StoredFileName.Create(AStoredFileAggregate.NameValue),
         DeclaredMediaType.Create(AStoredFileAggregate.DeclaredMediaTypeValue),
         FileSize.Create(AStoredFileAggregate.SizeInBytes),

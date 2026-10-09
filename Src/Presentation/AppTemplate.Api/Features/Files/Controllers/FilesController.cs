@@ -128,7 +128,8 @@ public sealed class FilesController(
     /// </para>
     /// <para>
     /// <b><c>[NoStore]</c>, and it is load-bearing.</b> The <c>Location</c> is a bearer credential,
-    /// and a stored redirect outlives the grant it names. The URL is disclosed only to the owner,
+    /// and a stored redirect outlives the grant it names. The URL is disclosed only to a caller who may
+    /// read the file — its owner, or any signed-in user for an <c>Authenticated</c> category —
     /// and must never be logged or stored.
     /// </para>
     /// <para>No <c>ETag</c>: a grant is never the same twice.</para>
@@ -187,8 +188,10 @@ public sealed class FilesController(
     /// nothing about a credential it carries.
     /// </para>
     /// <para>
-    /// 409 covers the refusals worth naming: a store that cannot sign
-    /// (<c>storedFile.directUploadUnavailable</c>), the caller's quota (<c>storedFile.quotaExceeded</c>),
+    /// 400 refuses a category the deployment does not declare, a media type it does not allow and a
+    /// size above its maximum. 409 covers the refusals worth naming: a store that cannot sign or a
+    /// category without direct uploads (<c>storedFile.directUploadUnavailable</c>), the caller's quota
+    /// in that category (<c>storedFile.quotaExceeded</c>),
     /// and a value the domain refuses that this layer's validation cannot state without restating the
     /// domain's rules — a reserved device name, a wildcard media type, a checksum of the right length
     /// that is not hexadecimal.
@@ -207,6 +210,7 @@ public sealed class FilesController(
         ArgumentNullException.ThrowIfNull(request);
 
         var command = new RegisterFileCommand(
+            request.Category,
             request.Name,
             request.DeclaredMediaType,
             request.SizeInBytes,

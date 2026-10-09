@@ -30,6 +30,9 @@ internal sealed class StoredFileRecord : IAuditable
 
     public Guid OwnerId { get; set; }
 
+    /// <summary>The category's slug, as registered.</summary>
+    public string Category { get; set; } = string.Empty;
+
     /// <summary>The key exactly as it was minted. Unique across the table — see the configuration.</summary>
     public string ObjectKey { get; set; } = string.Empty;
 

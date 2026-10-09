@@ -19,6 +19,7 @@ public sealed class StoredFileDtoMappingTests
         var dto = StoredFileDtoMapping.ToDto(storedFile);
 
         dto.Id.ShouldBe(storedFile.Id);
+        dto.Category.ShouldBe(storedFile.Category.Value);
         dto.Name.ShouldBe(storedFile.Name.Value);
         dto.DeclaredMediaType.ShouldBe(storedFile.DeclaredMediaType.Value);
         dto.SizeInBytes.ShouldBe(storedFile.Size.Bytes);

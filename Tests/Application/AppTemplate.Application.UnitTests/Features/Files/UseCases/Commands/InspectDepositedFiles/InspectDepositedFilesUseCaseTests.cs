@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
@@ -28,6 +29,7 @@ public sealed class InspectDepositedFilesUseCaseTests
     private readonly IFileContentStore _content = Substitute.For<IFileContentStore>();
     private readonly IFileContentScanner _scanner = Substitute.For<IFileContentScanner>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly FilesOptions _files = FilesSettings.Default();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -152,7 +154,7 @@ public sealed class InspectDepositedFilesUseCaseTests
 
         result.Value.ShouldBe(0);
         storedFile.State.ShouldBe(StoredFileState.Deposited);
-        await _scanner.DidNotReceive().ScanAsync(Arg.Any<string>(), Arg.Any<Stream>(), Arg.Any<CancellationToken>());
+        await _scanner.DidNotReceive().ScanAsync(Arg.Any<string>(), Arg.Any<Stream>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -245,7 +247,7 @@ public sealed class InspectDepositedFilesUseCaseTests
 
         await _content.Received(1).OpenReadAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>());
         await _scanner.Received(1)
-            .ScanAsync(storedFile.ObjectKey.Value, Arg.Any<Stream>(), Arg.Any<CancellationToken>());
+            .ScanAsync(storedFile.ObjectKey.Value, Arg.Any<Stream>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -260,7 +262,7 @@ public sealed class InspectDepositedFilesUseCaseTests
         var storedFile = GivenOneDepositedFile();
         GivenTheContent(storedFile, large);
         byte[]? scanned = null;
-        _scanner.ScanAsync(storedFile.ObjectKey.Value, Arg.Any<Stream>(), Arg.Any<CancellationToken>())
+        _scanner.ScanAsync(storedFile.ObjectKey.Value, Arg.Any<Stream>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
                 using var copy = new MemoryStream();
@@ -297,6 +299,89 @@ public sealed class InspectDepositedFilesUseCaseTests
 
     #endregion
 
+    #region What the category decides
+
+    /// <summary>The confirmed size goes with the content, so a scanner with a ceiling refuses before streaming.</summary>
+    [Fact]
+    public async Task TheScanner_IsGivenTheConfirmedSize()
+    {
+        var storedFile = GivenOneDepositedFile();
+        GivenTheContent(storedFile, _png);
+
+        await UseCase().ExecuteAsync(TestToken);
+
+        await _scanner.Received(1).ScanAsync(
+            storedFile.ObjectKey.Value,
+            Arg.Any<Stream>(),
+            storedFile.Size.Bytes,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ACategoryThatIsNotScanned_IsReleasedWithoutCallingTheScanner()
+    {
+        _files.Categories[FilesSettings.Document].Scan = false;
+        var storedFile = GivenOneDepositedFile();
+        GivenTheContent(storedFile, _png, FileScanOutcome.Infected("never asked"));
+
+        await UseCase().ExecuteAsync(TestToken);
+
+        storedFile.State.ShouldBe(StoredFileState.Available);
+        await _scanner.DidNotReceive().ScanAsync(
+            Arg.Any<string>(),
+            Arg.Any<Stream>(),
+            Arg.Any<long>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ACategoryThatDoesNotVerifySignatures_ReleasesAHeadThatNamesAnotherType()
+    {
+        _files.Categories[FilesSettings.Document].VerifySignature = false;
+        var storedFile = GivenOneDepositedFile();
+        GivenTheContent(storedFile, Encoding.ASCII.GetBytes("id,total\n1,9.99\n"));
+
+        await UseCase().ExecuteAsync(TestToken);
+
+        storedFile.State.ShouldBe(StoredFileState.Available);
+    }
+
+    /// <summary>Markup is refused in every category, whatever it says about signatures.</summary>
+    [Fact]
+    public async Task ACategoryThatDoesNotVerifySignatures_StillQuarantinesMarkup()
+    {
+        _files.Categories[FilesSettings.Document].VerifySignature = false;
+        var storedFile = GivenOneDepositedFile();
+        GivenTheContent(storedFile, _svg);
+
+        await UseCase().ExecuteAsync(TestToken);
+
+        storedFile.State.ShouldBe(StoredFileState.Quarantined);
+    }
+
+    /// <summary>
+    /// A category removed from configuration after registration gets the strictest inspection: the
+    /// scanner is asked and the head must match.
+    /// </summary>
+    [Fact]
+    public async Task ACategoryNoLongerConfigured_IsScannedAndVerified()
+    {
+        var storedFile = AStoredFile.DepositedOwnedBy(_ownerId, category: "retired");
+        GivenTheRepositoryHolds(storedFile);
+        GivenTheContent(storedFile, Encoding.ASCII.GetBytes("id,total\n1,9.99\n"));
+
+        await UseCase().ExecuteAsync(TestToken);
+
+        storedFile.State.ShouldBe(StoredFileState.Quarantined);
+        await _scanner.Received(1).ScanAsync(
+            storedFile.ObjectKey.Value,
+            Arg.Any<Stream>(),
+            Arg.Any<long>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    #endregion
+
     private static StoredFile ADepositedFile() => AStoredFile.DepositedOwnedBy(_ownerId);
 
     private StoredFile GivenOneDepositedFile()
@@ -315,7 +400,7 @@ public sealed class InspectDepositedFilesUseCaseTests
     {
         _content.OpenReadAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>())
             .Returns(_ => new MemoryStream(bytes, writable: false));
-        _scanner.ScanAsync(storedFile.ObjectKey.Value, Arg.Any<Stream>(), Arg.Any<CancellationToken>())
+        _scanner.ScanAsync(storedFile.ObjectKey.Value, Arg.Any<Stream>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
             .Returns(scan ?? FileScanOutcome.Clean);
     }
 
@@ -325,5 +410,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         _scanner,
         _unitOfWork,
         new StubDateTimeProvider(),
+        _files.AsOptions(),
         NullLogger<InspectDepositedFilesUseCase>.Instance);
 }

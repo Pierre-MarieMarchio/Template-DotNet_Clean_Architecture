@@ -6,6 +6,7 @@ using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using FluentValidation;
+using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 
@@ -13,16 +14,19 @@ namespace AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownl
 /// Turns "this caller may read this file" into a short-lived signed URL, or — when the store cannot
 /// sign — into the opened content.
 /// <para>
-/// The ownership check happens here and nowhere else: a signed URL is a bearer right with no
-/// identity attached. Only <see cref="StoredFileState.Available"/> is served, by name, so a state
-/// added later is refused until someone decides otherwise.
+/// The read check happens here and nowhere else: a signed URL is a bearer right with no identity
+/// attached. The owner reads their file; another signed-in user reads it only when its category's
+/// visibility is <c>Authenticated</c> (see <see cref="IStoredFileService.LoadReadableAsync"/>). Only
+/// <see cref="StoredFileState.Available"/> is served, by name, so a state added later is refused
+/// until someone decides otherwise.
 /// </para>
 /// </summary>
 public sealed class IssueFileDownloadUseCase(
     IStoredFileService files,
     IFileDirectTransfer transfer,
     IFileContentStore content,
-    IValidator<IssueFileDownloadQuery> validator) : IIssueFileDownloadUseCase
+    IValidator<IssueFileDownloadQuery> validator,
+    ILogger<IssueFileDownloadUseCase> logger) : IIssueFileDownloadUseCase
 {
     /// <summary>
     /// Minutes: the URL goes into a <c>Location</c> header, so into histories, referrers and proxy
@@ -43,7 +47,7 @@ public sealed class IssueFileDownloadUseCase(
             return validation.To<FileDownload>();
         }
 
-        var access = await files.LoadOwnedAsync(query.StoredFileId, precondition: null, cancellationToken);
+        var access = await files.LoadReadableAsync(query.StoredFileId, cancellationToken);
 
         if (access.IsFailure)
         {
@@ -77,10 +81,18 @@ public sealed class IssueFileDownloadUseCase(
             return FileDownload.RedirectTo(grant, fileName, mediaType, storedFile.Size.Bytes);
         }
 
-        // An available file with no bytes is a store fault, not something the caller can act on.
-        var stream = await content.OpenReadAsync(objectKey, cancellationToken)
-            ?? throw new InvalidOperationException(
-                $"Stored file '{storedFile.Id}' is available but nothing is stored under its object key.");
+        var stream = await content.OpenReadAsync(objectKey, cancellationToken);
+
+        if (stream is null)
+        {
+            // A store fault the caller cannot act on: answered as "not available", reported here.
+            logger.LogWarning(
+                "Stored file {StoredFileId} is available but nothing is stored under '{ObjectKey}'.",
+                storedFile.Id,
+                objectKey);
+
+            return Result.Failure<FileDownload>(StoredFileErrors.FileNotAvailable(storedFile.Id));
+        }
 
         return FileDownload.Streamed(stream, fileName, mediaType, storedFile.Size.Bytes);
     }

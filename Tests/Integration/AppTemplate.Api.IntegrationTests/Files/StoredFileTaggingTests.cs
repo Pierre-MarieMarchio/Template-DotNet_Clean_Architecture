@@ -131,8 +131,9 @@ public sealed class StoredFileTaggingTests(ApiFixture fixture) : IntegrationTest
         using var response = await client.PostAsJsonAsync(
             new Uri(_filesRoute, UriKind.Relative),
             new RegisterFileRequest(
-                "quarterly-report.png",
-                "image/png",
+                "document",
+                "quarterly-report.pdf",
+                "application/pdf",
                 SizeInBytes: 4_096,
 
                 // Any 64 hexadecimal characters: nothing is deposited, so no digest is ever compared

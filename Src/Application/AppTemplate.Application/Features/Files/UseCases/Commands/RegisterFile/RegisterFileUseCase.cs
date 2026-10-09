@@ -2,6 +2,7 @@
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
 using AppTemplate.Application.Features.Files.Errors;
+using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Policies;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
@@ -9,6 +10,7 @@ using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using FluentValidation;
+using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 
@@ -24,9 +26,9 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 /// away on its own schedule.
 /// </para>
 /// <para>
-/// The quota is checked before anything is written, because the cost being refused is the grant
-/// rather than the row — see <see cref="StoredFileQuotaPolicy"/>. A store that cannot sign refuses
-/// registration before anything is written too: its uploads go through the API instead.
+/// Everything that can refuse runs before anything is written: the category's rules (through the
+/// validator), its upload modes, a store that cannot sign, and the category's quota for this owner
+/// — see <see cref="StoredFileQuotaPolicy"/>.
 /// </para>
 /// </summary>
 public sealed class RegisterFileUseCase(
@@ -36,6 +38,7 @@ public sealed class RegisterFileUseCase(
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     IDateTimeProvider dateTimeProvider,
+    IOptions<FilesOptions> options,
     IValidator<RegisterFileCommand> validator) : IRegisterFileUseCase
 {
     /// <summary>
@@ -66,13 +69,22 @@ public sealed class RegisterFileUseCase(
             return validation.To<RegisterFileOutcome>();
         }
 
+        // The validator has refused an unknown category, so this names a declared one.
+        var category = FileCategory.Create(command.Category);
+        var categoryOptions = options.Value.Find(category)!;
+
+        if (!categoryOptions.AllowsDirectUpload)
+        {
+            return Result.Failure<RegisterFileOutcome>(StoredFileErrors.DirectUploadNotAllowed(category.Value));
+        }
+
         if (!transfer.IsSupported)
         {
             return Result.Failure<RegisterFileOutcome>(StoredFileErrors.DirectUploadUnavailable());
         }
 
-        var usage = await queries.GetUsageForOwnerAsync(userId.Value, cancellationToken);
-        var quota = StoredFileQuotaPolicy.EnsureRoomFor(usage, command.SizeInBytes);
+        var usage = await queries.GetUsageForOwnerAsync(userId.Value, category, cancellationToken);
+        var quota = StoredFileQuotaPolicy.EnsureRoomFor(usage, categoryOptions.Quota, command.SizeInBytes);
 
         if (quota.IsFailure)
         {
@@ -83,6 +95,7 @@ public sealed class RegisterFileUseCase(
         // reserved device name, a wildcard media type, a hex-shaped checksum that is not hex.
         var registration = DomainGuard.Try(() => StoredFile.Register(
             userId.Value,
+            category,
             StoredFileName.Create(command.Name),
             DeclaredMediaType.Create(command.MediaType),
             FileSize.Create(command.SizeInBytes),

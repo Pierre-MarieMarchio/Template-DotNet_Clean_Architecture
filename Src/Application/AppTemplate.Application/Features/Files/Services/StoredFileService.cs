@@ -3,13 +3,18 @@ using AppTemplate.Application.Core.Common.Ownership;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Errors;
+using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
+using AppTemplate.Domain.Features.Files.ValueObjects;
+using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application.Features.Files.Services;
 
-
-internal sealed class StoredFileService(IStoredFileRepository repository, ICurrentUser currentUser) : IStoredFileService
+internal sealed class StoredFileService(
+    IStoredFileRepository repository,
+    ICurrentUser currentUser,
+    IOptions<FilesOptions> options) : IStoredFileService
 {
     public async Task<Result<StoredFile>> LoadOwnedAsync(
         Guid storedFileId,
@@ -31,4 +36,30 @@ internal sealed class StoredFileService(IStoredFileRepository repository, ICurre
             StoredFileErrors.FileNotFound(storedFileId),
             precondition);
     }
+
+    public async Task<Result<StoredFile>> LoadReadableAsync(
+        Guid storedFileId,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
+        {
+            return userId.To<StoredFile>();
+        }
+
+        var storedFile = await repository.GetAsync(storedFileId, cancellationToken);
+
+        if (storedFile is not null
+            && (storedFile.OwnerId == userId.Value || IsOpenToEverySignedInUser(storedFile)))
+        {
+            return storedFile;
+        }
+
+        return Result.Failure<StoredFile>(StoredFileErrors.FileNotFound(storedFileId));
+    }
+
+    private bool IsOpenToEverySignedInUser(StoredFile storedFile) =>
+        storedFile.State == StoredFileState.Available
+        && options.Value.Find(storedFile.Category)?.IsReadableByAnySignedInUser == true;
 }

@@ -208,6 +208,14 @@ says otherwise.
   use case, which compares `OwnerId` against `ICurrentUser` before issuing anything. That is the
   IDOR defence, and it is in the application layer where the other two features put it, not in the
   URL.
+- **`Authenticated` visibility opens the content, and only the content, to every signed-in user.**
+  A category declared `Visibility: Authenticated` (the shipped `image` category is one) lets any
+  authenticated caller download an *available* file of it by its id — the shape of an avatar or a
+  shared attachment. The id then works as a capability: it is unguessable (UUIDv7 carries 74 random
+  bits) but whoever learns it can read the file, so do not use this visibility for anything
+  confidential. Metadata, tags, confirmation and deletion stay owner-only, a file that is not
+  available answers `404` to a non-owner exactly like a missing one, and there is no anonymous
+  access. A file whose category was removed from configuration is treated as `Private`.
 - **The bucket must never allow anonymous reads.** `docker-compose.yml`'s bucket bootstrap sets
   `anonymous none` explicitly. A readable bucket makes every grant in this template decoration.
   The MinIO service in that file publishes both its ports on loopback — `127.0.0.1:9000` for the
@@ -217,10 +225,15 @@ says otherwise.
 - **A file name is a label, never a path.** `StoredFileName` refuses separators, control characters
   and reserved device names, and the object key is generated independently of it — so nothing a
   client sends can steer where bytes land. The name never reaches a filesystem at all.
-- **The declared media type is a claim, and it is now checked against the bytes.** A deposited file
-  is inspected before it becomes readable: the leading bytes are matched against the declared type,
-  and, when `Files:Scanning:Enabled` is true, the content is scanned. A file whose real type disagrees with its declaration is
-  **quarantined**, not served. **Markup is refused outright, whatever it was declared as** — an SVG
+- **The declared media type is a claim, and it is checked against the bytes.** A deposited file
+  is inspected before it becomes readable: the leading bytes are matched against the declared type
+  when the file's category has `VerifySignature` (the default), and the content is scanned when the
+  category has `Scan` — which start-up allows only with `Files:Scanning:Enabled`. A file whose real
+  type disagrees with its declaration is **quarantined**, not served. Turning `VerifySignature` off
+  releases a file whatever its leading bytes say, so the declared type a client later receives is an
+  unchecked claim; turning `Scan` off (the shipped state, scanning being disabled) releases content
+  no antivirus has seen. A file whose category was removed from configuration is inspected with both
+  checks, the scan running when scanning is enabled. **Markup is refused outright, whatever it was declared as** — an SVG
   is a script container, and there is no version of "serve it inline" that is safe. Two checks in
   `Src/Application/AppTemplate.Application/Features/Files/Policies/MediaTypeSignatures.cs` do
   that, and the second is the one that cannot be walked past: the first searches the inspected
@@ -229,7 +242,8 @@ says otherwise.
   `<` — offset zero being the one thing padding cannot move, since everything XML allows before a
   root element is either whitespace or itself a tag. A byte-order mark does not hide it and neither
   does UTF-16.
-  **This refuses honest XML too**, deliberately: nothing here sanitises markup, and the download
+  **This applies in every category, whatever its `VerifySignature`**, and it refuses honest XML too,
+  deliberately: nothing here sanitises markup, and the download
   path hands out a URL to an origin this application does not control. A project that has to accept
   XML changes `MediaTypeSignatures` and owes a sanitiser and a serving path that cannot execute what
   it stores.
@@ -260,9 +274,11 @@ says otherwise.
   inspection reads leading bytes and streams to the scanner, and neither expands input. Any
   derivative pipeline added later must bound output size and time **before** it reads an archive or
   an image, not after.
-- **Storage exhaustion is bounded per owner**, by a policy in the application layer rather than by
-  the store — a registration mints a signed upload grant, so an unbounded one is a free way to fill
-  someone else's bucket. Pending registrations and available bytes are budgeted separately, because
+- **Storage exhaustion is bounded per owner and per category**, by a policy in the application layer
+  rather than by the store — a registration mints a signed upload grant, so an unbounded one is a
+  free way to fill someone else's bucket. The bounds are the category's `Quota`; in `Indicative`
+  mode (the only behaviour today, `Strict` included) concurrent registrations can overshoot by one
+  file per extra concurrent request. Pending registrations and available bytes are budgeted separately, because
   an unconfirmed registration costs a reserved key and nothing more.
 - **Long-lived storage credentials are avoided by default.** `Files:Storage:S3:AccessKeyId` and
   `Files:Storage:S3:SecretAccessKey` are empty in every tracked file, and empty is the intended production

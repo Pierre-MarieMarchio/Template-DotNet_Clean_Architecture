@@ -1,18 +1,22 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Policies;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
 
 /// <summary>
 /// Reads the content of files whose deposit is confirmed and either releases them or quarantines
 /// them: the head decides what the file is, the scanner whether it carries malware, and
-/// <see cref="StoredFileContentPolicy"/> what that means.
+/// <see cref="StoredFileContentPolicy"/> what that means. The file's category says whether its
+/// content is scanned and whether its head must match its declared type; a category no longer
+/// configured gets both.
 /// <para>
 /// A periodic pass rather than a step of confirmation, because reading a whole file does not belong
 /// inside an HTTP request. It re-derives its work from the rows, so a pass that never ran leaves
@@ -26,6 +30,7 @@ public sealed class InspectDepositedFilesUseCase(
     IFileContentScanner scanner,
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider,
+    IOptions<FilesOptions> options,
     ILogger<InspectDepositedFilesUseCase> logger) : IInspectDepositedFilesUseCase
 {
     /// <summary>
@@ -72,11 +77,14 @@ public sealed class InspectDepositedFilesUseCase(
     /// included — is streamed to the scanner. A store that cannot be read is no verdict, never a
     /// refusal: quarantining over a store fault would destroy a file over somebody else's outage.
     /// </summary>
-    private async Task<(ContentDecision Verdict, FileScanOutcome Scan)> InspectAsync(
+    private async Task<(ContentDecision Verdict, FileScanOutcome? Scan)> InspectAsync(
         StoredFile storedFile,
         CancellationToken cancellationToken)
     {
         string objectKey = storedFile.ObjectKey.Value;
+        var category = options.Value.Find(storedFile.Category);
+        bool scans = category?.Scan ?? true;
+        bool verifiesSignature = category?.VerifySignature ?? true;
 
         try
         {
@@ -97,10 +105,21 @@ public sealed class InspectDepositedFilesUseCase(
             // ReadAtLeastAsync: a single read of a network stream returns whatever has arrived.
             int read = await stream.ReadAtLeastAsync(head, head.Length, throwOnEndOfStream: false, cancellationToken);
 
-            await using var whole = new ReplayedHeadStream(head.AsMemory(0, read), stream);
-            var scan = await scanner.ScanAsync(objectKey, whole, cancellationToken);
+            FileScanOutcome? scan = null;
 
-            return (StoredFileContentPolicy.Decide(storedFile.DeclaredMediaType, scan, head.AsSpan(0, read)), scan);
+            if (scans)
+            {
+                await using var whole = new ReplayedHeadStream(head.AsMemory(0, read), stream);
+                scan = await scanner.ScanAsync(objectKey, whole, storedFile.Size.Bytes, cancellationToken);
+            }
+
+            var verdict = StoredFileContentPolicy.Decide(
+                storedFile.DeclaredMediaType,
+                scan,
+                head.AsSpan(0, read),
+                verifiesSignature);
+
+            return (verdict, scan);
         }
         catch (Exception exception) when (exception is not OperationCanceledException
             || !cancellationToken.IsCancellationRequested)
@@ -115,7 +134,7 @@ public sealed class InspectDepositedFilesUseCase(
         }
     }
 
-    private void Apply(ContentDecision verdict, StoredFile storedFile, FileScanOutcome scan, DateTimeOffset now)
+    private void Apply(ContentDecision verdict, StoredFile storedFile, FileScanOutcome? scan, DateTimeOffset now)
     {
         if (verdict == ContentDecision.Release)
         {
@@ -129,12 +148,13 @@ public sealed class InspectDepositedFilesUseCase(
         // The only record of why, and a log line rather than a response: the signature is a third
         // party's string that must not reach the uploader.
         logger.LogError(
-            "Stored file {StoredFileId} was quarantined. Declared {DeclaredMediaType}, scan " +
-            "{ScanStatus}, signature {MalwareSignature}.",
+            "Stored file {StoredFileId} was quarantined. Category {Category}, declared " +
+            "{DeclaredMediaType}, scan {ScanStatus}, signature {MalwareSignature}.",
             storedFile.Id,
+            storedFile.Category.Value,
             storedFile.DeclaredMediaType.Value,
-            scan.Status,
-            scan.MalwareSignature ?? "none");
+            scan?.Status.ToString() ?? "skipped",
+            scan?.MalwareSignature ?? "none");
     }
 
     /// <summary>

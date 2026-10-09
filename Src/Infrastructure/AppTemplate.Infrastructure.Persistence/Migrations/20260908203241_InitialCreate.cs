@@ -99,6 +99,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     OwnerId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Category = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     ObjectKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
                     Name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
                     DeclaredMediaType = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
@@ -242,6 +243,13 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 schema: "files",
                 table: "StoredFiles",
                 columns: new[] { "OwnerId", "AvailableAt", "Id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_StoredFiles_OwnerId_Category_State",
+                schema: "files",
+                table: "StoredFiles",
+                columns: new[] { "OwnerId", "Category", "State" })
+                .Annotation("Npgsql:IndexInclude", new[] { "SizeInBytes" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_StoredFiles_OwnerId_Name_Id",

@@ -2,6 +2,7 @@
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Shouldly;
 using Xunit;
@@ -43,6 +44,7 @@ public sealed class StoredFileRecordConfigurationTests
     /// fails at write time on a value the aggregate had already accepted.
     /// </summary>
     [Theory]
+    [InlineData(nameof(StoredFileRecord.Category), FileCategory.MaxLength)]
     [InlineData(nameof(StoredFileRecord.ObjectKey), ObjectKey.MaxLength)]
     [InlineData(nameof(StoredFileRecord.Name), StoredFileName.MaxLength)]
     [InlineData(nameof(StoredFileRecord.DeclaredMediaType), DeclaredMediaType.MaxLength)]
@@ -80,10 +82,40 @@ public sealed class StoredFileRecordConfigurationTests
         Entity().GetTableName().ShouldBe("StoredFiles");
     }
 
+    /// <summary>
+    /// The quota read sums one owner's rows in one category by state; the index leads with the two
+    /// equality filters and carries the size, so the sums never touch the table.
+    /// </summary>
+    [Fact]
+    public void TheQuotaRead_IsServedByAnIndexOverOwnerCategoryAndState()
+    {
+        var index = DesignTimeEntity().GetIndexes().SingleOrDefault(candidate =>
+            candidate.Properties.Select(property => property.Name).SequenceEqual(
+                [nameof(StoredFileRecord.OwnerId), nameof(StoredFileRecord.Category), nameof(StoredFileRecord.State)]));
+
+        index.ShouldNotBeNull();
+        index.GetIncludeProperties().ShouldBe([nameof(StoredFileRecord.SizeInBytes)]);
+    }
+
+    [Fact]
+    public void TheCategory_IsRequired() =>
+        Entity().FindProperty(nameof(StoredFileRecord.Category))!.IsNullable.ShouldBeFalse();
+
     private static IIndex? ObjectKeyIndex() =>
         Entity().GetIndexes().FirstOrDefault(index =>
             index.Properties.Count == 1
             && index.Properties[0].Name == nameof(StoredFileRecord.ObjectKey));
+
+    /// <summary>The model with the annotations only migrations read, such as an index's included columns.</summary>
+    private static IEntityType DesignTimeEntity()
+    {
+        using var context = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>()
+                .UseNpgsql("Host=localhost;Database=never-opened;Username=none;Password=none")
+                .Options);
+
+        return context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(StoredFileRecord))!;
+    }
 
     private static IEntityType Entity()
     {

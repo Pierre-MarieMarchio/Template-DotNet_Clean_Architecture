@@ -19,5 +19,11 @@ public interface IFileContentScanner
     /// </para>
     /// </summary>
     /// <param name="objectKey">For log lines only; the bytes come from <paramref name="content"/>.</param>
-    Task<FileScanOutcome> ScanAsync(string objectKey, Stream content, CancellationToken cancellationToken = default);
+    /// <param name="sizeInBytes">The confirmed length of the content, so a scanner with a ceiling
+    /// answers <see cref="FileScanStatus.NotInspectable"/> before streaming a byte.</param>
+    Task<FileScanOutcome> ScanAsync(
+        string objectKey,
+        Stream content,
+        long sizeInBytes,
+        CancellationToken cancellationToken = default);
 }

@@ -17,6 +17,7 @@ internal sealed class ClamAvFileContentScanner(
     public async Task<FileScanOutcome> ScanAsync(
         string objectKey,
         Stream content,
+        long sizeInBytes,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);
@@ -24,8 +25,8 @@ internal sealed class ClamAvFileContentScanner(
 
         var scanning = options.Value;
 
-        // Decided before a byte is sent when the length is known; otherwise while sending.
-        if (content.CanSeek && content.Length - content.Position > scanning.MaxScannableBytes)
+        // Decided before a byte is sent; the daemon's own ceiling still holds while sending.
+        if (sizeInBytes > scanning.MaxScannableBytes)
         {
             return FileScanOutcome.NotInspectable;
         }

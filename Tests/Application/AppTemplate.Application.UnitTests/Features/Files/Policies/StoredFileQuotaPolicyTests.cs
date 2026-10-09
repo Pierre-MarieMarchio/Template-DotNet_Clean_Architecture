@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Policies;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using Shouldly;
@@ -14,21 +15,41 @@ namespace AppTemplate.Application.UnitTests.Features.Files.Policies;
 /// </summary>
 public sealed class StoredFileQuotaPolicyTests
 {
+    /// <summary>Small and unlike the defaults, so a bound read from anywhere but the category fails.</summary>
+    private static readonly FileCategoryQuotaOptions _quota = new()
+    {
+        MaxPendingUploads = 3,
+        MaxFiles = 5,
+        MaxBytes = 10_000,
+    };
+
+    /// <summary>The defaults a category gets when it declares no quota: the former global bounds.</summary>
+    [Fact]
+    public void TheDefaultQuota_IsTwentyPendingAThousandFilesAndTenGibibytes()
+    {
+        var quota = new FileCategoryQuotaOptions();
+
+        quota.MaxPendingUploads.ShouldBe(20);
+        quota.MaxFiles.ShouldBe(1_000);
+        quota.MaxBytes.ShouldBe(10L * 1024 * 1024 * 1024);
+        quota.Mode.ShouldBe(FileCategoryQuotaOptions.IndicativeMode);
+    }
+
     [Fact]
     public void AnEmptyAllowance_AcceptsAFile() =>
-        StoredFileQuotaPolicy.EnsureRoomFor(Usage(), 1_024).IsSuccess.ShouldBeTrue();
+        StoredFileQuotaPolicy.EnsureRoomFor(Usage(), _quota, 1_024).IsSuccess.ShouldBeTrue();
 
     [Fact]
     public void TheLastPendingSlot_IsStillAvailable() =>
         StoredFileQuotaPolicy
-            .EnsureRoomFor(Usage(pendingCount: StoredFileQuotaPolicy.MaxPendingRegistrations - 1), 1_024)
+            .EnsureRoomFor(Usage(pendingCount: _quota.MaxPendingUploads - 1), _quota, 1_024)
             .IsSuccess.ShouldBeTrue();
 
     [Fact]
     public void TooManyPendingRegistrations_AreRefused()
     {
         var result = StoredFileQuotaPolicy.EnsureRoomFor(
-            Usage(pendingCount: StoredFileQuotaPolicy.MaxPendingRegistrations),
+            Usage(pendingCount: _quota.MaxPendingUploads), _quota,
             1_024);
 
         result.IsFailure.ShouldBeTrue();
@@ -46,17 +67,17 @@ public sealed class StoredFileQuotaPolicyTests
         var usage = new OwnerStorageUsage(
             StoredCount: 0,
             StoredBytes: 0,
-            PendingCount: StoredFileQuotaPolicy.MaxPendingRegistrations,
+            PendingCount: _quota.MaxPendingUploads,
             PendingDeclaredBytes: 0);
 
-        StoredFileQuotaPolicy.EnsureRoomFor(usage, 1).IsFailure.ShouldBeTrue();
+        StoredFileQuotaPolicy.EnsureRoomFor(usage, _quota, 1).IsFailure.ShouldBeTrue();
     }
 
     [Fact]
     public void TooManyFiles_AreRefused()
     {
         var result = StoredFileQuotaPolicy.EnsureRoomFor(
-            Usage(storedCount: StoredFileQuotaPolicy.MaxFiles),
+            Usage(storedCount: _quota.MaxFiles), _quota,
             1_024);
 
         result.IsFailure.ShouldBeTrue();
@@ -68,25 +89,25 @@ public sealed class StoredFileQuotaPolicyTests
     public void TheFileCeiling_CountsPendingRowsToo()
     {
         var usage = new OwnerStorageUsage(
-            StoredCount: StoredFileQuotaPolicy.MaxFiles - 1,
+            StoredCount: _quota.MaxFiles - 1,
             StoredBytes: 0,
             PendingCount: 1,
             PendingDeclaredBytes: 0);
 
-        StoredFileQuotaPolicy.EnsureRoomFor(usage, 1).IsFailure.ShouldBeTrue();
+        StoredFileQuotaPolicy.EnsureRoomFor(usage, _quota, 1).IsFailure.ShouldBeTrue();
     }
 
     [Fact]
     public void AFileThatExactlyFills_TheByteAllowance_IsAccepted() =>
         StoredFileQuotaPolicy
-            .EnsureRoomFor(Usage(storedBytes: StoredFileQuotaPolicy.MaxBytes - 1_024), 1_024)
+            .EnsureRoomFor(Usage(storedBytes: _quota.MaxBytes - 1_024), _quota, 1_024)
             .IsSuccess.ShouldBeTrue();
 
     [Fact]
     public void AFileOneByteOver_TheByteAllowance_IsRefused()
     {
         var result = StoredFileQuotaPolicy.EnsureRoomFor(
-            Usage(storedBytes: StoredFileQuotaPolicy.MaxBytes - 1_024),
+            Usage(storedBytes: _quota.MaxBytes - 1_024), _quota,
             1_025);
 
         result.IsFailure.ShouldBeTrue();
@@ -105,9 +126,9 @@ public sealed class StoredFileQuotaPolicyTests
             StoredCount: 0,
             StoredBytes: 0,
             PendingCount: 1,
-            PendingDeclaredBytes: StoredFileQuotaPolicy.MaxBytes);
+            PendingDeclaredBytes: _quota.MaxBytes);
 
-        StoredFileQuotaPolicy.EnsureRoomFor(usage, 1).IsFailure.ShouldBeTrue();
+        StoredFileQuotaPolicy.EnsureRoomFor(usage, _quota, 1).IsFailure.ShouldBeTrue();
     }
 
     /// <summary>
@@ -118,16 +139,20 @@ public sealed class StoredFileQuotaPolicyTests
     public void TheRefusal_SpeaksOnlyOfTheCallersOwnAllowance()
     {
         var result = StoredFileQuotaPolicy.EnsureRoomFor(
-            Usage(pendingCount: StoredFileQuotaPolicy.MaxPendingRegistrations),
+            Usage(pendingCount: _quota.MaxPendingUploads), _quota,
             1_024);
 
         result.Error!.Message.ShouldContain(
-            StoredFileQuotaPolicy.MaxPendingRegistrations.ToString(CultureInfo.InvariantCulture));
+            _quota.MaxPendingUploads.ToString(CultureInfo.InvariantCulture));
     }
 
     [Fact]
+    public void ANullQuota_IsARejectedArgumentRatherThanAFailedResult() =>
+        Should.Throw<ArgumentNullException>(() => StoredFileQuotaPolicy.EnsureRoomFor(Usage(), null!, 1));
+
+    [Fact]
     public void ANullUsage_IsARejectedArgumentRatherThanAFailedResult() =>
-        Should.Throw<ArgumentNullException>(() => StoredFileQuotaPolicy.EnsureRoomFor(null!, 1));
+        Should.Throw<ArgumentNullException>(() => StoredFileQuotaPolicy.EnsureRoomFor(null!, _quota, 1));
 
     private static OwnerStorageUsage Usage(
         int storedCount = 0,

@@ -49,7 +49,7 @@ public sealed class LayoutConventionTests
         // this entry is what reports it. A shared *business* concept belongs in AppTemplate.Domain.
         ["Src/Domain/AppTemplate.Domain.Core"] = null,
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
-            ["Configurations", "Mapping", "Models", "Observability", "Queries", "Repositories", "Stores", "Tracking"],
+            ["Configurations", "Locks", "Mapping", "Models", "Observability", "Queries", "Repositories", "Stores", "Tracking"],
         // Jobs/ holds what a feature runs on a timer: the hosted service, its options and its
         // instruments, side by side — the nature word for them, as Controllers/ is for the HTTP half.
         // Directories/ holds an adapter the host supplies because it joins two features that may

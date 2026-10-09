@@ -412,7 +412,7 @@ of an upload carried by the API. Bound by `AddFiles` and validated at start-up.
 | `Categories:<name>:VerifySignature` | bool | `true` | The leading bytes must agree with the declared type. Markup that can carry a script is refused either way. |
 | `Categories:<name>:Visibility` | string | `Private` | `Private`: only the owner downloads. `Authenticated`: any signed-in user downloads an *available* file by its id. |
 | `Categories:<name>:UploadModes` | string[] | — | **At least one** of `Direct` (signed URL to the store) and `Api`. A category that allows only `Direct` is refused with the `FileSystem` provider. |
-| `Categories:<name>:Quota:Mode` | string | `Indicative` | `Indicative` or `Strict`. Today both behave as `Indicative`. |
+| `Categories:<name>:Quota:Mode` | string | `Strict` | `Strict` or `Indicative`, compared ignoring case. See below. |
 | `Categories:<name>:Quota:MaxFiles` | int | `1000` | Files one owner may keep in this category, in any state. |
 | `Categories:<name>:Quota:MaxBytes` | long | `10737418240` (10 GiB) | Bytes one owner may hold in this category, pending ones counted at their declared size. |
 | `Categories:<name>:Quota:MaxPendingUploads` | int | `20` | Registrations one owner may have waiting for their bytes in this category. |
@@ -423,9 +423,19 @@ the one it was registered under. At least one category must be declared. The shi
 JPEG, WebP, 10 MiB, readable by any signed-in user), both unscanned because scanning is off by
 default.
 
-**Quotas are per owner and per category.** `Indicative` reads usage then writes the row, with no
-lock: concurrent registrations of one owner in one category can overshoot by at most one file (and
-its bytes) per extra concurrent request.
+**Quotas are per owner and per category**, in one of two modes. The shipped categories use `Strict`.
+
+- `Strict`: the usage read, the row insert and its commit run under a PostgreSQL advisory lock keyed
+  by (owner, category), so the quota holds under concurrency across every host sharing the
+  database. The cost: one extra, unpooled database connection held for the registration's duration,
+  and the registrations of one owner in one category run one at a time. A registration that waits
+  more than 10 seconds for the lock is refused with `409` `storedFile.quotaBusy` and writes nothing.
+- `Indicative`: usage is read, then the row inserted, with no lock. A burst of N concurrent
+  registrations of one owner in one category can overshoot by at most N − 1 files and their
+  declared bytes.
+
+Deletions, the abandoned-registration purge and inspection never take the lock: they only reduce
+usage or leave it unchanged.
 
 **Removing a category does not orphan its files.** They stay readable by their owner, are treated
 as `Private`, and a file still waiting for inspection is inspected strictly (scanned when scanning is

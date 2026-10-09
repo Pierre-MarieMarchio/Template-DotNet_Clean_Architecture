@@ -20,8 +20,8 @@ public static class StoredFileQuotaPolicy
     /// <paramref name="quota"/>, given the owner's <paramref name="usage"/> of the same category.
     /// <para>
     /// Measured against <see cref="OwnerStorageUsage.CommittedBytes"/>, so promised bytes count as
-    /// stored. A check, not a reservation: see <see cref="FileCategoryQuotaOptions.IndicativeMode"/>
-    /// for the overshoot it allows.
+    /// stored. A check, not a reservation: it holds under concurrency only when run under the
+    /// owner's quota lock, as <see cref="FileCategoryQuotaOptions.StrictMode"/> does.
     /// </para>
     /// </summary>
     public static Result EnsureRoomFor(

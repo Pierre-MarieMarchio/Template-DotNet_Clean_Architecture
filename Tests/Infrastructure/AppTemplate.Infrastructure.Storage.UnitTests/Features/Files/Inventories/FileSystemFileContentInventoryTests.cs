@@ -77,6 +77,27 @@ public sealed class FileSystemFileContentInventoryTests : IDisposable
         page.Items.ShouldBe(["t0/202608/a"]);
     }
 
+    /// <summary>
+    /// A temporary file older than any write is what a crashed write leaves behind; no key names it,
+    /// so the listing reclaims it. A recent one is a write in flight and stays.
+    /// </summary>
+    [Fact]
+    public async Task ListKeysAsync_DeletesTemporaryFilesACrashedWriteLeftBehind()
+    {
+        Create("t0/202608/a", "t0/202608/.b.stale.tmp", "t0/202609/.c.fresh.tmp");
+        string stale = Path.Combine(_root.Path, "t0/202608/.b.stale.tmp");
+        string fresh = Path.Combine(_root.Path, "t0/202609/.c.fresh.tmp");
+        File.SetLastWriteTimeUtc(
+            stale,
+            DateTime.UtcNow - FileSystemFileContentInventory.StaleTemporaryFileAge - TimeSpan.FromMinutes(1));
+
+        var page = await Inventory().ListKeysAsync("t0/", null, 10, TestToken);
+
+        page.Items.ShouldBe(["t0/202608/a"]);
+        File.Exists(stale).ShouldBeFalse();
+        File.Exists(fresh).ShouldBeTrue();
+    }
+
     [Fact]
     public async Task ListKeysAsync_OfARootNothingWasWrittenTo_IsAnEmptyLastPage()
     {

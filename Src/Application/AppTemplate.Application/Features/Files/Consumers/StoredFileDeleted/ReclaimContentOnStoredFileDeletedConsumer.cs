@@ -13,9 +13,9 @@ namespace AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 /// <b>This is a fast path, not the correctness guarantee.</b> Deleting this class would not leak a
 /// single byte: <c>ReclaimOrphanedContentUseCase</c> lists the store, subtracts the keys live rows
 /// name, and removes the difference — so an object this consumer never got to is reclaimed on the
-/// next pass regardless. What the consumer buys is the interval: seconds instead of up to
-/// <c>FileWorker:ReclaimOrphanedContentInterval</c>, which ships at twelve hours because a pass
-/// walks the whole store.
+/// sweep's walk regardless. What the consumer buys is the interval: seconds instead of up to a few
+/// <c>FileWorker:ReclaimOrphanedContentInterval</c> periods, which ship at twelve hours because each
+/// pass walks a large part of the store.
 /// </para>
 /// <para>
 /// That is the shape this repository requires of every consumer, because domain events are

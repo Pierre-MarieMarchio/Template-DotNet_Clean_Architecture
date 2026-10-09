@@ -42,9 +42,10 @@ public sealed class FileWorkerOptions
     public bool PurgeAbandonedRegistrationsEnabled { get; set; } = true;
 
     /// <summary>
-    /// Twelve hours. <see cref="ReclaimOrphanedContentUseCase"/> walks the whole store and asks the
-    /// database about every page it lists, which is the most expensive thing the background jobs do; two
-    /// passes a day bound that cost. What the interval buys is only latency, and only on a path that
+    /// Twelve hours. <see cref="ReclaimOrphanedContentUseCase"/> walks up to 250,000 keys a pass from
+    /// where the previous pass stopped and asks the database about every page it lists, which is the
+    /// most expensive thing the background jobs do; two passes a day bound that cost, and a store of
+    /// N objects is covered within ⌈N / 250,000⌉ + 1 passes. What the interval buys is only latency, and only on a path that
     /// is already covered promptly: <c>StoredFileDeletedDomainEvent</c>'s consumer reclaims the
     /// bytes of a deleted file straight away in the normal case, and this sweep is what covers the
     /// deliveries that did not happen and the deposits nothing ever announced.
@@ -80,8 +81,8 @@ internal sealed class FileWorkerOptionsValidator : IValidateOptions<FileWorkerOp
     private static readonly TimeSpan _maximumPurgeInterval = TimeSpan.FromDays(1);
 
     /// <summary>
-    /// A minute, not the second the purge allows. A pass of the orphan sweep lists the entire object
-    /// store; asking for one more often than a pass can plausibly finish is not a cadence, it is a
+    /// A minute, not the second the purge allows. A pass of the orphan sweep lists up to a quarter of
+    /// a million keys; asking for one more often than a pass can plausibly finish is not a cadence, it is a
     /// loop that never idles, and the ticks it cannot keep up with are coalesced rather than obeyed
     /// — so the value would be a lie about what the jobs are doing.
     /// </summary>

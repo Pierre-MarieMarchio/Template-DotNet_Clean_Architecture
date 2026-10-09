@@ -12,7 +12,10 @@ namespace AppTemplate.Infrastructure.Storage.Features.Files.Stores;
 /// </summary>
 internal sealed class FileSystemFileContentStore(IOptions<FilesStorageFileSystemOptions> options) : IFileContentStore
 {
-    /// <summary>Temporary files start with this, which no object key does; the inventory skips them.</summary>
+    /// <summary>
+    /// Temporary files start with this, which no object key does. The inventory never lists them and
+    /// deletes those a crashed write left behind.
+    /// </summary>
     internal const string TemporaryFilePrefix = ".";
 
     private const int _bufferSize = 81920;

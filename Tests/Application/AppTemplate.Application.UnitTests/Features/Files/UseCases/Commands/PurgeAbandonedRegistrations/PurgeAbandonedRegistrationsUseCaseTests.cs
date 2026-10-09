@@ -1,10 +1,12 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Events;
 using AppTemplate.Domain.Features.Files.Repositories;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -17,6 +19,7 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
 
     private readonly IStoredFileRepository _repository = Substitute.For<IStoredFileRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private StubLeaderLease _lease = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -160,6 +163,54 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task TheLeaseHeldByAnotherHost_LeavesThePassUndone()
+    {
+        GivenTheRepositoryReturns(AbandonedFile());
+        _lease = StubLeaderLease.HeldElsewhere();
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.Value.ShouldBe(0);
+        _repository.DidNotReceive().Remove(Arg.Any<StoredFile>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>The literal is repeated on purpose: the name is a contract across releases.</summary>
+    [Fact]
+    public async Task ThePass_RunsUnderItsNamedLease()
+    {
+        GivenTheRepositoryReturns();
+
+        await UseCase().ExecuteAsync(TestToken);
+
+        _lease.RequestedNames.ShouldBe(["apptemplate.files.purge-abandoned"]);
+    }
+
+    /// <summary>
+    /// A failed commit surfaces rather than reporting a purge, and wrote nothing, so the next pass
+    /// selects the same rows and removes them.
+    /// </summary>
+    [Fact]
+    public async Task AFailedCommit_LeavesTheRowsForTheNextPass()
+    {
+        GivenTheRepositoryReturns(AbandonedFile());
+        _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns<Task<int>>(
+                _ => throw new ConcurrencyConflictException("changed meanwhile"),
+                _ => Task.FromResult(1));
+
+        await Should.ThrowAsync<ConcurrencyConflictException>(() => UseCase().ExecuteAsync(TestToken));
+
+        var retried = AbandonedFile();
+        GivenTheRepositoryReturns(retried);
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.Value.ShouldBe(1);
+        _repository.Received(1).Remove(retried);
+    }
+
     private static StoredFile AbandonedFile() =>
         AStoredFile.PendingOwnedBy(
             UserId.Create(Guid.CreateVersion7()),
@@ -175,5 +226,7 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
     private PurgeAbandonedRegistrationsUseCase UseCase() => new(
         _repository,
         _unitOfWork,
-        new StubDateTimeProvider(_now));
+        new StubDateTimeProvider(_now),
+        _lease,
+        NullLogger<PurgeAbandonedRegistrationsUseCase>.Instance);
 }

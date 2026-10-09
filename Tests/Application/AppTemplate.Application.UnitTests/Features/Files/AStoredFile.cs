@@ -74,6 +74,8 @@ internal static class AStoredFile
             State = StoredFileState.Available,
             RegisteredAt = StubDateTimeProvider.DefaultInstant,
             AvailableAt = StubDateTimeProvider.DefaultInstant.AddMinutes(1),
+            InspectionAttempts = 0,
+            NextInspectionAt = null,
             Tags = [],
         });
 
@@ -122,6 +124,8 @@ internal static class AStoredFile
             State = StoredFileState.Quarantined,
             RegisteredAt = StubDateTimeProvider.DefaultInstant,
             AvailableAt = null,
+            InspectionAttempts = 0,
+            NextInspectionAt = null,
             Tags = [],
         });
 

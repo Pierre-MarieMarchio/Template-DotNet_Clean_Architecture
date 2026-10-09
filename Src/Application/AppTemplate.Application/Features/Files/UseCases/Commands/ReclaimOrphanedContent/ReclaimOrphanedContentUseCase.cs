@@ -2,6 +2,7 @@
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using Microsoft.Extensions.Logging;
@@ -9,114 +10,157 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
 
 /// <summary>
-/// Deletes stored objects that no row names. This is where the storage a deleted file used to
-/// occupy actually goes away, and it is the only thing in the feature that guarantees it.
+/// Deletes stored objects that no row names: the only thing in the feature that guarantees the bytes
+/// of a deleted file go away, whether or not a deletion event was delivered, and the only thing that
+/// reclaims bytes deposited against a registration purged before it was confirmed.
 /// <para>
-/// <b>It re-derives its own precondition rather than consuming a message.</b>
-/// <c>StoredFileDeletedDomainEvent</c> has a consumer, but that consumer is a fast path: events
-/// here are dispatched in-process, after commit, at most once, so one may simply not run. This pass
-/// asks a question whose answer does not depend on any delivery having happened — "is there a row
-/// that names this key?" — and it covers a case no event could: bytes deposited against a signed
-/// URL whose registration was swept away before it was ever confirmed, for which nothing was ever
-/// raised at all.
+/// <b>Each page of keys is listed before the rows are asked about it.</b> A row is committed before
+/// its upload grant is minted, so a file registered during the pass either appears in a later page
+/// with its row already there or does not appear at all. Asking the rows first would delete the
+/// bytes of a file uploaded in between.
 /// </para>
 /// <para>
-/// <b>The order of the two reads is the safety argument, and reversing it deletes live files.</b>
-/// Each page of keys is listed <em>first</em> and the rows are asked about it <em>second</em>. A
-/// file registered while the pass is running therefore either appears in a later page — by which
-/// time its row certainly exists, because a row is committed before its upload grant is ever minted
-/// — or does not appear at all. Reading the live keys first and listing afterwards would invert
-/// that: a file registered in between would be listed as an object with no row on record, and the
-/// pass would delete the bytes of a file its owner had just uploaded.
-/// </para>
-/// <para>
-/// <b>Deleting the same object twice is deleting it once</b> (see
-/// <see cref="IFileContentStore.DeleteAsync"/>), so two hosts sweeping at the same time cost a
-/// duplicate request and nothing else. That is why this takes no <see cref="ILeaderLease"/>, on the
-/// same reasoning that port's own documentation gives for the two purges.
-/// </para>
-/// <para>
-/// <b>Runs from a background job, so it must not read <see cref="ICurrentUser"/>:</b> a background
-/// scope's implementation throws rather than invent an anonymous caller, and the objects swept here
-/// belong to every owner and to none of them.
+/// <b>Retry guarantee.</b> One host at a time, under the <c>apptemplate.files.reclaim-orphans</c>
+/// lease. The walk goes through the keys in ordinal order from a persisted checkpoint, saved after
+/// each page once its orphans are deleted, and reset to the beginning when the end of the namespace
+/// is reached. Every object present when a walk starts is therefore visited within
+/// ⌈objects / per-pass budget⌉ + 1 passes, across restarts; a crash repeats at most the page in
+/// progress, and deleting an object twice is deleting it once. Runs from a background job and must
+/// not read <see cref="ICurrentUser"/>.
 /// </para>
 /// </summary>
-public sealed class ReclaimOrphanedContentUseCase(
-    IFileContentInventory inventory,
-    IFileContentStore content,
-    IStoredFileQueries queries,
-    ILogger<ReclaimOrphanedContentUseCase> logger) : IReclaimOrphanedContentUseCase
+public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCase
 {
-    /// <summary>
-    /// How many keys one listing call asks for. Also the size of the batch each live-key lookup is
-    /// asked about, so this bounds both halves of the difference and the pass holds one page at a
-    /// time however large the bucket is.
-    /// </summary>
-    private const int _pageSize = 500;
+    /// <summary>Keys per listing call, and per live-key lookup.</summary>
+    internal const int DefaultPageSize = 500;
+
+    /// <summary>Pages per pass: a quarter of a million keys at the default page size.</summary>
+    internal const int DefaultMaxPagesPerPass = 500;
 
     /// <summary>
-    /// The safety valve on one pass. At <see cref="_pageSize"/> keys a page this is a quarter of a
-    /// million objects, past which the pass stops and the next one resumes from the start — the
-    /// listing is ordered, and every orphan the previous pass reached is already gone, so restarting
-    /// makes progress rather than repeating work.
+    /// The lock key is derived from this name, so it is a contract across releases: renaming it lets
+    /// two releases of a rolling deploy both run the pass.
     /// </summary>
-    private const int _maxPagesPerPass = 500;
+    private const string _leaseName = "apptemplate.files.reclaim-orphans";
 
-    /// <summary>
-    /// The whole key namespace. Keys are minted as
-    /// <c>&lt;partition&gt;/&lt;time segment&gt;/&lt;name&gt;</c> and listings are ordered, so
-    /// walking from here arrives one time slice at a time on its own: each page falls inside a
-    /// single segment, and the lookup that follows reads only the rows that page names. Narrowing
-    /// this to one segment is a supported refinement — the correctness argument above holds for any
-    /// prefix — but it would mean choosing which slice a pass visits, and a slice nobody chose is a
-    /// slice never swept.
-    /// </summary>
+    /// <summary>The whole key namespace: every key is minted under this partition.</summary>
     private static readonly string _prefix = $"{ObjectKey.UnpartitionedPrefix}/";
+
+    private readonly IFileContentInventory _inventory;
+    private readonly IFileContentStore _content;
+    private readonly IStoredFileQueries _queries;
+    private readonly IOrphanSweepCheckpoint _checkpoint;
+    private readonly ILeaderLease _lease;
+    private readonly ILogger<ReclaimOrphanedContentUseCase> _logger;
+    private readonly int _pageSize;
+    private readonly int _maxPagesPerPass;
+
+    public ReclaimOrphanedContentUseCase(
+        IFileContentInventory inventory,
+        IFileContentStore content,
+        IStoredFileQueries queries,
+        IOrphanSweepCheckpoint checkpoint,
+        ILeaderLease lease,
+        ILogger<ReclaimOrphanedContentUseCase> logger)
+        : this(inventory, content, queries, checkpoint, lease, logger, DefaultPageSize, DefaultMaxPagesPerPass)
+    {
+    }
+
+    /// <summary>With a smaller budget, so a test can walk a store larger than one pass.</summary>
+    internal ReclaimOrphanedContentUseCase(
+        IFileContentInventory inventory,
+        IFileContentStore content,
+        IStoredFileQueries queries,
+        IOrphanSweepCheckpoint checkpoint,
+        ILeaderLease lease,
+        ILogger<ReclaimOrphanedContentUseCase> logger,
+        int pageSize,
+        int maxPagesPerPass)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPagesPerPass);
+
+        _inventory = inventory;
+        _content = content;
+        _queries = queries;
+        _checkpoint = checkpoint;
+        _lease = lease;
+        _logger = logger;
+        _pageSize = pageSize;
+        _maxPagesPerPass = maxPagesPerPass;
+    }
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         int reclaimed = 0;
+
+        bool ranHere = await _lease.TryRunExclusivelyAsync(
+            _leaseName,
+            async leaseToken => reclaimed = await SweepAsync(leaseToken),
+            cancellationToken);
+
+        if (!ranHere && _logger.IsEnabled(LogLevel.Information))
+        {
+            _logger.LogInformation(
+                "Orphan sweep skipped: another host holds the '{LeaseName}' lease.",
+                _leaseName);
+        }
+
+        return reclaimed;
+    }
+
+    private async Task<int> SweepAsync(CancellationToken cancellationToken)
+    {
+        string? startAfter = await _checkpoint.GetAsync(cancellationToken);
+        int reclaimed = 0;
         int pages = 0;
-        string? startAfter = null;
 
         do
         {
-            var page = await inventory.ListKeysAsync(_prefix, startAfter, _pageSize, cancellationToken);
-
+            var page = await _inventory.ListKeysAsync(_prefix, startAfter, _pageSize, cancellationToken);
             pages++;
-            startAfter = page.NextCursor;
 
-            if (page.Items.Count == 0)
+            reclaimed += await ReclaimAsync(page.Items, cancellationToken);
+
+            startAfter = page.NextCursor;
+            await _checkpoint.SaveAsync(startAfter, cancellationToken);
+        }
+        while (startAfter is not null && pages < _maxPagesPerPass);
+
+        if (startAfter is not null && _logger.IsEnabled(LogLevel.Information))
+        {
+            _logger.LogInformation(
+                "Orphan sweep reached its budget of {Pages} pages and resumes after '{Checkpoint}' next " +
+                "pass; {Reclaimed} objects were reclaimed.",
+                pages,
+                startAfter,
+                reclaimed);
+        }
+
+        return reclaimed;
+    }
+
+    private async Task<int> ReclaimAsync(IReadOnlyList<string> keys, CancellationToken cancellationToken)
+    {
+        if (keys.Count == 0)
+        {
+            return 0;
+        }
+
+        var live = (await _queries.GetLiveObjectKeysAsync(keys, cancellationToken))
+            .ToHashSet(StringComparer.Ordinal);
+
+        int reclaimed = 0;
+
+        foreach (string objectKey in keys)
+        {
+            if (live.Contains(objectKey))
             {
                 continue;
             }
 
-            var live = (await queries.GetLiveObjectKeysAsync(page.Items, cancellationToken))
-                .ToHashSet(StringComparer.Ordinal);
-
-            foreach (string objectKey in page.Items)
-            {
-                if (live.Contains(objectKey))
-                {
-                    continue;
-                }
-
-                await content.DeleteAsync(objectKey, cancellationToken);
-                reclaimed++;
-            }
-        }
-        while (startAfter is not null && pages < _maxPagesPerPass);
-
-        if (startAfter is not null && logger.IsEnabled(LogLevel.Information))
-        {
-            // Worth saying out loud: a pass that stopped short did not finish the store, and a
-            // steady stream of these means the bucket has outgrown one pass rather than that
-            // nothing needed reclaiming.
-            logger.LogInformation(
-                "Orphan sweep stopped after {Pages} pages with more of the store left to walk; " +
-                "{Reclaimed} objects were reclaimed.",
-                pages,
-                reclaimed);
+            await _content.DeleteAsync(objectKey, cancellationToken);
+            reclaimed++;
         }
 
         return reclaimed;

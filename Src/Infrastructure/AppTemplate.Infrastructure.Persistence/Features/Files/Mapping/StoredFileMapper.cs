@@ -38,6 +38,8 @@ internal sealed class StoredFileMapper : IStoredFileMapper
             State = record.State,
             RegisteredAt = record.RegisteredAt,
             AvailableAt = record.AvailableAt,
+            InspectionAttempts = record.InspectionAttempts,
+            NextInspectionAt = record.NextInspectionAt,
             Tags = record.Tags.Select(tag => tag.Value),
         });
 
@@ -66,6 +68,8 @@ internal sealed class StoredFileMapper : IStoredFileMapper
             State = aggregate.State,
             RegisteredAt = aggregate.RegisteredAt,
             AvailableAt = aggregate.AvailableAt,
+            InspectionAttempts = aggregate.InspectionAttempts,
+            NextInspectionAt = aggregate.NextInspectionAt,
 
             // Overwritten on insert, where PostgreSQL assigns xmin. Carried so the round trip stays
             // total and the fidelity test can check it.
@@ -125,6 +129,8 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         record.State = aggregate.State;
         record.RegisteredAt = aggregate.RegisteredAt;
         record.AvailableAt = aggregate.AvailableAt;
+        record.InspectionAttempts = aggregate.InspectionAttempts;
+        record.NextInspectionAt = aggregate.NextInspectionAt;
 
         ReconcileTags(aggregate, record);
 

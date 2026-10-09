@@ -35,6 +35,8 @@ public sealed class StoredFileRehydrationTests
         StoredFileState state = StoredFileState.Pending,
         DateTimeOffset? registeredAt = null,
         DateTimeOffset? availableAt = null,
+        int inspectionAttempts = 0,
+        DateTimeOffset? nextInspectionAt = null,
         IEnumerable<string>? tags = null) =>
         StoredFile.Rehydrate(new StoredFileSnapshot
         {
@@ -49,6 +51,8 @@ public sealed class StoredFileRehydrationTests
             State = state,
             RegisteredAt = registeredAt ?? _registeredAt,
             AvailableAt = availableAt,
+            InspectionAttempts = inspectionAttempts,
+            NextInspectionAt = nextInspectionAt,
             Tags = tags ?? [],
         });
 
@@ -78,6 +82,8 @@ public sealed class StoredFileRehydrationTests
                 State = StoredFileState.Pending,
                 RegisteredAt = _registeredAt,
                 AvailableAt = null,
+                InspectionAttempts = 0,
+                NextInspectionAt = null,
                 Tags = null!,
             }));
 
@@ -105,6 +111,8 @@ public sealed class StoredFileRehydrationTests
                 State = StoredFileState.Pending,
                 RegisteredAt = _registeredAt,
                 AvailableAt = null,
+                InspectionAttempts = 0,
+                NextInspectionAt = null,
                 Tags = [],
             }));
 
@@ -124,6 +132,8 @@ public sealed class StoredFileRehydrationTests
                 State = StoredFileState.Pending,
                 RegisteredAt = _registeredAt,
                 AvailableAt = null,
+                InspectionAttempts = 0,
+                NextInspectionAt = null,
                 Tags = [],
             }));
 
@@ -154,6 +164,8 @@ public sealed class StoredFileRehydrationTests
                 State = StoredFileState.Pending,
                 RegisteredAt = _registeredAt,
                 AvailableAt = null,
+                InspectionAttempts = 0,
+                NextInspectionAt = null,
                 Tags = [],
             }));
 
@@ -221,6 +233,42 @@ public sealed class StoredFileRehydrationTests
 
     #endregion
 
+    #region Inspection retry state
+
+    [Fact]
+    public void Rehydrate_Rejects_ANegativeNumberOfInspectionAttempts() =>
+        Should.Throw<DomainException>(
+            () => Rehydrate(state: StoredFileState.Deposited, inspectionAttempts: -1));
+
+    [Fact]
+    public void Rehydrate_Rejects_ANextInspectionWithoutAnyAttempt() =>
+        Should.Throw<DomainException>(
+            () => Rehydrate(state: StoredFileState.Deposited, nextInspectionAt: _registeredAt.AddMinutes(1)));
+
+    [Fact]
+    public void Rehydrate_RestoresADeferredInspection()
+    {
+        var file = Rehydrate(
+            state: StoredFileState.Deposited,
+            inspectionAttempts: 2,
+            nextInspectionAt: _registeredAt.AddMinutes(3));
+
+        file.InspectionAttempts.ShouldBe(2);
+        file.NextInspectionAt.ShouldBe(_registeredAt.AddMinutes(3));
+    }
+
+    /// <summary>A verdict keeps the record of the deferrals before it, so such a row must load.</summary>
+    [Fact]
+    public void Rehydrate_Accepts_AnAvailableFileThatWasDeferredBeforeItsVerdict() =>
+        Should.NotThrow(
+            () => Rehydrate(
+                state: StoredFileState.Available,
+                availableAt: _registeredAt.AddMinutes(5),
+                inspectionAttempts: 1,
+                nextInspectionAt: _registeredAt.AddMinutes(2)));
+
+    #endregion
+
     #region What a loaded file is
 
     [Fact]
@@ -242,6 +290,8 @@ public sealed class StoredFileRehydrationTests
             State = StoredFileState.Available,
             RegisteredAt = _registeredAt,
             AvailableAt = availableAt,
+            InspectionAttempts = 0,
+            NextInspectionAt = null,
             Tags = ["Urgent", "urgent ", "home"],
         });
 

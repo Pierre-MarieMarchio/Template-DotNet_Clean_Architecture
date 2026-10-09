@@ -30,6 +30,7 @@ public sealed class InspectDepositedFilesUseCaseTests
     private readonly IFileContentScanner _scanner = Substitute.For<IFileContentScanner>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly FilesOptions _files = FilesSettings.Default();
+    private StubLeaderLease _lease = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -122,12 +123,11 @@ public sealed class InspectDepositedFilesUseCaseTests
     #region No verdict
 
     /// <summary>
-    /// <b>The arbitrage, at the level of the pass.</b> A scanner that cannot be reached must not make
-    /// files readable, and must not destroy them either. The file stays exactly where it was, nothing
-    /// is committed, and the next pass will find it again.
+    /// A scanner that cannot be reached must not make files readable, and must not destroy them
+    /// either. The file stays deposited, its next attempt is pushed out, and the deferral is committed.
     /// </summary>
     [Fact]
-    public async Task AFileThatCouldNotBeInspected_IsLeftUntouchedAndNothingIsCommitted()
+    public async Task AFileThatCouldNotBeInspected_IsDeferredAndTheDeferralCommitted()
     {
         var storedFile = GivenOneDepositedFile();
         GivenTheContent(storedFile, _png, FileScanOutcome.Unavailable);
@@ -137,7 +137,9 @@ public sealed class InspectDepositedFilesUseCaseTests
         result.Value.ShouldBe(0);
         storedFile.State.ShouldBe(StoredFileState.Deposited);
         storedFile.DomainEvents.ShouldBeEmpty();
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        storedFile.InspectionAttempts.ShouldBe(1);
+        storedFile.NextInspectionAt.ShouldBe(StubDateTimeProvider.DefaultInstant.AddMinutes(1));
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -171,7 +173,7 @@ public sealed class InspectDepositedFilesUseCaseTests
 
         result.Value.ShouldBe(0);
         storedFile.State.ShouldBe(StoredFileState.Deposited);
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        storedFile.InspectionAttempts.ShouldBe(1);
     }
 
     /// <summary>
@@ -209,7 +211,7 @@ public sealed class InspectDepositedFilesUseCaseTests
         result.Value.ShouldBe(1);
         stuck.State.ShouldBe(StoredFileState.Deposited);
         clean.State.ShouldBe(StoredFileState.Available);
-        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _unitOfWork.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -277,13 +279,9 @@ public sealed class InspectDepositedFilesUseCaseTests
         scanned.ShouldBe(large);
     }
 
-    /// <summary>
-    /// One commit for the batch rather than one per file. Each transition is independent of every
-    /// other, so a failure loses a pass's decisions rather than corrupting any of them, and the next
-    /// pass reaches the same verdicts from the same unchanged bytes.
-    /// </summary>
+    /// <summary>One commit per file, so a failure on one file loses no other file's verdict.</summary>
     [Fact]
-    public async Task OnePass_CommitsOnce()
+    public async Task EachFile_IsCommittedOnItsOwn()
     {
         var first = ADepositedFile();
         var second = ADepositedFile();
@@ -294,7 +292,52 @@ public sealed class InspectDepositedFilesUseCaseTests
         var result = await UseCase().ExecuteAsync(TestToken);
 
         result.Value.ShouldBe(2);
-        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _unitOfWork.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>The batch is asked for as of now, so a deferred file comes back only once it is due.</summary>
+    [Fact]
+    public async Task TheBatch_IsAskedForAsOfNow()
+    {
+        GivenTheRepositoryHolds();
+
+        await UseCase().ExecuteAsync(TestToken);
+
+        await _repository.Received(1).GetDepositedAsync(
+            StubDateTimeProvider.DefaultInstant,
+            InspectDepositedFilesUseCase.BatchSize,
+            Arg.Any<CancellationToken>());
+    }
+
+    #endregion
+
+    #region One host at a time
+
+    [Fact]
+    public async Task TheLeaseHeldByAnotherHost_LeavesThePassUndone()
+    {
+        var storedFile = GivenOneDepositedFile();
+        GivenTheContent(storedFile, _png);
+        _lease = StubLeaderLease.HeldElsewhere();
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.Value.ShouldBe(0);
+        storedFile.State.ShouldBe(StoredFileState.Deposited);
+        await _repository.DidNotReceive().GetDepositedAsync(
+            Arg.Any<DateTimeOffset>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>The literal is repeated on purpose: the name is a contract across releases.</summary>
+    [Fact]
+    public async Task ThePass_RunsUnderItsNamedLease()
+    {
+        GivenTheRepositoryHolds();
+
+        await UseCase().ExecuteAsync(TestToken);
+
+        _lease.RequestedNames.ShouldBe(["apptemplate.files.inspect-deposited"]);
     }
 
     #endregion
@@ -393,7 +436,7 @@ public sealed class InspectDepositedFilesUseCaseTests
     }
 
     private void GivenTheRepositoryHolds(params StoredFile[] files) =>
-        _repository.GetDepositedAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+        _repository.GetDepositedAsync(Arg.Any<DateTimeOffset>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(files);
 
     private void GivenTheContent(StoredFile storedFile, byte[] bytes, FileScanOutcome? scan = null)
@@ -410,6 +453,7 @@ public sealed class InspectDepositedFilesUseCaseTests
         _scanner,
         _unitOfWork,
         new StubDateTimeProvider(),
+        _lease,
         _files.AsOptions(),
         NullLogger<InspectDepositedFilesUseCase>.Instance);
 }

@@ -97,6 +97,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// </summary>
     internal DbSet<StoredFileRecord> StoredFiles => Set<StoredFileRecord>();
 
+    /// <summary>Where the orphan sweep's walk of the object store has reached.</summary>
+    internal DbSet<ContentSweepCheckpointRecord> ContentSweepCheckpoints => Set<ContentSweepCheckpointRecord>();
+
     /// <summary>
     /// The notes table. Unlike the three above it is the whole model of its feature: no aggregate is
     /// mapped onto it, and the store reads and writes the row directly. Internal for the same reason.
@@ -117,7 +120,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         base.OnModelCreating(modelBuilder);
 
-        // Named one by one rather than discovered by scanning the assembly: eight lines the
+        // Named one by one rather than discovered by scanning the assembly: lines the
         // compiler checks, instead of a reflection call that silently maps nothing when a
         // configuration class is renamed or moved. No default schema is set — every table names its
         // own, so a table cannot drift into the wrong one by omission.
@@ -129,6 +132,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         modelBuilder.ApplyConfiguration(new StoredFileRecordConfiguration());
         modelBuilder.ApplyConfiguration(new StoredFileTagRecordConfiguration());
+        modelBuilder.ApplyConfiguration(new ContentSweepCheckpointRecordConfiguration());
 
         modelBuilder.ApplyConfiguration(new NoteRecordConfiguration());
 

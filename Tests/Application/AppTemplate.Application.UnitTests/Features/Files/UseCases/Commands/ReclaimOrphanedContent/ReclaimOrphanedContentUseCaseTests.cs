@@ -4,6 +4,7 @@ using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
+using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -21,6 +22,8 @@ public sealed class ReclaimOrphanedContentUseCaseTests
     private readonly IFileContentInventory _inventory = Substitute.For<IFileContentInventory>();
     private readonly IFileContentStore _content = Substitute.For<IFileContentStore>();
     private readonly IStoredFileQueries _queries = Substitute.For<IStoredFileQueries>();
+    private readonly RecordingOrphanSweepCheckpoint _checkpoint = new();
+    private StubLeaderLease _lease = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -200,11 +203,7 @@ public sealed class ReclaimOrphanedContentUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// A store whose listing never ends must not hang the pass. The valve is what makes the walk
-    /// terminate; the next pass restarts from the beginning, where every orphan already reached is
-    /// gone.
-    /// </summary>
+    /// <summary>A store whose listing never ends must not hang the pass: the budget ends it.</summary>
     [Fact]
     public async Task AnEndlessListing_StopsAtTheSafetyValve()
     {
@@ -220,6 +219,31 @@ public sealed class ReclaimOrphanedContentUseCaseTests
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task TheLeaseHeldByAnotherHost_LeavesThePassUndone()
+    {
+        GivenTheStoreListsOnePageOf(_orphanKey);
+        _lease = StubLeaderLease.HeldElsewhere();
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.Value.ShouldBe(0);
+        await _inventory.DidNotReceive().ListKeysAsync(
+            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        _checkpoint.Saves.ShouldBeEmpty();
+    }
+
+    /// <summary>The literal is repeated on purpose: the name is a contract across releases.</summary>
+    [Fact]
+    public async Task ThePass_RunsUnderItsNamedLease()
+    {
+        GivenTheStoreListsOnePageOf();
+
+        await UseCase().ExecuteAsync(TestToken);
+
+        _lease.RequestedNames.ShouldBe(["apptemplate.files.reclaim-orphans"]);
     }
 
     private void GivenTheStoreListsOnePageOf(params string[] keys) =>
@@ -238,5 +262,7 @@ public sealed class ReclaimOrphanedContentUseCaseTests
         _inventory,
         _content,
         _queries,
+        _checkpoint,
+        _lease,
         NullLogger<ReclaimOrphanedContentUseCase>.Instance);
 }

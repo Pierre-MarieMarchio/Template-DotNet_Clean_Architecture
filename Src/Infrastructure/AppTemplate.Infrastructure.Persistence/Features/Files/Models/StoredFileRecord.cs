@@ -54,6 +54,10 @@ internal sealed class StoredFileRecord : IAuditable
 
     public DateTimeOffset? AvailableAt { get; set; }
 
+    public int InspectionAttempts { get; set; }
+
+    public DateTimeOffset? NextInspectionAt { get; set; }
+
     /// <summary>The tag rows, reconciled by hand — see <see cref="StoredFileTagRecord"/>.</summary>
     public ICollection<StoredFileTagRecord> Tags { get; } = [];
 

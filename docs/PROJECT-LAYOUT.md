@@ -58,7 +58,8 @@ AppTemplate.Infrastructure.Core Common/{Caching,Contexts,Options,
 AppTemplate.Infrastructure.Persistence
                                 Common/{Contexts,Idempotency,Leases}
                                 Features/<F>/{Models,Configurations,Mapping,Tracking,
-                                              Repositories,Queries,Stores,Locks,Observability}
+                                              Repositories,Queries,Stores,Locks,Checkpoints,
+                                              Observability}
                                 Migrations/   the business half's history
 AppTemplate.Infrastructure.Auth Common/{Contexts,Directories,Options}
                                 Features/Auth/{Configurations,Directories,Factories,Issuers,Logs,

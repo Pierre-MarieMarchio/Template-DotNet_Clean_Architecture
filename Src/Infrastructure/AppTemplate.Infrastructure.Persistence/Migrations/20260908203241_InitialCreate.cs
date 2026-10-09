@@ -12,6 +12,9 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.EnsureSchema(
+                name: "files");
+
+            migrationBuilder.EnsureSchema(
                 name: "platform");
 
             migrationBuilder.EnsureSchema(
@@ -21,10 +24,21 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 name: "reminders");
 
             migrationBuilder.EnsureSchema(
-                name: "files");
-
-            migrationBuilder.EnsureSchema(
                 name: "todo");
+
+            migrationBuilder.CreateTable(
+                name: "ContentSweepCheckpoints",
+                schema: "files",
+                columns: table => new
+                {
+                    Name = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    LastKey = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ContentSweepCheckpoints", x => x.Name);
+                });
 
             migrationBuilder.CreateTable(
                 name: "IdempotencyKeys",
@@ -108,6 +122,8 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     State = table.Column<int>(type: "integer", nullable: false),
                     RegisteredAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     AvailableAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    InspectionAttempts = table.Column<int>(type: "integer", nullable: false),
+                    NextInspectionAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<Guid>(type: "uuid", nullable: true),
@@ -232,6 +248,13 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 column: "TodoItemId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_StoredFiles_Deposited_NextInspectionAt_RegisteredAt_Id",
+                schema: "files",
+                table: "StoredFiles",
+                columns: new[] { "NextInspectionAt", "RegisteredAt", "Id" },
+                filter: "\"State\" = 2");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_StoredFiles_ObjectKey",
                 schema: "files",
                 table: "StoredFiles",
@@ -297,6 +320,10 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "ContentSweepCheckpoints",
+                schema: "files");
+
             migrationBuilder.DropTable(
                 name: "IdempotencyKeys",
                 schema: "platform");

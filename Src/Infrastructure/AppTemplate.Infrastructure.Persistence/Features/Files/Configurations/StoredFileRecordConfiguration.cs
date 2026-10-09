@@ -10,7 +10,7 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Files.Configurations;
 /// Mapping for the stored-file row. Every string length is read from the domain's own constant, so a
 /// column and the invariant behind it cannot drift apart.
 /// <para>
-/// Six indexes, and each one is here for a caller that can be named. Nothing is indexed
+/// Seven indexes, and each one is here for a caller that can be named. Nothing is indexed
 /// speculatively: an index nobody queries through is a write cost and a page of storage bought
 /// against a guess.
 /// </para>
@@ -57,6 +57,8 @@ internal sealed class StoredFileRecordConfiguration : IEntityTypeConfiguration<S
         builder.Property(file => file.State).IsRequired();
         builder.Property(file => file.RegisteredAt).IsRequired();
         builder.Property(file => file.AvailableAt);
+        builder.Property(file => file.InspectionAttempts).IsRequired();
+        builder.Property(file => file.NextInspectionAt);
 
         // Unique as a safety property, not as an optimisation: bytes are reclaimed by deleting every
         // object no row names, so two rows sharing a key would have either deletion reclaim both.
@@ -76,11 +78,15 @@ internal sealed class StoredFileRecordConfiguration : IEntityTypeConfiguration<S
         builder.HasIndex(file => new { file.OwnerId, file.AvailableAt, file.Id })
             .HasDatabaseName("IX_StoredFiles_OwnerId_AvailableAt_Id");
 
-        // "State = x AND RegisteredAt < cutoff", ordered by RegisteredAt: State leads as the
-        // equality filter, RegisteredAt trails as both the range predicate and the sort key. Both
-        // sweeps read this shape, which is why the inspection pass orders by registration too.
+        // The abandonment purge: "State = Pending AND RegisteredAt < cutoff", ordered by RegisteredAt.
         builder.HasIndex(file => new { file.State, file.RegisteredAt })
             .HasDatabaseName("IX_StoredFiles_State_RegisteredAt");
+
+        // The inspection queue, partial so it holds only deposited rows: the due filter reads it,
+        // and the sort on coalesce(NextInspectionAt, RegisteredAt) runs over that short set.
+        builder.HasIndex(file => new { file.NextInspectionAt, file.RegisteredAt, file.Id })
+            .HasFilter($"\"State\" = {(int)StoredFileState.Deposited}")
+            .HasDatabaseName("IX_StoredFiles_Deposited_NextInspectionAt_RegisteredAt_Id");
 
         // The quota read: one owner's rows in one category, summed by state. SizeInBytes is included
         // so the sums are answered from the index alone.

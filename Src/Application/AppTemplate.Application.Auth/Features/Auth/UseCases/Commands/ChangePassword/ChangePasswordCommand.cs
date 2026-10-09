@@ -6,7 +6,6 @@
 /// a stolen token from taking the account over outright.
 /// </param>
 /// <param name="NewPassword">
-/// Length-checked against <c>PasswordPolicy</c> before the store sees it; the character-class rules
-/// are the store's to apply.
+/// Checked against <c>PasswordInputPolicy</c> here; the password policy is the store's to apply.
 /// </param>
 public sealed record ChangePasswordCommand(string CurrentPassword, string NewPassword);

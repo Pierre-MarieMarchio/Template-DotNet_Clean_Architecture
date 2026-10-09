@@ -43,7 +43,7 @@ public sealed class RegisterUseCaseTests
     #region The dead-password-policy regression
 
     /// <summary>
-    /// Guards the whole password policy against becoming dead code: removing the
+    /// Guards the shape validation against becoming dead code: removing the
     /// <c>if (!validation.IsValid)</c> check turns every case here red, because the account would be
     /// created anyway.
     /// </summary>
@@ -53,7 +53,7 @@ public sealed class RegisterUseCaseTests
     [InlineData("someone", "", "correct horse battery")]
     [InlineData("someone", "not-an-email", "correct horse battery")]
     [InlineData("someone", "someone@example.com", "")]
-    [InlineData("someone", "someone@example.com", "short")]
+    [InlineData("someone", "someone@example.com", "   ")]
     public async Task AnInvalidRequest_NeverCreatesAnAccount(string userName, string email, string password)
     {
         var result = await _useCase.ExecuteAsync(new RegisterCommand(userName, email, password), TestToken);
@@ -65,36 +65,22 @@ public sealed class RegisterUseCaseTests
     }
 
     /// <summary>
-    /// The absolute password floor mirrors the hard minimum the Identity configuration
-    /// cannot go below. One character short must be refused, exactly the minimum accepted.
+    /// The password policy has one authority, the store's configured <c>Identity</c> policy, so even
+    /// a one-character password is the store's to judge, and its refusal reaches the caller on the
+    /// password field.
     /// </summary>
     [Fact]
-    public async Task APasswordOneCharacterBelowTheFloor_IsRefused()
+    public async Task AShortPassword_IsJudgedByTheStore()
     {
-        string tooShort = new('a', RegisterCommandValidator.AbsoluteMinimumPasswordLength - 1);
+        _accounts.CreateAsync(Arg.Any<string>(), Arg.Any<string>(), "a", Arg.Any<CancellationToken>())
+            .Returns(AccountCreationOutcome.Rejected(null, null, "Passwords must be at least 12 characters."));
 
         var result = await _useCase.ExecuteAsync(
-            new RegisterCommand("someone", "someone@example.com", tooShort),
+            new RegisterCommand("someone", "someone@example.com", "a"),
             TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Details!["password"].Any(message => message.Contains("at least", StringComparison.Ordinal))
-            .ShouldBeTrue();
-        _accounts.ReceivedCalls().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public async Task APasswordExactlyAtTheFloor_IsAccepted()
-    {
-        string atTheFloor = new('a', RegisterCommandValidator.AbsoluteMinimumPasswordLength);
-        GivenTheAccountIsCreated();
-        GivenTheConfirmationTokenIsIssued();
-
-        var result = await _useCase.ExecuteAsync(
-            new RegisterCommand("someone", "someone@example.com", atTheFloor),
-            TestToken);
-
-        result.IsSuccess.ShouldBeTrue();
+        result.Error.Details!["password"].ShouldBe(["Passwords must be at least 12 characters."]);
     }
 
     /// <summary>

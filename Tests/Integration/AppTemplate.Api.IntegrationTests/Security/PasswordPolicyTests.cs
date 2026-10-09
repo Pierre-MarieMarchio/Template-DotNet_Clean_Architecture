@@ -11,25 +11,23 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 /// The password policy is enforced at registration.
 /// </summary>
 /// <remarks>
-/// Two layers, both asserted: the shape validator's absolute floor of eight characters, and the
-/// configured <c>Identity</c> policy, which the test host sets to twelve characters with all four
-/// character classes required.
+/// One authority: the configured <c>Identity</c> policy, which the test host sets to twelve
+/// characters with all four character classes required. The shape validator checks presence only.
 /// </remarks>
 public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     /// <summary>
-    /// Each case, with the layer it is there to exercise. Both layers report the one validation code
-    /// the application has and both attach their message to the <c>password</c> field, so which layer
-    /// refused is not observable from the response — the note says what the case is <em>for</em>.
+    /// Each case, with what it is there to exercise. The shape validator and the store report the
+    /// one validation code the application has, both on the <c>password</c> field.
     /// </summary>
     public static TheoryData<string, string> RejectedPasswords => new()
     {
-        // Below the shape validator's floor, so it never reaches the user store.
-        { "Sh0rt!A", "under the absolute minimum length" },
+        // Refused by the shape validator: nothing to judge.
         { "", "empty" },
 
-        // Acceptable to the shape validator, rejected by the configured policy. This pair is what
-        // proves the *configured* length is live and not just the hard floor.
+        // Rejected by the configured policy. These prove the *configured* length is live, and not
+        // only the hard floor configuration cannot go below.
+        { "Sh0rt!A", "seven characters, under the configured twelve" },
         { "Sh0rt!Aa", "eight characters, under the configured twelve" },
         { "Ab1!Ab1!Ab1", "eleven characters, one under the configured twelve" },
 

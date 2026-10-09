@@ -4,22 +4,19 @@ using FluentValidation;
 namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Register;
 
 /// <summary>
-/// Shape only. The password policy itself is owned by the validated <c>Identity</c> configuration
-/// section; do not add character-class rules here, they would drift from what the store enforces.
+/// Shape only. The password policy is the validated <c>Identity</c> configuration section, applied by
+/// the store; this checks only <see cref="PasswordInputPolicy"/>.
 /// </summary>
 public sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand>
 {
-    /// <summary>Defence-in-depth floor mirroring the minimum the Identity configuration cannot go below.</summary>
-    public const int AbsoluteMinimumPasswordLength = PasswordPolicy.AbsoluteMinimumPasswordLength;
-
     /// <summary>Guards against a denial of service through an arbitrarily long PBKDF2 input.</summary>
-    public const int MaximumPasswordLength = PasswordPolicy.MaximumPasswordLength;
+    public const int MaximumPasswordLength = PasswordInputPolicy.MaximumLength;
 
     /// <summary>A bound of this layer's own choosing, wide enough that no legitimate name meets it.</summary>
     public const int MaximumUserNameLength = 64;
 
     /// <summary>
-    /// A bounded user name, an address of plausible shape and length, and the shared password bounds.
+    /// A bounded user name, an address of plausible shape and length, and the password input policy.
     /// </summary>
     public RegisterCommandValidator()
     {
@@ -33,6 +30,6 @@ public sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand
             .MaximumLength(256).WithMessage("Email must not exceed 256 characters.")
             .EmailAddress().WithMessage("Invalid email format.");
 
-        RuleFor(x => x.Password).Password();
+        RuleFor(x => x.Password).WithinPasswordInputPolicy();
     }
 }

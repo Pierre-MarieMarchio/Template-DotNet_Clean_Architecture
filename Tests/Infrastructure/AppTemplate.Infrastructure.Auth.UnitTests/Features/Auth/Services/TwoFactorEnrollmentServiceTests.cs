@@ -176,6 +176,28 @@ public sealed class TwoFactorEnrollmentServiceTests
         user.TwoFactorEnabled.ShouldBeFalse();
     }
 
+    /// <summary>
+    /// A second confirmation on an armed account would replace the recovery codes and then write the
+    /// switch-on again; a refusal of that write would leave the account with codes nobody was shown.
+    /// </summary>
+    [Fact]
+    public async Task ConfirmAsync_WhenTwoFactorIsAlreadyEnabled_ReportsAlreadyEnabledAndKeepsTheRecoveryCodes()
+    {
+        var user = GivenTheAccountExists();
+        string sharedKey = await GivenAPendingKeyAsync();
+        user.TwoFactorEnabled = true;
+        _recoveryCodes = ["kept-1", "kept-2"];
+        _passwordHasher.NextVerification = PasswordVerificationResult.Success;
+        GivenTheStoreRefusesTheSwitchOnWriteAfterSavingRecoveryCodes();
+
+        var confirmation = await CreateEnrollment().ConfirmAsync(
+            _userId, "correct horse battery", AuthenticatorCodes.CurrentCodeFor(sharedKey), TestToken);
+
+        _recoveryCodes.ShouldBe(["kept-1", "kept-2"]);
+        confirmation.RecoveryCodes.ShouldBeNull();
+        confirmation.Status.ShouldBe(TwoFactorConfirmationStatus.AlreadyEnabled);
+    }
+
     [Fact]
     public async Task ConfirmAsync_ARightPasswordAndCode_EnablesTwoFactor()
     {
@@ -390,6 +412,29 @@ public sealed class TwoFactorEnrollmentServiceTests
             .Returns(_ => codesJustReplaced
                 ? IdentityResult.Failed(new IdentityErrorDescriber().ConcurrencyFailure())
                 : IdentityResult.Success);
+    }
+
+    /// <summary>
+    /// The write that saves the new recovery codes succeeds; the one after it, which switches the
+    /// factor on, is refused.
+    /// </summary>
+    private void GivenTheStoreRefusesTheSwitchOnWriteAfterSavingRecoveryCodes()
+    {
+        int updatesSinceCodesReplaced = -1;
+
+        ((IUserTwoFactorRecoveryCodeStore<AppUser>)_store)
+            .ReplaceCodesAsync(Arg.Any<AppUser>(), Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                _recoveryCodes = [.. (IEnumerable<string>)callInfo[1]!];
+                updatesSinceCodesReplaced = 0;
+                return Task.CompletedTask;
+            });
+
+        _store.UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>())
+            .Returns(_ => updatesSinceCodesReplaced < 0 || updatesSinceCodesReplaced++ == 0
+                ? IdentityResult.Success
+                : IdentityResult.Failed(new IdentityErrorDescriber().ConcurrencyFailure()));
     }
 
     private async Task<string> GivenAPendingKeyAsync()

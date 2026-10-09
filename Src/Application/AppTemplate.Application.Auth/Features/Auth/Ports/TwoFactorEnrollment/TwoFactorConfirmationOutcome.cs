@@ -19,6 +19,9 @@ public sealed record TwoFactorConfirmationOutcome(
     /// <summary>Nothing armed — see <see cref="TwoFactorConfirmationStatus.NoSuchAccount"/>.</summary>
     public static TwoFactorConfirmationOutcome NoSuchAccount { get; } = new(TwoFactorConfirmationStatus.NoSuchAccount);
 
+    /// <summary>Nothing changed — see <see cref="TwoFactorConfirmationStatus.AlreadyEnabled"/>.</summary>
+    public static TwoFactorConfirmationOutcome AlreadyEnabled { get; } = new(TwoFactorConfirmationStatus.AlreadyEnabled);
+
     /// <summary>Nothing armed, and no recovery codes minted — see <see cref="TwoFactorConfirmationStatus.Rejected"/>.</summary>
     public static TwoFactorConfirmationOutcome Rejected { get; } = new(TwoFactorConfirmationStatus.Rejected);
 

@@ -72,6 +72,13 @@ internal sealed class TwoFactorEnrollmentService(
             return TwoFactorConfirmationOutcome.NoSuchAccount;
         }
 
+        // Confirming again would replace the codes the caller holds before writing the switch-on,
+        // and a refused write would leave codes nobody was shown.
+        if (await userManager.GetTwoFactorEnabledAsync(user))
+        {
+            return TwoFactorConfirmationOutcome.AlreadyEnabled;
+        }
+
         // Not CheckPasswordAsync: a rehash-needed result rotates the security stamp, which would
         // cost the caller every session it holds on a password that was correct. VerifyHashedPassword
         // has no such side effect.

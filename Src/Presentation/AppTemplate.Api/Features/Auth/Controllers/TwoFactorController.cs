@@ -73,6 +73,7 @@ public sealed class TwoFactorController(
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ConfirmTwoFactorSetupResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<ConfirmTwoFactorSetupResponse>> ConfirmTwoFactorSetup(
         [FromBody] ConfirmTwoFactorSetupRequest request,
         CancellationToken cancellationToken)

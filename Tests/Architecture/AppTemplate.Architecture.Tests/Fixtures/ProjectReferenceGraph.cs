@@ -6,15 +6,15 @@ namespace AppTemplate.Architecture.Tests.Fixtures;
 /// <param name="Name">The project's file name without its extension, which is also its assembly name.</param>
 /// <param name="RelativePath">Path from the repository root, for failure messages.</param>
 /// <param name="References">The <c>ProjectReference</c> targets, by project name.</param>
-/// <param name="IsPackable">
-/// Whether the project declares <c>IsPackable</c> as true, which is how an SDK project says so.
+/// <param name="IsSdkProject">
+/// Whether the project declares <c>IsSdkProject</c> as true, which is how an SDK project says so.
 /// </param>
 /// <param name="HasProgram">Whether a <c>Program.cs</c> sits at the project's root.</param>
 internal sealed record ProjectNode(
     string Name,
     string RelativePath,
     IReadOnlySet<string> References,
-    bool IsPackable,
+    bool IsSdkProject,
     bool HasProgram);
 
 /// <summary>
@@ -39,7 +39,7 @@ internal static class ProjectReferenceGraph
 
     /// <summary>
     /// An adapter set a host composes: a project of the infrastructure layer that is not the
-    /// layer's package-grade half. <c>IsPackable</c> decides, the same declaration that identifies
+    /// layer's SDK half. <c>IsSdkProject</c> decides, the same declaration that identifies
     /// an SDK project, so a shared foundation added to the layer is excluded from the module rules
     /// the moment it exists rather than when somebody remembers a list.
     /// </summary>
@@ -61,15 +61,14 @@ internal static class ProjectReferenceGraph
     internal static IEnumerable<ProjectNode> Hosts => SourceProjects.Values.Where(IsHost);
 
     /// <summary>
-    /// The projects written as if they were packages, recognised by the <c>IsPackable</c> they have
-    /// to declare for <c>dotnet pack</c> to produce them. Declaration decides, so the set cannot
-    /// drift from what CI actually packs.
+    /// The vendored SDK projects, recognised by the <c>IsSdkProject</c> marker each declares.
+    /// Declaration decides, so a project added later is governed the day it declares itself.
     /// </summary>
     internal static IEnumerable<ProjectNode> SdkProjects =>
-        SourceProjects.Values.Where(project => project.IsPackable);
+        SourceProjects.Values.Where(project => project.IsSdkProject);
 
     internal static bool IsSdkProject(string projectName) =>
-        SourceProjects.TryGetValue(projectName, out var project) && project.IsPackable;
+        SourceProjects.TryGetValue(projectName, out var project) && project.IsSdkProject;
 
     /// <summary>
     /// The projects of one layer, named by the folder <c>Src</c> groups them under. Location
@@ -110,7 +109,7 @@ internal static class ProjectReferenceGraph
                 name,
                 Path.GetRelativePath(RepositoryRoot, projectFile),
                 ReadProjectReferences(document),
-                ReadIsPackable(document),
+                ReadIsSdkProject(document),
                 File.Exists(Path.Combine(Path.GetDirectoryName(projectFile)!, "Program.cs")));
         }
 
@@ -134,10 +133,10 @@ internal static class ProjectReferenceGraph
                 include!.Replace('\\', Path.DirectorySeparatorChar)))
             .ToHashSet(StringComparer.Ordinal);
 
-    private static bool ReadIsPackable(XDocument document) =>
+    private static bool ReadIsSdkProject(XDocument document) =>
         document
-            .Descendants("IsPackable")
-            .Any(element => bool.TryParse(element.Value.Trim(), out bool packable) && packable);
+            .Descendants("IsSdkProject")
+            .Any(element => bool.TryParse(element.Value.Trim(), out bool marked) && marked);
 
     /// <summary>
     /// Walks up from the test assembly until it finds the directory that owns Central Package

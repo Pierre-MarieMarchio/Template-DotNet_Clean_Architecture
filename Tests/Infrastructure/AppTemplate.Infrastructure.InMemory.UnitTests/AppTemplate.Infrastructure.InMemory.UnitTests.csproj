@@ -19,7 +19,6 @@
        registration is removed, and any prior registration will do. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

@@ -8,7 +8,6 @@
        re-testing either use case or its adapters. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

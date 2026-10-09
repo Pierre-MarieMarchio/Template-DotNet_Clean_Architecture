@@ -135,8 +135,7 @@ docs/                the documentation index and everything it lists
 
 The directory under `Src/` names the **layer**; the project inside keeps its own name and root
 namespace, so moving a project between layer folders changes no namespace. Six of those projects
-are written to package grade — tracked public surface, `dotnet pack` over them — and vendored
-rather than published. [`docs/PROJECT-LAYOUT.md`](docs/PROJECT-LAYOUT.md) is the full map, down to
+are vendored SDK projects, copied into a derived repository rather than published. [`docs/PROJECT-LAYOUT.md`](docs/PROJECT-LAYOUT.md) is the full map, down to
 what each folder holds and which architecture test enforces it.
 
 ## Licence

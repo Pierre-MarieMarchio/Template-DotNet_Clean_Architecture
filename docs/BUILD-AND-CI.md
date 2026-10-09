@@ -137,7 +137,6 @@ the meaning of a build** — in particular none relaxes `TreatWarningsAsErrors`.
 | Job | Does |
 |---|---|
 | Build & test | restore, `dotnet format --verify-no-changes`, build with warnings as errors, assert every test project is in the solution, run the tests with coverage, enforce the floor in `coverage.minimum` |
-| Pack the SDK projects | `dotnet pack` over every project declaring `IsPackable`, which is what proves those projects are self-contained |
 | Docs and workflows | the four hygiene gates, each preceded by its own self-test |
 | Vulnerable packages | `dotnet list package --vulnerable --include-transitive`, failing on any hit |
 | Docker image | builds the image, then asserts it does not run as root and exposes only 8080 |

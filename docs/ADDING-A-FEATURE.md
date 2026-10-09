@@ -69,11 +69,8 @@ from its `Entity<TId>`, each event implements its `IDomainEvent`, and a violated
 its `DomainException`. The audit values and the version are **not written out**: the base holds
 them and implements `IAuditable` and `IVersioned` explicitly, so the store writes them and nothing
 holding the aggregate can. An owned aggregate also declares `IOwnedAggregate`, which is what lets
-the shared ownership gate below check it. A feature adds nothing to that project. It is written as a package and vendored
-rather than published — it references nothing at all, its public surface is tracked in
-`Src/Domain/AppTemplate.Domain.Core/PublicAPI.Shipped.txt` and
-`Src/Domain/AppTemplate.Domain.Core/PublicAPI.Unshipped.txt`, and every public member of it is
-documented — so the primitives are something you read the signatures of and build on, not
+the shared ownership gate below check it. A feature adds nothing to that project. It is vendored rather than
+published — it references nothing at all, and every public member of it is documented — so the primitives are something you read the signatures of and build on, not
 something a new feature negotiates with.
 
 `TodoList` (`Entities/TodoList.cs`) is the reference: a private list of items, a

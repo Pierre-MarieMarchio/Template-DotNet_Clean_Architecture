@@ -5,7 +5,6 @@
        run in microseconds and do not need a live HTTP pipeline to verify. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

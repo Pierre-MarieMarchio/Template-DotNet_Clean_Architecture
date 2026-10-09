@@ -471,6 +471,59 @@ public sealed class TodoListTests
         list.Items.Single(item => item.Id == itemId).Title.Value.ShouldBe("Buy bread");
     }
 
+    /// <summary>
+    /// Uniqueness is checked on the title the item would store, not on the raw input: the
+    /// padded variant would otherwise pass, and the saved list would then fail to rehydrate.
+    /// </summary>
+    [Fact]
+    public void UpdateItem_Rejects_AWhitespaceVariantOfATitleAlreadyHeldByAnotherItem()
+    {
+        var list = ANewList();
+        list.AddItem("Buy milk", null);
+        var itemId = list.AddItem("Buy bread", "Wholemeal");
+
+        Should.Throw<DomainException>(() => list.UpdateItem(itemId, "  buy milk ", "Changed"));
+
+        var item = list.Items.Single(item => item.Id == itemId);
+        item.Title.Value.ShouldBe("Buy bread");
+        item.Description.ShouldBe("Wholemeal");
+    }
+
+    [Fact]
+    public void UpdateItem_StoresTheTrimmedTitle_AndTheListRehydrates()
+    {
+        var list = ANewList();
+        list.AddItem("Buy milk", null);
+        var itemId = list.AddItem("Buy bread", null);
+
+        list.UpdateItem(itemId, "  Buy eggs ", null);
+
+        list.Items.Single(item => item.Id == itemId).Title.Value.ShouldBe("Buy eggs");
+        var reloaded = TodoList.Rehydrate(
+            list.Id,
+            list.OwnerId,
+            list.Name.Value,
+            list.Items.Select(item => TodoItem.Rehydrate(
+                item.Id, list.Id, item.Title.Value, item.Description, item.CompletedAt, [])));
+        reloaded.Items.Select(item => item.Title.Value).ShouldBe(["Buy milk", "Buy eggs"]);
+    }
+
+    /// <summary>Both values are validated before either is applied, so a refused update
+    /// leaves the item as it was.</summary>
+    [Fact]
+    public void UpdateItem_ChangesNothing_WhenTheDescriptionIsRefused()
+    {
+        var list = ANewList();
+        var itemId = list.AddItem("Buy milk", "Semi-skimmed");
+
+        Should.Throw<DomainException>(() =>
+            list.UpdateItem(itemId, "Buy bread", new string('x', TodoItem.MaxDescriptionLength + 1)));
+
+        var item = list.Items.ShouldHaveSingleItem();
+        item.Title.Value.ShouldBe("Buy milk");
+        item.Description.ShouldBe("Semi-skimmed");
+    }
+
     [Fact]
     public void UpdateItem_Rejects_AnUnknownItemId()
     {

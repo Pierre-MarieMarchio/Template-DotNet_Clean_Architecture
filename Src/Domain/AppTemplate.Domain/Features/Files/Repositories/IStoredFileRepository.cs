@@ -47,22 +47,16 @@ public interface IStoredFileRepository
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Files whose deposit is confirmed and whose content has not been examined yet, oldest first,
-    /// capped at <paramref name="batchSize"/>.
-    /// <para>
-    /// <b>No cutoff instant, unlike the query above.</b> A registration is given time to be used; a
-    /// deposit that has arrived is owed a verdict as soon as one can be had, and a delay here would
-    /// only be a delay before a file its owner is waiting for becomes readable.
-    /// </para>
-    /// <para>
-    /// Oldest first so a backlog is worked through in arrival order. A file that cannot be examined
-    /// right now stays in this set and is offered again on the next pass, which is why the ordering
-    /// is safe: the only conditions that are permanent — a refusal, or content nothing can examine
-    /// — end in a state this query does not return, so no file can hold the front of the queue for
-    /// ever.
-    /// </para>
+    /// Deposited files due for inspection at <paramref name="asOf"/> — never deferred, or deferred
+    /// until no later than it — in the order they became due (<see cref="StoredFile.NextInspectionAt"/>,
+    /// else <see cref="StoredFile.RegisteredAt"/>, then id), capped at <paramref name="batchSize"/>. A
+    /// deferred file therefore queues behind those that have waited longer, and none can hold the
+    /// front of the queue.
     /// </summary>
-    Task<IReadOnlyList<StoredFile>> GetDepositedAsync(int batchSize, CancellationToken cancellationToken);
+    Task<IReadOnlyList<StoredFile>> GetDepositedAsync(
+        DateTimeOffset asOf,
+        int batchSize,
+        CancellationToken cancellationToken);
 
     void Add(StoredFile storedFile);
 

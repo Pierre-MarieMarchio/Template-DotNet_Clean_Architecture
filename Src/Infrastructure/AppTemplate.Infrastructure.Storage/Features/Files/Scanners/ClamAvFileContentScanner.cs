@@ -46,7 +46,7 @@ internal sealed class ClamAvFileContentScanner(
         {
             logger.LogWarning(
                 exception,
-                "Scanning '{ObjectKey}' ran past its {Budget} budget; the next pass will try again.",
+                "Scanning '{ObjectKey}' ran past its {Budget} budget; the file's inspection is deferred.",
                 objectKey,
                 ScannerBudget.TotalTimeout);
 

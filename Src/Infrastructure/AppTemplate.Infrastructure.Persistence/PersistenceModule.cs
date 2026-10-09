@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
@@ -22,6 +23,7 @@ using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Checkpoints;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Locks;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
@@ -168,6 +170,7 @@ public static class PersistenceModule
         services.TryAddScoped<IStoredFileRepository, StoredFileRepository>();
         services.TryAddScoped<IStoredFileQueries, StoredFileQueries>();
         services.TryAddScoped<IStoredFileTagQueries, StoredFileTagQueries>();
+        services.TryAddScoped<IOrphanSweepCheckpoint, OrphanSweepCheckpoint>();
     }
 
     private static void AddNotesFeature(IServiceCollection services)
@@ -233,8 +236,9 @@ public static class PersistenceModule
         new NpgsqlConnectionStringBuilder(connectionString) { MaxPoolSize = maxPoolSize }.ConnectionString;
 
     /// <summary>
-    /// A second way to create an <see cref="AppDbContext"/>, for <see cref="IdempotencyStore"/>
-    /// alone: its own change tracker, connection and commit, rather than the request-scoped one.
+    /// A second way to create an <see cref="AppDbContext"/>, for <see cref="IdempotencyStore"/> and
+    /// <see cref="OrphanSweepCheckpoint"/>: their own change tracker, connection and commit, rather
+    /// than the request-scoped one.
     /// <para>
     /// The factory takes no options action of its own, and that is load-bearing. An action here would
     /// be a second configuration layered after <see cref="AddContext"/>'s: it would replace the

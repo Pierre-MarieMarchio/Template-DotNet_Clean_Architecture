@@ -69,13 +69,16 @@ internal sealed class StoredFileRepository(
     }
 
     public async Task<IReadOnlyList<StoredFile>> GetDepositedAsync(
+        DateTimeOffset asOf,
         int batchSize,
         CancellationToken cancellationToken)
     {
         var records = await context.StoredFiles
             .Include(file => file.Tags)
-            .Where(file => file.State == StoredFileState.Deposited)
-            .OrderBy(file => file.RegisteredAt)
+            .Where(file => file.State == StoredFileState.Deposited
+                && (file.NextInspectionAt == null || file.NextInspectionAt <= asOf))
+            .OrderBy(file => file.NextInspectionAt ?? file.RegisteredAt)
+            .ThenBy(file => file.Id)
             .Take(batchSize)
             .ToListAsync(cancellationToken);
 

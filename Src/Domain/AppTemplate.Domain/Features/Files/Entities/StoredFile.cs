@@ -38,6 +38,12 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// <summary>How many tags one file carries. The rules that govern them are <see cref="TagSet"/>'s.</summary>
     public const int MaxTags = 20;
 
+    /// <summary>The wait after the first inspection that reached no verdict; each further one doubles it.</summary>
+    private static readonly TimeSpan _firstInspectionRetryDelay = TimeSpan.FromMinutes(1);
+
+    /// <summary>The longest wait between two inspection attempts, so a deposit is offered again at least hourly.</summary>
+    private static readonly TimeSpan _longestInspectionRetryDelay = TimeSpan.FromHours(1);
+
     private readonly TagSet _tags = new(MaxTags, "stored file");
 
     /// <summary>
@@ -168,6 +174,16 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// </summary>
     public DateTimeOffset? AvailableAt { get; private set; }
 
+    /// <summary>How many inspections of this deposit ended without a verdict.</summary>
+    public int InspectionAttempts { get; private set; }
+
+    /// <summary>
+    /// The earliest instant the next inspection may run after one that reached no verdict, or
+    /// <c>null</c> when none did. Written only while the file is <see cref="StoredFileState.Deposited"/>
+    /// and read only then; a verdict leaves it as the record of the last deferral.
+    /// </summary>
+    public DateTimeOffset? NextInspectionAt { get; private set; }
+
     /// <summary>
     /// Reserves a place for a file whose bytes have not been sent yet. Raises no domain event: at
     /// this point nothing has happened that anything else could act on — there is a name and a
@@ -234,6 +250,16 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
                     : "Only an available stored file may record when it was made available.");
         }
 
+        if (stored.InspectionAttempts < 0)
+        {
+            throw new DomainException("A stored file cannot have a negative number of inspection attempts.");
+        }
+
+        if (stored.NextInspectionAt is not null && stored.InspectionAttempts == 0)
+        {
+            throw new DomainException("A stored file never inspected cannot be waiting for another inspection.");
+        }
+
         var file = new StoredFile(
             stored.Id,
             stored.OwnerId,
@@ -247,6 +273,8 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         {
             State = stored.State,
             AvailableAt = stored.AvailableAt,
+            InspectionAttempts = stored.InspectionAttempts,
+            NextInspectionAt = stored.NextInspectionAt,
         };
 
         // Through the set, so a row holding more tags than the cap allows, or the same tag twice, is
@@ -268,12 +296,8 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// without anyone having to handle the failure.
     /// </para>
     /// <para>
-    /// It takes no instant and raises no event, and both omissions are deliberate. Nothing decides
-    /// anything from how long a file has been waiting for a verdict — the pass that inspects them
-    /// takes the oldest first and needs no second timestamp to do it — and an event would invite a
-    /// consumer to run the inspection, which is exactly where it must not run: consumers are
-    /// dispatched in-process after commit, so a consumer here would put a scan of the whole file
-    /// back inside the request that confirmed it.
+    /// It raises no event: a consumer would run the inspection in-process after commit, putting a
+    /// scan of the whole file back inside the request that confirmed it.
     /// </para>
     /// </summary>
     /// <exception cref="DomainException">The file is not pending, or the deposit is not what was
@@ -356,6 +380,38 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         State = StoredFileState.Quarantined;
 
         RaiseDomainEvent(new StoredFileQuarantinedDomainEvent(Id, OwnerId, ObjectKey, now));
+    }
+
+    /// <summary>
+    /// Records an inspection that reached no verdict — content missing, store or scanner unreachable —
+    /// and pushes the next one out: one minute, doubled per attempt, capped at one hour. It never
+    /// refuses the file: an outage must not become a quarantine.
+    /// </summary>
+    /// <exception cref="DomainException">The file is not deposited.</exception>
+    public void DeferInspection(DateTimeOffset now)
+    {
+        if (State != StoredFileState.Deposited)
+        {
+            throw new DomainException("Only a deposited stored file can have its inspection deferred.");
+        }
+
+        InspectionAttempts++;
+        NextInspectionAt = now + InspectionRetryDelayAfter(InspectionAttempts);
+    }
+
+    /// <summary>The wait before the next inspection, once <paramref name="attempts"/> have reached no verdict.</summary>
+    public static TimeSpan InspectionRetryDelayAfter(int attempts)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(attempts, 1);
+
+        var delay = _firstInspectionRetryDelay;
+
+        for (int attempt = 1; attempt < attempts && delay < _longestInspectionRetryDelay; attempt++)
+        {
+            delay += delay;
+        }
+
+        return delay < _longestInspectionRetryDelay ? delay : _longestInspectionRetryDelay;
     }
 
     /// <summary>

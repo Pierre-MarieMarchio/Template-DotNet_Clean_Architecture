@@ -6,6 +6,7 @@ using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
+using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
@@ -332,6 +333,7 @@ public sealed class ApplicationModuleTests
         services.AddScoped(_ => Substitute.For<IFileContentScanner>());
         services.AddScoped(_ => Substitute.For<IFileDirectTransfer>());
         services.AddSingleton(_ => Substitute.For<IOwnerQuotaLock>());
+        services.AddScoped(_ => Substitute.For<IOrphanSweepCheckpoint>());
         services.AddScoped(_ => Substitute.For<ICurrentUser>());
         services.AddScoped(_ => Substitute.For<IDateTimeProvider>());
         services.AddScoped(_ => Substitute.For<IIdempotencyStore>());

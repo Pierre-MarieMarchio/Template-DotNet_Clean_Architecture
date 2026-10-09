@@ -21,15 +21,13 @@ namespace AppTemplate.Api.Features.Files.Jobs;
 /// than one.
 /// <para>
 /// Each pass takes a fresh scope, is switched on or off by its own option, and is logged and
-/// retried at the next tick when it fails. No pass takes <see cref="ILeaderLease"/>: exclusivity
-/// between hosts belongs to the operation, and <see cref="ReclaimOrphanedContentUseCase"/> holds
-/// the reasoning.
+/// retried at the next tick when it fails. Each use case takes its own <see cref="ILeaderLease"/>,
+/// so one host at a time runs it whoever calls it; a standby host's pass reports zero.
 /// </para>
 /// <para>
-/// <b>Nothing here narrows what the orphan sweep covers, and nothing may.</b> No prefix, no time
-/// segment, no memory of where the last pass reached — see
-/// <see cref="ReclaimOrphanedContentUseCase"/> for the ordering that makes an unbounded sweep safe
-/// and <c>FileWorkerOptions</c> for why no option offered from here may bound it.
+/// <b>Nothing here narrows what the orphan sweep covers.</b> No prefix and no time segment: the
+/// sweep walks the whole namespace from its own checkpoint — see
+/// <see cref="ReclaimOrphanedContentUseCase"/>.
 /// </para>
 /// </summary>
 internal sealed class FileBackgroundService(

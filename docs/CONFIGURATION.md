@@ -101,9 +101,9 @@ counting and logging as disabled on every tick.
 HTTP and leave it `true` on exactly one designated instance. That keeps the file passes — which walk
 the object store — from being multiplied by the number of replicas, without a queue or a global
 scheduler. The protections underneath stay in place and are not a substitute for that choice: the
-reminder pass takes the leader lease inside its use case, the other passes are idempotent, and a
-rolling deployment, a manual `MaintenanceController` call or a mistaken double-enable can overlap
-without corrupting anything. They can still repeat work, and the lease is not a fencing token, so
+reminder pass and the three file passes take the leader lease inside their use cases, the other
+passes are idempotent, and a rolling deployment, a manual `MaintenanceController` call or a mistaken
+double-enable can overlap without corrupting anything. They can still repeat work, and the lease is not a fencing token, so
 reminder delivery remains at-least-once. **`/health/ready` reports HTTP readiness** — the database
 checks and the shutdown state — and says nothing about whether the jobs run: watch the designated
 instance's job heartbeats (the `iterations` counters under [`OpenTelemetry`](#opentelemetry)) for that.
@@ -381,7 +381,7 @@ The Files feature's two sweeps and its inspection pass. Bound by `AddBackgroundJ
 |---|---|---|---|
 | `PurgeAbandonedRegistrationsInterval` | TimeSpan | `01:00:00` | |
 | `PurgeAbandonedRegistrationsEnabled` | bool | `true` | Retires `Pending` rows whose upload never happened. |
-| `ReclaimOrphanedContentInterval` | TimeSpan | `12:00:00` | Each pass walks the store; that is why it is hours, not minutes. |
+| `ReclaimOrphanedContentInterval` | TimeSpan | `12:00:00` | Each pass walks up to 250,000 keys from where the last one stopped; that is why it is hours, not minutes. |
 | `ReclaimOrphanedContentEnabled` | bool | `true` | **Do not leave this off.** |
 | `InspectDepositedFilesInterval` | TimeSpan | `00:01:00` | Range 10 s–1 h. This is a **user-visible latency**: a file is not readable until this runs. |
 | `InspectDepositedFilesEnabled` | bool | `true` | **Off stops the feature**, it does not degrade it: no upload ever becomes readable. |
@@ -392,11 +392,19 @@ re-derives "an object no row references is garbage". Turn it off and storage gro
 nothing to say so. The deletion domain event reclaims promptly as a fast path, and — per this
 repository's standing rule — nothing depends on it having run.
 
-No pass takes the leader lease. Each is idempotent, and the reclamation's safety comes from
-listing the store *before* reading the live keys rather than from being alone. With the jobs enabled
-on two instances the reclamation does pay for a second full walk each cycle, which is why
-[`BackgroundJobs:Enabled`](#backgroundjobs) is set to `false` on all but one instance; the day that
-stops being worth doing, the lease belongs in the use case, not in the loop.
+Each pass runs under the leader lease (`apptemplate.files.inspect-deposited`,
+`apptemplate.files.purge-abandoned`, `apptemplate.files.reclaim-orphans`), so a second instance's
+pass logs that it stood by and reports zero. What each pass guarantees on retry:
+
+- **Inspection** commits each file on its own. A file that gets no verdict is deferred — one minute,
+  doubled per attempt, at most one hour — and queues behind the files that have waited longer, so
+  every deposited file is offered again at most an hour after its last attempt and none holds the
+  queue. An outage never releases or refuses a file.
+- **The abandonment purge** is idempotent: a failed pass leaves rows the next pass selects again.
+- **Reclamation** walks the keys in order from a checkpoint saved after each page and reset once the
+  end is reached: every object present when a walk starts is visited within
+  ⌈objects / 250,000⌉ + 1 passes, across restarts. With the `FileSystem` store it also deletes
+  temporary files a crashed write left behind, once older than a day.
 
 ### `Files`
 

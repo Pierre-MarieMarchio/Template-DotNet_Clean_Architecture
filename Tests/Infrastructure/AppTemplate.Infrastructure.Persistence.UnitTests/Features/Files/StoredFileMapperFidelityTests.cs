@@ -83,6 +83,8 @@ public sealed class StoredFileMapperFidelityTests
         properties.ShouldContain(nameof(StoredFile.State));
         properties.ShouldContain(nameof(StoredFile.RegisteredAt));
         properties.ShouldContain(nameof(StoredFile.AvailableAt));
+        properties.ShouldContain(nameof(StoredFile.InspectionAttempts));
+        properties.ShouldContain(nameof(StoredFile.NextInspectionAt));
         properties.ShouldContain(nameof(StoredFile.Version));
         properties.ShouldContain(nameof(StoredFile.CreatedAt));
         properties.ShouldContain(nameof(StoredFile.CreatedBy));

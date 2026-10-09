@@ -25,6 +25,7 @@ internal static class AStoredFileAggregate
 
     internal static readonly DateTimeOffset RegisteredAt = new(2026, 6, 1, 9, 0, 0, TimeSpan.Zero);
     internal static readonly DateTimeOffset AvailableAt = new(2026, 6, 1, 9, 4, 30, TimeSpan.Zero);
+    internal static readonly DateTimeOffset NextInspectionAt = new(2026, 6, 1, 9, 2, 0, TimeSpan.Zero);
     internal static readonly DateTimeOffset CreatedAt = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
     internal static readonly DateTimeOffset LastModifiedAt = new(2026, 3, 5, 8, 9, 10, TimeSpan.Zero);
 
@@ -45,6 +46,9 @@ internal static class AStoredFileAggregate
 
     /// <summary>Non-zero, so a mapper that dropped the concurrency token is visible.</summary>
     internal const uint Version = 987_654u;
+
+    /// <summary>Inspections deferred before the verdict; non-zero, like every value here.</summary>
+    internal const int InspectionAttempts = 3;
 
     /// <summary>Not <see cref="StoredFileState.Pending"/>, the enum's default member.</summary>
     internal const StoredFileState State = StoredFileState.Available;
@@ -67,6 +71,8 @@ internal static class AStoredFileAggregate
             State = State,
             RegisteredAt = RegisteredAt,
             AvailableAt = AvailableAt,
+            InspectionAttempts = InspectionAttempts,
+            NextInspectionAt = NextInspectionAt,
             Tags = ["invoice", "2026"],
         });
 
@@ -104,6 +110,8 @@ internal static class AStoredFileAggregate
             State = OtherState,
             RegisteredAt = OtherRegisteredAt,
             AvailableAt = OtherAvailableAt,
+            InspectionAttempts = OtherInspectionAttempts,
+            NextInspectionAt = OtherNextInspectionAt,
             Tags = ["receipt"],
         });
 
@@ -140,4 +148,8 @@ internal static class AStoredFileAggregate
     internal const StoredFileState OtherState = StoredFileState.Pending;
 
     internal static DateTimeOffset? OtherAvailableAt => null;
+
+    internal const int OtherInspectionAttempts = 1;
+
+    internal static readonly DateTimeOffset OtherNextInspectionAt = new(2025, 7, 8, 9, 11, 11, TimeSpan.Zero);
 }

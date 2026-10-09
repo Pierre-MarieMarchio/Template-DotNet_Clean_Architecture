@@ -461,6 +461,19 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 - **Confirming two-factor enrollment again on an armed account is refused.** It used to replace the
   recovery codes and then write the switch-on again; a refused write left codes nobody had been
   shown. `POST /auth/two-factor/confirm` now answers 409 `auth.twoFactor.alreadyEnabled`.
+- **No file can hold the front of the inspection queue, and the orphan sweep reaches the whole
+  store.** The inspection pass took the 20 oldest deposited files every time, so 20 files that got no
+  verdict (bytes missing, store or scanner unreachable for them) stopped every later upload from
+  becoming readable; a file with no verdict is now deferred — one minute, doubled per attempt, at
+  most one hour — and queues behind those that have waited longer, and each file is committed on
+  its own. The orphan sweep restarted at the first key every pass, so beyond 250,000 objects the
+  tail was never visited; it now resumes from a checkpoint saved after each page
+  (`files.ContentSweepCheckpoints`) and restarts from the beginning once it reaches the end. The
+  `FileSystem` store's temporary files left by a crashed write are deleted once older than a day.
+  The three Files passes run under `ILeaderLease`, one host at a time. `StoredFiles` gains
+  `InspectionAttempts` and `NextInspectionAt`; `AddInMemoryOrphanSweepCheckpoint` substitutes an
+  in-process checkpoint for a host without PostgreSQL.
+
 - **A strict file quota holds under concurrent registrations.** `POST /api/v1/files` read the
   owner's usage and then inserted the row with no lock, so parallel registrations of one owner in
   one category could all pass the check and exceed the quota. In a category whose

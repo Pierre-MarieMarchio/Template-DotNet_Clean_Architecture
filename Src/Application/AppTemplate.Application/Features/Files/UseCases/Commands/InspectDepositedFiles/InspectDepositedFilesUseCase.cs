@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Policies;
@@ -16,12 +17,15 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.InspectDeposi
 /// them: the head decides what the file is, the scanner whether it carries malware, and
 /// <see cref="StoredFileContentPolicy"/> what that means. The file's category says whether its
 /// content is scanned and whether its head must match its declared type; a category no longer
-/// configured gets both.
+/// configured gets both. Runs from a background job and must not read <see cref="ICurrentUser"/>.
 /// <para>
-/// A periodic pass rather than a step of confirmation, because reading a whole file does not belong
-/// inside an HTTP request. It re-derives its work from the rows, so a pass that never ran leaves
-/// files waiting and a pass that ran twice finds nothing the second time. It runs from a background
-/// job and must not read <see cref="ICurrentUser"/>.
+/// <b>Retry guarantee.</b> One host at a time, under the <c>apptemplate.files.inspect-deposited</c>
+/// lease. Each file is committed on its own. A file that gets no verdict (bytes missing, store or
+/// scanner unreachable) is deferred — one minute, doubled per attempt, capped at one hour — and goes
+/// behind the files that have waited longer, so every deposited file is offered again at most an
+/// hour after its last attempt and none can hold the front of the queue. An outage never releases or
+/// refuses a file. A concurrency conflict ends the pass: the files committed before it keep their
+/// verdicts, and the next pass reads the rest afresh.
 /// </para>
 /// </summary>
 public sealed class InspectDepositedFilesUseCase(
@@ -30,46 +34,102 @@ public sealed class InspectDepositedFilesUseCase(
     IFileContentScanner scanner,
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider,
+    ILeaderLease lease,
     IOptions<FilesOptions> options,
     ILogger<InspectDepositedFilesUseCase> logger) : IInspectDepositedFilesUseCase
 {
+    /// <summary>Files per pass. Small, because each one is read end to end.</summary>
+    internal const int BatchSize = 20;
+
     /// <summary>
-    /// Files per pass. Small, because each one is read end to end.
+    /// The lock key is derived from this name, so it is a contract across releases: renaming it lets
+    /// two releases of a rolling deploy both run the pass.
     /// </summary>
-    private const int _batchSize = 20;
+    private const string _leaseName = "apptemplate.files.inspect-deposited";
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        var candidates = await repository.GetDepositedAsync(_batchSize, cancellationToken);
+        int decided = 0;
 
-        var now = dateTimeProvider.UtcNow;
+        bool ranHere = await lease.TryRunExclusivelyAsync(
+            _leaseName,
+            async leaseToken => decided = await InspectBatchAsync(leaseToken),
+            cancellationToken);
+
+        if (!ranHere && logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Inspection pass skipped: another host holds the '{LeaseName}' lease.",
+                _leaseName);
+        }
+
+        return decided;
+    }
+
+    private async Task<int> InspectBatchAsync(CancellationToken cancellationToken)
+    {
+        var candidates = await repository.GetDepositedAsync(
+            dateTimeProvider.UtcNow,
+            BatchSize,
+            cancellationToken);
+
         int decided = 0;
         int deferred = 0;
 
         foreach (var storedFile in candidates)
         {
             (var verdict, var scan) = await InspectAsync(storedFile, cancellationToken);
+            var now = dateTimeProvider.UtcNow;
+
+            if (verdict == ContentDecision.Retry)
+            {
+                storedFile.DeferInspection(now);
+            }
+            else
+            {
+                Apply(verdict, storedFile, scan, now);
+            }
+
+            if (!await TryCommitAsync(storedFile, cancellationToken))
+            {
+                break;
+            }
 
             if (verdict == ContentDecision.Retry)
             {
                 deferred++;
-                continue;
             }
-
-            Apply(verdict, storedFile, scan, now);
-            decided++;
-        }
-
-        if (decided > 0)
-        {
-            // One commit for the batch: each transition is independent, so a failure loses a pass's
-            // decisions and the next pass reaches the same verdicts.
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            else
+            {
+                decided++;
+            }
         }
 
         ReportDeferrals(deferred);
 
         return decided;
+    }
+
+    /// <returns><c>false</c> when somebody else changed the file first; the failed write stays staged
+    /// in this scope, so the pass has to stop.</returns>
+    private async Task<bool> TryCommitAsync(StoredFile storedFile, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return true;
+        }
+        catch (ConcurrencyConflictException exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Stored file {StoredFileId} was changed by somebody else while it was being inspected; " +
+                "this pass ends here and the next one reads it afresh.",
+                storedFile.Id);
+
+            return false;
+        }
     }
 
     /// <summary>
@@ -94,7 +154,7 @@ public sealed class InspectDepositedFilesUseCase(
             {
                 logger.LogWarning(
                     "Nothing is stored under '{ObjectKey}', although a file's deposit was confirmed " +
-                    "against it. It stays unavailable; the next pass will try again.",
+                    "against it. It stays unavailable and is deferred.",
                     objectKey);
 
                 return (ContentDecision.Retry, FileScanOutcome.Unavailable);
@@ -126,8 +186,7 @@ public sealed class InspectDepositedFilesUseCase(
         {
             logger.LogWarning(
                 exception,
-                "The content under '{ObjectKey}' could not be read for inspection; the next pass " +
-                "will try again.",
+                "The content under '{ObjectKey}' could not be read for inspection; it is deferred.",
                 objectKey);
 
             return (ContentDecision.Retry, FileScanOutcome.Unavailable);
@@ -165,8 +224,8 @@ public sealed class InspectDepositedFilesUseCase(
         if (deferred > 0)
         {
             logger.LogWarning(
-                "{Deferred} deposited files could not be inspected and stay unavailable until they " +
-                "can be; the next pass will try again.",
+                "{Deferred} deposited files could not be inspected; each stays unavailable and is " +
+                "offered again after its backoff.",
                 deferred);
         }
     }

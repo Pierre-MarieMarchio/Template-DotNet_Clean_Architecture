@@ -631,7 +631,9 @@ distributed transaction and no tombstone: `DELETE` removes the row, and
 `ReclaimOrphanedContentUseCase` deletes every object no row references. That shape —
 an effect that re-derives its own precondition — is what lets this template keep
 refusing an outbox, and any feature with a second store owes the same shape. The
-deletion event is a fast path on top of it, never the guarantee.
+deletion event is a fast path on top of it, never the guarantee. A sweep must also reach
+everything: the orphan sweep resumes from a checkpoint rather than restarting at the
+first key, and inspection defers a file it cannot decide on behind the others.
 
 **Anything the second store holds is untrusted until something has looked at it.**
 `InspectDepositedFilesUseCase` checks the declared media type against the bytes and
@@ -742,7 +744,7 @@ logs, its own span and counter names, its own DI scope per iteration, and its ow
 behaviour when its enabled flag is off — a disabled pass is logged and counted, because a
 silent one is indistinguishable from a dead loop. Exclusivity between two processes is not
 the loop's business: the operations that must not run twice at once take `ILeaderLease`
-inside the use case, and `ReclaimOrphanedContentUseCase` carries the reasoning.
+inside the use case, as `FireDueRemindersUseCase` and the three Files passes do.
 
 ## 5. Tests
 

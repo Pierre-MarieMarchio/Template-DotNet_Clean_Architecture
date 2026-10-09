@@ -450,6 +450,89 @@ public sealed class StoredFileTests
 
     #endregion
 
+    #region Deferring an inspection
+
+    [Fact]
+    public void DeferInspection_CountsTheAttemptAndWaitsBeforeTheNext()
+    {
+        var file = ADepositedFile();
+
+        file.DeferInspection(_now);
+
+        file.InspectionAttempts.ShouldBe(1);
+        file.NextInspectionAt.ShouldBe(_now + TimeSpan.FromMinutes(1));
+        file.State.ShouldBe(StoredFileState.Deposited);
+        file.DomainEvents.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void DeferInspection_LengthensTheWaitWithEachAttempt()
+    {
+        var file = ADepositedFile();
+
+        file.DeferInspection(_now);
+        file.DeferInspection(_now.AddMinutes(1));
+
+        file.InspectionAttempts.ShouldBe(2);
+        file.NextInspectionAt.ShouldBe(_now.AddMinutes(1) + TimeSpan.FromMinutes(2));
+    }
+
+    /// <summary>However many attempts reach no verdict, the file is never refused for it.</summary>
+    [Fact]
+    public void DeferInspection_NeverQuarantines()
+    {
+        var file = ADepositedFile();
+
+        for (int attempt = 0; attempt < 100; attempt++)
+        {
+            file.DeferInspection(_now.AddHours(attempt));
+        }
+
+        file.State.ShouldBe(StoredFileState.Deposited);
+        file.NextInspectionAt.ShouldBe(_now.AddHours(99) + TimeSpan.FromHours(1));
+    }
+
+    [Theory]
+    [InlineData(StoredFileState.Pending)]
+    [InlineData(StoredFileState.Available)]
+    [InlineData(StoredFileState.Quarantined)]
+    public void DeferInspection_Rejects_AFileThatIsNotDeposited(StoredFileState state)
+    {
+        var file = FileIn(state);
+
+        Should.Throw<DomainException>(() => file.DeferInspection(_now));
+    }
+
+    /// <summary>A minute, doubling, and an hour at the most, without overflowing far beyond it.</summary>
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 2)]
+    [InlineData(3, 4)]
+    [InlineData(6, 32)]
+    [InlineData(7, 60)]
+    [InlineData(8, 60)]
+    [InlineData(1_000_000, 60)]
+    public void InspectionRetryDelayAfter_DoublesFromAMinuteUpToAnHour(int attempts, int expectedMinutes) =>
+        StoredFile.InspectionRetryDelayAfter(attempts).ShouldBe(TimeSpan.FromMinutes(expectedMinutes));
+
+    [Fact]
+    public void InspectionRetryDelayAfter_Rejects_NoAttemptAtAll() =>
+        Should.Throw<ArgumentOutOfRangeException>(() => StoredFile.InspectionRetryDelayAfter(0));
+
+    [Fact]
+    public void AVerdictAfterDeferrals_KeepsTheirRecord()
+    {
+        var file = ADepositedFile();
+        file.DeferInspection(_now);
+
+        file.MakeAvailable(_now.AddMinutes(2));
+
+        file.InspectionAttempts.ShouldBe(1);
+        file.NextInspectionAt.ShouldBe(_now.AddMinutes(1));
+    }
+
+    #endregion
+
     #region Deleting
 
     /// <summary>

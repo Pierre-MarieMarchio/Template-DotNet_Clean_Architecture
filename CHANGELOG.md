@@ -76,14 +76,18 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `Tools/sonar-scanner.Dockerfile` supplies the JRE the scanner needs, so the prerequisites are
   still the SDK and Docker.
 
-- **A feature scaffolder: `dotnet run Tools/Tasks.cs new-feature Widgets Widget`.**
-  Twenty-six files across the four layers — folders, namespaces, base types and the members each
-  layer's conventions require — and no business logic invented. The product prefix is read off the
-  tree rather than assumed, so it works in a project generated under its own name, which is the only
-  place it matters. **It creates files and edits none:** a vertical composes only once its
-  registrations are written by hand, and that is deliberate everywhere else here, so the five edits
-  and the closed lists are printed instead. Its `--self-test` runs with the other hygiene gates, so
-  the templates cannot drift from the shapes the architecture rules check.
+- **A feature generator with four choices: `dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared`.**
+  `--access owner|shared` is required; `--operations` (default all five), `--model record|aggregate`
+  (default `record`) and `--concurrency none|etag` (default `none`, last-write-wins) are the rest. The
+  `record` model writes the shape of `Notes` — a service over a store and a queries port — and
+  `aggregate` the shape of `TodoLists` — an aggregate, a repository port, one use case per operation,
+  a record, a mapper and a tracker. An operation left out produces no file, method, route or
+  registration. Combinations that would not hold together, such as `create` without `get` or an
+  aggregate without `etag`, are refused before anything is written. The product prefix is read off the
+  tree, so it works in a project generated under its own name. **It creates files and edits none:**
+  the registrations, the context edits and the migration step are printed. A manifest of the options
+  and a hash of each created file is written to `.feature-manifest/`, for a later removal command. Its
+  `--self-test` runs the real command against throwaway trees with the other hygiene gates.
 - **An aggregate no longer declares its own audit and version stamps.**
   `AuditableAggregateRoot<TId>` in `AppTemplate.Domain.Core` holds the five properties and the two
   explicitly implemented interfaces that were byte-identical in all three aggregates, so a new

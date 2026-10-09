@@ -75,11 +75,17 @@ with its named interface → controller → tests → migration.
 step and names the architecture rule that reads each one.
 
 ```bash
-dotnet run Tools/Tasks.cs new-feature Widgets Widget   # the folder is plural, the type is singular
+# the folder is plural, the type is singular, and --access has no default
+dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
+dotnet run Tools/Tasks.cs new-feature Notes Note --access owner --concurrency etag
 ```
 
-The scaffolder writes the shape so the document can be about the thinking. Two things it cannot do
-for you: **every step is enforced by a test rather than by the compiler**, so run
+The generator writes the shape so the document can be about the thinking, and its four choices are
+the whole of its surface: `--access owner|shared` (required), `--operations` (default all five),
+`--model record|aggregate` (default `record`) and `--concurrency none|etag` (default `none`, which is
+last-write-wins). An optionless command is not `Notes`; the second line above is.
+[`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md#the-generator) says what each choice writes and
+which combinations are refused. Two things it cannot do for you: **every step is enforced by a test rather than by the compiler**, so run
 `dotnet test Tests/Architecture` before pushing; and **registration is opt-in per feature**, so a
 feature nobody composes is registered nowhere and a domain-event consumer bound by nobody compiles
 and never runs.
@@ -91,7 +97,8 @@ comparison for one of those — a flat aggregate with no child entities, so what
 Choose the shape before the files: **does the feature have rules that protect a state?** If it
 does not, it has no aggregate — `Notes` is a service over a store, and
 [`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md#choose-the-shape-first) says how to build it and
-how to move to the rich shape once a rule appears. The scaffolder writes the rich shape only.
+how to move to the rich shape once a rule appears. The generator writes either: `--model record` is
+the one without an aggregate and `--model aggregate` the one with.
 
 ## Documentation is part of the change
 

@@ -307,8 +307,8 @@ What the simple shape keeps is everything that is not the aggregate:
 - **The modular rule is unchanged.** `Notes` reaches no other feature and none reaches it.
 
 `FeatureIsolationTests.AFeatureWithoutADomainFolder_IsAServiceOverAStore` is where the shape is
-held: a feature may omit its domain folder only while it is a service over a store port, with no use
-cases. A feature that grows a rule moves to the rich shape and the exemption stops applying to it.
+held: a feature may omit its domain folder only while it is a service over its storage ports (a store
+to write, queries to read), with no use cases. A feature that grows a rule moves to the rich shape and the exemption stops applying to it.
 
 ## Ports are named for business intent, not for technology
 

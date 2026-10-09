@@ -22,8 +22,14 @@ public interface IReminderRepository
     Task<IReadOnlyList<Reminder>> GetForTodoItemAsync(Guid todoItemId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Reminders that are due and not yet retired, oldest first, capped at
-    /// <paramref name="batchSize"/> so one pass cannot load an unbounded backlog into memory.
+    /// Reminders that are due, not yet retired and not waiting out a failed attempt, in the order
+    /// they became eligible — <c>DueAt</c>, or <c>NextAttemptAt</c> for one that has failed — capped
+    /// at <paramref name="batchSize"/> so one pass cannot load an unbounded backlog into memory.
+    /// <para>
+    /// The order is what keeps a reminder that always fails from holding the front of the batch: a
+    /// failure moves it behind everything that has been waiting since before its retry time, so it
+    /// cannot keep later reminders out.
+    /// </para>
     /// <para>
     /// Claiming is the caller's job: this only says what is eligible. Two hosts running this at the
     /// same instant will see the same rows, and it is <c>Reminder.TryClaim</c> plus the store's

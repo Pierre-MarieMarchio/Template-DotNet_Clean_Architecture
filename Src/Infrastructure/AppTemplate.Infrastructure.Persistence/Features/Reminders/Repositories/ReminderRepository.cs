@@ -55,8 +55,12 @@ internal sealed class ReminderRepository(
         CancellationToken cancellationToken)
     {
         var records = await context.Reminders
-            .Where(reminder => reminder.State == ReminderState.Pending && reminder.DueAt <= asOf)
-            .OrderBy(reminder => reminder.DueAt)
+            .Where(reminder => reminder.State == ReminderState.Pending
+                && reminder.DueAt <= asOf
+                && (reminder.NextAttemptAt == null || reminder.NextAttemptAt <= asOf))
+            // By when each became eligible, so a reminder that failed queues behind those that have
+            // waited longer instead of holding the front of every batch.
+            .OrderBy(reminder => reminder.NextAttemptAt ?? reminder.DueAt)
             .Take(batchSize)
             .ToListAsync(cancellationToken);
 

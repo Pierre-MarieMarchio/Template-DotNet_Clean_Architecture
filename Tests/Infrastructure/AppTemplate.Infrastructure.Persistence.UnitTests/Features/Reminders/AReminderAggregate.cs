@@ -28,8 +28,12 @@ internal static class AReminderAggregate
     internal static readonly DateTimeOffset DueAt = new(2026, 6, 1, 9, 0, 0, TimeSpan.Zero);
     internal static readonly DateTimeOffset ClaimedAt = new(2026, 6, 1, 8, 55, 0, TimeSpan.Zero);
     internal static readonly DateTimeOffset NotifiedAt = new(2026, 6, 1, 9, 0, 5, TimeSpan.Zero);
+    internal static readonly DateTimeOffset NextAttemptAt = new(2026, 6, 1, 9, 2, 0, TimeSpan.Zero);
     internal static readonly DateTimeOffset CreatedAt = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
     internal static readonly DateTimeOffset LastModifiedAt = new(2026, 3, 5, 8, 9, 10, TimeSpan.Zero);
+
+    /// <summary>Non-zero, so a mapper that dropped the retry count is visible.</summary>
+    internal const int FailedAttempts = 3;
 
     /// <summary>Non-zero, so a mapper that dropped the concurrency token is visible.</summary>
     internal const uint Version = 987_654u;
@@ -52,6 +56,8 @@ internal static class AReminderAggregate
             State = State,
             ClaimedAt = ClaimedAt,
             NotifiedAt = NotifiedAt,
+            FailedAttempts = FailedAttempts,
+            NextAttemptAt = NextAttemptAt,
         });
 
         ((IVersioned)aggregate).SetVersion(Version);
@@ -79,6 +85,8 @@ internal static class AReminderAggregate
             State = OtherState,
             ClaimedAt = OtherClaimedAt,
             NotifiedAt = OtherNotifiedAt,
+            FailedAttempts = OtherFailedAttempts,
+            NextAttemptAt = OtherNextAttemptAt,
         });
 
         ((IVersioned)aggregate).SetVersion(OtherVersion);
@@ -106,6 +114,10 @@ internal static class AReminderAggregate
     // instants to that state — only a fired reminder carries a notification instant, and a cancelled
     // one carries no claim — so this sample differs from the other by holding neither.
     internal const ReminderState OtherState = ReminderState.Cancelled;
+
+    internal const int OtherFailedAttempts = 5;
+
+    internal static readonly DateTimeOffset OtherNextAttemptAt = new(2025, 7, 8, 10, 11, 12, TimeSpan.Zero);
 
     internal static DateTimeOffset? OtherNotifiedAt => null;
 

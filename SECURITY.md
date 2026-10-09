@@ -371,7 +371,7 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   purges are idempotent deletes over an already-covered range, so a second process wastes a
   connection and nothing more. The reminder loop is where concurrency mattered:
   `FireDueRemindersUseCase` claims a reminder with `Reminder.TryClaim` **in memory**, notifies, and
-  commits the whole batch once at the end, so two replicas ticking in the same second both read
+  commits it, so two replicas ticking in the same second both read
   `ClaimedAt` as null, both took the claim, and both sent the mail; only then did one of them lose
   on `xmin` and roll back. The claim defends against a host that died mid-attempt, which is what it
   was written for, and not against a concurrent pass.

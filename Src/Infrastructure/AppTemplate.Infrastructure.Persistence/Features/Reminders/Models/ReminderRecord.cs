@@ -32,6 +32,10 @@ internal sealed class ReminderRecord : IAuditable
 
     public DateTimeOffset? NotifiedAt { get; set; }
 
+    public int FailedAttempts { get; set; }
+
+    public DateTimeOffset? NextAttemptAt { get; set; }
+
     /// <summary>
     /// PostgreSQL's <c>xmin</c> system column. Never written by this process: the database moves it on
     /// every <c>UPDATE</c>, EF reads it back, and the value goes into the <c>WHERE</c> clause of the

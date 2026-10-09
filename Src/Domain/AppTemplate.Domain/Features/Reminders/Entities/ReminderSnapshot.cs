@@ -6,7 +6,7 @@ namespace AppTemplate.Domain.Features.Reminders.Entities;
 /// <summary>
 /// The stored values <see cref="Reminder.Rehydrate"/> rebuilds a reminder from.
 /// <para>
-/// A parameter object rather than eight parameters, because four of them are a <see cref="Guid"/> or
+/// A parameter object rather than ten parameters, because four of them are a <see cref="Guid"/> or
 /// a <see cref="DateTimeOffset"/> and three of the ids sit next to each other: transposing
 /// <see cref="TodoListId"/> and <see cref="TodoItemId"/> compiles, and produces a reminder attached
 /// to an item that is not the one the row named. Naming every value at the call site is what makes
@@ -43,4 +43,10 @@ public sealed class ReminderSnapshot
 
     /// <summary>When it was notified, or <c>null</c>.</summary>
     public required DateTimeOffset? NotifiedAt { get; init; }
+
+    /// <summary>How many attempts to notify have failed.</summary>
+    public required int FailedAttempts { get; init; }
+
+    /// <summary>The earliest instant the next attempt may be made, or <c>null</c>.</summary>
+    public required DateTimeOffset? NextAttemptAt { get; init; }
 }

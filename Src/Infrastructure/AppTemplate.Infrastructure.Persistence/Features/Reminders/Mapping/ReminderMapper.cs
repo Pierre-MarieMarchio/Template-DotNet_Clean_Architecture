@@ -28,6 +28,8 @@ internal sealed class ReminderMapper : IReminderMapper
             State = record.State,
             ClaimedAt = record.ClaimedAt,
             NotifiedAt = record.NotifiedAt,
+            FailedAttempts = record.FailedAttempts,
+            NextAttemptAt = record.NextAttemptAt,
         });
 
         StoredStamps.ApplyTo(aggregate, record, record.Version, record.Id, "Reminder");
@@ -49,6 +51,8 @@ internal sealed class ReminderMapper : IReminderMapper
             State = aggregate.State,
             ClaimedAt = aggregate.ClaimedAt,
             NotifiedAt = aggregate.NotifiedAt,
+            FailedAttempts = aggregate.FailedAttempts,
+            NextAttemptAt = aggregate.NextAttemptAt,
 
             // Overwritten on insert, where PostgreSQL assigns xmin. Carried so the round trip stays
             // total and the fidelity test can check it.
@@ -75,6 +79,8 @@ internal sealed class ReminderMapper : IReminderMapper
         record.State = aggregate.State;
         record.ClaimedAt = aggregate.ClaimedAt;
         record.NotifiedAt = aggregate.NotifiedAt;
+        record.FailedAttempts = aggregate.FailedAttempts;
+        record.NextAttemptAt = aggregate.NextAttemptAt;
 
         // Version and the audit stamps are not written here: the token is PostgreSQL's, the stamps
         // are the interceptor's, and a second writer for either would eventually disagree.

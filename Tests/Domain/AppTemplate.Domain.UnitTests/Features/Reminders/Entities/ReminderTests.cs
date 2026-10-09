@@ -28,7 +28,9 @@ public sealed class ReminderTests
         ReminderState state = ReminderState.Pending,
         DateTimeOffset? dueAt = null,
         DateTimeOffset? claimedAt = null,
-        DateTimeOffset? notifiedAt = null) =>
+        DateTimeOffset? notifiedAt = null,
+        int failedAttempts = 0,
+        DateTimeOffset? nextAttemptAt = null) =>
         Reminder.Rehydrate(new ReminderSnapshot
         {
             Id = id ?? Guid.CreateVersion7(),
@@ -39,6 +41,8 @@ public sealed class ReminderTests
             State = state,
             ClaimedAt = claimedAt,
             NotifiedAt = notifiedAt,
+            FailedAttempts = failedAttempts,
+            NextAttemptAt = nextAttemptAt,
         });
 
     #region Scheduling
@@ -139,6 +143,8 @@ public sealed class ReminderTests
                 State = ReminderState.Pending,
                 ClaimedAt = null,
                 NotifiedAt = null,
+                FailedAttempts = 0,
+                NextAttemptAt = null,
             }));
 
     [Fact]
@@ -158,6 +164,8 @@ public sealed class ReminderTests
                 State = ReminderState.Pending,
                 ClaimedAt = null,
                 NotifiedAt = null,
+                FailedAttempts = 0,
+                NextAttemptAt = null,
             }));
 
     [Fact]
@@ -173,6 +181,8 @@ public sealed class ReminderTests
                 State = ReminderState.Pending,
                 ClaimedAt = null,
                 NotifiedAt = null,
+                FailedAttempts = 0,
+                NextAttemptAt = null,
             }));
 
     /// <summary>
@@ -199,6 +209,8 @@ public sealed class ReminderTests
                 State = ReminderState.Pending,
                 ClaimedAt = null,
                 NotifiedAt = null,
+                FailedAttempts = 0,
+                NextAttemptAt = null,
             }));
 
         reminder.DueAt.ShouldBe(overdueBy);
@@ -222,6 +234,8 @@ public sealed class ReminderTests
             State = ReminderState.Pending,
             ClaimedAt = claimedAt,
             NotifiedAt = null,
+            FailedAttempts = 0,
+            NextAttemptAt = null,
         });
 
         reminder.Id.ShouldBe(id);
@@ -499,6 +513,94 @@ public sealed class ReminderTests
 
     #endregion
 
+    #region Failed attempts
+
+    [Fact]
+    public void RecordFailure_CountsTheAttemptAndWaitsBeforeTheNext()
+    {
+        var reminder = ARehydratedReminder();
+
+        reminder.RecordFailure(_now);
+
+        reminder.FailedAttempts.ShouldBe(1);
+        reminder.NextAttemptAt.ShouldBe(_now + TimeSpan.FromMinutes(1));
+        reminder.State.ShouldBe(ReminderState.Pending);
+    }
+
+    [Fact]
+    public void RecordFailure_LengthensTheWaitWithEachFailure()
+    {
+        var reminder = ARehydratedReminder();
+
+        reminder.RecordFailure(_now);
+        reminder.RecordFailure(_now.AddMinutes(1));
+
+        reminder.FailedAttempts.ShouldBe(2);
+        reminder.NextAttemptAt.ShouldBe(_now.AddMinutes(1) + TimeSpan.FromMinutes(2));
+    }
+
+    /// <summary>
+    /// A minute, doubling, and an hour at the most: the seventh failure is the first whose doubled
+    /// wait would pass the ceiling, and a failure count far beyond it must not overflow.
+    /// </summary>
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 2)]
+    [InlineData(3, 4)]
+    [InlineData(6, 32)]
+    [InlineData(7, 60)]
+    [InlineData(8, 60)]
+    [InlineData(1_000_000, 60)]
+    public void RetryDelayAfter_DoublesFromAMinuteUpToAnHour(int failedAttempts, int expectedMinutes) =>
+        Reminder.RetryDelayAfter(failedAttempts).ShouldBe(TimeSpan.FromMinutes(expectedMinutes));
+
+    [Fact]
+    public void RetryDelayAfter_Rejects_NoFailureAtAll() =>
+        Should.Throw<ArgumentOutOfRangeException>(() => Reminder.RetryDelayAfter(0));
+
+    [Theory]
+    [InlineData(ReminderState.Fired)]
+    [InlineData(ReminderState.Cancelled)]
+    public void RecordFailure_Rejects_AReminderThatIsNoLongerPending(ReminderState state)
+    {
+        var reminder = ARehydratedReminder(
+            state: state,
+            notifiedAt: state == ReminderState.Fired ? _now.AddMinutes(-1) : null,
+            claimedAt: state == ReminderState.Fired ? _now.AddMinutes(-2) : null);
+
+        Should.Throw<DomainException>(() => reminder.RecordFailure(_now));
+    }
+
+    [Fact]
+    public void Reschedule_ForgetsThePreviousFailures()
+    {
+        var reminder = ARehydratedReminder(failedAttempts: 4, nextAttemptAt: _now.AddMinutes(8));
+
+        reminder.Reschedule(_now.AddDays(1), _now);
+
+        reminder.FailedAttempts.ShouldBe(0);
+        reminder.NextAttemptAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Rehydrate_Rejects_ANegativeFailureCount() =>
+        Should.Throw<DomainException>(() => ARehydratedReminder(failedAttempts: -1));
+
+    [Fact]
+    public void Rehydrate_Rejects_ARetryTimeForAReminderThatNeverFailed() =>
+        Should.Throw<DomainException>(() => ARehydratedReminder(failedAttempts: 0, nextAttemptAt: _now));
+
+    [Fact]
+    public void Rehydrate_Restores_TheRetryState()
+    {
+        var reminder = ARehydratedReminder(failedAttempts: 3, nextAttemptAt: _now.AddMinutes(4));
+
+        reminder.FailedAttempts.ShouldBe(3);
+        reminder.NextAttemptAt.ShouldBe(_now.AddMinutes(4));
+    }
+
+    #endregion
+
     #region Releasing a claim
 
     /// <summary>
@@ -563,6 +665,8 @@ public sealed class ReminderTests
                 State = ReminderState.Cancelled,
                 ClaimedAt = _now.AddMinutes(-1),
                 NotifiedAt = null,
+                FailedAttempts = 0,
+                NextAttemptAt = null,
             }));
 
     /// <summary>
@@ -585,6 +689,8 @@ public sealed class ReminderTests
                 State = ReminderState.Fired,
                 ClaimedAt = claimedAt,
                 NotifiedAt = _now.AddMinutes(-1),
+                FailedAttempts = 0,
+                NextAttemptAt = null,
             }));
 
         reminder.ClaimedAt.ShouldBe(claimedAt);
@@ -652,6 +758,8 @@ public sealed class ReminderTests
                 State = ReminderState.Fired,
                 ClaimedAt = _now.AddDays(-1),
                 NotifiedAt = null,
+                FailedAttempts = 0,
+                NextAttemptAt = null,
             }));
 
     [Theory]
@@ -669,6 +777,8 @@ public sealed class ReminderTests
                 State = state,
                 ClaimedAt = null,
                 NotifiedAt = _now.AddDays(-1),
+                FailedAttempts = 0,
+                NextAttemptAt = null,
             }));
 
     #endregion

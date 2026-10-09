@@ -195,8 +195,8 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
     }
 
     /// <summary>
-    /// The gap this repository was asked to close. Arming the second factor revokes every other
-    /// session on the account exactly as disarming it does — see
+    /// The gap this repository was asked to close. Arming the second factor revokes every session on
+    /// the account, the caller's own included, exactly as disarming it does — see
     /// <see cref="DisablingTwoFactor_RestoresAOneStepLogin"/> — so a caller holding nothing but a
     /// stolen access token must not be able to do it on a code it produced itself, without ever
     /// proving the account's password.
@@ -233,5 +233,31 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
         rightPasswordResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await ApiJson.ReadAsync<ConfirmTwoFactorSetupResponse>(rightPasswordResponse, TestToken))
             .RecoveryCodes.ShouldNotBeEmpty();
+    }
+
+    /// <summary>
+    /// Arming the second factor ends the caller's own session too, not only the others: its access
+    /// token dies with the stamp, and the refresh token it holds is revoked with every other one. No
+    /// grant records which session it belongs to, so there is none to spare.
+    /// </summary>
+    [Fact]
+    public async Task ConfirmingTwoFactor_SignsOutTheCallersOwnSessionToo()
+    {
+        var (client, user, session) = await SignInAsync();
+        var setup = await TwoFactorTestSupport.BeginTwoFactorSetupAsync(client, TestToken);
+
+        using var refreshed = await client.PostAsJsonAsync(
+            $"{AuthRoute}/refresh", new RefreshAccessTokenRequest(session.Tokens.RefreshToken), TestToken);
+        refreshed.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var callersTokens = await ApiJson.ReadAsync<TokenResponse>(refreshed, TestToken);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", callersTokens.AccessToken);
+
+        await TwoFactorTestSupport.ConfirmTwoFactorSetupAsync(
+            client, user.Password, AuthenticatorCodes.CurrentCodeFor(setup.SharedKey), TestToken);
+
+        using var afterConfirming = await client.PostAsJsonAsync(
+            $"{AuthRoute}/refresh", new RefreshAccessTokenRequest(callersTokens.RefreshToken), TestToken);
+        afterConfirming.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await ApiJson.ReadProblemAsync(afterConfirming, TestToken)).Code.ShouldBe("auth.refreshToken.invalid");
     }
 }

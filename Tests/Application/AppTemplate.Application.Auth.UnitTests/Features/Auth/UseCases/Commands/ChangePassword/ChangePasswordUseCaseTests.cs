@@ -94,6 +94,21 @@ public sealed class ChangePasswordUseCaseTests
         await _refreshTokens.Received(1).RevokeAllForUserAsync(_callerId, Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// Account-wide, the caller's own session included: nothing in the request names the caller's
+    /// refresh-token family, so the use case has no grant it could spare.
+    /// </summary>
+    [Fact]
+    public async Task ASuccessfulChange_RevokesTheCallersOwnSessionToo()
+    {
+        GivenTheOutcomeIs(PasswordChangeOutcome.Changed);
+
+        await UseCase().ExecuteAsync(ARequest(), TestToken);
+
+        _refreshTokens.ReceivedCalls().Select(call => call.GetMethodInfo().Name)
+            .ShouldBe([nameof(IRefreshTokenGrantsService.RevokeAllForUserAsync)]);
+    }
+
     [Fact]
     public async Task ASuccessfulChange_RecordsTheSecurityStampRotation()
     {

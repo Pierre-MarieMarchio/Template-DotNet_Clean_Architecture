@@ -69,8 +69,8 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
     /// <summary>
     /// The proof this repository asked for before shipping the fix: without it, a caller holding
-    /// nothing but a stolen access token could arm two-factor sign-in — and revoke every other
-    /// session on the account — on a password it never had to prove.
+    /// nothing but a stolen access token could arm two-factor sign-in — and revoke every session on
+    /// the account — on a password it never had to prove.
     /// </summary>
     [Fact]
     public async Task AWrongPassword_ArmsNothingAndRevokesNoRefreshTokenAndRecordsNoEvent()
@@ -172,6 +172,21 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         await _refreshTokens.Received(1).RevokeAllForUserAsync(_callerId, Arg.Any<CancellationToken>());
         _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_callerId));
+    }
+
+    /// <summary>
+    /// Account-wide, the caller's own session included: nothing in the request names the caller's
+    /// refresh-token family, so the use case has no grant it could spare.
+    /// </summary>
+    [Fact]
+    public async Task ARightPasswordAndCode_RevokesTheCallersOwnSessionToo()
+    {
+        GivenTheOutcomeIs(TwoFactorConfirmationOutcome.Confirmed(["a code"]));
+
+        await UseCase().ExecuteAsync(ARequest(), TestToken);
+
+        _refreshTokens.ReceivedCalls().Select(call => call.GetMethodInfo().Name)
+            .ShouldBe([nameof(IRefreshTokenGrantsService.RevokeAllForUserAsync)]);
     }
 
     private static ConfirmTwoFactorSetupCommand ARequest() => new("correct horse battery", "123456");

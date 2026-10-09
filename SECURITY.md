@@ -69,7 +69,8 @@ against your production system.
   Enabling or disabling the second factor rotates the security stamp and revokes every refresh token
   for the account, exactly like a password change — **and requires the current password on both
   sides of that symmetry**: arming the second factor is a security-posture change that costs every
-  other session exactly as disarming it does, so a stolen access token alone can do neither.
+  session, the caller's own included, exactly as disarming it does, so a stolen access token alone
+  can do neither.
 - **An administrative escape hatch for a second factor nobody can prove possession of any more**: an
   account that has lost the authenticator app *and* its recovery codes cannot complete `/login` at
   all, and had no recourse short of deleting the account outright. An administrator can strip that

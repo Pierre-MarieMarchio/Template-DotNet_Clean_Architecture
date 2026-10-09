@@ -198,7 +198,6 @@ public sealed class ReminderTrackerTests
     private static Reminder AFiredReminder()
     {
         var reminder = AScheduledReminder();
-        reminder.TryClaim(_firedAt, TimeSpan.FromMinutes(1));
         reminder.MarkNotified(_firedAt);
 
         return reminder;

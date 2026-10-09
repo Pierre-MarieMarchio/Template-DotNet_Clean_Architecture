@@ -54,14 +54,13 @@ internal static class AReminder
 
     /// <summary>
     /// Rehydrated directly in whatever state is asked for, the way a store would load it —
-    /// <see cref="Reminder.Schedule"/> cannot produce a reminder that is already due, already
-    /// claimed, or already fired, since scheduling refuses a due date in the past.
+    /// <see cref="Reminder.Schedule"/> cannot produce a reminder that is already due or already
+    /// fired, since scheduling refuses a due date in the past.
     /// </summary>
     internal static Reminder Rehydrated(
         UserId ownerId,
         DateTimeOffset dueAt,
         ReminderState state = ReminderState.Pending,
-        DateTimeOffset? claimedAt = null,
         DateTimeOffset? notifiedAt = null,
         int failedAttempts = 0,
         DateTimeOffset? nextAttemptAt = null,
@@ -76,7 +75,6 @@ internal static class AReminder
             TodoItemId = todoItemId ?? Guid.CreateVersion7(),
             DueAt = dueAt,
             State = state,
-            ClaimedAt = claimedAt,
             NotifiedAt = notifiedAt,
             FailedAttempts = failedAttempts,
             NextAttemptAt = nextAttemptAt,

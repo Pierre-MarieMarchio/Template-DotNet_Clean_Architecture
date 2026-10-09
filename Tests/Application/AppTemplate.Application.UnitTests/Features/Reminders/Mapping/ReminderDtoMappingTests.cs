@@ -24,7 +24,6 @@ public sealed class ReminderDtoMappingTests
         dto.TodoItemId.ShouldBe(reminder.TodoItemId);
         dto.DueAt.ShouldBe(reminder.DueAt);
         dto.State.ShouldBe(ReminderState.Pending);
-        dto.ClaimedAt.ShouldBeNull();
         dto.NotifiedAt.ShouldBeNull();
     }
 

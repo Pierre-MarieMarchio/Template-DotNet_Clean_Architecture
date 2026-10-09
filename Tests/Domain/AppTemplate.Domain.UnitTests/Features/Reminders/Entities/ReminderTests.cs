@@ -21,13 +21,12 @@ public sealed class ReminderTests
     /// <summary>
     /// Builds a reminder through the load path rather than <see cref="Reminder.Schedule"/>, which is
     /// the only way to put a reminder in a state <c>Schedule</c> could never produce itself — overdue,
-    /// pre-claimed, or already retired.
+    /// or already retired.
     /// </summary>
     private static Reminder ARehydratedReminder(
         Guid? id = null,
         ReminderState state = ReminderState.Pending,
         DateTimeOffset? dueAt = null,
-        DateTimeOffset? claimedAt = null,
         DateTimeOffset? notifiedAt = null,
         int failedAttempts = 0,
         DateTimeOffset? nextAttemptAt = null) =>
@@ -39,7 +38,6 @@ public sealed class ReminderTests
             TodoItemId = _todoItemId,
             DueAt = dueAt ?? _now.AddDays(-1),
             State = state,
-            ClaimedAt = claimedAt,
             NotifiedAt = notifiedAt,
             FailedAttempts = failedAttempts,
             NextAttemptAt = nextAttemptAt,
@@ -113,7 +111,6 @@ public sealed class ReminderTests
         reminder.TodoItemId.ShouldBe(_todoItemId);
         reminder.DueAt.ShouldBe(dueAt);
         reminder.State.ShouldBe(ReminderState.Pending);
-        reminder.ClaimedAt.ShouldBeNull();
         reminder.NotifiedAt.ShouldBeNull();
     }
 
@@ -141,7 +138,6 @@ public sealed class ReminderTests
                 TodoItemId = _todoItemId,
                 DueAt = default,
                 State = ReminderState.Pending,
-                ClaimedAt = null,
                 NotifiedAt = null,
                 FailedAttempts = 0,
                 NextAttemptAt = null,
@@ -162,7 +158,6 @@ public sealed class ReminderTests
                 TodoItemId = _todoItemId,
                 DueAt = _now.AddHours(1),
                 State = ReminderState.Pending,
-                ClaimedAt = null,
                 NotifiedAt = null,
                 FailedAttempts = 0,
                 NextAttemptAt = null,
@@ -179,7 +174,6 @@ public sealed class ReminderTests
                 TodoItemId = _todoItemId,
                 DueAt = _now.AddHours(1),
                 State = ReminderState.Pending,
-                ClaimedAt = null,
                 NotifiedAt = null,
                 FailedAttempts = 0,
                 NextAttemptAt = null,
@@ -207,7 +201,6 @@ public sealed class ReminderTests
                 TodoItemId = _todoItemId,
                 DueAt = overdueBy,
                 State = ReminderState.Pending,
-                ClaimedAt = null,
                 NotifiedAt = null,
                 FailedAttempts = 0,
                 NextAttemptAt = null,
@@ -222,7 +215,6 @@ public sealed class ReminderTests
     {
         var id = Guid.CreateVersion7();
         var dueAt = _now.AddHours(2);
-        var claimedAt = _now.AddMinutes(-1);
 
         var reminder = Reminder.Rehydrate(new ReminderSnapshot
         {
@@ -232,7 +224,6 @@ public sealed class ReminderTests
             TodoItemId = _todoItemId,
             DueAt = dueAt,
             State = ReminderState.Pending,
-            ClaimedAt = claimedAt,
             NotifiedAt = null,
             FailedAttempts = 0,
             NextAttemptAt = null,
@@ -244,7 +235,6 @@ public sealed class ReminderTests
         reminder.TodoItemId.ShouldBe(_todoItemId);
         reminder.DueAt.ShouldBe(dueAt);
         reminder.State.ShouldBe(ReminderState.Pending);
-        reminder.ClaimedAt.ShouldBe(claimedAt);
         reminder.NotifiedAt.ShouldBeNull();
     }
 
@@ -254,124 +244,12 @@ public sealed class ReminderTests
 
     #endregion
 
-    #region Claiming
-
-    /// <summary>
-    /// Isolated from every other reason <c>TryClaim</c> can refuse: the reminder is otherwise a
-    /// perfectly claimable one, just not due yet.
-    /// </summary>
-    [Fact]
-    public void TryClaim_ReturnsFalse_WhenTheReminderIsNotYetDue()
-    {
-        var reminder = AReminder(dueAt: _now.AddHours(1));
-
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5)).ShouldBeFalse();
-        reminder.ClaimedAt.ShouldBeNull();
-    }
-
-    /// <summary>
-    /// The reminder is due and unclaimed — the only thing wrong with it is its state — so a claim
-    /// that succeeded here would prove the state guard is missing rather than merely redundant with
-    /// the due-date guard.
-    /// </summary>
-    [Fact]
-    public void TryClaim_ReturnsFalse_WhenTheReminderIsNotPending()
-    {
-        var reminder = ARehydratedReminder(state: ReminderState.Cancelled, dueAt: _now.AddDays(-1));
-
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5)).ShouldBeFalse();
-    }
-
-    /// <summary>
-    /// The existing claim is well within the staleness window, so nothing else about the reminder may
-    /// account for the refusal.
-    /// </summary>
-    [Fact]
-    public void TryClaim_ReturnsFalse_WhenAnotherHostHoldsAFreshClaim()
-    {
-        var claimedAt = _now.AddMinutes(-4);
-        var reminder = ARehydratedReminder(claimedAt: claimedAt);
-
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5)).ShouldBeFalse();
-        reminder.ClaimedAt.ShouldBe(claimedAt);
-    }
-
-    /// <summary>
-    /// What lets a host that died mid-attempt be recovered from: without this, one crash would hold a
-    /// reminder unclaimable for ever.
-    /// </summary>
-    [Fact]
-    public void TryClaim_ReturnsTrue_WhenTheExistingClaimIsOlderThanTheStaleAfterWindow()
-    {
-        var claimedAt = _now.AddMinutes(-10);
-        var reminder = ARehydratedReminder(claimedAt: claimedAt);
-
-        bool claimed = reminder.TryClaim(_now, TimeSpan.FromMinutes(5));
-
-        claimed.ShouldBeTrue();
-        reminder.ClaimedAt.ShouldBe(_now);
-    }
-
-    /// <summary>
-    /// Pins the exact boundary: the XML doc on <see cref="Reminder.TryClaim"/> says a claim "older
-    /// than <c>staleAfter</c>" is taken over, but the implementation compares with <c>&lt;</c>, so a
-    /// claim exactly <c>staleAfter</c> old — not strictly older — is already treated as stale here.
-    /// Recorded as a doc/behaviour mismatch rather than fixed, since fixing either side is outside
-    /// what a test is allowed to decide.
-    /// </summary>
-    [Fact]
-    public void TryClaim_TakesOverAClaim_ExactlyAtTheStaleAfterThreshold()
-    {
-        var staleAfter = TimeSpan.FromMinutes(5);
-        var claimedAt = _now - staleAfter;
-        var reminder = ARehydratedReminder(claimedAt: claimedAt);
-
-        reminder.TryClaim(_now, staleAfter).ShouldBeTrue();
-    }
-
-    [Fact]
-    public void TryClaim_Succeeds_WhenThereIsNoExistingClaim()
-    {
-        var reminder = ARehydratedReminder(claimedAt: null);
-
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5)).ShouldBeTrue();
-        reminder.ClaimedAt.ShouldBe(_now);
-    }
-
-    [Fact]
-    public void TryClaim_Accepts_TheExactDueInstant()
-    {
-        var dueAt = _now;
-        var reminder = ARehydratedReminder(dueAt: dueAt);
-
-        reminder.TryClaim(dueAt, TimeSpan.FromMinutes(5)).ShouldBeTrue();
-    }
-
-    #endregion
-
     #region Marking as notified
-
-    /// <summary>
-    /// A pending, due-or-not reminder that nobody claimed. <c>MarkNotified</c> has no due-date check of
-    /// its own, so the claim is the only thing standing between "pending" and "fired" — this proves it
-    /// actually stands there.
-    /// </summary>
-    [Fact]
-    public void MarkNotified_Rejects_AReminderThatWasNeverClaimed()
-    {
-        var reminder = AReminder();
-
-        var exception = Should.Throw<DomainException>(() => reminder.MarkNotified(_now));
-
-        exception.Message.ShouldContain("claimed");
-        reminder.State.ShouldBe(ReminderState.Pending);
-    }
 
     [Fact]
     public void MarkNotified_Rejects_ACancelledReminder()
     {
         var reminder = ARehydratedReminder(dueAt: _now.AddDays(-1));
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5));
         reminder.Cancel();
 
         Should.Throw<DomainException>(() => reminder.MarkNotified(_now));
@@ -381,17 +259,15 @@ public sealed class ReminderTests
     public void MarkNotified_Rejects_AReminderAlreadyFired()
     {
         var reminder = ARehydratedReminder(dueAt: _now.AddDays(-1));
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5));
         reminder.MarkNotified(_now);
 
         Should.Throw<DomainException>(() => reminder.MarkNotified(_now.AddMinutes(1)));
     }
 
     [Fact]
-    public void MarkNotified_Transitions_AClaimedReminderToFired()
+    public void MarkNotified_Transitions_APendingReminderToFired()
     {
         var reminder = ARehydratedReminder(dueAt: _now.AddDays(-1));
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5));
         var notifiedAt = _now.AddSeconds(1);
 
         reminder.MarkNotified(notifiedAt);
@@ -418,7 +294,6 @@ public sealed class ReminderTests
     public void Cancel_Rejects_AReminderAlreadyFired()
     {
         var reminder = ARehydratedReminder(dueAt: _now.AddDays(-1));
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5));
         reminder.MarkNotified(_now);
 
         Should.Throw<DomainException>(() => reminder.Cancel());
@@ -440,16 +315,6 @@ public sealed class ReminderTests
         reminder.State.ShouldBe(ReminderState.Cancelled);
     }
 
-    [Fact]
-    public void Cancel_ClearsAnyExistingClaim()
-    {
-        var reminder = ARehydratedReminder(dueAt: _now.AddDays(-1), claimedAt: _now.AddMinutes(-1));
-
-        reminder.Cancel();
-
-        reminder.ClaimedAt.ShouldBeNull();
-    }
-
     #endregion
 
     #region Rescheduling
@@ -464,16 +329,6 @@ public sealed class ReminderTests
 
         reminder.DueAt.ShouldBe(newDueAt);
         reminder.State.ShouldBe(ReminderState.Pending);
-    }
-
-    [Fact]
-    public void Reschedule_ClearsAnyExistingClaim()
-    {
-        var reminder = ARehydratedReminder(dueAt: _now.AddDays(-1), claimedAt: _now.AddMinutes(-1));
-
-        reminder.Reschedule(_now.AddDays(1), _now);
-
-        reminder.ClaimedAt.ShouldBeNull();
     }
 
     [Fact]
@@ -505,7 +360,6 @@ public sealed class ReminderTests
     public void Reschedule_Rejects_AFiredReminder()
     {
         var reminder = ARehydratedReminder(dueAt: _now.AddDays(-1));
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5));
         reminder.MarkNotified(_now);
 
         Should.Throw<DomainException>(() => reminder.Reschedule(_now.AddDays(1), _now));
@@ -565,8 +419,7 @@ public sealed class ReminderTests
     {
         var reminder = ARehydratedReminder(
             state: state,
-            notifiedAt: state == ReminderState.Fired ? _now.AddMinutes(-1) : null,
-            claimedAt: state == ReminderState.Fired ? _now.AddMinutes(-2) : null);
+            notifiedAt: state == ReminderState.Fired ? _now.AddMinutes(-1) : null);
 
         Should.Throw<DomainException>(() => reminder.RecordFailure(_now));
     }
@@ -601,110 +454,12 @@ public sealed class ReminderTests
 
     #endregion
 
-    #region Releasing a claim
-
-    /// <summary>
-    /// The whole point of releasing rather than waiting: the claim above is still well inside the
-    /// staleness window, yet the reminder becomes claimable again the instant it is released.
-    /// </summary>
-    [Fact]
-    public void ReleaseClaim_MakesAPendingReminderClaimableImmediately()
-    {
-        var staleAfter = TimeSpan.FromMinutes(5);
-        var reminder = ARehydratedReminder(claimedAt: _now.AddMinutes(-1));
-
-        reminder.ReleaseClaim();
-
-        reminder.ClaimedAt.ShouldBeNull();
-        reminder.TryClaim(_now, staleAfter).ShouldBeTrue();
-    }
-
-    [Fact]
-    public void ReleaseClaim_IsANoOp_OnAFiredReminder()
-    {
-        var reminder = ARehydratedReminder(dueAt: _now.AddDays(-1));
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5));
-        reminder.MarkNotified(_now);
-        var claimedAt = reminder.ClaimedAt;
-
-        reminder.ReleaseClaim();
-
-        reminder.ClaimedAt.ShouldBe(claimedAt);
-    }
-
-    /// <summary>
-    /// A cancelled reminder never holds a claim — <c>Cancel</c> clears it, and the load path refuses
-    /// a row where the two disagree — so releasing one is a no-op with nothing to release. Asserted
-    /// because a caller cannot know a reminder's state before asking.
-    /// </summary>
-    [Fact]
-    public void ReleaseClaim_IsANoOp_OnACancelledReminder()
-    {
-        var reminder = ARehydratedReminder(state: ReminderState.Cancelled);
-
-        reminder.ReleaseClaim();
-
-        reminder.State.ShouldBe(ReminderState.Cancelled);
-        reminder.ClaimedAt.ShouldBeNull();
-    }
-
-    /// <summary>
-    /// The load path refuses what the aggregate cannot produce: cancelling clears the claim, so a
-    /// cancelled row still holding one is a row no sequence of operations could have written.
-    /// </summary>
-    [Fact]
-    public void Rehydrate_Rejects_AClaimHeldByACancelledReminder() =>
-        Should.Throw<DomainException>(
-            () => Reminder.Rehydrate(new ReminderSnapshot
-            {
-                Id = Guid.CreateVersion7(),
-                OwnerId = _ownerId,
-                TodoListId = _todoListId,
-                TodoItemId = _todoItemId,
-                DueAt = _now.AddDays(-1),
-                State = ReminderState.Cancelled,
-                ClaimedAt = _now.AddMinutes(-1),
-                NotifiedAt = null,
-                FailedAttempts = 0,
-                NextAttemptAt = null,
-            }));
-
-    /// <summary>
-    /// The converse, and the reason the rule above names only one state: notifying requires a claim
-    /// and does not clear it, so a fired reminder keeps the one it fired under.
-    /// </summary>
-    [Fact]
-    public void Rehydrate_Accepts_AClaimHeldByAFiredReminder()
-    {
-        var claimedAt = _now.AddMinutes(-2);
-
-        var reminder = Should.NotThrow(
-            () => Reminder.Rehydrate(new ReminderSnapshot
-            {
-                Id = Guid.CreateVersion7(),
-                OwnerId = _ownerId,
-                TodoListId = _todoListId,
-                TodoItemId = _todoItemId,
-                DueAt = _now.AddDays(-1),
-                State = ReminderState.Fired,
-                ClaimedAt = claimedAt,
-                NotifiedAt = _now.AddMinutes(-1),
-                FailedAttempts = 0,
-                NextAttemptAt = null,
-            }));
-
-        reminder.ClaimedAt.ShouldBe(claimedAt);
-    }
-
-    #endregion
-
     #region Domain events
 
     [Fact]
     public void MarkNotified_RaisesAReminderFiredDomainEvent_WithTheRemindersOwnValues()
     {
         var reminder = ARehydratedReminder(dueAt: _now.AddDays(-1));
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5));
         var notifiedAt = _now.AddSeconds(1);
 
         reminder.MarkNotified(notifiedAt);
@@ -724,7 +479,6 @@ public sealed class ReminderTests
     public void MarkNotified_RaisesNoAdditionalEvent_WhenARepeatCallIsRejected()
     {
         var reminder = ARehydratedReminder(dueAt: _now.AddDays(-1));
-        reminder.TryClaim(_now, TimeSpan.FromMinutes(5));
         reminder.MarkNotified(_now);
         reminder.ClearDomainEvents();
 
@@ -756,7 +510,6 @@ public sealed class ReminderTests
                 TodoItemId = _todoItemId,
                 DueAt = _now.AddDays(-1),
                 State = ReminderState.Fired,
-                ClaimedAt = _now.AddDays(-1),
                 NotifiedAt = null,
                 FailedAttempts = 0,
                 NextAttemptAt = null,
@@ -775,7 +528,6 @@ public sealed class ReminderTests
                 TodoItemId = _todoItemId,
                 DueAt = _now.AddDays(-1),
                 State = state,
-                ClaimedAt = null,
                 NotifiedAt = _now.AddDays(-1),
                 FailedAttempts = 0,
                 NextAttemptAt = null,

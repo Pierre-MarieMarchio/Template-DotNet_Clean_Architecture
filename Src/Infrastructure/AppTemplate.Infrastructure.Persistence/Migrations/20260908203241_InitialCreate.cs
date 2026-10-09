@@ -57,7 +57,6 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     TodoItemId = table.Column<Guid>(type: "uuid", nullable: false),
                     DueAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     State = table.Column<int>(type: "integer", nullable: false),
-                    ClaimedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     NotifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     FailedAttempts = table.Column<int>(type: "integer", nullable: false),
                     NextAttemptAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),

@@ -28,8 +28,6 @@ internal sealed class ReminderRecord : IAuditable
 
     public ReminderState State { get; set; } = ReminderState.Pending;
 
-    public DateTimeOffset? ClaimedAt { get; set; }
-
     public DateTimeOffset? NotifiedAt { get; set; }
 
     public int FailedAttempts { get; set; }

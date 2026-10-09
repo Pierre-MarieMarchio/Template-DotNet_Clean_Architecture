@@ -124,35 +124,6 @@ public sealed class FireDueRemindersUseCaseTests
     }
 
     [Fact]
-    public async Task ARecentlyClaimedReminder_IsLeftAloneForTheOtherHostToFinish()
-    {
-        var reminder = ADueReminder(claimedAt: _now);
-        GivenDueReminders(reminder);
-        GivenCompletionStates((reminder.TodoItemId, false));
-
-        var result = await UseCase().ExecuteAsync(TestToken);
-
-        result.Value.ShouldBe(0);
-        reminder.State.ShouldBe(ReminderState.Pending);
-        reminder.ClaimedAt.ShouldBe(_now);
-        await _notifier.DidNotReceive().NotifyAsync(Arg.Any<ReminderNotification>(), Arg.Any<CancellationToken>());
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task AStaleClaim_IsTakenOverAndNotified()
-    {
-        var reminder = ADueReminder(claimedAt: _now - TimeSpan.FromMinutes(10));
-        GivenDueReminders(reminder);
-        GivenCompletionStates((reminder.TodoItemId, false));
-
-        var result = await UseCase().ExecuteAsync(TestToken);
-
-        result.Value.ShouldBe(1);
-        reminder.State.ShouldBe(ReminderState.Fired);
-    }
-
-    [Fact]
     public async Task ANotifierFailure_IsRecordedAndDoesNotFailTheRestOfTheBatch()
     {
         var failing = ADueReminder();
@@ -168,7 +139,6 @@ public sealed class FireDueRemindersUseCaseTests
 
         result.Value.ShouldBe(1);
         failing.State.ShouldBe(ReminderState.Pending);
-        failing.ClaimedAt.ShouldBeNull();
         failing.FailedAttempts.ShouldBe(1);
         failing.NextAttemptAt.ShouldBe(_now + Reminder.RetryDelayAfter(1));
         succeeding.State.ShouldBe(ReminderState.Fired);
@@ -355,8 +325,8 @@ public sealed class FireDueRemindersUseCaseTests
                 Arg.Any<CancellationToken>())
             .Returns(false);
 
-    private static Reminder ADueReminder(DateTimeOffset? claimedAt = null) =>
-        AReminder.Rehydrated(_ownerId, dueAt: _now.AddMinutes(-1), claimedAt: claimedAt);
+    private static Reminder ADueReminder() =>
+        AReminder.Rehydrated(_ownerId, dueAt: _now.AddMinutes(-1));
 
     private void GivenDueReminders(params Reminder[] reminders) =>
         _repository.GetDueAsync(_now, Arg.Any<int>(), Arg.Any<CancellationToken>())

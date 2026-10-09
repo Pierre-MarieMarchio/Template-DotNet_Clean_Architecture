@@ -159,16 +159,15 @@ internal sealed class InMemoryReminderStore : IReminderRepository, IUnitOfWork
         TodoItemId = reminder.TodoItemId,
         DueAt = reminder.DueAt,
         State = reminder.State,
-        ClaimedAt = reminder.ClaimedAt,
         NotifiedAt = reminder.NotifiedAt,
         FailedAttempts = reminder.FailedAttempts,
         NextAttemptAt = reminder.NextAttemptAt,
     };
 
     /// <summary>The values a reminder's own behaviour can change, compared by value.</summary>
-    private static (ReminderState, DateTimeOffset, DateTimeOffset?, DateTimeOffset?, int, DateTimeOffset?) Key(
+    private static (ReminderState, DateTimeOffset, DateTimeOffset?, int, DateTimeOffset?) Key(
         ReminderSnapshot snapshot) =>
-        (snapshot.State, snapshot.DueAt, snapshot.ClaimedAt, snapshot.NotifiedAt, snapshot.FailedAttempts, snapshot.NextAttemptAt);
+        (snapshot.State, snapshot.DueAt, snapshot.NotifiedAt, snapshot.FailedAttempts, snapshot.NextAttemptAt);
 
     private sealed record Row(ReminderSnapshot Snapshot, uint Version);
 

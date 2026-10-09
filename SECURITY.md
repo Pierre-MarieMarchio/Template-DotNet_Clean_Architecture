@@ -369,12 +369,11 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   is its healthy state and it cannot tell a working loop from a dead one.
   Running the jobs on more than one instance is **safe** for the reminder pass, and it was not before. The two
   purges are idempotent deletes over an already-covered range, so a second process wastes a
-  connection and nothing more. The reminder loop is where concurrency mattered:
-  `FireDueRemindersUseCase` claims a reminder with `Reminder.TryClaim` **in memory**, notifies, and
-  commits it, so two replicas ticking in the same second both read
-  `ClaimedAt` as null, both took the claim, and both sent the mail; only then did one of them lose
-  on `xmin` and roll back. The claim defends against a host that died mid-attempt, which is what it
-  was written for, and not against a concurrent pass.
+  connection and nothing more. The reminder loop is where concurrency mattered: two replicas ticking
+  in the same second read the same due reminders and both send the mail, and only then does one of
+  them lose on `xmin` at its commit. No per-reminder claim prevents that — one held in memory is
+  invisible to the other replica, and one written to the store before the send would only add a
+  state that a crash strands — so the lease is the one exclusivity there is.
   The pass now runs under `ILeaderLease`, whose adapter is a PostgreSQL session-level advisory lock
   on its own unpooled connection: exactly one host runs a pass, and losing that process closes the
   session and releases the lock rather than stranding a lease until a timer says otherwise. The

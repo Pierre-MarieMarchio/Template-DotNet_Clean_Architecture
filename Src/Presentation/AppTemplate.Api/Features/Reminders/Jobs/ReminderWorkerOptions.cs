@@ -6,7 +6,7 @@ namespace AppTemplate.Api.Features.Reminders.Jobs;
 /// <summary>
 /// The reminder loop's cadence. No batch-size knob: <see cref="IFireDueRemindersUseCase"/> takes
 /// no command at all — see its own doc for why it must stay that way — so how many reminders one
-/// pass claims is <c>FireDueRemindersUseCase.BatchSize</c>'s own concern, not something this job
+/// pass fires is <c>FireDueRemindersUseCase</c>'s own concern, not something this job
 /// could pass through even if it wanted to.
 /// </summary>
 public sealed class ReminderWorkerOptions

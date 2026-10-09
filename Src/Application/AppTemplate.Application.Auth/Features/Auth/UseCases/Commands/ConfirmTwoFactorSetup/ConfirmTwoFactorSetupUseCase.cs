@@ -12,8 +12,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmTw
 
 /// <summary>
 /// Arms two-factor sign-in and hands back the recovery codes, which exist only in this response.
-/// Every other session is revoked afterwards, since arming the factor changes what a session is
-/// worth.
+/// Every session is revoked afterwards, the caller's own included, since arming the factor changes
+/// what a session is worth; no grant records which session it belongs to, so none can be spared.
 /// </summary>
 public sealed class ConfirmTwoFactorSetupUseCase(
     ITwoFactorEnrollmentService enrollment,
@@ -53,8 +53,8 @@ public sealed class ConfirmTwoFactorSetupUseCase(
 
         securityEventLog.Record(SecurityEvent.TwoFactorEnabled(userId.Value.Value));
 
-        // Arming two-factor sign-in is a security-posture change every other session must
-        // re-authenticate under.
+        // Arming two-factor sign-in is a security-posture change every session, this one included,
+        // must re-authenticate under.
         await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value.Value, cancellationToken);
 
         return Result.Success(new ConfirmTwoFactorSetupOutcome(confirmation.RecoveryCodes!));

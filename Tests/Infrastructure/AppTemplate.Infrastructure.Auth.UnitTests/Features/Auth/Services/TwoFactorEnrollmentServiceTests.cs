@@ -207,7 +207,7 @@ public sealed class TwoFactorEnrollmentServiceTests
 
     /// <summary>
     /// The gap this repository was asked to close: a caller holding nothing but a stolen access token
-    /// must not be able to arm two-factor sign-in — and revoke every other session on the account —
+    /// must not be able to arm two-factor sign-in — and revoke every session on the account —
     /// without proving the password, exactly as it already could not disarm one. See
     /// <see cref="DisableAsync_AWrongPassword_LeavesTwoFactorOn"/> for the mirror case.
     /// </summary>

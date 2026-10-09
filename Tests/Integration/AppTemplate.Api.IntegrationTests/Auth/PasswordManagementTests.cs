@@ -35,6 +35,30 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
         loginWithNew.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>
+    /// A password change ends the caller's own session too, not only the others: the refresh token
+    /// it holds is revoked with every other one. No grant records which session it belongs to, so
+    /// there is none to spare.
+    /// </summary>
+    [Fact]
+    public async Task ChangePassword_SignsOutTheCallersOwnSessionToo()
+    {
+        var (client, user, session) = await SignInAsync();
+
+        using var changed = await client.PostAsJsonAsync(
+            $"{AuthRoute}/change-password",
+            new ChangePasswordRequest(user.Password, "Rotated!Password2"),
+            TestToken);
+        changed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        using var refreshed = await client.PostAsJsonAsync(
+            $"{AuthRoute}/refresh",
+            new RefreshAccessTokenRequest(session.Tokens.RefreshToken),
+            TestToken);
+        refreshed.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await ApiJson.ReadProblemAsync(refreshed, TestToken)).Code.ShouldBe("auth.refreshToken.invalid");
+    }
+
     [Fact]
     public async Task ChangePassword_WithTheWrongCurrentPassword_IsRejectedAndLeavesItUnchanged()
     {

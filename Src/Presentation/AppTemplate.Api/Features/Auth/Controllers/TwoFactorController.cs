@@ -62,8 +62,8 @@ public sealed class TwoFactorController(
     /// codes, shown once: losing them along with the authenticator app is losing the account. The
     /// current password is presented again, for the reason <see cref="DisableTwoFactor"/> gives: a
     /// stolen session alone must not be able to arm the account's second factor any more than it can
-    /// strip one — confirming revokes every other session exactly as disabling does, so proving the
-    /// password matters just as much here.
+    /// strip one — confirming revokes every session, this one included, exactly as disabling does, so
+    /// proving the password matters just as much here.
     /// </summary>
     [HttpPost("two-factor/confirm")]
     [Authorize]

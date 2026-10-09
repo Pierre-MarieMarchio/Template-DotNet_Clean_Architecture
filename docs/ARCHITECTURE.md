@@ -562,7 +562,10 @@ Three `BackgroundService`s, composed by the one call `AddBackgroundJobs()`
   batch of deletes), `IReclaimOrphanedContentUseCase` (a walk of the whole object store), and
   `IInspectDepositedFilesUseCase`, which is not a sweep at all — it is the only thing that moves a
   file from `deposited` to `available`, so its interval is a latency a user feels rather than a
-  background cost.
+  background cost. A file reaches `deposited` by either upload mode — a direct deposit on the store
+  that `ConfirmFileUploadUseCase` confirms, or `UploadFileUseCase`, which receives the bytes in a
+  multipart request and writes them through `IFileContentStore` itself — and both confirm through
+  `IStoredFileDepositService`, so the inspection never knows which path a file took.
 
 **`BackgroundJobs:Enabled` is the role of an instance, and it is the only host-level switch.** True by
 default; false makes the instance serve HTTP and start no loop, and binds no job section, so it is not

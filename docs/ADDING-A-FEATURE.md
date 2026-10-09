@@ -613,15 +613,18 @@ map and into the rule's own dictionary. An entry of `null` is how a project says
 all, and that claim is checked in both directions: the folder appearing where the entry says none
 fails, and so does the folder vanishing from under a list of words.
 
-**The two halves meet in a use case and nowhere else.** No repository reaches the
-bucket, no adapter reaches the database. `ConfirmFileUploadUseCase` is where the row
-and the object are compared, and it is the only place either knows the other exists.
+**The two halves meet in the application layer and nowhere else.** No repository reaches
+the bucket, no adapter reaches the database. `IStoredFileDepositService` is where the row
+and the object are compared, for `ConfirmFileUploadUseCase` and `UploadFileUseCase` alike.
 
-**Bytes do not travel through the API, in either direction.** Registering returns a
-signed upload grant and the client writes to the store directly; reading returns a
-signed download grant and the controller answers `302`. That is arithmetic rather
-than taste: `RequestLimits:MaxRequestBodyBytes` is 65 536, and `IdempotencyFilter`
-buffers and SHA-256s the entire body of every `POST`.
+**Large bytes do not travel through the API.** Registering returns a signed upload grant
+and the client writes to the store directly; reading returns a signed download grant and
+the controller answers `302`. `RequestLimits:MaxRequestBodyBytes` is 65 536, and
+`IdempotencyFilter` buffers and SHA-256s the entire body of every `[Idempotent]` `POST`.
+The one exception is `POST /api/v1/files/uploads`, for small files and for the file system
+store: not idempotent, and its limit raised to `Files:ApiUploadMaxBytes` by
+`RequestBodyLimitAttribute` — the mechanism a feature of yours uses if it must accept a
+large body, rather than raising the global limit.
 
 **Consistency between the two stores is re-derived, not transacted.** There is no
 distributed transaction and no tombstone: `DELETE` removes the row, and

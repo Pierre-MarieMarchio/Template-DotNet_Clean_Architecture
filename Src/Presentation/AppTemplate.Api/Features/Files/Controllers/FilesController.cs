@@ -2,18 +2,23 @@
 using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Errors;
+using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Features.Files.Contracts.Requests;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
 using AppTemplate.Api.Features.Files.Mapping;
+using AppTemplate.Application.Core.Common.Validation;
+using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Policies;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUpload;
 using AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
+using AppTemplate.Application.Features.Files.UseCases.Commands.UploadFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Features.Files.Controllers;
 
@@ -21,10 +26,11 @@ namespace AppTemplate.Api.Features.Files.Controllers;
 /// The stored file aggregate's HTTP surface.
 /// </summary>
 /// <remarks>
-/// <b>Depositing is two requests, and no file byte passes through them.</b>
-/// <see cref="Register"/> reserves a place and hands back a signed grant, the client deposits the
-/// bytes on the object store, and <see cref="Confirm"/> makes the file readable. Every body on this
-/// controller is metadata, so no action raises the request-size limit.
+/// <b>Two ways to deposit, one state machine.</b> Directly: <see cref="Register"/> reserves a place
+/// and hands back a signed grant, the client deposits the bytes on the object store, and
+/// <see cref="Confirm"/> records the deposit. Through the API: <see cref="Upload"/> carries the bytes
+/// in a multipart body, the only action that raises the request-size limit. Both leave the file
+/// <c>deposited</c> for the background inspection.
 /// <para>
 /// <b>Reading is a redirect when the store can sign, and a stream when it cannot.</b>
 /// <see cref="GetContent"/> answers <c>302</c> with a short-lived signed URL, or — with the local
@@ -44,6 +50,7 @@ public sealed class FilesController(
     IGetStoredFileUseCase getStoredFile,
     IIssueFileDownloadUseCase issueFileDownload,
     IRegisterFileUseCase registerFile,
+    IUploadFileUseCase uploadFile,
     IConfirmFileUploadUseCase confirmFileUpload,
     IDeleteStoredFileUseCase deleteStoredFile) : ApiControllerBase
 {
@@ -230,6 +237,57 @@ public sealed class FilesController(
         return CreatedOrProblem(result, nameof(GetFile), new { fileId = result.Value.Id });
     }
 
+    /// <summary>Uploads a file through the API: registers it, stores its bytes and confirms the deposit.</summary>
+    /// <remarks>
+    /// <c>multipart/form-data</c> with <c>category</c>, exactly one <c>file</c> part, whose
+    /// <c>Content-Type</c> is the declared media type, and an optional <c>name</c> that defaults to
+    /// the part's file name. The body may be <c>Files:ApiUploadMaxBytes</c> plus 16 KiB of framing;
+    /// beyond that, 413. The file comes back <c>deposited</c>, as after <see cref="Confirm"/>.
+    /// <para>
+    /// <b>Not <c>[Idempotent]</c>:</b> the filter would buffer and hash the whole file. A retried
+    /// request uploads a second file; a client that cannot tell whether the first arrived lists its
+    /// files. <b><c>[NoStore]</c>:</b> a <c>POST</c> gets no <c>Cache-Control</c> from this API's
+    /// default, and this response describes a private file.
+    /// </para>
+    /// <para>
+    /// 400 for a missing or second file part, an unknown category, a media type it does not allow or
+    /// a file above its maximum or above the API ceiling. 409 for a category without API uploads
+    /// (<c>storedFile.apiUploadUnavailable</c>), the quota (<c>storedFile.quotaExceeded</c>,
+    /// <c>storedFile.quotaBusy</c>) and a value the domain refuses.
+    /// </para>
+    /// </remarks>
+    [HttpPost("uploads")]
+    [ApiUploadBodyLimit]
+    [NoStore]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(StoredFileResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
+    public async Task<ActionResult<StoredFileResponse>> Upload(
+        [FromForm] UploadFileRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.File is not { } file || Request.Form.Files.Count != 1)
+        {
+            return ValidationError.ForField("file", "Exactly one file part is required.").ToActionResult(HttpContext);
+        }
+
+        await using var content = file.OpenReadStream();
+
+        var command = new UploadFileCommand(
+            request.Category ?? string.Empty,
+            string.IsNullOrWhiteSpace(request.Name) ? file.FileName : request.Name,
+            file.ContentType ?? string.Empty,
+            file.Length,
+            content);
+
+        var result = StoredFileResponseMapping.ToFileResponse(await uploadFile.ExecuteAsync(command, cancellationToken));
+
+        return CreatedOrProblem(result, nameof(GetFile), uploaded => new { fileId = uploaded.Id });
+    }
+
     /// <summary>Confirms that the bytes have been deposited, making the file readable.</summary>
     /// <remarks>
     /// A named operation rather than a <c>PUT</c> of a status field: what happens here is the store
@@ -308,5 +366,14 @@ public sealed class FilesController(
             await deleteStoredFile.ExecuteAsync(command, cancellationToken));
 
         return NoContentOrProblem(result);
+    }
+
+    /// <summary><c>Files:ApiUploadMaxBytes</c>, plus room for the multipart framing around the file.</summary>
+    private sealed class ApiUploadBodyLimitAttribute : RequestBodyLimitAttribute
+    {
+        private const long _framingBytes = 16 * 1024;
+
+        public override long MaxRequestBodyBytes(IServiceProvider services) =>
+            services.GetRequiredService<IOptions<FilesOptions>>().Value.ApiUploadMaxBytes + _framingBytes;
     }
 }

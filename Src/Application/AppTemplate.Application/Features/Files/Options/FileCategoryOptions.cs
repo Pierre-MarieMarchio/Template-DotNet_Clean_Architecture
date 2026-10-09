@@ -52,6 +52,10 @@ public sealed class FileCategoryOptions
     public bool AllowsDirectUpload =>
         UploadModes.Any(mode => string.Equals(mode, DirectUploadMode, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>Whether a file of this category may be uploaded through the API.</summary>
+    public bool AllowsApiUpload =>
+        UploadModes.Any(mode => string.Equals(mode, ApiUploadMode, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Whether <paramref name="mediaType"/> is one this category accepts.</summary>
     public bool Allows(DeclaredMediaType mediaType)
     {

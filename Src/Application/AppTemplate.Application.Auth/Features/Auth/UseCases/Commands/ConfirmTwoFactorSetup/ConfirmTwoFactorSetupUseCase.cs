@@ -64,6 +64,7 @@ public sealed class ConfirmTwoFactorSetupUseCase(
     {
         TwoFactorConfirmationStatus.IncorrectPassword => AuthErrors.IncorrectCurrentPassword,
         TwoFactorConfirmationStatus.InvalidCode => AuthErrors.InvalidTwoFactorCode,
+        TwoFactorConfirmationStatus.AlreadyEnabled => AuthErrors.TwoFactorAlreadyEnabled,
 
         // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
         TwoFactorConfirmationStatus.NoSuchAccount => CommonErrors.NotAuthenticated,

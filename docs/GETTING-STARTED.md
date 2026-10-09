@@ -202,7 +202,7 @@ dotnet run Tools/Tasks.cs compose-up             # the whole stack, waiting unti
 dotnet run Tools/Tasks.cs run                    # the API on the host
 dotnet run Tools/Tasks.cs test                   # everything
 dotnet run Tools/Tasks.cs test --no-integration  # skips the Testcontainers suite
-dotnet run Tools/Tasks.cs new-feature Widgets Widget   # the skeleton of one vertical
+dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared   # the skeleton of one feature
 dotnet run Tools/Tasks.cs verify                 # the whole gate, in CI's order
 ```
 

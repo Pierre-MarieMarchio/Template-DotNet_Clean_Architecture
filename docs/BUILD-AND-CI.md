@@ -118,7 +118,7 @@ an app.
 | File | What it is |
 |---|---|
 | [`Tools/Tasks.cs`](../Tools/Tasks.cs) | the task launcher: thin wrappers over the real `dotnet` and `docker` commands |
-| [`Tools/NewFeature.cs`](../Tools/NewFeature.cs) | the feature scaffolder — the skeleton of one vertical, so `ADDING-A-FEATURE.md` can be about the thinking |
+| [`Tools/NewFeature.cs`](../Tools/NewFeature.cs) | the feature generator — the skeleton of one feature in the shape, operations and concurrency chosen, plus a creation manifest, so `ADDING-A-FEATURE.md` can be about the thinking. Its `--self-test` runs the real command against throwaway trees |
 | [`Tools/CheckDocPaths.cs`](../Tools/CheckDocPaths.cs) | every repository path cited in a Markdown code span resolves on disk |
 | [`Tools/CheckWorkflows.cs`](../Tools/CheckWorkflows.cs) | what a YAML parse does not catch: a dangling `needs:`, an action on a mutable tag, a missing `permissions:`, a `$VAR` in no `env:`, a script named in a `run:` and absent from disk |
 | [`Tools/CoverageGate.cs`](../Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |

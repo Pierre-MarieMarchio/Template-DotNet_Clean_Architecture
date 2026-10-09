@@ -11,7 +11,7 @@ Every document here has one subject. This page is how you find the one you need.
 | generating a project from it | [`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md) |
 | writing a client against the API | [`API-CONVENTIONS.md`](API-CONVENTIONS.md), then [`API-REFERENCE.md`](API-REFERENCE.md) |
 | about to write code in it | [`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md), then [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md) |
-| about to deploy it | [`../SECURITY.md`](../SECURITY.md), then [`DEPLOYMENT.md`](DEPLOYMENT.md) |
+| about to deploy it | [`../SECURITY.md`](../SECURITY.md), then [`CONFIGURATION.md`](CONFIGURATION.md) and [`MIGRATIONS.md`](MIGRATIONS.md) |
 
 ## By subject
 
@@ -55,23 +55,6 @@ Every document here has one subject. This page is how you find the one you need.
 |---|---|
 | [`../SECURITY.md`](../SECURITY.md) | what the template provides, and the longer half: what a deployment still owes |
 | [`CONFIGURATION.md`](CONFIGURATION.md) | every configuration key, its default, its validated range, and what happens when it is wrong |
-| [`DEPLOYMENT.md`](DEPLOYMENT.md) | running it on Kubernetes, and why the manifests' numbers are what they are |
-| [`../deploy/kubernetes/README.md`](../deploy/kubernetes/README.md) | the manifests themselves, and the order to apply them in |
 
-## Plans of record
-
-The template repository keeps a plans directory alongside this page: what a piece of work set out
-to do, what it decided, and what it refused. They are kept because the reasoning is worth more
-than the diff, and they are read for that reasoning alone.
-
-**A generated project does not inherit them, deliberately.** They record how *this template* came
-to be shaped the way it is, which is the template's history and not your product's. Everything a
-derived project needs is in the documents listed above.
-
-**Nor are they documentation of the current tree, even where they are present.** A plan states what
-was true when it was written, and one superseded by a later plan is not edited to agree with it.
-Everything above describes the repository as it is; anything a plan says that disagrees with it is
-out of date by construction.
-
-Rationale you write yourself belongs in the same shape — see
-[`CONVENTIONS.md`](CONVENTIONS.md#comments), which is what keeps it out of code comments.
+For how to record the reasoning behind a change, see
+[`CONVENTIONS.md`](CONVENTIONS.md#comments).

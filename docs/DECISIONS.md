@@ -5,9 +5,8 @@ where a test can hold one it does — a rule nothing verifies is re-derived and 
 months. If one of them is wrong for your project, change it deliberately: change the sentence here
 *and* the test that holds it, in the same commit.
 
-Two neighbours. [`ARCHITECTURE.md`](ARCHITECTURE.md) argues the layer boundaries and lists what is
-deliberately absent, and the template repository's own plans of record hold the measurements and
-the rejected options behind each of these — see [`README.md`](README.md#plans-of-record).
+[`ARCHITECTURE.md`](ARCHITECTURE.md) describes the current layer boundaries and what is deliberately
+absent.
 
 **Writes are named operations. There is no `PATCH`.** A partial update whose semantics depend on
 which keys the client happened to send cannot be validated against an invariant, because the
@@ -115,4 +114,3 @@ does not look.
 **A port never exposes `IQueryable`.** A contract that hands out a query tree has not abstracted the
 database, it has published it — and every caller becomes a place where a lazy load can happen.
 `NoApplicationPort_ExposesAQueryable` holds it.
-

@@ -381,15 +381,6 @@ None of this breaks a build, and all of it goes stale silently.
   sections **(F)**, in both hosts.
 - **`docker-compose.yml`** **(F)**: the two `Storage__*` environment blocks — one per host — the
   `minio` and `minio-bucket` services, and the `minio-data` volume.
-- **`deploy/kubernetes/configmap-worker.yaml`**: the `ReminderWorker__Interval` and
-  `ReminderWorker__Enabled` keys and the comment block above them **(R)**; the `FileWorker__*` keys,
-  the `Storage__*` keys and the `ContentInspection__*` keys **(F)**.
-  **`deploy/kubernetes/configmap-api.yaml`**: the `Storage__*` and `ContentInspection__*` keys
-  **(F)**. **`deploy/kubernetes/api-deployment.yaml`**: the two `Storage__*` `secretKeyRef` entries
-  **(F)**. **`deploy/kubernetes/secret.example.yaml`**: `Storage__AccessKeyId` and
-  `Storage__SecretAccessKey` **(F)**, and the comment naming `IReminderNotifier` **(R)**.
-  **`deploy/kubernetes/worker-deployment.yaml`**: its header comment counts the loops and names
-  `ReminderBackgroundService`, and its replica note argues from `Reminder.TryClaim` **(R)**.
 - **`AppTemplate.Api.http`**: the numbered request blocks for the feature you removed. They are the
   file's whole point, so they are worth replacing with your own rather than only deleting.
 - **`Tests/Architecture/AppTemplate.Architecture.Tests/Rules/ConfigurationSurfaceTests.cs`** names
@@ -440,7 +431,8 @@ Four things lose their only example, and one of them is measured.
   — which is what it is for — or, if you genuinely have no such operation, delete the port, its
   adapter, its integration tests, the `Leases` entry in `LayoutConventionTests`'s `Common/`
   vocabulary and `BackgroundWorkTests` itself, and remember that
-  `deploy/kubernetes/worker-deployment.yaml` may then no longer be raised above `replicas: 1`.
+  a deployment must then run at most one worker unless its remaining operations are safe to run
+  concurrently.
   Measured, that deletion costs four more compile errors: three `<see cref="ILeaderLease"/>`
   comments in the surviving `Files` code and one substitute registration in
   `ApplicationModuleTests`.

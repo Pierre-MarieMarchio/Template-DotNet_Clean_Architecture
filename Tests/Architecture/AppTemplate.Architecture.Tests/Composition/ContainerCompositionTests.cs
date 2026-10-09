@@ -245,8 +245,8 @@ public sealed class ContainerCompositionTests
         exception.Message.ShouldContain(
             nameof(IUserProfilesService),
             customMessage: "If this port ever stops being needed here, the worker really can drop " +
-            "AddAuthModule — and the comments in Program.cs, the csproj, docker-compose.yml, " +
-            "configmap-worker.yaml and docs/CONFIGURATION.md all become answerable at last.");
+            "AddAuthModule — and the comments in Program.cs, the csproj, docker-compose.yml " +
+            "and docs/CONFIGURATION.md all become answerable at last.");
 
         exception.Message.ShouldContain(
             nameof(IRefreshTokenMaintenanceService),

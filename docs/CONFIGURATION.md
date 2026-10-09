@@ -290,7 +290,7 @@ is next recycled. Add one connection per replica that runs a leased loop to the 
 **A transaction-pooling proxy in front of PostgreSQL breaks the lease, silently.** `pg_try_advisory_lock`
 is session-scoped, and pgBouncer in `transaction` or `statement` mode hands a client a different
 backend per transaction — so the lock would be taken on one backend and looked for on another,
-every host would believe it is the leader, and nothing would fail. Nothing in `deploy/` interposes
+every host would believe it is the leader, and nothing would fail. Nothing in this repository interposes
 a pooler today. If you add one, give this connection a `session`-mode route or a direct one.
 
 ### `Email:Transport` — SMTP or an HTTP API

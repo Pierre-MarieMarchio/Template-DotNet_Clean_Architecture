@@ -93,7 +93,7 @@ visible by what a reminder does without.
 Two gates read the documentation, and they are not proofreading.
 
 `Tools/CheckDocPaths.cs` checks every repository path cited in a Markdown code span against the
-filesystem, and every `docs/` path cited by a comment in a manifest, a script or a `.http` file. A
+filesystem, and every `docs/` path cited by a comment in a YAML file, a script or a `.http` file. A
 wrong path in a template's documentation costs the reader an hour. **An example path that names no
 real file has to be written so it does not read as one** — a placeholder such as `<Your.Name>.sln`
 rather than a plausible-looking name.

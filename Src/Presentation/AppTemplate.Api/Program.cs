@@ -1,8 +1,6 @@
 ﻿using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.Security;
-using AppTemplate.Api.Core;
-using AppTemplate.Api.Core.Common.Hosting;
 using AppTemplate.Application;
 using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core;
@@ -51,20 +49,20 @@ builder.Services.AddScoped<AppTemplate.Infrastructure.Core.Common.Saving.Auditin
 
 builder.Services.AddControllers();
 
-// AddApiCore leaves out telemetry and the authorisation policies: the first needs this assembly's
+// AddHttpPipeline leaves out telemetry and the authorisation policies: the first needs this assembly's
 // name and this host's database instrumentation, the second a role name from the auth module.
-builder.Services.AddApiCore(builder.Configuration);
+builder.Services.AddHttpPipeline(builder.Configuration);
 builder.Services.AddApiObservability(builder.Configuration);
 
 // Versioning first: it is what partitions actions into the version groups the loop below reads.
-builder.Services.AddCoreApiVersioning();
+builder.Services.AddUrlSegmentApiVersioning();
 
 // One document per version group. The generator that turns an XML comment into a schema's
 // description hooks this call site, so the comments it collects are the ones in the assembly making
 // the call: moving this loop into a referenced project drops every description and compiles.
-foreach (string versionGroup in builder.Services.CoreApiVersionGroups())
+foreach (string versionGroup in builder.Services.ApiVersionGroups())
 {
-    builder.Services.AddOpenApi(versionGroup, options => options.UseCoreDocumentConventions(versionGroup));
+    builder.Services.AddOpenApi(versionGroup, options => options.UseApiDocumentConventions(versionGroup));
 }
 
 // Authenticated by default: an endpoint reachable anonymously has to opt out explicitly.
@@ -77,8 +75,8 @@ builder.Services.AddAuthorizationBuilder()
 // the fallback above.
 builder.Services.AddApiAuthorizationPolicies();
 
-// AddCoreHealthChecks brings the shutdown check; the two database checks are this host's own.
-builder.Services.AddCoreHealthChecks()
+// AddApiHealthChecks brings the shutdown check; the two database checks are this host's own.
+builder.Services.AddApiHealthChecks()
     .AddDbContextCheck<AppDbContext>(name: "database", tags: [HealthEndpoints.ReadyTag])
     .AddDbContextCheck<AuthDbContext>(name: "auth-database", tags: [HealthEndpoints.ReadyTag]);
 
@@ -86,7 +84,7 @@ var app = builder.Build();
 
 // The whole request pipeline, in the one order that works. The argument relaxes the default-deny
 // content-security policy for the API-reference page alone.
-app.UseCorePipeline(
+app.UseHttpPipeline(
     app.Environment.IsDevelopment() ? ApiReferenceContentSecurityPolicy.For : null);
 
 app.UseAuthentication();
@@ -94,7 +92,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.MapCoreHealthEndpoints();
+app.MapApiHealthEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

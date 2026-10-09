@@ -62,7 +62,7 @@ be filled from user secrets or environment variables.
 > | `MaintenanceWorker`, `ReminderWorker`, `FileWorker` | `AppTemplate.Worker`'s own `Program.cs` | `AppTemplate.Worker/Features/<Feature>/` |
 > | `OpenTelemetry` | `AddObservability`, called from each host's `Program.cs` | `AppTemplate.Presentation.Core/Common/Observability/` |
 > | `Localization` | `AddLocalizationOptions`, called from each host's `Program.cs` | `AppTemplate.Presentation.Core/Common/Localization/` |
-> | Everything else | `AppTemplate.Api`'s own `Program.cs`, through `AddApiCore` | beside the middleware that reads it, under `AppTemplate.Api.Core/Common/` |
+> | Everything else | `AppTemplate.Api`'s own `Program.cs`, through `AddHttpPipeline` | beside the middleware that reads it, under `AppTemplate.Api/Common/` |
 >
 > `IdentitySeed` sits with the seeder because seeding is a persistence concern, not an
 > authentication policy. **The configuration keys and their validation do not change** —
@@ -338,7 +338,7 @@ Bound only when `Email:Transport` is `Postmark`.
 | `AuthenticationPermitLimit` | int | `10` | Requests per window and client address on the authentication controller (policy `authentication`). Must be at least 1. |
 | `GlobalPermitLimit` | int | `300` | Requests per window and client address on every request. Must be at least 1. |
 
-Read by `Src/Presentation/AppTemplate.Api.Core/Common/Security/RateLimitingExtensions.cs`. A refused
+Read by `Src/Presentation/AppTemplate.Api/Common/Security/RateLimitingExtensions.cs`. A refused
 request answers `429` with `Retry-After` and a `ProblemDetails` body with
 `code: "rateLimit.exceeded"`.
 
@@ -359,7 +359,7 @@ the answer is a second deployment of the same image with its own ingress rules, 
 counter.
 
 Both limits also partition on the **client address**, including for authenticated callers, so
-callers sharing an address share a budget. `Src/Presentation/AppTemplate.Api.Core/Common/Security/RateLimiterPartitionKeys.cs`
+callers sharing an address share a budget. `Src/Presentation/AppTemplate.Api/Common/Security/RateLimiterPartitionKeys.cs`
 explains why partitioning the global limiter by user identity is not available at the point the key
 is computed, and why moving authentication earlier to make it available would cost more than it
 saves. Behind a proxy this all depends on `ReverseProxy` being configured — see [`ReverseProxy`](#reverseproxy); without it
@@ -812,7 +812,7 @@ without any error. A lone `*` is accepted and means any origin.
 | `KnownNetworks` | string[] | `[]` | CIDR blocks, e.g. `10.0.0.0/8`. The address must be the network address: `10.0.0.1/8` is rejected, not silently masked. |
 | `ForwardLimit` | int | `1` | How many entries to consume from the right of `X-Forwarded-For`. Must equal the number of proxies actually in front of the app. |
 
-Read by `Src/Presentation/AppTemplate.Api.Core/Common/Security/ForwardedHeadersExtensions.cs`. This is the
+Read by `Src/Presentation/AppTemplate.Api/Common/Security/ForwardedHeadersExtensions.cs`. This is the
 section that decides whether rate limiting works, so it is worth reading twice.
 
 - **Leave it off and the rate limiter partitions on the proxy's address**, which means every
@@ -838,7 +838,7 @@ anything that reads the address or the scheme.
 |---|---|---|---|
 | `ContentSecurityPolicy` | string | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | The policy sent on API responses. |
 
-Read by `Src/Presentation/AppTemplate.Api.Core/Common/Security/SecurityHeadersExtensions.cs`. Alongside the CSP,
+Read by `Src/Presentation/AppTemplate.Api/Common/Security/SecurityHeadersExtensions.cs`. Alongside the CSP,
 every response also carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`
 and `X-Frame-Options: DENY`; `Server` and `X-Powered-By` are suppressed.
 
@@ -891,15 +891,14 @@ still gives each host its own spans. Each is forced rather than preferred:
   the second pulls the PostgreSQL driver, which would put a database behind every host that wanted
   traces.
 
-So the registration is three storeys, and each storey adds what the one below it cannot know.
-`Src/Presentation/AppTemplate.Api.Core/Common/Observability/ObservabilityExtensions.cs` adds the
+So the registration is two storeys, and each storey adds what the one below it cannot know.
+`Src/Presentation/AppTemplate.Api/Common/Observability/ObservabilityExtensions.cs` adds the
 ASP.NET Core instrumentation, the `Microsoft.AspNetCore.RateLimiting` meter — named there because
-the rate limiter is registered there, so a mechanism and its one diagnostic travel together — and
-the exclusion of `/health*` from both traces and the request log.
-`Src/Presentation/AppTemplate.Api/Common/Observability/ObservabilityExtensions.cs` adds what only
-this host knows: `AddNpgsql()`, the `Npgsql` meter, and its own assembly, from which `service.name`
-is read. Between them, traces cover ASP.NET Core, `HttpClient` and Npgsql, and metrics cover ASP.NET
-Core, `HttpClient`, the runtime, the connection pool and the rate limiter.
+the rate limiter is registered there, so a mechanism and its one diagnostic travel together — the
+exclusion of `/health*` from both traces and the request log, and what only this host knows:
+`AddNpgsql()`, the `Npgsql` meter, and its own assembly, from which `service.name` is read.
+Together with the shared registration, traces cover ASP.NET Core, `HttpClient` and Npgsql, and
+metrics cover ASP.NET Core, `HttpClient`, the runtime, the connection pool and the rate limiter.
 `Src/Presentation/AppTemplate.Worker/Common/Observability/WorkerObservabilityExtensions.cs` adds its
 three loops' own sources and meters, the persistence project's `AppTemplate.Reminders` meter, and
 `AddNpgsql()`. It instruments no ASP.NET Core, because it answers no request. `service.name` is
@@ -923,7 +922,7 @@ three loops' own sources and meters, the persistence project's `AppTemplate.Remi
 |---|---|---|---|
 | `IfMatch` | `Optional` \| `Required` | `Optional` | `Required` refuses a mutating request with no `If-Match` header with `428`. |
 
-Read by `Src/Presentation/AppTemplate.Api.Core/Common/Concurrency/ConcurrencyExtensions.cs`. Every read of a
+Read by `Src/Presentation/AppTemplate.Api/Common/Concurrency/ConcurrencyExtensions.cs`. Every read of a
 `TodoList` or `TodoItem` publishes a strong `ETag` regardless of this setting, and every write
 already honours `If-Match` when one is sent — a stale, malformed or unrecognised version is
 refused with `412` either way. This setting only decides what happens when a write names **no**
@@ -948,7 +947,7 @@ version at all.
 | `MaxKeyLength` | int | `128` | Must be 1…512. A longer key is `400` `idempotency.keyInvalid`. |
 | `MaxStoredResponseBytes` | int | `8192` | Must be ≥ 1. A larger response is stored without its body, and a replay then answers `409` `idempotency.notReplayable` rather than a truncated body. |
 
-Read by `Src/Presentation/AppTemplate.Api.Core/Common/Idempotency/IdempotencyExtensions.cs`. The filter is
+Read by `Src/Presentation/AppTemplate.Api/Common/Idempotency/IdempotencyExtensions.cs`. The filter is
 registered globally but is **inert unless the action carries `[Idempotent]`** — four actions do:
 `POST /api/v1/todo-lists`, `POST /api/v1/todo-lists/{id}/items`,
 `POST /api/v1/todo-lists/{id}/items/{id}/reminders` and `POST /api/v1/files`. Sending no
@@ -983,7 +982,7 @@ What each setting does when it is wrong:
 |---|---|---|---|
 | `MaxRequestBodyBytes` | long | `65536` | Must be between 1024 and 31457280 (30 MB). |
 
-Read by `Src/Presentation/AppTemplate.Api.Core/Common/Hosting/RequestLimitsExtensions.cs`. It replaces
+Read by `Src/Presentation/AppTemplate.Api/Common/Hosting/RequestLimitsExtensions.cs`. It replaces
 Kestrel's 30 MB default, which is a free denial-of-service against an API whose largest legitimate
 body is a few kilobytes.
 
@@ -1002,7 +1001,7 @@ body is a few kilobytes.
 |---|---|---|---|
 | `Timeout` | timespan | `00:00:30` | Must be greater than zero and at most 10 minutes. |
 
-Read by `Src/Presentation/AppTemplate.Api.Core/Common/Hosting/HostLifecycleExtensions.cs`, which applies it to
+Read by `Src/Presentation/AppTemplate.Api/Common/Hosting/HostLifecycleExtensions.cs`, which applies it to
 the framework's own `HostOptions.ShutdownTimeout` — how long the host waits for in-flight requests
 to drain once it starts stopping. A deployment must allow enough time after signalling shutdown
 for this timeout and any delay while traffic routing catches up.
@@ -1024,7 +1023,7 @@ crash would. **Set outside its range**, the host fails `ValidateOnStart()` and d
 |---|---|---|---|
 | `Default` | timespan | `00:05:00` | Applied to every endpoint that names no other policy. Must be 1 second – 1 hour. |
 
-Read by `Src/Presentation/AppTemplate.Api.Core/Common/Hosting/HostLifecycleExtensions.cs`, which installs
+Read by `Src/Presentation/AppTemplate.Api/Common/Hosting/HostLifecycleExtensions.cs`, which installs
 `AddRequestTimeouts`/`UseRequestTimeouts` with this one default policy. A response still not started when
 the deadline hits gets a `504` `ProblemDetails` with `code: "request.timeout"`; a response already
 under way (headers or a first body chunk already sent) cannot be rewritten, so the connection is cut
@@ -1105,7 +1104,7 @@ knob: `IFireDueRemindersUseCase` takes no command, so how many reminders one pas
 | Sortable fields | `name`, `createdAt`, `lastModifiedAt` | `TodoListCollectionPolicy.SortableFields` |
 | Max `search` length | 100 characters | `SearchTerm.MaxLength` |
 | Max cursor length | 512 characters | `Cursor.MaxEncodedLength` |
-| `Cache-Control` on reads | `private, no-cache` | `Src/Presentation/AppTemplate.Api.Core/Common/Caching/CacheHeaderExtensions.cs` |
+| `Cache-Control` on reads | `private, no-cache` | `Src/Presentation/AppTemplate.Api/Common/Caching/CacheHeaderExtensions.cs` |
 | Used-tag list lifetime | 1 minute | `UsedTagsCache.Lifetime` |
 
 **The server-side cache has no configuration section, and that is a property of what it holds.**

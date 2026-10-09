@@ -67,16 +67,19 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   and writes only what it alone knows: its policy, its filter and its tiebreaker field. The request
   is unconstructible outside the project that validates it, which is stronger than the per-feature
   records were.
-- **Six projects are vendored SDK projects, and a derived project writes only its own features.**
+- **Five projects are vendored SDK projects, and a derived project writes only its own features.**
   `AppTemplate.Domain.Core` holds the primitives an aggregate is built from;
   `AppTemplate.Application.Core` the mechanisms a use case is written *from* — `Result`, the
   `IUseCase` marker, validation, paging, idempotency, concurrency, the cross-cutting ports;
   `AppTemplate.Application.Auth` authentication as use cases behind twenty ports, naming no domain
   type; `AppTemplate.Infrastructure.Core` the mechanisms no module owns;
-  `AppTemplate.Presentation.Core` what any host needs whatever its transport, with no framework
-  reference; and `AppTemplate.Api.Core` the half of an HTTP host that knows no feature — the whole
-  pipeline behind one `UseCorePipeline()`. Each has `CS1591` re-enabled, so
-  every public member owes the reader a sentence, and the architecture tests hold their boundary.
+  and `AppTemplate.Presentation.Core` what any host needs whatever its transport, with no framework
+  reference. The HTTP pipeline is not one of them: only the API consumes it, so it lives under
+  `AppTemplate.Api/Common`, behind one `UseHttpPipeline()`, and `Common/` may not name a feature.
+  Each has `CS1591` re-enabled, so every public member owes the reader a sentence, and the
+  architecture tests hold their boundary — among them that none of the five, nor the domain,
+  application or infrastructure projects around them, requires the ASP.NET shared framework, the
+  bearer-token adapter in `AppTemplate.Infrastructure.Auth` excepted.
   They carry **no version**: they are vendored, and a project needing something one of them lacks
   copies it and tunes it. Two things follow for anyone adopting this in an existing project. Every
   `AppTemplate.Application.*` and `AppTemplate.Domain.*` namespace a file names may have moved one

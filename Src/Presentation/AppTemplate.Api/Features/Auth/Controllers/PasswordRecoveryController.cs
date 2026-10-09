@@ -1,5 +1,5 @@
-﻿using AppTemplate.Api.Core.Common.Controllers;
-using AppTemplate.Api.Core.Common.Security;
+﻿using AppTemplate.Api.Common.Controllers;
+using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestPasswordReset;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResetPassword;

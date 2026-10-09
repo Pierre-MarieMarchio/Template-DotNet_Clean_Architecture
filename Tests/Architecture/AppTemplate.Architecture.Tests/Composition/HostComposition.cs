@@ -332,7 +332,7 @@ internal static class HostComposition
     }
 }
 
-/// <summary>Stands in for <c>AppTemplate.Api.Core.Common.Security.CurrentUser</c>, which needs an HTTP request.</summary>
+/// <summary>Stands in for <c>AppTemplate.Api.Common.Security.CurrentUser</c>, which needs an HTTP request.</summary>
 internal sealed class ArchitectureTestCurrentUser : ICurrentUser
 {
     private static readonly UserId _userId = UserId.Create(new("11111111-1111-1111-1111-111111111111"));

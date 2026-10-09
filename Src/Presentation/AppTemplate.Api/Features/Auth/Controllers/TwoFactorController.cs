@@ -1,6 +1,6 @@
-﻿using AppTemplate.Api.Core.Common.Caching;
-using AppTemplate.Api.Core.Common.Controllers;
-using AppTemplate.Api.Core.Common.Security;
+﻿using AppTemplate.Api.Common.Caching;
+using AppTemplate.Api.Common.Controllers;
+using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.Features.Auth.Mapping;

@@ -11,9 +11,8 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// this test project deliberately references no presentation project, so that the container tests
 /// compose them module by module the way <c>Program.cs</c> does.
 /// <para>
-/// The walk covers all of <c>Src/Presentation</c> rather than one project. An endpoint is now
-/// mapped from two of them — the health probes by the SDK, the reference page by the host — and a
-/// walk naming the projects it knows about would pass over the next one silently.
+/// The walk covers all of <c>Src/Presentation</c> rather than one project: a walk naming the
+/// projects it knows about would pass over the next host silently.
 /// </para>
 /// </summary>
 public sealed class HttpSurfaceTests
@@ -44,7 +43,7 @@ public sealed class HttpSurfaceTests
     /// <summary>
     /// The minimal endpoints mapped rather than declared on a controller, which opt out fluently and
     /// so carry no attribute for the scan above to find. Two health probes, mapped by
-    /// <c>MapCoreHealthEndpoints</c>, and the OpenAPI document and its reference page, which the
+    /// <c>MapApiHealthEndpoints</c>, and the OpenAPI document and its reference page, which the
     /// host maps in Development only.
     /// </summary>
     private const int _fluentlyAnonymousEndpoints = 4;

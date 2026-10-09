@@ -71,10 +71,9 @@ AppTemplate.Infrastructure.Storage   Common/{Budgets,Factories,Options}
 AppTemplate.Infrastructure.InMemory  Common/{Email,Time}         Features/<F>/
 AppTemplate.Presentation.Core   Common/{Jobs,Localization,Observability,Outbound,Security}
                                 no Features/: what any host needs whatever its transport
-AppTemplate.Api.Core            Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
+AppTemplate.Api                 Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
                                         Idempotency,Localization,Observability,OpenApi,Security}
-                                no Features/: the half of an HTTP host that knows no feature
-AppTemplate.Api                 Common/{Hosting,Observability,Security}
+                                Common/ names no feature: the HTTP mechanisms every feature shares
                                 Features/<F>/{Controllers,Contracts/{Requests,Responses},Mapping}
 AppTemplate.Worker              Common/{Observability,Security}
                                 Features/<F>/   one BackgroundService, its options, its metrics
@@ -98,8 +97,12 @@ in it knows a feature, and nothing in it ever may — that is the whole claim of
 business code is not repeated across features — a value object three features spend, a DTO two
 features answer with, a policy that spans them.
 
-**A host's `Common/` is a third kind:** what that host cannot delegate — what names a concrete
-infrastructure module, or decides a deployment policy.
+**The API's `Common/` is a third kind:** the HTTP mechanisms every feature of that host shares —
+the controller base, problem details, preconditions, idempotency, the security headers and the
+request pipeline — together with what the host cannot delegate, which is whatever names a concrete
+infrastructure module or decides a deployment policy. It stays in the host rather than in a `.Core`
+project because it is HTTP-specific and has no second consumer; it names no feature, which an
+architecture test holds now that the compiler no longer does.
 
 **The sorting test is one question: does it know a feature?** If it names a feature — or would have
 to, the moment a second feature used it — it belongs in the business project's `Common/`. If it
@@ -216,7 +219,7 @@ for in the pull request that adds it.
 Reserved for exactly one thing: the dependency-injection registration classes —
 `ApplicationCoreModule`, `ApplicationModule`, `ApplicationAuthModule`, `InfrastructureCoreModule`,
 `PersistenceModule`, `AuthModule`, `EmailModule`, `StorageModule`, `InMemoryModule`,
-`PresentationCoreModule` and `ApiCoreModule`. That is a composition concept, not a business
+`PresentationCoreModule` and `HttpPipelineModule`. That is a composition concept, not a business
 partition.
 
 **Composition is opt-in per feature, and there is deliberately no call that adds all of them.**

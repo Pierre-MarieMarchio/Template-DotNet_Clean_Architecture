@@ -47,7 +47,7 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
     [Fact]
     public void Readiness_CoversTheDatabaseAndTheShutdownSignal() =>
         // Which checks, not in which order: the predicate selects them by tag, and the order they
-        // were registered in is an artefact of the shutdown check arriving with AddCoreHealthChecks
+        // were registered in is an artefact of the shutdown check arriving with AddApiHealthChecks
         // and the database check being chained onto the builder it returns.
         ReadyCheckNames().ShouldBe(["auth-database", "database", "shutdown"], ignoreOrder: true);
 

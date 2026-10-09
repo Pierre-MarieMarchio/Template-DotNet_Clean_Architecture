@@ -1,6 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
-using AppTemplate.Api.Core.Common.Concurrency;
+using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Shouldly;

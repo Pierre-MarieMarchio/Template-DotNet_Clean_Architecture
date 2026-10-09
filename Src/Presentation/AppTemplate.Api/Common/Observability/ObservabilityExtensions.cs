@@ -1,20 +1,37 @@
-﻿using AppTemplate.Api.Core.Common.Observability;
+﻿using AppTemplate.Api.Common.Hosting;
+using AppTemplate.Presentation.Core.Common.Observability;
 using Npgsql;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 
 namespace AppTemplate.Api.Common.Observability;
 
 /// <summary>
-/// What only this host can say about its own telemetry: which database it talks to, and under which
-/// name it announces itself. Everything an HTTP host has in common with any other lives in
-/// <see cref="AppTemplate.Api.Core.Common.Observability.ObservabilityExtensions"/>.
+/// What this host can say about its own telemetry on top of
+/// <see cref="AppTemplate.Presentation.Core.Common.Observability.ObservabilityExtensions"/>: the
+/// ASP.NET Core instrumentation, the meters this transport publishes, which database it talks to,
+/// and the one request log entry that ties a trace to a caller's <c>traceId</c>.
 /// </summary>
 /// <remarks>
-/// <c>service.name</c> is read from the assembly passed in, so each host reports under its own name.
-/// The database instrumentation is registered here rather than in the shared project because its
-/// package carries the PostgreSQL driver.
+/// <c>service.name</c> is read from this assembly, so the host reports under its own name. The
+/// database instrumentation is registered here rather than in a module because its package carries
+/// the PostgreSQL driver.
 /// </remarks>
 public static class ObservabilityExtensions
 {
+    /// <summary>
+    /// The tag that carries <see cref="HttpContext.TraceIdentifier"/> onto the request span. Named
+    /// after the framework property rather than an OpenTelemetry convention, because it is an
+    /// ASP.NET Core value and no semantic convention describes it.
+    /// </summary>
+    private const string _traceIdentifierTagName = "aspnetcore.trace_identifier";
+
+    /// <summary>
+    /// Registers traces and metrics for this host.
+    /// </summary>
+    /// <param name="services">The container being built.</param>
+    /// <param name="configuration">Where the telemetry options are bound from.</param>
+    /// <returns>The same collection, for chaining.</returns>
     public static IServiceCollection AddApiObservability(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -22,16 +39,56 @@ public static class ObservabilityExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        return services.AddCoreObservability(
+        return services.AddObservability(
             configuration,
             typeof(ObservabilityExtensions).Assembly,
-            // Npgsql's own ActivitySource, which spans the command at the ADO.NET level — where the
-            // SQL and its duration are. It needs no EF Core instrumentation on top.
-            tracing => tracing.AddNpgsql(),
-            // db.client.connection.count vs .max is the pool-saturation question Database:MaxPoolSize
-            // exists to answer; db.client.connection.npgsql.pending_requests is callers already queued
-            // for a connection — both invisible from the span above, which only starts once a
-            // connection has been handed out.
-            metrics => metrics.AddMeter("Npgsql"));
+            tracer =>
+            {
+                tracer.AddAspNetCoreInstrumentation(instrumentation =>
+                {
+                    instrumentation.Filter = static context => !IsHealthProbe(context.Request.Path);
+
+                    // The span is what a caller's traceId has to lead to, so it carries that value.
+                    instrumentation.EnrichWithHttpRequest = static (activity, request) =>
+                        activity.SetTag(_traceIdentifierTagName, request.HttpContext.TraceIdentifier);
+                });
+
+                // Npgsql's own ActivitySource, which spans the command at the ADO.NET level — where the
+                // SQL and its duration are. It needs no EF Core instrumentation on top.
+                tracer.AddNpgsql();
+            },
+            meter =>
+            {
+                meter.AddAspNetCoreInstrumentation()
+                    // aspnetcore.rate_limiting.requests, tagged by policy and result (acquired /
+                    // endpoint_limiter / global_limiter / request_canceled) — the rejection count the
+                    // rate limiter itself never surfaces anywhere else. It is named here because the
+                    // limiter is registered here: a mechanism and its one diagnostic travel together.
+                    .AddMeter("Microsoft.AspNetCore.RateLimiting");
+
+                // db.client.connection.count vs .max is the pool-saturation question Database:MaxPoolSize
+                // exists to answer; db.client.connection.npgsql.pending_requests is callers already queued
+                // for a connection — both invisible from the span above, which only starts once a
+                // connection has been handed out.
+                meter.AddMeter("Npgsql");
+            });
     }
+
+    /// <summary>
+    /// Install outside the exception handler, so the entry reports the status code the caller actually
+    /// received rather than the one that was on its way to being replaced.
+    /// </summary>
+    internal static WebApplication UseApiRequestLogging(this WebApplication app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        app.UseWhen(
+            static context => !IsHealthProbe(context.Request.Path),
+            branch => branch.UseMiddleware<RequestLoggingMiddleware>());
+
+        return app;
+    }
+
+    private static bool IsHealthProbe(PathString path) =>
+        path.StartsWithSegments(HealthEndpoints.PathPrefix, StringComparison.OrdinalIgnoreCase);
 }

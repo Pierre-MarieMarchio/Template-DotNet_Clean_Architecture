@@ -1015,8 +1015,8 @@ internal static class Templates
         """;
 
     internal const string Controller = """
-        using %P%.Api.Core.Common.Controllers;
-        using %P%.Api.Core.Common.Idempotency;
+        using %P%.Api.Common.Controllers;
+        using %P%.Api.Common.Idempotency;
         using %P%.Api.Features.%F%.Contracts.Responses;
         using %P%.Api.Features.%F%.Mapping;
         using %P%.Application.Features.%F%.UseCases.Commands.Create%A%;

@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
-using AppTemplate.Api.Core.Common.Caching;
-using AppTemplate.Api.Core.Common.Idempotency;
-using AppTemplate.Api.Core.Common.Security;
+using AppTemplate.Api.Common.Caching;
+using AppTemplate.Api.Common.Idempotency;
+using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -46,14 +46,12 @@ one exists.
 | Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: what a context saves through — the unit of work, the three interceptors, the aggregate tracker — plus the system clock, multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Auth`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
 | Presentation | `AppTemplate.Presentation.Core` | what any host needs whatever its transport: one outbound HTTP policy, the language a flow is written in, OTLP traces and metrics, the identity of a process with no caller — and no framework reference, deliberately | `AppTemplate.Application.Core` |
-| Presentation | `AppTemplate.Api.Core` | the half of an HTTP host that knows no feature: the whole pipeline behind one `UseCorePipeline()` — problem details, ETags, idempotency, rate limiting, CORS, security headers, versioning, the health endpoints | `AppTemplate.Application.Core` + `AppTemplate.Presentation.Core`, plus a `FrameworkReference` on ASP.NET Core |
-| Presentation | `AppTemplate.Api`, `AppTemplate.Worker` | controllers or a background service, composition root, host concerns | `AppTemplate.Api.Core` (the API only) + `AppTemplate.Presentation.Core` + the application projects it needs + the modules that host needs |
+| Presentation | `AppTemplate.Api`, `AppTemplate.Worker` | controllers or a background service, composition root, host concerns; the API also holds the HTTP mechanisms no feature owns under `Common/` — the whole pipeline behind one `UseHttpPipeline()`: problem details, ETags, idempotency, rate limiting, CORS, security headers, versioning, the health endpoints — and a `FrameworkReference` on ASP.NET Core | `AppTemplate.Presentation.Core` + the application projects it needs + the modules that host needs |
 
 ```mermaid
 graph RL
-    Api[AppTemplate.Api<br/>controllers, composition root]
+    Api[AppTemplate.Api<br/>controllers, the HTTP pipeline behind one UseHttpPipeline,<br/>composition root]
     Worker[AppTemplate.Worker<br/>three BackgroundServices, composition root]
-    ApiCore[AppTemplate.Api.Core<br/>the HTTP pipeline behind one UseCorePipeline:<br/>problem details, ETags, idempotency, rate limiting,<br/>security headers, versioning, health]
     PresCore[AppTemplate.Presentation.Core<br/>one outbound HTTP policy, the default language,<br/>OTLP traces and metrics, the no-caller identity,<br/>the loop recurring work runs on]
     Ident[AppTemplate.Infrastructure.Auth<br/>ASP.NET Identity policy, JWT, refresh tokens]
     Mail[AppTemplate.Infrastructure.Email<br/>MailKit SMTP]
@@ -73,8 +71,6 @@ graph RL
     App --> AppCore
     Auth --> AppCore
     PresCore --> AppCore
-    ApiCore --> AppCore
-    ApiCore --> PresCore
     InfraCore --> AppCore
     Pers --> App
     Pers --> AppCore
@@ -94,7 +90,6 @@ graph RL
     Api --> App
     Api --> Auth
     Api --> AppCore
-    Api --> ApiCore
     Api --> PresCore
     Api --> InfraCore
     Api --> Pers
@@ -211,12 +206,20 @@ derived project can read the signatures instead of the code, and no version, bec
 **It carries no `FrameworkReference`, and that is why it is a project of its own rather than half of
 one presentation Core.** A host with no HTTP surface — a desktop client, a CLI — gets a clock, a
 culture and an outbound budget from it without inheriting ASP.NET, which is the door the split
-exists to keep open; `AppTemplate.Api.Core` is where everything that does need the framework goes.
+exists to keep open; `AppTemplate.Api` is where everything that does need the framework goes.
 Four packages this repository uses are therefore deliberately absent here, each because its own
 nuspec carries that framework reference and would pull the shared framework in through the back
 door: `Scalar.AspNetCore`, `Microsoft.AspNetCore.OpenApi`,
 `OpenTelemetry.Instrumentation.AspNetCore`, and `Asp.Versioning.Mvc` through its dependency
 `Asp.Versioning.Http`, whose own nuspec is clean, which is what makes that one hard to see.
+
+**The portability is checked for everything under the HTTP host, not only for this project.**
+`PortabilityTests` reads the project files and their `ProjectReference` closure and fails if the
+domain, the application, the infrastructure projects or `AppTemplate.Presentation.Core` declare the
+ASP.NET shared framework, use the Web SDK or reference an ASP.NET Core package. The one exemption is
+`AppTemplate.Infrastructure.Auth`, whose `Microsoft.AspNetCore.Authentication.JwtBearer` is the
+bearer-token handler of the ASP.NET authentication pipeline and carries the framework in its own
+nuspec; the test names it with that reason and fails if the reason stops being true.
 
 **One telemetry registration, and three things it takes from the host rather than deciding.** This
 is the first question a reader has about a shared `AddObservability` — then how does each host get
@@ -365,7 +368,7 @@ never by naming the type, which is what
 what lets two modules share one mechanism without either owning it. What is public is what a module
 cannot delegate: the `AggregateTracker` it derives from, the `StoredStamps` its mapper calls, the
 `IAuditActor` its host answers, and the interceptors it attaches to its own context. Like the other
-five SDK projects it has `CS1591` re-enabled and no version.
+four SDK projects it has `CS1591` re-enabled and no version.
 
 Its `Common/` is held to the rule below by construction rather than by that rule: an SDK project
 may reference only SDK projects, so it cannot name `AppTemplate.Application` or

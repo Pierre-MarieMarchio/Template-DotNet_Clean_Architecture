@@ -13,11 +13,11 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// </summary>
 /// <remarks>
 /// Two files, because the pipeline is written in one and installed by the other. The order of the
-/// middleware itself is <c>UseCorePipeline</c>'s, in the SDK; whether a host puts anything ahead of
-/// that call is the host's own, and the third rule below is what keeps the first two from being
-/// true of a pipeline something else already ran in front of. Both are read from source, because
-/// this test project deliberately references neither — the same reason <c>HttpSurfaceTests</c> and
-/// <c>ObservabilityRegistrationTests</c> read their subjects that way.
+/// middleware itself is <c>UseHttpPipeline</c>'s, in <c>Common/Hosting</c>; whether a host puts
+/// anything ahead of that call is the host's own, and the third rule below is what keeps the first
+/// two from being true of a pipeline something else already ran in front of. Both are read from
+/// source, because this test project deliberately references neither — the same reason
+/// <c>HttpSurfaceTests</c> and <c>ObservabilityRegistrationTests</c> read their subjects that way.
 /// </remarks>
 public sealed partial class RequestPipelineTests
 {
@@ -25,8 +25,10 @@ public sealed partial class RequestPipelineTests
         ProjectReferenceGraph.RepositoryRoot,
         "Src",
         "Presentation",
-        "AppTemplate.Api.Core",
-        "ApiCoreModule.cs");
+        "AppTemplate.Api",
+        "Common",
+        "Hosting",
+        "HttpPipelineModule.cs");
 
     private static readonly string _programPath = Path.Combine(
         ProjectReferenceGraph.RepositoryRoot,
@@ -55,7 +57,7 @@ public sealed partial class RequestPipelineTests
             + "everything registered after it is skipped on the path it rejects. Registered after "
             + "the limit, request logging never runs for an oversized request, and the one status "
             + "the API can return without any record of it is the one a caller is most likely to "
-            + "retry. Order in UseCorePipeline is the whole of the fix, and the whole of the "
+            + "retry. Order in UseHttpPipeline is the whole of the fix, and the whole of the "
             + "defect.");
     }
 
@@ -78,19 +80,19 @@ public sealed partial class RequestPipelineTests
     }
 
     /// <summary>
-    /// The first two rules are about the order inside <c>UseCorePipeline</c>. They say nothing about
+    /// The first two rules are about the order inside <c>UseHttpPipeline</c>. They say nothing about
     /// what a host runs before calling it, and a host that installs a middleware of its own first
     /// would defeat the ordering below without either of them noticing — the pipeline would still be
     /// internally correct and the caller's address would still be the proxy's.
     /// </summary>
     [Fact]
-    public void TheHostInstallsTheCorePipeline_BeforeAnyMiddlewareOfItsOwn()
+    public void TheHostInstallsTheHttpPipeline_BeforeAnyMiddlewareOfItsOwn()
     {
         var order = MiddlewareOrderIn(_programPath, floor: 3);
 
         order[0].ShouldBe(
-            "UseCorePipeline",
-            "the host's first middleware has to be the core pipeline, and it is "
+            "UseHttpPipeline",
+            "the host's first middleware has to be the HTTP pipeline, and it is "
             + $"'{order[0]}'. Anything ahead of it runs before the forwarded headers have been "
             + "applied, so it reads the proxy's address and the proxy's scheme — which is the exact "
             + "defect the ordering inside that pipeline exists to prevent.");
@@ -127,7 +129,7 @@ public sealed partial class RequestPipelineTests
 
         index.ShouldBeGreaterThanOrEqualTo(
             0,
-            $"'{middleware}' is not registered in the core pipeline at all. It was, when this rule "
+            $"'{middleware}' is not registered in the HTTP pipeline at all. It was, when this rule "
             + "was written; either it has been renamed and this rule is stale, or the pipeline "
             + "lost it.");
 

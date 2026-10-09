@@ -593,7 +593,7 @@ And the fixture and helper code, which the compiler finds for you:
   `IDomainEvent`, so a private in-file event record and a minimal `IDomainEventSource` cover it with
   no feature at all. Its dispatcher sibling needs no edit: it lives in
   `Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Saving/DomainEvents/DomainEventDispatcherTests.cs`
-  and already raises an event of its own, because a mirror of a package-grade project may name no
+  and already raises an event of its own, because a mirror of a SDK project may name no
   business type.
 - `Tests/Presentation/AppTemplate.Api.UnitTests/Conventions/ControllerContractTests.cs`'s
   deliberately-leaking test controller returns `TodoItemDto` **(T)**; repoint it at any application

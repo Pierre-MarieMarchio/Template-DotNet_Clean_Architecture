@@ -7,17 +7,15 @@ namespace AppTemplate.Architecture.Tests.Rules;
 
 /// <summary>
 /// What a project has to satisfy in order to be one of the vendored SDK projects, recognised by the
-/// <c>IsPackable</c> it declares.
+/// <c>IsSdkProject</c> it declares.
 /// <para>
-/// These projects are written as if they were NuGet packages: self-contained, ignorant of the
-/// application that consumes them, and consumed by <c>ProjectReference</c> after being copied into
-/// a derived repository. Both properties below are what makes that true rather than aspirational —
-/// an outward reference is what makes such a project unpackable and un-vendorable, and the
-/// packaging metadata is what <c>dotnet pack</c> reads.
+/// These projects are self-contained, ignorant of the application that consumes them, and consumed
+/// by <c>ProjectReference</c> after being copied into a derived repository. The rules below are
+/// what makes that true rather than aspirational.
 /// </para>
 /// <para>
-/// <b>Both rules only have a subject once an SDK project exists.</b> Until one declares
-/// <c>IsPackable</c>, there is nothing to check, so the rules report themselves <em>skipped</em>
+/// <b>The rules only have a subject once an SDK project exists.</b> Until one declares
+/// <c>IsSdkProject</c>, there is nothing to check, so the rules report themselves <em>skipped</em>
 /// rather than passing: a rule that quietly succeeds where it checked nothing is the failure mode
 /// this whole project exists to prevent, and a skip is visible in the run summary where a pass is
 /// not.
@@ -25,19 +23,6 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// </summary>
 public sealed class PackageBoundaryTests
 {
-    /// <summary>
-    /// What <c>dotnet pack</c> needs in order to produce a package a reader can identify: which
-    /// package this is, what it is for, and who stands behind it.
-    /// </summary>
-    private static readonly string[] _requiredProperties = ["PackageId", "Description", "Authors"];
-
-    /// <summary>
-    /// A version would promise a published lineage that does not exist. These projects are
-    /// vendored: a derived repository copies them and is free to tune them, so the copy's history
-    /// is its own and no number of ours describes it.
-    /// </summary>
-    private static readonly string[] _forbiddenProperties = ["Version", "VersionPrefix"];
-
     /// <summary>
     /// The reference graph, not the IL: a reference nothing consumes yet is invisible to a
     /// type-level rule, and is exactly how an outward arrow gets established one release before
@@ -50,7 +35,7 @@ public sealed class PackageBoundaryTests
 
         if (sdkProjects.Count == 0)
         {
-            Assert.Skip("No project under Src/ declares IsPackable, so there is no SDK project to hold to this rule.");
+            Assert.Skip("No project under Src/ declares IsSdkProject, so there is no SDK project to hold to this rule.");
         }
 
         var offences = sdkProjects
@@ -61,52 +46,12 @@ public sealed class PackageBoundaryTests
             .ToList();
 
         offences.ShouldBeEmpty(
-            "An SDK project references a project that is not one. These projects are written as if "
-            + "they were NuGet packages and are vendored into a derived repository by copy, so they "
-            + "may reference each other and nothing else — never a business project, never an "
-            + "infrastructure module, never a host. A reference outward is what makes one "
-            + "unpackable and un-vendorable: `dotnet pack` cannot express it, and the copy drags in "
+            "An SDK project references a project that is not one. These projects are "
+            + "vendored into a derived repository by copy, so they may reference each other and "
+            + "nothing else — never a business project, never an infrastructure module, never a "
+            + "host. A reference outward is what makes one un-vendorable: the copy drags in "
             + "the very application the project is supposed to know nothing about. Invert the "
             + "dependency behind a port, or move what is shared down into the SDK.");
-    }
-
-    /// <summary>
-    /// The metadata convention, read from the project file rather than from a build: the
-    /// declaration is what CI packs, and what a reviewer of the diff sees.
-    /// </summary>
-    [Fact]
-    public void EveryPackableProject_DeclaresItsPackageIdentity_AndNoVersion()
-    {
-        var packable = ProjectReferenceGraph.SdkProjects.ToList();
-
-        if (packable.Count == 0)
-        {
-            Assert.Skip("No project under Src/ declares IsPackable, so there is no packaging metadata to check.");
-        }
-
-        var offences = new List<string>();
-
-        foreach (var project in packable)
-        {
-            var properties = DeclaredProperties(project.RelativePath);
-
-            offences.AddRange(_requiredProperties
-                .Where(property => !properties.Contains(property))
-                .Select(property => $"{project.RelativePath}: missing <{property}>"));
-
-            offences.AddRange(_forbiddenProperties
-                .Where(properties.Contains)
-                .Select(property => $"{project.RelativePath}: declares <{property}>"));
-        }
-
-        offences
-            .Order(StringComparer.Ordinal)
-            .ShouldBeEmpty(
-                "A project that declares IsPackable must also declare PackageId, Description and "
-                + "Authors — without them the produced package cannot be identified — and must "
-                + "declare neither Version nor VersionPrefix, because these projects are vendored "
-                + "rather than published and a version would promise a lineage that does not "
-                + "exist.");
     }
 
     /// <summary>
@@ -171,7 +116,7 @@ public sealed class PackageBoundaryTests
 
         if (sdkProjects.Count == 0)
         {
-            Assert.Skip("No project under Src/ declares IsPackable, so there is no SDK boundary to check.");
+            Assert.Skip("No project under Src/ declares IsSdkProject, so there is no SDK boundary to check.");
         }
 
         var carrying = sdkProjects
@@ -218,8 +163,7 @@ public sealed class PackageBoundaryTests
 
     /// <summary>
     /// The <c>Include</c> values of one item type a project file states, unqualified for the same
-    /// reason as <see cref="DeclaredProperties"/>: an SDK-style project file carries no XML
-    /// namespace.
+    /// reason as the rest of this class: an SDK-style project file carries no XML namespace.
     /// </summary>
     private static HashSet<string> DeclaredItems(string relativePath, string itemName)
     {
@@ -233,23 +177,5 @@ public sealed class PackageBoundaryTests
             .Select(element => element.Attribute("Include")?.Value)
             .Where(include => !string.IsNullOrEmpty(include))
             .Select(include => include!)];
-    }
-
-    /// <summary>
-    /// The MSBuild property names a project file states. SDK-style project files carry no XML
-    /// namespace, so the elements are matched unqualified; only children of a
-    /// <c>PropertyGroup</c> count, so an item's metadata is not mistaken for a property.
-    /// </summary>
-    private static HashSet<string> DeclaredProperties(string relativePath)
-    {
-        string projectFile = Path.Combine(ProjectReferenceGraph.RepositoryRoot, relativePath);
-
-        File.Exists(projectFile).ShouldBeTrue($"The project file was not found at '{projectFile}'.");
-
-        return [.. XDocument
-            .Load(projectFile)
-            .Descendants("PropertyGroup")
-            .Elements()
-            .Select(element => element.Name.LocalName)];
     }
 }

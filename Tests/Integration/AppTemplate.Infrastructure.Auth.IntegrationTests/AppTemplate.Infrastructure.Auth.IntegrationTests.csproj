@@ -18,7 +18,6 @@
        it, and rows are inspected over the context's own connection. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

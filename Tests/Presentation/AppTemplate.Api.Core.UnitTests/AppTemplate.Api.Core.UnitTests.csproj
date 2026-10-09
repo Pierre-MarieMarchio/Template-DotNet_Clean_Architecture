@@ -7,7 +7,6 @@
        its internals are granted to. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

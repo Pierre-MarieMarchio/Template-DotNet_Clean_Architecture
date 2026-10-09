@@ -5,7 +5,6 @@
        use cases' own decisions — authorisation, validation, transactional boundary. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

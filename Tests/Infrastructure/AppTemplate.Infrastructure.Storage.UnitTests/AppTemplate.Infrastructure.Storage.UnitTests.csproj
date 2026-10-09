@@ -24,7 +24,6 @@
        a dictionary of strings and an exception message, which obscures the one thing under test. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

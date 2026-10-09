@@ -131,7 +131,6 @@ Src/
 Tests/               a 1:1 mirror of Src/, plus Architecture/ and Integration/
 Tools/               the file-based C# apps this repository runs on itself
 docs/                the documentation index and everything it lists
-deploy/kubernetes/   raw manifests, no Helm chart
 ```
 
 The directory under `Src/` names the **layer**; the project inside keeps its own name and root

@@ -283,10 +283,10 @@ says otherwise.
   identity module — it has to, see `docs/CONFIGURATION.md` — and `JwtOptionsValidator` therefore
   demands a `Jwt:Key` of it at startup. That host signs nothing and verifies nothing: `AccessTokenIssuer`
   is the only thing that uses the key, no background loop resolves it, and bearer validation needs an
-  inbound request this process does not have. So it is given a self-describing placeholder from
-  `deploy/kubernetes/configmap-worker.yaml` and `docker-compose.yml`, and only `api-deployment.yaml`
-  references the real value in `deploy/kubernetes/secret.example.yaml`. Both hosts still share
-  `Jwt:Issuer` and `Jwt:Audience`, which are the two values they genuinely have to agree about.
+  inbound request this process does not have. `docker-compose.yml` gives the Worker a
+  self-describing placeholder and gives only the API the real key; other deployments must do the
+  same. Both hosts still share `Jwt:Issuer` and `Jwt:Audience`, which are the two values they
+  genuinely have to agree about.
   Until this change the worker mounted the API's signing key, which made a container whose whole job
   is sending reminder mail and deleting expired rows one compromise away from minting an access
   token for any user in the system.
@@ -355,21 +355,19 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   Closing it means taking delivery off the request: queue the message durably and answer on both
   branches at once. A detached task is not the fix — it drops the mail on the next deployment — and
   neither is a fixed delay, which would have to exceed the relay's own variance to hide anything.
-- **The background work has no high availability, and no number of replicas fixes that today.**
-  `deploy/kubernetes/worker-deployment.yaml` fixes `replicas: 1` and argues only against *two*.
-  It says nothing about **zero**, which is the interesting number: with that pod down, no reminder
+- **The background work needs an availability signal.** With every Worker down, no reminder
   is rung, no expired refresh-token grant is deleted and no idempotency key is reclaimed, and
   nothing alerts on any of it — the host serves no traffic, so it has no readiness probe. Each of
   the three loops does now emit a heartbeat, and it is what a deployment should alert on going flat:
   `apptemplate.worker.{maintenance,files,reminders}.iterations`, counted once per pass and never
   gated on how much the pass found, so a healthy quiet system still produces samples. Alert on the
-  pod's restart count alongside them.
+  Worker's restart count alongside them.
   Do **not** alert on the absence of `apptemplate.reminders.missed_cancellations`, which this
   paragraph used to advise: that counter increments only when a cancellation was missed, so silence
   is its healthy state and it cannot tell a working loop from a dead one.
-  Raising the count is now **safe**, and it was not before. The manifest's own comment reasoned
-  about the two purges — idempotent deletes over an already-covered range, so a second replica
-  wastes a connection and nothing more — and was silent about the loop where it mattered.
+  Running multiple Workers is now **safe** for the reminder pass, and it was not before. The two
+  purges are idempotent deletes over an already-covered range, so a second process wastes a
+  connection and nothing more. The reminder loop is where concurrency mattered:
   `FireDueRemindersUseCase` claims a reminder with `Reminder.TryClaim` **in memory**, notifies, and
   commits the whole batch once at the end, so two replicas ticking in the same second both read
   `ClaimedAt` as null, both took the claim, and both sent the mail; only then did one of them lose
@@ -398,10 +396,9 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   the expensive part is constant, but a wrong password writes an access-failure count where an
   unknown address does not. It is far smaller than the hash and always the same sign, so it is
   extractable by averaging. Making it nil would mean writing for a user that does not exist.
-- **Nothing proves the process actually drains on SIGTERM.** The readiness flip is tested, and the
-  Kubernetes manifests carry the `preStop` and grace period it needs, but that Kestrel finishes
-  in-flight requests and that `ShutdownTimeout` is honoured are asserted nowhere — doing so means
-  running the binary and signalling it, which is a different kind of test than any here.
+- **Nothing proves the process actually drains on SIGTERM.** The readiness flip is tested, but
+  Kestrel finishing in-flight requests and honouring `ShutdownTimeout` are asserted nowhere. Proving
+  them requires running the binary and signalling it, which is a different kind of test than any here.
 - **`If-Match` is optional by default.** Every read publishes a strong `ETag` and every write
   honours `If-Match`, refusing a stale or unrecognised version with `412`, but a request that sends
   no `If-Match` at all is still accepted unless `Concurrency:IfMatch` is set to `Required` — see

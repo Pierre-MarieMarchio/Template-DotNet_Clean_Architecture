@@ -14,7 +14,7 @@ namespace AppTemplate.Api.Features.Maintenance.Controllers;
 /// </summary>
 /// <remarks>
 /// Both purges here are also run by the worker's maintenance loop. This endpoint is what a
-/// scheduler outside the process calls — a Kubernetes CronJob, a cloud scheduler.
+/// scheduler outside the process calls, such as a cloud scheduler.
 /// </remarks>
 [Route("api/v{version:apiVersion}/maintenance")]
 [Asp.Versioning.ApiVersion("1.0")]

@@ -98,7 +98,8 @@
             "TestResults/**",
             ".env",
             ".vs/**",
-            "docs/plans/**"
+            "docs/plans/**",
+            "docs/guide_architecture_pour_agent.md"
           ]
         }
       ]

@@ -15,9 +15,8 @@ public sealed class ShutdownOptions
     public const string SectionName = "Shutdown";
 
     /// <summary>
-    /// 30 seconds by default: the same grace period Kubernetes gives a pod
-    /// (<c>terminationGracePeriodSeconds</c>) before SIGKILL, so this host is not still draining
-    /// when the orchestrator stops waiting. Long enough for a normal request — including one
+    /// 30 seconds by default: the deployment must allow at least this long after signalling
+    /// shutdown before it stops the process. Long enough for a normal request — including one
     /// retrying underneath, see <see cref="RequestTimeoutsOptions.Default"/> — to finish; not so
     /// long that a genuinely stuck one holds the process open past what deploys can tolerate.
     /// </summary>

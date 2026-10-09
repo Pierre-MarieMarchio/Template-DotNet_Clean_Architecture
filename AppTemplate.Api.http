@@ -718,8 +718,8 @@ Content-Type: application/json
 
 ###
 # 37. Maintenance. Both purges answer 200 with {"deleted": n} — an object rather than a bare number,
-#     so a second field can be added without breaking callers. A scheduled job (a Kubernetes CronJob,
-#     a cloud scheduler) is expected to call these; the cadence is a deployment concern.
+#     so a second field can be added without breaking callers. An external scheduler can call
+#     these; the cadence is a deployment concern.
 #
 #     Expected to fail with the walkthrough account: these require the Administrator role, and
 #     registration does not grant it. Grant it in the database, or read this as documentation of the

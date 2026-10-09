@@ -42,7 +42,7 @@ against your production system.
   the machine's, so at zero tolerance one backward step — an NTP correction, a resumed VM — refuses
   every token in circulation at once. It is far below the framework's five-minute default.
 - **Resistance to account enumeration.** Login does not distinguish an unknown user from a wrong
-  password, *including in timing* — `UserAccountsService` runs a deliberate decoy-hash path built
+  password, *including in timing* — `AccountsService` runs a deliberate decoy-hash path built
   from the configured hasher, so both branches cost the same. Confirm-email answers identically for
   an unknown address and a bad token. Resend-confirmation answers identically whether or not the
   address exists.

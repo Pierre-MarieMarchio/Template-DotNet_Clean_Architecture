@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountLockouts;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.UnlockAccount;
 using AppTemplate.Application.Core.Common.Results;
@@ -12,7 +12,7 @@ public sealed class UnlockAccountUseCaseTests
 {
     private static readonly Guid _targetId = Guid.CreateVersion7();
 
-    private readonly IAccountLockoutsService _lockouts = Substitute.For<IAccountLockoutsService>();
+    private readonly IAccountAdministrationService _administration = Substitute.For<IAccountAdministrationService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -24,13 +24,13 @@ public sealed class UnlockAccountUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _lockouts.ReceivedCalls().ShouldBeEmpty();
+        _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task AnUnknownAccount_IsReportedAsNotFound()
     {
-        GivenTheOutcomeIs(LockoutChangeStatus.NoSuchAccount);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.NoSuchAccount);
 
         var result = await UseCase().ExecuteAsync(new UnlockAccountCommand(_targetId), TestToken);
 
@@ -41,7 +41,7 @@ public sealed class UnlockAccountUseCaseTests
     [Fact]
     public async Task AKnownAccount_Succeeds()
     {
-        GivenTheOutcomeIs(LockoutChangeStatus.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         var result = await UseCase().ExecuteAsync(new UnlockAccountCommand(_targetId), TestToken);
 
@@ -51,7 +51,7 @@ public sealed class UnlockAccountUseCaseTests
     [Fact]
     public async Task ASuccessfulUnlock_RecordsTheAdministrativeActionOnly()
     {
-        GivenTheOutcomeIs(LockoutChangeStatus.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         await UseCase().ExecuteAsync(new UnlockAccountCommand(_targetId), TestToken);
 
@@ -65,15 +65,15 @@ public sealed class UnlockAccountUseCaseTests
     [Fact]
     public async Task ASuccessfulUnlock_RotatesNoStampAndRevokesNothing()
     {
-        GivenTheOutcomeIs(LockoutChangeStatus.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         await UseCase().ExecuteAsync(new UnlockAccountCommand(_targetId), TestToken);
 
         _securityEventLog.DidNotReceive().Record(SecurityEvent.SecurityStampRotated(_targetId));
     }
 
-    private void GivenTheOutcomeIs(LockoutChangeStatus outcome) =>
-        _lockouts.UnlockAsync(_targetId, Arg.Any<CancellationToken>()).Returns(outcome);
+    private void GivenTheOutcomeIs(AccountAdministrationOutcome outcome) =>
+        _administration.UnlockAsync(_targetId, Arg.Any<CancellationToken>()).Returns(outcome);
 
-    private UnlockAccountUseCase UseCase() => new(_lockouts, _securityEventLog, new UnlockAccountCommandValidator());
+    private UnlockAccountUseCase UseCase() => new(_administration, _securityEventLog, new UnlockAccountCommandValidator());
 }

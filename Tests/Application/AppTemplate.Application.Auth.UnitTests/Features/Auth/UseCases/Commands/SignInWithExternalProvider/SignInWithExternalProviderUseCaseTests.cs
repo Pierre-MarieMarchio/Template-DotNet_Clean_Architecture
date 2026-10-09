@@ -1,10 +1,9 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccessTokenIssuer;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorChallenge;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
@@ -33,10 +32,9 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
     private readonly IExternalIdentityVerifier _verifier = Substitute.For<IExternalIdentityVerifier>();
     private readonly IExternalLoginsService _externalLogins = Substitute.For<IExternalLoginsService>();
-    private readonly IUserAccountsService _accounts = Substitute.For<IUserAccountsService>();
-    private readonly IAccessTokenIssuer _accessTokens = Substitute.For<IAccessTokenIssuer>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
-    private readonly ITwoFactorChallengeService _twoFactorChallenge = Substitute.For<ITwoFactorChallengeService>();
+    private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
+    private readonly ITwoFactorService _twoFactor = Substitute.For<ITwoFactorService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly SignInWithExternalProviderUseCase _useCase;
 
@@ -46,27 +44,19 @@ public sealed class SignInWithExternalProviderUseCaseTests
             _verifier,
             _externalLogins,
             _accounts,
-            _accessTokens,
-            _refreshTokens,
-            _twoFactorChallenge,
+            _sessionTokens,
+            _twoFactor,
             _securityEventLog,
             new SignInWithExternalProviderCommandValidator());
 
-        _accessTokens.IssueAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        _sessionTokens.IssueAccessTokenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new IssuedAccessToken("access-token", _accessTokenExpiry));
 
-        _refreshTokens.IssueAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        _sessionTokens.IssueRefreshTokenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new IssuedRefreshToken("refresh-token", _refreshTokenExpiry));
 
         _accounts.CanSignInAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
     }
-
-    /// <summary>
-    /// Every way the token can fail to verify. Read off the enum rather than listed, so a new status
-    /// cannot be added without a decision about how it is answered.
-    /// </summary>
-    public static TheoryData<ExternalIdentityStatus> Refusals =>
-        [.. Enum.GetValues<ExternalIdentityStatus>().Where(status => status is not ExternalIdentityStatus.Verified)];
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -91,19 +81,17 @@ public sealed class SignInWithExternalProviderUseCaseTests
     /// A forged token and a provider nobody configured answer identically. Mapping the unknown
     /// provider to its own error would let anyone enumerate which providers an installation accepts.
     /// </summary>
-    [Theory]
-    [MemberData(nameof(Refusals))]
-    public async Task ATokenThatDoesNotVerify_IsRefusedWithoutTouchingAnyAccount(ExternalIdentityStatus status)
+    [Fact]
+    public async Task ATokenThatDoesNotVerify_IsRefusedWithoutTouchingAnyAccount()
     {
-        GivenTheToken(ExternalIdentityOutcome.Refused(status));
+        GivenTheToken(null);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_refusal);
         _externalLogins.ReceivedCalls().ShouldBeEmpty();
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     /// <summary>
@@ -114,7 +102,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
     [Fact]
     public async Task TheTokenIsVerified_AgainstTheProviderTheRequestNamed()
     {
-        GivenTheToken(ExternalIdentityOutcome.Refused(ExternalIdentityStatus.InvalidToken));
+        GivenTheToken(null);
 
         await _useCase.ExecuteAsync(new SignInWithExternalProviderCommand("apple", "an-id-token"), TestToken);
 
@@ -137,8 +125,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
     {
         var account = AnAccount();
 
-        GivenTheToken(ExternalIdentityOutcome.Verified(
-            new VerifiedExternalIdentity(_provider, _subject, Email: null, EmailVerified: false)));
+        GivenTheToken(new VerifiedExternalIdentity(_provider, _subject, Email: null, EmailVerified: false));
 
         _externalLogins.FindByExternalLoginAsync(_provider, _subject, Arg.Any<CancellationToken>())
             .Returns(account);
@@ -185,12 +172,11 @@ public sealed class SignInWithExternalProviderUseCaseTests
         _externalLogins.FindByExternalLoginAsync(_provider, _subject, Arg.Any<CancellationToken>())
             .Returns(linked);
 
-        GivenTheToken(ExternalIdentityOutcome.Verified(
-            new VerifiedExternalIdentity(_provider, "a-different-subject", _email, EmailVerified: true)));
+        GivenTheToken(new VerifiedExternalIdentity(_provider, "a-different-subject", _email, EmailVerified: true));
 
         var provisioned = AnAccount();
         _externalLogins.ProvisionAsync(_email, _provider, "a-different-subject", Arg.Any<CancellationToken>())
-            .Returns(ExternalAccountProvisionOutcome.Provisioned(provisioned));
+            .Returns(provisioned);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -215,8 +201,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
     [InlineData("   ", true)]
     public async Task AFirstLink_WithoutAVerifiedAddress_IsRefused(string? email, bool emailVerified)
     {
-        GivenTheToken(ExternalIdentityOutcome.Verified(
-            new VerifiedExternalIdentity(_provider, _subject, email, emailVerified)));
+        GivenTheToken(new VerifiedExternalIdentity(_provider, _subject, email, emailVerified));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -225,7 +210,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
         await _externalLogins.DidNotReceive().FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _externalLogins.DidNotReceive()
             .ProvisionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     #endregion
@@ -239,7 +224,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
         GivenTheToken(AVerifiedIdentity());
         _externalLogins.ProvisionAsync(_email, _provider, _subject, Arg.Any<CancellationToken>())
-            .Returns(ExternalAccountProvisionOutcome.Provisioned(provisioned));
+            .Returns(provisioned);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -262,7 +247,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
         GivenTheToken(AVerifiedIdentity());
         _externalLogins.ProvisionAsync(_email, _provider, _subject, Arg.Any<CancellationToken>())
-            .Returns(ExternalAccountProvisionOutcome.Provisioned(provisioned));
+            .Returns(provisioned);
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -275,14 +260,13 @@ public sealed class SignInWithExternalProviderUseCaseTests
     {
         GivenTheToken(AVerifiedIdentity());
         _externalLogins.ProvisionAsync(_email, _provider, _subject, Arg.Any<CancellationToken>())
-            .Returns(ExternalAccountProvisionOutcome.Refused);
+            .Returns((AccountIdentity?)null);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_refusal);
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     #endregion
@@ -298,7 +282,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
         _externalLogins.FindByEmailAsync(_email, Arg.Any<CancellationToken>())
             .Returns(new LocalAccountMatch(account, EmailConfirmed: true));
         _externalLogins.LinkAsync(account.UserId, _provider, _subject, Arg.Any<CancellationToken>())
-            .Returns(ExternalLoginLinkStatus.Linked);
+            .Returns(true);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -325,14 +309,13 @@ public sealed class SignInWithExternalProviderUseCaseTests
         _externalLogins.FindByEmailAsync(_email, Arg.Any<CancellationToken>())
             .Returns(new LocalAccountMatch(account, EmailConfirmed: true));
         _externalLogins.LinkAsync(account.UserId, _provider, _subject, Arg.Any<CancellationToken>())
-            .Returns(ExternalLoginLinkStatus.Refused);
+            .Returns(false);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_refusal);
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     #endregion
@@ -361,8 +344,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
             .LinkAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _externalLogins.DidNotReceive()
             .ProvisionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
@@ -394,14 +376,9 @@ public sealed class SignInWithExternalProviderUseCaseTests
     {
         var errors = new List<Error>
         {
-            await RefusalFrom(() => GivenTheToken(
-                ExternalIdentityOutcome.Refused(ExternalIdentityStatus.InvalidToken))),
+            await RefusalFrom(() => GivenTheToken(null)),
 
-            await RefusalFrom(() => GivenTheToken(
-                ExternalIdentityOutcome.Refused(ExternalIdentityStatus.UnknownProvider))),
-
-            await RefusalFrom(() => GivenTheToken(ExternalIdentityOutcome.Verified(
-                new VerifiedExternalIdentity(_provider, _subject, _email, EmailVerified: false)))),
+            await RefusalFrom(() => GivenTheToken(new VerifiedExternalIdentity(_provider, _subject, _email, EmailVerified: false))),
 
             await RefusalFrom(() =>
             {
@@ -441,8 +418,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_refusal);
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
         _securityEventLog.Received(1).Record(
             SecurityEvent.AuthenticationFailed(account.UserId, CredentialCheckStatus.LockedOut));
     }
@@ -459,7 +435,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
         GivenTheToken(AVerifiedIdentity());
         _externalLogins.FindByExternalLoginAsync(_provider, _subject, Arg.Any<CancellationToken>())
             .Returns(account);
-        _twoFactorChallenge.IssueAsync(account.UserId, Arg.Any<CancellationToken>())
+        _twoFactor.IssueChallengeAsync(account.UserId, Arg.Any<CancellationToken>())
             .Returns(new IssuedTwoFactorChallenge("a-challenge-token", DateTimeOffset.UnixEpoch.AddMinutes(5)));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
@@ -468,8 +444,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
         result.Value.ShouldBeOfType<SignInWithExternalProviderOutcome.TwoFactorRequired>()
             .ChallengeToken.ShouldBe("a-challenge-token");
 
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
         _securityEventLog.DidNotReceive().Record(SecurityEvent.LoginSucceeded(account.UserId));
     }
 
@@ -484,8 +459,8 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
-        await _accessTokens.Received(1).IssueAsync(account.UserId, Arg.Any<CancellationToken>());
-        await _refreshTokens.Received(1).IssueAsync(account.UserId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).IssueAccessTokenAsync(account.UserId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).IssueRefreshTokenAsync(account.UserId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -496,7 +471,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
         GivenTheToken(AVerifiedIdentity());
         _externalLogins.ProvisionAsync(_email, _provider, _subject, Arg.Any<CancellationToken>())
-            .Returns(ExternalAccountProvisionOutcome.Provisioned(provisioned));
+            .Returns(provisioned);
 
         await _useCase.ExecuteAsync(AValidRequest(), cancellation.Token);
 
@@ -505,24 +480,23 @@ public sealed class SignInWithExternalProviderUseCaseTests
         await _externalLogins.Received(1).FindByEmailAsync(_email, cancellation.Token);
         await _externalLogins.Received(1).ProvisionAsync(_email, _provider, _subject, cancellation.Token);
         await _accounts.Received(1).CanSignInAsync(provisioned.UserId, cancellation.Token);
-        await _accessTokens.Received(1).IssueAsync(provisioned.UserId, cancellation.Token);
-        await _refreshTokens.Received(1).IssueAsync(provisioned.UserId, cancellation.Token);
+        await _sessionTokens.Received(1).IssueAccessTokenAsync(provisioned.UserId, cancellation.Token);
+        await _sessionTokens.Received(1).IssueRefreshTokenAsync(provisioned.UserId, cancellation.Token);
     }
 
     #endregion
 
     private static SignInWithExternalProviderCommand AValidRequest() => new(_provider, "an-id-token");
 
-    private static ExternalIdentityOutcome AVerifiedIdentity() =>
-        ExternalIdentityOutcome.Verified(
-            new VerifiedExternalIdentity(_provider, _subject, _email, EmailVerified: true));
+    private static VerifiedExternalIdentity AVerifiedIdentity() =>
+        new(_provider, _subject, _email, EmailVerified: true);
 
     private static AccountIdentity AnAccount(bool twoFactorEnabled = false) =>
         new(Guid.CreateVersion7(), "someone", _email, twoFactorEnabled);
 
-    private void GivenTheToken(ExternalIdentityOutcome outcome) =>
+    private void GivenTheToken(VerifiedExternalIdentity? identity) =>
         _verifier.VerifyAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(outcome);
+            .Returns(identity);
 
     private async Task<Error> RefusalFrom(Action arrange)
     {

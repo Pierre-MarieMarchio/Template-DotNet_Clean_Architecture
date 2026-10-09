@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RoleAssignments;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.AddRole;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
@@ -14,8 +14,8 @@ public sealed class AddRoleUseCaseTests
     private const string _role = "Admin";
     private static readonly Guid _targetId = Guid.CreateVersion7();
 
-    private readonly IRoleAssignmentsService _roles = Substitute.For<IRoleAssignmentsService>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly IAccountAdministrationService _administration = Substitute.For<IAccountAdministrationService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -27,7 +27,7 @@ public sealed class AddRoleUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _roles.ReceivedCalls().ShouldBeEmpty();
+        _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
@@ -37,13 +37,13 @@ public sealed class AddRoleUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _roles.ReceivedCalls().ShouldBeEmpty();
+        _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task AnUnknownAccount_IsReportedAsNotFound()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.NoSuchAccount);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.NoSuchAccount);
 
         var result = await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, _role), TestToken);
 
@@ -54,7 +54,7 @@ public sealed class AddRoleUseCaseTests
     [Fact]
     public async Task AKnownAccount_Succeeds()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         var result = await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, _role), TestToken);
 
@@ -64,7 +64,7 @@ public sealed class AddRoleUseCaseTests
     [Fact]
     public async Task AnUnseededRole_ReportsTheStoresMessage()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Rejected("Role 'Ghost' does not exist."));
+        GivenTheOutcomeIs(AccountAdministrationOutcome.RejectedBecause("Role 'Ghost' does not exist."));
 
         var result = await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, "Ghost"), TestToken);
 
@@ -72,21 +72,21 @@ public sealed class AddRoleUseCaseTests
         result.Error!.Details!["role"].ShouldContain("Role 'Ghost' does not exist.");
     }
 
-    /// <summary>The gap this whole vertical exists to close: see <c>RoleAssignments</c>.</summary>
+    /// <summary>The gap this whole vertical exists to close: see <c>IAccountAdministrationService</c>.</summary>
     [Fact]
     public async Task ASuccessfulGrant_RevokesEveryRefreshTokenForTheTarget()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, _role), TestToken);
 
-        await _refreshTokens.Received(1).RevokeAllForUserAsync(_targetId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_targetId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ASuccessfulGrant_RecordsBothTheAdministrativeActionAndTheStampRotation()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, _role), TestToken);
 
@@ -97,16 +97,16 @@ public sealed class AddRoleUseCaseTests
     [Fact]
     public async Task AStoreRefusal_RevokesNothing()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Rejected("already assigned"));
+        GivenTheOutcomeIs(AccountAdministrationOutcome.RejectedBecause("already assigned"));
 
         await UseCase().ExecuteAsync(new AddRoleCommand(_targetId, _role), TestToken);
 
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    private void GivenTheOutcomeIs(RoleAssignmentChangeOutcome change) =>
-        _roles.AddRoleAsync(_targetId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(change);
+    private void GivenTheOutcomeIs(AccountAdministrationOutcome change) =>
+        _administration.GrantRoleAsync(_targetId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(change);
 
-    private AddRoleUseCase UseCase() => new(_roles, _refreshTokens, _securityEventLog, new AddRoleCommandValidator());
+    private AddRoleUseCase UseCase() => new(_administration, _sessionTokens, _securityEventLog, new AddRoleCommandValidator());
 }

@@ -1,5 +1,5 @@
 ﻿using System.Globalization;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Core.Common.Localization;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
@@ -21,7 +21,7 @@ namespace AppTemplate.Infrastructure.Email.Features.Reminders;
 /// </para>
 /// </summary>
 internal sealed class EmailReminderNotifier(
-    IUserProfilesService profiles,
+    IAccountsService accounts,
     IEmailSender emailSender,
     ILogger<EmailReminderNotifier> logger) : IReminderNotifier
 {
@@ -35,7 +35,7 @@ internal sealed class EmailReminderNotifier(
     {
         ArgumentNullException.ThrowIfNull(notification);
 
-        var profile = await profiles.FindByIdAsync(notification.OwnerId.Value, cancellationToken);
+        var profile = await accounts.FindProfileAsync(notification.OwnerId.Value, cancellationToken);
 
         if (profile is null)
         {

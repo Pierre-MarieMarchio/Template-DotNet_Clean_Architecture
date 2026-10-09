@@ -1,23 +1,12 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccessTokenIssuer;
-using AppTemplate.Application.Auth.Features.Auth.Ports.AccountDeletion;
-using AppTemplate.Application.Auth.Features.Auth.Ports.AccountLockouts;
-using AppTemplate.Application.Auth.Features.Auth.Ports.ConfirmationEmailFactory;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailChangeEmailFactory;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailChangeTokens;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailConfirmationTokens;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
+using AppTemplate.Application.Auth.Features.Auth.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
-using AppTemplate.Application.Auth.Features.Auth.Ports.PasswordResetEmailFactory;
-using AppTemplate.Application.Auth.Features.Auth.Ports.PasswordResetTokens;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenMaintenance;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RoleAssignments;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorAdministration;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorChallenge;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
@@ -65,13 +54,13 @@ namespace AppTemplate.Infrastructure.Auth;
 /// its rows is <c>IAuditable</c>, and it has no aggregate to flush and no domain event to publish.
 /// </para>
 /// <para>
-/// It sends no mail. <see cref="ConfirmationEmailFactory"/> renders the confirmation message and
-/// hands it back; the use case delivers it through <see cref="IEmailSender"/>, which the host
+/// It sends no mail. <see cref="AccountEmailFactory"/> renders the account mails and hands them
+/// back; the use case delivers it through <see cref="IEmailSender"/>, which the host
 /// supplies by composing <c>AppTemplate.Infrastructure.Email</c> or <c>AppTemplate.Infrastructure.InMemory</c>.
 /// </para>
 /// <para>
-/// It makes no authentication decision either. Each registration below satisfies one narrow
-/// capability port, and the sequencing — what a refusal means, when a token is minted, whether a
+/// It makes no authentication decision either. Each registration below satisfies one intent-shaped
+/// port, and the sequencing — what a refusal means, when a token is minted, whether a
 /// delivery failure fails the request — belongs to the use cases in <c>AppTemplate.Application</c>.
 /// </para>
 /// </summary>
@@ -129,29 +118,20 @@ public static class AuthModule
         // generates a security stamp rather than writing a row.
         services.TryAddScoped<IIdentitySeeder, IdentitySeeder>();
 
-        services.AddScoped<IUserAccountsService, UserAccountsService>();
-        services.AddScoped<IUserProfilesService, UserProfilesService>();
-        services.AddScoped<IAccountLockoutsService, AccountLockoutsService>();
-        services.AddScoped<IRoleAssignmentsService, RoleAssignmentsService>();
-        services.AddScoped<IAccountDeletionService, AccountDeletionService>();
-        services.AddScoped<IEmailConfirmationTokensService, EmailConfirmationTokensService>();
-        services.AddScoped<IPasswordResetTokensService, PasswordResetTokensService>();
-        services.AddScoped<IEmailChangeTokensService, EmailChangeTokensService>();
-        services.AddScoped<IAccessTokenIssuer, AccessTokenIssuer>();
-        services.AddScoped<IRefreshTokenGrantsService, RefreshTokenGrantsService>();
-        services.AddScoped<IRefreshTokenMaintenanceService, RefreshTokenMaintenanceService>();
-        services.AddScoped<ITwoFactorEnrollmentService, TwoFactorEnrollmentService>();
-        services.AddScoped<ITwoFactorChallengeService, TwoFactorChallengeService>();
-        services.AddScoped<ITwoFactorAdministrationService, TwoFactorAdministrationService>();
-        services.AddScoped<IConfirmationEmailFactory, ConfirmationEmailFactory>();
-        services.AddScoped<IPasswordResetEmailFactory, PasswordResetEmailFactory>();
-        services.AddScoped<IEmailChangeEmailFactory, EmailChangeEmailFactory>();
-        services.AddScoped<ISecurityEventLog, SecurityEventLog>();
+        services.AddScoped<IAccountsService, AccountsService>();
+        services.AddScoped<IEmailTokensService, EmailTokensService>();
+        services.AddScoped<ISessionTokensService, SessionTokensService>();
+        services.AddScoped<ITwoFactorService, TwoFactorService>();
+        services.AddScoped<IAccountAdministrationService, AccountAdministrationService>();
         services.AddScoped<IExternalIdentityVerifier, ExternalIdentityVerifier>();
         services.AddScoped<IExternalLoginsService, ExternalLoginsService>();
+        services.AddScoped<IAccountEmailFactory, AccountEmailFactory>();
+        services.AddScoped<ISecurityEventLog, SecurityEventLog>();
 
-        // Not a port: the account lookup and claim generation the adapters above share.
+        // Not ports: the account lookup and claim generation the adapters above share, and the
+        // access-token signer SessionTokensService delegates to.
         services.AddScoped<IAppUserDirectory, AppUserDirectory>();
+        services.AddScoped<AccessTokenIssuer>();
 
         AddExternalIdentityKeys(services);
         AddIdentityCore(services);
@@ -166,7 +146,7 @@ public static class AuthModule
     /// would duplicate a scheme and a whole store.
     /// </summary>
     private static bool AlreadyComposed(IServiceCollection services) =>
-        services.Any(descriptor => descriptor.ServiceType == typeof(IUserAccountsService));
+        services.Any(descriptor => descriptor.ServiceType == typeof(IAccountsService));
 
     private static void AddSeedingOptions(IServiceCollection services, IConfiguration configuration)
     {

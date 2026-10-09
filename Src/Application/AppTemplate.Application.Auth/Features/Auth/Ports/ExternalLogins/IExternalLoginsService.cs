@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 
 namespace AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
 
@@ -6,9 +6,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
 /// The link between a provider's account and a local one, over the <c>UserLogins</c> table ASP.NET
 /// Identity already maps.
 /// <para>
-/// Separate from <see cref="IUserAccountsService"/>, which is about a password: an account reached
-/// through a provider has none, so not one of that port's operations is useful here. Both ports sit
-/// at the four-operation ceiling <c>PortConventionTests</c> imposes.
+/// Separate from <see cref="IAccountsService"/>, which is about a password: an account reached
+/// through a provider has none, so not one of that port's operations is useful here.
 /// </para>
 /// <para>
 /// It deliberately does <b>not</b> decide anything. Reading, linking and provisioning are four
@@ -19,7 +18,7 @@ namespace AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
 /// </para>
 /// <para>
 /// <b>Cancellation is observed on entry only</b>, for the reason given on
-/// <see cref="IUserAccountsService"/>.
+/// <see cref="IAccountsService"/>.
 /// </para>
 /// </summary>
 public interface IExternalLoginsService
@@ -53,12 +52,11 @@ public interface IExternalLoginsService
     /// Attaches a provider identity to an account that already exists.
     /// </summary>
     /// <returns>
-    /// <see cref="ExternalLoginLinkStatus.Refused"/> when the store would not take it — including the
-    /// race where another request linked the same pair between
-    /// <see cref="FindByExternalLoginAsync"/> and this call, which the unique key on the pair is what
-    /// actually prevents.
+    /// <c>false</c> when the store would not take it — including the race where another request
+    /// linked the same pair between <see cref="FindByExternalLoginAsync"/> and this call, which the
+    /// unique key on the pair is what actually prevents.
     /// </returns>
-    Task<ExternalLoginLinkStatus> LinkAsync(
+    Task<bool> LinkAsync(
         Guid userId,
         string provider,
         string subject,
@@ -74,13 +72,13 @@ public interface IExternalLoginsService
     /// prove something twice.
     /// </para>
     /// <para>
-    /// The store chooses the user name and reports it back in
-    /// <see cref="ExternalAccountProvisionOutcome.Account"/>: the provider supplied an address and a
+    /// The store chooses the user name and reports it back: the provider supplied an address and a
     /// subject, and inventing a display name from either is the user store's business, not a use
     /// case's.
     /// </para>
     /// </summary>
-    Task<ExternalAccountProvisionOutcome> ProvisionAsync(
+    /// <returns>The new account, or <c>null</c> when the store refused to create or link it.</returns>
+    Task<AccountIdentity?> ProvisionAsync(
         string email,
         string provider,
         string subject,

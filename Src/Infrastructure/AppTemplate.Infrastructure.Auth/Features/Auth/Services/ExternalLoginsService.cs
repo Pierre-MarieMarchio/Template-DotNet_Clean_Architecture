@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
@@ -61,7 +61,7 @@ internal sealed class ExternalLoginsService(
         return user is null ? null : new LocalAccountMatch(ToAccountIdentity(user), user.EmailConfirmed);
     }
 
-    public async Task<ExternalLoginLinkStatus> LinkAsync(
+    public async Task<bool> LinkAsync(
         Guid userId,
         string provider,
         string subject,
@@ -73,15 +73,15 @@ internal sealed class ExternalLoginsService(
 
         if (user is null)
         {
-            return ExternalLoginLinkStatus.Refused;
+            return false;
         }
 
         var result = await userManager.AddLoginAsync(user, new UserLoginInfo(provider, subject, provider));
 
-        return result.Succeeded ? ExternalLoginLinkStatus.Linked : ExternalLoginLinkStatus.Refused;
+        return result.Succeeded;
     }
 
-    public async Task<ExternalAccountProvisionOutcome> ProvisionAsync(
+    public async Task<AccountIdentity?> ProvisionAsync(
         string email,
         string provider,
         string subject,
@@ -95,7 +95,7 @@ internal sealed class ExternalLoginsService(
 
             if (userName is null)
             {
-                return ExternalAccountProvisionOutcome.Refused;
+                return null;
             }
 
             var user = new AppUser
@@ -123,11 +123,11 @@ internal sealed class ExternalLoginsService(
             // somebody claimed it between the caller's lookup and this call.
             if (!IsDuplicateUserName(created))
             {
-                return ExternalAccountProvisionOutcome.Refused;
+                return null;
             }
         }
 
-        return ExternalAccountProvisionOutcome.Refused;
+        return null;
     }
 
     /// <summary>
@@ -136,7 +136,7 @@ internal sealed class ExternalLoginsService(
     /// failure here leaves an account holding the address, carrying no password and attached to no
     /// provider — one nobody can ever sign into and which blocks the address for good.
     /// </summary>
-    private async Task<ExternalAccountProvisionOutcome> LinkNewAccountAsync(
+    private async Task<AccountIdentity?> LinkNewAccountAsync(
         AppUser user,
         string provider,
         string subject)
@@ -147,10 +147,10 @@ internal sealed class ExternalLoginsService(
         {
             await userManager.DeleteAsync(user);
 
-            return ExternalAccountProvisionOutcome.Refused;
+            return null;
         }
 
-        return ExternalAccountProvisionOutcome.Provisioned(ToAccountIdentity(user));
+        return ToAccountIdentity(user);
     }
 
     private static bool IsDuplicateUserName(IdentityResult result) =>

@@ -1,8 +1,9 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
+using AppTemplate.Infrastructure.Auth.Features.Auth.Issuers;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Options;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Services;
@@ -95,7 +96,7 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
         await using var scope = fixture.Services.CreateAsyncScope();
 
         return await CreateGrants(scope.ServiceProvider, Substitute.For<IAppUserDirectory>())
-            .IssueAsync(userId, TestToken);
+            .IssueRefreshTokenAsync(userId, TestToken);
     }
 
     /// <summary>
@@ -118,7 +119,7 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
         directory.FindByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(_ => ArriveThenReturnAsync(rendezvous, user));
 
-        return await CreateGrants(scope.ServiceProvider, directory).RotateAsync(presentedToken, TestToken);
+        return await CreateGrants(scope.ServiceProvider, directory).RotateRefreshTokenAsync(presentedToken, TestToken);
     }
 
     private static async Task<AppUser?> ArriveThenReturnAsync(Rendezvous? rendezvous, AppUser user)
@@ -136,13 +137,17 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
     /// <c>UserManager</c> would drag ASP.NET Identity's whole store in for one <c>FindById</c>, and
     /// that lookup is not what these tests are about.
     /// </summary>
-    private static RefreshTokenGrantsService CreateGrants(IServiceProvider scoped, IAppUserDirectory directory) =>
+    private static SessionTokensService CreateGrants(IServiceProvider scoped, IAppUserDirectory directory) =>
         new(
+            new AccessTokenIssuer(
+                directory,
+                new OptionsWrapper<JwtOptions>(new JwtOptions()),
+                scoped.GetRequiredService<IDateTimeProvider>()),
             scoped.GetRequiredService<IRefreshTokenTable>(),
             directory,
             scoped.GetRequiredService<IContextUnitOfWork<AuthDbContext>>(),
             scoped.GetRequiredService<IDateTimeProvider>(),
             new OptionsWrapper<RefreshTokenOptions>(new RefreshTokenOptions()),
             Substitute.For<ISecurityEventLog>(),
-            NullLogger<RefreshTokenGrantsService>.Instance);
+            NullLogger<SessionTokensService>.Instance);
 }

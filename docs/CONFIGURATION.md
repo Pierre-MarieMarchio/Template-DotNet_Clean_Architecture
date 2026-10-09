@@ -76,7 +76,7 @@ be filled from user secrets or environment variables.
 > `Options.Create(…)` stops resolving in the test project that mirrors it. The two projects
 > that meet this say so where they work around it: `StorageFixture` writes the fully
 > qualified `Microsoft.Extensions.Options.Options.Create`, and
-> `ConfirmationEmailFactoryTests` uses `OptionsWrapper<T>` instead.
+> `AccountEmailFactoryConfirmationTests` uses `OptionsWrapper<T>` instead.
 
 ## One process: HTTP and the periodic jobs
 
@@ -114,7 +114,7 @@ jobs' hosting adapters and their one composition call move into it, and the API 
 its own telemetry. Use cases, contracts and storage guarantees do not move.
 
 **What the jobs need from the other modules.** The reminder pass is the one that reaches furthest:
-`EmailReminderNotifier` resolves `IUserProfilesService` — an identity port — to find the address a due
+`EmailReminderNotifier` resolves `IAccountsService` — an identity port — to find the address a due
 reminder is rung at, and `IReminderNotifier`'s only adapter lives in `AppTemplate.Infrastructure.Email`,
 which cannot be composed without validating `Email` at startup. So any process that fires reminders
 composes the identity module and the email module, with the `Jwt`, `RefreshToken`,
@@ -537,7 +537,7 @@ opposite. 1000 is a starting point, not a measured optimum for your ingestion ra
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `LifetimeInDays` | int | `7` | Range **1–90**. Token size (32 bytes) and hashing (SHA-256) are not configurable. |
-| `RetentionInDays` | int | `7` | Range **1–90**. How long an expired grant's row survives before `IRefreshTokenMaintenanceService` deletes it — a retention window on rows, not a lifetime on tokens. Read by the sweep that runs in the maintenance job. |
+| `RetentionInDays` | int | `7` | Range **1–90**. How long an expired grant's row survives before `ISessionTokensService` deletes it — a retention window on rows, not a lifetime on tokens. Read by the sweep that runs in the maintenance job. |
 
 ### `Identity`
 
@@ -688,7 +688,7 @@ as long as nobody opened the mail. See [`Localization`](#localization).
 
 **All three of `EmailConfirmation`, `PasswordReset` and `EmailChange` are validated at startup.**
 All three are bound by `AddAuthModule`, not by anything HTTP-specific, so a process that composes that
-module — for the reminder job's `IUserProfilesService` and `IRefreshTokenMaintenanceService`'s
+module — for the reminder job's `IAccountsService` and `ISessionTokensService`'s
 adapter as much as for the account routes, see [above](#one-process-http-and-the-periodic-jobs) —
 requires all three URLs.
 

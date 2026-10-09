@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Policies;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
 using Shouldly;
 using Xunit;
 

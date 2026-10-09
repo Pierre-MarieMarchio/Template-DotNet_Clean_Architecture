@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailChangeEmailFactory;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailChangeTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -15,8 +15,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestEm
 /// already registered?".
 /// </summary>
 public sealed class RequestEmailChangeUseCase(
-    IEmailChangeTokensService emailChangeTokens,
-    IEmailChangeEmailFactory emailFactory,
+    IEmailTokensService emailTokens,
+    IAccountEmailFactory emailFactory,
     IEmailSender emailSender,
     ICurrentUser currentUser,
     IValidator<RequestEmailChangeCommand> validator,
@@ -43,7 +43,7 @@ public sealed class RequestEmailChangeUseCase(
             return userId;
         }
 
-        var issued = await emailChangeTokens.IssueAsync(
+        var issued = await emailTokens.IssueEmailChangeAsync(
             userId.Value.Value,
             request.CurrentPassword,
             request.NewEmail,
@@ -75,7 +75,7 @@ public sealed class RequestEmailChangeUseCase(
     {
         try
         {
-            var message = await emailFactory.CreateAsync(userName, newEmail, token, cancellationToken);
+            var message = await emailFactory.CreateEmailChangeAsync(userName, newEmail, token, cancellationToken);
 
             await emailSender.SendAsync(newEmail, message.Subject, message.HtmlBody, cancellationToken);
         }

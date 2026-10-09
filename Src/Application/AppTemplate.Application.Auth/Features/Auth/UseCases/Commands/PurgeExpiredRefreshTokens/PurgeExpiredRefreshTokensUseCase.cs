@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenMaintenance;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 
@@ -9,14 +9,14 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpi
 /// user-facing, like <c>PurgeExpiredIdempotencyKeysUseCase</c>: nothing about a caller's own
 /// request needs this, only the operator running the store's housekeeping. Left unpurged, this
 /// table grows by one row per rotation forever — see
-/// <see cref="IRefreshTokenMaintenanceService"/> for why a grant still lingers a while after it expires
+/// <see cref="ISessionTokensService"/> for why a grant still lingers a while after it expires
 /// rather than being deleted immediately.
 /// </summary>
 public sealed class PurgeExpiredRefreshTokensUseCase(
-    IRefreshTokenMaintenanceService maintenance,
+    ISessionTokensService sessionTokens,
     IDateTimeProvider dateTimeProvider) : IPurgeExpiredRefreshTokensUseCase
 {
     /// <inheritdoc />
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default) =>
-        await maintenance.PurgeExpiredAsync(dateTimeProvider.UtcNow, cancellationToken);
+        await sessionTokens.PurgeExpiredRefreshTokensAsync(dateTimeProvider.UtcNow, cancellationToken);
 }

@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application;
 using AppTemplate.Application.Auth;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Primitives;
@@ -217,9 +217,9 @@ internal static class HostComposition
     /// <summary>
     /// The background-only composition with the identity module left out, which is the question every
     /// comment about the jobs' configuration surface answers wrongly. The obvious reason is
-    /// <c>IRefreshTokenMaintenanceService</c>'s adapter; the operative one is that
+    /// <c>ISessionTokensService</c>'s adapter; the operative one is that
     /// <c>EmailReminderNotifier</c> — the adapter behind the reminder job — needs
-    /// <see cref="IUserProfilesService"/> to find the address it notifies. Moving the maintenance
+    /// <see cref="IAccountsService"/> to find the address it notifies. Moving the maintenance
     /// adapter to another module would not free that composition of anything.
     /// </summary>
     internal static ServiceCollection ComposeBackgroundOnlyWithoutTheAuthModule(IConfiguration configuration)

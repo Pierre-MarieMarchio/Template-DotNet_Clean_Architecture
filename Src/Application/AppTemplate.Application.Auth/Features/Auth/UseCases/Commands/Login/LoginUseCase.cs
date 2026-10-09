@@ -1,9 +1,8 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
-using AppTemplate.Application.Auth.Features.Auth.Ports.AccessTokenIssuer;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorChallenge;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
 using FluentValidation;
@@ -16,10 +15,9 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
 /// succeeds.
 /// </summary>
 public sealed class LoginUseCase(
-    IUserAccountsService accounts,
-    IAccessTokenIssuer accessTokens,
-    IRefreshTokenGrantsService refreshTokens,
-    ITwoFactorChallengeService twoFactorChallenge,
+    IAccountsService accounts,
+    ISessionTokensService sessionTokens,
+    ITwoFactorService twoFactor,
     ISecurityEventLog securityEventLog,
     IValidator<LoginCommand> validator) : ILoginUseCase
 {
@@ -63,15 +61,15 @@ public sealed class LoginUseCase(
         // check, never before, so a guess alone reveals nothing about the account.
         if (account.TwoFactorEnabled)
         {
-            var challenge = await twoFactorChallenge.IssueAsync(account.UserId, cancellationToken);
+            var challenge = await twoFactor.IssueChallengeAsync(account.UserId, cancellationToken);
 
             return Result.Success<LoginOutcome>(new LoginOutcome.TwoFactorRequired(challenge.ChallengeToken));
         }
 
         securityEventLog.Record(SecurityEvent.LoginSucceeded(account.UserId));
 
-        var accessToken = await accessTokens.IssueAsync(account.UserId, cancellationToken);
-        var refreshToken = await refreshTokens.IssueAsync(account.UserId, cancellationToken);
+        var accessToken = await sessionTokens.IssueAccessTokenAsync(account.UserId, cancellationToken);
+        var refreshToken = await sessionTokens.IssueRefreshTokenAsync(account.UserId, cancellationToken);
 
         return Result.Success<LoginOutcome>(new LoginOutcome.Authenticated(
             account.UserId,

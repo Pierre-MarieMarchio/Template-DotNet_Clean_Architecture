@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
-using AppTemplate.Infrastructure.Auth.Common.Directories;
+﻿using AppTemplate.Infrastructure.Auth.Common.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Services;
 using AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;
@@ -90,9 +89,9 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     {
         var user = GivenTheAccountExists("someone", "someone@example.com");
 
-        var status = await CreateService().LinkAsync(user.Id, _provider, _subject, TestToken);
+        var linked = await CreateService().LinkAsync(user.Id, _provider, _subject, TestToken);
 
-        status.ShouldBe(ExternalLoginLinkStatus.Linked);
+        linked.ShouldBeTrue();
         _rows.IsLinked(user.Id, _provider, _subject).ShouldBeTrue();
     }
 
@@ -101,9 +100,9 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     {
         _directory.FindByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((AppUser?)null);
 
-        var status = await CreateService().LinkAsync(Guid.CreateVersion7(), _provider, _subject, TestToken);
+        var linked = await CreateService().LinkAsync(Guid.CreateVersion7(), _provider, _subject, TestToken);
 
-        status.ShouldBe(ExternalLoginLinkStatus.Refused);
+        linked.ShouldBeFalse();
     }
 
     /// <summary>
@@ -118,25 +117,24 @@ public sealed class ExternalLoginsServiceTests : IDisposable
 
         var user = GivenTheAccountExists("second", "second@example.com");
 
-        var status = await CreateService().LinkAsync(user.Id, _provider, _subject, TestToken);
+        var linked = await CreateService().LinkAsync(user.Id, _provider, _subject, TestToken);
 
-        status.ShouldBe(ExternalLoginLinkStatus.Refused);
+        linked.ShouldBeFalse();
         _rows.IsLinked(user.Id, _provider, _subject).ShouldBeFalse();
     }
 
     [Fact]
     public async Task ProvisionAsync_CreatesAnAccountAndAttachesTheProviderIdentityToIt()
     {
-        var outcome = await CreateService().ProvisionAsync(
+        var account = await CreateService().ProvisionAsync(
             "someone@example.com",
             _provider,
             _subject,
             TestToken);
 
-        outcome.Status.ShouldBe(ExternalAccountProvisionStatus.Provisioned);
-        outcome.Account.ShouldNotBeNull();
-        outcome.Account.Email.ShouldBe("someone@example.com");
-        _rows.IsLinked(outcome.Account.UserId, _provider, _subject).ShouldBeTrue();
+        account.ShouldNotBeNull();
+        account.Email.ShouldBe("someone@example.com");
+        _rows.IsLinked(account.UserId, _provider, _subject).ShouldBeTrue();
     }
 
     /// <summary>
@@ -148,13 +146,13 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     [Fact]
     public async Task ProvisionAsync_StoresTheAddressAsAlreadyConfirmed()
     {
-        var outcome = await CreateService().ProvisionAsync(
+        var account = await CreateService().ProvisionAsync(
             "someone@example.com",
             _provider,
             _subject,
             TestToken);
 
-        outcome.Status.ShouldBe(ExternalAccountProvisionStatus.Provisioned);
+        account.ShouldNotBeNull();
         _rows.Users.ShouldHaveSingleItem().EmailConfirmed.ShouldBeTrue();
     }
 
@@ -179,14 +177,14 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     [Fact]
     public async Task ProvisionAsync_DerivesAUserNameInsideTheAllowedCharacterSet()
     {
-        var outcome = await CreateService().ProvisionAsync(
+        var account = await CreateService().ProvisionAsync(
             "rené.dupont+news@example.com",
             _provider,
             _subject,
             TestToken);
 
-        outcome.Status.ShouldBe(ExternalAccountProvisionStatus.Provisioned);
-        outcome.Account!.UserName.ShouldBe("ren.dupont+news");
+        account.ShouldNotBeNull();
+        account.UserName.ShouldBe("ren.dupont+news");
     }
 
     /// <summary>
@@ -198,14 +196,14 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     {
         _identityOptions.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyz0123456789";
 
-        var outcome = await CreateService().ProvisionAsync(
+        var account = await CreateService().ProvisionAsync(
             "some.one+news@example.com",
             _provider,
             _subject,
             TestToken);
 
-        outcome.Status.ShouldBe(ExternalAccountProvisionStatus.Provisioned);
-        outcome.Account!.UserName.ShouldBe("someonenews");
+        account.ShouldNotBeNull();
+        account.UserName.ShouldBe("someonenews");
     }
 
     /// <summary>
@@ -215,14 +213,14 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     [Fact]
     public async Task ProvisionAsync_FallsBackToAGeneratedNameWhenTheAddressYieldsNothingUsable()
     {
-        var outcome = await CreateService().ProvisionAsync(
+        var account = await CreateService().ProvisionAsync(
             "рене@example.com",
             _provider,
             _subject,
             TestToken);
 
-        outcome.Status.ShouldBe(ExternalAccountProvisionStatus.Provisioned);
-        outcome.Account!.UserName.ShouldNotBeNullOrWhiteSpace();
+        account.ShouldNotBeNull();
+        account.UserName.ShouldNotBeNullOrWhiteSpace();
     }
 
     /// <summary>
@@ -234,15 +232,15 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     {
         _rows.Add("someone", "someone@other.example.com", emailConfirmed: true);
 
-        var outcome = await CreateService().ProvisionAsync(
+        var account = await CreateService().ProvisionAsync(
             "someone@example.com",
             _provider,
             _subject,
             TestToken);
 
-        outcome.Status.ShouldBe(ExternalAccountProvisionStatus.Provisioned);
-        outcome.Account!.UserName.ShouldNotBe("someone");
-        outcome.Account.UserName.ShouldStartWith("someone");
+        account.ShouldNotBeNull();
+        account.UserName.ShouldNotBe("someone");
+        account.UserName.ShouldStartWith("someone");
     }
 
     /// <summary>
@@ -254,14 +252,13 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     {
         _rows.Add("first", "someone@example.com", emailConfirmed: true);
 
-        var outcome = await CreateService().ProvisionAsync(
+        var account = await CreateService().ProvisionAsync(
             "someone@example.com",
             _provider,
             _subject,
             TestToken);
 
-        outcome.Status.ShouldBe(ExternalAccountProvisionStatus.Refused);
-        outcome.Account.ShouldBeNull();
+        account.ShouldBeNull();
     }
 
     /// <summary>
@@ -275,13 +272,13 @@ public sealed class ExternalLoginsServiceTests : IDisposable
         var other = _rows.Add("first", "first@example.com", emailConfirmed: true);
         _rows.Link(other.Id, _provider, _subject);
 
-        var outcome = await CreateService().ProvisionAsync(
+        var account = await CreateService().ProvisionAsync(
             "someone@example.com",
             _provider,
             _subject,
             TestToken);
 
-        outcome.Status.ShouldBe(ExternalAccountProvisionStatus.Refused);
+        account.ShouldBeNull();
         _rows.Users.ShouldHaveSingleItem().Id.ShouldBe(other.Id);
     }
 

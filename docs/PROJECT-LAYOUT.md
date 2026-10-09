@@ -185,11 +185,10 @@ is the subject of [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md): `Reminders` is f
 entities and so no tag folder; `Files` has four ports where `TodoLists` has one, because the bytes
 live in somebody else's store.
 
-`AppTemplate.Application.Auth/Features/Auth/` is the one vertical with no aggregate at all. Twenty
-ports stand in for one `IAuthService`, one per capability — accounts, profiles, deletion, lockouts,
-roles, token issuing, refresh grants, refresh maintenance, the three token-and-mail pairs, external
-identity and logins, two-factor enrolment, challenge and administration, and the security event
-log. An account here is what its ports say about it.
+`AppTemplate.Application.Auth/Features/Auth/` is the one vertical with no aggregate at all. Nine
+ports stand in for one `IAuthService`, one per intent — accounts, mailed tokens, session tokens,
+two-factor, administration, external identity, external logins, account mails, and the security
+event log. An account here is what its ports say about it.
 
 **Every infrastructure module is partitioned `Common/` plus `Features/<Feature>/`**, whether or not
 it serves more than one feature, so a reader who has learned one module does not learn a second
@@ -207,7 +206,7 @@ both keep the shape anyway. Local logic loses to uniformity here on purpose.
 - **Namespaces follow folders.** No exceptions.
 - **Never name a folder after the type it contains.** A namespace and a type sharing a name make
   name resolution ambiguous for consumers (CS0118), because lookup walks the enclosing namespaces.
-  A port's folder therefore keeps the capability name — `Ports/UserAccounts/IUserAccountsService.cs`.
+  A port's folder therefore keeps the capability name — `Ports/Accounts/IAccountsService.cs`.
 - **The vocabulary under `Features/<F>/` is closed, per project**, and so is the first level of
   `Common/`. How a `Common/` folder partitions itself below that first level is its own business,
   which is why `Saving/` may hold `Auditing/`, `DomainEvents/` and `Tracking/`.

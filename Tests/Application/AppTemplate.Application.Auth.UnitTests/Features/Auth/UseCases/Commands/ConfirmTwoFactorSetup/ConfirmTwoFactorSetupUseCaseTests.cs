@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Ports;
@@ -15,8 +15,8 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly ITwoFactorEnrollmentService _enrollment = Substitute.For<ITwoFactorEnrollmentService>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly ITwoFactorService _twoFactor = Substitute.For<ITwoFactorService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -28,28 +28,28 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        _enrollment.ReceivedCalls().ShouldBeEmpty();
+        _twoFactor.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task ABlankPassword_NeverReachesTheEnrollmentPort()
+    public async Task ABlankPassword_NeverReachesTheTwoFactorPort()
     {
         var result = await UseCase().ExecuteAsync(new ConfirmTwoFactorSetupCommand("", "123456"), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _enrollment.ReceivedCalls().ShouldBeEmpty();
+        _twoFactor.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task ABlankCode_NeverReachesTheEnrollmentPort()
+    public async Task ABlankCode_NeverReachesTheTwoFactorPort()
     {
         var result = await UseCase().ExecuteAsync(
             new ConfirmTwoFactorSetupCommand("correct horse battery", ""), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _enrollment.ReceivedCalls().ShouldBeEmpty();
+        _twoFactor.ReceivedCalls().ShouldBeEmpty();
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -101,7 +101,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -115,7 +115,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -133,7 +133,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.twoFactor.alreadyEnabled");
         result.Error.Type.ShouldBe(ErrorType.Conflict);
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -150,7 +150,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.twoFactor.enableRejected");
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -177,8 +177,8 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
     }
 
     /// <summary>
-    /// The security stamp already rotated inside <c>ConfirmAsync</c> — see
-    /// <c>TwoFactorEnrollment.ConfirmAsync</c> — and takes every access token with it; refresh tokens
+    /// The security stamp already rotated inside <c>ConfirmSetupAsync</c> — see
+    /// <c>ITwoFactorService.ConfirmSetupAsync</c> — and takes every access token with it; refresh tokens
     /// survive that rotation, so this use case has to revoke them itself.
     /// </summary>
     [Fact]
@@ -188,7 +188,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _refreshTokens.Received(1).RevokeAllForUserAsync(_callerId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, Arg.Any<CancellationToken>());
         _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_callerId));
     }
 
@@ -203,18 +203,18 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        _refreshTokens.ReceivedCalls().Select(call => call.GetMethodInfo().Name)
-            .ShouldBe([nameof(IRefreshTokenGrantsService.RevokeAllForUserAsync)]);
+        _sessionTokens.ReceivedCalls().Select(call => call.GetMethodInfo().Name)
+            .ShouldBe([nameof(ISessionTokensService.RevokeAllRefreshTokensAsync)]);
     }
 
     private static ConfirmTwoFactorSetupCommand ARequest() => new("correct horse battery", "123456");
 
     private void GivenTheOutcomeIs(TwoFactorConfirmationOutcome confirmation) =>
-        _enrollment.ConfirmAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _twoFactor.ConfirmSetupAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(confirmation);
 
     private ConfirmTwoFactorSetupUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_enrollment, _refreshTokens, _securityEventLog, currentUser, new ConfirmTwoFactorSetupCommandValidator());
+        new(_twoFactor, _sessionTokens, _securityEventLog, currentUser, new ConfirmTwoFactorSetupCommandValidator());
 
     private ConfirmTwoFactorSetupUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

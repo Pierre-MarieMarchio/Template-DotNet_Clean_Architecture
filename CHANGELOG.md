@@ -111,7 +111,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `AppTemplate.Domain.Core` holds the primitives an aggregate is built from;
   `AppTemplate.Application.Core` the mechanisms a use case is written *from* — `Result`, the
   `IUseCase` marker, validation, paging, idempotency, concurrency, the cross-cutting ports;
-  `AppTemplate.Application.Auth` authentication as use cases behind twenty ports, naming no domain
+  `AppTemplate.Application.Auth` authentication as use cases behind nine intent-shaped ports, naming no domain
   type; `AppTemplate.Infrastructure.Core` the mechanisms no module owns;
   and `AppTemplate.Presentation.Core` what any host needs whatever its transport, with no framework
   reference. The HTTP pipeline is not one of them: only the API consumes it, so it lives under
@@ -421,6 +421,10 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Fixed
 
+- **Confirming two-factor enrollment again on an armed account is refused.** It used to replace the
+  recovery codes and then write the switch-on again; a refused write left codes nobody had been
+  shown. `POST /auth/two-factor/confirm` now answers 409 `auth.twoFactor.alreadyEnabled`.
+
 - **A save flushes and publishes only the work staged on the context being saved.** The flush and
   dispatch interceptors acted on every aggregate tracker in the request, whichever context was being
   saved. Committing the identity context while a business write was staged threw, because the flush
@@ -592,6 +596,22 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   assembly. Coverage now excludes that project, and every test still runs exactly once.
 
 ### Changed
+
+- **Authentication speaks through nine intent-shaped ports instead of twenty.** `IAccountsService`,
+  `IEmailTokensService`, `ISessionTokensService`, `ITwoFactorService`,
+  `IAccountAdministrationService`, `IExternalIdentityVerifier`, `IExternalLoginsService`,
+  `IAccountEmailFactory` and `ISecurityEventLog`, each with one adapter. Statuses a use case
+  collapsed into one error are gone: email confirmation answers a `bool`, an unknown address on
+  reset or email change is an invalid token, the four administrative statuses are one
+  `AccountAdministrationOutcome`, and external verification returns the identity or `null`.
+  `PortConventionTests` now caps a port at six operations instead of four. Routes, responses and
+  error codes are unchanged.
+- **The `Identity` section is the only password policy.** The request validators no longer copy its
+  floor of eight; they check presence and a 256-character ceiling, and the store judges the rest
+  with the configured rules. A short password is refused on the same field with the same code, with
+  the policy's own messages.
+- **`AccountLockedOut` is decided by the login use case**, no longer by the account adapter. It is
+  recorded on every sign-in that meets the lockout, as before; its documentation said otherwise.
 
 - **The API runs the periodic jobs; `AppTemplate.Worker` is gone.** The maintenance purges, the
   reminder pass and the three file passes start from `AppTemplate.Api` through one call,

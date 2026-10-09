@@ -14,7 +14,7 @@ namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Auth.Factories;
 /// </summary>
 public sealed class AccountEmailTemplatesTests
 {
-    private static readonly Assembly _module = typeof(ConfirmationEmailFactory).Assembly;
+    private static readonly Assembly _module = typeof(AccountEmailFactory).Assembly;
 
     private static readonly Dictionary<string, string> _placeholders = new(StringComparer.Ordinal)
     {

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.EmailConfirmationTokens;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEmail;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
@@ -9,19 +9,11 @@ namespace AppTemplate.Application.Auth.UnitTests.Features.Auth.UseCases.Commands
 
 public sealed class ConfirmEmailUseCaseTests
 {
-    private readonly IEmailConfirmationTokensService _confirmationTokens = Substitute.For<IEmailConfirmationTokensService>();
+    private readonly IEmailTokensService _emailTokens = Substitute.For<IEmailTokensService>();
     private readonly ConfirmEmailUseCase _useCase;
 
     public ConfirmEmailUseCaseTests() =>
-        _useCase = new ConfirmEmailUseCase(_confirmationTokens, new ConfirmEmailCommandValidator());
-
-    /// <summary>
-    /// Every way redeeming can fail. Read off the enum, so a new outcome cannot be added without a
-    /// decision about how it is answered.
-    /// </summary>
-    public static TheoryData<EmailConfirmationStatus> Refusals =>
-        [.. Enum.GetValues<EmailConfirmationStatus>()
-            .Where(outcome => outcome is not EmailConfirmationStatus.Confirmed)];
+        _useCase = new ConfirmEmailUseCase(_emailTokens, new ConfirmEmailCommandValidator());
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -41,13 +33,13 @@ public sealed class ConfirmEmailUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
         result.Error.Code.ShouldBe("request.validationFailed");
-        _confirmationTokens.ReceivedCalls().ShouldBeEmpty();
+        _emailTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task ARedeemedToken_Confirms()
     {
-        GivenTheOutcomeIs(EmailConfirmationStatus.Confirmed);
+        GivenTheOutcomeIs(true);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -56,14 +48,14 @@ public sealed class ConfirmEmailUseCaseTests
     }
 
     /// <summary>
-    /// An unknown address and a wrong token answer identically, down to the message: telling them
-    /// apart would let anybody holding a junk token ask whether an address is registered.
+    /// An unknown address and a wrong token are one refusal from the port's point of view, so the
+    /// use case has a single error to answer with: telling them apart would let anybody holding a
+    /// junk token ask whether an address is registered.
     /// </summary>
-    [Theory]
-    [MemberData(nameof(Refusals))]
-    public async Task EveryRefusal_AnswersWithTheSameError(EmailConfirmationStatus outcome)
+    [Fact]
+    public async Task ARefusedConfirmation_AnswersWithTheInvalidLinkError()
     {
-        GivenTheOutcomeIs(outcome);
+        GivenTheOutcomeIs(false);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -73,42 +65,15 @@ public sealed class ConfirmEmailUseCaseTests
             "The confirmation link is invalid or has expired."));
     }
 
-    /// <summary>
-    /// The refusals compared against each other rather than against a literal, so a change that gave
-    /// all of them the same *new* error would still be caught by one of the two tests.
-    /// </summary>
-    [Fact]
-    public async Task NoRefusal_IsDistinguishableFromAnother()
-    {
-        var errors = new List<Error>();
-
-        foreach (var outcome in Enum.GetValues<EmailConfirmationStatus>())
-        {
-            if (outcome is EmailConfirmationStatus.Confirmed)
-            {
-                continue;
-            }
-
-            GivenTheOutcomeIs(outcome);
-
-            var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
-
-            errors.Add(result.Error.ShouldNotBeNull());
-        }
-
-        errors.Count.ShouldBeGreaterThan(1, "there is nothing to compare, so this proves nothing.");
-        errors.Distinct().Count().ShouldBe(1, "the refusals differ, and the difference is measurable.");
-    }
-
     [Fact]
     public async Task TheAddressAndTheToken_AreForwardedAsGiven()
     {
-        GivenTheOutcomeIs(EmailConfirmationStatus.Confirmed);
+        GivenTheOutcomeIs(true);
         using var cancellation = new CancellationTokenSource();
 
         await _useCase.ExecuteAsync(AValidRequest(), cancellation.Token);
 
-        await _confirmationTokens.Received(1).RedeemAsync(
+        await _emailTokens.Received(1).ConfirmEmailAsync(
             "someone@example.com",
             "a-token",
             cancellation.Token);
@@ -116,7 +81,7 @@ public sealed class ConfirmEmailUseCaseTests
 
     private static ConfirmEmailCommand AValidRequest() => new("someone@example.com", "a-token");
 
-    private void GivenTheOutcomeIs(EmailConfirmationStatus outcome) =>
-        _confirmationTokens.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(outcome);
+    private void GivenTheOutcomeIs(bool confirmed) =>
+        _emailTokens.ConfirmEmailAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(confirmed);
 }

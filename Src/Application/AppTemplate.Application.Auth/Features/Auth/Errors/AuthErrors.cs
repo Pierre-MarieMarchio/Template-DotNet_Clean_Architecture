@@ -201,11 +201,11 @@ public static class AuthErrors
         "The two-factor challenge is invalid or has expired.");
 
     /// <summary>
-    /// An administrator stripping their own second factor through <c>ITwoFactorAdministrationService</c>
-    /// would bypass the very password proof <c>ITwoFactorEnrollmentService.DisableAsync</c> requires of
+    /// An administrator stripping their own second factor through <c>IAccountAdministrationService</c>
+    /// would bypass the very password proof <c>ITwoFactorService.DisableAsync</c> requires of
     /// everyone else disarming their own account — a stolen admin session could otherwise do to its
     /// own account exactly what this whole feature exists to prevent a stolen session doing.
-    /// <c>ITwoFactorEnrollmentService.DisableAsync</c>'s self-service route is what an administrator uses on
+    /// <c>ITwoFactorService.DisableAsync</c>'s self-service route is what an administrator uses on
     /// their own account instead.
     /// </summary>
     public static Error CannotDisableOwnTwoFactor { get; } = Error.Forbidden(

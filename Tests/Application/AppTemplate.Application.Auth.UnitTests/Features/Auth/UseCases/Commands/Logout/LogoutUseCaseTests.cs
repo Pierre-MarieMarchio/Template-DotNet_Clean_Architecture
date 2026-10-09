@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Logout;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
@@ -10,12 +10,12 @@ namespace AppTemplate.Application.Auth.UnitTests.Features.Auth.UseCases.Commands
 
 public sealed class LogoutUseCaseTests
 {
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly LogoutUseCase _useCase;
 
     public LogoutUseCaseTests() =>
-        _useCase = new LogoutUseCase(_refreshTokens, _securityEventLog, new LogoutCommandValidator());
+        _useCase = new LogoutUseCase(_sessionTokens, _securityEventLog, new LogoutCommandValidator());
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -34,7 +34,7 @@ public sealed class LogoutUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
         result.Error.Code.ShouldBe("request.validationFailed");
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
@@ -43,14 +43,14 @@ public sealed class LogoutUseCaseTests
         var result = await _useCase.ExecuteAsync(new LogoutCommand("an-opaque-secret"), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        await _refreshTokens.Received(1).RevokeAsync("an-opaque-secret", Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeRefreshTokenAsync("an-opaque-secret", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ARevokedToken_IsRecordedAsALogout()
     {
         var userId = Guid.CreateVersion7();
-        _refreshTokens.RevokeAsync("an-opaque-secret", Arg.Any<CancellationToken>()).Returns(userId);
+        _sessionTokens.RevokeRefreshTokenAsync("an-opaque-secret", Arg.Any<CancellationToken>()).Returns(userId);
 
         await _useCase.ExecuteAsync(new LogoutCommand("an-opaque-secret"), TestToken);
 
@@ -61,7 +61,7 @@ public sealed class LogoutUseCaseTests
     [Fact]
     public async Task ATokenNobodyWasIssued_RecordsNothing()
     {
-        _refreshTokens.RevokeAsync("never-issued", Arg.Any<CancellationToken>()).Returns((Guid?)null);
+        _sessionTokens.RevokeRefreshTokenAsync("never-issued", Arg.Any<CancellationToken>()).Returns((Guid?)null);
 
         await _useCase.ExecuteAsync(new LogoutCommand("never-issued"), TestToken);
 
@@ -88,7 +88,7 @@ public sealed class LogoutUseCaseTests
     {
         await _useCase.ExecuteAsync(new LogoutCommand("an-opaque-secret"), TestToken);
 
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -98,6 +98,6 @@ public sealed class LogoutUseCaseTests
 
         await _useCase.ExecuteAsync(new LogoutCommand("an-opaque-secret"), cancellation.Token);
 
-        await _refreshTokens.Received(1).RevokeAsync("an-opaque-secret", cancellation.Token);
+        await _sessionTokens.Received(1).RevokeRefreshTokenAsync("an-opaque-secret", cancellation.Token);
     }
 }

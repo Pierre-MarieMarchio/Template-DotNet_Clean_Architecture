@@ -39,11 +39,11 @@ public sealed class PortConventionTests
     private const string _crossCuttingPortNamespaceSuffix = ".Common.Ports";
 
     /// <summary>
-    /// The most operations one port may declare. Four is what the widest port here needs — issue,
-    /// rotate, revoke, revoke-all, which are one mechanism and would be pointless apart. A port that
-    /// wants a fifth is covering a second capability and belongs split in two.
+    /// The most operations one port may declare. Six lets a port cover one intent — an account's
+    /// session tokens, its mailed tokens, its administration — without splitting it into one port per
+    /// mechanism. A port that wants a seventh is covering a second intent and belongs split in two.
     /// </summary>
-    private const int _maximumOperationsPerPort = 4;
+    private const int _maximumOperationsPerPort = 6;
 
     /// <summary>
     /// Every interface the application layer declares for something else to implement, discovered
@@ -303,7 +303,7 @@ public sealed class PortConventionTests
 }
 
 /// <summary>
-/// Five operations spanning three unrelated capabilities, written to be exactly what
+/// Seven operations spanning three unrelated capabilities, written to be exactly what
 /// <see cref="PortConventionTests.NoApplicationPort_IsAMultiCapabilityFacade"/> forbids. It lives
 /// here, in the test project, so the sensitivity proof needs no violation in the product code.
 /// </summary>
@@ -318,4 +318,8 @@ internal interface IDeliberatelyWidePort
     Task RevokeAsync(CancellationToken cancellationToken = default);
 
     Task SendAsync(CancellationToken cancellationToken = default);
+
+    Task RenderAsync(CancellationToken cancellationToken = default);
+
+    Task PurgeAsync(CancellationToken cancellationToken = default);
 }

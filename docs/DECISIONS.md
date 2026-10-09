@@ -71,8 +71,8 @@ infrastructure module — `IRefreshTokenTable`, which no use case has ever heard
 `StorageVocabularyTests` holds all four: a `Store` or a `Table` naming a domain entity has become a
 `Repository`, a `Repository` declared outside the Domain is a promise it cannot keep, and a `Table`
 a use case depends on has become a port and needs declaring where ports are.
-The four-operation ceiling `PortConventionTests` enforces is a rule about **ports** — the façade a
-use case sees. A `Table` is not one, and `IRefreshTokenTable` has six operations deliberately: it is
+The six-operation ceiling `PortConventionTests` enforces is a rule about **ports** — the façade a
+use case sees. A `Table` is not one, and `IRefreshTokenTable` is not counted: it is
 one table's whole surface, held narrow by having exactly one consumer rather than by a count.
 
 **There is one outbound HTTP budget, it is written once, and it is a default rather than a call.**

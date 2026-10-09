@@ -11,39 +11,25 @@ namespace AppTemplate.Infrastructure.InMemory.Features.Auth;
 /// means before the use case asks.
 /// </para>
 /// <para>
-/// It answers <see cref="ExternalIdentityStatus.InvalidToken"/> for anything nobody arranged, which
-/// is the same thing the real adapter does with a token it cannot verify. A test that wants
-/// <see cref="ExternalIdentityStatus.UnknownProvider"/> asks for it by name through
-/// <see cref="Refuse"/>, because the two are deliberately indistinguishable to the caller and a
-/// double that guessed between them would be deciding the policy under test.
+/// It refuses anything nobody arranged, which is what the real adapter does with a token it cannot
+/// verify and with a provider it does not know: the caller cannot tell those apart either.
 /// </para>
 /// </summary>
 public sealed class AcceptedExternalIdentities
 {
     private readonly object _gate = new();
 
-    private readonly Dictionary<PresentedToken, ExternalIdentityOutcome> _arranged = [];
+    private readonly Dictionary<PresentedToken, VerifiedExternalIdentity> _arranged = [];
 
     /// <summary>Makes one token, presented for one provider, verify as this identity.</summary>
     public void Accept(string provider, string idToken, VerifiedExternalIdentity identity)
     {
         ArgumentNullException.ThrowIfNull(identity);
 
-        Arrange(provider, idToken, ExternalIdentityOutcome.Verified(identity));
-    }
-
-    /// <summary>Makes one token refuse with a named status, so a test can reach every branch.</summary>
-    public void Refuse(string provider, string idToken, ExternalIdentityStatus status)
-    {
-        if (status is ExternalIdentityStatus.Verified)
+        lock (_gate)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(status),
-                status,
-                "A refusal cannot be Verified; use Accept and supply the identity it verifies as.");
+            _arranged[new PresentedToken(provider, idToken)] = identity;
         }
-
-        Arrange(provider, idToken, ExternalIdentityOutcome.Refused(status));
     }
 
     /// <summary>Forgets every arrangement, so one test's tokens cannot verify in the next.</summary>
@@ -55,21 +41,11 @@ public sealed class AcceptedExternalIdentities
         }
     }
 
-    internal ExternalIdentityOutcome Verify(string provider, string idToken)
+    internal VerifiedExternalIdentity? Verify(string provider, string idToken)
     {
         lock (_gate)
         {
-            return _arranged.TryGetValue(new PresentedToken(provider, idToken), out var outcome)
-                ? outcome
-                : ExternalIdentityOutcome.Refused(ExternalIdentityStatus.InvalidToken);
-        }
-    }
-
-    private void Arrange(string provider, string idToken, ExternalIdentityOutcome outcome)
-    {
-        lock (_gate)
-        {
-            _arranged[new PresentedToken(provider, idToken)] = outcome;
+            return _arranged.GetValueOrDefault(new PresentedToken(provider, idToken));
         }
     }
 

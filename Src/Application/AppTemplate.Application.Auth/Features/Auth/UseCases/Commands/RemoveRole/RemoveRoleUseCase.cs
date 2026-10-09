@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RoleAssignments;
+using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -22,8 +22,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RemoveRol
 /// administrative endpoint that acts on someone else's.
 /// </summary>
 public sealed class RemoveRoleUseCase(
-    IRoleAssignmentsService roles,
-    IRefreshTokenGrantsService refreshTokens,
+    IAccountAdministrationService administration,
+    ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<RemoveRoleCommand> validator) : IRemoveRoleUseCase
@@ -57,22 +57,22 @@ public sealed class RemoveRoleUseCase(
             return guard;
         }
 
-        var change = await roles.RemoveRoleAsync(request.UserId, request.Role, cancellationToken);
+        var change = await administration.RevokeRoleAsync(request.UserId, request.Role, cancellationToken);
 
-        if (change.Status is not RoleAssignmentChangeStatus.Applied)
+        if (change.Status is not AccountAdministrationStatus.Applied)
         {
             return Result.Failure(ToError(change));
         }
 
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, request.UserId, cancellationToken);
         securityEventLog.Record(SecurityEvent.RoleRevoked(request.UserId, request.Role));
 
         return Result.Success();
     }
 
-    private static Error ToError(RoleAssignmentChangeOutcome change) => change.Status switch
+    private static Error ToError(AccountAdministrationOutcome change) => change.Status switch
     {
-        RoleAssignmentChangeStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
+        AccountAdministrationStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
         _ => AuthErrors.RoleAssignmentRejected(
             change.RejectionMessage ?? "The role could not be revoked."),
     };

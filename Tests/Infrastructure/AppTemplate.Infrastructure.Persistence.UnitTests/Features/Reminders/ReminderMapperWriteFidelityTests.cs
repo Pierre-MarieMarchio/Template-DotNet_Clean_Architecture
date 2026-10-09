@@ -75,8 +75,9 @@ public sealed class ReminderMapperWriteFidelityTests
         properties.ShouldContain(nameof(Reminder.TodoItemId));
         properties.ShouldContain(nameof(Reminder.DueAt));
         properties.ShouldContain(nameof(Reminder.State));
-        properties.ShouldContain(nameof(Reminder.ClaimedAt));
         properties.ShouldContain(nameof(Reminder.NotifiedAt));
+        properties.ShouldContain(nameof(Reminder.FailedAttempts));
+        properties.ShouldContain(nameof(Reminder.NextAttemptAt));
     }
 
     /// <summary>

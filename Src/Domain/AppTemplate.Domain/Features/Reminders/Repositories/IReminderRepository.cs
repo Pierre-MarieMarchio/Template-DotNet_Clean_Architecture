@@ -31,9 +31,9 @@ public interface IReminderRepository
     /// cannot keep later reminders out.
     /// </para>
     /// <para>
-    /// Claiming is the caller's job: this only says what is eligible. Two hosts running this at the
-    /// same instant will see the same rows, and it is <c>Reminder.TryClaim</c> plus the store's
-    /// concurrency token that decide which of them may act.
+    /// Exclusivity is not this method's job: it only says what is eligible, so two hosts running it
+    /// at the same instant see the same rows. The caller's leader lease keeps them from firing the
+    /// same batch, and the store's concurrency token makes the loser's commit fail.
     /// </para>
     /// </summary>
     Task<IReadOnlyList<Reminder>> GetDueAsync(

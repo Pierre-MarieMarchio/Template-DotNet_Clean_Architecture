@@ -26,7 +26,6 @@ internal sealed class ReminderMapper : IReminderMapper
             TodoItemId = record.TodoItemId,
             DueAt = record.DueAt,
             State = record.State,
-            ClaimedAt = record.ClaimedAt,
             NotifiedAt = record.NotifiedAt,
             FailedAttempts = record.FailedAttempts,
             NextAttemptAt = record.NextAttemptAt,
@@ -49,7 +48,6 @@ internal sealed class ReminderMapper : IReminderMapper
             TodoItemId = aggregate.TodoItemId,
             DueAt = aggregate.DueAt,
             State = aggregate.State,
-            ClaimedAt = aggregate.ClaimedAt,
             NotifiedAt = aggregate.NotifiedAt,
             FailedAttempts = aggregate.FailedAttempts,
             NextAttemptAt = aggregate.NextAttemptAt,
@@ -77,7 +75,6 @@ internal sealed class ReminderMapper : IReminderMapper
         record.TodoItemId = aggregate.TodoItemId;
         record.DueAt = aggregate.DueAt;
         record.State = aggregate.State;
-        record.ClaimedAt = aggregate.ClaimedAt;
         record.NotifiedAt = aggregate.NotifiedAt;
         record.FailedAttempts = aggregate.FailedAttempts;
         record.NextAttemptAt = aggregate.NextAttemptAt;

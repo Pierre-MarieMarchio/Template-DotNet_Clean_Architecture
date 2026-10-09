@@ -23,7 +23,6 @@ public sealed class ReminderResponseMappingTests
             Guid.CreateVersion7(),
             DueAt: new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero),
             State: ReminderState.Fired,
-            ClaimedAt: new DateTimeOffset(2026, 3, 4, 5, 5, 0, TimeSpan.Zero),
             NotifiedAt: new DateTimeOffset(2026, 3, 4, 5, 6, 1, TimeSpan.Zero));
 
         var response = ReminderResponseMapping.ToResponse(reminder);
@@ -33,7 +32,6 @@ public sealed class ReminderResponseMappingTests
         response.TodoItemId.ShouldBe(reminder.TodoItemId);
         response.DueAt.ShouldBe(reminder.DueAt);
         response.Status.ShouldBe("fired");
-        response.ClaimedAt.ShouldBe(reminder.ClaimedAt);
         response.NotifiedAt.ShouldBe(reminder.NotifiedAt);
     }
 
@@ -43,8 +41,6 @@ public sealed class ReminderResponseMappingTests
         var reminder = APendingReminder();
 
         var response = ReminderResponseMapping.ToResponse(reminder);
-
-        response.ClaimedAt.ShouldBeNull();
         response.NotifiedAt.ShouldBeNull();
     }
 
@@ -132,6 +128,5 @@ public sealed class ReminderResponseMappingTests
             Guid.CreateVersion7(),
             DateTimeOffset.UnixEpoch.AddDays(1),
             ReminderState.Pending,
-            null,
             null);
 }

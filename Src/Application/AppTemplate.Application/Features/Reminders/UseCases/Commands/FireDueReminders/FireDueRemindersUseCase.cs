@@ -17,11 +17,11 @@ namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueRe
 /// on its very first iteration.
 /// <para>
 /// <b>One host at a time.</b> The whole pass runs under <see cref="ILeaderLease"/>, and that lease
-/// is the only thing keeping two replicas from delivering the same reminder twice: the per-reminder
-/// claim does not, because <c>Reminder.TryClaim</c> mutates in memory and the batch commits at the
-/// end, so both passes read the claim as free and both send the mail before one of them loses on
-/// <c>xmin</c>. Finding the lease taken returns zero notified and says so in the log, because zero
-/// on its own would be indistinguishable from a pass that had nothing due.
+/// is the only thing keeping two replicas from delivering the same reminder twice. There is no
+/// per-reminder claim on top of it: one held in memory is invisible to the other host, and one
+/// written to the store before the send would add a state that a crash strands. Finding the lease
+/// taken returns zero notified and says so in the log, because zero on its own would be
+/// indistinguishable from a pass that had nothing due.
 /// </para>
 /// <para>
 /// <b>Delivery is at-least-once, and what a failure costs is one reminder.</b> Each reminder is
@@ -87,10 +87,6 @@ public sealed class FireDueRemindersUseCase(
     /// the build can see that, which is why it is written here rather than left to be inferred.
     /// </remarks>
     private const string _leaseName = "apptemplate.reminders.fire-due";
-
-    /// <summary>How long a claim is honoured before a host that died mid-attempt is presumed gone
-    /// and another host may retry the same reminder.</summary>
-    private static readonly TimeSpan _staleClaimAfter = TimeSpan.FromMinutes(5);
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
     {
@@ -178,11 +174,6 @@ public sealed class FireDueRemindersUseCase(
             return Outcome.Settled;
         }
 
-        if (!reminder.TryClaim(now, _staleClaimAfter))
-        {
-            return Outcome.Settled;
-        }
-
         try
         {
             await notifier.NotifyAsync(
@@ -196,7 +187,6 @@ public sealed class FireDueRemindersUseCase(
         }
         catch (Exception exception)
         {
-            reminder.ReleaseClaim();
             reminder.RecordFailure(now);
 
             logger.LogWarning(

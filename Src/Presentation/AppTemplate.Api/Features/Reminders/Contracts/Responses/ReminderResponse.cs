@@ -8,8 +8,6 @@
 /// which list the reminder belongs to without a second call.</param>
 /// <param name="Status">One of <c>pending</c>, <c>fired</c> or <c>cancelled</c> — a one-way life
 /// that never goes back to an earlier value.</param>
-/// <param name="ClaimedAt">Set while a firing host is mid-attempt at notifying. Informational: a
-/// caller has no action to take on it.</param>
 /// <param name="NotifiedAt">When the reminder actually fired, or <c>null</c> before it does.</param>
 public sealed record ReminderResponse(
     Guid Id,
@@ -17,5 +15,4 @@ public sealed record ReminderResponse(
     Guid TodoItemId,
     DateTimeOffset DueAt,
     string Status,
-    DateTimeOffset? ClaimedAt,
     DateTimeOffset? NotifiedAt);

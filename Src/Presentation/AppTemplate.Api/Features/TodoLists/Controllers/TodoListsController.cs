@@ -74,12 +74,12 @@ public sealed class TodoListsController(
     }
 
     /// <summary>Gets one todo list with its items, and the <c>ETag</c> needed to change it.</summary>
-    [HttpGet("{todoListId:guid}", Name = nameof(GetById))]
+    [HttpGet("{todoListId:guid}", Name = nameof(GetTodoList))]
     [HttpHead("{todoListId:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TodoListResponse))]
     [ProducesResponseType(StatusCodes.Status304NotModified)]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
-    public async Task<ActionResult<TodoListResponse>> GetById(
+    public async Task<ActionResult<TodoListResponse>> GetTodoList(
         Guid todoListId,
         CancellationToken cancellationToken)
     {
@@ -113,7 +113,7 @@ public sealed class TodoListsController(
         var command = new CreateTodoListCommand(request.Name);
         var result = TodoListResponseMapping.ToListResponse(await createTodoList.ExecuteAsync(command, cancellationToken));
 
-        return CreatedOrProblem(result, nameof(GetById), list => new { todoListId = list.Id });
+        return CreatedOrProblem(result, nameof(GetTodoList), list => new { todoListId = list.Id });
     }
 
     /// <summary>Renames a todo list.</summary>

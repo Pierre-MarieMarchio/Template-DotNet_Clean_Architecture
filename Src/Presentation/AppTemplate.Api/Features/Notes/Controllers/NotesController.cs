@@ -52,12 +52,12 @@ public sealed class NotesController(INoteService notes) : ApiControllerBase
     }
 
     /// <summary>Gets one note, and the <c>ETag</c> needed to change it.</summary>
-    [HttpGet("{noteId:guid}", Name = nameof(GetById))]
+    [HttpGet("{noteId:guid}", Name = nameof(GetNote))]
     [HttpHead("{noteId:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(NoteResponse))]
     [ProducesResponseType(StatusCodes.Status304NotModified)]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
-    public async Task<ActionResult<NoteResponse>> GetById(Guid noteId, CancellationToken cancellationToken)
+    public async Task<ActionResult<NoteResponse>> GetNote(Guid noteId, CancellationToken cancellationToken)
     {
         return OkOrProblem(NoteResponseMapping.ToNoteResponse(await notes.GetAsync(noteId, cancellationToken)));
     }
@@ -86,7 +86,7 @@ public sealed class NotesController(INoteService notes) : ApiControllerBase
         var result = NoteResponseMapping.ToNoteResponse(
             await notes.CreateAsync(new NoteContentDto(request.Title, request.Body), cancellationToken));
 
-        return CreatedOrProblem(result, nameof(GetById), note => new { noteId = note.Id });
+        return CreatedOrProblem(result, nameof(GetNote), note => new { noteId = note.Id });
     }
 
     /// <summary>Replaces a note's title and body.</summary>

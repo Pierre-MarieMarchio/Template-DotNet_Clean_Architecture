@@ -6,6 +6,7 @@ using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Features.TodoLists.Dtos;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Shouldly;
 using Xunit;
 
@@ -61,6 +62,35 @@ public sealed class ControllerContractTests
             + "for the wrong reason.");
 
         controllers.SelectMany(Actions).ShouldNotBeEmpty("The controllers found expose no actions to inspect.");
+    }
+
+    /// <summary>
+    /// A route name is global to the application, not scoped to its controller.
+    /// </summary>
+    /// <remarks>
+    /// Two attribute routes sharing a name with different templates make MVC throw when it builds the
+    /// endpoints — on the first request or the first OpenAPI document, never at compile time. Two
+    /// features each naming their read <c>GetById</c> is the natural way to hit it, and no
+    /// per-controller test can see it.
+    /// </remarks>
+    [Fact]
+    public void EveryRouteName_IsUsedByExactlyOneAction()
+    {
+        var duplicated = Controllers()
+            .SelectMany(Actions)
+            .SelectMany(action => action.GetCustomAttributes<Attribute>(inherit: false)
+                .OfType<IRouteTemplateProvider>()
+                .Where(route => route.Name is not null)
+                .Select(route => (route.Name, Action: $"{action.DeclaringType!.Name}.{action.Name}")))
+            .GroupBy(route => route.Name, StringComparer.Ordinal)
+            .Where(group => group.Select(route => route.Action).Distinct(StringComparer.Ordinal).Count() > 1)
+            .Select(group => $"{group.Key}: {string.Join(", ", group.Select(route => route.Action).Distinct(StringComparer.Ordinal))}")
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        duplicated.ShouldBeEmpty(
+            "A route name is global to the application: MVC refuses two attribute routes with the same "
+            + "name and different templates. Name each route after what it returns (GetNote, GetTodoList).");
     }
 
     [Fact]

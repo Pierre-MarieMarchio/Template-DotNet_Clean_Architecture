@@ -78,7 +78,7 @@ public sealed class FilesController(
     /// The only endpoint that publishes a file's version. A file owned by somebody else answers as an
     /// absent one: the read port filters by owner, so a 403 never sits next to a 404.
     /// </remarks>
-    // Not named GetById: route names are global and TodoListsController owns it, which makes MVC
+    // Not named GetById: route names are global and every feature would claim it, which makes MVC
     // throw at startup.
     [HttpGet("{fileId:guid}", Name = nameof(GetFile))]
     [HttpHead("{fileId:guid}")]

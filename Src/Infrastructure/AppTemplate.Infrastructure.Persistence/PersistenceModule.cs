@@ -37,7 +37,7 @@ using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Options;
 using AppTemplate.Infrastructure.Core.Common.Saving;
-//#if (todoLists || reminders || files)
+//#if (canAddFeature)
 using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 //#endif
@@ -174,7 +174,7 @@ public static class PersistenceModule
     private static bool AlreadyComposed(IServiceCollection services) =>
         services.Any(descriptor => descriptor.ServiceType == typeof(AppDbContext));
 
-    //#if (todoLists || reminders || files)
+    //#if (canAddFeature)
     /// <summary>
     /// One tracker per request, resolved under every contract that needs it: the repository takes the
     /// identity map, the flush interceptor the flusher, the dispatch interceptor the event source.

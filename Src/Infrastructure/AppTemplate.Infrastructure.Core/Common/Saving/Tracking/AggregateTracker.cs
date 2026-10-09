@@ -8,7 +8,7 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 
 /// <summary>
 /// The identity map, the drain and the restore path shared by every feature's aggregate tracker — the
-/// part that, once <c>TodoListTracker</c> and <c>ReminderTracker</c> are placed side by side, turns out
+/// part that, once two features' trackers are placed side by side, turns out
 /// to depend on nothing but <typeparamref name="TAggregate"/>'s id, its version and its audit stamps.
 /// <para>
 /// <b>What stays out, on purpose.</b> <see cref="FlushTo"/> is declared here and implemented nowhere:

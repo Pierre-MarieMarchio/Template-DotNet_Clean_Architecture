@@ -4,9 +4,13 @@ using System.Text.RegularExpressions;
 using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Application;
+//#if (todoLists)
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Events;
+//#endif
+//#if (todoLists)
 using AppTemplate.Domain.Features.TodoLists.Events;
+//#endif
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence;
@@ -88,15 +92,23 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
         services.AddSingleton<IHttpContextAccessor>(httpContextAccessor);
         services.AddApiCallerIdentity();
 
+        //#if (todoLists)
         services.AddTodoLists();
+        //#endif
+        //#if (notes)
         services.AddNotes();
+        //#endif
+        //#if (reminders)
         services.AddReminders();
+        //#endif
         services.AddPersistenceModule(Configuration());
         services.AddAuthModule(Configuration());
 
         services.AddSingleton(published);
+        //#if (todoLists)
         services.AddDomainEventConsumer<TodoListCreatedDomainEvent, RecordingCreatedConsumer>();
         services.AddDomainEventConsumer<TodoItemCompletedDomainEvent, RecordingCompletedConsumer>();
+        //#endif
 
         OnSqlite<AppDbContext>(services, businessDatabase);
         OnSqlite<AuthDbContext>(services, authDatabase);
@@ -206,6 +218,7 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
     [GeneratedRegex("\"xmin\" xid NOT NULL")]
     private static partial Regex XminColumn();
 
+    //#if (todoLists)
     private sealed class RecordingCreatedConsumer(PublishedEvents published)
         : IDomainEventConsumer<TodoListCreatedDomainEvent>
     {
@@ -223,4 +236,5 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
             CancellationToken cancellationToken = default) =>
             published.RecordAsync(domainEvent, domainEvent.TodoListId, cancellationToken);
     }
+    //#endif
 }

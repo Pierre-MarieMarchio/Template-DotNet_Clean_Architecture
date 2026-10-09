@@ -23,6 +23,7 @@
     <PackageReference Include="Microsoft.Extensions.Http" />
   </ItemGroup>
 
+  <!--#if (reminders)-->
   <!-- The reminder mail's templates, one per language, embedded for the reason
        AppTemplate.Infrastructure.Auth embeds its three: a deployment cannot lose one.
        WithCulture="false" is load-bearing — see that project's comment for what MSBuild does with a
@@ -30,6 +31,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Features/Reminders/*.html" WithCulture="false" />
   </ItemGroup>
+  <!--#endif-->
 
   <ItemGroup>
     <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />

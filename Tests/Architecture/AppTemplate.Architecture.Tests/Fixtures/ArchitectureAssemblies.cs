@@ -2,7 +2,9 @@
 using AppTemplate.Application;
 using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core;
+//#if (tagging)
 using AppTemplate.Domain.Common.Tagging;
+//#endif
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Email;
@@ -85,6 +87,7 @@ internal static class ArchitectureAssemblies
     /// </summary>
     internal const string ApplicationFeaturesNamespace = "AppTemplate.Application.Features";
 
+    /*#if (tagging)*/
     /// <summary>
     /// Anchored on the shared tagging value object, the one cross-cutting type the business half of
     /// the domain declares, so the anchor survives whichever features a project keeps. A project
@@ -93,6 +96,14 @@ internal static class ArchitectureAssemblies
     /// to check.
     /// </summary>
     private static readonly Lazy<Assembly> _domain = new(() => Anchor(typeof(Tag), DomainNamespace));
+    /*#else
+    /// <summary>
+    /// Resolved by name: this project was generated with no business type in its domain, so there is
+    /// no type to anchor on yet. The rules over it say so through
+    /// <see cref="RuleAssertions.RequireTypes(Assembly)"/> until a feature brings one.
+    /// </summary>
+    private static readonly Lazy<Assembly> _domain = new(() => Load(DomainNamespace));
+    #endif*/
 
     private static readonly Lazy<Assembly> _domainCore =
         new(() => Anchor(typeof(IAggregateRoot), DomainCoreNamespace));

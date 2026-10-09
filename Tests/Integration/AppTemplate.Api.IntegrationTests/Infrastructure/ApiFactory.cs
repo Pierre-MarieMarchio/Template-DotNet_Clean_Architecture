@@ -1,8 +1,12 @@
 ﻿using System.Globalization;
 using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Api.Common.Security;
+//#if (todoLists)
 using AppTemplate.Application.Core;
+//#endif
+//#if (todoLists)
 using AppTemplate.Domain.Features.TodoLists.Events;
+//#endif
 using AppTemplate.Infrastructure.Auth.Common.Options;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Options;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
@@ -33,7 +37,7 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// <para>
 /// <b>Why configuration is supplied through environment variables.</b> <c>Program.cs</c> reads
 /// <c>builder.Configuration</c> <em>while composing the container</em> —
-/// <see cref="DefaultConnectionString.Require"/> runs inside <c>AddTodoListsModule</c>, before the
+/// <see cref="DefaultConnectionString.Require"/> runs inside <c>AddPersistenceModule</c>, before the
 /// host is ever built. Environment variables are part of the default configuration chain and
 /// outrank every <c>appsettings*.json</c> file, so they are visible at that moment with no
 /// dependence on when a test hook happens to run. Every key each options validator requires is set
@@ -81,11 +85,13 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<ILoggerProvider>(serviceProvider =>
                 new CapturingLoggerProvider(serviceProvider.GetRequiredService<CapturedLogs>()));
 
+            //#if (todoLists)
             // A second consumer for an event the product already consumes. Registered through the
             // module's own public entry point, so the test proves that mechanism rather than
             // bypassing it.
             services.AddSingleton<RecordedDomainEvents>();
             services.AddDomainEventConsumer<TodoItemCompletedDomainEvent, RecordingTodoItemCompletedConsumer>();
+            //#endif
 
             // Gives each test its own rate-limit partition. See TestClientAddressStartupFilter.
             services.AddSingleton<IStartupFilter, TestClientAddressStartupFilter>();

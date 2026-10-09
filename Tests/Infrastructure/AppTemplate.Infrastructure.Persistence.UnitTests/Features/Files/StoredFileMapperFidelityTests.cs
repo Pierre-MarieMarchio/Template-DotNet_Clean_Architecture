@@ -13,9 +13,8 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Files;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The same reflection harness as <see cref="TodoLists.TodoListMapperFidelityTests"/>, which states
-/// why the aggregate's state is enumerated from the type rather than asserted by hand, and the three
-/// things that make it fail.
+/// The aggregate's state is enumerated from the type rather than asserted by hand, so a property added
+/// to the aggregate and forgotten by the mapper fails here instead of being lost quietly.
 /// </para>
 /// <para>
 /// <b>For this aggregate the stakes are not "a value came back wrong".</b> One of the properties walked

@@ -23,7 +23,7 @@ public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBas
     {
         var (client, _, _) = await SignInAsync();
 
-        using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        using var response = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -35,7 +35,7 @@ public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBas
     {
         var client = CreateClient();
 
-        using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        using var response = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
@@ -64,7 +64,7 @@ public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBas
     {
         var client = CreateClient();
 
-        using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        using var response = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
 
         Policy(response).ShouldBe(SecurityHeaderOptions.DefaultContentSecurityPolicy);
         Policy(response).ShouldBe("default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");

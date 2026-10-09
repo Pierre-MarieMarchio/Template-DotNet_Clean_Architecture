@@ -6,24 +6,36 @@ using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 //#endif
+//#if (notes)
 using AppTemplate.Application.Features.Notes.Ports.NoteQueries;
 using AppTemplate.Application.Features.Notes.Ports.NoteStore;
+//#endif
+//#if (reminders)
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;
+//#endif
+//#if (todoLists)
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemTagQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
+//#endif
 //#if (files)
 using AppTemplate.Domain.Features.Files.Repositories;
 //#endif
+//#if (reminders)
 using AppTemplate.Domain.Features.Reminders.Repositories;
+//#endif
+//#if (todoLists)
 using AppTemplate.Domain.Features.TodoLists.Repositories;
+//#endif
 using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Options;
 using AppTemplate.Infrastructure.Core.Common.Saving;
+//#if (todoLists || reminders || files)
 using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
+//#endif
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
@@ -35,17 +47,23 @@ using AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Repositories;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Tracking;
 //#endif
+//#if (notes)
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Stores;
+//#endif
+//#if (reminders)
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Observability;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Repositories;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Tracking;
+//#endif
+//#if (todoLists)
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Repositories;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;
+//#endif
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -64,6 +82,7 @@ namespace AppTemplate.Infrastructure.Persistence;
 /// </summary>
 public static class PersistenceModule
 {
+    //#if (reminders)
     /// <summary>
     /// The name of the meter the reminder diagnostics publish on. A host that fires reminders adds
     /// it to its telemetry registration by this constant, so the declaration and the registration
@@ -71,6 +90,7 @@ public static class PersistenceModule
     /// </summary>
     public const string RemindersMeterName = "AppTemplate.Reminders";
 
+    //#endif
     /// <summary>
     /// Registers everything that touches the database. Idempotent: the host calls it, and so does the
     /// authentication module, which needs the context and the clock.
@@ -93,12 +113,18 @@ public static class PersistenceModule
 
         AddDatabaseOptions(services, configuration);
         AddSharedServices(services);
+        //#if (todoLists)
         AddTodoListsFeature(services);
+        //#endif
+        //#if (reminders)
         AddRemindersFeature(services);
+        //#endif
         //#if (files)
         AddFilesFeature(services, connectionString);
         //#endif
+        //#if (notes)
         AddNotesFeature(services);
+        //#endif
         AddIdempotencyFeature(services, configuration);
         AddContext(services, connectionString);
         AddContextFactory(services);
@@ -114,6 +140,7 @@ public static class PersistenceModule
     private static bool AlreadyComposed(IServiceCollection services) =>
         services.Any(descriptor => descriptor.ServiceType == typeof(AppDbContext));
 
+    //#if (todoLists || reminders || files)
     /// <summary>
     /// One tracker per request, resolved under every contract that needs it: the repository takes the
     /// identity map, the flush interceptor the flusher, the dispatch interceptor the event source.
@@ -130,6 +157,7 @@ public static class PersistenceModule
         services.AddScoped<IDomainEventSource>(provider => provider.GetRequiredService<TTracker>());
     }
 
+    //#endif
     private static void AddDatabaseOptions(IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<DatabaseOptions>()
@@ -155,6 +183,7 @@ public static class PersistenceModule
             provider => provider.GetRequiredService<IContextUnitOfWork<AppDbContext>>());
     }
 
+    //#if (todoLists)
     private static void AddTodoListsFeature(IServiceCollection services)
     {
         services.TryAddSingleton<ITodoListMapper, TodoListMapper>();
@@ -167,6 +196,7 @@ public static class PersistenceModule
         services.TryAddScoped<ITodoItemTagQueries, TodoItemTagQueries>();
     }
 
+    //#endif
     //#if (files)
     private static void AddFilesFeature(IServiceCollection services, string connectionString)
     {
@@ -185,6 +215,7 @@ public static class PersistenceModule
     }
 
     //#endif
+    //#if (notes)
     private static void AddNotesFeature(IServiceCollection services)
     {
         // A store and its queries, and nothing else: notes have no mapper, tracker or event source,
@@ -193,6 +224,8 @@ public static class PersistenceModule
         services.TryAddScoped<INoteQueries, NoteQueries>();
     }
 
+    //#endif
+    //#if (reminders)
     private static void AddRemindersFeature(IServiceCollection services)
     {
         services.TryAddSingleton<IReminderMapper, ReminderMapper>();
@@ -204,6 +237,7 @@ public static class PersistenceModule
         services.TryAddSingleton<IReminderDiagnostics, ReminderDiagnostics>();
     }
 
+    //#endif
     private static void AddIdempotencyFeature(IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<IdempotencyPurgeOptions>()

@@ -12,6 +12,14 @@ those changes.
 it. `Reminders` is the same vertical without child entities; section 4c says what
 that changes.
 #endif-->
+<!--#if (todoLists)-->
+<!--#else
+
+**This project was generated without that example** (`--examples notes` or `none`), so the files
+sections 1 to 6 open are not in this tree. A project generated with the default `--examples all`
+holds them: generate one beside this one to read along, or read those sections as a description of
+the shape, which the generator below writes for you either way.
+#endif-->
 
 The rule behind every step: **a layer only speaks its own language.** The domain
 never imports EF; the API never imports EF Core either, only the application
@@ -224,6 +232,7 @@ public interface ITodoListRepository
 `.Repositories` — that is the whole rule, so follow the folder name exactly. Seal the
 aggregate root: `DomainModelTests.AggregateRoots_AreSealed` requires it.
 
+<!--#if (aggregates)-->
 **An event nothing listens to has to be a decision, not an oversight.** The first
 `Events/<Thing>DomainEvent.cs` you add turns
 `DomainEventTests.EveryDomainEvent_IsEitherConsumedOrListedAsUnconsumed` red until one
@@ -233,6 +242,7 @@ it, or its type name is written into the `_deliberatelyUnconsumed` array at the 
 reason nothing consumes it. Publishing a fact no consumer wants yet is perfectly good
 design; leaving the reader unable to tell that from a consumer somebody forgot is not,
 and the array is where the difference is stated.
+<!--#endif-->
 
 ## 2. Application — the use case and its port
 
@@ -283,7 +293,8 @@ lives in `Ports/TodoListQueries/`, not inside any one query's own folder. The ot
 project inwards.
 
 **A feature is registered by its own `AddX()` in `ApplicationModule`, which a host calls or does
-not.** `AddTodoLists()`, `AddReminders()`, `AddFiles(configuration)` and `AddNotes()` are the four that exist, and there is
+not.** `AddTodoLists()`, `AddReminders()`, `AddFiles(configuration)` and `AddNotes()` are the ones the
+template ships, fewer when it was generated with `--examples` or `--files false`, and there is
 deliberately no call that adds all of them: that is what makes a feature removable — delete its
 folder and its one line in each host, and nothing else claims to have registered it. So a new
 feature means a new `AddX()` here and a line in each `Program.cs` that offers it. Inside the method
@@ -710,13 +721,13 @@ Three seams a second feature meets that the first one does not, and each has one
 answer here.
 
 **Something two features share.** The question is not "is it repeated" but **does it know
-a feature?** If it names a business type, it goes in the business project's `Common/` —
-`Src/Domain/AppTemplate.Domain/Common/` for the domain half,
-`Src/Application/AppTemplate.Application/Common/` for the application one. If it names no
-business type and never would, it goes one project inwards, into the layer's `.Core`, and
+a feature?** If it names a business type, it goes in a `Common/` folder of the business project —
+the domain project's for the domain half, the application project's for the application one. If it
+names no business type and never would, it goes one project inwards, into the layer's `.Core`, and
 a feature adds nothing to those. `Common/Tagging/` is the worked example of the first
-answer: a to-do item and a stored file are both tagged, so `Tag` and `TagSet` sit in the
-domain's `Common/Tagging/` and `TagValidation` in the application's. The test that put
+answer: tagging is one rule for every feature that tags something, so `Tag` and `TagSet` sit in the
+domain's `Common/Tagging/` and `TagValidation` in the application's, and the folder stays as long as
+one tagged feature does. The test that put
 them there is mechanical rather than a matter of taste — `TagSet` names `Tag`, and a
 `.Core` project may name no business type. What is *not* there is as instructive: the
 ownership check every feature performs and the paginated read every feature exposes are
@@ -859,7 +870,7 @@ at startup only in Development, and what a deployment does instead. `SECURITY.md
 beyond the mechanics.
 
 ## 7. The simple shape — the `Notes` example
-
+<!--#if (notes)-->
 `Notes` has no domain folder at all. A note is a title and a body with an owner and a version, and
 its only rules are limits on input: a title is required and bounded, a body is bounded. A limit on
 input is validation, not state to protect, so the feature is a service over storage.
@@ -951,6 +962,17 @@ note commits through the unit of work alone and that a stale write is refused at
 `Tests/Integration/AppTemplate.Api.IntegrationTests/Notes/` drives CRUD, cross-user isolation, the
 stale and competing writes and the idempotent create through the real API against PostgreSQL.
 
+<!--#else
+
+This project was generated without the `Notes` example (`--examples none`). The simple shape is a
+service over two storage ports: one service with a method per operation, a write port
+(`I<Feature>Store`) and a read port (`I<Feature>Queries`) in the application layer, an EF record that
+is the whole model in persistence, no domain folder, and the `Validators/` and `Stores/` folders in
+the two closed vocabularies of `LayoutConventionTests`. `new-feature <Features> <Type> --model record`
+writes it; a project generated with `--examples notes` or `all` holds the worked example this section
+walks through.
+
+#endif-->
 ## 8. From simple to rich — the promotion path
 
 A note that acquires a rule — at most a hundred notes per owner, or a note that cannot be edited once
@@ -975,17 +997,16 @@ rule needs a column or an index.
 
 ## Removing the sample instead
 
-The `TodoLists` vertical is the worked example above, not a placeholder to delete
-on day one — several integration tests (`Security/`, `TodoLists/`) use its
-endpoints as their test subject for cross-cutting concerns (ownership isolation,
-rate limiting, conditional requests, auditing) that have nothing to do with to-do
-lists themselves. There is deliberately no `dotnet new` switch that strips it: doing
-so cleanly would mean rewriting those tests against a different resource, not just
-deleting files, and shipping a switch that quietly weakens the test suite is worse
-than not shipping one.
+**At generation, `--examples` decides.** `dotnet new cleanarch-webapi --examples notes` starts a
+project with `Notes` only and `--examples none` with no example at all; see
+[`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md#generation-options). What that costs is stated
+there: several tests use the to-do list endpoints as their subject for cross-cutting concerns
+(ownership isolation, conditional requests, idempotent replay, auditing) that have nothing to do
+with to-do lists themselves, and they leave with the example rather than being rewritten against a
+different resource.
 
-If you want it gone anyway, follow `docs/REMOVING-THE-EXAMPLE-FEATURES.md` rather than
-improvising from the tree. Deleting the folders is the easy half. The removal takes
+**In a project generated with the examples**, follow `docs/REMOVING-THE-EXAMPLE-FEATURES.md` rather
+than improvising from the tree. Deleting the folders is the easy half. The removal takes
 `Reminders` with it, because a reminder is scheduled against a to-do item and that
 feature does not compile without this one; and the migration is where guessing costs
 data, since the business context's one initial migration carries `todo`, `reminders` and `files`

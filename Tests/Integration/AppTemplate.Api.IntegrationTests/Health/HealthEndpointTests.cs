@@ -78,7 +78,7 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
             """,
             TestToken);
 
-        schemas.ShouldContain(AppDbContext.TodoSchema);
+        schemas.ShouldContain(AppDbContext.PlatformSchema);
         schemas.ShouldContain(AuthDbContext.IdentitySchema);
     }
 

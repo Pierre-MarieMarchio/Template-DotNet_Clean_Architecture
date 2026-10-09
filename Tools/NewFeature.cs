@@ -16,7 +16,7 @@ using System.Text.RegularExpressions;
 /// The option names are the choices a feature actually varies by, and nothing else is a switch:
 /// <c>--access</c> (required, no default), <c>--operations</c>, <c>--model</c> and
 /// <c>--concurrency</c>. <c>docs/ADDING-A-FEATURE.md</c> says what each one means and gives the
-/// command that corresponds to the running <c>Notes</c> example.
+/// command that corresponds to the <c>Notes</c> example.
 /// </para>
 /// <para>
 /// <b>It creates files and edits none.</b> A feature does not compose until its module registrations

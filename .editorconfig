@@ -129,12 +129,14 @@ dotnet_diagnostic.CA1032.severity = none
 # `LayoutConventionTests` enforces and states the reason for.
 dotnet_diagnostic.S107.severity = none
 
+#if (reminders)
 [Src/Application/AppTemplate.Application/Features/Reminders/UseCases/Commands/FireDueReminders/FireDueRemindersUseCase.cs]
 # S107 counts eight constructor parameters: the repository, the target queries, the notifier, the
 # diagnostics, the unit of work, the clock, the leader lease and the logger. Each is used on a
 # different line of one pass, and no two of them share a subject -- any parameter object here would
 # be a bag named after its own arity.
 dotnet_diagnostic.S107.severity = none
+#endif
 
 [Src/Domain/AppTemplate.Domain.Core/Common/Primitives/Entity.cs]
 # S4035 asks that a class implementing IEquatable<T> be sealed, because a derived type inheriting
@@ -193,10 +195,12 @@ dotnet_diagnostic.S3267.severity = none
 dotnet_diagnostic.S3267.severity = none
 
 #endif
+#if (todoLists)
 [Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Mapping/TodoListMapper.cs]
 # S3267 suggests `Where` for the same two-sided reconciliation the file-store mapper runs: remove
 # from the dictionary, add a row, and record that the structure changed.
 dotnet_diagnostic.S3267.severity = none
+#endif
 
 [Src/Presentation/AppTemplate.Api/Common/Hosting/DevelopmentDatabaseExtensions.cs]
 # S2139 refuses logging an exception and rethrowing it. Both are wanted here and the comment at the

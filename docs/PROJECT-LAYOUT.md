@@ -88,8 +88,8 @@ Tests/                          a 1:1 mirror of Src/
 ```
 
 **Two of those projects own storage, and each owns a migration history.**
-`AppTemplate.Infrastructure.Persistence` holds `AppDbContext` over the `todo`, `reminders`, `files`,
-`notes` and `platform` schemas; `AppTemplate.Infrastructure.Auth` holds `AuthDbContext` over `identity`.
+`AppTemplate.Infrastructure.Persistence` holds `AppDbContext` over one schema per business feature
+(`todo`, `reminders`, `files` and `notes` as the template ships) and `platform`; `AppTemplate.Infrastructure.Auth` holds `AuthDbContext` over `identity`.
 [`MIGRATIONS.md`](MIGRATIONS.md) is the commands for both.
 
 ## Two folders called `Common/`
@@ -139,6 +139,7 @@ nature of thing is in it.
 A folder is only present when it has content: a feature with no read-side projection has no
 `Queries/`, one with no domain-event consumer has no `Consumers/`.
 
+<!--#if (todoLists)-->
 `AppTemplate.Application/Features/TodoLists/` is the worked example:
 
 ```
@@ -155,6 +156,24 @@ UseCases/Commands/<Operation>/  one folder per operation, each holding its comma
 UseCases/Queries/<Operation>/   the same shape on the read side
 Dtos/                     read models more than one operation returns
 ```
+<!--#else
+A rich feature's application folder, `AppTemplate.Application/Features/<Feature>/`:
+
+```
+Errors/                   <Aggregate>Errors.cs — the feature's failure vocabulary
+Policies/                 <Aggregate>CollectionPolicy — the sortable whitelist
+Ports/<Aggregate>Queries/ I<Aggregate>Queries and <Aggregate>Filter — a port's interface together with
+                          the messages that cross it
+Services/                 I<Aggregate>Service — the one gate every command loads its aggregate through
+Extensions/               <Aggregate>…Extensions — a known-item id turned into the same 404 everywhere
+Mapping/                  <Aggregate>DtoMapping — the aggregate a write just staged, read back as a DTO
+Consumers/<Event>/        one folder per domain event the feature answers
+UseCases/Commands/<Operation>/  one folder per operation, each holding its command, its named
+                          interface, the use case and its FluentValidation validator
+UseCases/Queries/<Operation>/   the same shape on the read side
+Dtos/                     read models more than one operation returns
+```
+#endif-->
 
 **A command or query record lives in the same folder as the one use case that accepts it**,
 alongside that use case's named interface, its class and its validator, because together they are
@@ -163,12 +182,13 @@ model more than one operation shares is promoted to `Dtos/`; and a type that is 
 parameter — not one use case's — lives beside that port in `Ports/<Port>/` instead, however many
 use cases call it. Otherwise `Ports/` would depend on `UseCases/`.
 
-`Notes` is the feature with no domain model, and its folders show what the simple shape needs. `Validators/`
-and `Stores/` are the two words only it uses: a feature with use cases validates in a command's own
+The simple shape, a feature with no domain model (`Notes` in the template as shipped), needs two
+words the rich one does not. `Validators/` and `Stores/` are the two words only it uses: a feature with use cases validates in a command's own
 folder, and one without them files its validator by the nature word it carries; `Stores/` in the
 persistence project is the adapter of an application `…Store` port, the way `Repositories/` is the
 adapter of a domain `…Repository`.
 
+<!--#if (notes)-->
 ```
 Application/Features/Notes/
   Dtos/                   NoteDto, NoteSummaryDto, and the service's input, NoteContentDto and NoteListQueryDto
@@ -184,11 +204,14 @@ Infrastructure.Persistence/Features/Notes/
   Queries/                NoteQueries and NoteSortMap
   Stores/                 NoteStore
 ```
+<!--#endif-->
 
+<!--#if (todoLists)-->
 The other two examples are the same shape as `TodoLists` with pieces added or missing, and what each one changes
 is the subject of [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md): `Reminders` is flat, with no child
 entities and so no tag folder; `Files` has four ports where `TodoLists` has one, because the bytes
 live in somebody else's store.
+<!--#endif-->
 
 `AppTemplate.Application.Auth/Features/Auth/` is the one vertical with no aggregate at all. Nine
 ports stand in for one `IAuthService`, one per intent — accounts, mailed tokens, session tokens,
@@ -198,8 +221,8 @@ event log. An account here is what its ports say about it.
 **Every infrastructure module is partitioned `Common/` plus `Features/<Feature>/`**, whether or not
 it serves more than one feature, so a reader who has learned one module does not learn a second
 filing system for the next. `Email` and `InMemory` carry both kinds of adapter — a transverse
-`IEmailSender` and a feature-scoped `IReminderNotifier` — so their tree says which of their files
-leave with the reminders example. `Auth` serves one feature and `Storage` serves one feature, and
+`IEmailSender` and, in the template as shipped, a feature-scoped `IReminderNotifier` — so their tree
+says which of their files leave with a feature. `Auth` serves one feature and `Storage` serves one feature, and
 both keep the shape anyway. Local logic loses to uniformity here on purpose.
 
 ## The rules the tests hold
@@ -251,7 +274,7 @@ Reserved for exactly one thing: the dependency-injection registration classes �
 partition.
 
 **Composition is opt-in per feature, and there is deliberately no call that adds all of them.**
-`ApplicationModule` exposes `AddTodoLists()`, `AddReminders()`, `AddFiles(configuration)` and `AddNotes()`;
+`ApplicationModule` exposes one `AddX()` per feature — `AddTodoLists()`, `AddReminders()`, `AddFiles(configuration)` and `AddNotes()` as the template ships;
 `ApplicationAuthModule` exposes `AddAuthApplication()`; `ApplicationCoreModule` exposes
 `AddPurgeExpiredIdempotencyKeys()` and the registration helpers the layer above composes with, but
 no umbrella `AddApplicationCore()` — ports, results and markers are not things a container
@@ -262,8 +285,10 @@ operation, and nothing else claims to have registered it. One entry point scanni
 assembly would instead put every port every feature declares into every host's graph, which under
 `ValidateOnBuild` makes each of them mandatory everywhere.
 
+<!--#if (reminders)-->
 **`AddReminders()` is not independent of `AddTodoLists()`.** Scheduling a reminder reaches into the
 to-do list's read port, which is the only ownership check made before a reminder is created, so a
 host that composes the one without the other resolves nothing. [`ARCHITECTURE.md`](ARCHITECTURE.md)
 names the other couplings that a removal meets, and
 [`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md) is the procedure.
+<!--#endif-->

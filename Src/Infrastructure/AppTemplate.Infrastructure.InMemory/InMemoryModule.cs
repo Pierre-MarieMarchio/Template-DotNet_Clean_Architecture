@@ -8,14 +8,18 @@ using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 //#endif
+//#if (reminders)
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
+//#endif
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
 using AppTemplate.Infrastructure.InMemory.Features.Auth;
 //#if (files)
 using AppTemplate.Infrastructure.InMemory.Features.Files;
 //#endif
+//#if (reminders)
 using AppTemplate.Infrastructure.InMemory.Features.Reminders;
+//#endif
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -33,13 +37,12 @@ namespace AppTemplate.Infrastructure.InMemory;
 public static class InMemoryModule
 {
     /// <summary>
-    /// Replaces the clock, the email sender, the reminder notifier, the object store and the
-    /// external identity verifier with controllable, recording doubles.
-    /// <see cref="IReminderNotifier"/>'s real adapter (<c>EmailReminderNotifier</c>, in
-    /// <c>AppTemplate.Infrastructure.Email</c>) sends actual mail, exactly like
-    /// <see cref="IEmailSender"/>'s, so it gets the same treatment here; the file ports' real
-    /// adapters talk to a bucket, a disk and a scanner, and <see cref="IExternalIdentityVerifier"/>'s fetches a key set
-    /// from an identity provider, which are the same kind of dependency.
+    /// Replaces the clock, the email sender, the external identity verifier and every feature port
+    /// whose real adapter reaches outside the process with controllable, recording doubles.
+    /// <see cref="IEmailSender"/>'s real adapter sends actual mail, and so does any feature's
+    /// notifier built over it; a file port's talks to a bucket, a disk or a scanner, and
+    /// <see cref="IExternalIdentityVerifier"/>'s fetches a key set from an identity provider, which
+    /// are the same kind of dependency.
     /// <para>
     /// It <b>removes and re-adds</b> rather than relying on last-registration-wins, and it
     /// takes no <c>IConfiguration</c> because there is nothing to configure. Replacement is
@@ -71,7 +74,9 @@ public static class InMemoryModule
         services.AddSingleton<RecordedEmails>();
         services.AddScoped<IEmailSender, InMemoryEmailSender>();
 
+        //#if (reminders)
         services.AddInMemoryReminderNotifications();
+        //#endif
         //#if (files)
         services.AddInMemoryFileContent();
         //#endif
@@ -102,6 +107,7 @@ public static class InMemoryModule
         return services;
     }
 
+    //#if (reminders)
     /// <summary>
     /// Registers the recording <see cref="IReminderNotifier"/> on its own, without the clock and
     /// email-sender swaps <see cref="AddInMemoryModule"/> also makes — useful to a test that wants
@@ -119,6 +125,7 @@ public static class InMemoryModule
 
         return services;
     }
+    //#endif
     //#if (files)
 
     /// <summary>

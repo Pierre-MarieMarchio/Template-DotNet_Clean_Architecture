@@ -1,7 +1,11 @@
-﻿using System.Net;
+﻿//#if (todoLists)
+using System.Net;
+//#endif
 using System.Reflection;
 using AppTemplate.Api.Features.Auth.Controllers;
+//#if (todoLists)
 using AppTemplate.Api.Features.TodoLists.Controllers;
+//#endif
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Routing;
@@ -11,7 +15,7 @@ using Xunit;
 namespace AppTemplate.Api.IntegrationTests.Security;
 
 /// <summary>
-/// Nothing on the TodoList aggregate is reachable without a token.
+/// Nothing is reachable without a token unless it says so.
 /// </summary>
 /// <remarks>
 /// Authorisation comes from the host's fallback policy rather than from each action, so the guard has
@@ -20,12 +24,14 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 /// </remarks>
 public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
+    //#if (todoLists)
     private static readonly Guid _someListId = Guid.CreateVersion7();
     private static readonly Guid _someItemId = Guid.CreateVersion7();
 
+    //#endif
     /// <summary>
     /// The five classes answering the <c>auth</c> prefix. Every rule below reads all five, for the
-    /// same reason the todo-list rules read all three: default deny is a property of an endpoint, and
+    /// same reason a feature's rules read every class of its prefix: default deny is a property of an endpoint, and
     /// a rule enumerating one class stops asking the question of the others.
     /// </summary>
     private static readonly Type[] _authControllers =
@@ -36,6 +42,7 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
         typeof(TwoFactorController),
         typeof(PasswordRecoveryController),
     ];
+    //#if (todoLists)
 
     /// <summary>
     /// The three classes answering the one route prefix. Every rule below is a claim about that
@@ -143,6 +150,7 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
             }
         }
     }
+    //#endif
 
     /// <summary>
     /// The other half of the same rule: the endpoints that <em>must</em> be anonymous say so, rather
@@ -209,6 +217,7 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
             "An authentication endpoint changed sides. Decide deliberately, then update this list.");
     }
 
+    //#if (todoLists)
     [Fact]
     public async Task AnAuthenticatedCaller_ReachesTheSameEndpoints()
     {
@@ -221,6 +230,7 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    //#endif
     private static List<MethodInfo> ActionsOf(Type controller) =>
         [.. controller
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)

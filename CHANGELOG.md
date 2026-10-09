@@ -21,6 +21,16 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **Choosing the example features.** `dotnet new cleanarch-webapi` takes `--examples none|notes|all`,
+  `all` by default. `all` generates `TodoLists`, `Reminders` and `Notes`; `notes` generates `Notes`
+  only; `none` generates no example feature. `Reminders` needs `TodoLists` and comes only with
+  `all`. What examples share follows its real users: the domain's and the application's tagging
+  stays while `TodoLists` or `Files` is generated, the reminder recipient directory, notifier and
+  job leave with `Reminders`, and the migration, the snapshot, the composition calls, the settings,
+  the sample requests and the tests whose subject is an example are conditioned the same way as
+  `--files`. Every combination with `--files` builds without warnings, passes its Docker-free tests
+  and reports no pending model change for either context; a unit-test project left with no test
+  yet accepts a run of none until its first `Features/` folder appears.
 - **Generation options.** `dotnet new cleanarch-webapi` takes `--files`, `--ci` and `--sonar`, all
   `true` by default. `--files false` generates no Files feature in any layer, no storage module or
   its unit-test project, no MinIO services, no `Files`/`FileWorker` settings and no `files` schema

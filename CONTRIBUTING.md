@@ -84,9 +84,14 @@ for you: **every step is enforced by a test rather than by the compiler**, so ru
 feature nobody composes is registered nowhere and a domain-event consumer bound by nobody compiles
 and never runs.
 
-`TodoLists` is the worked example. `Reminders` is the more useful comparison for a new feature — a
-flat aggregate with no child entities, so what a to-do list needs *only* because it owns items is
-visible by what a reminder does without.
+`TodoLists` is the worked example of a feature with state to protect. `Reminders` is the more useful
+comparison for one of those — a flat aggregate with no child entities, so what a to-do list needs
+*only* because it owns items is visible by what a reminder does without.
+
+Choose the shape before the files: **does the feature have rules that protect a state?** If it
+does not, it has no aggregate — `Notes` is a service over a store, and
+[`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md#choose-the-shape-first) says how to build it and
+how to move to the rich shape once a rule appears. The scaffolder writes the rich shape only.
 
 ## Documentation is part of the change
 

@@ -7,6 +7,10 @@ using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
+using AppTemplate.Application.Features.Notes.Dtos;
+using AppTemplate.Application.Features.Notes.Ports.NoteQueries;
+using AppTemplate.Application.Features.Notes.Ports.NoteStore;
+using AppTemplate.Application.Features.Notes.Services;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;
@@ -54,12 +58,13 @@ public sealed class ApplicationModuleTests
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
 
-    /// <summary>The three calls a host composes, one per vertical.</summary>
+    /// <summary>The four calls a host composes, one per vertical.</summary>
     public static TheoryData<string> FeatureCalls =>
     [
         nameof(ApplicationModule.AddTodoLists),
         nameof(ApplicationModule.AddReminders),
         nameof(ApplicationModule.AddFiles),
+        nameof(ApplicationModule.AddNotes),
     ];
 
     [Fact]
@@ -125,6 +130,7 @@ public sealed class ApplicationModuleTests
     [InlineData(typeof(IValidator<GetTodoItemsQuery>))]
     [InlineData(typeof(IValidator<ScheduleReminderCommand>))]
     [InlineData(typeof(IValidator<RegisterFileCommand>))]
+    [InlineData(typeof(IValidator<NoteContentDto>))]
     public void EveryValidator_IsDiscovered(Type validatorType)
     {
         using var provider = BuildProvider();
@@ -141,6 +147,7 @@ public sealed class ApplicationModuleTests
     [InlineData(typeof(IValidator<CreateTodoListCommand>))]
     [InlineData(typeof(IValidator<ScheduleReminderCommand>))]
     [InlineData(typeof(IValidator<RegisterFileCommand>))]
+    [InlineData(typeof(IValidator<NoteContentDto>))]
     public void EachValidator_IsRegisteredExactlyOnce(Type validatorType)
     {
         var services = ComposeEveryFeature();
@@ -159,6 +166,20 @@ public sealed class ApplicationModuleTests
         services.AddTodoLists();
 
         services.Single(descriptor => descriptor.ServiceType == typeof(ITodoListService))
+            .Lifetime.ShouldBe(ServiceLifetime.Scoped);
+    }
+
+    /// <summary>
+    /// The notes feature has no use case for the marker-based discovery to find, so its service is
+    /// bound by hand like the other services, and this is where that line is checked.
+    /// </summary>
+    [Fact]
+    public void NoteService_IsRegisteredAsScoped()
+    {
+        var services = new ServiceCollection();
+        services.AddNotes();
+
+        services.Single(descriptor => descriptor.ServiceType == typeof(INoteService))
             .Lifetime.ShouldBe(ServiceLifetime.Scoped);
     }
 
@@ -208,7 +229,7 @@ public sealed class ApplicationModuleTests
     }
 
     /// <summary>
-    /// The three verticals together, which is what the assembly-wide assertions need: they speak of
+    /// The four verticals together, which is what the assembly-wide assertions need: they speak of
     /// every use case the layer declares, so every feature declaring one has to be composed.
     /// </summary>
     private static ServiceCollection ComposeEveryFeature()
@@ -218,6 +239,7 @@ public sealed class ApplicationModuleTests
         services.AddTodoLists();
         services.AddReminders();
         services.AddFiles();
+        services.AddNotes();
 
         return services;
     }
@@ -238,6 +260,8 @@ public sealed class ApplicationModuleTests
         services.AddScoped(_ => Substitute.For<IReminderNotifier>());
         services.AddScoped(_ => Substitute.For<IReminderQueries>());
         services.AddScoped(_ => Substitute.For<IReminderDiagnostics>());
+        services.AddScoped(_ => Substitute.For<INoteQueries>());
+        services.AddScoped(_ => Substitute.For<INoteStore>());
         services.AddScoped(_ => Substitute.For<IUnitOfWork>());
         services.AddScoped(_ => Substitute.For<ILeaderLease>());
         services.AddScoped(_ => Substitute.For<IStoredFileRepository>());

@@ -1,6 +1,8 @@
 ﻿using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
+using AppTemplate.Infrastructure.Persistence.Features.Notes.Configurations;
+using AppTemplate.Infrastructure.Persistence.Features.Notes.Models;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Configurations;
@@ -52,6 +54,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// </summary>
     public const string FilesSchema = "files";
 
+    /// <summary>The schema the notes feature's table lives in.</summary>
+    public const string NotesSchema = "notes";
+
     /// <summary>
     /// The schema for tables that are cross-cutting rather than owned by a feature — the idempotency
     /// key store is the first of these. <see cref="TodoSchema"/> would not be honest: the table
@@ -93,6 +98,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     internal DbSet<StoredFileRecord> StoredFiles => Set<StoredFileRecord>();
 
     /// <summary>
+    /// The notes table. Unlike the three above it is the whole model of its feature: no aggregate is
+    /// mapped onto it, and the store reads and writes the row directly. Internal for the same reason.
+    /// </summary>
+    internal DbSet<NoteRecord> Notes => Set<NoteRecord>();
+
+    /// <summary>
     /// Claimed idempotency keys. Internal for the same reason as every other row type here: the
     /// rules for claiming, completing and releasing one live in
     /// <see cref="Common.Idempotency.IdempotencyStore"/>, reached only through
@@ -106,7 +117,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         base.OnModelCreating(modelBuilder);
 
-        // Named one by one rather than discovered by scanning the assembly: seven lines the
+        // Named one by one rather than discovered by scanning the assembly: eight lines the
         // compiler checks, instead of a reflection call that silently maps nothing when a
         // configuration class is renamed or moved. No default schema is set — every table names its
         // own, so a table cannot drift into the wrong one by omission.
@@ -118,6 +129,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         modelBuilder.ApplyConfiguration(new StoredFileRecordConfiguration());
         modelBuilder.ApplyConfiguration(new StoredFileTagRecordConfiguration());
+
+        modelBuilder.ApplyConfiguration(new NoteRecordConfiguration());
 
         modelBuilder.ApplyConfiguration(new IdempotencyRecordConfiguration());
     }

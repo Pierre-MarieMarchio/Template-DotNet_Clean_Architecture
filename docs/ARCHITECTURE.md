@@ -12,6 +12,7 @@ map; that document and the tests it names are the argument. Where the files them
 **The shape**
 
 - [The four layers and the dependency rule](#the-four-layers-and-the-dependency-rule)
+- [Two feature shapes, chosen by one question](#two-feature-shapes-chosen-by-one-question)
 - [Ports are named for business intent, not for technology](#ports-are-named-for-business-intent-not-for-technology)
 - [Infrastructure is split per capability](#infrastructure-is-split-per-capability-with-no-per-technology-sub-split)
 - [Background jobs in the API process](#background-jobs-in-the-api-process)
@@ -22,7 +23,7 @@ map; that document and the tests it names are the argument. Where the files them
 - [Aggregates and domain events](#aggregates-and-domain-events)
 - [Errors: `Result` for expected failures, exceptions for bugs](#errors-result-for-expected-failures-exceptions-for-bugs)
 - [The transaction boundary, and who owns it](#the-transaction-boundary-and-who-owns-it)
-- [Two contexts, one database, five schemas](#two-contexts-one-database-five-schemas)
+- [Two contexts, one database, six schemas](#two-contexts-one-database-six-schemas)
 
 **What is not here**
 
@@ -265,6 +266,50 @@ Direction is enforced by the project graph, and is worth an architecture test �
 `NetArchTest.Rules` is pinned in `Directory.Packages.props` for exactly that — so a
 casual `using` cannot quietly invert it.
 
+## Two feature shapes, chosen by one question
+
+**Does the feature have rules that protect a state?** A forbidden transition, uniqueness within a
+collection, a cap, a consistency between fields. The answer decides the shape, and nothing else does.
+
+| | Simple feature (no state to protect) | Rich feature (state to protect) |
+|---|---|---|
+| Example | `Notes` | `TodoLists`; `Reminders` and `Files` too |
+| Domain | nothing | aggregate, value objects, events |
+| Application | one service (`INoteService`, one method per operation) over a store port and a queries port | one use case per operation, a repository port in the domain, a queries port |
+| Persistence | the EF record is the model; the store projects to DTOs | record, mapper and tracker, so the domain stays free of EF |
+| Validation | FluentValidation | FluentValidation, and the domain's invariants |
+| Commit | `IUnitOfWork` | `IUnitOfWork`, the same boundary |
+
+Both shapes are first-class; neither is the old way or the shortcut. A feature with no rule to
+protect that is given an aggregate pays for a mapper, a tracker and a repository to guard nothing,
+and one with a rule that is given a service has nowhere to put it.
+[`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md#choose-the-shape-first) walks through both, and through
+the way from the first to the second.
+
+What the simple shape keeps is everything that is not the aggregate:
+
+- **CQS holds.** A service with separate read and write methods is sufficient: the reads stage and
+  commit nothing, and two models are not required. `Notes` splits its storage into `INoteQueries`
+  (the reads) and `INoteStore` (the writes) because a port is one capability and the architecture
+  rule caps it at four operations, not because a read model is needed.
+- **The commit is the same one.** A note is staged through `INoteStore` and committed by
+  `IUnitOfWork`, with no mapper, no tracker and no domain-event source. The business context's
+  interceptors (flush, audit, event dispatch) find nothing of a note to act on: its record is not
+  `IAuditable` and no tracker holds it.
+- **The owner is the caller.** It comes from `ICurrentUser`, never from the body, and every store
+  and queries method names it, so somebody else's note and a missing one are the same answer.
+- **A stale write is refused by the database.** The note's `xmin` is its concurrency token, read
+  with the representation and published as the `ETag`. An update or delete loads the owner's row,
+  compares the caller's `If-Match` against it (`412` when stale) and stages the change; EF then
+  writes `UPDATE … WHERE "Id" = @id AND xmin = @loaded`, so a writer that loses a race between the
+  load and the commit matches no row, `EfUnitOfWork` reports the conflict and the API answers `409`
+  `concurrency.conflict`. The database, not the earlier read, has the last word.
+- **The modular rule is unchanged.** `Notes` reaches no other feature and none reaches it.
+
+`FeatureIsolationTests.AFeatureWithoutADomainFolder_IsAServiceOverAStore` is where the shape is
+held: a feature may omit its domain folder only while it is a service over a store port, with no use
+cases. A feature that grows a rule moves to the rich shape and the exemption stops applying to it.
+
 ## Ports are named for business intent, not for technology
 
 A port is an interface **implemented in Infrastructure**, and its name says what the
@@ -409,16 +454,16 @@ feature therefore lives with that feature, as
 rather than two, and why EF maps rows rather than aggregates.
 
 **One DI module per project, and the application layer is composed a feature at a time.** The
-host's composition root starts with ten lines, in this order — `AddTodoLists()`,
-`AddReminders()`, `AddFiles()`, then `AddAuthApplication()`, then
+host's composition root starts with eleven lines, in this order — `AddTodoLists()`,
+`AddReminders()`, `AddFiles()`, `AddNotes()`, then `AddAuthApplication()`, then
 `AddPurgeExpiredIdempotencyKeys()`, then `AddCacheStore()`, then
 `AddPersistenceModule(builder.Configuration)`, `AddAuthModule`, `AddEmailModule` and
-`AddStorageModule`. The first six take no argument, because nothing in the application layer binds a
+`AddStorageModule`. The first seven take no argument, because nothing in the application layer binds a
 configuration section of its own and the cache decides its lifetimes at each call site; the four
 modules each take one. Adding a capability adds one line there and touches nothing else; removing
 one deletes a project and a line.
 
-Three further lines are not among the nine, because they compose host concerns rather than
+Three further lines are not among the eleven, because they compose host concerns rather than
 capabilities: `AddOutboundHttp()`, the localisation binding — reached through `AddRequestLanguage()`,
 which adds the request-header middleware around `AddLocalizationOptions()` — and the host's own thin
 observability extension over the shared `AddObservability`. All three come from
@@ -450,7 +495,8 @@ removing that module takes it away, and the same test asserts that absence rathe
 And `AddReminders()` is not independent of `AddTodoLists()`: scheduling a reminder reaches into the
 to-do list's read port, the only ownership check made before a reminder is created. The example
 features are not four symmetric modules, and saying so is cheaper than a start-up failure that does
-not explain itself.
+not explain itself. `AddNotes()` is the one with no such coupling: it needs none of the others and
+none needs it.
 
 `AddInMemoryModule` is the one module no host composes: it is registered by tests, over
 whichever real module they are replacing.
@@ -618,6 +664,7 @@ two ports rather than two stacks:
 |---|---|
 | `ITodoListRepository`, `IReminderRepository` | Write side. Load and stage whole aggregates. |
 | `ITodoListQueries`, `ITodoItemQueries`, `IReminderQueries` | Read side. Return DTOs or plain answers projected in SQL, no aggregate materialisation. |
+| `INoteStore`, `INoteQueries` | The same split for a feature with no aggregate: the store stages a change to a note's text, the queries project it to DTOs. |
 
 Reads do not need invariants enforced, and loading a full aggregate to render a list
 view is pure waste. The reads a caller makes take the owner's id as a parameter, so
@@ -747,7 +794,8 @@ of on a repository that saved inside every write.
 commits through the identity context's own unit of work, and an idempotency claim through a second
 instance of the business context, so neither shares a transaction with a domain write — and
 neither flushes or publishes one. Versions are the store's `xmin`: a write staged against a stale
-one is rejected rather than retried.
+one is rejected rather than retried. A note commits through the same unit of work as every other
+business write, with nothing staged but its own row.
 
 **Where it still does not reach.** ASP.NET Identity's own stores call
 `SaveChangesAsync` themselves: `UserManager.CreateAsync` commits before it returns, and
@@ -763,7 +811,7 @@ answers that as `409` with the stable code `concurrency.conflict` in an
 `application/problem+json` body. Nothing is retried: re-applying a decision made against
 state that no longer exists is the lost update the token exists to prevent.
 
-## Two contexts, one database, five schemas
+## Two contexts, one database, six schemas
 
 | Schema | Tables |
 |---|---|
@@ -771,22 +819,23 @@ state that no longer exists is the lost update the token exists to prevent.
 | `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `DataProtectionKeys` |
 | `reminders` | `Reminders` |
 | `files` | `StoredFiles` |
+| `notes` | `Notes` |
 | `platform` | `IdempotencyKeys` |
 
-Four of those name a feature; `platform` is the one that does not, and it exists precisely so
+Five of those name a feature; `platform` is the one that does not, and it exists precisely so
 that a table belonging to no feature — the idempotency key store is the first of them — is not
 filed under a feature that would be a lie. The business half's `__EFMigrationsHistory` sits in
 `public`, outside every module schema, for the same reason taken one step further: it describes the
 database rather than anything in it. The authentication half's carries the same name inside
 `identity`, beside the tables it records, so the two histories on this database are told apart by
 the same thing that tells their tables apart. Each context declares the schema names it owns as
-constants — `TodoSchema`, `RemindersSchema`, `FilesSchema`, `PlatformSchema` and
+constants — `TodoSchema`, `RemindersSchema`, `FilesSchema`, `NotesSchema`, `PlatformSchema` and
 `MigrationsHistorySchema` on `AppDbContext`, `IdentitySchema` on `AuthDbContext` — so a schema name
 is spelled once.
 
 There are two contexts, and the line between them is what the halves of this system are.
-`AppDbContext`, in `AppTemplate.Infrastructure.Persistence`, maps the to-do list, reminder and file
-features' rows and the idempotency table. `AuthDbContext`, in `AppTemplate.Infrastructure.Auth`,
+`AppDbContext`, in `AppTemplate.Infrastructure.Persistence`, maps the to-do list, reminder, file and
+note features' rows and the idempotency table. `AuthDbContext`, in `AppTemplate.Infrastructure.Auth`,
 derives from `IdentityDbContext<AppUser, AppRole, Guid>` and maps everything in `identity`. Every
 table names its own schema in its own `IEntityTypeConfiguration`, so no default schema is set and a
 mapping cannot drift into the wrong schema by omission.

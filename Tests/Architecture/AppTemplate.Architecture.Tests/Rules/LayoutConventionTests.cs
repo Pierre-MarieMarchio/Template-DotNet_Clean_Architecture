@@ -27,7 +27,8 @@ public sealed class LayoutConventionTests
     private static readonly Dictionary<string, string[]?> _vocabulary = new(StringComparer.Ordinal)
     {
         ["Src/Application/AppTemplate.Application"] =
-            ["Consumers", "Dtos", "Errors", "Extensions", "Mapping", "Policies", "Ports", "Services", "UseCases"],
+            ["Consumers", "Dtos", "Errors", "Extensions", "Mapping", "Policies", "Ports", "Services", "UseCases",
+             "Validators"],
 
         // One vertical, holding one operation. A mechanism project earns a Features/ folder only for
         // work that is genuinely a use case rather than a mechanism — here, purging what the
@@ -48,7 +49,7 @@ public sealed class LayoutConventionTests
         // this entry is what reports it. A shared *business* concept belongs in AppTemplate.Domain.
         ["Src/Domain/AppTemplate.Domain.Core"] = null,
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
-            ["Configurations", "Mapping", "Models", "Observability", "Queries", "Repositories", "Tracking"],
+            ["Configurations", "Mapping", "Models", "Observability", "Queries", "Repositories", "Stores", "Tracking"],
         // Jobs/ holds what a feature runs on a timer: the hosted service, its options and its
         // instruments, side by side — the nature word for them, as Controllers/ is for the HTTP half.
         ["Src/Presentation/AppTemplate.Api"] =

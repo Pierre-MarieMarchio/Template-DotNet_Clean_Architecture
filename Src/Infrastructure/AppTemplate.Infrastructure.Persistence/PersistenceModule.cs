@@ -2,6 +2,8 @@
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
+using AppTemplate.Application.Features.Notes.Ports.NoteQueries;
+using AppTemplate.Application.Features.Notes.Ports.NoteStore;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
@@ -23,6 +25,8 @@ using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Repositories;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Tracking;
+using AppTemplate.Infrastructure.Persistence.Features.Notes.Queries;
+using AppTemplate.Infrastructure.Persistence.Features.Notes.Stores;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Observability;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Queries;
@@ -79,6 +83,7 @@ public static class PersistenceModule
         AddTodoListsFeature(services);
         AddRemindersFeature(services);
         AddFilesFeature(services);
+        AddNotesFeature(services);
         AddIdempotencyFeature(services, configuration);
         AddContext(services, connectionString);
         AddContextFactory(services);
@@ -156,6 +161,14 @@ public static class PersistenceModule
         services.TryAddScoped<IStoredFileRepository, StoredFileRepository>();
         services.TryAddScoped<IStoredFileQueries, StoredFileQueries>();
         services.TryAddScoped<IStoredFileTagQueries, StoredFileTagQueries>();
+    }
+
+    private static void AddNotesFeature(IServiceCollection services)
+    {
+        // A store and its queries, and nothing else: notes have no mapper, tracker or event source,
+        // and commit through the context's unit of work like every other write.
+        services.TryAddScoped<INoteStore, NoteStore>();
+        services.TryAddScoped<INoteQueries, NoteQueries>();
     }
 
     private static void AddRemindersFeature(IServiceCollection services)

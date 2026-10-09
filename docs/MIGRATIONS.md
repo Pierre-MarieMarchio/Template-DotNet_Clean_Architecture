@@ -1,12 +1,12 @@
 ﻿# Migrations
 
-**Two `DbContext`s, two migration histories, one database.** One connection string, one pool, five
+**Two `DbContext`s, two migration histories, one database.** One connection string, one pool, six
 schemas. Every command below has to name which of the two it is about, and that is the one thing to
 get right here.
 
 | Context | Project | Schemas | History table |
 |---|---|---|---|
-| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence` | `todo`, `reminders`, `files`, and `platform` for what belongs to no feature | `public.__EFMigrationsHistory` |
+| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence` | `todo`, `reminders`, `files`, `notes`, and `platform` for what belongs to no feature | `public.__EFMigrationsHistory` |
 | `AuthDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Auth` | `identity` | `identity.__EFMigrationsHistory` |
 
 Each ships **one** initial migration, and they are independent: a change to one is invisible to the

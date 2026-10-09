@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Core;
 using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 using AppTemplate.Application.Features.Files.Services;
+using AppTemplate.Application.Features.Notes.Services;
 using AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.Reminders.Services;
 using AppTemplate.Application.Features.TodoLists.Consumers.TodoItemCompleted;
@@ -31,6 +32,7 @@ public static class ApplicationModule
     private const string _todoLists = "TodoLists";
     private const string _reminders = "Reminders";
     private const string _files = "Files";
+    private const string _notes = "Notes";
 
     /// <summary>
     /// Registers the to-do list feature: its use cases, its validators, and the access service its
@@ -91,6 +93,22 @@ public static class ApplicationModule
         // correct; this only makes it fast — see the consumer's own doc.
         services.AddDomainEventConsumer<
             StoredFileDeletedDomainEvent, ReclaimContentOnStoredFileDeletedConsumer>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the notes feature: its service and its validator. It has no use cases and answers no
+    /// domain event, and it depends on none of the other features.
+    /// </summary>
+    /// <param name="services">The container being built.</param>
+    /// <returns>The same collection, for chaining.</returns>
+    public static IServiceCollection AddNotes(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddFeature(_notes);
+        services.AddScoped<INoteService, NoteService>();
 
         return services;
     }

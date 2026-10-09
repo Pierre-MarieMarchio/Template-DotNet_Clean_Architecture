@@ -48,7 +48,7 @@ AppTemplate.Application.Core    Common/{Collections,Concurrency,Events,Idempoten
 AppTemplate.Application         Common/{Tagging}
                                 Features/<F>/{UseCases/{Commands,Queries}/<Operation>,
                                               Ports/<Port>,Consumers,Services,Policies,
-                                              Extensions,Mapping,Dtos,Errors}
+                                              Extensions,Mapping,Dtos,Errors,Validators}
 AppTemplate.Application.Auth    Features/Auth/{Errors,Policies,Ports/<Port>,
                                                UseCases/{Commands,Queries}/<Operation>}
                                 no Common/: one feature, so nothing is shared between features
@@ -58,7 +58,7 @@ AppTemplate.Infrastructure.Core Common/{Caching,Contexts,Options,
 AppTemplate.Infrastructure.Persistence
                                 Common/{Contexts,Idempotency,Leases}
                                 Features/<F>/{Models,Configurations,Mapping,Tracking,
-                                              Repositories,Queries,Observability}
+                                              Repositories,Queries,Stores,Observability}
                                 Migrations/   the business half's history
 AppTemplate.Infrastructure.Auth Common/{Contexts,Directories,Options}
                                 Features/Auth/{Configurations,Directories,Factories,Issuers,Logs,
@@ -83,8 +83,8 @@ Tests/                          a 1:1 mirror of Src/
 ```
 
 **Two of those projects own storage, and each owns a migration history.**
-`AppTemplate.Infrastructure.Persistence` holds `AppDbContext` over the `todo`, `reminders`, `files`
-and `platform` schemas; `AppTemplate.Infrastructure.Auth` holds `AuthDbContext` over `identity`.
+`AppTemplate.Infrastructure.Persistence` holds `AppDbContext` over the `todo`, `reminders`, `files`,
+`notes` and `platform` schemas; `AppTemplate.Infrastructure.Auth` holds `AuthDbContext` over `identity`.
 [`MIGRATIONS.md`](MIGRATIONS.md) is the commands for both.
 
 ## Two folders called `Common/`
@@ -158,7 +158,29 @@ model more than one operation shares is promoted to `Dtos/`; and a type that is 
 parameter — not one use case's — lives beside that port in `Ports/<Port>/` instead, however many
 use cases call it. Otherwise `Ports/` would depend on `UseCases/`.
 
-The other two examples are the same shape with pieces added or missing, and what each one changes
+`Notes` is the feature with no domain model, and its folders show what the simple shape needs. `Validators/`
+and `Stores/` are the two words only it uses: a feature with use cases validates in a command's own
+folder, and one without them files its validator by the nature word it carries; `Stores/` in the
+persistence project is the adapter of an application `…Store` port, the way `Repositories/` is the
+adapter of a domain `…Repository`.
+
+```
+Application/Features/Notes/
+  Dtos/                   NoteDto, NoteSummaryDto, and the service's input, NoteContentDto and NoteListQueryDto
+  Errors/                 NoteErrors
+  Policies/               NoteInputPolicy (the length limits), NoteCollectionPolicy (the sortable whitelist)
+  Ports/NoteQueries/      INoteQueries and NoteFilter — the reads
+  Ports/NoteStore/        INoteStore and NoteChangeStatus — the writes, which only stage
+  Services/               INoteService and NoteService — one method per operation
+  Validators/             NoteContentDtoValidator
+Infrastructure.Persistence/Features/Notes/
+  Models/                 NoteRecord — the row, and the only model there is
+  Configurations/         NoteRecordConfiguration
+  Queries/                NoteQueries and NoteSortMap
+  Stores/                 NoteStore
+```
+
+The other two examples are the same shape as `TodoLists` with pieces added or missing, and what each one changes
 is the subject of [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md): `Reminders` is flat, with no child
 entities and so no tag folder; `Files` has four ports where `TodoLists` has one, because the bytes
 live in somebody else's store.
@@ -225,7 +247,7 @@ Reserved for exactly one thing: the dependency-injection registration classes �
 partition.
 
 **Composition is opt-in per feature, and there is deliberately no call that adds all of them.**
-`ApplicationModule` exposes `AddTodoLists()`, `AddReminders()` and `AddFiles()`;
+`ApplicationModule` exposes `AddTodoLists()`, `AddReminders()`, `AddFiles()` and `AddNotes()`;
 `ApplicationAuthModule` exposes `AddAuthApplication()`; `ApplicationCoreModule` exposes
 `AddPurgeExpiredIdempotencyKeys()` and the registration helpers the layer above composes with, but
 no umbrella `AddApplicationCore()` — ports, results and markers are not things a container

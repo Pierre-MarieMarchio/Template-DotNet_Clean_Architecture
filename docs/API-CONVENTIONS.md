@@ -77,7 +77,7 @@ of the contract.
 
 | `code` | Status |
 |---|---|
-| `todoList.notFound` / `todoItem.notFound` / `storedFile.notFound` / `reminder.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated |
+| `todoList.notFound` / `todoItem.notFound` / `storedFile.notFound` / `reminder.notFound` / `note.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated |
 | `reminder.targetNotFound` | 404 — the item a reminder is about does not exist or is not the caller's |
 | `storedFile.notAvailable` / `storedFile.quarantined` | 409 — the content has no verdict yet, or was examined and refused. The second never becomes available |
 | `storedFile.depositMissing` | 409 — `confirm` found nothing deposited against the registration |
@@ -117,9 +117,17 @@ Every error response is served as `application/problem+json`.
 
 ## Conditional requests — `ETag` and `If-Match`
 
-Every read of a single list, item or file publishes that
+**This is a property of versioned resources, not of every resource.** A resource is versioned
+when its storage keeps a concurrency token, and a feature opts in by keeping one; the four examples
+do. A resource that keeps none publishes no `ETag`, honours no `If-Match`, and its writes are
+last-write-wins — a feature added without a version column must not be documented as protected, so
+nothing here claims it is. A collection is never versioned: a page of summaries carries no `ETag`,
+and a create has no `If-Match`, because there is no resource yet to name.
+
+Every read of a single list, item, file or note publishes that
 resource's version as a strong, opaque `ETag`; every write of one — a reminder's
-reschedule and cancel, a file's confirm and delete included — honours `If-Match`, so a
+reschedule and cancel, a file's confirm and delete, a note's update and delete included — honours
+`If-Match`, so a
 stale edit, decided against a version somebody else has since changed, is refused with
 `412` instead of silently overwriting it. `If-Match: *` asserts that the resource
 exists, so a missing or someone-else's resource also answers `412`, not `404`. Sending
@@ -132,9 +140,9 @@ through the whole round trip.
 
 A client that retries a create through a flaky network must not create twice. Send an
 `Idempotency-Key` header (any opaque string up to 128 characters — a UUID is the obvious
-choice) on any of the four creates that carry `[Idempotent]`: `POST /api/v1/todo-lists`,
-`POST /api/v1/todo-lists/{id}/items`, `POST /api/v1/todo-lists/{id}/items/{id}/reminders`
-and `POST /api/v1/files`.
+choice) on any of the five creates that carry `[Idempotent]`: `POST /api/v1/todo-lists`,
+`POST /api/v1/todo-lists/{id}/items`, `POST /api/v1/todo-lists/{id}/items/{id}/reminders`,
+`POST /api/v1/files` and `POST /api/v1/notes`.
 
 ```bash
 curl -X POST "$API/todo-lists" -H "Authorization: Bearer $TOKEN" \
@@ -176,6 +184,9 @@ rather than a clamp, a guess or a 500.
 | `page` | integer, 1-based | `1` | ≥ 1, offset mode only |
 | `pageSize` | integer | `20` | 1…100 |
 | `cursor` | opaque token from `nextCursor` | none | cursor mode only, ≤ 512 characters |
+
+The examples below are the to-do lists'. `Notes` answers the same contract with `title` and
+`createdAt` as its sortable fields and no filter.
 
 ```bash
 # newest first, then by name, second page of ten

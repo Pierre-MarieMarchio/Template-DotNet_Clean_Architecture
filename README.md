@@ -4,10 +4,11 @@ A production-shaped starting point for a .NET 10 HTTP API: Clean Architecture la
 via EF Core, ASP.NET Identity with JWT access tokens and opaque rotating refresh tokens,
 default-deny authorisation, RFC 7807 errors, and configuration that fails fast when it is wrong.
 
-It ships three worked example features — a to-do list with real invariants and domain events, a
-flat reminders aggregate, and a file store whose two halves live in different stores — enough to
-show an aggregate, a read/write port split and a `Result`-based error policy, without becoming an
-application you have to delete. [`docs/REMOVING-THE-EXAMPLE-FEATURES.md`](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
+It ships four worked example features — a to-do list with real invariants and domain events, a
+flat reminders aggregate, a file store whose two halves live in different stores, and notes, which
+have no domain model at all — enough to show both feature shapes (a service over a store when there
+is no state to protect, an aggregate when there is), a read/write port split and a `Result`-based
+error policy, without becoming an application you have to delete. [`docs/REMOVING-THE-EXAMPLE-FEATURES.md`](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
 is the procedure for when you have read them.
 
 **New here? [`docs/README.md`](docs/README.md) is the documentation index.** Every document has one
@@ -17,7 +18,7 @@ subject, and that page says which one answers the question you actually have.
 
 - **.NET 10** (`net10.0`), SDK pinned by `global.json`
 - **PostgreSQL** through Npgsql — one connection string, one pool, two `DbContext`s (business and
-  authentication) with a migration history each, over five schemas
+  authentication) with a migration history each, over six schemas
 - **ASP.NET Identity** + JWT bearer, opaque refresh tokens that rotate on every use, two-factor
   enrolment, external identity providers, email confirmation by POST, logout that revokes
 - **Default-deny authorisation** — a fallback policy requires an authenticated user, so an

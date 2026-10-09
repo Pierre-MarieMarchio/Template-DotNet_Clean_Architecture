@@ -1,8 +1,9 @@
 ﻿# Removing the example features
 
-This template ships three worked examples: `TodoLists`, `Reminders` and `Files`. They exist to teach
-— an aggregate with real invariants and child entities, a flat aggregate reached from a background
-loop, an aggregate whose two halves live in two different stores, and, across all three, domain
+This template ships four worked examples: `TodoLists`, `Reminders`, `Files` and `Notes`. They exist to
+teach — an aggregate with real invariants and child entities, a flat aggregate reached from a
+background loop, an aggregate whose two halves live in two different stores, a feature with no
+domain model at all, and, across the first three, domain
 events, optimistic concurrency over HTTP, a paginated collection endpoint and background jobs calling
 the same use cases as the controllers. A derived project deletes what it has read and keeps what it needs.
 
@@ -24,6 +25,8 @@ as a procedure.
   out, and which are reasoned
 - [The dependency you need to know about first](#the-dependency-you-need-to-know-about-first) —
   `Reminders` does not compile without `TodoLists`
+- [`Notes`, the example with no domain model](#notes-the-example-with-no-domain-model) — the one
+  that comes out on its own, with the shortest list
 - [What stops being demonstrated](#what-stops-being-demonstrated) — the cost, before you pay it
 
 **The procedure**
@@ -100,6 +103,54 @@ Each makes a point that survives its example: reword the sentence, do not just d
 first contrasts an aggregate with child rows against one without; the second and third cite a
 mapping that answers with a string status rather than an enum, and any surviving mapper that does
 the same will do.
+
+## `Notes`, the example with no domain model
+
+`Notes` is independent of the other three: it names none of them and none names it, so it comes out
+on its own, and the rest builds without it. It is also the only example with no domain folder, so
+there is no `Domain` row to delete and no tracker, mapper or event behind it.
+
+**Delete** the feature folder in each layer that has one, and the mirrors under `Tests/`:
+
+- `Src/Application/AppTemplate.Application/Features/Notes/`
+- `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Notes/`
+- `Src/Presentation/AppTemplate.Api/Features/Notes/`
+- `Tests/Application/AppTemplate.Application.UnitTests/Features/Notes/`
+- `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Notes/`
+- `Tests/Presentation/AppTemplate.Api.UnitTests/Features/Notes/`, and
+  `Tests/Presentation/AppTemplate.Api.UnitTests/Composition/NotesSavingTests.cs`
+- `Tests/Integration/AppTemplate.Api.IntegrationTests/Notes/`
+
+**Edit**, each a one-line or one-method change:
+
+- `Src/Application/AppTemplate.Application/ApplicationModule.cs`: the `AddNotes` method and its
+  `_notes` constant, then the unused `using`.
+- `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/PersistenceModule.cs`: the
+  `AddNotesFeature` method and its call.
+- `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs`: the
+  `Notes` `DbSet`, the `NotesSchema` constant and the `ApplyConfiguration` call.
+- `Src/Presentation/AppTemplate.Api/Program.cs`: the `AddNotes()` line.
+- `Tests/Architecture/AppTemplate.Architecture.Tests/Composition/HostComposition.cs` and
+  `Tests/Presentation/AppTemplate.Api.UnitTests/Composition/SqliteSavingHost.cs`: the `AddNotes()`
+  calls.
+- `Tests/Application/AppTemplate.Application.UnitTests/ApplicationModuleTests.cs`: the `AddNotes`
+  entry in `FeatureCalls`, the two `IValidator<NoteContentDto>` cases, `NoteService_IsRegisteredAsScoped`,
+  the two port substitutes and the call in `ComposeEveryFeature`.
+- `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/TestDatabase.cs`: the
+  `NotesSchema` in the list of schemas it truncates.
+- `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`: `Validators`
+  and `Stores` leave the two vocabularies, because they are used by `Notes` alone and the rule that
+  every word has a folder fails otherwise. `Validators` leaves `FeatureFolderVocabularyTests` too.
+  `FeatureIsolationTests.AFeatureWithoutADomainFolder_IsAServiceOverAStore` stays: with no feature
+  of that shape it has nothing to read, which is deliberate, and it is the rule a later simple
+  feature meets.
+
+**The migration** carries one table, `notes.Notes`. Regenerate the business `InitialCreate` as
+described below on a project no database has applied it to, and edit the model as for the others
+otherwise.
+
+**What stops being demonstrated** is the simple shape, and the second place `xmin` is checked at the
+write rather than against a loaded aggregate. No other test uses `Notes` as its subject.
 
 ## What to delete
 
@@ -326,14 +377,14 @@ Each context ships **one** migration, and they are independent:
 
 | Context | Migration | Creates |
 |---|---|---|
-| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/` | `todo`, `reminders`, `files` and `platform` — seven tables |
+| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/` | `todo`, `reminders`, `files`, `notes` and `platform` — eight tables |
 | `AuthDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Migrations/` | `identity` — nine tables plus the key ring |
 
 **Removing an example touches the business migration and nothing else.** Authentication's is a
 different file, in a different project, with a history table of its own, so no removal here can
 reach it.
 
-Nothing outside the examples references any of the three example schemas, so on a project that has
+Nothing outside the examples references any of the four example schemas, so on a project that has
 not yet applied a migration to a real database this is not a matter of generating a migration to
 undo them.
 

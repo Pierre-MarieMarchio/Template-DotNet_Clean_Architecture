@@ -32,6 +32,7 @@ builder.Services.AddOutboundHttp();
 builder.Services.AddTodoLists();
 builder.Services.AddReminders();
 builder.Services.AddFiles();
+builder.Services.AddNotes();
 builder.Services.AddAuthApplication();
 
 // Not covered by the calls above; the maintenance endpoint and the maintenance job both resolve it.

@@ -2,13 +2,15 @@
 using AppTemplate.Application;
 using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core;
+using AppTemplate.Domain.Common.Tagging;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.InMemory;
 using AppTemplate.Infrastructure.Persistence;
+//#if (files)
 using AppTemplate.Infrastructure.Storage;
+//#endif
 using AppTemplate.Presentation.Core;
 
 namespace AppTemplate.Architecture.Tests.Fixtures;
@@ -48,7 +50,9 @@ internal static class ArchitectureAssemblies
     internal const string IdentityInfrastructureNamespace = "AppTemplate.Infrastructure.Auth";
     internal const string EmailInfrastructureNamespace = "AppTemplate.Infrastructure.Email";
     internal const string InMemoryInfrastructureNamespace = "AppTemplate.Infrastructure.InMemory";
+    //#if (files)
     internal const string StorageInfrastructureNamespace = "AppTemplate.Infrastructure.Storage";
+    //#endif
 
     /// <summary>
     /// The cross-cutting mechanisms inside the persistence project: the interceptor pipeline, the unit
@@ -82,13 +86,13 @@ internal static class ArchitectureAssemblies
     internal const string ApplicationFeaturesNamespace = "AppTemplate.Application.Features";
 
     /// <summary>
-    /// Anchored on a feature entity, because the business half of the domain declares nothing
-    /// cross-cutting: the primitives are one project inwards. A derived project that removes every
-    /// example feature removes this anchor's type with them, and then
-    /// <see cref="RuleAssertions.RequireTypes(Assembly)"/> is the thing that says the assembly holds
-    /// nothing left to check.
+    /// Anchored on the shared tagging value object, the one cross-cutting type the business half of
+    /// the domain declares, so the anchor survives whichever features a project keeps. A project
+    /// whose domain holds no feature at all is caught by
+    /// <see cref="RuleAssertions.RequireTypes(Assembly)"/>, which says the assembly holds nothing left
+    /// to check.
     /// </summary>
-    private static readonly Lazy<Assembly> _domain = new(() => Anchor(typeof(StoredFile), DomainNamespace));
+    private static readonly Lazy<Assembly> _domain = new(() => Anchor(typeof(Tag), DomainNamespace));
 
     private static readonly Lazy<Assembly> _domainCore =
         new(() => Anchor(typeof(IAggregateRoot), DomainCoreNamespace));
@@ -117,9 +121,11 @@ internal static class ArchitectureAssemblies
     private static readonly Lazy<Assembly> _inMemoryInfrastructure =
         new(() => Anchor(typeof(InMemoryModule), InMemoryInfrastructureNamespace));
 
+    //#if (files)
     private static readonly Lazy<Assembly> _storageInfrastructure =
         new(() => Anchor(typeof(StorageModule), StorageInfrastructureNamespace));
 
+    //#endif
     private static readonly Lazy<IReadOnlyList<Assembly>> _allInfrastructure =
         new(() => LayerAssemblies("Infrastructure"));
 
@@ -153,8 +159,10 @@ internal static class ArchitectureAssemblies
 
     internal static Assembly InMemoryInfrastructure => _inMemoryInfrastructure.Value;
 
+    //#if (files)
     internal static Assembly StorageInfrastructure => _storageInfrastructure.Value;
 
+    //#endif
     /// <summary>
     /// The infrastructure modules a host composes, which is what makes one a production module: the
     /// criterion is a host's own <c>ProjectReference</c>, so the set follows the tree.

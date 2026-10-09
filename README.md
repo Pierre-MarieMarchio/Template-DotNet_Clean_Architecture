@@ -102,9 +102,10 @@ dotnet new cleanarch-webapi -n Acme.OrderManagement
 cd Acme.OrderManagement && dotnet run Tools/Tasks.cs bootstrap
 ```
 
-That last command is not optional, and
-[`docs/USING-THE-TEMPLATE.md`](docs/USING-THE-TEMPLATE.md) says why, along with what the name
-substitutes into and what a generated project inherits. If the repository you are generating into
+`--files false`, `--ci false` and `--sonar false` leave out the Files feature with its storage, the
+GitHub workflows, and the Sonar analysis. That last command is not optional, and
+[`docs/USING-THE-TEMPLATE.md`](docs/USING-THE-TEMPLATE.md) says why, along with the generation
+options, what the name substitutes into and what a generated project inherits. If the repository you are generating into
 already exists, [`docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md`](docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md)
 measures the two shapes that work.
 

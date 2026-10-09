@@ -18,6 +18,28 @@
     "type": "solution"
   },
   "symbols": {
+    "files": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include the Files module: stored files, their storage adapters, the MinIO containers and the Files tables of the business migration."
+    },
+    "ci": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include the GitHub Actions workflows that build, test and release the solution (ci.yml, release.yml)."
+    },
+    "sonar": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include the Sonar analysis: the local SonarQube compose profile, its scanner image and task, and the SonarQube Cloud workflow when --ci is true."
+    },
+    "sonarWorkflow": {
+      "type": "computed",
+      "value": "(ci && sonar)"
+    },
     "nameLower": {
       "type": "generated",
       "generator": "casing",
@@ -86,6 +108,7 @@
         {
           "exclude": [
             ".template.config/**",
+            ".git",
             ".git/**",
             "**/bin/**",
             "**/obj/**",
@@ -96,13 +119,148 @@
             "docs/plans/**",
             "docs/guide_architecture_pour_agent.md"
           ]
+        },
+        {
+          "condition": "(!files)",
+          "exclude": [
+            "Src/**/Features/Files/**",
+            "Src/Infrastructure/AppTemplate.Infrastructure.Storage/**",
+            "Tests/**/Features/Files/**",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests/**",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Files/**",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Storage/**",
+            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/InMemoryBucket.cs",
+            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/InMemoryStoredFileStore.cs",
+            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/RecordingOrphanSweepCheckpoint.cs",
+            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/RecordingOwnerQuotaLock.cs"
+          ]
+        },
+        {
+          "condition": "(!ci)",
+          "exclude": [
+            ".github/workflows/ci.yml",
+            ".github/workflows/release.yml",
+            "Tools/CheckWorkflows.cs"
+          ]
+        },
+        {
+          "condition": "(!sonarWorkflow)",
+          "exclude": [
+            ".github/workflows/sonarqube.yml"
+          ]
+        },
+        {
+          "condition": "(!sonar)",
+          "exclude": [
+            "Tools/sonar-scanner.Dockerfile",
+            ".config/dotnet-tools.json"
+          ]
         }
       ]
+    },
+    {
+      "source": "./.template.config/variants/no-sonar/",
+      "target": "./",
+      "condition": "(!sonar)"
     }
   ],
   "primaryOutputs": [
     {
       "path": "AppTemplate.sln"
     }
-  ]
+  ],
+  "SpecialCustomOperations": {
+    "**/.env.example": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [
+              "#if"
+            ],
+            "else": [
+              "#else"
+            ],
+            "elseif": [
+              "#elseif"
+            ],
+            "endif": [
+              "#endif"
+            ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    },
+    "**/*.http": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [
+              "#if"
+            ],
+            "else": [
+              "#else"
+            ],
+            "elseif": [
+              "#elseif"
+            ],
+            "endif": [
+              "#endif"
+            ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    },
+    "**/Dockerfile": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [
+              "#if"
+            ],
+            "else": [
+              "#else"
+            ],
+            "elseif": [
+              "#elseif"
+            ],
+            "endif": [
+              "#endif"
+            ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    },
+    "**/.editorconfig": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [
+              "#if"
+            ],
+            "else": [
+              "#else"
+            ],
+            "elseif": [
+              "#elseif"
+            ],
+            "endif": [
+              "#endif"
+            ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    }
+  }
 }

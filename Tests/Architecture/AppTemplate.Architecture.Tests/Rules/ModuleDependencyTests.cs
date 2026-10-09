@@ -57,7 +57,9 @@ public sealed class ModuleDependencyTests
     private static readonly (string Module, System.Reflection.Assembly Assembly)[] _moduleCommons =
     [
         ("AppTemplate.Infrastructure.Auth", ArchitectureAssemblies.IdentityInfrastructure),
+        //#if (files)
         ("AppTemplate.Infrastructure.Storage", ArchitectureAssemblies.StorageInfrastructure),
+        //#endif
         ("AppTemplate.Infrastructure.Email", ArchitectureAssemblies.EmailInfrastructure),
         ("AppTemplate.Infrastructure.InMemory", ArchitectureAssemblies.InMemoryInfrastructure),
     ];
@@ -264,7 +266,7 @@ public sealed class ModuleDependencyTests
             .ToHashSet(StringComparer.Ordinal);
 
         onDisk.Count.ShouldBeGreaterThanOrEqualTo(
-            5,
+            4,
             "Far fewer infrastructure modules were found under Src than this template has, so the " +
             "project walk is not reading the tree it is meant to describe.");
 

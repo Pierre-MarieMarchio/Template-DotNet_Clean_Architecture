@@ -1,6 +1,8 @@
 ﻿using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
+//#if (files)
 using AppTemplate.Infrastructure.Persistence.Features.Files.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
+//#endif
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Models;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Configurations;
@@ -47,6 +49,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// <summary>The schema the reminders feature's tables live in.</summary>
     public const string RemindersSchema = "reminders";
 
+    //#if (files)
     /// <summary>
     /// The schema the file feature's tables live in. Its own, like every other feature's, rather than
     /// <see cref="PlatformSchema"/>: the table belongs to a feature, and a feature that owns a schema
@@ -54,6 +57,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// </summary>
     public const string FilesSchema = "files";
 
+    //#endif
     /// <summary>The schema the notes feature's table lives in.</summary>
     public const string NotesSchema = "notes";
 
@@ -89,6 +93,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// </summary>
     internal DbSet<ReminderRecord> Reminders => Set<ReminderRecord>();
 
+    //#if (files)
     /// <summary>
     /// The stored-file aggregate's table: everything about a file except its content, which never
     /// passes through this application at all. Also a persistence model rather than the domain
@@ -100,6 +105,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// <summary>Where the orphan sweep's walk of the object store has reached.</summary>
     internal DbSet<ContentSweepCheckpointRecord> ContentSweepCheckpoints => Set<ContentSweepCheckpointRecord>();
 
+    //#endif
     /// <summary>
     /// The notes table. Unlike the three above it is the whole model of its feature: no aggregate is
     /// mapped onto it, and the store reads and writes the row directly. Internal for the same reason.
@@ -130,10 +136,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         modelBuilder.ApplyConfiguration(new ReminderRecordConfiguration());
 
+        //#if (files)
         modelBuilder.ApplyConfiguration(new StoredFileRecordConfiguration());
         modelBuilder.ApplyConfiguration(new StoredFileTagRecordConfiguration());
         modelBuilder.ApplyConfiguration(new ContentSweepCheckpointRecordConfiguration());
 
+        //#endif
         modelBuilder.ApplyConfiguration(new NoteRecordConfiguration());
 
         modelBuilder.ApplyConfiguration(new IdempotencyRecordConfiguration());

@@ -21,6 +21,16 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **Generation options.** `dotnet new cleanarch-webapi` takes `--files`, `--ci` and `--sonar`, all
+  `true` by default. `--files false` generates no Files feature in any layer, no storage module or
+  its unit-test project, no MinIO services, no `Files`/`FileWorker` settings and no `files` schema
+  in the business migration; `--ci false` drops the build and release workflows and the workflow
+  gate; `--sonar false` drops the local SonarQube profile, the scanner image, task and tool, and
+  the SonarQube Cloud workflow, which is generated only when both `--ci` and `--sonar` are true.
+  Each generation builds without warnings, passes its Docker-free tests and reports no pending
+  model change for either context. Exclusion is `template.json` path conditions plus conditions
+  written as comments in the files that compose a module, so the repository itself still builds
+  and tests as the default generation.
 - **Upload through the API.** `POST /api/v1/files/uploads` takes `multipart/form-data` with
   `category`, exactly one `file` part (its `Content-Type` is the declared media type) and an
   optional `name` (the part's file name otherwise), and answers `201` with the file `deposited`,

@@ -118,12 +118,21 @@ own runtime and needs no SDK on the target:
 dotnet run Tools/Tasks.cs migration-bundle      # both contexts
 ```
 
+<!--#if (ci)-->
 **One bundle per context, and you need both.** `migration-bundle` and
 `.github/workflows/release.yml`'s `migration-bundle` job each build two: `efbundle-identity` for the
 `identity` schema and `efbundle` for the business one. Applying one and not the other leaves half
 the schema absent — an API whose identity tables do not exist starts and then fails the first
 sign-in. Their order is not a correctness requirement, since no foreign key crosses the two schemas,
 but both run authentication first, as the Development bootstrap does.
+<!--#else
+**One bundle per context, and you need both.** `migration-bundle` builds
+two: `efbundle-identity` for the
+`identity` schema and `efbundle` for the business one. Applying one and not the other leaves half
+the schema absent — an API whose identity tables do not exist starts and then fails the first
+sign-in. Their order is not a correctness requirement, since no foreign key crosses the two schemas,
+but both run authentication first, as the Development bootstrap does.
+#endif-->
 
 **The deployment step remains yours.** The release workflow uploads the two bundles as plain
 artifacts. Run both successfully with a migration-time database principal before starting a version

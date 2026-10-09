@@ -134,6 +134,7 @@ against your production system.
   is not JSON, a failed `:guid` route constraint, an unacceptable media type — still fills in
   `code`, `traceId` and `type`, and never overwrites a value a producer already set. A client that
   always reads `code` does not break on exactly the inputs most likely to be malformed.
+<!--#if (files)-->
 - **Another user's resource is a `404` and never a `403`** — a `403` would confirm the resource
   exists. Two mechanisms reach that answer, and which one applies depends on whether an aggregate is
   loaded. A read that projects rows filters on the owner **inside the query**, so the row never
@@ -143,6 +144,15 @@ against your production system.
   Files one — and answers the same `404` either way. The guarantee is the answer, not the mechanism;
   a new command that loads an aggregate must go through that gate rather than assume a query filtered
   for it.
+<!--#else
+- **Another user's resource is a `404` and never a `403`** — a `403` would confirm the resource
+  exists. Two mechanisms reach that answer, and which one applies depends on whether an aggregate is
+  loaded. A read that projects rows filters on the owner **inside the query**, so the row never
+  leaves the database. A command that has to load the aggregate first cannot: it fetches by id and
+  compares the owner afterwards, in one place per feature, and answers the same `404` either way. The guarantee is the answer, not the mechanism;
+  a new command that loads an aggregate must go through that gate rather than assume a query filtered
+  for it.
+#endif-->
 - **Optimistic concurrency** on writes via PostgreSQL's `xmin`, translated to a
   `ConcurrencyConflictException` and a `409`.
 - **Conditional requests.** Every read of a `TodoList` or `TodoItem` publishes a strong `ETag`, and
@@ -185,6 +195,7 @@ untouched — which is what makes the same endpoint work for a SPA, a mobile app
 - **No client secret is involved.** Verifying an `id_token` is asymmetric cryptography; the template
   holds no secret for any provider, and a deployment configuring one has taken the wrong flow.
 
+<!--#if (files)-->
 ### File storage
 
 A file upload is the most dangerous surface an API can grow, so what is decided and what is not is
@@ -300,6 +311,7 @@ says otherwise.
   shape: the SDK's own chain resolves an instance role, and nothing holds a key pair. The validator
   refuses exactly one of the two, since half a pair means signing anonymously.
 
+<!--#endif-->
 ### Supply chain and configuration
 - `NuGetAudit` at the `low` level with `NuGetAuditMode=all`, so **a known advisory in a direct or
   transitive package fails the build**, not just a report. CI checks it again independently.

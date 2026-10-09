@@ -51,7 +51,9 @@
     <ProjectReference Include="..\..\Application\AppTemplate.Application.Auth\AppTemplate.Application.Auth.csproj" />
     <ProjectReference Include="..\AppTemplate.Presentation.Core\AppTemplate.Presentation.Core.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />
+    <!--#if (files)-->
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
+    <!--#endif-->
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Auth\AppTemplate.Infrastructure.Auth.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Core\AppTemplate.Infrastructure.Core.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />

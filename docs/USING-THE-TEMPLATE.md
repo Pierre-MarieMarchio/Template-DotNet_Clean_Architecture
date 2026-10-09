@@ -34,6 +34,27 @@ by side. `.template.config/template.json` holds the token, the casing generators
 `Tests/Architecture/AppTemplate.Architecture.Tests` guards that list, so adding a project means
 adding its GUID there.
 
+## Generation options
+
+Three switches leave parts of the template out, all on by default:
+
+```bash
+dotnet new cleanarch-webapi -n Acme.OrderManagement --files false --ci false --sonar false
+```
+
+| Option | Leaves out when `false` |
+|---|---|
+| `--files` | the `Files` feature in every layer, the storage module and its unit-test project, the MinIO services in Compose, the `Files` and `FileWorker` settings, the `files` schema of the business migration and the tests that name any of it |
+| `--ci` | the GitHub Actions build and release workflows, and the workflow gate in `Tools/` |
+| `--sonar` | the local SonarQube profile in Compose, the scanner image and its task, the scanner tool in the local tool manifest, and the SonarQube Cloud workflow (generated only when `--ci` is also true) |
+
+What is left out is absent, not disabled: no project, file, configuration section, table or test
+names it, and the generated solution builds, passes its Docker-free tests and reports no pending
+model change for either context. The template engine reads a condition written inside each file
+type's own comment syntax, and `.template.config/template.json` excludes whole paths; in this
+repository those conditions are plain comments, so it builds and tests as the default generation
+does.
+
 ## `bootstrap` is not optional
 
 Sorted `using` directives are ordered alphabetically, so where a project's own namespace falls
@@ -51,7 +72,8 @@ possible name. Commit the result before anything else.
 **The four example features ship by default.** `TodoLists`, `Reminders`, `Files` and `Notes` are the
 worked examples for [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md): one aggregate with child entities,
 one flat, one whose two halves live in different stores — metadata in PostgreSQL, bytes behind a
-port to an S3-compatible or local file store — and one with no domain model at all, a service over a store. There is no generator switch to exclude them.
+port to an S3-compatible or local file store — and one with no domain model at all, a service over a store. `--files false`
+leaves `Files` out; the other three have no generator switch yet.
 [`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md) is the verified procedure and
 says what stops being demonstrated once they go.
 
@@ -63,11 +85,19 @@ removing it.
 a gap, and it is why there is no test-kit package to reference — [`TESTING.md`](TESTING.md#what-a-derived-project-inherits)
 says which fixtures can be leaned on unchanged and which two you own from the first commit.
 
+<!--#if (ci)-->
 **And the whole gate.** `.github/workflows/` and everything under `Tools/` come with it, so a
 generated project can judge itself from a clone. Two things about that are worth setting
 deliberately rather than inheriting: `coverage.minimum` states a floor measured against *this*
 repository's suite, and the Sonar workflow analyses nothing until the repository variables it names
 are set. [`BUILD-AND-CI.md`](BUILD-AND-CI.md) covers both.
+<!--#else
+**And the whole gate.** Everything under `Tools/` comes with it, so a
+generated project can judge itself from a clone. Two things about that are worth setting
+deliberately rather than inheriting: `coverage.minimum` states a floor measured against *this*
+repository's suite, and the Sonar workflow analyses nothing until the repository variables it names
+are set. [`BUILD-AND-CI.md`](BUILD-AND-CI.md) covers both.
+#endif-->
 
 **Two documents want replacing before you deploy.** `SECURITY.md`'s reporting section tells a finder
 to file a public issue, which is right for a template and wrong for your production system; and
@@ -82,12 +112,14 @@ rather than assuming `AppTemplate`: in a project generated as `Acme.OrderManagem
 describes its choices. It writes a manifest of what it created, with a hash of each file, in a
 `.feature-manifest` folder of the generated project; the template itself ships none.
 
+<!--#if (ci)-->
 ## The generation flow is a CI gate
 
 `.github/workflows/ci.yml`'s `template` job runs this exact install → generate → build → test
 sequence, under a different name, on every push. A template that generates a broken project is
 worse than a repository to clone, so that flow is a gate rather than a manual step.
 
+<!--#endif-->
 ## If the repository already exists
 
 Two shapes work and they cost different things —

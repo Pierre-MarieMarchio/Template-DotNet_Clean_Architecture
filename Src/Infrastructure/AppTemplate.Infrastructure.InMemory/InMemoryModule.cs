@@ -1,16 +1,20 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Core.Common.Ports;
+//#if (files)
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
+//#endif
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
 using AppTemplate.Infrastructure.InMemory.Features.Auth;
+//#if (files)
 using AppTemplate.Infrastructure.InMemory.Features.Files;
+//#endif
 using AppTemplate.Infrastructure.InMemory.Features.Reminders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -68,7 +72,9 @@ public static class InMemoryModule
         services.AddScoped<IEmailSender, InMemoryEmailSender>();
 
         services.AddInMemoryReminderNotifications();
+        //#if (files)
         services.AddInMemoryFileContent();
+        //#endif
         services.AddInMemoryExternalIdentities();
 
         return services;
@@ -113,6 +119,7 @@ public static class InMemoryModule
 
         return services;
     }
+    //#if (files)
 
     /// <summary>
     /// Replaces the owner's quota lock with one held in this process, for a host that runs alone and
@@ -180,4 +187,5 @@ public static class InMemoryModule
 
         return services;
     }
+    //#endif
 }

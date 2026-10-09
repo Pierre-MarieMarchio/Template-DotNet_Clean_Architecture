@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
@@ -15,7 +16,7 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// a NuGet cache key or two solutions opened side by side.
 /// </para>
 /// <para>
-/// <b>These three rules only have a subject in the template repository.</b> <c>dotnet new</c> does
+/// <b>These rules only have a subject in the template repository.</b> <c>dotnet new</c> does
 /// not copy <c>.template.config/</c> — it is the template's own metadata, not the generated
 /// project's — and CI runs this suite inside a generated project too, to prove that project is what
 /// it claims to be. There the manifest does not exist, so the rules report themselves
@@ -111,6 +112,77 @@ public sealed class TemplatePackagingTests
                 StringComparer.OrdinalIgnoreCase,
                 $"{typeGuid} identifies a kind of project, not an instance of one.");
         }
+    }
+
+    /// <summary>
+    /// <c>--files false</c> removes the storage projects from the generated solution through
+    /// conditional lines on <c>files</c> in <c>AppTemplate.sln</c>. An IDE that rewrites the solution drops
+    /// those lines, and the generated solution would then name projects that were not generated.
+    /// </summary>
+    [Fact]
+    public void EveryStorageProjectLine_InTheSolution_IsConditionedOnFiles()
+    {
+        if (ManifestPath() is null)
+        {
+            Assert.Skip("No .template.config/: this is a project generated from the template, not the template.");
+        }
+
+        // Spelled in two halves: written whole, the template engine would read these literals as
+        // conditions of its own when it generates this file.
+        string opening = "#" + "if (files)";
+        string closing = "#" + "endif";
+
+        string[] lines = File.ReadAllLines(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "AppTemplate.sln"));
+        var storageGuids = lines
+            .Where(line => line.StartsWith("Project(", StringComparison.Ordinal) && line.Contains(".Storage", StringComparison.Ordinal))
+            .Select(line => _guid.Matches(line)[^1].Value)
+            .ToList();
+
+        storageGuids.Count.ShouldBe(2, "The storage module and its unit tests were expected in the solution.");
+
+        var unconditioned = new List<string>();
+        bool inFiles = false;
+        foreach (string line in lines)
+        {
+            if (line == opening)
+            {
+                inFiles = true;
+            }
+            else if (line == closing)
+            {
+                inFiles = false;
+            }
+            else if (!inFiles && storageGuids.Any(guid => line.Contains(guid, StringComparison.OrdinalIgnoreCase)))
+            {
+                unconditioned.Add(line.Trim());
+            }
+        }
+
+        unconditioned.ShouldBeEmpty("These solution lines name a storage project outside a block conditioned on files.");
+    }
+
+    /// <summary>
+    /// <c>--sonar false</c> generates the tool manifest from a copy under <c>.template.config/</c>,
+    /// because a tool manifest cannot hold a comment. The copy is the manifest minus the scanner,
+    /// and a version bumped in one and not the other would make the two generations disagree.
+    /// </summary>
+    [Fact]
+    public void TheToolManifestWithoutSonar_IsTheToolManifestMinusTheScanner()
+    {
+        if (ManifestPath() is null)
+        {
+            Assert.Skip("No .template.config/: this is a project generated from the template, not the template.");
+        }
+
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var full = JsonNode.Parse(File.ReadAllText(Path.Combine(root, ".config", "dotnet-tools.json")))!;
+        var withoutSonar = JsonNode.Parse(File.ReadAllText(
+            Path.Combine(root, ".template.config", "variants", "no-sonar", ".config", "dotnet-tools.json")))!;
+
+        full["tools"]!.AsObject().Remove("dotnet-sonarscanner").ShouldBeTrue("The tool manifest no longer declares the scanner.");
+
+        JsonNode.DeepEquals(full, withoutSonar).ShouldBeTrue(
+            ".template.config/variants/no-sonar/.config/dotnet-tools.json has drifted from .config/dotnet-tools.json.");
     }
 
     /// <summary>

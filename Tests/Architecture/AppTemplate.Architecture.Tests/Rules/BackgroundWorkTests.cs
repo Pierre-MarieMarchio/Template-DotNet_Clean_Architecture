@@ -68,7 +68,7 @@ public sealed class BackgroundWorkTests
         var services = BackgroundServices();
 
         services.Count.ShouldBeGreaterThanOrEqualTo(
-            3,
+            2,
             "Fewer background services were found than this template ships, so this rule is " +
             "reading the wrong tree and passing for the wrong reason.");
 
@@ -153,7 +153,7 @@ public sealed class BackgroundWorkTests
         services
             .Count(service => CodeOf(service).Contains("CreateBackgroundScope(", StringComparison.Ordinal))
             .ShouldBeGreaterThanOrEqualTo(
-                3,
+                2,
                 "Fewer background services open a background scope than this template ships, so " +
                 "the rule above is reading the wrong tree and passing for the wrong reason.");
     }
@@ -178,7 +178,7 @@ public sealed class BackgroundWorkTests
         var files = BackgroundCompositionFiles();
 
         files.Count.ShouldBeGreaterThanOrEqualTo(
-            15,
+            14,
             "Far fewer files were found in the background composition than this template ships, so " +
             "this rule is reading the wrong tree and passing for the wrong reason.");
 

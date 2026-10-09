@@ -128,6 +128,7 @@ services:
       ReminderWorker__Interval: ${REMINDER_WORKER_INTERVAL:-00:01:00}
       ReminderWorker__Enabled: ${REMINDER_WORKER_ENABLED:-true}
 
+      #if (files)
       # --- FileWorker ----------------------------------------------------------
       # THREE passes for the Files feature, not two. The inspection pass is the one a user waits on:
       # it is the only thing that moves a file from deposited to available, so with it off or slow no
@@ -143,6 +144,7 @@ services:
       FileWorker__ReclaimOrphanedContentInterval: ${FILE_WORKER_RECLAIM_INTERVAL:-12:00:00}
       FileWorker__ReclaimOrphanedContentEnabled: ${FILE_WORKER_RECLAIM_ENABLED:-true}
 
+      #endif
       # --- Localization ------------------------------------------------------
       # The language a mail is written in when the reader has not said which one they read, and the
       # language every mail a background job sends is written in. There is no list of
@@ -174,6 +176,7 @@ services:
       Identity__RequireUniqueEmail: ${IDENTITY_REQUIRE_UNIQUE_EMAIL:-true}
 
 
+      #if (files)
       # --- Files storage (S3 provider, the default) ---------------------------
       # The endpoint is the compose service, but the SIGNED URLs this host mints have to be
       # reachable by whoever follows them — a browser on the host, not a container on this
@@ -191,6 +194,7 @@ services:
       Files__Storage__S3__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
       Files__Storage__S3__AccessKeyId: ${MINIO_ROOT_USER:-minioadmin}
       Files__Storage__S3__SecretAccessKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      #endif
       # --- Email (SMTP) ------------------------------------------------------
       Email__Host: ${EMAIL_HOST:-mailpit}
       Email__Port: ${EMAIL_PORT:-1025}
@@ -235,11 +239,13 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+      #if (files)
       # This host signs URLs against the bucket, so the bucket has to exist. Readiness does not
       # probe storage — it answers for the database — so without this the stack reports itself
       # healthy while the first file registration still has nowhere to go.
       minio-bucket:
         condition: service_completed_successfully
+      #endif
     healthcheck:
       test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
       interval: 15s
@@ -249,6 +255,7 @@ services:
       start_period: 60s
     networks: [backend]
 
+  #if (files)
   # The object store the Files feature writes to. In production this is S3 (or R2, or Azure Blob
   # behind an S3 gateway); here it is MinIO, addressed through Files__Storage__S3__Endpoint. With
   # this provider the API signs a URL and the client transfers bytes with this service directly,
@@ -293,6 +300,8 @@ services:
       "
     networks: [backend]
 
+  #endif
+  #if (sonar)
   # --- Sonar --------------------------------------------------------------------------------
   # Both services sit behind the `sonar` profile, so they start only when asked for:
   #
@@ -371,12 +380,17 @@ services:
       - .:/repo
     networks: [backend]
 
+  #endif
 volumes:
   db-data:
+  #if (files)
   minio-data:
+  #endif
+  #if (sonar)
   sonarqube-data:
   sonarqube-logs:
   sonarqube-extensions:
+  #endif
 
 networks:
   # Declared explicitly rather than relying on the implicit default network, so

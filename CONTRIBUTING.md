@@ -43,10 +43,12 @@ after creating or moving any file.
 **A gate proves it can go red before it judges anything.** Adding a rule to one of the four hygiene
 gates means adding the fixture that fails without it.
 
+<!--#if (sonarWorkflow)-->
 **Sonar is not one of the gates, and it can still fail your pull request.** The gate above is what a
 clone can tell you before you push; the quality gate judges new code and blocks the check. Both are
 in [`docs/BUILD-AND-CI.md`](docs/BUILD-AND-CI.md).
 
+<!--#endif-->
 ## Where the rules live
 
 Nothing below is restated here. Each document is the single statement of its subject, and where a

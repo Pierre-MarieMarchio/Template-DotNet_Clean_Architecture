@@ -50,7 +50,9 @@
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Auth\AppTemplate.Infrastructure.Auth.csproj" />
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.InMemory\AppTemplate.Infrastructure.InMemory.csproj" />
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
+    <!--#if (files)-->
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
+    <!--#endif-->
   </ItemGroup>
 
 </Project>

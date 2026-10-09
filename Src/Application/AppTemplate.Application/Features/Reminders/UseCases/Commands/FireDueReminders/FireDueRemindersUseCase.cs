@@ -3,6 +3,7 @@ using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
@@ -60,11 +61,16 @@ namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueRe
 /// comes up for firing, which is also why it is not counted as a missed cancellation — see
 /// <see cref="IReminderDiagnostics"/>.
 /// </para>
+/// <para>
+/// <b>An owner who no longer names an account is cancelled too.</b> There is nobody to ring, and
+/// retrying would not change that; nothing is counted as notified.
+/// </para>
 /// </summary>
 public sealed class FireDueRemindersUseCase(
     IReminderRepository reminders,
     ITodoItemQueries todoItems,
     IReminderNotifier notifier,
+    IReminderRecipientDirectory recipients,
     IReminderDiagnostics diagnostics,
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider,
@@ -174,10 +180,24 @@ public sealed class FireDueRemindersUseCase(
             return Outcome.Settled;
         }
 
+        var recipient = await recipients.FindAsync(reminder.OwnerId, cancellationToken);
+
+        if (recipient is null)
+        {
+            logger.LogWarning(
+                "Reminder {ReminderId} has no account to notify; owner {OwnerId} is gone.",
+                reminder.Id,
+                reminder.OwnerId);
+
+            reminder.Cancel();
+
+            return await TryCommitAsync(reminder, cancellationToken) ? Outcome.Settled : Outcome.Conflicted;
+        }
+
         try
         {
             await notifier.NotifyAsync(
-                new ReminderNotification(reminder.OwnerId, reminder.TodoItemId, reminder.DueAt),
+                new ReminderNotification(reminder.OwnerId, recipient, reminder.TodoItemId, reminder.DueAt),
                 cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

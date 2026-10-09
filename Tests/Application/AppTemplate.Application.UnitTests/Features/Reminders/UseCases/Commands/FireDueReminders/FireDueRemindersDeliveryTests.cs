@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.UnitTests.TestDoubles;
@@ -193,6 +194,7 @@ public sealed class FireDueRemindersDeliveryTests
             _store,
             _todoItems,
             _notifier,
+            Recipients(),
             Substitute.For<IReminderDiagnostics>(),
             _store,
             new StubDateTimeProvider(now),
@@ -200,6 +202,15 @@ public sealed class FireDueRemindersDeliveryTests
             NullLogger<FireDueRemindersUseCase>.Instance);
 
         await useCase.ExecuteAsync(TestToken);
+    }
+
+    private static IReminderRecipientDirectory Recipients()
+    {
+        var recipients = Substitute.For<IReminderRecipientDirectory>();
+        recipients.FindAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
+            .Returns(new ReminderRecipient("someone", "someone@example.com"));
+
+        return recipients;
     }
 
     /// <summary>Records every notification, and fails or reacts for the reminders a test names.</summary>

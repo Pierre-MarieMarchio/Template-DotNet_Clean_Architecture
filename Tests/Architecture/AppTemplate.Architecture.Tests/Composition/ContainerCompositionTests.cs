@@ -1,13 +1,9 @@
 ﻿using System.Collections;
-using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.UseCases;
-using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Architecture.Tests.Fixtures;
-using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -218,88 +214,36 @@ public sealed class ContainerCompositionTests
     }
 
     /// <summary>
-    /// Pins <em>why</em> the background jobs need the identity module, because several comments in
-    /// this repository once named the wrong reason and every one of them stayed true-looking for
-    /// months.
-    /// <para>
-    /// The obvious reason is <c>ISessionTokensService</c>'s sole adapter, which invites
-    /// the conclusion that moving that one adapter would let a composition drop the module and its
-    /// whole configuration surface with it. It would not. <c>EmailReminderNotifier</c> — the
-    /// adapter behind the reminder job — resolves <see cref="IAccountsService"/> to find the
-    /// address a due reminder is rung at. And <c>AddAuthApplication</c> registers every
-    /// authentication use case, so under <c>ValidateOnBuild</c> — which a Development host turns on
-    /// — every port that project declares has to be resolvable, not merely the ports the jobs
-    /// reach. Which is also why such a composition could drop the module only by dropping that
-    /// call, and
-    /// <see cref="RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer"/>
-    /// carries what else stands in the way.
-    /// </para>
+    /// The jobs need no authentication port. The reminder job reaches its owner through
+    /// <c>IReminderRecipientDirectory</c>, owned by Reminders and supplied by the host, and the
+    /// refresh-token purge is registered by the authentication feature itself, so a composition
+    /// without that feature has nothing left to ask of it.
     /// </summary>
     [Fact]
-    public void TheBackgroundOnlyContainer_NeedsIdentityForTheReminderJob_NotOnlyForThePurgeAdapter()
+    public void TheBackgroundOnlyContainer_BuildsWithoutAuthentication()
     {
-        var services = HostComposition.ComposeBackgroundOnlyWithoutTheAuthModule(HostComposition.Configuration());
+        var services = HostComposition.ComposeBackgroundOnlyWithoutAuthentication(HostComposition.Configuration());
 
-        var exception = Should.Throw<AggregateException>(
-            () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose());
-
-        exception.Message.ShouldContain(
-            nameof(IAccountsService),
-            customMessage: "If this port ever stops being needed here, a background composition " +
-            "really can drop AddAuthModule — and the comments in Program.cs, docker-compose.yml " +
-            "and docs/CONFIGURATION.md all become answerable at last.");
-
-        exception.Message.ShouldContain(
-            nameof(ISessionTokensService),
-            customMessage: "The written reason is real too, just not the only one — if it were, " +
-            "moving that adapter would be worth doing.");
+        Should.NotThrow(
+            () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose(),
+            "A module the jobs compose has started depending on an authentication port again.");
     }
 
     /// <summary>
-    /// What still holds authentication in place, named rather than described — so the one coupling
-    /// that makes removing it more than deleting a call cannot quietly stop being the reason.
-    /// <para>
-    /// Registration is per feature, and no business feature names anything in
+    /// Authentication can be left out of the API: no business feature names
     /// <c>AppTemplate.Application.Auth</c> — <c>TheApplicationLayer_KnowsNothingOfAuthentication</c>
-    /// holds that half. So the application layer is genuinely free of it. What is not free of it is
-    /// one adapter underneath: <c>IReminderNotifier</c>, which the reminder feature's own use case
-    /// takes, has its single implementation in the email module — whose reminder notifier in turn
-    /// resolves an authentication port to find the address a due reminder is rung at.
-    /// </para>
-    /// <para>
-    /// <b>The second coupling is gone, and this test asserts its absence rather than trusting it.</b>
-    /// <c>IIdentitySeeder</c> was registered by the <em>persistence</em> module and needed a
-    /// <c>UserManager</c> only the authentication module supplies, which made the pair bidirectional
-    /// and meant persistence alone could not be composed. The seeder is the authentication module's
-    /// now, so dropping that module takes the seeder with it. The migration caveat went the same
-    /// way: each half has its own initial migration, so removing authentication no longer means
-    /// regenerating the business one.
-    /// </para>
-    /// <para>
-    /// The honest claim is therefore still not "a container builds without authentication" — in this
-    /// template it does not — but what is left to answer for is one adapter rather than three
-    /// things.
-    /// </para>
+    /// holds that half — and no infrastructure module the API composes needs one of its ports. The
+    /// email module stays: its reminder notifier mails the recipient the use case resolved.
     /// </summary>
     [Fact]
-    public void RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer()
+    public void TheApiContainer_BuildsWithoutAuthentication()
     {
         var services = HostComposition.ComposeApiWithoutAuthentication(HostComposition.Configuration());
 
-        var exception = Should.Throw<AggregateException>(
-            () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose());
-
-        exception.Message.ShouldContain(
-            nameof(IReminderNotifier),
-            customMessage: "The reminder feature no longer needs a notifier, so it has stopped " +
-            "depending on the email module and the last coupling is gone — which would make " +
-            "\"a container builds without authentication\" true at last.");
-
-        exception.Message.ShouldNotContain(
-            nameof(IIdentitySeeder),
-            customMessage: "The seeder is holding this container up again, which means it has gone " +
-            "back to being registered by a module that cannot supply what it needs. It belongs to " +
-            "the authentication module, so that module's absence must take it away.");
+        Should.NotThrow(
+            () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose(),
+            "A module has started depending on an authentication port, so removing authentication " +
+            "is no longer a matter of leaving its composition out.");
     }
 
     // ---- Proof that the checks above can fail -------------------------------------------------

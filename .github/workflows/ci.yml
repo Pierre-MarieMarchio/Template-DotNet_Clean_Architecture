@@ -467,7 +467,11 @@ jobs:
       - name: Start the stack
         run: |
           cp .env.example .env
-          docker compose up -d --build api db mailpit minio minio-bucket
+          services="api db mailpit"
+          #if (files)
+          services="$services minio minio-bucket"
+          #endif
+          docker compose up -d --build $services
 
       # The API applies migrations at startup in Development, so "the container
       # is running" is not "the API is answering". Poll the liveness probe the

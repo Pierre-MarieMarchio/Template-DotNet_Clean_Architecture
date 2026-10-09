@@ -149,11 +149,13 @@ dotnet_diagnostic.S4035.severity = none
 # `IEnumerable<char>` deliberately -- the file beside it uses `AsSpan().ContainsAny`.
 dotnet_diagnostic.S3267.severity = none
 
+#if (files)
 [Src/Domain/AppTemplate.Domain/Features/Files/ValueObjects/StoredFileName.cs]
 # S3267 suggests `Where` for a loop that throws on the first control character. A query would
 # collect them; nothing here wants the set, only the refusal.
 dotnet_diagnostic.S3267.severity = none
 
+#endif
 [Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Providers/EmailChangeTokenProvider.cs]
 # S6672 asks that an injected `ILogger<T>` name its enclosing type. The base class
 # `DataProtectorTokenProvider<AppUser>` declares its constructor parameter as
@@ -184,11 +186,13 @@ dotnet_diagnostic.S2326.severity = none
 # events and then clears them, so a projection would do neither of the two things the loop is for.
 dotnet_diagnostic.S3267.severity = none
 
+#if (files)
 [Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Mapping/StoredFileMapper.cs]
 # S3267 suggests `Where`. Each iteration of the reconciliation removes a tag from a dictionary and
 # adds a row -- two side effects, which is what makes it a reconciliation rather than a filter.
 dotnet_diagnostic.S3267.severity = none
 
+#endif
 [Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Mapping/TodoListMapper.cs]
 # S3267 suggests `Where` for the same two-sided reconciliation the file-store mapper runs: remove
 # from the dictionary, add a row, and record that the structure changed.

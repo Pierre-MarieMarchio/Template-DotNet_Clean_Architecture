@@ -11,9 +11,11 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            //#if (files)
             migrationBuilder.EnsureSchema(
                 name: "files");
 
+            //#endif
             migrationBuilder.EnsureSchema(
                 name: "platform");
 
@@ -26,6 +28,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
             migrationBuilder.EnsureSchema(
                 name: "todo");
 
+            //#if (files)
             migrationBuilder.CreateTable(
                 name: "ContentSweepCheckpoints",
                 schema: "files",
@@ -40,6 +43,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_ContentSweepCheckpoints", x => x.Name);
                 });
 
+            //#endif
             migrationBuilder.CreateTable(
                 name: "IdempotencyKeys",
                 schema: "platform",
@@ -106,6 +110,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_Reminders", x => x.Id);
                 });
 
+            //#if (files)
             migrationBuilder.CreateTable(
                 name: "StoredFiles",
                 schema: "files",
@@ -135,6 +140,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_StoredFiles", x => x.Id);
                 });
 
+            //#endif
             migrationBuilder.CreateTable(
                 name: "TodoLists",
                 schema: "todo",
@@ -154,6 +160,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_TodoLists", x => x.Id);
                 });
 
+            //#if (files)
             migrationBuilder.CreateTable(
                 name: "StoredFileTags",
                 schema: "files",
@@ -174,6 +181,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            //#endif
             migrationBuilder.CreateTable(
                 name: "TodoItems",
                 schema: "todo",
@@ -247,6 +255,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 table: "Reminders",
                 column: "TodoItemId");
 
+            //#if (files)
             migrationBuilder.CreateIndex(
                 name: "IX_StoredFiles_Deposited_NextInspectionAt_RegisteredAt_Id",
                 schema: "files",
@@ -292,6 +301,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 table: "StoredFiles",
                 columns: new[] { "State", "RegisteredAt" });
 
+            //#endif
             migrationBuilder.CreateIndex(
                 name: "IX_TodoItems_TodoListId",
                 schema: "todo",
@@ -320,10 +330,12 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            //#if (files)
             migrationBuilder.DropTable(
                 name: "ContentSweepCheckpoints",
                 schema: "files");
 
+            //#endif
             migrationBuilder.DropTable(
                 name: "IdempotencyKeys",
                 schema: "platform");
@@ -336,18 +348,22 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 name: "Reminders",
                 schema: "reminders");
 
+            //#if (files)
             migrationBuilder.DropTable(
                 name: "StoredFileTags",
                 schema: "files");
 
+            //#endif
             migrationBuilder.DropTable(
                 name: "TodoItemTags",
                 schema: "todo");
 
+            //#if (files)
             migrationBuilder.DropTable(
                 name: "StoredFiles",
                 schema: "files");
 
+            //#endif
             migrationBuilder.DropTable(
                 name: "TodoItems",
                 schema: "todo");

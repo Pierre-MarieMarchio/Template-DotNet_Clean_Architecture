@@ -3,15 +3,17 @@
   <!-- End-to-end tests for the API. Almost every test drives the real host over HTTP against a real
        PostgreSQL instance in a container: the only substituted adapters are the ones that reach
        outside the process, and both of those come from AppTemplate.Infrastructure.InMemory rather than
-       from a fake defined here. Nothing in this project knows an internal type of a module.
+       from a fake defined here. Nothing in this project knows an internal type of a module. -->
+  <!--#if (files)-->
 
-       Storage/ is the one exception to "over HTTP against the host", and it is here rather than in a
+  <!-- Storage/ is the one exception to "over HTTP against the host", and it is here rather than in a
        project of its own because a test project has to be in AppTemplate.sln and in
        .template.config/template.json with matching GUIDs, which TemplatePackagingTests compares.
        Of the two integration projects this is the one that already references
        AppTemplate.Infrastructure.Storage, and the one whose name promises a layer rather than a
        single module — so the S3 adapters are exercised through their ports here, against a real
        MinIO, with no reference added anywhere that would make a project name a lie. -->
+  <!--#endif-->
 
 
   <PropertyGroup>
@@ -24,9 +26,11 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <PackageReference Include="Shouldly" />
+    <!--#if (files)-->
     <!-- The object store the Storage/ suite talks to. Same MinIO the development stack runs, so
          what those tests exercise is the store a developer already has in front of them. -->
     <PackageReference Include="Testcontainers.Minio" />
+    <!--#endif-->
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
@@ -37,7 +41,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Src\Presentation\AppTemplate.Api\AppTemplate.Api.csproj" />
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.InMemory\AppTemplate.Infrastructure.InMemory.csproj" />
+    <!--#if (files)-->
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
+    <!--#endif-->
   </ItemGroup>
 
 </Project>

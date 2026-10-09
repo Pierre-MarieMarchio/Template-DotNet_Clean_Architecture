@@ -2,12 +2,18 @@
 # End-to-end walkthrough of the API, in dependency order.
 #
 # Prerequisites
+#if (files)
 #   docker compose up -d db mailpit minio minio-bucket
+#else
+#   docker compose up -d db mailpit
+#endif
 #   dotnet run --project Src/Presentation/AppTemplate.Api
 #
+#if (files)
 # minio and minio-bucket are only needed from request 39 onwards: the Files feature signs URLs the
 # client sends bytes to, so there has to be an object store to send them to, with its bucket made.
 #
+#endif
 # Run the requests top to bottom. Every value a later request needs is captured from an earlier
 # response, except the email confirmation token: it arrives by mail, and this file format has no way
 # to pull a substring out of a message body. Request 4 fetches the mail so you can read the token;
@@ -733,6 +739,7 @@ Authorization: Bearer {{accessToken}}
 DELETE {{api}}/maintenance/refresh-tokens/expired
 Authorization: Bearer {{accessToken}}
 
+#if (files)
 ###
 # 39. Register a file. This does NOT carry the bytes: it declares the metadata and answers 201 with
 #      the file id and a SIGNED UPLOAD GRANT — a URL, a method, the headers the store will insist on,
@@ -836,6 +843,7 @@ Content-Type: text/plain
 hello world
 --AppTemplateUpload--
 
+#endif
 ###
 # 46. Notes — the feature with no domain model. Create one with an Idempotency-Key. 201 with the note,
 #     its ETag, and a Location. The owner is the caller: it is not a field of the body, and a body that

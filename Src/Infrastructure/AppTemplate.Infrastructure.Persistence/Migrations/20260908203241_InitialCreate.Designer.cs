@@ -79,6 +79,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("IdempotencyKeys", "platform");
                 });
 
+            //#if (files)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.ContentSweepCheckpointRecord", b =>
                 {
                     b.Property<string>("Name")
@@ -210,6 +211,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("StoredFileTags", "files");
                 });
 
+            //#endif
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Notes.Models.NoteRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -395,6 +397,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("TodoLists", "todo");
                 });
 
+            //#if (files)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileTagRecord", b =>
                 {
                     b.HasOne("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileRecord", null)
@@ -404,6 +407,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            //#endif
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
                 {
                     b.HasOne("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoListRecord", null)
@@ -422,11 +426,13 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            //#if (files)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileRecord", b =>
                 {
                     b.Navigation("Tags");
                 });
 
+            //#endif
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
                 {
                     b.Navigation("Tags");

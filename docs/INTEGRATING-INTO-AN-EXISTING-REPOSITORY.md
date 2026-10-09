@@ -7,11 +7,19 @@ into it.
 
 There are two shapes, and the choice is not a matter of taste.
 
+<!--#if (ci)-->
 **At the repository root.** The generated tree *is* the repository: its solution, its
 `.github/workflows/`, its `Directory.Packages.props`, its `global.json`. Whatever the repository
 already had at those paths is merged into them by hand. Every tool and every gate then works
 exactly as documented, because every one of them assumes the solution and the repository root are
 the same directory.
+<!--#else
+**At the repository root.** The generated tree *is* the repository: its solution, its
+`Directory.Packages.props`, its `global.json`. Whatever the repository
+already had at those paths is merged into them by hand. Every tool and every gate then works
+exactly as documented, because every one of them assumes the solution and the repository root are
+the same directory.
+#endif-->
 
 **In a subdirectory.** The generated tree becomes one service among several — `services/api/`, say.
 Nothing above is merged, so the existing repository keeps its own root files. The price is paid in
@@ -38,8 +46,10 @@ Five things are **not** measured here, and you should treat them as reasoning:
 - **The root shape, end to end.** Its claim — that everything works as documented because the
   assumption every tool makes is satisfied — follows from what the subdirectory shape had to repair
   to reach the same place. No repository was actually assembled that way.
+<!--#if (ci)-->
 - **The release workflow.** Only the CI workflow was driven back to green. `release.yml` needs the
   same treatment and was not given it.
+<!--#endif-->
 - **GitHub actually running the adapted workflow.** The gate that checks workflows structurally was
   satisfied; nothing was pushed to a real repository to watch it run.
 - **The container build and `docker compose up` in the integrated layout.** `docker compose config`
@@ -57,9 +67,11 @@ generated project nested at any depth resolves its own root correctly, and every
 handed that directory rather than the git root. This is what makes the subdirectory shape work at
 all, and also what makes it fail for workflows, which do not live there.
 
+<!--#if (ci)-->
 **GitHub reads `.github/workflows/` from the git root and nowhere else.** A workflow left inside the
 subdirectory is a file that looks like CI and never runs.
 
+<!--#endif-->
 **MSBuild takes the nearest `Directory.Build.props` and `Directory.Packages.props` walking up, and
 stops.** The host's root copies therefore do not apply to the generated projects, and the generated
 copies do not inherit from them. Measured: the build succeeded from the subdirectory with a host
@@ -140,6 +152,7 @@ Those three skips are correct and will follow you. They are the template-packagi
 `Assert.Skip` when there is no `.template.config/` directory — a generated project is not the
 template, and those three rules only mean something about the template.
 
+<!--#if (ci)-->
 ### 4. Move the workflows to the git root, and expect two gates to go red
 
 ```bash
@@ -204,6 +217,7 @@ Step("dotnet", "run", Gate(repoRoot, "CheckWorkflows.cs"), Path.Combine(repoRoot
 
 — after which the target exited 0 with all four gates green.
 
+<!--#endif-->
 ### 7. Compose
 
 The compose file's build contexts are relative to the compose file itself, so the whole subtree

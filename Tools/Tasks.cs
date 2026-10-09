@@ -65,7 +65,9 @@ internal static class Tasks
         "run",
         "compose-up",
         "compose-down",
+        //#if (sonar)
         "sonar",
+        //#endif
         "bootstrap",
         "hygiene",
         "verify",
@@ -321,12 +323,12 @@ internal static class Tasks
                 break;
 
             case "compose-up":
-                // `--wait` reports a failure when any service has exited, and minio-bucket is a
-                // run-once container that exits 0 by design. It is not counted here because api
-                // names it under `condition: service_completed_successfully`, which tells
-                // Compose it is a step rather than a service that should still be up. A one-shot
-                // service nothing depends on would fail this task again, and should: nothing would
-                // be sequencing it either.
+                // `--wait` reports a failure when any service has exited. A run-once container that
+                // exits 0 by design, such as the bucket bootstrap, is not counted because api names
+                // it under `condition: service_completed_successfully`, which tells Compose it is a
+                // step rather than a service that should still be up. A one-shot service nothing
+                // depends on would fail this task again, and should: nothing would be sequencing it
+                // either.
                 Step("docker", "compose", "up", "-d", "--wait");
                 break;
 
@@ -335,10 +337,12 @@ internal static class Tasks
                 Step("docker", "compose", "down");
                 break;
 
+            //#if (sonar)
             case "sonar":
                 Sonar(repoRoot);
                 break;
 
+            //#endif
             case "bootstrap":
                 // The local tools first. `verify` runs `dotnet ef`, and the manifest under .config/
                 // pins it as a local tool, so without this the task documented as the first thing to
@@ -405,8 +409,10 @@ internal static class Tasks
         Step("dotnet", "run", Gate(repoRoot, "RemoveFeature.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "CheckDocPaths.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "CheckDocPaths.cs"), repoRoot);
+        //#if (ci)
         Step("dotnet", "run", Gate(repoRoot, "CheckWorkflows.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "CheckWorkflows.cs"), repoRoot);
+        //#endif
         Step("dotnet", "run", Gate(repoRoot, "CoverageGate.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "CheckNarrativeComments.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "CheckNarrativeComments.cs"), repoRoot);
@@ -446,6 +452,7 @@ internal static class Tasks
             "--minimum", minimum);
     }
 
+    //#if (sonar)
     /// <summary>
     /// The local Sonar analysis: a server and a scanner, both in containers.
     /// </summary>
@@ -570,6 +577,7 @@ internal static class Tasks
             """;
     }
 
+    //#endif
     private static string Gate(string repoRoot, string fileName) => Path.Combine(repoRoot, "Tools", fileName);
 
     /// <summary>The options <c>NewFeature.cs</c> takes besides the two names and <c>--root</c>.</summary>

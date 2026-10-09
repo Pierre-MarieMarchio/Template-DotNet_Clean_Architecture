@@ -1,7 +1,9 @@
 ﻿using System.Reflection;
 using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Features.Auth.Controllers;
+//#if (files)
 using AppTemplate.Api.Features.Files.Controllers;
+//#endif
 using AppTemplate.Api.Features.Maintenance.Controllers;
 using AppTemplate.Api.Features.Notes.Controllers;
 using AppTemplate.Api.Features.Reminders.Controllers;
@@ -33,8 +35,10 @@ public sealed class IdempotentActionsAreAlwaysPostTests
     [
         typeof(AccountAdministrationController),
         typeof(AccountController),
+        //#if (files)
         typeof(FilesController),
         typeof(FileTagsController),
+        //#endif
         typeof(MaintenanceController),
         typeof(NotesController),
         typeof(PasswordRecoveryController),
@@ -62,11 +66,17 @@ public sealed class IdempotentActionsAreAlwaysPostTests
             "rule is guarding nothing. Either the attribute was renamed, or the controller list above " +
             "has gone stale.");
 
-        // Today: NotesController.Create, TodoListsController.Create, TodoListsController.AddItem,
-        // RemindersController.Schedule and FilesController's registration — the one file action a
-        // replay would otherwise duplicate, since it is the only one that names no existing file.
+        // Today: NotesController.Create, TodoListsController.Create, TodoListsController.AddItem and
+        // RemindersController.Schedule.
+        int expected = 4
+            //#if (files)
+            // FilesController's registration: the one file action a replay would otherwise
+            // duplicate, since it is the only one that names no existing file.
+            + 1
+            //#endif
+            ;
         idempotentActions.Count.ShouldBe(
-            5,
+            expected,
             "A different number of [Idempotent] actions was found than this template is known to " +
             "declare. Update this rule's expectation alongside whichever action was added or removed.");
 

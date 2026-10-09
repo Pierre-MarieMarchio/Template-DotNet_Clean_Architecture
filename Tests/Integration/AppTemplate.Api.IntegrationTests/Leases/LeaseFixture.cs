@@ -1,5 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
+//#if (files)
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
+//#endif
 using AppTemplate.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,9 +53,11 @@ public sealed class LeaseFixture : IAsyncLifetime
     /// </remarks>
     public ILeaderLease CreateLease() => CreateHost().GetRequiredService<ILeaderLease>();
 
+    //#if (files)
     /// <summary>One more host's worth of composition, and the owner's quota lock it would resolve.</summary>
     public IOwnerQuotaLock CreateQuotaLock() => CreateHost().GetRequiredService<IOwnerQuotaLock>();
 
+    //#endif
     private ServiceProvider CreateHost()
     {
         var configuration = new ConfigurationBuilder()

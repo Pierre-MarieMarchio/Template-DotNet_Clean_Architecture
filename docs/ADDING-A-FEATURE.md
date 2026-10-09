@@ -4,9 +4,14 @@ A worked walkthrough of the vertical [`../CONTRIBUTING.md`](../CONTRIBUTING.md#a
 summarises: aggregate → EF model → mapper → tracker → repository → use case (with its
 named interface) → controller → tests → migration. `TodoLists` is the real example
 running through every step below — open the file next to the paragraph describing
+<!--#if (files)-->
 it. `Reminders` is the same vertical without child entities, and `Files` is the one
 whose state does not all live in the database; sections 4b and 4c say what each of
 those changes.
+<!--#else
+it. `Reminders` is the same vertical without child entities; section 4c says what
+that changes.
+#endif-->
 
 The rule behind every step: **a layer only speaks its own language.** The domain
 never imports EF; the API never imports EF Core either, only the application
@@ -161,7 +166,9 @@ The sections below describe what to put in what it wrote.
 
 **When your feature is not shaped like `TodoLists`**
 
+<!--#if (files)-->
 - [Not only rows — the `Files` example](#4b-when-the-feature-is-not-only-rows--the-files-example)
+<!--#endif-->
 - [No child entities — the `Reminders` example](#4c-when-the-aggregate-has-no-child-entities--the-reminders-example)
 - [It shares, caches, or runs on a timer](#4d-when-the-feature-shares-caches-or-runs-on-a-timer)
 - [The closed lists a new feature lands in](#5b-the-closed-lists-a-new-feature-lands-in) — the
@@ -592,6 +599,7 @@ the action's method name added to the `_anonymousActions` array in
 array is the whole of the public surface written down in one place, so opening an
 endpoint is a line somebody reviews rather than an attribute nobody notices.
 
+<!--#if (files)-->
 ## 4b. When the feature is not only rows — the `Files` example
 
 Everything above assumes a feature whose whole state is rows in the one database.
@@ -662,6 +670,7 @@ the factory **and** `Rehydrate`, like any aggregate here — and its enum values
 pinned by a test, because they are persisted as integers and renumbering them would
 reinterpret every existing row without changing a single line of the schema.
 
+<!--#endif-->
 ## 4c. When the aggregate has no child entities — the `Reminders` example
 
 `TodoLists` owns items, and items own tags, so a good part of what section 3 asks for
@@ -772,11 +781,13 @@ feature rather than the source tree when the two disagree. Add:
   controller and the request/response mapping, against test doubles.
 - Integration (`Tests/Integration/AppTemplate.Api.IntegrationTests/<Feature>/`): the
   HTTP surface end to end, against a real PostgreSQL via Testcontainers.
+<!--#if (files)-->
 - If the feature has a second store (section 4b), it needs integration tests against
   the real thing too. A signature is computed locally, so a wrong one is
   indistinguishable from a right one until something checks it —
   `Tests/Integration/AppTemplate.Api.IntegrationTests/Storage/` is the worked example,
   against MinIO under Testcontainers.
+<!--#endif-->
 
 The round-trip fidelity test deserves a second mention when a feature has a second
 store, because it stops being hygiene. With no tombstone, a mapper that writes a key

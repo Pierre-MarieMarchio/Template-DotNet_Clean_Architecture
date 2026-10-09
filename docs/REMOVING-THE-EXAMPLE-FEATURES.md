@@ -95,6 +95,7 @@ comment, and it points from `Files` to `TodoLists`.
 `Reminders` will not compile without it — so removing `TodoLists` means removing `Reminders` too,
 whether or not you wanted to keep it.
 
+<!--#if (files)-->
 **Three `<see cref>` doc comments cross features, and a cref is code here.**
 `GenerateDocumentationFile` plus `TreatWarningsAsErrors` make a cref that no longer resolves a
 `CS1574` error, not a warning. They are:
@@ -104,6 +105,16 @@ whether or not you wanted to keep it.
 | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
 | `Src/Presentation/AppTemplate.Api/Features/TodoLists/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
 | `Src/Presentation/AppTemplate.Api/Features/Files/Mapping/StoredFileResponseMapping.cs` | `TodoListResponseMapping` | `TodoLists` |
+<!--#else
+**Two `<see cref>` doc comments cross features, and a cref is code here.**
+`GenerateDocumentationFile` plus `TreatWarningsAsErrors` make a cref that no longer resolves a
+`CS1574` error, not a warning. They are:
+
+| The comment | Names | Breaks when you remove |
+|---|---|---|
+| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
+| `Src/Presentation/AppTemplate.Api/Features/TodoLists/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
+#endif-->
 
 Each makes a point that survives its example: reword the sentence, do not just delete the tag. The
 first contrasts an aggregate with child rows against one without; the second and third cite a
@@ -209,6 +220,7 @@ only if you also mean to drop the capability.
 If your own project has since added anything else to a `Features/`-adjacent `Common/`, check the
 same way: whether what you are deleting was its only consumer.
 
+<!--#if (files)-->
 | Layer | TodoLists | Reminders | Files |
 |---|---|---|---|
 | Domain | `Src/Domain/AppTemplate.Domain/Features/TodoLists/` | `Src/Domain/AppTemplate.Domain/Features/Reminders/` | `Src/Domain/AppTemplate.Domain/Features/Files/` |
@@ -217,12 +229,28 @@ same way: whether what you are deleting was its only consumer.
 | API | `Src/Presentation/AppTemplate.Api/Features/TodoLists/` | `Src/Presentation/AppTemplate.Api/Features/Reminders/` | `Src/Presentation/AppTemplate.Api/Features/Files/` |
 | In-memory doubles | — | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Features/Reminders/` | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Features/Files/` |
 | Its own module | — | `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/` | `Src/Infrastructure/AppTemplate.Infrastructure.Storage/` |
+<!--#else
+| Layer | TodoLists | Reminders |
+|---|---|---|
+| Domain | `Src/Domain/AppTemplate.Domain/Features/TodoLists/` | `Src/Domain/AppTemplate.Domain/Features/Reminders/` |
+| Application | `Src/Application/AppTemplate.Application/Features/TodoLists/` | `Src/Application/AppTemplate.Application/Features/Reminders/` |
+| Persistence | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/` |
+| API | `Src/Presentation/AppTemplate.Api/Features/TodoLists/` | `Src/Presentation/AppTemplate.Api/Features/Reminders/` |
+| In-memory doubles | — | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Features/Reminders/` |
+| Its own module | — | `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/` |
+#endif-->
 
+<!--#if (files)-->
 Two entries in that last row deserve a word. `Reminders`' half of the email module is one file,
 `EmailReminderNotifier.cs`, and it is the module's only feature — so its whole `Features/` directory
 goes, and the module stays for `IEmailSender`. `Files`' half is a whole project,
 `AppTemplate.Infrastructure.Storage`: the port shape is base and the `StoredFile` aggregate is
 example, so a project that keeps any file storage at all keeps this project and re-points it.
+<!--#else
+One entry in that last row deserves a word. `Reminders`' half of the email module is one file,
+`EmailReminderNotifier.cs`, and it is the module's only feature — so its whole `Features/` directory
+goes, and the module stays for `IEmailSender`.
+#endif-->
 
 The API's `Features/Reminders/` and `Features/Files/` hold the feature's `Jobs/` folder beside its
 controllers — the hosted service, its options and its instruments — so deleting the feature folder
@@ -251,8 +279,10 @@ Plus, outside a `Features/` folder:
 - `Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/ATodoList.cs` (TodoLists) and
   `Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/AReminder.cs` (Reminders) — test
   doubles that build a real aggregate, so nothing is left for them to build.
+<!--#if (files)-->
 - `Tests/Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests/` — the whole project, with
   `Files`.
+<!--#endif-->
 
 One source file is easy to miss because it sits in the persistence layer without touching the
 database: `ReminderDiagnostics`, the adapter behind `IReminderDiagnostics`, an OpenTelemetry counter
@@ -350,6 +380,7 @@ the `.AddMeter(ReminderInstruments.Name)` line — all three name the feature's 
 nothing tells you so. With `Files` **(F)**: the same first three, for `FileInstruments`. Update the
 comment above each group, which counts the jobs.
 
+<!--#if (files)-->
 **`Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj`** **(F)**
 Remove the `<ProjectReference>` to `AppTemplate.Infrastructure.Storage.csproj`. The project keeps its
 references to `AppTemplate.Infrastructure.Email.csproj` and `AppTemplate.Infrastructure.Auth.csproj`
@@ -376,6 +407,7 @@ reference `AppTemplate.Infrastructure.Storage`; the architecture project also an
 `StorageModule` in
 `Tests/Architecture/AppTemplate.Architecture.Tests/Fixtures/ArchitectureAssemblies.cs` and composes
 it in `Tests/Architecture/AppTemplate.Architecture.Tests/Composition/HostComposition.cs`.
+<!--#endif-->
 
 ## The migrations
 
@@ -471,6 +503,7 @@ carries most of what the other two carry. Every item below compiles fine and fai
 design — these rules refuse to pass over an empty set rather than pass silently — but "fails loudly"
 is not the same as "still demonstrated somewhere."
 
+<!--#if (files)-->
 ### With `TodoLists` and `Reminders` gone, `Files` kept
 
 Three things lose their only example. `ILeaderLease` is not among them: the three `Files` passes
@@ -515,10 +548,18 @@ the fallback the same way.
 `Tests/Integration/AppTemplate.Api.IntegrationTests/Idempotency/IdempotencyTests.cs` both drive
 `TodoLists` over real HTTP; both have a `Files` equivalent to be rewritten against.
 
+<!--#endif-->
+<!--#if (files)-->
 ### With `Files` removed as well
 
 Everything in that table loses its last example. The rules that catch it, each of which fails rather
 than passing over nothing:
+<!--#else
+### With `TodoLists` and `Reminders` gone
+
+Every mechanism they demonstrate loses its last example. The rules that catch it, each of which
+fails rather than passing over nothing:
+#endif-->
 
 - `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` — `IUnitOfWork` and
   `ILeaderLease` have zero callers in the application layer, and

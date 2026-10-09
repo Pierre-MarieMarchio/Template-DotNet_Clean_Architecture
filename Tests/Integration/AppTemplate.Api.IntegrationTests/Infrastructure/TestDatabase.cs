@@ -63,14 +63,23 @@ public sealed class TestDatabase(IServiceProvider rootServices)
     /// </summary>
     public async Task PrepareAsync(CancellationToken cancellationToken)
     {
+        string[] schemas =
+        [
+            AuthDbContext.IdentitySchema,
+            AppDbContext.TodoSchema,
+            AppDbContext.RemindersSchema,
+            //#if (files)
+            AppDbContext.FilesSchema,
+            //#endif
+            AppDbContext.NotesSchema,
+            AppDbContext.PlatformSchema,
+        ];
+
         var tables = await QueryAsync(
             $"""
             SELECT '"' || table_schema || '"."' || table_name || '"'
             FROM information_schema.tables
-            WHERE table_schema IN (
-                '{AuthDbContext.IdentitySchema}', '{AppDbContext.TodoSchema}',
-                '{AppDbContext.RemindersSchema}', '{AppDbContext.FilesSchema}', '{AppDbContext.NotesSchema}',
-                '{AppDbContext.PlatformSchema}')
+            WHERE table_schema IN ({string.Join(", ", schemas.Select(schema => $"'{schema}'"))})
               AND table_type = 'BASE TABLE'
               AND table_name NOT IN ('{AppDbContext.MigrationsHistoryTableName}', '{_dataProtectionKeysTableName}')
             ORDER BY table_schema, table_name

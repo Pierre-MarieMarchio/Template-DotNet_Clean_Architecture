@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
@@ -112,7 +111,7 @@ public sealed class UserAccountsServiceChangePasswordTests
             Substitute.For<IAuthenticationSchemeProvider>(),
             Substitute.For<IUserConfirmation<AppUser>>());
 
-        return new UserAccountsService(userManager, signInManager, _directory, Substitute.For<IDateTimeProvider>(), Substitute.For<ISecurityEventLog>());
+        return new UserAccountsService(userManager, signInManager, _directory, Substitute.For<IDateTimeProvider>());
     }
 
     /// <summary>A hasher whose verification result the test controls, unlike the fixed decoy in <c>RecordingPasswordHasher</c>.</summary>

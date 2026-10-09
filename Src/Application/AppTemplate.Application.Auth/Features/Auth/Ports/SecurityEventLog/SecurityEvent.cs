@@ -26,7 +26,10 @@ public sealed record SecurityEvent(
     public static SecurityEvent AuthenticationFailed(Guid? userId, CredentialCheckStatus outcome) =>
         new(SecurityEventKind.AuthenticationFailed, userId, outcome);
 
-    /// <summary>The failed-attempt threshold was crossed; the automatic, timed lockout is on.</summary>
+    /// <summary>
+    /// A sign-in met the automatic, timed lockout: on the attempt that crossed the failed-attempt
+    /// threshold and on every attempt while it lasts.
+    /// </summary>
     public static SecurityEvent AccountLockedOut(Guid userId) =>
         new(SecurityEventKind.AccountLockedOut, userId);
 

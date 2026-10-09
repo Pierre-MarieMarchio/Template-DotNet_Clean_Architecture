@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
@@ -167,6 +166,5 @@ public sealed class UserAccountsServiceTests : IDisposable
             _userManager,
             _signInManager,
             Substitute.For<IAppUserDirectory>(),
-            Substitute.For<IDateTimeProvider>(),
-            Substitute.For<ISecurityEventLog>());
+            Substitute.For<IDateTimeProvider>());
 }

@@ -1,4 +1,6 @@
 ﻿using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
+using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Configurations;
+using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Models;
 //#if (files)
 using AppTemplate.Infrastructure.Persistence.Features.Files.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
@@ -74,6 +76,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     //#endif
     /// <summary>
+    /// The schema of the mapping from an external identity provider's subjects to internal owners,
+    /// and of the role assignments read beside it. Present only where callers are authenticated by
+    /// such a provider; local accounts keep theirs in the identity context's own schema.
+    /// </summary>
+    public const string ExternalIdentitySchema = "external_identity";
+
+    /// <summary>
     /// The schema for tables that are cross-cutting rather than owned by a feature — the idempotency
     /// key store is the first of these. A feature's schema would not be honest: the table belongs to
     /// no feature.
@@ -131,6 +140,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     //#endif
     /// <summary>
+    /// Which internal owner each external provider subject stands for. Read and written only through
+    /// <see cref="Application.Features.ExternalIdentity.Ports.ExternalIdentityStore.IExternalIdentityStore"/>
+    /// and the queries beside it.
+    /// </summary>
+    internal DbSet<ExternalIdentityRecord> ExternalIdentities => Set<ExternalIdentityRecord>();
+
+    /// <summary>The roles held by owners, for a deployment that does not take them from the provider.</summary>
+    internal DbSet<RoleAssignmentRecord> RoleAssignments => Set<RoleAssignmentRecord>();
+
+    /// <summary>
     /// Claimed idempotency keys. Internal for the same reason as every other row type here: the
     /// rules for claiming, completing and releasing one live in
     /// <see cref="Common.Idempotency.IdempotencyStore"/>, reached only through
@@ -168,6 +187,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.ApplyConfiguration(new NoteRecordConfiguration());
 
         //#endif
+        modelBuilder.ApplyConfiguration(new ExternalIdentityRecordConfiguration());
+        modelBuilder.ApplyConfiguration(new RoleAssignmentRecordConfiguration());
         modelBuilder.ApplyConfiguration(new IdempotencyRecordConfiguration());
     }
 }

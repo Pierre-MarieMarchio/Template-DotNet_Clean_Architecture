@@ -11,6 +11,9 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.EnsureSchema(
+                name: "external_identity");
+
             //#if (files)
             migrationBuilder.EnsureSchema(
                 name: "files");
@@ -71,6 +74,38 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_IdempotencyKeys", x => new { x.UserId, x.Key });
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ExternalIdentities",
+                schema: "external_identity",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Issuer = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    Subject = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Email = table.Column<string>(type: "character varying(320)", maxLength: 320, nullable: true),
+                    DisplayName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    LastSeenAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ExternalIdentities", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "RoleAssignments",
+                schema: "external_identity",
+                columns: table => new
+                {
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Role = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RoleAssignments", x => new { x.UserId, x.Role });
                 });
 
             //#if (notes)
@@ -245,6 +280,19 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 table: "IdempotencyKeys",
                 column: "ExpiresAt");
 
+            migrationBuilder.CreateIndex(
+                name: "IX_ExternalIdentities_Issuer_Subject",
+                schema: "external_identity",
+                table: "ExternalIdentities",
+                columns: new[] { "Issuer", "Subject" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ExternalIdentities_UserId_LastSeenAt",
+                schema: "external_identity",
+                table: "ExternalIdentities",
+                columns: new[] { "UserId", "LastSeenAt" });
+
             //#if (notes)
             migrationBuilder.CreateIndex(
                 name: "IX_Notes_OwnerId_CreatedAt_Id",
@@ -350,6 +398,14 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "ExternalIdentities",
+                schema: "external_identity");
+
+            migrationBuilder.DropTable(
+                name: "RoleAssignments",
+                schema: "external_identity");
+
             //#if (files)
             migrationBuilder.DropTable(
                 name: "ContentSweepCheckpoints",

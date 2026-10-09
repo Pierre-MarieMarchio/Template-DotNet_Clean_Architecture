@@ -22,6 +22,9 @@
          SQLite rather than PostgreSQL because these must run where no container runtime does; the
          same scenarios run against PostgreSQL in AppTemplate.Api.IntegrationTests. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <!-- For Features/ExternalIdentity: its in-process test serves real bearer validation over the
+         test server this package brings, with no port, no container and no provider to reach. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Shouldly" />

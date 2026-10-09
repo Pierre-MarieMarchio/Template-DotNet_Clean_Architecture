@@ -31,7 +31,19 @@ public sealed class ContainerCompositionTests
     /// exactly one module, and none of them may be missing from a composed host. Discovered rather
     /// than listed: the eleven written out here by hand were a third of the real number.
     /// </summary>
-    private static IReadOnlyList<Type> ApplicationPortContracts => ApplicationPorts.All;
+    private static IReadOnlyList<Type> ApplicationPortContracts =>
+        [.. ApplicationPorts.All.Where(port => !IsExternalIdentityPort(port))];
+
+    /// <summary>
+    /// The external-identity mapping's ports, which the local-accounts host does not compose and the
+    /// external-authentication entry point does; <see cref="TheExternalIdentityComposition_ResolvesItsPorts"/>
+    /// holds them to the same rule.
+    /// </summary>
+    private static IReadOnlyList<Type> ExternalIdentityPortContracts =>
+        [.. ApplicationPorts.All.Where(IsExternalIdentityPort)];
+
+    private static bool IsExternalIdentityPort(Type port) =>
+        port.Namespace?.StartsWith($"{HostComposition.ExternalIdentityNamespace}.", StringComparison.Ordinal) == true;
 
     [Fact]
     public void TheApiContainer_BuildsUnderStrictValidation()
@@ -202,6 +214,27 @@ public sealed class ContainerCompositionTests
             "A process that only runs the jobs composes the same modules as the API but supplies no " +
             "IHttpContextAccessor. A module that grew a dependency on one would start the API and " +
             "stop that process, and only this test would say so.");
+    }
+
+    [Fact]
+    public void TheExternalIdentityComposition_ResolvesItsPorts()
+    {
+        ExternalIdentityPortContracts.Count.ShouldBeGreaterThanOrEqualTo(
+            3,
+            "The external-identity mapping declares a store, its reads by owner and the local role " +
+            "assignments; fewer were found, so the namespace this rule filters on no longer matches.");
+
+        AssertResolvable(
+            ExternalIdentityPortContracts,
+            "A host authenticating callers with an external provider maps each one through these " +
+            "ports on every request; one with no adapter fails the first authenticated call.",
+            HostComposition.ComposeApiWithExternalIdentity);
+
+        AssertResolvable(
+            ExternalIdentityPortContracts,
+            "The reminder job reads a recipient's address through these ports, from a scope with no " +
+            "request; one only the API's own composition could satisfy would fail there.",
+            HostComposition.ComposeBackgroundOnlyWithExternalIdentity);
     }
 
     [Fact]

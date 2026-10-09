@@ -21,6 +21,19 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **Callers authenticated by an external OpenID Connect provider.** `AddExternalAuthentication`
+  (`Api/Features/ExternalIdentity/Composition/`) validates access tokens from Keycloak, Entra ID,
+  Auth0 or any provider with a discovery document, configured by the new, start-up-validated
+  `Authentication:External` section. The provider's (issuer, subject) is mapped to an internal
+  `UserId` in the new `external_identity.ExternalIdentities` table of the business schema, created on
+  the caller's first request under a unique index (a lost race reads the winner's row, so one caller
+  is one owner) and refreshed when the provider's email or name changes; `ICurrentUser` returns that
+  id, never the subject, and a token that cannot be mapped is a 401. Roles come from a configurable
+  claim path (`roles`, `realm_access.roles`, a namespaced claim) or from the local
+  `external_identity.RoleAssignments` table, and the `Administrator` policy requires the configured
+  role. `ExternalIdentityReminderRecipientDirectory` reaches a reminder's owner through the address
+  kept on the mapping. The business `InitialCreate` migration includes both tables; `Program.cs`
+  still composes the local accounts.
 - **A public API without the supplied accounts.** `dotnet new cleanarch-webapi` takes
   `--auth local|external|none`, `local` by default. `none` generates no Auth projects or tests, no
   account routes, no identity schema, migration, readiness check or development seed, no

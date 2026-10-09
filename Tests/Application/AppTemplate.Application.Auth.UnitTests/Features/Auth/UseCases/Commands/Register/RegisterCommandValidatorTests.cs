@@ -56,24 +56,12 @@ public sealed class RegisterCommandValidatorTests
             "Email");
 
     /// <summary>
-    /// The floor mirrors the hard minimum the Identity configuration cannot go below, so
-    /// lowering it here would let a password through that the user store then refuses.
+    /// The length policy is the configured <c>Identity</c> section's, applied by the store; a copy of
+    /// its floor here would be a second authority to drift from it.
     /// </summary>
     [Fact]
-    public void APasswordOneCharacterBelowTheFloor_IsRejected() =>
-        ShouldFailOn(
-            new RegisterCommand(
-                "someone",
-                "someone@example.com",
-                new string('a', RegisterCommandValidator.AbsoluteMinimumPasswordLength - 1)),
-            "Password");
-
-    [Fact]
-    public void APasswordExactlyAtTheFloor_IsAccepted() =>
-        _validator.Validate(new RegisterCommand(
-                "someone",
-                "someone@example.com",
-                new string('a', RegisterCommandValidator.AbsoluteMinimumPasswordLength)))
+    public void AShortPassword_IsLeftToTheStore() =>
+        _validator.Validate(new RegisterCommand("someone", "someone@example.com", "a"))
             .IsValid.ShouldBeTrue();
 
     [Fact]
@@ -99,26 +87,9 @@ public sealed class RegisterCommandValidatorTests
         ShouldFailOn(new RegisterCommand("someone", "someone@example.com", ""), "Password");
 
     /// <summary>
-    /// Asserted against a literal on purpose: every other password case here derives its input from
-    /// <see cref="RegisterCommandValidator.AbsoluteMinimumPasswordLength"/> and would move with the
-    /// constant, so lowering it would go unnoticed. Eight is what
-    /// <c>IdentityPolicyOptions.AbsoluteMinimumPasswordLength</c> clamps the configured policy to,
-    /// and this layer cannot reference that assembly — this is the only place the mirror is held.
-    /// </summary>
-    [Fact]
-    public void ThePasswordFloor_IsEightCharacters()
-    {
-        RegisterCommandValidator.AbsoluteMinimumPasswordLength.ShouldBe(8);
-
-        _validator.Validate(new RegisterCommand("someone", "someone@example.com", "sevench"))
-            .IsValid.ShouldBeFalse();
-        _validator.Validate(new RegisterCommand("someone", "someone@example.com", "eightchr"))
-            .IsValid.ShouldBeTrue();
-    }
-
-    /// <summary>
-    /// Asserted against a literal for the same reason, and it matters more here: the ceiling exists
-    /// so one request cannot turn into an unbounded amount of PBKDF2 work.
+    /// Asserted against a literal on purpose: every other case derives its input from the constant
+    /// and would move with it. The ceiling exists so one request cannot turn into an unbounded
+    /// amount of PBKDF2 work.
     /// </summary>
     [Fact]
     public void ThePasswordCeiling_IsTwoHundredAndFiftySixCharacters()

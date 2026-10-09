@@ -1,9 +1,12 @@
-﻿using Microsoft.Extensions.Options;
+﻿using AppTemplate.Application.Auth.Features.Auth.Policies;
+using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Common.Options;
 
 /// <summary>
-/// Password, lockout and sign-in policy. Every member has a safe default, so a section that is
+/// Password, lockout and sign-in policy. This section is the one authority on the password policy:
+/// ASP.NET Identity applies it to every new password, at registration, change and reset, and the
+/// application layer checks nothing beyond <see cref="PasswordInputPolicy"/>. Every member has a safe default, so a section that is
 /// absent or only partly filled in tightens nothing and loosens nothing. That is load-bearing:
 /// whatever is bound here overwrites ASP.NET Identity's own secure defaults, so a member left to
 /// <c>false</c> or <c>0</c> by omission would silently loosen the policy rather than leave it
@@ -57,9 +60,11 @@ internal sealed class IdentityPolicyOptionsValidator : IValidateOptions<Identity
                 $"{IdentityPolicyOptions.AbsoluteMinimumPasswordLength}.");
         }
 
-        if (options.PasswordRequiredLength > 256)
+        if (options.PasswordRequiredLength > PasswordInputPolicy.MaximumLength)
         {
-            failures.Add($"'{IdentityPolicyOptions.SectionName}:PasswordRequiredLength' must not exceed 256.");
+            failures.Add(
+                $"'{IdentityPolicyOptions.SectionName}:PasswordRequiredLength' must not exceed " +
+                $"{PasswordInputPolicy.MaximumLength}.");
         }
 
         if (options.PasswordRequiredUniqueChars < 1)

@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePassword;
+﻿using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePassword;
 using Shouldly;
 using Xunit;
 
@@ -20,12 +19,10 @@ public sealed class ChangePasswordCommandValidatorTests
     public void ABlankCurrentPassword_IsRejected(string currentPassword) =>
         ShouldFailOn(new ChangePasswordCommand(currentPassword, "correct horse battery"), "CurrentPassword");
 
-    /// <summary>The same floor every new password is held to — see <c>RegisterCommandValidatorTests</c>.</summary>
+    /// <summary>The length policy is the store's — see <c>RegisterCommandValidatorTests</c>.</summary>
     [Fact]
-    public void ANewPasswordBelowTheFloor_IsRejected() =>
-        ShouldFailOn(
-            new ChangePasswordCommand("old password", new string('a', PasswordPolicy.AbsoluteMinimumPasswordLength - 1)),
-            "NewPassword");
+    public void AShortNewPassword_IsLeftToTheStore() =>
+        _validator.Validate(new ChangePasswordCommand("old password", "a")).IsValid.ShouldBeTrue();
 
     [Fact]
     public void EveryBrokenField_IsReportedAtOnce()

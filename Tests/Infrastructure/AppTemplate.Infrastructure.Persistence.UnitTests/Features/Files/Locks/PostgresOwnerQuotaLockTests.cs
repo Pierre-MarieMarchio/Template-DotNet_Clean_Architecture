@@ -20,11 +20,11 @@ public sealed class PostgresOwnerQuotaLockTests
 
     /// <summary>
     /// Every host must compute the same key. The expected value is the first eight bytes, big-endian,
-    /// of SHA-256 over <c>apptemplate.files.quota:{owner}:{category}</c>, computed outside .NET.
+    /// of SHA-256 over <c>files.quota:{owner}:{category}</c>, computed outside .NET.
     /// </summary>
     [Fact]
     public void TheKey_IsTheNamespacedDigestOfOwnerAndCategory() =>
-        PostgresOwnerQuotaLock.KeyOf(_owner, _document).ShouldBe(4485627844107073881L);
+        PostgresOwnerQuotaLock.KeyOf(_owner, _document).ShouldBe(5650554713523010619L);
 
     [Fact]
     public void AnotherCategoryOrOwner_HasAnotherKey()

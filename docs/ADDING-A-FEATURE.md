@@ -168,7 +168,7 @@ The sections below describe what to put in what it wrote.
 
 <!--#if (files)-->
 - [Not only rows — the `Files` example](#4b-when-the-feature-is-not-only-rows--the-files-example)
-<!--#endif-->
+  <!--#endif-->
 - [No child entities — the `Reminders` example](#4c-when-the-aggregate-has-no-child-entities--the-reminders-example)
 - [It shares, caches, or runs on a timer](#4d-when-the-feature-shares-caches-or-runs-on-a-timer)
 - [The closed lists a new feature lands in](#5b-the-closed-lists-a-new-feature-lands-in) — the
@@ -781,13 +781,13 @@ feature rather than the source tree when the two disagree. Add:
   controller and the request/response mapping, against test doubles.
 - Integration (`Tests/Integration/AppTemplate.Api.IntegrationTests/<Feature>/`): the
   HTTP surface end to end, against a real PostgreSQL via Testcontainers.
-<!--#if (files)-->
+  <!--#if (files)-->
 - If the feature has a second store (section 4b), it needs integration tests against
   the real thing too. A signature is computed locally, so a wrong one is
   indistinguishable from a right one until something checks it —
   `Tests/Integration/AppTemplate.Api.IntegrationTests/Storage/` is the worked example,
   against MinIO under Testcontainers.
-<!--#endif-->
+  <!--#endif-->
 
 The round-trip fidelity test deserves a second mention when a feature has a second
 store, because it stops being hygiene. With no tombstone, a mapper that writes a key

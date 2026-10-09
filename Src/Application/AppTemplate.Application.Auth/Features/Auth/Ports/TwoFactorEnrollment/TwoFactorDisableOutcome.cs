@@ -11,4 +11,7 @@ public sealed record TwoFactorDisableOutcome(TwoFactorDisableStatus Status)
 
     /// <summary>The store refused the change, so the second factor is still on.</summary>
     public static TwoFactorDisableOutcome Rejected { get; } = new(TwoFactorDisableStatus.Rejected);
+
+    /// <summary>Nothing changed — see <see cref="TwoFactorDisableStatus.NoSuchAccount"/>.</summary>
+    public static TwoFactorDisableOutcome NoSuchAccount { get; } = new(TwoFactorDisableStatus.NoSuchAccount);
 }

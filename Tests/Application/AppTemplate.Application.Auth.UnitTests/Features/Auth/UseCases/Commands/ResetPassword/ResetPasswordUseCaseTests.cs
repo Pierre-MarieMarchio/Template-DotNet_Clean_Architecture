@@ -67,15 +67,17 @@ public sealed class ResetPasswordUseCaseTests
     public static TheoryData<PasswordResetStatus> EnumerationRefusals =>
         [PasswordResetStatus.NoSuchAccount, PasswordResetStatus.InvalidToken];
 
+    /// <summary>On "newPassword", the request field the value came from.</summary>
     [Fact]
-    public async Task ARejectedNewPassword_ReportsTheStoresMessage()
+    public async Task ARejectedNewPassword_ReportsTheStoresMessageOnTheNewPasswordField()
     {
         GivenTheOutcomeIs(PasswordResetOutcome.Rejected("Passwords must have at least one digit."));
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
         result.IsFailure.ShouldBeTrue();
-        result.Error!.Details!["password"].ShouldContain("Passwords must have at least one digit.");
+        result.Error!.Details!["newPassword"].ShouldContain("Passwords must have at least one digit.");
+        result.Error.Details.ContainsKey("password").ShouldBeFalse();
     }
 
     /// <summary>

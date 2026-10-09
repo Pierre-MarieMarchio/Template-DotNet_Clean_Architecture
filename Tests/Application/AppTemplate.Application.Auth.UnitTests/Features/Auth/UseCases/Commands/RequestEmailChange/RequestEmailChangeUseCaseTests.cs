@@ -45,6 +45,19 @@ public sealed class RequestEmailChangeUseCaseTests
         _emailChangeTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
+    /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
+    [Fact]
+    public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticatedAndSendsNothing()
+    {
+        GivenTheOutcomeIs(EmailChangeRequestOutcome.NoSuchAccount);
+
+        var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("auth.required");
+        _emailSender.ReceivedCalls().ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task AWrongCurrentPassword_IsRefused()
     {

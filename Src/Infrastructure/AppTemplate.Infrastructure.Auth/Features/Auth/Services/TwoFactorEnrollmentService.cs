@@ -41,7 +41,14 @@ internal sealed class TwoFactorEnrollmentService(
         if (string.IsNullOrEmpty(key))
         {
             // Rotates the security stamp, as ASP.NET Identity's own implementation does.
-            await userManager.ResetAuthenticatorKeyAsync(user);
+            var provisioned = await userManager.ResetAuthenticatorKeyAsync(user);
+
+            // A key the store did not keep would fail every code the caller's app then produces.
+            if (!provisioned.Succeeded)
+            {
+                return TwoFactorSetupOutcome.Rejected;
+            }
+
             key = await userManager.GetAuthenticatorKeyAsync(user);
         }
 
@@ -85,20 +92,26 @@ internal sealed class TwoFactorEnrollmentService(
             return TwoFactorConfirmationOutcome.InvalidCode;
         }
 
+        // Codes before arming: a refusal at either step then leaves the factor off, never armed with
+        // no codes to recover by. Both fail only on a store-level conflict, never on the caller's input.
+        var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(
+            user,
+            options.Value.RecoveryCodeCount);
+
+        if (recoveryCodes is null)
+        {
+            return TwoFactorConfirmationOutcome.Rejected;
+        }
+
         // Rotates the security stamp.
         var enabled = await userManager.SetTwoFactorEnabledAsync(user, true);
 
         if (!enabled.Succeeded)
         {
-            // Fails only on a store-level conflict, never on anything the caller submitted.
             return TwoFactorConfirmationOutcome.Rejected;
         }
 
-        var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(
-            user,
-            options.Value.RecoveryCodeCount);
-
-        return TwoFactorConfirmationOutcome.Confirmed([.. recoveryCodes ?? []]);
+        return TwoFactorConfirmationOutcome.Confirmed([.. recoveryCodes]);
     }
 
     public async Task<TwoFactorDisableOutcome> DisableAsync(
@@ -110,12 +123,14 @@ internal sealed class TwoFactorEnrollmentService(
 
         var user = await directory.FindByIdAsync(userId, cancellationToken);
 
-        // The caller already authenticated as this id, so there is no address to protect from
-        // enumeration: an absent account only means it was deleted after the token was issued.
+        if (user is null)
+        {
+            return TwoFactorDisableOutcome.NoSuchAccount;
+        }
+
         // Verified through the hasher, as ConfirmAsync above is, to avoid CheckPasswordAsync's stamp
         // rotation on the way to refusing the request.
-        if (user is null
-            || userManager.PasswordHasher.VerifyHashedPassword(
+        if (userManager.PasswordHasher.VerifyHashedPassword(
                 user, user.PasswordHash ?? string.Empty, currentPassword) == PasswordVerificationResult.Failed)
         {
             return TwoFactorDisableOutcome.IncorrectPassword;

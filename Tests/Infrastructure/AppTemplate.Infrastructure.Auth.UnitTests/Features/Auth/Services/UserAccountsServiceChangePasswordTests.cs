@@ -32,13 +32,13 @@ public sealed class UserAccountsServiceChangePasswordTests
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task AnAccountThatNoLongerExists_IsReportedAsAnIncorrectCurrentPassword()
+    public async Task AnAccountThatNoLongerExists_IsReportedAsSuch()
     {
         _directory.FindByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns((AppUser?)null);
 
         var change = await CreateAccounts().ChangePasswordAsync(_userId, _currentPassword, "a new password", TestToken);
 
-        change.Status.ShouldBe(PasswordChangeStatus.IncorrectCurrentPassword);
+        change.Status.ShouldBe(PasswordChangeStatus.NoSuchAccount);
     }
 
     [Fact]

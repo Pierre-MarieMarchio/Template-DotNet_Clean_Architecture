@@ -29,7 +29,7 @@ internal sealed class EmailChangeTokensService(
         // enumeration: an absent account only means it was deleted after the token was issued.
         if (user is null)
         {
-            return EmailChangeRequestOutcome.IncorrectCurrentPassword;
+            return EmailChangeRequestOutcome.NoSuchAccount;
         }
 
         // Not CheckPasswordAsync: it rewrites the stored hash on a rehash-needed result, rotating the

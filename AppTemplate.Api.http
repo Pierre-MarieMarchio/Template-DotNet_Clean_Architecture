@@ -776,14 +776,14 @@ Idempotency-Key: {{$guid}}
 ###
 # 41. Confirm the upload. The store is asked what it actually holds, and the aggregate refuses the
 #      confirmation if the size or checksum disagrees with what was declared — leaving the file
-#      Pending, which the worker's abandonment sweep retires on its own. Deliberately NOT
+#      Pending, which the abandonment sweep retires on its own. Deliberately NOT
 #      [Idempotent]: this POST names the file it acts on, so a replay is already well defined.
 POST {{api}}/files/{{storedFileId}}/confirm
 Authorization: Bearer {{accessToken}}
 
 ###
 # 42. Read the metadata. Never the bytes. `status` reads `deposited` at this point, not `available`:
-#      confirming says the bytes arrived intact, not what they are. The worker's inspection pass is
+#      confirming says the bytes arrived intact, not what they are. The inspection job is
 #      what reaches a verdict, on FileWorker:InspectDepositedFilesInterval — one minute by default.
 GET {{api}}/files/{{storedFileId}}
 Authorization: Bearer {{accessToken}}
@@ -805,7 +805,7 @@ GET {{api}}/files/{{storedFileId}}/content
 Authorization: Bearer {{accessToken}}
 
 ###
-# 45. Delete. The row goes; the bytes are reclaimed by the worker's sweep, which deletes every object
+# 45. Delete. The row goes; the bytes are reclaimed by the reclamation sweep, which deletes every object
 #      no row references. There is no soft delete and no tombstone — the sweep re-derives its own
 #      precondition, which is what lets the row simply disappear.
 DELETE {{api}}/files/{{storedFileId}}

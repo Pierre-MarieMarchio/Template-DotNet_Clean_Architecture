@@ -262,8 +262,8 @@ internal static class Tasks
 
             case "compose-up":
                 // `--wait` reports a failure when any service has exited, and minio-bucket is a
-                // run-once container that exits 0 by design. It is not counted here because api and
-                // worker name it under `condition: service_completed_successfully`, which tells
+                // run-once container that exits 0 by design. It is not counted here because api
+                // names it under `condition: service_completed_successfully`, which tells
                 // Compose it is a step rather than a service that should still be up. A one-shot
                 // service nothing depends on would fail this task again, and should: nothing would
                 // be sequencing it either.

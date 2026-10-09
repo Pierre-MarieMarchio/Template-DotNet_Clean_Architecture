@@ -1,0 +1,164 @@
+﻿using AppTemplate.Api.Features.Auth.Jobs;
+using AppTemplate.Api.Features.BackgroundJobs.Jobs;
+using AppTemplate.Api.Features.Files.Jobs;
+using AppTemplate.Api.Features.Maintenance.Jobs;
+using AppTemplate.Api.Features.Reminders.Jobs;
+using AppTemplate.Api.UnitTests.TestSupport;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
+using AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
+using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
+using AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
+using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
+
+/// <summary>
+/// The composition call itself, through a real container and a real host: which services it
+/// starts when the role switch is on, that it starts none and requires nothing when it is off, and
+/// that an enabled instance refuses to start on a job setting it cannot honour.
+/// <para>
+/// The loops' own behaviour is covered beside each of them; this is the part no single loop can
+/// show — that what the host composes is what runs.
+/// </para>
+/// </summary>
+public sealed class BackgroundJobsModuleTests
+{
+    private static readonly ServiceProviderOptions _strict = new() { ValidateOnBuild = true, ValidateScopes = true };
+
+    [Fact]
+    public void Enabled_IsTheDefault_AndStartsEveryJob_UnderStrictContainerValidation()
+    {
+        var services = Compose(new Dictionary<string, string?>());
+
+        using var provider = services.BuildServiceProvider(_strict);
+
+        var hosted = provider.GetServices<IHostedService>().Select(service => service.GetType()).ToList();
+
+        hosted.ShouldContain(typeof(MaintenanceBackgroundService));
+        hosted.ShouldContain(typeof(ReminderBackgroundService));
+        hosted.ShouldContain(typeof(FileBackgroundService));
+    }
+
+    [Fact]
+    public void Disabled_StartsNoJob_AndBindsNoJobOption()
+    {
+        var services = Compose(new Dictionary<string, string?> { ["BackgroundJobs:Enabled"] = "false" });
+
+        using var provider = services.BuildServiceProvider(_strict);
+
+        provider.GetServices<IHostedService>().ShouldBeEmpty();
+
+        services.ShouldNotContain(
+            descriptor => descriptor.ServiceType == typeof(IValidateOptions<MaintenanceWorkerOptions>)
+                || descriptor.ServiceType == typeof(IValidateOptions<ReminderWorkerOptions>)
+                || descriptor.ServiceType == typeof(IValidateOptions<FileWorkerOptions>),
+            "an instance that only serves HTTP must not be made to validate settings it never reads");
+    }
+
+    [Fact]
+    public async Task Disabled_StartsWithJobSettingsThatWouldFailValidation()
+    {
+        using var host = BuildHost(new Dictionary<string, string?>
+        {
+            ["BackgroundJobs:Enabled"] = "false",
+            ["MaintenanceWorker:Interval"] = "00:00:00",
+            ["ReminderWorker:Interval"] = "7.00:00:00",
+            ["FileWorker:InspectDepositedFilesInterval"] = "00:00:01",
+        });
+
+        await Should.NotThrowAsync(() => host.StartAsync(TestContext.Current.CancellationToken));
+        await host.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData("MaintenanceWorker:Interval", "00:00:00")]
+    [InlineData("ReminderWorker:Interval", "7.00:00:00")]
+    [InlineData("FileWorker:InspectDepositedFilesInterval", "00:00:01")]
+    [InlineData("FileWorker:ReclaimOrphanedContentInterval", "00:00:05")]
+    [InlineData("FileWorker:PurgeAbandonedRegistrationsInterval", "00:00:00")]
+    public async Task Enabled_RefusesToStart_OnAnInvalidJobSetting(string key, string value)
+    {
+        using var host = BuildHost(new Dictionary<string, string?> { [key] = value });
+
+        var failure = await Should.ThrowAsync<OptionsValidationException>(
+            () => host.StartAsync(TestContext.Current.CancellationToken));
+
+        failure.Message.ShouldContain(key);
+    }
+
+    [Fact]
+    public async Task Enabled_RunsOnePassOfEveryJob_IncludingAuthenticationsPurge()
+    {
+        var idempotency = Substitute.For<IPurgeExpiredIdempotencyKeysUseCase>();
+        var refreshTokens = Substitute.For<IPurgeExpiredRefreshTokensUseCase>();
+        var reminders = Substitute.For<IFireDueRemindersUseCase>();
+        var abandoned = Substitute.For<IPurgeAbandonedRegistrationsUseCase>();
+        var orphaned = Substitute.For<IReclaimOrphanedContentUseCase>();
+        var inspection = Substitute.For<IInspectDepositedFilesUseCase>();
+
+        idempotency.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        refreshTokens.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        reminders.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        abandoned.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        orphaned.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        inspection.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+
+        using var host = BuildHost(
+            new Dictionary<string, string?>(),
+            services =>
+            {
+                services.AddScoped(_ => idempotency);
+                services.AddScoped(_ => refreshTokens);
+                services.AddScoped(_ => reminders);
+                services.AddScoped(_ => abandoned);
+                services.AddScoped(_ => orphaned);
+                services.AddScoped(_ => inspection);
+            });
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => Received(idempotency) && Received(refreshTokens) && Received(reminders)
+                && Received(abandoned) && Received(orphaned) && Received(inspection),
+            "every job to have run its first pass");
+
+        await host.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static bool Received<TUseCase>(TUseCase useCase)
+        where TUseCase : class =>
+        useCase.ReceivedCalls().Any();
+
+    private static ServiceCollection Compose(Dictionary<string, string?> settings)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddBackgroundJobs(configuration);
+        services.AddAuthMaintenanceJobs(configuration);
+
+        return services;
+    }
+
+    private static IHost BuildHost(Dictionary<string, string?> settings, Action<IServiceCollection>? configure = null)
+    {
+        var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
+        builder.Configuration.AddInMemoryCollection(settings);
+        builder.Services.AddLogging();
+        builder.Services.AddBackgroundJobs(builder.Configuration);
+        builder.Services.AddAuthMaintenanceJobs(builder.Configuration);
+        configure?.Invoke(builder.Services);
+
+        return builder.Build();
+    }
+}

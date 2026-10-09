@@ -195,57 +195,58 @@ public sealed class ContainerCompositionTests
     }
 
     [Fact]
-    public void TheWorkerContainer_BuildsUnderStrictValidation()
+    public void TheBackgroundOnlyContainer_BuildsUnderStrictValidation()
     {
-        var services = HostComposition.ComposeWorker(HostComposition.Configuration());
+        var services = HostComposition.ComposeBackgroundOnly(HostComposition.Configuration());
 
         Should.NotThrow(
             () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose(),
-            "The worker composes the same four modules as the API but supplies no " +
+            "A process that only runs the jobs composes the same modules as the API but supplies no " +
             "IHttpContextAccessor. A module that grew a dependency on one would start the API and " +
-            "stop this host, and only this test would say so.");
+            "stop that process, and only this test would say so.");
     }
 
     [Fact]
-    public void TheWorkerContainer_ResolvesEveryApplicationPort()
+    public void TheBackgroundOnlyContainer_ResolvesEveryApplicationPort()
     {
         AssertResolvable(
             ApplicationPortContracts,
-            "The worker runs FireDueReminders and both purges through the same ports the API uses. " +
-            "A port only the API's own composition could satisfy would fail here.",
-            HostComposition.ComposeWorker);
+            "The jobs run FireDueReminders, the purges and the file passes through the same ports " +
+            "the API's controllers use. A port only the API's own composition could satisfy would " +
+            "fail here.",
+            HostComposition.ComposeBackgroundOnly);
     }
 
     /// <summary>
-    /// Pins <em>why</em> the worker composes the identity module, because eight comments in this
-    /// repository name the wrong reason and every one of them stayed true-looking for months.
+    /// Pins <em>why</em> the background jobs need the identity module, because several comments in
+    /// this repository once named the wrong reason and every one of them stayed true-looking for
+    /// months.
     /// <para>
-    /// The written reason is <c>IRefreshTokenMaintenanceService</c>'s sole adapter, which invites
-    /// the conclusion that moving that one adapter would let this host drop the module and its
+    /// The obvious reason is <c>IRefreshTokenMaintenanceService</c>'s sole adapter, which invites
+    /// the conclusion that moving that one adapter would let a composition drop the module and its
     /// whole configuration surface with it. It would not. <c>EmailReminderNotifier</c> — the
-    /// adapter behind the reminder loop, which is this host's own feature and not a favour to the
-    /// API — resolves <see cref="IUserProfilesService"/> to find the address a due reminder is
-    /// rung at. And <c>AddAuthApplication</c> registers every authentication use case, so under
-    /// <c>ValidateOnBuild</c> — which <c>Host.CreateApplicationBuilder</c> turns on in Development
-    /// — every port that project declares has to be resolvable here, not merely the ports this
-    /// host's own loops reach. Which is also why this host could drop the module only by dropping
-    /// that call, and
+    /// adapter behind the reminder job — resolves <see cref="IUserProfilesService"/> to find the
+    /// address a due reminder is rung at. And <c>AddAuthApplication</c> registers every
+    /// authentication use case, so under <c>ValidateOnBuild</c> — which a Development host turns on
+    /// — every port that project declares has to be resolvable, not merely the ports the jobs
+    /// reach. Which is also why such a composition could drop the module only by dropping that
+    /// call, and
     /// <see cref="RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer"/>
     /// carries what else stands in the way.
     /// </para>
     /// </summary>
     [Fact]
-    public void TheWorkerContainer_NeedsIdentityForItsReminderLoop_NotOnlyForThePurgeAdapter()
+    public void TheBackgroundOnlyContainer_NeedsIdentityForTheReminderJob_NotOnlyForThePurgeAdapter()
     {
-        var services = HostComposition.ComposeWorkerWithoutTheAuthModule(HostComposition.Configuration());
+        var services = HostComposition.ComposeBackgroundOnlyWithoutTheAuthModule(HostComposition.Configuration());
 
         var exception = Should.Throw<AggregateException>(
             () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose());
 
         exception.Message.ShouldContain(
             nameof(IUserProfilesService),
-            customMessage: "If this port ever stops being needed here, the worker really can drop " +
-            "AddAuthModule — and the comments in Program.cs, the csproj, docker-compose.yml " +
+            customMessage: "If this port ever stops being needed here, a background composition " +
+            "really can drop AddAuthModule — and the comments in Program.cs, docker-compose.yml " +
             "and docs/CONFIGURATION.md all become answerable at last.");
 
         exception.Message.ShouldContain(

@@ -85,10 +85,10 @@ public sealed class OutboundHttpTests
             .ToList();
 
         entryPoints.Count.ShouldBe(
-            2,
-            "AppTemplate.Api and AppTemplate.Worker are the hosts this repository has. A third one " +
-            "is welcome, but it has to arrive through this number so that the line below is read " +
-            "about it too.");
+            1,
+            "AppTemplate.Api is the one host this repository has, and it runs the background jobs " +
+            "too. A second one is welcome, but it has to arrive through this number so that the " +
+            "line below is read about it too.");
 
         var missing = entryPoints
             .Where(entryPoint => !_policyInstalled.IsMatch(File.ReadAllText(entryPoint)))

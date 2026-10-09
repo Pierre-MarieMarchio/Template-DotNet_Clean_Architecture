@@ -33,7 +33,7 @@ public sealed class DomainEventTests
         // re-reads the item's state anyway, so a consumer here would duplicate that check.
         "TodoItemReopenedDomainEvent",
 
-        // Firing is already recorded on the aggregate and counted by the worker's own log. A
+        // Firing is already recorded on the aggregate and counted by the reminder job's own log. A
         // consumer would be a second place to keep in step for no gain.
         "ReminderFiredDomainEvent",
 

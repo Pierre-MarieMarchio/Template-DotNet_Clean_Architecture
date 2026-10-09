@@ -14,7 +14,7 @@ namespace AppTemplate.Infrastructure.Email.Features.Reminders;
 /// would have picked email on the caller's behalf.
 /// <para>
 /// The subject and the body both come from the embedded <c>ReminderEmailTemplate</c>, in
-/// <see cref="CurrentLanguage.Current"/> — which in <c>AppTemplate.Worker</c> is the language
+/// <see cref="CurrentLanguage.Current"/> — which in a background job is the language
 /// <c>Localization:DefaultCulture</c> names, set once at start-up. A background pass has no request
 /// to read a reader's own language from, so this mail is written in the deployment's default until
 /// an account carries a stored preference; <c>docs/CONFIGURATION.md</c> says where that plugs in.

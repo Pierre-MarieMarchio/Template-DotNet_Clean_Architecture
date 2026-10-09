@@ -3,12 +3,12 @@
 This template ships three worked examples: `TodoLists`, `Reminders` and `Files`. They exist to teach
 — an aggregate with real invariants and child entities, a flat aggregate reached from a background
 loop, an aggregate whose two halves live in two different stores, and, across all three, domain
-events, optimistic concurrency over HTTP, a paginated collection endpoint and a worker calling the
-same use cases as the API. A derived project deletes what it has read and keeps what it needs.
+events, optimistic concurrency over HTTP, a paginated collection endpoint and background jobs calling
+the same use cases as the controllers. A derived project deletes what it has read and keeps what it needs.
 
 `Files` is the one where "delete it" is not the only sensible answer. Structurally it sits at
 exactly the same rank as the other two — its own aggregate, its own use cases, its own controller,
-its own worker loop, its own migration — so everything below gives it a column. But unlike the other
+its own background job, its own migration — so everything below gives it a column. But unlike the other
 two it is also a working capability: a project that stores files re-points it at its own bucket and
 its own metadata instead of deleting it. [`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md) says the
 same thing from the other side. So
@@ -37,7 +37,7 @@ as a procedure.
 
 **The two questions that come up**
 
-- [Does the Worker still have a reason to exist?](#does-the-worker-still-have-a-reason-to-exist)
+- [Do the background jobs still have a reason to exist?](#do-the-background-jobs-still-have-a-reason-to-exist)
 - [If you are keeping some and removing others](#if-you-are-keeping-some-and-removing-others)
 - [Removing authentication](#removing-authentication)
 
@@ -104,8 +104,8 @@ the same will do.
 
 **In outline, removing a business feature is three things:** delete `Features/<F>/` in each layer
 that has one, delete the feature's `AddX()` method in `ApplicationModule`, and delete the one line
-in each `Program.cs` that calls it. Everything else below is a consequence — a schema in the
-context, a migration, a worker loop, a configuration section, a test that used the feature as its
+in `Program.cs` that calls it. Everything else below is a consequence — a schema in the
+context, a migration, a background job, a configuration section, a test that used the feature as its
 subject.
 
 By layer, mirroring `Src/`'s own structure. Each of these is a whole feature folder; delete the
@@ -144,7 +144,7 @@ is left:
 `ICacheStore`, and every command changing an owner's tags drops the entry. `UsedTagsCache`, which
 holds the key and the lifetime for both, sits in `Src/Application/AppTemplate.Application/Common/Tagging/`
 and leaves with that folder. What does **not** leave is the mechanism: `ICacheStore` is a
-cross-cutting port and `AddCacheStore()` is one line of each host's composition, so a tree with
+cross-cutting port and `AddCacheStore()` is one line of the host's composition, so a tree with
 every example removed keeps a working cache with nothing yet reading through it. Delete that line
 only if you also mean to drop the capability.
 
@@ -157,7 +157,6 @@ same way: whether what you are deleting was its only consumer.
 | Application | `Src/Application/AppTemplate.Application/Features/TodoLists/` | `Src/Application/AppTemplate.Application/Features/Reminders/` | `Src/Application/AppTemplate.Application/Features/Files/` |
 | Persistence | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/` |
 | API | `Src/Presentation/AppTemplate.Api/Features/TodoLists/` | `Src/Presentation/AppTemplate.Api/Features/Reminders/` | `Src/Presentation/AppTemplate.Api/Features/Files/` |
-| Worker | — | `Src/Presentation/AppTemplate.Worker/Features/Reminders/` | `Src/Presentation/AppTemplate.Worker/Features/Files/` |
 | In-memory doubles | — | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Features/Reminders/` | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Features/Files/` |
 | Its own module | — | `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/` | `Src/Infrastructure/AppTemplate.Infrastructure.Storage/` |
 
@@ -167,6 +166,10 @@ goes, and the module stays for `IEmailSender`. `Files`' half is a whole project,
 `AppTemplate.Infrastructure.Storage`: the port shape is base and the `StoredFile` aggregate is
 example, so a project that keeps any file storage at all keeps this project and re-points it.
 
+The API's `Features/Reminders/` and `Features/Files/` hold the feature's `Jobs/` folder beside its
+controllers — the hosted service, its options and its instruments — so deleting the feature folder
+deletes the job with it. Their test mirrors are in `Tests/Presentation/AppTemplate.Api.UnitTests/Features/`.
+
 And their test mirrors — same shape, under `Tests/` instead of `Src/`:
 
 | Project | TodoLists | Reminders | Files |
@@ -175,7 +178,6 @@ And their test mirrors — same shape, under `Tests/` instead of `Src/`:
 | `Tests/Application/AppTemplate.Application.UnitTests/Features/` | yes | yes | yes |
 | `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/` | yes | yes | yes |
 | `Tests/Presentation/AppTemplate.Api.UnitTests/Features/` | yes | yes | yes |
-| `Tests/Presentation/AppTemplate.Worker.UnitTests/Features/` | — | yes | yes |
 | `Tests/Infrastructure/AppTemplate.Infrastructure.InMemory.UnitTests/Features/` | — | — | yes |
 | `Tests/Integration/AppTemplate.Api.IntegrationTests/` | `TodoLists/` | `Reminders/` | `Files/` and `Storage/` |
 
@@ -223,7 +225,7 @@ belongs to.
 
 **In the application layer the whole edit is two deletions per feature**, because registration is
 opt-in per feature rather than a scan of the assembly: the feature's method in `ApplicationModule`,
-and the one line in each host that calls it. Nothing else claims to have registered the feature, so
+and the one line in `Program.cs` that calls it. Nothing else claims to have registered the feature, so
 there is no anchor type to re-point, no consumer list to prune elsewhere and no port that has to
 stay resolvable in a host that no longer offers the feature.
 
@@ -267,49 +269,42 @@ whatever is left. Leave the clock and email-sender substitutions alone.
 Remove the feature's one composition line — `AddTodoLists()` **(T)**, `AddReminders()` **(R)**,
 `AddFiles()` **(F)** — and, with `Files`, `AddStorageModule(builder.Configuration)` and its `using
 AppTemplate.Infrastructure.Storage;`. The persistence side needs no line here: it cascades through
-`AddPersistenceModule`.
+`AddPersistenceModule`. **Do not remove `AddEmailModule` or `AddAuthModule` with `Reminders`.**
+`AddAuthApplication()` registers every use case `AppTemplate.Application.Auth` declares, and
+`ValidateOnBuild` then requires all twenty of that project's ports to resolve — four of the use cases
+take `IEmailSender` — so dropping either module leaves a build that is perfectly green and an API
+that will not start. Dropping authentication itself is a different operation: see
+[Removing authentication](#removing-authentication).
 
-**`Src/Presentation/AppTemplate.Worker/Program.cs`**
-Remove the same composition line as in the API, then the `AddOptions<ReminderWorkerOptions>()`
-block, its `AddSingleton<IValidateOptions<ReminderWorkerOptions>, …>()` line and
-`AddHostedService<ReminderBackgroundService>()` **(R)**; the same three for `FileWorkerOptions` and
-`FileBackgroundService`, plus `AddStorageModule` **(F)**. **Do not remove `AddEmailModule` or
-`AddAuthModule` with `Reminders`.** This host also calls `AddAuthApplication()`, which registers
-every use case `AppTemplate.Application.Auth` declares, and `ValidateOnBuild` then requires all
-twenty of that project's ports to resolve here — four of the use cases take `IEmailSender` — so
-dropping either module leaves a build that is perfectly green and a Worker that will not start. The
-composition comment at the top of the file argues from the reminder loop *and* from
-`AddAuthApplication`; the second half is the reason that survives a `Reminders` removal, so trim the
-first half rather than the whole block. Dropping authentication itself is a different operation:
-see [Removing authentication](#removing-authentication).
+**`Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`**
+Remove the `AddReminderJobs(configuration)` call **(R)** and the `AddFileJobs(configuration)` call
+**(F)**, with the `using` each one needed. The `Jobs/` folders they name went with the feature
+folders above, so both are compile errors, and `Program.cs` needs no edit for the jobs: it makes one
+call, and the module is what lists them.
 
-**`Src/Presentation/AppTemplate.Worker/Common/Observability/WorkerObservabilityExtensions.cs`**
-This is four separate edits, not one, and three of them are compile errors. With `Reminders`
-**(R)**: drop `using AppTemplate.Worker.Features.Reminders;`, the
-`.AddSource(ReminderInstruments.Name)` line and the `.AddMeter(ReminderInstruments.Name)` line — all
-three name the Worker's own `ReminderInstruments`, which went with `Features/Reminders/`. Then drop
-`.AddMeter("AppTemplate.Reminders")` and its comment: that string names the *persistence* project's
-`ReminderDiagnostics` meter by a literal rather than a shared constant, so nothing tells you it now
-names a meter that does not exist. With `Files` **(F)**: the same first three, for
-`FileInstruments`. Update the comment above each group, which counts the loops.
+**`Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs`**
+This is separate edits, and most of them are compile errors. With `Reminders` **(R)**: drop
+`using AppTemplate.Api.Features.Reminders.Jobs;`, the `.AddSource(ReminderInstruments.Name)` line and
+the `.AddMeter(ReminderInstruments.Name)` line — all three name the feature's own
+`ReminderInstruments`, which went with `Features/Reminders/`. Then drop
+`.AddMeter(PersistenceModule.RemindersMeterName)` and, with the `ReminderDiagnostics` adapter, the
+`RemindersMeterName` constant on `PersistenceModule`: it names a meter that no longer exists, and
+nothing tells you so. With `Files` **(F)**: the same first three, for `FileInstruments`. Update the
+comment above each group, which counts the jobs.
 
-**`Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj`** and
 **`Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj`** **(F)**
-Remove the `<ProjectReference>` to `AppTemplate.Infrastructure.Storage.csproj` from both. The Worker
-keeps its reference to `AppTemplate.Infrastructure.Email.csproj` for the reason above; its comment
-block explains both the email and the identity references in terms of the reminder loop, so it needs
-rewriting around `IEmailSender` and `IRefreshTokenMaintenance` **(R)**. `ModuleDependencyTests`
-reads the project-file graph, not just what the code calls, so a reference nobody uses is still a
-declared arrow.
+Remove the `<ProjectReference>` to `AppTemplate.Infrastructure.Storage.csproj`. The project keeps its
+references to `AppTemplate.Infrastructure.Email.csproj` and `AppTemplate.Infrastructure.Auth.csproj`
+for the reason above. `ModuleDependencyTests` reads the project-file graph, not just what the code
+calls, so a reference nobody uses is still a declared arrow.
 
-**`Src/Presentation/AppTemplate.Worker/Dockerfile`** and
 **`Src/Presentation/AppTemplate.Api/Dockerfile`** **(F)**
-Remove the `COPY` line for `AppTemplate.Infrastructure.Storage.csproj` in each, mirroring the
-project reference above. **This is the one a build can hide from you.** `dotnet restore` does not
-fail when a project file it expected is missing from the build context — it logs "Skipping project …
-because it was not found" and the failure surfaces later, at `dotnet publish`, on a missing assets
-file. Remove a `ProjectReference` and forget the `COPY`, and `dotnet build` and even a plain `dotnet
-restore` look fine; only the image build breaks, several minutes in, on the publish step.
+Remove the `COPY` line for `AppTemplate.Infrastructure.Storage.csproj`, mirroring the project
+reference above. **This is the one a build can hide from you.** `dotnet restore` does not fail when a
+project file it expected is missing from the build context — it logs "Skipping project … because it
+was not found" and the failure surfaces later, at `dotnet publish`, on a missing assets file. Remove
+a `ProjectReference` and forget the `COPY`, and `dotnet build` and even a plain `dotnet restore` look
+fine; only the image build breaks, several minutes in, on the publish step.
 
 **`AppTemplate.sln`** **(F)**
 Remove the `AppTemplate.Infrastructure.Storage` and `AppTemplate.Infrastructure.Storage.UnitTests`
@@ -374,40 +369,41 @@ navigation blocks. The blocks are named by their persistence model's full type n
 
 None of this breaks a build, and all of it goes stale silently.
 
-- **`Src/Presentation/AppTemplate.Worker/appsettings.json`** and
-  **`Src/Presentation/AppTemplate.Worker/appsettings.Development.json`**: the `ReminderWorker`
-  section **(R)** and the `FileWorker` section **(F)**.
 - **`Src/Presentation/AppTemplate.Api/appsettings.json`** and
-  **`Src/Presentation/AppTemplate.Worker/appsettings.json`**: the `Storage` and `ContentInspection`
-  sections **(F)**, in both hosts.
-- **`docker-compose.yml`** **(F)**: the two `Storage__*` environment blocks — one per host — the
-  `minio` and `minio-bucket` services, and the `minio-data` volume.
+  **`Src/Presentation/AppTemplate.Api/appsettings.Development.json`**: the `ReminderWorker` section
+  **(R)** and the `FileWorker` section **(F)**.
+- **`Src/Presentation/AppTemplate.Api/appsettings.json`**: the `Storage` and `ContentInspection`
+  sections **(F)**.
+- **`docker-compose.yml`** and **`.env.example`**: the `ReminderWorker__*` block and the
+  `REMINDER_WORKER_*` variables **(R)**; the `FileWorker__*` block and the `FILE_WORKER_*` variables
+  **(F)**.
+- **`docker-compose.yml`** **(F)**: the `Storage__*` environment block, the `minio` and `minio-bucket`
+  services, and the `minio-data` volume.
 - **`AppTemplate.Api.http`**: the numbered request blocks for the feature you removed. They are the
   file's whole point, so they are worth replacing with your own rather than only deleting.
 - **`Tests/Architecture/AppTemplate.Architecture.Tests/Rules/ConfigurationSurfaceTests.cs`** names
   `ReminderWorker` twice in its own documentation as the example of a section **(R)**; point it at
   another section that still exists.
 
-## Does the Worker still have a reason to exist?
+## Do the background jobs still have a reason to exist?
 
-Yes, and by more than a margin. It hosts three `BackgroundService`s — maintenance, reminders and
+Yes, and by more than a margin. The API hosts three `BackgroundService`s — maintenance, reminders and
 files — so removing any one example leaves two. `MaintenanceBackgroundService` runs two purges
 (`PurgeExpiredIdempotencyKeys`, `PurgeExpiredRefreshTokens`) on a timer and depends on no example
-feature at all, so even removing all three leaves the host doing real work.
+feature at all, so even removing all three leaves the process doing real work.
 
-What it composes shrinks by exactly the line you delete, and no further. Removing a business
-feature removes that feature's `AddX()` call and nothing else from the graph. What does not shrink
-is authentication: this host calls `AddAuthApplication()`, and `ValidateOnBuild` then requires all
-twenty ports `AppTemplate.Application.Auth` declares to resolve *in this host too* — not only the
-ports its own loops reach. That is why `AppTemplate.Infrastructure.Auth` and
-`AppTemplate.Infrastructure.Email` both stay composed after `Reminders` goes: those use cases take
-`IUserProfilesService` and `IEmailSender`, and they are registered here whether or not anything in
-this process calls them. `AppTemplate.Infrastructure.Storage` is the one module that leaves with a
-business feature, and only with `Files`.
+What the container composes shrinks by exactly the line you delete, and no further. Removing a
+business feature removes that feature's `AddX()` call and nothing else from the graph. What does not
+shrink is authentication: the API calls `AddAuthApplication()`, and `ValidateOnBuild` then requires
+all twenty ports `AppTemplate.Application.Auth` declares to resolve — not only the ports the jobs
+reach. That is why `AppTemplate.Infrastructure.Auth` and `AppTemplate.Infrastructure.Email` both stay
+composed after `Reminders` goes: those use cases take `IUserProfilesService` and `IEmailSender`, and
+they are registered whether or not anything calls them. `AppTemplate.Infrastructure.Storage` is the
+one module that leaves with a business feature, and only with `Files`.
 
-Either way the host still proves the template's actual claim: the same application layer, answering
-an HTTP request in one process and a background loop in another, with no use case and no domain type
-touched to make it work in either.
+Either way the process still shows the template's actual claim: the same application layer answering
+an HTTP request and a timer, with no use case and no domain type touched to make it work in either —
+and, should the jobs ever need a process of their own, only their one composition call moves.
 
 ## What stops being demonstrated
 
@@ -420,7 +416,7 @@ is not the same as "still demonstrated somewhere."
 
 Four things lose their only example, and one of them is measured.
 
-- **`ILeaderLease`, and with it the only reason the worker can run at more than one replica.** The
+- **`ILeaderLease`, and with it the only reason the reminder pass can run on more than one instance.** The
   port and its `PostgresLeaderLease` adapter are base, not example — but its only consumer is
   `FireDueRemindersUseCase`. The two file loops document at length why they take *no* lease, so they
   are not a substitute. Removing `Reminders` alone is enough:
@@ -432,8 +428,8 @@ Four things lose their only example, and one of them is measured.
   — which is what it is for — or, if you genuinely have no such operation, delete the port, its
   adapter, its integration tests, the `Leases` entry in `LayoutConventionTests`'s `Common/`
   vocabulary and `BackgroundWorkTests` itself, and remember that
-  a deployment must then run at most one worker unless its remaining operations are safe to run
-  concurrently.
+  a deployment must then run at most one instance with `BackgroundJobs:Enabled` true unless its
+  remaining operations are safe to run concurrently.
   Measured, that deletion costs four more compile errors: three `<see cref="ILeaderLease"/>`
   comments in the surviving `Files` code and one substitute registration in
   `ApplicationModuleTests`.
@@ -653,11 +649,13 @@ and finds that neither the business features nor the mechanisms name anything in
 `AppTemplate.Application.Auth`. A container of the business features with no `AddAuthApplication()`
 and no identity module does **not** build, and
 `ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
-is what says so and names why. So the first three steps are small: delete the
-`AddAuthApplication()` line from both `Program.cs` files, delete
+is what says so and names why. So the first steps are small: delete the
+`AddAuthApplication()` and `AddAuthMaintenanceJobs(builder.Configuration)` lines from `Program.cs`,
+delete
 `Src/Application/AppTemplate.Application.Auth/` and `Src/Infrastructure/AppTemplate.Infrastructure.Auth/`
 with their test mirrors and solution entries, and delete
-`Src/Presentation/AppTemplate.Api/Features/Auth/` — six controllers: `RegistrationController`,
+`Src/Presentation/AppTemplate.Api/Features/Auth/` — its `Jobs/` folder, which holds the
+refresh-token purge's registration and its options, and six controllers: `RegistrationController`,
 `SessionsController`, `AccountController`, `TwoFactorController`, `PasswordRecoveryController` and
 `AccountAdministrationController`.
 
@@ -687,7 +685,7 @@ with their test mirrors and solution entries, and delete
 email module, and that implementation resolves `IUserProfilesService` to find the address a due
 reminder is rung at. Either drop the reminder feature with authentication, denormalise the address
 onto the reminder, or write a notifier that gets it elsewhere. That is the whole of it now: a
-project, a line in each host's composition, and that one door.
+project, a line in the composition, and that one door.
 
 ## Verification
 
@@ -705,7 +703,7 @@ Run these yourself; they are the gates, in the order that fails fastest:
    `AppTemplate.Infrastructure.Auth.IntegrationTests`, which need Docker for their
    Testcontainers PostgreSQL. Nothing in this document has been confirmed against a running instance
    of either.
-5. `docker build` on both `Dockerfile`s, for the `COPY` failure mode that `dotnet restore` hides.
+5. `docker build` on the API's `Dockerfile`, for the `COPY` failure mode that `dotnet restore` hides.
 
 If your removal produces something this document does not describe, the discovery-based architecture
 tests — `RequireTypes`, the various `ShouldNotBeEmpty` and floor guards — are what will tell you

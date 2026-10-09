@@ -17,9 +17,9 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// <para>
 /// <b>Read from the source tree rather than from metadata</b>, for the reason
 /// <c>LayoutConventionTests</c> gives: the subject is a Markdown file, and a rule about what a
-/// document says has to read the document. Both hosts' options classes are scanned, and sections
-/// declared by more than one class — <c>OpenTelemetry</c> is declared by the API's and the worker's —
-/// contribute the union of their keys, since a key documented once is documented.
+/// document says has to read the document. Every options class is scanned, and a section
+/// declared by more than one class contributes the union of their keys, since a key documented once
+/// is documented.
 /// </para>
 /// </summary>
 public sealed class ConfigurationSurfaceTests
@@ -69,7 +69,7 @@ public sealed class ConfigurationSurfaceTests
 
     /// <summary>
     /// The section a heading names, when it names one. Only the backticked part, because several
-    /// headings carry a qualifier the reader needs — <c>### `FileWorker` — `AppTemplate.Worker` only</c>.
+    /// headings carry a qualifier the reader needs — <c>### `Section` — what it applies to</c>.
     /// </summary>
     private static readonly Regex _sectionHeading = new(
         @"^### `([A-Za-z:]+)`",
@@ -217,8 +217,7 @@ public sealed class ConfigurationSurfaceTests
                 .Select(match => match.Groups[1].Value)
                 .ToHashSet(StringComparer.Ordinal);
 
-            // The union, not the last one seen: OpenTelemetry is bound by the API's options class and
-            // the worker's, and the two do not carry the same keys.
+            // The union, not the last one seen: two classes over one section need not carry the same keys.
             if (sections.TryGetValue(section, out SectionFacts? existing))
             {
                 sections[section] = new SectionFacts(

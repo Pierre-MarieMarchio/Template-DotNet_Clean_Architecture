@@ -25,7 +25,7 @@ public sealed class AuditingSaveChangesInterceptorTests
     private static readonly Guid _userId = new("22222222-2222-2222-2222-222222222222");
 
     /// <summary>
-    /// The case that broke <c>AppTemplate.Worker</c>: an actor naming nobody must produce a stamped
+    /// The case that broke the background jobs: an actor naming nobody must produce a stamped
     /// row, not an exception. Every background loop commits through here, so an actor this
     /// interceptor cannot consult is a host that can write nothing.
     /// </summary>
@@ -71,7 +71,7 @@ public sealed class AuditingSaveChangesInterceptorTests
 
     /// <summary>
     /// Proves the interceptor never reaches for the calling principal. An actor that threw the way
-    /// the worker's <c>BackgroundCurrentUser</c> does would surface here rather than on the first
+    /// a background scope's <c>NoCallerCurrentUser</c> does would surface here rather than on the first
     /// deposited file in production.
     /// </summary>
     [Fact]

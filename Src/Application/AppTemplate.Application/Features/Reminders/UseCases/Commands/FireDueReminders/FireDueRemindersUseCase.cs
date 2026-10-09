@@ -9,8 +9,8 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 
 /// <summary>
-/// Runs on a schedule, from <c>AppTemplate.Worker</c> — never from a request — which is why it
-/// must not read <see cref="ICurrentUser"/>: the worker's <c>BackgroundCurrentUser</c> throws on
+/// Runs on a schedule, from the API's reminder job — never from a request — which is why it
+/// must not read <see cref="ICurrentUser"/>: a background scope's <c>NoCallerCurrentUser</c> throws on
 /// <c>UserId</c> rather than pretend an anonymous caller, and a use case that reads it would fail
 /// on its very first iteration.
 /// <para>

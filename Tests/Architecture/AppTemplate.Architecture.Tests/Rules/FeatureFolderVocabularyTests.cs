@@ -42,6 +42,7 @@ public sealed class FeatureFolderVocabularyTests
         ["Inspectors"] = ["Inspector"],
         ["Inventories"] = ["Inventory"],
         ["Issuers"] = ["Issuer"],
+        ["Jobs"] = ["BackgroundService", "Extensions", "Instruments", "Module", "Options", "Task", "Telemetry"],
         ["Logs"] = ["Log"],
         ["Mapping"] = ["Mapper", "Mapping"],
         ["Models"] = ["Record"],

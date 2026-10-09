@@ -14,7 +14,7 @@ map; that document and the tests it names are the argument. Where the files them
 - [The four layers and the dependency rule](#the-four-layers-and-the-dependency-rule)
 - [Ports are named for business intent, not for technology](#ports-are-named-for-business-intent-not-for-technology)
 - [Infrastructure is split per capability](#infrastructure-is-split-per-capability-with-no-per-technology-sub-split)
-- [A second host: `AppTemplate.Worker`](#a-second-host-apptemplateworker)
+- [Background jobs in the API process](#background-jobs-in-the-api-process)
 - [The HTTP boundary](#the-http-boundary)
 
 **How the pieces behave**
@@ -46,12 +46,11 @@ one exists.
 | Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: what a context saves through — the unit of work, the three interceptors, the aggregate tracker — plus the system clock, multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Auth`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
 | Presentation | `AppTemplate.Presentation.Core` | what any host needs whatever its transport: one outbound HTTP policy, the language a flow is written in, OTLP traces and metrics, the identity of a process with no caller — and no framework reference, deliberately | `AppTemplate.Application.Core` |
-| Presentation | `AppTemplate.Api`, `AppTemplate.Worker` | controllers or a background service, composition root, host concerns; the API also holds the HTTP mechanisms no feature owns under `Common/` — the whole pipeline behind one `UseHttpPipeline()`: problem details, ETags, idempotency, rate limiting, CORS, security headers, versioning, the health endpoints — and a `FrameworkReference` on ASP.NET Core | `AppTemplate.Presentation.Core` + the application projects it needs + the modules that host needs |
+| Presentation | `AppTemplate.Api` | controllers, the periodic background jobs, composition root, host concerns; the API also holds the HTTP mechanisms no feature owns under `Common/` — the whole pipeline behind one `UseHttpPipeline()`: problem details, ETags, idempotency, rate limiting, CORS, security headers, versioning, the health endpoints — and a `FrameworkReference` on ASP.NET Core | `AppTemplate.Presentation.Core` + the application projects it needs + the modules that host needs |
 
 ```mermaid
 graph RL
-    Api[AppTemplate.Api<br/>controllers, the HTTP pipeline behind one UseHttpPipeline,<br/>composition root]
-    Worker[AppTemplate.Worker<br/>three BackgroundServices, composition root]
+    Api[AppTemplate.Api<br/>controllers, the HTTP pipeline behind one UseHttpPipeline,<br/>the periodic jobs behind one AddBackgroundJobs,<br/>composition root]
     PresCore[AppTemplate.Presentation.Core<br/>one outbound HTTP policy, the default language,<br/>OTLP traces and metrics, the no-caller identity,<br/>the loop recurring work runs on]
     Ident[AppTemplate.Infrastructure.Auth<br/>ASP.NET Identity policy, JWT, refresh tokens]
     Mail[AppTemplate.Infrastructure.Email<br/>MailKit SMTP]
@@ -96,21 +95,12 @@ graph RL
     Api --> Ident
     Api --> Mail
     Api --> Store
-    Worker --> App
-    Worker --> Auth
-    Worker --> AppCore
-    Worker --> PresCore
-    Worker --> InfraCore
-    Worker --> Pers
-    Worker --> Ident
-    Worker --> Mail
-    Worker --> Store
 ```
 
 **Authentication is never carried transitively.** Nothing in `AppTemplate.Application.Core` and
 nothing in `AppTemplate.Application` names `AppTemplate.Application.Auth`, so a project that needs
 it declares it: the identity module, the email module (its reminder notifier resolves a user profile
-to find an address), the in-memory doubles, and both hosts. `AppTemplate.Infrastructure.Auth`
+to find an address), the in-memory doubles, and the host. `AppTemplate.Infrastructure.Auth`
 declares no arrow to `AppTemplate.Application` at all — it implements twenty Auth ports and nothing
 else.
 
@@ -172,7 +162,7 @@ mechanism's own housekeeping and names no business type; a host opts into it wit
 `AddPurgeExpiredIdempotencyKeys()`, so one that has neither a maintenance endpoint nor a
 maintenance loop is not made to supply the two ports it resolves. Both purges are reachable two
 ways in this template: `MaintenanceController`, for a scheduler outside the process, and the
-worker's maintenance loop, whose interval is configuration. There is deliberately no
+API's maintenance job, whose interval is configuration. There is deliberately no
 `AddApplicationCore()` beside it: this project declares ports, results and markers, none of which
 anything registers, and an umbrella call that registered nothing would read like the seam that
 makes the project work.
@@ -199,7 +189,7 @@ file each — the outbound HTTP policy installed on `IHttpClientFactory`'s defau
 `LocalizationOptions` naming the language a flow is written in when nobody said which to read, the
 `TelemetryOptions` and the OTLP tracer and meter over it, `NoCallerCurrentUser`, the answer a
 process with no request gives to "who is calling", and `PeriodicJob`, the loop a host's recurring
-work is written on — see the Worker below for what that primitive does and does not decide. It
+work is written on — see the background jobs below for what that primitive does and does not decide. It
 declares one project reference, `AppTemplate.Application.Core`, and it is shaped like the three projects inwards for the same reasons: `CS1591` re-enabled so a
 derived project can read the signatures instead of the code, and no version, because it is vendored and meant to be tuned where it lands.
 
@@ -227,8 +217,8 @@ its own spans? — and each of the three answers is forced rather than preferred
 
 - **The service name is the host's**, which is why the call takes an `Assembly` and not a string:
   `service.name` and `service.version` are read off it, so a rename or a version bump cannot leave a
-  stale literal behind. Reading the shared project's own assembly would make both hosts announce
-  themselves under one name, and two processes reporting as one is worse than either reporting
+  stale literal behind. Reading the shared project's own assembly would make every host announce
+  itself under one name, and two processes reporting as one is worse than either reporting
   nothing. `TelemetryOptions.ServiceName` overrides it when several deployments share a collector.
 - **The diagnostics names are the host's.** A host's `ActivitySource` and `Meter` names are
   constants on classes in its own feature folders, so a shared project that listed them would have
@@ -240,22 +230,25 @@ its own spans? — and each of the three answers is forced rather than preferred
   the PostgreSQL driver, which would put a database behind every presentation host including a
   desktop one.
 
-So each host keeps a thin extension of its own over the shared one, and it holds exactly what only
+So a host keeps a thin extension of its own over the shared one, and it holds exactly what only
 that host can say. `AppTemplate.Api`'s `Common/Observability/ObservabilityExtensions.cs` adds the
 ASP.NET Core instrumentation, `AddNpgsql()`, the `Npgsql` and `Microsoft.AspNetCore.RateLimiting`
-meters, and the one request-log entry that ties a caller's `traceId` to a span.
-`AppTemplate.Worker`'s `Common/Observability/WorkerObservabilityExtensions.cs` adds its three loops'
-sources and meters, the persistence project's `AppTemplate.Reminders` meter, and `AddNpgsql()`. What
-is shared is the resource, the sampler, the outbound-HTTP instrumentation, the runtime meters and
-the exporter — every part of the registration where two hosts disagreeing would be a bug rather
-than a difference.
+meters, and the one request-log entry that ties a caller's `traceId` to a span. The jobs add their
+own to that same pipeline from `Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs`: the three
+jobs' sources and meters and the persistence project's reminder meter, by
+`PersistenceModule.RemindersMeterName`. Common may not name a feature, so that registration sits
+beside the jobs rather than in `Common/Observability/`, and it runs only when telemetry is enabled
+and the jobs do. What is shared is the resource, the sampler, the outbound-HTTP instrumentation, the
+runtime meters and the exporter — every part of the registration where two hosts disagreeing would
+be a bug rather than a difference.
 
-**Localisation binds in one place and is applied in two**, on the same principle. The shared
+**Localisation binds in one place and is applied by the host**, on the same principle. The shared
 `AddLocalizationOptions()` binds and validates the section and stops there; reading the bound value
-into `CurrentLanguage.Default` is left to each host, because *when* that happens is a host's own
-question. A host with a request pipeline does it as the pipeline is built, so the ambient default is
-in place before the first request; a host with only background work does it once the container
-exists and before the first loop runs. Doing it in the shared call would pick one of those for both.
+into `CurrentLanguage.Default` is left to the host, because *when* that happens is a host's own
+question. The API does it as the request pipeline is built, so the ambient default is in place
+before the first request and before the first job pass, and every mail a job sends is written in it;
+a process with only background work would do it once the container exists and before the first loop
+runs. Doing it in the shared call would pick one of those for both.
 
 Two rules that a compiler cannot state on its own, so state them here:
 
@@ -412,8 +405,8 @@ feature therefore lives with that feature, as
 `Features/Reminders/Observability/ReminderDiagnostics.cs` does. See below for why one context
 rather than two, and why EF maps rows rather than aggregates.
 
-**One DI module per project, and the application layer is composed a feature at a time.** Both
-hosts' composition roots are the same ten lines, in the same order — `AddTodoLists()`,
+**One DI module per project, and the application layer is composed a feature at a time.** The
+host's composition root starts with ten lines, in this order — `AddTodoLists()`,
 `AddReminders()`, `AddFiles()`, then `AddAuthApplication()`, then
 `AddPurgeExpiredIdempotencyKeys()`, then `AddCacheStore()`, then
 `AddPersistenceModule(builder.Configuration)`, `AddAuthModule`, `AddEmailModule` and
@@ -422,12 +415,12 @@ configuration section of its own and the cache decides its lifetimes at each cal
 modules each take one. Adding a capability adds one line there and touches nothing else; removing
 one deletes a project and a line.
 
-Three further lines are common to both hosts and are not among the nine, because they compose host
-concerns rather than capabilities: `AddOutboundHttp()`, the localisation binding — reached through
-`AddRequestLanguage()` in `AppTemplate.Api`, which adds the request-header middleware around it, and
-directly as `AddLocalizationOptions()` in `AppTemplate.Worker` — and each host's own thin
+Three further lines are not among the nine, because they compose host concerns rather than
+capabilities: `AddOutboundHttp()`, the localisation binding — reached through `AddRequestLanguage()`,
+which adds the request-header middleware around `AddLocalizationOptions()` — and the host's own thin
 observability extension over the shared `AddObservability`. All three come from
-`AppTemplate.Presentation.Core`.
+`AppTemplate.Presentation.Core`. The periodic jobs add one call of their own, `AddBackgroundJobs()`,
+and authentication adds one beside it, `AddAuthMaintenanceJobs()` — see below.
 
 **There is deliberately no call that adds the whole layer.** That is what makes a feature
 removable: deleting its folder and its one line here is the whole operation, and nothing else claims
@@ -476,21 +469,35 @@ If a second database engine ever genuinely arrives, the split is mechanical then
 the real second implementation in hand to shape it. Doing it speculatively means
 guessing at that shape.
 
-## A second host: `AppTemplate.Worker`
+## Background jobs in the API process
 
-`AppTemplate.Worker` runs three `BackgroundService`s. `MaintenanceBackgroundService`
-purges expired idempotency keys and expired refresh-token grants on a timer, through
-the exact same `IPurgeExpiredIdempotencyKeysUseCase` and
-`IPurgeExpiredRefreshTokensUseCase` that `AppTemplate.Api`'s `MaintenanceController`
-exposes over HTTP. `ReminderBackgroundService` runs `IFireDueRemindersUseCase` on its
-own timer — the only caller that use case ever has, since firing a reminder must never
-run behind a request. `FileBackgroundService` runs three passes on three separate
-timers, because their costs are three orders of magnitude apart:
-`IPurgeAbandonedRegistrationsUseCase` (one indexed query and a bounded batch of deletes),
-`IReclaimOrphanedContentUseCase` (a walk of the whole object store), and
-`IInspectDepositedFilesUseCase`, which is not a sweep at all — it is the only thing that
-moves a file from `deposited` to `available`, so its interval is a latency a user feels
-rather than a background cost.
+`AppTemplate.Api` serves HTTP and runs the periodic jobs in the same process, which is the template's
+initial deployment shape: one application process and one image, because no requirement yet says the
+jobs must scale or restart apart from the HTTP server. It is a starting point, not a claim about
+where background work belongs, and the way out is kept short — see the end of this section.
+
+Three `BackgroundService`s, composed by the one call `AddBackgroundJobs()`
+(`Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`):
+
+- `MaintenanceBackgroundService` runs every registered `IMaintenanceTask` on one timer. The
+  idempotency-key purge is the maintenance feature's own; the refresh-token purge belongs to
+  authentication and is registered by `AddAuthMaintenanceJobs()` from `Features/Auth/Jobs/`, so the
+  composition and the timer name nothing from authentication and a project built without it deletes
+  one call and one folder. Both tasks run the exact same `IPurgeExpiredIdempotencyKeysUseCase` and
+  `IPurgeExpiredRefreshTokensUseCase` that `MaintenanceController` exposes over HTTP.
+- `ReminderBackgroundService` runs `IFireDueRemindersUseCase` on its own timer — the only caller that
+  use case ever has, since firing a reminder must never run behind a request.
+- `FileBackgroundService` runs three passes on three separate timers, because their costs are three
+  orders of magnitude apart: `IPurgeAbandonedRegistrationsUseCase` (one indexed query and a bounded
+  batch of deletes), `IReclaimOrphanedContentUseCase` (a walk of the whole object store), and
+  `IInspectDepositedFilesUseCase`, which is not a sweep at all — it is the only thing that moves a
+  file from `deposited` to `available`, so its interval is a latency a user feels rather than a
+  background cost.
+
+**`BackgroundJobs:Enabled` is the role of an instance, and it is the only host-level switch.** True by
+default; false makes the instance serve HTTP and start no loop, and binds no job section, so it is not
+made to supply settings it never reads. Each job keeps its own `Enabled` and interval, read only
+while the role is on, and an invalid enabled setting stops startup instead of looking disabled.
 
 **All three are written on one loop primitive, and it is a primitive rather than a base class.**
 `PeriodicJob.RunAsync`, in `AppTemplate.Presentation.Core/Common/Jobs/`, runs one iteration
@@ -507,29 +514,39 @@ treatment of a pass switched off. Exclusivity between two processes is not its b
 that belongs to the operation, which is why `ILeaderLease` is taken inside the use cases that need
 it and by no loop here.
 
-The Worker proves that the Application layer is composable by a non-HTTP host — it
-references neither `AppTemplate.Api` nor `AppTemplate.Domain` (verified in
-`Src/Presentation/AppTemplate.Worker/AppTemplate.Worker.csproj`), and it calls real use
-cases without shortcutting to infrastructure
-(`Features/Maintenance/MaintenanceBackgroundService.cs`,
-`Features/Reminders/ReminderBackgroundService.cs`,
-`Features/Files/FileBackgroundService.cs`). It shows, in the same stroke, what
-that costs: a host has to answer, one way or another, for the ports that describe its
-calling context. Its `ICurrentUser` is `NoCallerCurrentUser`, which
-`AddNoCallerIdentity()` registers scoped out of `AppTemplate.Presentation.Core` — a
-question this host is not the only one to face, which is why the answer is a subject in
-the shared project rather than a file here. It **throws** on `UserId`, because there is
-no caller to name: no HTTP request and no principal behind it, so returning `null` as if
-it were merely an anonymous caller would let a use case that needs an owner proceed as
-though one existed. `IFireDueRemindersUseCase` takes that constraint furthest: it must
-not read `ICurrentUser` at all, since it acts on every user's due reminders in one pass
-rather than one caller's. What genuinely stays in the host is
-`Common/Security/BackgroundAuditActor.cs`, which names a persistence contract and so
-cannot move into a project written as a package.
+**One container serves requests and jobs, so who is calling depends on the scope.** A job opens each
+pass through `CreateBackgroundScope()` (`Common/Jobs/BackgroundScope.cs`), which marks the scope, and
+the caller and the audit actor are registered once and answer by that mark. In a request scope they
+behave as ever: the principal is the caller, an anonymous request has none, and writes are attributed
+to whoever made them. In a background scope `ICurrentUser` is `NoCallerCurrentUser`, which **throws** on
+`UserId` — there is no request and no principal, so returning `null` as if the caller were merely
+anonymous would let a use case that needs an owner proceed as though one existed — and `IAuditActor`
+is `BackgroundAuditActor`, which records nobody, because nobody made the write.
+`IFireDueRemindersUseCase` takes that constraint furthest: it must not read `ICurrentUser` at all,
+since it acts on every user's due reminders in one pass rather than one caller's. An architecture
+rule holds that no background service opens a scope any other way. `AddNoCallerIdentity()` stays in
+`AppTemplate.Presentation.Core` for a process with no requests at all.
 
-A future rich client is not exempt from that cost either: it would still have to write
-a real `ICurrentUser` naming an actual caller, which is a port implementation, not
-just module composition.
+The jobs prove nothing new about the Application layer — the use cases never knew which host called
+them — but they keep the claim honest: they call real use cases without shortcutting to
+infrastructure, and what changed when they moved into the API is the trigger and nothing else.
+
+**Several instances, and a separate runner.** Set `BackgroundJobs:Enabled=false` on the HTTP-only
+instances and `true` on one designated instance: that stops the file passes, which walk the object
+store, from being multiplied by the replica count, without assuming a queue or a global scheduler.
+The protections underneath stay in place because a rolling deployment, a manual maintenance request
+or a mistaken double-enable can still overlap: the reminder pass takes `ILeaderLease` inside its use
+case (not a fencing token, so delivery stays at-least-once), and the other passes are idempotent. The
+designated instance's job heartbeats — the `iterations` counters — are what show the passes run;
+`/health/ready` reports HTTP readiness only. If measured load or release needs justify a process of
+its own, the hosting adapters and their one composition call move into it, the API sets
+`BackgroundJobs:Enabled=false`, and the new process supplies its own caller, audit identity and
+telemetry. Use cases, contracts and storage guarantees stay where they are: that is a deployment and
+presentation change, not a migration of the business model.
+
+A future rich client is not exempt from the cost of a calling context either: it would still have to
+write a real `ICurrentUser` naming an actual caller, which is a port implementation, not just module
+composition.
 
 ## No MediatR, no CQRS ceremony
 
@@ -846,7 +863,7 @@ change tracker useful without it ever seeing the aggregate.
 | An outbox | Domain-event handlers run in-process, after the commit, so delivery is at-most-once and there is no reliable integration with another system. What stands in for one here is a rule rather than a mechanism: **every consumer re-derives its own precondition**, so none of them is load-bearing. Deleting a stored file's bytes is a fast path over a sweep that lists the store and removes what no row names; cancelling a reminder on completion is re-checked by the firing pass itself, which its own documentation says is what keeps firing correct whether or not that delivery happened. A handler that cannot be written that way belongs behind an outbox — do not do the I/O inline. |
 | Permissions, policies, or tenants | Authorisation is one role. `AuthorizationPolicies.Administrator` requires the `Admin` role and is the only policy beside the default-deny fallback, and nothing anywhere carries a tenant. Policies extend where that one is registered, in `AppTemplate.Api/Common/Security/AuthorizationPolicies.cs`, or through ASP.NET Core's own `IAuthorizationPolicyProvider` for a permission set computed rather than listed. A tenant is not a policy, though: every owned aggregate holds a bare `Guid OwnerId`, and a tenant would be a second column beside it on every table and in every ownership check. |
 | Machine-to-machine authentication | No API keys and no client-credentials flow: every token this template mints belongs to a person who signed in. The extension point is a second authentication scheme beside the bearer one `AddAuthModule` registers, and `IAccessTokenIssuer` is the port a client-credentials grant would mint through. |
-| A message bus or queue port | The Worker polls the database on a timer, and the operations that must not run twice at once take `ILeaderLease` — a Postgres advisory lock — rather than relying on a single consumer. A broker would arrive the way every other capability does: a port in `AppTemplate.Application.Core/Common/Ports/`, an adapter in a module of its own, one line in each host's composition. |
+| A message bus or queue port | The background jobs poll the database on a timer, and the operations that must not run twice at once take `ILeaderLease` — a Postgres advisory lock — rather than relying on a single consumer. A broker would arrive the way every other capability does: a port in `AppTemplate.Application.Core/Common/Ports/`, an adapter in a module of its own, one line in each host's composition. |
 | Minimal APIs | Everything is MVC. The idempotency filter is an action filter, `ApiControllerBase` does the result-to-response mapping, and the ETag handling hangs off the same machinery — so a minimal endpoint mapped beside the controllers inherits none of it and is not supported. Nothing stops one being mapped; what it costs is those three, each of which would have to be re-expressed as an endpoint filter. |
 | SMS, push notifications, feature flags, a business audit log | `IEmailSender` is the only notification port, and a second channel is a second port beside it rather than a widening of that one. The audit columns are not a log: they record who last wrote a row, not what changed, so a history is a table of its own — the interceptor pipeline in `AppTemplate.Infrastructure.Persistence/Common/` is where one would be written. |
 | Output caching | There is a cache — `ICacheStore` over `HybridCache` — and it is deliberately not wired to responses. Output caching keys on the request, and every read here is a per-caller one behind default-deny authorisation, so a response cache is a chance to serve one caller's list to another. What is cached is a value a use case asked for, by a key naming the owner. Revalidation is what the HTTP layer offers instead: `ETag`, `If-None-Match`, and `private, no-cache`. A deployment wanting a shared second level registers an `IDistributedCache` beside `AddCacheStore()` and changes no caller: that is configuration, not code, which is why a distributed cache is not on this list. |

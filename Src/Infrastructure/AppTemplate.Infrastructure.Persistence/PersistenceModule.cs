@@ -47,6 +47,13 @@ namespace AppTemplate.Infrastructure.Persistence;
 public static class PersistenceModule
 {
     /// <summary>
+    /// The name of the meter the reminder diagnostics publish on. A host that fires reminders adds
+    /// it to its telemetry registration by this constant, so the declaration and the registration
+    /// cannot drift apart.
+    /// </summary>
+    public const string RemindersMeterName = "AppTemplate.Reminders";
+
+    /// <summary>
     /// Registers everything that touches the database. Idempotent: the host calls it, and so does the
     /// authentication module, which needs the context and the clock.
     /// </summary>

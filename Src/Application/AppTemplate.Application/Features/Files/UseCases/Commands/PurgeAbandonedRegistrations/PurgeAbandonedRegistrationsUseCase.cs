@@ -10,8 +10,8 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandone
 /// and never used it leaves a pending row for ever otherwise, holding a slot against its owner's
 /// quota that nothing would ever give back.
 /// <para>
-/// <b>Runs from <c>AppTemplate.Worker</c>, so it must not read <see cref="ICurrentUser"/>:</b> that
-/// host's implementation throws rather than invent an anonymous caller, and the registrations swept
+/// <b>Runs from a background job, so it must not read <see cref="ICurrentUser"/>:</b> a background
+/// scope's implementation throws rather than invent an anonymous caller, and the registrations swept
 /// here belong to every owner and to none of them.
 /// </para>
 /// <para>

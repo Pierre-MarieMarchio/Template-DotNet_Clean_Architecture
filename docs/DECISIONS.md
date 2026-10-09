@@ -51,6 +51,17 @@ was green, because nothing related the events raised to the consumers registered
 `DomainEventTests` now does: every event is either consumed or written into a list saying why it is
 not.
 
+**A sweep is only a guarantee if it reaches everything**, so each Files pass states its retry
+guarantee. All three run under `ILeaderLease`, one host at a time. **Inspection** commits each file
+on its own and defers a file that gets no verdict — one minute, doubled per attempt, at most one
+hour — behind the files that have waited longer: every deposited file is offered again at most an
+hour after its last attempt, none can hold the front of the queue, and an outage never releases or
+refuses a file. **The abandonment purge** is idempotent: a failed pass writes nothing and leaves
+rows the next pass selects again. **Orphan reclamation** walks the keys in order from a checkpoint
+saved after each page and reset at the end of the namespace, so every object present when a walk
+starts is visited within ⌈objects / per-pass budget⌉ + 1 passes across restarts; the `FileSystem`
+store's temporary files older than a day are reclaimed by the same walk.
+
 **Extract what two real cases prove identical, and nothing more.** A guessed abstraction is a worse
 defect than an assumed duplication: the duplication is visible and local, the wrong abstraction is
 neither. Measure first — `wc -l`, `diff` — and require two cases that do the same thing, not two
@@ -96,9 +107,9 @@ the two, for the same reason `RequestTimeoutsOptions` gives about the layer belo
 number moves, re-read both.
 
 **Exclusivity between hosts belongs to the operation, not to the loop that starts it.**
-`ILeaderLease` is an application port, and `FireDueRemindersUseCase` is what takes it — not
-`ReminderBackgroundService`. A `BackgroundService` is a trigger; a guard placed there protects the
-timer's callers and nobody else, and the two purges are already exposed over HTTP by
+`ILeaderLease` is an application port, and `FireDueRemindersUseCase` and the three Files passes are
+what take it — not their background services. A `BackgroundService` is a trigger; a guard placed
+there protects the timer's callers and nobody else, and the two purges are already exposed over HTTP by
 `MaintenanceController` as the standing reminder that a second caller does turn up. The adapter is
 a PostgreSQL session-level advisory lock (`Common/Leases/`), chosen because losing the process
 releases the lock rather than stranding a lease until a timer says otherwise. **It is not a fencing

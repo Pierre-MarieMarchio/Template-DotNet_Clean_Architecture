@@ -4,6 +4,7 @@ using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
+using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
@@ -130,6 +131,21 @@ public static class InMemoryModule
         services.RemoveAll<IOwnerQuotaLock>();
         services.AddSingleton<IOwnerQuotaLock>(
             new InMemoryOwnerQuotaLock(waitLimit ?? InMemoryOwnerQuotaLock.DefaultWaitLimit));
+
+        return services;
+    }
+
+    /// <summary>
+    /// Replaces the orphan sweep's checkpoint with one held in this process, for a host without
+    /// PostgreSQL. Not part of <see cref="AddInMemoryModule"/>, for the same reason as
+    /// <see cref="AddInMemoryOwnerQuotaLock"/>.
+    /// </summary>
+    public static IServiceCollection AddInMemoryOrphanSweepCheckpoint(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.RemoveAll<IOrphanSweepCheckpoint>();
+        services.AddSingleton<IOrphanSweepCheckpoint, InMemoryOrphanSweepCheckpoint>();
 
         return services;
     }

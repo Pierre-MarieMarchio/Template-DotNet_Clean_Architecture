@@ -97,6 +97,39 @@ public sealed class StoredFileRecordConfigurationTests
         index.GetIncludeProperties().ShouldBe([nameof(StoredFileRecord.SizeInBytes)]);
     }
 
+    /// <summary>
+    /// The inspection queue is read through a partial index holding deposited rows only, so the due
+    /// filter and its sort never scan the files already decided.
+    /// </summary>
+    [Fact]
+    public void TheInspectionQueue_IsServedByAPartialIndexOverDepositedRows()
+    {
+        var index = Entity().GetIndexes().SingleOrDefault(candidate =>
+            candidate.Properties.Select(property => property.Name).SequenceEqual(
+                [nameof(StoredFileRecord.NextInspectionAt), nameof(StoredFileRecord.RegisteredAt), nameof(StoredFileRecord.Id)]));
+
+        index.ShouldNotBeNull();
+        index.GetFilter().ShouldBe($"\"State\" = {(int)StoredFileState.Deposited}");
+    }
+
+    [Fact]
+    public void TheOrphanSweepCheckpoint_IsOneRowPerWalkInTheFeaturesOwnSchema()
+    {
+        using var context = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>()
+                .UseNpgsql("Host=localhost;Database=never-opened;Username=none;Password=none")
+                .Options);
+
+        var entity = context.Model.FindEntityType(typeof(ContentSweepCheckpointRecord))!;
+
+        entity.GetSchema().ShouldBe(AppDbContext.FilesSchema);
+        entity.GetTableName().ShouldBe("ContentSweepCheckpoints");
+        entity.FindPrimaryKey()!.Properties.Select(property => property.Name)
+            .ShouldBe([nameof(ContentSweepCheckpointRecord.Name)]);
+        entity.FindProperty(nameof(ContentSweepCheckpointRecord.LastKey))!.IsNullable.ShouldBeTrue();
+        entity.FindProperty(nameof(ContentSweepCheckpointRecord.LastKey))!.GetMaxLength().ShouldBe(ObjectKey.MaxLength);
+    }
+
     [Fact]
     public void TheCategory_IsRequired() =>
         Entity().FindProperty(nameof(StoredFileRecord.Category))!.IsNullable.ShouldBeFalse();

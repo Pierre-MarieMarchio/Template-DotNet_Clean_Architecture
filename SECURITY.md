@@ -268,8 +268,9 @@ says otherwise.
   `available`, until the loop has decided — and `FileWorker:InspectDepositedFilesInterval` is
   therefore a user-visible latency rather than a cost.
 - **No verdict is not a pass.** A scanner that cannot be reached leaves the file `deposited` and
-  retries; it never releases it. Fail-open would make an outage a way through, which is the one
-  failure mode that is worse than the outage.
+  retries — one minute later, doubling, at most an hour — behind the files that have waited longer;
+  it never releases it and never refuses it. Fail-open would make an outage a way through, which is
+  the one failure mode that is worse than the outage.
 - **`Quarantined` is a persisted, terminal state, and it costs no query a predicate.** The only
   place that hands out bytes guards with an allow-list — `State != Available` refuses — so a new
   state is refused the day it is added rather than the day someone remembers to extend a predicate.

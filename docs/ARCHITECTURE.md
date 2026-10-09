@@ -559,8 +559,8 @@ Three `BackgroundService`s, composed by the one call `AddBackgroundJobs()`
   use case ever has, since firing a reminder must never run behind a request.
 - `FileBackgroundService` runs three passes on three separate timers, because their costs are three
   orders of magnitude apart: `IPurgeAbandonedRegistrationsUseCase` (one indexed query and a bounded
-  batch of deletes), `IReclaimOrphanedContentUseCase` (a walk of the whole object store), and
-  `IInspectDepositedFilesUseCase`, which is not a sweep at all — it is the only thing that moves a
+  batch of deletes), `IReclaimOrphanedContentUseCase` (a checkpointed walk of the object store, a
+  bounded budget per pass), and `IInspectDepositedFilesUseCase`, which is not a sweep at all — it is the only thing that moves a
   file from `deposited` to `available`, so its interval is a latency a user feels rather than a
   background cost. A file reaches `deposited` by either upload mode — a direct deposit on the store
   that `ConfirmFileUploadUseCase` confirms, or `UploadFileUseCase`, which receives the bytes in a
@@ -608,8 +608,9 @@ infrastructure, and what changed when they moved into the API is the trigger and
 instances and `true` on one designated instance: that stops the file passes, which walk the object
 store, from being multiplied by the replica count, without assuming a queue or a global scheduler.
 The protections underneath stay in place because a rolling deployment, a manual maintenance request
-or a mistaken double-enable can still overlap: the reminder pass takes `ILeaderLease` inside its use
-case (not a fencing token, so delivery stays at-least-once), and the other passes are idempotent. The
+or a mistaken double-enable can still overlap: the reminder pass and the three file passes take
+`ILeaderLease` inside their use cases (not a fencing token, so delivery stays at-least-once), and the
+maintenance purges are idempotent. Each file pass's retry guarantee is stated in `DECISIONS.md`. The
 designated instance's job heartbeats — the `iterations` counters — are what show the passes run;
 `/health/ready` reports HTTP readiness only. If measured load or release needs justify a process of
 its own, the hosting adapters and their one composition call move into it, the API sets

@@ -467,25 +467,9 @@ is not the same as "still demonstrated somewhere."
 
 ### With `TodoLists` and `Reminders` gone, `Files` kept
 
-Four things lose their only example, and one of them is measured.
+Three things lose their only example. `ILeaderLease` is not among them: the three `Files` passes
+take it.
 
-- **`ILeaderLease`, and with it the only reason the reminder pass can run on more than one instance.** The
-  port and its `PostgresLeaderLease` adapter are base, not example — but its only consumer is
-  `FireDueRemindersUseCase`. The two file loops document at length why they take *no* lease, so they
-  are not a substitute. Removing `Reminders` alone is enough:
-  `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` reports
-  `ILeaderLease` as the one unconsumed port, and
-  `BackgroundWorkTests.TheLeaderLease_IsTakenByAUseCase` finds no use case taking it. Both were
-  observed. Two honest ways out, and the choice is about your project rather than about the
-  template. Either put the first operation of yours that must not run twice at once under the lease
-  — which is what it is for — or, if you genuinely have no such operation, delete the port, its
-  adapter, its integration tests, the `Leases` entry in `LayoutConventionTests`'s `Common/`
-  vocabulary and `BackgroundWorkTests` itself, and remember that
-  a deployment must then run at most one instance with `BackgroundJobs:Enabled` true unless its
-  remaining operations are safe to run concurrently.
-  Measured, that deletion costs four more compile errors: three `<see cref="ILeaderLease"/>`
-  comments in the surviving `Files` code and one substitute registration in
-  `ApplicationModuleTests`.
 - **One event reaching two independent consumers.** `TodoItemCompletedDomainEvent` is consumed by
   `LogTodoItemCompletedConsumer` and by `CancelRemindersOnTodoItemCompletedConsumer`, registered by
   a different feature and unaware of each other. `Files` raises three domain events and has one
@@ -530,8 +514,13 @@ the fallback the same way.
 Everything in that table loses its last example. The rules that catch it, each of which fails rather
 than passing over nothing:
 
-- `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` — `IUnitOfWork` joins
-  `ILeaderLease` with zero callers in the application layer.
+- `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` — `IUnitOfWork` and
+  `ILeaderLease` have zero callers in the application layer, and
+  `BackgroundWorkTests.TheLeaderLease_IsTakenByAUseCase` finds no use case taking the lease. Either
+  put the first operation of yours that must not run twice at once under the lease, or delete the
+  port, its adapter, its integration tests, the `Leases` entry in `LayoutConventionTests`'s `Common/`
+  vocabulary and `BackgroundWorkTests` itself — and then run at most one instance with
+  `BackgroundJobs:Enabled` true unless what remains is safe to run concurrently.
 - `SharedInstanceRegistrationTests.EveryAggregateTracker_ResolvesAsOneInstanceUnderEveryContractItServes`
   — its floor is two trackers; the composed container has none.
 - `DefaultDenyAuthorizationTests` — no controller left that relies on the fallback policy.
@@ -572,14 +561,13 @@ needed "some authenticated endpoint" at `GET /api/v1/auth/me` (reads) or `POST
 ## What else fails
 
 Beyond the mechanisms above, a removal breaks a tail of smaller things, by count or by name rather
-than by missing mechanism. The `Reminders`-only list is measured — these are the nine tests that go
-red, and the edit each one needs:
+than by missing mechanism. The `Reminders`-only list was measured with nine tests; the two lease
+rows dropped out once the `Files` passes took the lease, which leaves these seven and the edit each
+one needs:
 
 | Test | Why | The edit |
 |---|---|---|
 | `PendingModelChangesTests.TheModel_IsFullyCoveredByTheMigrations` | snapshot and model disagree | the migration section above |
-| `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` | `ILeaderLease` unconsumed | the choice described above |
-| `BackgroundWorkTests.TheLeaderLease_IsTakenByAUseCase` | same | same |
 | `BackgroundWorkTests.NoBackgroundService_TakesTheLeaderLease` | its floor is three background services, two remain | lower the floor |
 | `ObservabilityRegistrationTests.EveryDiagnosticsNameAHostDeclares_IsRegisteredByThatHost` | its floor is six instruments, four remain | lower the floor |
 | `PersistenceModelTests.EveryEntityTypeConfiguration_IsAppliedByTheContext` and `…EveryConfigurationTheContextApplies_IsDeclaredInTheModule` | nothing, as long as the configuration file and its `ApplyConfiguration` call go together | delete both, or neither |
@@ -677,9 +665,9 @@ if your project stores anything at all in an object store, re-pointing `StoredFi
 metadata is less work than removing it and adding a second store back later.
 
 **Removing `Reminders`, keeping `TodoLists` and `Files`.** The measured path, and the smallest one:
-three rounds of `dotnet build` and nine failing tests, each with a one-line fix above. `TodoLists`
-never references `Reminders` outside two doc comments. What actually leaves is `ILeaderLease`'s only
-consumer, the second consumer of `TodoItemCompletedDomainEvent`, and one `[Idempotent]` action.
+three rounds of `dotnet build` and seven failing tests, each with a one-line fix above. `TodoLists`
+never references `Reminders` outside two doc comments. What actually leaves is one of `ILeaderLease`'s
+consumers, the second consumer of `TodoItemCompletedDomainEvent`, and one `[Idempotent]` action.
 
 **Removing `TodoLists`, keeping `Reminders`.** Not a smaller version of the full removal — it does
 not compile. `Reminders` calls `ITodoItemQueries` and consumes `TodoItemCompletedDomainEvent`.

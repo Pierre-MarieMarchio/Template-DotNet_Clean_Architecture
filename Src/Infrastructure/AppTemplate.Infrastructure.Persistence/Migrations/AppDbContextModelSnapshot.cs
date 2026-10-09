@@ -76,6 +76,24 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("IdempotencyKeys", "platform");
                 });
 
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.ContentSweepCheckpointRecord", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("LastKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Name");
+
+                    b.ToTable("ContentSweepCheckpoints", "files");
+                });
+
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -105,6 +123,9 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<int>("InspectionAttempts")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -115,6 +136,9 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<DateTimeOffset?>("NextInspectionAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ObjectKey")
                         .IsRequired()
@@ -147,6 +171,10 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("State", "RegisteredAt")
                         .HasDatabaseName("IX_StoredFiles_State_RegisteredAt");
+
+                    b.HasIndex("NextInspectionAt", "RegisteredAt", "Id")
+                        .HasDatabaseName("IX_StoredFiles_Deposited_NextInspectionAt_RegisteredAt_Id")
+                        .HasFilter("\"State\" = 2");
 
                     b.HasIndex("OwnerId", "AvailableAt", "Id")
                         .HasDatabaseName("IX_StoredFiles_OwnerId_AvailableAt_Id");

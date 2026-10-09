@@ -2,41 +2,36 @@
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 
 /// <summary>
-/// Removes registrations that were never deposited against. A client that asked for an upload URL
-/// and never used it leaves a pending row for ever otherwise, holding a slot against its owner's
-/// quota that nothing would ever give back.
+/// Removes registrations that were never deposited against, so the quota slot each one holds comes
+/// back. The query is the coarse filter and <see cref="StoredFile.IsAbandoned"/> the decision,
+/// re-checked per file. Each removal announces <see cref="StoredFile.Delete"/> so deposited but
+/// unconfirmed bytes are reclaimed promptly; <c>ReclaimOrphanedContentUseCase</c> reclaims them
+/// regardless. Runs from a background job and must not read <see cref="ICurrentUser"/>.
 /// <para>
-/// <b>Runs from a background job, so it must not read <see cref="ICurrentUser"/>:</b> a background
-/// scope's implementation throws rather than invent an anonymous caller, and the registrations swept
-/// here belong to every owner and to none of them.
-/// </para>
-/// <para>
-/// <b>No leader lease</b>, on the line <see cref="ILeaderLease"/>'s own documentation draws: this
-/// pass only issues idempotent deletes over a range already covered, so two hosts running it at
-/// once remove the same rows, one loses on <c>xmin</c>, and the same set of rows ends up gone.
-/// </para>
-/// <para>
-/// The query is the coarse filter and <see cref="StoredFile.IsAbandoned"/> is the decision, checked
-/// again per file for the reason the repository's own documentation gives: the query is chosen for
-/// an index, and only the aggregate can say whether one of the rows it returned may actually be
-/// given up on.
-/// </para>
-/// <para>
-/// Each file's <see cref="StoredFile.Delete"/> is announced alongside the removal, so any bytes a
-/// client did deposit without confirming are reclaimed promptly. Nothing depends on that: an object
-/// under a key no row names is reclaimed by <c>ReclaimOrphanedContentUseCase</c> whether the event
-/// arrived or not.
+/// <b>Retry guarantee.</b> One host at a time, under the <c>apptemplate.files.purge-abandoned</c>
+/// lease. Idempotent: a batch is one commit, and a pass that fails — a row confirmed or deleted
+/// meanwhile, an unreachable database — writes nothing and leaves rows the next pass selects again.
+/// A row that stopped being pending is no longer selected, so it cannot block the others.
 /// </para>
 /// </summary>
 public sealed class PurgeAbandonedRegistrationsUseCase(
     IStoredFileRepository repository,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider) : IPurgeAbandonedRegistrationsUseCase
+    IDateTimeProvider dateTimeProvider,
+    ILeaderLease lease,
+    ILogger<PurgeAbandonedRegistrationsUseCase> logger) : IPurgeAbandonedRegistrationsUseCase
 {
+    /// <summary>
+    /// The lock key is derived from this name, so it is a contract across releases: renaming it lets
+    /// two releases of a rolling deploy both run the pass.
+    /// </summary>
+    private const string _leaseName = "apptemplate.files.purge-abandoned";
+
     /// <summary>
     /// How long a registration may wait for its deposit. Longer than the upload window a grant is
     /// minted for, so a client using its full window is never swept out from under a deposit still
@@ -49,6 +44,25 @@ public sealed class PurgeAbandonedRegistrationsUseCase(
     private const int _batchSize = 200;
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    {
+        int purged = 0;
+
+        bool ranHere = await lease.TryRunExclusivelyAsync(
+            _leaseName,
+            async leaseToken => purged = await PurgeBatchAsync(leaseToken),
+            cancellationToken);
+
+        if (!ranHere && logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Abandoned-registration purge skipped: another host holds the '{LeaseName}' lease.",
+                _leaseName);
+        }
+
+        return purged;
+    }
+
+    private async Task<int> PurgeBatchAsync(CancellationToken cancellationToken)
     {
         var now = dateTimeProvider.UtcNow;
 
@@ -73,8 +87,6 @@ public sealed class PurgeAbandonedRegistrationsUseCase(
 
         if (purged == 0)
         {
-            // Nothing staged, so there is nothing to commit and no point paying for a round trip to
-            // prove it.
             return purged;
         }
 

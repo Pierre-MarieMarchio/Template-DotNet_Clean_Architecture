@@ -102,8 +102,8 @@ against your production system.
 ### Abuse resistance
 - Rate limiting per client address: 10 requests/minute on the authentication endpoints, 300/minute
   globally, answering `429` with `Retry-After` and a ProblemDetails body. The two numbers are
-  `RateLimitingExtensions.AuthenticationPermitLimit` and `.GlobalPermitLimit`, over the
-  one-minute `RateLimiterWindow.Default`.
+  `RateLimiting:AuthenticationPermitLimit` and `RateLimiting:GlobalPermitLimit`, over the
+  one-minute `RateLimiting:Window`; those are the defaults.
 - **This is only correct if `ReverseProxy` is configured — see the deployment obligations.**
 - Bounded aggregates: a maximum number of items per list and tags per item, so one request cannot
   make the server do unbounded work.

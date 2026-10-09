@@ -249,10 +249,11 @@ language is that a grammar the client composes is a query planner you then own.
 
 | Scope | Limit | On rejection |
 |---|---|---|
-| `api/v1/auth/*` | 10 requests/minute per IP | 429 + `Retry-After: 60` + `code: rateLimit.exceeded` |
-| Everything else | 300 requests/minute per IP | same |
+| `api/v1/auth/*` | 10 requests/minute per IP (default) | 429 + `Retry-After: 60` + `code: rateLimit.exceeded` |
+| Everything else | 300 requests/minute per IP (default) | same |
 
-Fixed windows, partitioned by `RemoteIpAddress`. **Behind a reverse proxy this needs the
+Fixed windows, partitioned by `RemoteIpAddress`. The numbers are the defaults of the `RateLimiting`
+section. **Behind a reverse proxy this needs the
 `ReverseProxy` section turned on**, otherwise every request appears to come from the proxy
 and the whole world shares one partition. It is off by default because the trust list
 depends on your topology — and the validator refuses to start with `Enabled: true` and both

@@ -208,7 +208,7 @@ there: what is deliberately not configurable, and how a key becomes an environme
 | Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Storage`](#storage) · [`ContentInspection`](#contentinspection) |
 | Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
 | Mail | [`Email:Transport`](#emailtransport--smtp-or-an-http-api) · [`Email`](#email) · [`Postmark`](#postmark) · [`EmailConfirmation`](#emailconfirmation) · [`PasswordReset`](#passwordreset) · [`EmailChange`](#emailchange) · [`Localization`](#localization) |
-| The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [rate limiting](#rate-limiting--one-seam-one-implementation-and-no-redis) |
+| The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [`RateLimiting`](#ratelimiting) |
 | Correctness mechanisms | [`Concurrency`](#concurrency) · [`Idempotency`](#idempotency) · [`IdempotencyPurge`](#idempotencypurge) |
 | Lifecycle and observability | [`Shutdown`](#shutdown) · [`OpenTelemetry`](#opentelemetry) · [standard ASP.NET Core keys](#standard-aspnet-core-keys) |
 | `AppTemplate.Worker` only | [`FileWorker`](#fileworker--apptemplateworker-only) · [`MaintenanceWorker`](#maintenanceworker--apptemplateworker-only) · [`ReminderWorker`](#reminderworker--apptemplateworker-only) |
@@ -330,20 +330,49 @@ Bound only when `Email:Transport` is `Postmark`.
 | `ApiBaseUrl` | string | `https://api.postmarkapp.com/` | no — must be an absolute `http`/`https` URL. Plain `http` is refused against anything but loopback, because the server token travels on it. |
 | `MessageStream` | string | `outbound` | no — **must not be blank.** Postmark applies no implicit stream, so an empty value is a refusal rather than a default. |
 
-### Rate limiting — one seam, one implementation, and no Redis
+### `RateLimiting`
 
-The limiter is **in-process**, so the effective limit is the configured one **times the replica
-count**. That is documented rather than hidden, and it is a real gap for an API that means to be
-critical: a stated 100 requests a minute becomes 400 at four replicas, and the only place the true
-number exists is the pod count.
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Window` | timespan | `00:01:00` | Length of the fixed window both limits count over. Must be 1 second – 1 day. |
+| `AuthenticationPermitLimit` | int | `10` | Requests per window and client address on the authentication controller (policy `authentication`). Must be at least 1. |
+| `GlobalPermitLimit` | int | `300` | Requests per window and client address on every request. Must be at least 1. |
 
-What ships is the **seam**, not a distributed limiter: the counting is behind an abstraction, the
-in-process counters are the one implementation, and a distributed adapter would replace that one
-type. **Redis is deliberately not added.** This template already refused output caching and a
+Read by `Src/Presentation/AppTemplate.Api.Core/Common/Security/RateLimitingExtensions.cs`. A refused
+request answers `429` with `Retry-After` and a `ProblemDetails` body with
+`code: "rateLimit.exceeded"`.
+
+**Both rate limits are per instance, so the limit a caller actually meets is multiplied by your
+replica count.** The limiter keeps its counters in the memory of one process; nothing is shared
+between replicas. With the shipped defaults behind a load balancer spreading traffic evenly:
+
+```
+effective limit for one client address = AuthenticationPermitLimit (or GlobalPermitLimit) x number of API replicas
+```
+
+Four replicas therefore admit 40 authentication attempts per minute per address, not 10. Size the
+numbers against the replica count you actually run, and re-check them when you scale. This is a
+deliberate trade rather than a gap: a shared counter means a shared store on the path of every
+request, which buys exactness at the price of a new dependency the limiter must then survive the
+loss of. Where a bound must hold across replicas — a tenant that may not spend another's budget —
+the answer is a second deployment of the same image with its own ingress rules, not a distributed
+counter.
+
+Both limits also partition on the **client address**, including for authenticated callers, so
+callers sharing an address share a budget. `Src/Presentation/AppTemplate.Api.Core/Common/Security/RateLimiterPartitionKeys.cs`
+explains why partitioning the global limiter by user identity is not available at the point the key
+is computed, and why moving authentication earlier to make it available would cost more than it
+saves. Behind a proxy this all depends on `ReverseProxy` being configured — see [`ReverseProxy`](#reverseproxy); without it
+every request carries the proxy's address and the whole deployment shares one partition.
+
+**Redis is deliberately not added.** This template already refused output caching and a
 security-stamp cache with reasons written down, so it has no distributed cache to reuse — and
-bringing a vendor in for a single capability is exactly the weight it avoids. Making the seam now
-means the day a deployment needs a shared count, it writes one adapter instead of rewriting the
-middleware.
+bringing a vendor in for a single capability is exactly the weight it avoids. A deployment that
+needs a shared count replaces the registration in `RateLimitingExtensions` with a limiter of its
+own, which must keep writing `Retry-After`.
+
+**Set `Window` or a limit outside its range** and the host fails `ValidateOnStart()` and does not
+boot.
 
 ### `ExternalIdentity`
 
@@ -1062,8 +1091,6 @@ knob: `IFireDueRemindersUseCase` takes no command, so how many reminders one pas
 
 | Behaviour | Value | Where |
 |---|---|---|
-| Auth rate limit | 10 requests/minute per client address | `Src/Presentation/AppTemplate.Api.Core/Common/Security/RateLimitingExtensions.cs` |
-| Global rate limit | 300 requests/minute per client address | same |
 | Refresh token size / hash | 32 bytes CSPRNG / SHA-256 | `RefreshTokenGrants` |
 | Aggregate item cap | 500 items per list | `TodoList.MaxItems` |
 | Tag cap | 20 tags per item | `TodoItem.MaxTags` |
@@ -1095,29 +1122,6 @@ without any caller changing. Output caching is deliberately absent — see
 `Cache-Control` has no setting because there is only one defensible value for a per-user
 authenticated response: caching here is revalidation, not storage. An endpoint whose response is identical for every
 caller may set its own header; the middleware never overwrites one already present.
-
-**Both rate limits are per instance, so the limit a caller actually meets is multiplied by your
-replica count.** The limiter keeps its counters in the memory of one process; nothing is shared
-between replicas. With the shipped defaults behind a load balancer spreading traffic evenly:
-
-```
-effective limit for one client address = 10 (or 300) x number of API replicas
-```
-
-Four replicas therefore admit 40 authentication attempts per minute per address, not 10. Size the
-numbers against the replica count you actually run, and re-check them when you scale. This is a
-deliberate trade rather than a gap: a shared counter means a shared store on the path of every
-request, which buys exactness at the price of a new dependency the limiter must then survive the
-loss of. Where a bound must hold across replicas — a tenant that may not spend another's budget —
-the answer is a second deployment of the same image with its own ingress rules, not a distributed
-counter.
-
-Both limits also partition on the **client address**, including for authenticated callers, so
-callers sharing an address share a budget. `Src/Presentation/AppTemplate.Api.Core/Common/Security/RateLimiterPartitionKeys.cs`
-explains why partitioning the global limiter by user identity is not available at the point the key
-is computed, and why moving authentication earlier to make it available would cost more than it
-saves. Behind a proxy this all depends on `ReverseProxy` being configured — see above; without it
-every request carries the proxy's address and the whole deployment shares one partition.
 
 **The four file bounds are the anti-abuse rule of a feature that hands out signed write
 URLs**, and they measure three different costs: how many unexpired write rights one caller

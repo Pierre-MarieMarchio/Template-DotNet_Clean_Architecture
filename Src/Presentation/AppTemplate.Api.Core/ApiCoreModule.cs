@@ -57,7 +57,7 @@ public static class ApiCoreModule
         services.AddApiForwardedHeaders(configuration);
         services.AddApiSecurityHeaders(configuration);
         services.AddApiCors(configuration);
-        services.AddApiRateLimiting();
+        services.AddApiRateLimiting(configuration);
         services.AddApiConcurrency(configuration);
         services.AddApiIdempotency(configuration);
         services.AddApiRequestLimits(configuration);

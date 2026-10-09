@@ -11,8 +11,10 @@ using AppTemplate.Application.Core.Common.Events;
 //#if (todoLists)
 using AppTemplate.Domain.Features.TodoLists.Events;
 //#endif
+//#if (localAuth)
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
+//#endif
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.AspNetCore.Http;
@@ -25,13 +27,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AppTemplate.Api.UnitTests.Composition;
 
 /// <summary>
-/// The host's two persistence contexts, composed by the real module entry points, with PostgreSQL
+/// The host's persistence contexts, composed by the real module entry points, with PostgreSQL
 /// swapped for an in-memory SQLite database per context.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>What is real.</b> <c>AddPersistenceModule</c>, <c>AddAuthModule</c>, the application's
-/// consumers and the host's caller identity are composed exactly as <c>Program.cs</c> composes them,
+/// <b>What is real.</b> <c>AddPersistenceModule</c>, the local accounts' module where the host has
+/// one, the application's consumers and the host's caller identity are composed exactly as <c>Program.cs</c> composes them,
 /// so each context carries whatever save-changes interceptors its module attaches, resolved from the
 /// scope the way the module resolves them. Only the provider extension of each composed
 /// <c>DbContextOptions</c> is replaced: everything else the module put on the options, the
@@ -49,18 +51,24 @@ namespace AppTemplate.Api.UnitTests.Composition;
 internal sealed partial class SqliteSavingHost : IAsyncDisposable
 {
     private readonly SqliteConnection _businessKeeper;
+    //#if (localAuth)
     private readonly SqliteConnection _authKeeper;
+    //#endif
     private readonly HttpContextAccessor _httpContextAccessor;
 
     private SqliteSavingHost(
         SqliteConnection businessKeeper,
+        //#if (localAuth)
         SqliteConnection authKeeper,
+        //#endif
         HttpContextAccessor httpContextAccessor,
         ServiceProvider services,
         PublishedEvents published)
     {
         _businessKeeper = businessKeeper;
+        //#if (localAuth)
         _authKeeper = authKeeper;
+        //#endif
         _httpContextAccessor = httpContextAccessor;
         Services = services;
         Published = published;
@@ -74,13 +82,19 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
     public static async Task<SqliteSavingHost> StartAsync(CancellationToken cancellationToken)
     {
         string businessDatabase = AnInMemoryDatabase("business");
+        //#if (localAuth)
         string authDatabase = AnInMemoryDatabase("auth");
+        //#endif
 
         // A shared-cache in-memory database lives as long as one connection to it is open.
         var businessKeeper = new SqliteConnection(businessDatabase);
+        //#if (localAuth)
         var authKeeper = new SqliteConnection(authDatabase);
+        //#endif
         await businessKeeper.OpenAsync(cancellationToken);
+        //#if (localAuth)
         await authKeeper.OpenAsync(cancellationToken);
+        //#endif
 
         var httpContextAccessor = new HttpContextAccessor();
         var published = new PublishedEvents(businessDatabase);
@@ -102,7 +116,9 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
         services.AddReminders();
         //#endif
         services.AddPersistenceModule(Configuration());
+        //#if (localAuth)
         services.AddAuthModule(Configuration());
+        //#endif
 
         services.AddSingleton(published);
         //#if (todoLists)
@@ -111,13 +127,21 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
         //#endif
 
         OnSqlite<AppDbContext>(services, businessDatabase);
+        //#if (localAuth)
         OnSqlite<AuthDbContext>(services, authDatabase);
+        //#endif
 
         var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        /*#if (localAuth)*/
         var host = new SqliteSavingHost(businessKeeper, authKeeper, httpContextAccessor, provider, published);
+        /*#else
+        var host = new SqliteSavingHost(businessKeeper, httpContextAccessor, provider, published);
+        #endif*/
 
         await host.CreateSchemaAsync<AppDbContext>(businessKeeper, cancellationToken);
+        //#if (localAuth)
         await host.CreateSchemaAsync<AuthDbContext>(authKeeper, cancellationToken);
+        //#endif
 
         return host;
     }
@@ -152,7 +176,9 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
         _httpContextAccessor.HttpContext = null;
         await Services.DisposeAsync();
         await _businessKeeper.DisposeAsync();
+        //#if (localAuth)
         await _authKeeper.DisposeAsync();
+        //#endif
     }
 
     internal static string AnInMemoryDatabase(string name) =>

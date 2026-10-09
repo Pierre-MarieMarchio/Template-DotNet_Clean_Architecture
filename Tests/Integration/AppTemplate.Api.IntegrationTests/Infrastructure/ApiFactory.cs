@@ -17,7 +17,7 @@ using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Email.Common.Smtp;
 using AppTemplate.Infrastructure.InMemory;
-//#if (localAuth)
+//#if (!publicApi)
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 //#endif
 using Microsoft.AspNetCore.Hosting;
@@ -26,6 +26,9 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+/*#if (externalAuth)
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+#endif*/
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 
@@ -114,6 +117,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
             ExposeTheReasonATokenWasRefused(services);
             //#endif
+            /*#if (externalAuth)
+
+            TrustTheStandInProvider(services);
+            #endif*/
         });
     }
 
@@ -150,6 +157,23 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             });
 
     //#endif
+    /*#if (externalAuth)
+    /// <summary>
+    /// What <see cref="ExternalProvider"/>'s discovery document would have said: its issuer, signing
+    /// with its key. A configure action, not a post-configure one: the bearer handler's own
+    /// post-configuration builds its metadata source from whatever configuration is set by then, and
+    /// only fetches the authority's document when none is.
+    /// </summary>
+    private static void TrustTheStandInProvider(IServiceCollection services) =>
+        services.Configure<JwtBearerOptions>(
+            JwtBearerDefaults.AuthenticationScheme,
+            options =>
+            {
+                options.Configuration = new OpenIdConnectConfiguration { Issuer = ExternalProvider.Issuer };
+                options.Configuration.SigningKeys.Add(ExternalProvider.SigningKey);
+            });
+
+    #endif*/
     private static void ApplyConfiguration(string connectionString)
     {
         var settings = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -206,6 +230,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             [$"{EmailChangeOptions.SectionName}__Subject"] = "Confirm your new email address",
 
             [$"{IdentitySeedOptions.SectionName}__Enabled"] = "false",
+
+            //#endif
+            //#if (externalAuth)
+            ["Authentication__External__Authority"] = ExternalProvider.Issuer,
+            ["Authentication__External__Audience"] = ExternalProvider.Audience,
+            ["Authentication__External__Roles__Source"] = "Claim",
+            ["Authentication__External__Roles__ClaimPath"] = ExternalProvider.RolesClaimPath,
+            ["Authentication__External__Roles__AdministratorRole"] = ExternalProvider.AdministratorRole,
 
             //#endif
             // The suite drives the jobs' use cases itself, one pass on demand, so a timer running

@@ -31,12 +31,13 @@ public sealed class ContainerCompositionTests
     /// exactly one module, and none of them may be missing from a composed host. Discovered rather
     /// than listed: the eleven written out here by hand were a third of the real number.
     /// </summary>
+    /*#if (externalAuth)*/
     private static IReadOnlyList<Type> ApplicationPortContracts =>
         [.. ApplicationPorts.All.Where(port => !IsExternalIdentityPort(port))];
 
     /// <summary>
-    /// The external-identity mapping's ports, which the local-accounts host does not compose and the
-    /// external-authentication entry point does; <see cref="TheExternalIdentityComposition_ResolvesItsPorts"/>
+    /// The external-identity mapping's ports, which the compositions below leave to the
+    /// external-authentication entry point; <see cref="TheExternalIdentityComposition_ResolvesItsPorts"/>
     /// holds them to the same rule.
     /// </summary>
     private static IReadOnlyList<Type> ExternalIdentityPortContracts =>
@@ -44,6 +45,9 @@ public sealed class ContainerCompositionTests
 
     private static bool IsExternalIdentityPort(Type port) =>
         port.Namespace?.StartsWith($"{HostComposition.ExternalIdentityNamespace}.", StringComparison.Ordinal) == true;
+    /*#else
+    private static IReadOnlyList<Type> ApplicationPortContracts => ApplicationPorts.All;
+    #endif*/
 
     [Fact]
     public void TheApiContainer_BuildsUnderStrictValidation()
@@ -216,6 +220,7 @@ public sealed class ContainerCompositionTests
             "stop that process, and only this test would say so.");
     }
 
+    //#if (externalAuth)
     [Fact]
     public void TheExternalIdentityComposition_ResolvesItsPorts()
     {
@@ -237,6 +242,7 @@ public sealed class ContainerCompositionTests
             HostComposition.ComposeBackgroundOnlyWithExternalIdentity);
     }
 
+    //#endif
     [Fact]
     public void TheBackgroundOnlyContainer_ResolvesEveryApplicationPort()
     {

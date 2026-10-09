@@ -1,7 +1,9 @@
 ﻿//#if (anyFeature)
 using AppTemplate.Application.Core;
 //#endif
+//#if (externalAuth)
 using AppTemplate.Application.Features.ExternalIdentity.Services;
+//#endif
 //#if (files)
 using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 using AppTemplate.Application.Features.Files.Options;
@@ -30,7 +32,7 @@ using FluentValidation;
 //#if (files)
 using Microsoft.Extensions.Configuration;
 //#endif
-//#if (anyFeature)
+//#if (anyFeature || externalAuth)
 using Microsoft.Extensions.DependencyInjection;
 //#endif
 //#if (files)
@@ -166,6 +168,7 @@ public static class ApplicationModule
         return services;
     }
     //#endif
+    //#if (externalAuth)
 
     /// <summary>
     /// Registers the mapping from an external identity provider's subject to an internal owner. Not
@@ -182,6 +185,7 @@ public static class ApplicationModule
 
         return services;
     }
+    //#endif
     //#if (anyFeature)
 
     /// <summary>

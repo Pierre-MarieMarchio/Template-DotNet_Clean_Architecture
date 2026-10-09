@@ -19,6 +19,10 @@
 # response, except the email confirmation token: it arrives by mail, and this file format has no way
 # to pull a substring out of a message body. Request 4 fetches the mail so you can read the token;
 # paste it into @confirmationToken and carry on. That step is marked MANUAL below.
+#elseif (externalAuth)
+# Run the requests top to bottom. Callers are authenticated by an external identity provider, which
+# issues the tokens: this API issues none. Paste an access token the provider issued for this API's
+# audience into @accessToken first; that step is marked MANUAL below.
 #else
 # Run the requests top to bottom. This API was generated without accounts (--auth none): every
 # endpoint answers anonymous callers on purpose, so no request carries a token.
@@ -30,6 +34,11 @@
 
 @host = http://localhost:5187
 @api = {{host}}/api/v1
+#if (externalAuth)
+
+# MANUAL: an access token from the identity provider configured under Authentication:External.
+@accessToken = paste-an-access-token-here
+#endif
 #if (localAuth)
 @mailpit = http://localhost:8025
 

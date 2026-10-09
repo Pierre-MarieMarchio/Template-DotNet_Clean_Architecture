@@ -5,6 +5,9 @@ using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Composition;
 //#endif
 using AppTemplate.Api.Features.BackgroundJobs.Jobs;
+/*#if (externalAuth)
+using AppTemplate.Api.Features.ExternalIdentity.Composition;
+#endif*/
 //#if (reminders)
 using AppTemplate.Api.Features.Reminders.Directories;
 //#endif
@@ -51,10 +54,18 @@ builder.Services.AddFiles(builder.Configuration);
 builder.Services.AddNotes();
 //#endif
 //#if (reminders)
+/*#if (localAuth)*/
 
 // Who a due reminder rings, read from the local accounts. Neither feature names the other, so the
 // host is where they meet.
 builder.Services.AddScoped<IReminderRecipientDirectory, AccountReminderRecipientDirectory>();
+/*#else
+
+// Who a due reminder rings, read from the address the identity provider last sent, kept on the
+// caller's mapping: a background pass has no token to read it from. Neither feature names the
+// other, so the host is where they meet.
+builder.Services.AddScoped<IReminderRecipientDirectory, ExternalIdentityReminderRecipientDirectory>();
+#endif*/
 //#endif
 
 // Not covered by the calls above; the maintenance endpoint and the maintenance job both resolve it.
@@ -79,13 +90,20 @@ builder.Services.AddApiObservability(builder.Configuration);
 // separate runner can make the same one. The caller and audit identity that tells a job's scope from
 // a request's is registered with the HTTP pipeline above.
 builder.Services.AddBackgroundJobs(builder.Configuration);
-//#if (localAuth)
+/*#if (localAuth)*/
 
 // Local accounts, whole: use cases, identity module, refresh-token purge, readiness check, the
 // Administrator policy and the identity schema's development bootstrap. After the jobs, so the purge
 // runs after the idempotency purge. A host without local accounts deletes this line and Features/Auth.
 builder.Services.AddAuthFeature(builder.Configuration);
-//#endif
+/*#elseif (externalAuth)
+
+// Callers authenticated by an external OpenID Connect provider: bearer validation against
+// Authentication:External, validated at start-up, the mapping of each subject to an internal owner
+// with its stores, and the Administrator policy on the configured role. The mapping's tables are in
+// the business schema, so the business database check below covers them.
+builder.Services.AddExternalAuthentication(builder.Configuration);
+#endif*/
 
 // Versioning first: it is what partitions actions into the version groups the loop below reads.
 builder.Services.AddUrlSegmentApiVersioning();

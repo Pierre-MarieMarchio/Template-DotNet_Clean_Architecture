@@ -88,11 +88,17 @@ AppTemplate.Api                 Common/{Caching,Concurrency,Contracts,Controller
 Tests/                          a 1:1 mirror of Src/
 ```
 
+<!--#if (!externalAuth)-->
 **Two of those projects own storage, and each owns a migration history.**
 `AppTemplate.Infrastructure.Persistence` holds `AppDbContext` over one schema per business feature
-(`todo`, `reminders`, `files` and `notes` as the template ships), `external_identity` (the
-subject-to-owner mapping of an API authenticated by an external provider) and `platform`; `AppTemplate.Infrastructure.Auth` holds `AuthDbContext` over `identity`.
+(`todo`, `reminders`, `files` and `notes` as the template ships) and `platform`; `AppTemplate.Infrastructure.Auth` holds `AuthDbContext` over `identity`.
 [`MIGRATIONS.md`](MIGRATIONS.md) is the commands for both.
+<!--#else
+**One project owns storage, and its migration history.** `AppTemplate.Infrastructure.Persistence`
+holds `AppDbContext` over one schema per business feature, `external_identity` (the mapping from the
+identity provider's subjects to internal owners) and `platform`. [`MIGRATIONS.md`](MIGRATIONS.md) is
+the commands.
+#endif-->
 
 ## Two folders called `Common/`
 

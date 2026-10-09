@@ -4,9 +4,11 @@ using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
+//#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
 using AppTemplate.Infrastructure.Core.Common.Saving;
+//#endif
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
@@ -15,9 +17,9 @@ namespace AppTemplate.Api.IntegrationTests.Saving;
 
 /// <summary>
 /// A save flushes and publishes only the work staged on the context instance being saved, against
-/// PostgreSQL and the host's own composition. A request commits other contexts too — the identity
-/// context, and the second business context an idempotency claim commits through — and none of
-/// those commits is the business write.
+/// PostgreSQL and the host's own composition. A request commits other contexts too — the second
+/// business context an idempotency claim commits through, and the identity context where the host
+/// has local accounts — and none of those commits is the business write.
 /// </summary>
 /// <remarks>
 /// The same scenarios run without a container, on SQLite, in
@@ -25,6 +27,7 @@ namespace AppTemplate.Api.IntegrationTests.Saving;
 /// </remarks>
 public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
+    //#if (localAuth)
     [Fact]
     public async Task SavingTheAuthContext_NeitherFlushesNorPublishesAPendingBusinessWrite()
     {
@@ -44,6 +47,7 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
         Fixture.DomainEvents.CompletedItems.ShouldHaveSingleItem().TodoItemId.ShouldBe(itemId);
     }
 
+    //#endif
     [Fact]
     public async Task SavingAnIdempotencyClaim_DoesNotPublishAPendingBusinessEvent()
     {
@@ -86,6 +90,7 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
         list.ShouldNotBeNull().CompleteItem(itemId, Clock.UtcNow);
     }
 
+    //#if (localAuth)
     private AppUser AnAccount()
     {
         string name = $"someone-{Guid.NewGuid():N}";
@@ -102,6 +107,7 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
         };
     }
 
+    //#endif
     private static IdempotencyKey AKey(string key) =>
         IdempotencyKey.Create(
             userId: Guid.NewGuid(),

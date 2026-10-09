@@ -71,10 +71,17 @@ public sealed class LayoutConventionTests
         // Directories/ holds an adapter the host supplies because it joins two features that may
         // not name each other. Composition/ holds a feature's one entry point when it composes more
         // than use cases — a module, a readiness check, a policy — so a host can leave it out whole.
+        //#if (externalAuth)
         // Options/ holds the settings a feature binds and the framework options it configures from
         // them, when they are not a job's.
+        //#endif
         ["Src/Presentation/AppTemplate.Api"] =
-            ["Composition", "Contracts", "Controllers", "Directories", "Jobs", "Mapping", "Options"],
+            [
+                "Composition", "Contracts", "Controllers", "Directories", "Jobs", "Mapping",
+                //#if (externalAuth)
+                "Options",
+                //#endif
+            ],
         //#if (localAuth)
 
         // Every word here is the plural of a nature word the file names already carry — the rule the

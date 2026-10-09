@@ -1,5 +1,5 @@
 ﻿using System.Net;
-//#if (!publicApi)
+//#if (signedInRoute)
 using AppTemplate.Api.Common.Security;
 //#endif
 using AppTemplate.Api.IntegrationTests.Infrastructure;
@@ -20,7 +20,7 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 /// </remarks>
 public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    //#if (!publicApi)
+    //#if (signedInRoute)
     [Fact]
     public async Task ASuccessfulResponse_CarriesEverySecurityHeader()
     {
@@ -58,7 +58,7 @@ public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBas
 
         AssertSecurityHeaders(response);
     }
-    //#if (!publicApi)
+    //#if (signedInRoute)
 
     /// <summary>
     /// The strict policy, asserted as the exact string. A partial assertion would pass on a policy

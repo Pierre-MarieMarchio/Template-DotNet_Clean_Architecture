@@ -8,9 +8,11 @@ using AppTemplate.Domain.Features.Reminders.ValueObjects;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
+//#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
 using AppTemplate.Infrastructure.Core.Common.Saving;
+//#endif
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -20,9 +22,9 @@ namespace AppTemplate.Api.UnitTests.Composition;
 
 /// <summary>
 /// A save commits, stamps, flushes and publishes the work staged on the context instance being
-/// saved, and nothing staged on another. The host composes two contexts, and the business one is
-/// also created a second time per request for idempotency claims; each of those saves is its own
-/// transaction.
+/// saved, and nothing staged on another. The business context is created a second time per request
+/// for idempotency claims, and the local accounts have a context of their own; each of those saves
+/// is its own transaction.
 /// </summary>
 /// <remarks>
 /// Real module composition, real contexts, real commits: see <see cref="SqliteSavingHost"/> for what
@@ -34,6 +36,7 @@ public sealed class ContextScopedSavingTests
     private static readonly Guid _caller = Guid.CreateVersion7();
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
+    //#if (localAuth)
 
     /// <summary>
     /// An account write and a business write staged in one request are two commits. The account's
@@ -61,6 +64,7 @@ public sealed class ContextScopedSavingTests
         publication.Event.ShouldBeOfType<TodoListCreatedDomainEvent>();
         publication.ListWasCommitted.ShouldBeTrue("published after the commit that wrote the list");
     }
+    //#endif
 
     /// <summary>
     /// The idempotency store commits its claim through a second <see cref="AppDbContext"/> in the
@@ -197,6 +201,7 @@ public sealed class ContextScopedSavingTests
 
     private static TodoList ANewList(string name) =>
         TodoList.Create(UserId.Create(_caller), name, DateTimeOffset.UtcNow);
+    //#if (localAuth)
 
     private static AppUser AnAccount()
     {
@@ -213,6 +218,7 @@ public sealed class ContextScopedSavingTests
             CreatedAt = DateTimeOffset.UtcNow,
         };
     }
+    //#endif
 
     private static IdempotencyKey AKey(string key) =>
         IdempotencyKey.Create(_caller, key, "POST /api/v1/todo-lists", "fingerprint", maxKeyLength: 64).Value;

@@ -195,6 +195,7 @@ untouched — which is what makes the same endpoint work for a SPA, a mobile app
 - **No client secret is involved.** Verifying an `id_token` is asymmetric cryptography; the template
   holds no secret for any provider, and a deployment configuring one has taken the wrong flow.
 
+<!--#if (externalAuth)-->
 ### External identity provider
 
 A host can authenticate callers with access tokens from an external OpenID Connect provider instead
@@ -229,10 +230,13 @@ configured by [`Authentication:External`](docs/CONFIGURATION.md#authenticationex
   '<existing owner id>', NULL, NULL, now(), now());`. An owner may have one row per provider; all name
   the same id. The subjects come from the provider (an export, or its admin API), matched on whatever
   the migration trusts — that matching is the one step where an address may be used, by a person.
+<!--#if (reminders)-->
 - **Reminders still reach their owner.** A background pass has no token, so the recipient is read
   from the address and name the provider last sent, kept on the mapping. An owner whose provider never
   sent an address is skipped.
+<!--#endif-->
 
+<!--#endif-->
 <!--#if (files)-->
 ### File storage
 

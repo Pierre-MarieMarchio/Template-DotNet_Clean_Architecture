@@ -1,6 +1,8 @@
 ﻿using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
+//#if (externalAuth)
 using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Models;
+//#endif
 //#if (files)
 using AppTemplate.Infrastructure.Persistence.Features.Files.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
@@ -75,6 +77,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public const string NotesSchema = "notes";
 
     //#endif
+    //#if (externalAuth)
     /// <summary>
     /// The schema of the mapping from an external identity provider's subjects to internal owners,
     /// and of the role assignments read beside it. Present only where callers are authenticated by
@@ -82,6 +85,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// </summary>
     public const string ExternalIdentitySchema = "external_identity";
 
+    //#endif
     /// <summary>
     /// The schema for tables that are cross-cutting rather than owned by a feature — the idempotency
     /// key store is the first of these. A feature's schema would not be honest: the table belongs to
@@ -139,6 +143,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     internal DbSet<NoteRecord> Notes => Set<NoteRecord>();
 
     //#endif
+    //#if (externalAuth)
     /// <summary>
     /// Which internal owner each external provider subject stands for. Read and written only through
     /// <see cref="Application.Features.ExternalIdentity.Ports.ExternalIdentityStore.IExternalIdentityStore"/>
@@ -149,6 +154,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// <summary>The roles held by owners, for a deployment that does not take them from the provider.</summary>
     internal DbSet<RoleAssignmentRecord> RoleAssignments => Set<RoleAssignmentRecord>();
 
+    //#endif
     /// <summary>
     /// Claimed idempotency keys. Internal for the same reason as every other row type here: the
     /// rules for claiming, completing and releasing one live in
@@ -187,8 +193,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.ApplyConfiguration(new NoteRecordConfiguration());
 
         //#endif
+        //#if (externalAuth)
         modelBuilder.ApplyConfiguration(new ExternalIdentityRecordConfiguration());
         modelBuilder.ApplyConfiguration(new RoleAssignmentRecordConfiguration());
+        //#endif
         modelBuilder.ApplyConfiguration(new IdempotencyRecordConfiguration());
     }
 }

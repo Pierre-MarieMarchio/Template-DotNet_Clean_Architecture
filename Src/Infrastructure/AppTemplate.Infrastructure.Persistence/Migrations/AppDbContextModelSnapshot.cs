@@ -76,6 +76,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("IdempotencyKeys", "platform");
                 });
 
+            //#if (externalAuth)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Models.ExternalIdentityRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -134,6 +135,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("RoleAssignments", "external_identity");
                 });
 
+            //#endif
             //#if (files)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.ContentSweepCheckpointRecord", b =>
                 {

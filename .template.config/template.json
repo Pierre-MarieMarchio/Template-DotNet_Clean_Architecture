@@ -29,7 +29,7 @@
         },
         {
           "choice": "external",
-          "description": "Not available yet: generation refuses it. Accounts held by an external identity provider."
+          "description": "Accounts held by an external OpenID Connect provider (Keycloak, Entra ID, Auth0...): bearer tokens validated against Authentication:External, each subject mapped to an internal owner."
         },
         {
           "choice": "none",
@@ -62,21 +62,13 @@
       "isRequired": "(auth == \"none\" && files)",
       "description": "Never set. --auth none refuses the Files module, whose files belong to a caller: add --files false."
     },
-    "authExternalIsNotAvailableYet": {
-      "type": "parameter",
-      "datatype": "choice",
-      "choices": [
-        {
-          "choice": "refused",
-          "description": "Not an option to set: it names the refusal."
-        }
-      ],
-      "isRequired": "(auth == \"external\")",
-      "description": "Never set. --auth external is declared and not implemented yet: use --auth local or --auth none."
-    },
     "localAuth": {
       "type": "computed",
       "value": "(auth == \"local\")"
+    },
+    "externalAuth": {
+      "type": "computed",
+      "value": "(auth == \"external\")"
     },
     "publicApi": {
       "type": "computed",
@@ -84,7 +76,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "(auth == \"external\" || (auth == \"none\" && (examples != \"none\" || files)))"
+      "value": "(auth == \"none\" && (examples != \"none\" || files))"
     },
     "files": {
       "type": "parameter",
@@ -135,6 +127,10 @@
     "anyFeature": {
       "type": "computed",
       "value": "(todoLists || reminders || notes || files)"
+    },
+    "signedInRoute": {
+      "type": "computed",
+      "value": "(localAuth || (externalAuth && anyFeature))"
     },
     "ci": {
       "type": "parameter",
@@ -253,7 +249,19 @@
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RefreshTokenTests.cs",
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RequestLogRedactionTests.cs",
             "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/EmailTemplateCoverageTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/SecurityStampRotationTests.cs"
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/SecurityStampRotationTests.cs",
+            "Src/Presentation/AppTemplate.Api/Features/Reminders/Directories/AccountReminderRecipientDirectory.cs",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Directories/AccountReminderRecipientDirectoryTests.cs"
+          ]
+        },
+        {
+          "condition": "(!externalAuth)",
+          "exclude": [
+            "Src/**/Features/ExternalIdentity/**",
+            "Tests/**/Features/ExternalIdentity/**",
+            "Src/Presentation/AppTemplate.Api/Features/Reminders/Directories/ExternalIdentityReminderRecipientDirectory.cs",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Directories/ExternalIdentityReminderRecipientDirectoryTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/ExternalProvider.cs"
           ]
         },
         {
@@ -329,7 +337,7 @@
           ]
         },
         {
-          "condition": "(!todoLists && !notes)",
+          "condition": "(!todoLists && !notes && !externalAuth)",
           "exclude": [
             "Tests/Presentation/AppTemplate.Api.UnitTests/Composition/SqliteSavingHost.cs",
             "Tests/Presentation/AppTemplate.Api.UnitTests/Composition/PublishedEvents.cs"

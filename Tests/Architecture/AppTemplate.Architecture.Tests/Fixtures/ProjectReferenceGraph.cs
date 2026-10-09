@@ -10,12 +10,18 @@ namespace AppTemplate.Architecture.Tests.Fixtures;
 /// Whether the project declares <c>IsSdkProject</c> as true, which is how an SDK project says so.
 /// </param>
 /// <param name="HasProgram">Whether a <c>Program.cs</c> sits at the project's root.</param>
+/// <param name="Sdk">The project's <c>Sdk</c> attribute, such as <c>Microsoft.NET.Sdk.Web</c>.</param>
+/// <param name="FrameworkReferences">The <c>FrameworkReference</c> items the project declares.</param>
+/// <param name="Packages">The <c>PackageReference</c> items the project declares.</param>
 internal sealed record ProjectNode(
     string Name,
     string RelativePath,
     IReadOnlySet<string> References,
     bool IsSdkProject,
-    bool HasProgram);
+    bool HasProgram,
+    string Sdk,
+    IReadOnlySet<string> FrameworkReferences,
+    IReadOnlySet<string> Packages);
 
 /// <summary>
 /// The <c>ProjectReference</c> graph of everything under <c>Src</c>, read from the project files.
@@ -84,6 +90,30 @@ internal static class ProjectReferenceGraph
             .OrderBy(project => project.Name, StringComparer.Ordinal);
     }
 
+    /// <summary>
+    /// A project and everything it reaches through <c>ProjectReference</c>, however many hops away.
+    /// A reference to something outside <c>Src</c> is not followed: it has no project file here to
+    /// read.
+    /// </summary>
+    internal static IReadOnlyList<ProjectNode> ClosureOf(ProjectNode project)
+    {
+        var seen = new Dictionary<string, ProjectNode>(StringComparer.Ordinal) { [project.Name] = project };
+        var pending = new Stack<ProjectNode>([project]);
+
+        while (pending.TryPop(out var current))
+        {
+            foreach (string reference in current.References)
+            {
+                if (SourceProjects.TryGetValue(reference, out var next) && seen.TryAdd(next.Name, next))
+                {
+                    pending.Push(next);
+                }
+            }
+        }
+
+        return [.. seen.Values.OrderBy(node => node.Name, StringComparer.Ordinal)];
+    }
+
     /// <summary>The directory holding a project file, which is the project's root.</summary>
     internal static string RootOf(ProjectNode project) =>
         Path.GetDirectoryName(Path.Combine(RepositoryRoot, project.RelativePath))!;
@@ -110,7 +140,10 @@ internal static class ProjectReferenceGraph
                 Path.GetRelativePath(RepositoryRoot, projectFile),
                 ReadProjectReferences(document),
                 ReadIsSdkProject(document),
-                File.Exists(Path.Combine(Path.GetDirectoryName(projectFile)!, "Program.cs")));
+                File.Exists(Path.Combine(Path.GetDirectoryName(projectFile)!, "Program.cs")),
+                document.Root?.Attribute("Sdk")?.Value ?? string.Empty,
+                ReadIncludes(document, "FrameworkReference"),
+                ReadIncludes(document, "PackageReference"));
         }
 
         if (projects.Count == 0)
@@ -131,6 +164,14 @@ internal static class ProjectReferenceGraph
             .Where(include => !string.IsNullOrWhiteSpace(include))
             .Select(include => Path.GetFileNameWithoutExtension(
                 include!.Replace('\\', Path.DirectorySeparatorChar)))
+            .ToHashSet(StringComparer.Ordinal);
+
+    private static HashSet<string> ReadIncludes(XDocument document, string itemName) =>
+        document
+            .Descendants(itemName)
+            .Select(element => element.Attribute("Include")?.Value)
+            .Where(include => !string.IsNullOrWhiteSpace(include))
+            .Select(include => include!)
             .ToHashSet(StringComparer.Ordinal);
 
     private static bool ReadIsSdkProject(XDocument document) =>

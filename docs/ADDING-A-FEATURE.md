@@ -104,6 +104,13 @@ are `Name` and `Description` here, with limits of 200 and 2000 characters, and t
 the generator does not write (the collection policy, the sort map, the controller and the PostgreSQL
 integration tests).
 
+**Undoing it.** `dotnet run Tools/Tasks.cs remove-feature <Features>` reads the manifest the generator wrote and
+reports, writing nothing: the files the feature owns, the lines elsewhere that register it, configure its EF model, mention it
+in a migration or the snapshot, or use its types (confirmed), the lines that only contain its name (possible), and the checks to run
+afterwards. Adding `--apply` deletes the generated files, the manifest and the folders left empty, but only when every file still
+hashes as written, nothing was added to the feature's folders, and none of the six edits above (nor any other use of the feature)
+exists yet. Otherwise it refuses before deleting anything and prints the same report. A migration is never touched.
+
 **What it writes**, for the shape and operations chosen:
 
 - Application: the DTOs, the errors, the input and collection policies where they are used, the

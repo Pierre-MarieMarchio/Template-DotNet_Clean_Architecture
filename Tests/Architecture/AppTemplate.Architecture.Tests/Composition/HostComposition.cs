@@ -251,6 +251,35 @@ internal static class HostComposition
     }
 
     /// <summary>
+    /// Where the external-identity mapping's ports live. They are composed by the API's
+    /// external-authentication entry point, which a host calls instead of the local accounts' one,
+    /// so the local-accounts compositions above leave them out and the two below add them.
+    /// </summary>
+    internal const string ExternalIdentityNamespace = "AppTemplate.Application.Features.ExternalIdentity";
+
+    /// <summary>
+    /// The API's composition with the external-identity mapping added as the external-authentication
+    /// entry point adds it: the application service and the stores behind it.
+    /// </summary>
+    internal static ServiceCollection ComposeApiWithExternalIdentity(IConfiguration configuration) =>
+        WithExternalIdentity(ComposeApi(configuration), configuration);
+
+    /// <summary>
+    /// The background-only composition with the mapping added: a reminder job reads the recipient's
+    /// address from it, with no token to read one from.
+    /// </summary>
+    internal static ServiceCollection ComposeBackgroundOnlyWithExternalIdentity(IConfiguration configuration) =>
+        WithExternalIdentity(ComposeBackgroundOnly(configuration), configuration);
+
+    private static ServiceCollection WithExternalIdentity(ServiceCollection services, IConfiguration configuration)
+    {
+        services.AddExternalIdentity();
+        services.AddExternalIdentityPersistence(configuration);
+
+        return services;
+    }
+
+    /// <summary>
     /// The composition a test host uses: the API's modules, then the doubles that replace the clock
     /// and the mail relay. Composed here too, because <c>AppTemplate.Infrastructure.InMemory</c> is a product
     /// project and a double that cannot be resolved is as broken as an adapter that cannot.

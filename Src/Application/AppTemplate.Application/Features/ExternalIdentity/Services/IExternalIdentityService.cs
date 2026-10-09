@@ -1,0 +1,39 @@
+﻿using AppTemplate.Application.Features.ExternalIdentity.Dtos;
+using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityQueries;
+using AppTemplate.Domain.Core.Common.Primitives;
+
+namespace AppTemplate.Application.Features.ExternalIdentity.Services;
+
+/// <summary>
+/// Who a caller authenticated by an external provider is to this application, one method per
+/// operation. The provider's subject is opaque and never becomes an owner id: every caller is mapped,
+/// by (issuer, subject) and never by email, to an internal <see cref="UserId"/> that the business
+/// rows carry.
+/// </summary>
+public interface IExternalIdentityService
+{
+    /// <summary>
+    /// The owner id mapped to the caller, creating the mapping on the caller's first request and
+    /// refreshing its email and display name when the provider's have changed.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Transaction.</b> Each write is one statement in its own transaction, committed before
+    /// this returns and independent of the request's unit of work.</para>
+    /// <para><b>Concurrency.</b> Two first requests of the same caller race on the unique index over
+    /// (issuer, subject): one inserts, the other's insert is refused and it reads the winner's row, so
+    /// both answer the same owner. A refresh is last-writer-wins over values the provider sent.</para>
+    /// <para><b>Idempotence.</b> Calling again for the same caller answers the same owner and writes
+    /// nothing unless the profile changed or the last-seen instant is stale.</para>
+    /// <para><b>Retry.</b> A transient failure is retried by the context's execution strategy; a retry
+    /// of an insert that had in fact committed meets the index and reads the row back, so it cannot
+    /// create a second owner. Anything else propagates and the request fails: there is no fallback
+    /// owner.</para>
+    /// </remarks>
+    Task<UserId> ResolveAsync(ExternalCallerDto caller, CancellationToken cancellationToken = default);
+
+    /// <returns>The roles assigned to the owner in this application's store; empty when none is.</returns>
+    Task<IReadOnlyList<string>> ListAssignedRolesAsync(UserId userId, CancellationToken cancellationToken = default);
+
+    /// <returns>What the provider last said about the owner, or <c>null</c> when no mapping names it.</returns>
+    Task<ExternalIdentityProfile?> FindProfileAsync(UserId userId, CancellationToken cancellationToken = default);
+}

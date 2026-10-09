@@ -79,6 +79,64 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("IdempotencyKeys", "platform");
                 });
 
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Models.ExternalIdentityRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("Issuer")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Issuer", "Subject")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ExternalIdentities_Issuer_Subject");
+
+                    b.HasIndex("UserId", "LastSeenAt")
+                        .HasDatabaseName("IX_ExternalIdentities_UserId_LastSeenAt");
+
+                    b.ToTable("ExternalIdentities", "external_identity");
+                });
+
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Models.RoleAssignmentRecord", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Role")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("UserId", "Role");
+
+                    b.ToTable("RoleAssignments", "external_identity");
+                });
+
             //#if (files)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.ContentSweepCheckpointRecord", b =>
                 {

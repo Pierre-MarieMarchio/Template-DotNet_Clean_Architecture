@@ -1,5 +1,8 @@
 ﻿using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityQueries;
+using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityStore;
+using AppTemplate.Application.Features.ExternalIdentity.Ports.RoleAssignmentQueries;
 //#if (files)
 using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
@@ -39,6 +42,8 @@ using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
+using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Queries;
+using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Stores;
 //#if (files)
 using AppTemplate.Infrastructure.Persistence.Features.Files.Checkpoints;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Locks;
@@ -132,6 +137,29 @@ public static class PersistenceModule
         return services;
     }
 
+    /// <summary>
+    /// Registers the stores behind the external-identity mapping: the subject-to-owner store, the
+    /// profile reads by owner and the local role assignments. Separate from
+    /// <see cref="AddPersistenceModule"/> because only a host that authenticates callers with an
+    /// external provider has a use for them; it composes the module itself, which is idempotent.
+    /// </summary>
+    /// <param name="services">The container being composed.</param>
+    /// <param name="configuration">Must supply the <c>Default</c> connection string.</param>
+    public static IServiceCollection AddExternalIdentityPersistence(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        services.AddPersistenceModule(configuration);
+
+        services.TryAddScoped<IExternalIdentityStore, ExternalIdentityStore>();
+        services.TryAddScoped<IExternalIdentityQueries, ExternalIdentityQueries>();
+        services.TryAddScoped<IRoleAssignmentQueries, RoleAssignmentQueries>();
+
+        return services;
+    }
 
     /// <summary>
     /// <c>AddDbContext</c> has no <c>Try</c> form, so a second call would register a second context

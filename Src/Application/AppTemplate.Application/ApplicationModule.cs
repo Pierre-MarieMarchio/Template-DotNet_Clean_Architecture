@@ -1,6 +1,7 @@
 ﻿//#if (anyFeature)
 using AppTemplate.Application.Core;
 //#endif
+using AppTemplate.Application.Features.ExternalIdentity.Services;
 //#if (files)
 using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 using AppTemplate.Application.Features.Files.Options;
@@ -165,6 +166,22 @@ public static class ApplicationModule
         return services;
     }
     //#endif
+
+    /// <summary>
+    /// Registers the mapping from an external identity provider's subject to an internal owner. Not
+    /// an example: a host authenticating callers with an external provider composes it through its
+    /// external-authentication entry point, and a host with local accounts leaves it out.
+    /// </summary>
+    /// <param name="services">The container being built.</param>
+    /// <returns>The same collection, for chaining.</returns>
+    public static IServiceCollection AddExternalIdentity(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddScoped<IExternalIdentityService, ExternalIdentityService>();
+
+        return services;
+    }
     //#if (anyFeature)
 
     /// <summary>

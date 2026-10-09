@@ -77,19 +77,21 @@ AppTemplate.Api                 Common/{Caching,Concurrency,Contracts,Controller
                                 Common/ names no feature: the HTTP mechanisms and the job
                                 mechanisms (the role switch, the background scope) every feature shares
                                 Features/<F>/{Composition,Controllers,Contracts/{Requests,Responses},
-                                              Directories,Jobs,Mapping}
+                                              Directories,Jobs,Mapping,Options}
                                 Jobs/ holds what a feature runs on a timer: its BackgroundService, its
                                 options, its instruments, and the extension that registers them;
                                 Directories/ an adapter the host supplies because it joins two
                                 features that may not name each other; Composition/ a feature's one
-                                entry point when it composes more than use cases
+                                entry point when it composes more than use cases; Options/ the
+                                settings a feature binds, and the framework options built from them
                                 Features/BackgroundJobs/Jobs/  the one composition call, AddBackgroundJobs
 Tests/                          a 1:1 mirror of Src/
 ```
 
 **Two of those projects own storage, and each owns a migration history.**
 `AppTemplate.Infrastructure.Persistence` holds `AppDbContext` over one schema per business feature
-(`todo`, `reminders`, `files` and `notes` as the template ships) and `platform`; `AppTemplate.Infrastructure.Auth` holds `AuthDbContext` over `identity`.
+(`todo`, `reminders`, `files` and `notes` as the template ships), `external_identity` (the
+subject-to-owner mapping of an API authenticated by an external provider) and `platform`; `AppTemplate.Infrastructure.Auth` holds `AuthDbContext` over `identity`.
 [`MIGRATIONS.md`](MIGRATIONS.md) is the commands for both.
 
 ## Two folders called `Common/`

@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.Ports.AccountLockouts;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -15,8 +15,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.LockAccou
 /// refresh tokens alone would suspend nothing the holder is already using.
 /// </summary>
 public sealed class LockAccountUseCase(
-    IAccountLockoutsService lockouts,
-    IRefreshTokenGrantsService refreshTokens,
+    IAccountAdministrationService administration,
+    ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<LockAccountCommand> validator) : ILockAccountUseCase
@@ -50,22 +50,22 @@ public sealed class LockAccountUseCase(
             return guard;
         }
 
-        var outcome = await lockouts.LockAsync(request.UserId, cancellationToken);
+        var outcome = await administration.LockAsync(request.UserId, cancellationToken);
 
-        if (outcome is not LockoutChangeStatus.Applied)
+        if (outcome.Status is not AccountAdministrationStatus.Applied)
         {
-            return Result.Failure(ToError(outcome));
+            return Result.Failure(ToError(outcome.Status));
         }
 
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, request.UserId, cancellationToken);
         securityEventLog.Record(SecurityEvent.AccountLockedByAdministrator(request.UserId));
 
         return Result.Success();
     }
 
-    private static Error ToError(LockoutChangeStatus outcome) => outcome switch
+    private static Error ToError(AccountAdministrationStatus status) => status switch
     {
-        LockoutChangeStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
+        AccountAdministrationStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
         _ => AuthErrors.AccountLockoutRejected,
     };
 }

@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailChangeTokens;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -16,8 +16,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEm
 /// the refresh tokens it leaves alone are this call's to revoke.
 /// </summary>
 public sealed class ConfirmEmailChangeUseCase(
-    IEmailChangeTokensService emailChangeTokens,
-    IRefreshTokenGrantsService refreshTokens,
+    IEmailTokensService emailTokens,
+    ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<ConfirmEmailChangeCommand> validator) : IConfirmEmailChangeUseCase
@@ -43,25 +43,25 @@ public sealed class ConfirmEmailChangeUseCase(
             return userId;
         }
 
-        var confirmation = await emailChangeTokens.RedeemAsync(
+        var confirmation = await emailTokens.ChangeEmailAsync(
             userId.Value.Value,
             request.NewEmail,
             request.Token,
             cancellationToken);
 
-        if (confirmation.Status is EmailChangeConfirmationStatus.Rejected)
+        if (confirmation.Status is EmailChangeStatus.Rejected)
         {
             return Result.Failure(
                 AuthErrors.EmailChangeRejected(
                     confirmation.RejectionMessage ?? "The new email address was rejected."));
         }
 
-        if (confirmation.Status is not EmailChangeConfirmationStatus.Changed)
+        if (confirmation.Status is not EmailChangeStatus.Changed)
         {
             return Result.Failure(AuthErrors.InvalidEmailChange);
         }
 
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, userId.Value.Value, cancellationToken);
 
         return Result.Success();
     }

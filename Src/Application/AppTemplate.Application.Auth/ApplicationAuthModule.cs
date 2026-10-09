@@ -15,7 +15,7 @@ namespace AppTemplate.Application.Auth;
 /// </para>
 /// <para>
 /// Dropping it is not free, and the cost is not in this project. An identity module has to satisfy
-/// the twenty ports under <c>Features/Auth/Ports/</c>; the persistence context in this template
+/// the nine ports under <c>Features/Auth/Ports/</c>; the persistence context in this template
 /// derives from ASP.NET Identity's own; and a mail module whose reminder notifier resolves a user
 /// profile to find an address needs one of these ports even when nothing signs in. Removing
 /// authentication is a decision about those three, not about this call.

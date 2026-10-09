@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenMaintenance;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using NSubstitute;
@@ -9,26 +9,26 @@ namespace AppTemplate.Application.Auth.UnitTests.Features.Auth.UseCases.Commands
 
 public sealed class PurgeExpiredRefreshTokensUseCaseTests
 {
-    private readonly IRefreshTokenMaintenanceService _maintenance = Substitute.For<IRefreshTokenMaintenanceService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly StubDateTimeProvider _clock = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    private PurgeExpiredRefreshTokensUseCase UseCase() => new(_maintenance, _clock);
+    private PurgeExpiredRefreshTokensUseCase UseCase() => new(_sessionTokens, _clock);
 
     [Fact]
     public async Task ExecuteAsync_PassesTheClocksInstant_ToTheMaintenancePort()
     {
         await UseCase().ExecuteAsync(TestToken);
 
-        await _maintenance.Received(1)
-            .PurgeExpiredAsync(StubDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1)
+            .PurgeExpiredRefreshTokensAsync(StubDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_Returns_ThePortsCount()
     {
-        _maintenance.PurgeExpiredAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(3);
+        _sessionTokens.PurgeExpiredRefreshTokensAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(3);
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -43,6 +43,6 @@ public sealed class PurgeExpiredRefreshTokensUseCaseTests
 
         await UseCase().ExecuteAsync(cancellation.Token);
 
-        await _maintenance.Received(1).PurgeExpiredAsync(Arg.Any<DateTimeOffset>(), cancellation.Token);
+        await _sessionTokens.Received(1).PurgeExpiredRefreshTokensAsync(Arg.Any<DateTimeOffset>(), cancellation.Token);
     }
 }

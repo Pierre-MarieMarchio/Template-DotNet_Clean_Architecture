@@ -86,14 +86,14 @@ Two rules follow from having been broken:
   `IVersioned` are opt-in contracts a persistence row satisfies, not capabilities the domain calls
   out for.
 - **The port carries the nature word, and the adapter is the port without its `I`.**
-  `IUserAccountsService` is implemented by `UserAccountsService`; `ISecurityEventLog` by
+  `IAccountsService` is implemented by `AccountsService`; `ISecurityEventLog` by
   `SecurityEventLog`, because `Log` already says what it is. A qualifying prefix is right in two
   cases. The first is a port several modules implement, where the prefix tells them apart:
   `MailKitEmailSender` and `InMemoryEmailSender` both satisfy `IEmailSender`. The second is a
   single adapter whose technology is visible at the call site — `EfUnitOfWork`, because saving is
   the one place the choice of Entity Framework shows, and `PostgresLeaderLease`, because which
   store the lock is taken in is a property a caller has to reason about.
-  A port's *folder* keeps the capability name — `Ports/UserAccounts/IUserAccountsService.cs` — and
+  A port's *folder* keeps the capability name — `Ports/Accounts/IAccountsService.cs` — and
   that is not cosmetic: a folder named for the interface would put a namespace and a class of the
   same name in scope of each other, which is CS0118 at every consumer.
 

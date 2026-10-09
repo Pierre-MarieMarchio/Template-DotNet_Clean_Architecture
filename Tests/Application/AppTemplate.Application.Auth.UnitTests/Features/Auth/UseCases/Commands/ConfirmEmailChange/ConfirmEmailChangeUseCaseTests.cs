@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.EmailChangeTokens;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEmailChange;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Ports;
@@ -15,8 +15,8 @@ public sealed class ConfirmEmailChangeUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly IEmailChangeTokensService _emailChangeTokens = Substitute.For<IEmailChangeTokensService>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly IEmailTokensService _emailTokens = Substitute.For<IEmailTokensService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -29,7 +29,7 @@ public sealed class ConfirmEmailChangeUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        _emailChangeTokens.ReceivedCalls().ShouldBeEmpty();
+        _emailTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Theory]
@@ -41,25 +41,24 @@ public sealed class ConfirmEmailChangeUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _emailChangeTokens.ReceivedCalls().ShouldBeEmpty();
+        _emailTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task ASuccessfulChange_Succeeds()
     {
-        GivenTheOutcomeIs(EmailChangeConfirmationOutcome.Changed);
+        GivenTheOutcomeIs(EmailChangeOutcome.Changed);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
     }
 
-    /// <summary>Every way redeeming can fail except a rejected address, collapsed to one error.</summary>
-    [Theory]
-    [MemberData(nameof(GenericRefusals))]
-    public async Task ABadTokenOrAMissingAccount_AnswerWithTheSameError(EmailChangeConfirmationStatus outcome)
+    /// <summary>A bad token and a missing account are one refusal, answered with one error.</summary>
+    [Fact]
+    public async Task ABadToken_AnswersWithTheInvalidLinkError()
     {
-        GivenTheOutcomeIs(new EmailChangeConfirmationOutcome(outcome));
+        GivenTheOutcomeIs(EmailChangeOutcome.InvalidToken);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -69,13 +68,10 @@ public sealed class ConfirmEmailChangeUseCaseTests
             "The email change link is invalid or has expired."));
     }
 
-    public static TheoryData<EmailChangeConfirmationStatus> GenericRefusals =>
-        [EmailChangeConfirmationStatus.NoSuchAccount, EmailChangeConfirmationStatus.InvalidToken];
-
     [Fact]
     public async Task ARejectedNewAddress_ReportsTheStoresMessage()
     {
-        GivenTheOutcomeIs(EmailChangeConfirmationOutcome.Rejected("That address is not allowed."));
+        GivenTheOutcomeIs(EmailChangeOutcome.Rejected("That address is not allowed."));
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -90,17 +86,17 @@ public sealed class ConfirmEmailChangeUseCaseTests
     [Fact]
     public async Task ASuccessfulChange_RevokesEveryRefreshTokenForTheAccount()
     {
-        GivenTheOutcomeIs(EmailChangeConfirmationOutcome.Changed);
+        GivenTheOutcomeIs(EmailChangeOutcome.Changed);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _refreshTokens.Received(1).RevokeAllForUserAsync(_callerId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ASuccessfulChange_RecordsTheSecurityStampRotation()
     {
-        GivenTheOutcomeIs(EmailChangeConfirmationOutcome.Changed);
+        GivenTheOutcomeIs(EmailChangeOutcome.Changed);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -110,22 +106,22 @@ public sealed class ConfirmEmailChangeUseCaseTests
     [Fact]
     public async Task AFailedChange_RevokesNothing()
     {
-        GivenTheOutcomeIs(EmailChangeConfirmationOutcome.InvalidToken);
+        GivenTheOutcomeIs(EmailChangeOutcome.InvalidToken);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
     private static ConfirmEmailChangeCommand ARequest() => new("new@example.com", "a-token");
 
-    private void GivenTheOutcomeIs(EmailChangeConfirmationOutcome confirmation) =>
-        _emailChangeTokens.RedeemAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+    private void GivenTheOutcomeIs(EmailChangeOutcome confirmation) =>
+        _emailTokens.ChangeEmailAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(confirmation);
 
     private ConfirmEmailChangeUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_emailChangeTokens, _refreshTokens, _securityEventLog, currentUser, new ConfirmEmailChangeCommandValidator());
+        new(_emailTokens, _sessionTokens, _securityEventLog, currentUser, new ConfirmEmailChangeCommandValidator());
 
     private ConfirmEmailChangeUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 
 namespace AppTemplate.Application.Auth.Features.Auth.Policies;
 
@@ -22,15 +22,15 @@ public static class CredentialInvalidationPolicy
     /// </summary>
     /// <param name="userId">The account whose stamp was just rotated.</param>
     public static async Task InvalidateAsync(
-        IRefreshTokenGrantsService refreshTokens,
+        ISessionTokensService sessionTokens,
         ISecurityEventLog securityEventLog,
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(refreshTokens);
+        ArgumentNullException.ThrowIfNull(sessionTokens);
         ArgumentNullException.ThrowIfNull(securityEventLog);
 
-        await refreshTokens.RevokeAllForUserAsync(userId, cancellationToken);
+        await sessionTokens.RevokeAllRefreshTokensAsync(userId, cancellationToken);
         securityEventLog.Record(SecurityEvent.SecurityStampRotated(userId));
     }
 }

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.GetCurrentUser;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Ports;
@@ -13,7 +13,7 @@ public sealed class GetCurrentUserUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly IUserProfilesService _profiles = Substitute.For<IUserProfilesService>();
+    private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -25,24 +25,24 @@ public sealed class GetCurrentUserUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
         result.Error.Code.ShouldBe("auth.required");
-        _profiles.ReceivedCalls().ShouldBeEmpty();
+        _accounts.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task TheProfile_IsReadForTheCallersOwnId()
     {
-        _profiles.FindByIdAsync(_callerId, Arg.Any<CancellationToken>()).Returns(AProfile());
+        _accounts.FindProfileAsync(_callerId, Arg.Any<CancellationToken>()).Returns(AProfile());
 
         await UseCase().ExecuteAsync(TestToken);
 
-        await _profiles.Received(1).FindByIdAsync(_callerId, Arg.Any<CancellationToken>());
+        await _accounts.Received(1).FindProfileAsync(_callerId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task AnExistingProfile_IsReturnedInFull()
     {
         var createdAt = DateTimeOffset.UtcNow;
-        _profiles.FindByIdAsync(_callerId, Arg.Any<CancellationToken>())
+        _accounts.FindProfileAsync(_callerId, Arg.Any<CancellationToken>())
             .Returns(new UserProfile(_callerId, "someone", "someone@example.com", true, ["Administrator"], createdAt, true));
 
         var result = await UseCase().ExecuteAsync(TestToken);
@@ -64,7 +64,7 @@ public sealed class GetCurrentUserUseCaseTests
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsRefused()
     {
-        _profiles.FindByIdAsync(_callerId, Arg.Any<CancellationToken>()).Returns((UserProfile?)null);
+        _accounts.FindProfileAsync(_callerId, Arg.Any<CancellationToken>()).Returns((UserProfile?)null);
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -75,18 +75,18 @@ public sealed class GetCurrentUserUseCaseTests
     [Fact]
     public async Task TheCancellationToken_IsForwarded()
     {
-        _profiles.FindByIdAsync(_callerId, Arg.Any<CancellationToken>()).Returns(AProfile());
+        _accounts.FindProfileAsync(_callerId, Arg.Any<CancellationToken>()).Returns(AProfile());
         using var cancellation = new CancellationTokenSource();
 
         await UseCase().ExecuteAsync(cancellation.Token);
 
-        await _profiles.Received(1).FindByIdAsync(_callerId, cancellation.Token);
+        await _accounts.Received(1).FindProfileAsync(_callerId, cancellation.Token);
     }
 
     private static UserProfile AProfile() =>
         new(_callerId, "someone", "someone@example.com", true, [], DateTimeOffset.UtcNow, false);
 
-    private GetCurrentUserUseCase UseCaseFor(ICurrentUser currentUser) => new(_profiles, currentUser);
+    private GetCurrentUserUseCase UseCaseFor(ICurrentUser currentUser) => new(_accounts, currentUser);
 
     private GetCurrentUserUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

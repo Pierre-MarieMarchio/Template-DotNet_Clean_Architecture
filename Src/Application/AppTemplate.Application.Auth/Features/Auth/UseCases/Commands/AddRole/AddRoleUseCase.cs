@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RoleAssignments;
+using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
 using FluentValidation;
@@ -14,8 +14,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.AddRole;
 /// oneself cannot strip the access the request is being made under, only add to it.
 /// </summary>
 public sealed class AddRoleUseCase(
-    IRoleAssignmentsService roles,
-    IRefreshTokenGrantsService refreshTokens,
+    IAccountAdministrationService administration,
+    ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     IValidator<AddRoleCommand> validator) : IAddRoleUseCase
 {
@@ -31,22 +31,22 @@ public sealed class AddRoleUseCase(
             return validation;
         }
 
-        var change = await roles.AddRoleAsync(request.UserId, request.Role, cancellationToken);
+        var change = await administration.GrantRoleAsync(request.UserId, request.Role, cancellationToken);
 
-        if (change.Status is not RoleAssignmentChangeStatus.Applied)
+        if (change.Status is not AccountAdministrationStatus.Applied)
         {
             return Result.Failure(ToError(change));
         }
 
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, request.UserId, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, request.UserId, cancellationToken);
         securityEventLog.Record(SecurityEvent.RoleGranted(request.UserId, request.Role));
 
         return Result.Success();
     }
 
-    private static Error ToError(RoleAssignmentChangeOutcome change) => change.Status switch
+    private static Error ToError(AccountAdministrationOutcome change) => change.Status switch
     {
-        RoleAssignmentChangeStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
+        AccountAdministrationStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
         _ => AuthErrors.RoleAssignmentRejected(
             change.RejectionMessage ?? "The role could not be granted."),
     };

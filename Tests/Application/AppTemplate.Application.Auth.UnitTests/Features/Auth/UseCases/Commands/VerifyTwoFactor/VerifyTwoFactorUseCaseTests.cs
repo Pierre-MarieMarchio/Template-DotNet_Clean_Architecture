@@ -1,8 +1,7 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccessTokenIssuer;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorChallenge;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.VerifyTwoFactor;
 using AppTemplate.Application.Core.Common.Results;
@@ -22,19 +21,17 @@ public sealed class VerifyTwoFactorUseCaseTests
     private static readonly DateTimeOffset _accessTokenExpiry = DateTimeOffset.UnixEpoch.AddMinutes(15);
     private static readonly DateTimeOffset _refreshTokenExpiry = DateTimeOffset.UnixEpoch.AddDays(30);
 
-    private readonly ITwoFactorChallengeService _challenges = Substitute.For<ITwoFactorChallengeService>();
-    private readonly IUserAccountsService _accounts = Substitute.For<IUserAccountsService>();
-    private readonly IAccessTokenIssuer _accessTokens = Substitute.For<IAccessTokenIssuer>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly ITwoFactorService _twoFactor = Substitute.For<ITwoFactorService>();
+    private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly VerifyTwoFactorUseCase _useCase;
 
     public VerifyTwoFactorUseCaseTests() =>
         _useCase = new VerifyTwoFactorUseCase(
-            _challenges,
+            _twoFactor,
             _accounts,
-            _accessTokens,
-            _refreshTokens,
+            _sessionTokens,
             _securityEventLog,
             new VerifyTwoFactorCommandValidator());
 
@@ -49,13 +46,13 @@ public sealed class VerifyTwoFactorUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _challenges.ReceivedCalls().ShouldBeEmpty();
+        _twoFactor.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task AnUnknownOrExpiredChallenge_IsRefused()
     {
-        _challenges.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _twoFactor.RedeemChallengeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(TwoFactorRedemptionOutcome.InvalidChallenge);
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
@@ -75,7 +72,7 @@ public sealed class VerifyTwoFactorUseCaseTests
     {
         var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", true);
 
-        _challenges.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _twoFactor.RedeemChallengeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(TwoFactorRedemptionOutcome.InvalidCode(account));
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
@@ -90,7 +87,7 @@ public sealed class VerifyTwoFactorUseCaseTests
     {
         var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", true);
 
-        _challenges.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _twoFactor.RedeemChallengeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(TwoFactorRedemptionOutcome.InvalidCode(account));
 
         await _useCase.ExecuteAsync(ARequest(), TestToken);
@@ -101,13 +98,12 @@ public sealed class VerifyTwoFactorUseCaseTests
     [Fact]
     public async Task AnUnknownChallenge_MintsNoTokenAndRecordsNothing()
     {
-        _challenges.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _twoFactor.RedeemChallengeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(TwoFactorRedemptionOutcome.InvalidChallenge);
 
         await _useCase.ExecuteAsync(ARequest(), TestToken);
 
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -126,7 +122,7 @@ public sealed class VerifyTwoFactorUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.login.invalidTwoFactorChallenge");
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
@@ -184,15 +180,15 @@ public sealed class VerifyTwoFactorUseCaseTests
     {
         var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", true);
 
-        _challenges.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _twoFactor.RedeemChallengeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(TwoFactorRedemptionOutcome.Verified(account, usedRecoveryCode));
 
         _accounts.CanSignInAsync(account.UserId, Arg.Any<CancellationToken>()).Returns(true);
 
-        _accessTokens.IssueAsync(account.UserId, Arg.Any<CancellationToken>())
+        _sessionTokens.IssueAccessTokenAsync(account.UserId, Arg.Any<CancellationToken>())
             .Returns(new IssuedAccessToken("access-token", _accessTokenExpiry));
 
-        _refreshTokens.IssueAsync(account.UserId, Arg.Any<CancellationToken>())
+        _sessionTokens.IssueRefreshTokenAsync(account.UserId, Arg.Any<CancellationToken>())
             .Returns(new IssuedRefreshToken("refresh-token", _refreshTokenExpiry));
 
         return account;

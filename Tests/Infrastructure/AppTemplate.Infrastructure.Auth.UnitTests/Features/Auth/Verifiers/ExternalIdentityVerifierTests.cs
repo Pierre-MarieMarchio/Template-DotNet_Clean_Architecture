@@ -55,14 +55,13 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token());
+        var identity = await Verify(Token());
 
-        outcome.Status.ShouldBe(ExternalIdentityStatus.Verified);
-        outcome.Identity.ShouldNotBeNull();
-        outcome.Identity.Provider.ShouldBe(_providerName);
-        outcome.Identity.Subject.ShouldBe(_subject);
-        outcome.Identity.Email.ShouldBe("someone@example.com");
-        outcome.Identity.EmailVerified.ShouldBeTrue();
+        identity.ShouldNotBeNull();
+        identity.Provider.ShouldBe(_providerName);
+        identity.Subject.ShouldBe(_subject);
+        identity.Email.ShouldBe("someone@example.com");
+        identity.EmailVerified.ShouldBeTrue();
     }
 
     /// <summary>
@@ -74,25 +73,25 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token(), presentedProvider: "GOOGLE");
+        var identity = await Verify(Token(), presentedProvider: "GOOGLE");
 
-        outcome.Status.ShouldBe(ExternalIdentityStatus.Verified);
-        outcome.Identity!.Provider.ShouldBe(_providerName);
+        identity.ShouldNotBeNull();
+        identity.Provider.ShouldBe(_providerName);
     }
 
     /// <summary>
     /// A name nobody configured never reaches a key set at all — which is also what keeps this
-    /// endpoint from being used to enumerate which providers an installation accepts.
+    /// endpoint from being used to enumerate which providers an installation accepts. It is refused
+    /// exactly as an invalid token is: no answer distinguishes the two.
     /// </summary>
     [Fact]
     public async Task VerifyAsync_RefusesAProviderNobodyConfigured()
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token(), presentedProvider: "okta");
+        var identity = await Verify(Token(), presentedProvider: "okta");
 
-        outcome.Status.ShouldBe(ExternalIdentityStatus.UnknownProvider);
-        outcome.Identity.ShouldBeNull();
+        identity.ShouldBeNull();
         await _signingKeys.DidNotReceive().GetAsync(Arg.Any<ExternalIdentityProviderOptions>(), Arg.Any<CancellationToken>());
     }
 
@@ -103,9 +102,9 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
 
         // Same key identifier, different key: the set is consulted, the key is found, and the
         // signature does not hold.
-        var outcome = await Verify(Token(signedWith: _rotatedKey, keyId: _currentKeyId));
+        var identity = await Verify(Token(signedWith: _rotatedKey, keyId: _currentKeyId));
 
-        outcome.ShouldBeRefusedAsInvalid();
+        identity.ShouldBeRefusedAsInvalid();
     }
 
     [Fact]
@@ -113,9 +112,9 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token(audience: "9999.apps.googleusercontent.com"));
+        var identity = await Verify(Token(audience: "9999.apps.googleusercontent.com"));
 
-        outcome.ShouldBeRefusedAsInvalid();
+        identity.ShouldBeRefusedAsInvalid();
     }
 
     [Fact]
@@ -123,9 +122,9 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token(issuer: "https://login.microsoftonline.com/tenant/v2.0"));
+        var identity = await Verify(Token(issuer: "https://login.microsoftonline.com/tenant/v2.0"));
 
-        outcome.ShouldBeRefusedAsInvalid();
+        identity.ShouldBeRefusedAsInvalid();
     }
 
     [Fact]
@@ -133,11 +132,11 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token(
+        var identity = await Verify(Token(
             notBefore: DateTime.UtcNow.AddHours(-2),
             expires: DateTime.UtcNow.AddHours(-1)));
 
-        outcome.ShouldBeRefusedAsInvalid();
+        identity.ShouldBeRefusedAsInvalid();
     }
 
     [Fact]
@@ -145,11 +144,11 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token(
+        var identity = await Verify(Token(
             notBefore: DateTime.UtcNow.AddHours(1),
             expires: DateTime.UtcNow.AddHours(2)));
 
-        outcome.ShouldBeRefusedAsInvalid();
+        identity.ShouldBeRefusedAsInvalid();
     }
 
     /// <summary>
@@ -162,9 +161,9 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token(algorithm: SecurityAlgorithms.RsaSha512));
+        var identity = await Verify(Token(algorithm: SecurityAlgorithms.RsaSha512));
 
-        outcome.ShouldBeRefusedAsInvalid();
+        identity.ShouldBeRefusedAsInvalid();
     }
 
     [Theory]
@@ -201,10 +200,10 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token(emailVerified: "true"));
+        var identity = await Verify(Token(emailVerified: "true"));
 
-        outcome.Status.ShouldBe(ExternalIdentityStatus.Verified);
-        outcome.Identity!.EmailVerified.ShouldBeTrue();
+        identity.ShouldNotBeNull();
+        identity.EmailVerified.ShouldBeTrue();
     }
 
     [Fact]
@@ -212,10 +211,10 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token(withEmailVerified: false));
+        var identity = await Verify(Token(withEmailVerified: false));
 
-        outcome.Status.ShouldBe(ExternalIdentityStatus.Verified);
-        outcome.Identity!.EmailVerified.ShouldBeFalse();
+        identity.ShouldNotBeNull();
+        identity.EmailVerified.ShouldBeFalse();
     }
 
     /// <summary>
@@ -227,10 +226,10 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token(email: null));
+        var identity = await Verify(Token(email: null));
 
-        outcome.Status.ShouldBe(ExternalIdentityStatus.Verified);
-        outcome.Identity!.Email.ShouldBeNull();
+        identity.ShouldNotBeNull();
+        identity.Email.ShouldBeNull();
     }
 
     /// <summary>
@@ -244,9 +243,9 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
         _signingKeys.RefreshAsync(Arg.Any<ExternalIdentityProviderOptions>(), Arg.Any<CancellationToken>())
             .Returns([PublicKey(_rotatedKey, _rotatedKeyId)]);
 
-        var outcome = await Verify(Token(signedWith: _rotatedKey, keyId: _rotatedKeyId));
+        var identity = await Verify(Token(signedWith: _rotatedKey, keyId: _rotatedKeyId));
 
-        outcome.Status.ShouldBe(ExternalIdentityStatus.Verified);
+        identity.ShouldNotBeNull();
         await _signingKeys.Received(1)
             .RefreshAsync(Arg.Any<ExternalIdentityProviderOptions>(), Arg.Any<CancellationToken>());
     }
@@ -261,9 +260,9 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     {
         GivenTheProviderPublishes(PublicKey(_currentKey, _currentKeyId));
 
-        var outcome = await Verify(Token(signedWith: _rotatedKey, keyId: _currentKeyId));
+        var identity = await Verify(Token(signedWith: _rotatedKey, keyId: _currentKeyId));
 
-        outcome.ShouldBeRefusedAsInvalid();
+        identity.ShouldBeRefusedAsInvalid();
         await _signingKeys.DidNotReceive()
             .RefreshAsync(Arg.Any<ExternalIdentityProviderOptions>(), Arg.Any<CancellationToken>());
     }
@@ -295,7 +294,7 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
         _signingKeys.GetAsync(Arg.Any<ExternalIdentityProviderOptions>(), Arg.Any<CancellationToken>())
             .Returns(keys);
 
-    private Task<ExternalIdentityOutcome> Verify(string idToken, string presentedProvider = _providerName) =>
+    private Task<VerifiedExternalIdentity?> Verify(string idToken, string presentedProvider = _providerName) =>
         CreateVerifier().VerifyAsync(presentedProvider, idToken, TestToken);
 
     private ExternalIdentityVerifier CreateVerifier()
@@ -365,16 +364,13 @@ public sealed class ExternalIdentityVerifierTests : IDisposable
     }
 }
 
-internal static class ExternalIdentityOutcomeAssertions
+internal static class ExternalIdentityRefusalAssertions
 {
     /// <summary>
     /// Every refusal is the same refusal, and it carries nothing: the claims of a token that failed
     /// verification are attacker-supplied text, so a caller that reads them has been handed input it
     /// believes is evidence.
     /// </summary>
-    internal static void ShouldBeRefusedAsInvalid(this ExternalIdentityOutcome outcome)
-    {
-        outcome.Status.ShouldBe(ExternalIdentityStatus.InvalidToken);
-        outcome.Identity.ShouldBeNull();
-    }
+    internal static void ShouldBeRefusedAsInvalid(this VerifiedExternalIdentity? identity) =>
+        identity.ShouldBeNull();
 }

@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
 using FluentValidation;
@@ -11,7 +11,7 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Logout;
 /// out whether a token was live.
 /// </summary>
 public sealed class LogoutUseCase(
-    IRefreshTokenGrantsService refreshTokens,
+    ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     IValidator<LogoutCommand> validator) : ILogoutUseCase
 {
@@ -27,7 +27,7 @@ public sealed class LogoutUseCase(
             return validation;
         }
 
-        var userId = await refreshTokens.RevokeAsync(request.RefreshToken, cancellationToken);
+        var userId = await sessionTokens.RevokeRefreshTokenAsync(request.RefreshToken, cancellationToken);
 
         if (userId is { } id)
         {

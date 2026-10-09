@@ -1,8 +1,7 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
-using AppTemplate.Application.Auth.Features.Auth.Ports.AccessTokenIssuer;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
 using FluentValidation;
@@ -15,9 +14,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RefreshAc
 /// onwards.
 /// </summary>
 public sealed class RefreshAccessTokenUseCase(
-    IUserAccountsService accounts,
-    IAccessTokenIssuer accessTokens,
-    IRefreshTokenGrantsService refreshTokens,
+    IAccountsService accounts,
+    ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     IValidator<RefreshAccessTokenCommand> validator) : IRefreshAccessTokenUseCase
 {
@@ -37,7 +35,7 @@ public sealed class RefreshAccessTokenUseCase(
 
         // Rotation comes first and is single-use, so a replayed token is refused here rather than
         // after the account has been revalidated.
-        var rotation = await refreshTokens.RotateAsync(request.RefreshToken, cancellationToken);
+        var rotation = await sessionTokens.RotateRefreshTokenAsync(request.RefreshToken, cancellationToken);
 
         if (rotation is not { Succeeded: true, UserId: { } userId, Token: { } refreshToken })
         {
@@ -48,13 +46,13 @@ public sealed class RefreshAccessTokenUseCase(
         // and the successor has to go with it — otherwise the holder simply refreshes again.
         if (!await accounts.CanSignInAsync(userId, cancellationToken))
         {
-            await refreshTokens.RevokeAllForUserAsync(userId, cancellationToken);
+            await sessionTokens.RevokeAllRefreshTokensAsync(userId, cancellationToken);
             securityEventLog.Record(SecurityEvent.RefreshTokenRevoked(userId));
 
             return Result.Failure<RefreshAccessTokenOutcome>(AuthErrors.InvalidRefreshToken);
         }
 
-        var accessToken = await accessTokens.IssueAsync(userId, cancellationToken);
+        var accessToken = await sessionTokens.IssueAccessTokenAsync(userId, cancellationToken);
 
         return Result.Success(new RefreshAccessTokenOutcome(
             accessToken.Value,

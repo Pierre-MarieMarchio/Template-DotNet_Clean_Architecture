@@ -214,9 +214,10 @@ still compiles — the consumer simply never fires, and the use case that takes 
 throws on its first resolution.
 
 A port is a capability, not a façade, and two architecture rules hold it to that.
-`PortConventionTests` refuses any port declaring more than **four** operations: four is
-what the widest port here needs, and a fifth means a second capability that belongs in
-a port of its own. It also refuses a feature port that *every* use case in its vertical
+`PortConventionTests` refuses any port declaring more than **six** operations: six lets a
+port cover one intent — the authentication ports group an account's session tokens, or its
+mailed tokens, that way — and a seventh means a second intent that belongs in a port of
+its own. It also refuses a feature port that *every* use case in its vertical
 depends on, because a vertical whose use cases are all wrappers around one collaborator
 has put its logic in the collaborator. Neither rule applies to the cross-cutting ports
 in `AppTemplate.Application.Core/Common/Ports/` — the clock and the caller's identity may
@@ -581,9 +582,9 @@ item's worth at a time, so the feature has no collection endpoint, and therefore
 does not apply to it. Skipping all of that is the default, not a shortcut — build the
 collection machinery when a feature has a list to page, and not before.
 
-Three things it does show that `TodoLists` does not. **The four-operation cap is a rule
+Three things it does show that `TodoLists` does not. **The operation cap is a rule
 about application ports, not about repository contracts.** `IReminderRepository`
-declares five members, and that is legitimate: it lives in the domain, and
+is not counted, and that is legitimate: it lives in the domain, and
 `PortConventionTests` reads only interfaces under
 `AppTemplate.Application.Features.<F>.Ports`. **`ReminderFiredDomainEvent` is a live
 entry in `_deliberatelyUnconsumed`**, with the reason written next to it — the worked
@@ -779,7 +780,7 @@ Validators/             NoteContentDtoValidator
   what is stored. `ApplicationModule.AddFeature` discovers the validator by its namespace, as it
   does for every vertical.
 - **Reads stage nothing.** The write half of storage is its own port because a port is one
-  capability and an architecture rule caps it at four operations; `INoteStore` only stages, and the
+  capability, and staging is not reading; `INoteStore` only stages, and the
   service commits through `IUnitOfWork`. The version is assigned by the database, so a write's
   answer is read back rather than assembled.
 

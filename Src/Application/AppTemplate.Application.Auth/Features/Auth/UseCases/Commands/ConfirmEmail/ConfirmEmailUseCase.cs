@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailConfirmationTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
 using FluentValidation;
@@ -18,7 +18,7 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEm
 /// </para>
 /// </summary>
 public sealed class ConfirmEmailUseCase(
-    IEmailConfirmationTokensService confirmationTokens,
+    IEmailTokensService emailTokens,
     IValidator<ConfirmEmailCommand> validator) : IConfirmEmailUseCase
 {
     /// <inheritdoc />
@@ -33,11 +33,11 @@ public sealed class ConfirmEmailUseCase(
             return validation;
         }
 
-        var outcome = await confirmationTokens.RedeemAsync(request.Email, request.Token, cancellationToken);
+        bool confirmed = await emailTokens.ConfirmEmailAsync(request.Email, request.Token, cancellationToken);
 
         // One error for every refusal. An unknown address and a wrong token must be indistinguishable,
         // or the endpoint answers "is this address registered?" for anybody holding a junk token.
-        return outcome is EmailConfirmationStatus.Confirmed
+        return confirmed
             ? Result.Success()
             : Result.Failure(AuthErrors.InvalidEmailConfirmation);
     }

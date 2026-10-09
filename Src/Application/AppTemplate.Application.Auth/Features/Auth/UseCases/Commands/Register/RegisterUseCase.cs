@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
-using AppTemplate.Application.Auth.Features.Auth.Ports.ConfirmationEmailFactory;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailConfirmationTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -17,9 +17,9 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Register;
 /// no account able to claim it.
 /// </summary>
 public sealed class RegisterUseCase(
-    IUserAccountsService accounts,
-    IEmailConfirmationTokensService confirmationTokens,
-    IConfirmationEmailFactory emailFactory,
+    IAccountsService accounts,
+    IEmailTokensService emailTokens,
+    IAccountEmailFactory emailFactory,
     IEmailSender emailSender,
     ISecurityEventLog securityEventLog,
     IValidator<RegisterCommand> validator,
@@ -84,14 +84,14 @@ public sealed class RegisterUseCase(
         {
             // The token is derived from the stored account, so one minted before the row was written
             // could not confirm it.
-            var pending = await confirmationTokens.IssueAsync(email, cancellationToken);
+            var pending = await emailTokens.IssueEmailConfirmationAsync(email, cancellationToken);
 
             if (pending is null)
             {
                 return false;
             }
 
-            var message = await emailFactory.CreateAsync(
+            var message = await emailFactory.CreateConfirmationAsync(
                 pending.UserName,
                 email,
                 pending.Token,

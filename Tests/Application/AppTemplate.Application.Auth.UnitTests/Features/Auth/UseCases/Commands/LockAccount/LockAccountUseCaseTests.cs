@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountLockouts;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.LockAccount;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Ports;
@@ -16,8 +16,8 @@ public sealed class LockAccountUseCaseTests
     private static readonly Guid _callerId = Guid.CreateVersion7();
     private static readonly Guid _targetId = Guid.CreateVersion7();
 
-    private readonly IAccountLockoutsService _lockouts = Substitute.For<IAccountLockoutsService>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly IAccountAdministrationService _administration = Substitute.For<IAccountAdministrationService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -30,7 +30,7 @@ public sealed class LockAccountUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        _lockouts.ReceivedCalls().ShouldBeEmpty();
+        _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class LockAccountUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _lockouts.ReceivedCalls().ShouldBeEmpty();
+        _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
     /// <summary>
@@ -56,13 +56,13 @@ public sealed class LockAccountUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.lockout.cannotTargetSelf");
-        _lockouts.ReceivedCalls().ShouldBeEmpty();
+        _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task AnUnknownAccount_IsReportedAsNotFound()
     {
-        GivenTheOutcomeIs(LockoutChangeStatus.NoSuchAccount);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.NoSuchAccount);
 
         var result = await UseCase().ExecuteAsync(new LockAccountCommand(_targetId), TestToken);
 
@@ -73,28 +73,28 @@ public sealed class LockAccountUseCaseTests
     [Fact]
     public async Task AKnownAccount_Succeeds()
     {
-        GivenTheOutcomeIs(LockoutChangeStatus.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         var result = await UseCase().ExecuteAsync(new LockAccountCommand(_targetId), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
     }
 
-    /// <summary>The gap this whole vertical exists to close: see <c>AccountLockouts</c>.</summary>
+    /// <summary>The gap this whole vertical exists to close: see <c>IAccountAdministrationService</c>.</summary>
     [Fact]
     public async Task ASuccessfulLock_RevokesEveryRefreshTokenForTheTarget()
     {
-        GivenTheOutcomeIs(LockoutChangeStatus.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         await UseCase().ExecuteAsync(new LockAccountCommand(_targetId), TestToken);
 
-        await _refreshTokens.Received(1).RevokeAllForUserAsync(_targetId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_targetId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ASuccessfulLock_RecordsBothTheAdministrativeActionAndTheStampRotation()
     {
-        GivenTheOutcomeIs(LockoutChangeStatus.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         await UseCase().ExecuteAsync(new LockAccountCommand(_targetId), TestToken);
 
@@ -105,20 +105,20 @@ public sealed class LockAccountUseCaseTests
     [Fact]
     public async Task AStoreRefusal_RevokesNothing()
     {
-        GivenTheOutcomeIs(LockoutChangeStatus.Rejected);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Rejected);
 
         var result = await UseCase().ExecuteAsync(new LockAccountCommand(_targetId), TestToken);
 
         result.IsFailure.ShouldBeTrue();
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    private void GivenTheOutcomeIs(LockoutChangeStatus outcome) =>
-        _lockouts.LockAsync(_targetId, Arg.Any<CancellationToken>()).Returns(outcome);
+    private void GivenTheOutcomeIs(AccountAdministrationOutcome outcome) =>
+        _administration.LockAsync(_targetId, Arg.Any<CancellationToken>()).Returns(outcome);
 
     private LockAccountUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_lockouts, _refreshTokens, _securityEventLog, currentUser, new LockAccountCommandValidator());
+        new(_administration, _sessionTokens, _securityEventLog, currentUser, new LockAccountCommandValidator());
 
     private LockAccountUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

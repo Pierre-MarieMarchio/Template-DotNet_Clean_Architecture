@@ -75,7 +75,7 @@ public enum SecurityEventKind
 
     /// <summary>
     /// An administrator disabled two-factor sign-in on someone else's account through
-    /// <see cref="AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorAdministration.ITwoFactorAdministrationService"/>,
+    /// <see cref="AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration.IAccountAdministrationService"/>,
     /// rather than the account itself proving its password through <see cref="TwoFactorDisabled"/>'s route.
     /// </summary>
     TwoFactorDisabledByAdministrator,

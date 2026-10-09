@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Logs;

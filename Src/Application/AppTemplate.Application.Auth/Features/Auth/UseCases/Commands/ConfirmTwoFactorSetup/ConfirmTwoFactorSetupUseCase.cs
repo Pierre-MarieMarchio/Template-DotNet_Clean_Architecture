@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -16,8 +16,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmTw
 /// what a session is worth; no grant records which session it belongs to, so none can be spared.
 /// </summary>
 public sealed class ConfirmTwoFactorSetupUseCase(
-    ITwoFactorEnrollmentService enrollment,
-    IRefreshTokenGrantsService refreshTokens,
+    ITwoFactorService twoFactor,
+    ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<ConfirmTwoFactorSetupCommand> validator) : IConfirmTwoFactorSetupUseCase
@@ -43,7 +43,7 @@ public sealed class ConfirmTwoFactorSetupUseCase(
             return userId.To<ConfirmTwoFactorSetupOutcome>();
         }
 
-        var confirmation = await enrollment.ConfirmAsync(
+        var confirmation = await twoFactor.ConfirmSetupAsync(
             userId.Value.Value, request.CurrentPassword, request.Code, cancellationToken);
 
         if (confirmation.Status is not TwoFactorConfirmationStatus.Confirmed)
@@ -55,7 +55,7 @@ public sealed class ConfirmTwoFactorSetupUseCase(
 
         // Arming two-factor sign-in is a security-posture change every session, this one included,
         // must re-authenticate under.
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, userId.Value.Value, cancellationToken);
 
         return Result.Success(new ConfirmTwoFactorSetupOutcome(confirmation.RecoveryCodes!));
     }

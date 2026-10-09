@@ -323,7 +323,7 @@ Remove the feature's one composition line — `AddTodoLists()` **(T)**, `AddRemi
 AppTemplate.Infrastructure.Storage;`. The persistence side needs no line here: it cascades through
 `AddPersistenceModule`. **Do not remove `AddEmailModule` or `AddAuthModule` with `Reminders`.**
 `AddAuthApplication()` registers every use case `AppTemplate.Application.Auth` declares, and
-`ValidateOnBuild` then requires all twenty of that project's ports to resolve — four of the use cases
+`ValidateOnBuild` then requires all nine of that project's ports to resolve — four of the use cases
 take `IEmailSender` — so dropping either module leaves a build that is perfectly green and an API
 that will not start. Dropping authentication itself is a different operation: see
 [Removing authentication](#removing-authentication).
@@ -447,9 +447,9 @@ feature at all, so even removing all three leaves the process doing real work.
 What the container composes shrinks by exactly the line you delete, and no further. Removing a
 business feature removes that feature's `AddX()` call and nothing else from the graph. What does not
 shrink is authentication: the API calls `AddAuthApplication()`, and `ValidateOnBuild` then requires
-all twenty ports `AppTemplate.Application.Auth` declares to resolve — not only the ports the jobs
+all nine ports `AppTemplate.Application.Auth` declares to resolve — not only the ports the jobs
 reach. That is why `AppTemplate.Infrastructure.Auth` and `AppTemplate.Infrastructure.Email` both stay
-composed after `Reminders` goes: those use cases take `IUserProfilesService` and `IEmailSender`, and
+composed after `Reminders` goes: those use cases take `IAccountsService` and `IEmailSender`, and
 they are registered whether or not anything calls them. `AppTemplate.Infrastructure.Storage` is the
 one module that leaves with a business feature, and only with `Files`.
 
@@ -714,7 +714,7 @@ refresh-token purge's registration and its options, and six controllers: `Regist
 **Then four things answer back, and none of them is in either of those two projects.**
 
 - **The email module will not compile without it.** `EmailReminderNotifier` resolves
-  `IUserProfilesService` — an authentication port — to find the address a due reminder is rung at.
+  `IAccountsService` — an authentication port — to find the address a due reminder is rung at.
   That is `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/EmailReminderNotifier.cs`,
   and it is why the module is absent from the container that test builds. Either the reminder loop
   learns an address some other way, or it goes.
@@ -734,7 +734,7 @@ refresh-token purge's registration and its options, and six controllers: `Regist
   keeps — was never in the same file.
 
 **What is left to answer for is one adapter.** `IReminderNotifier`'s only implementation is in the
-email module, and that implementation resolves `IUserProfilesService` to find the address a due
+email module, and that implementation resolves `IAccountsService` to find the address a due
 reminder is rung at. Either drop the reminder feature with authentication, denormalise the address
 onto the reminder, or write a notifier that gets it elsewhere. That is the whole of it now: a
 project, a line in the composition, and that one door.

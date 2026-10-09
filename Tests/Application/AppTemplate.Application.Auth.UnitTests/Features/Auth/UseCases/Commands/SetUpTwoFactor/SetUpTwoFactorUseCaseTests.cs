@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SetUpTwoFactor;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Ports;
@@ -12,7 +12,7 @@ public sealed class SetUpTwoFactorUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly ITwoFactorEnrollmentService _enrollment = Substitute.For<ITwoFactorEnrollmentService>();
+    private readonly ITwoFactorService _twoFactor = Substitute.For<ITwoFactorService>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -23,13 +23,13 @@ public sealed class SetUpTwoFactorUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        _enrollment.ReceivedCalls().ShouldBeEmpty();
+        _twoFactor.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task AFreshEnrollment_AnswersWithTheSharedKeyAndTheAuthenticatorUri()
     {
-        _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>())
+        _twoFactor.BeginSetupAsync(_callerId, Arg.Any<CancellationToken>())
             .Returns(TwoFactorSetupOutcome.Started(
                 "ABCDEFGH",
                 "otpauth://totp/AppTemplate:someone@example.com?secret=ABCDEFGH&issuer=AppTemplate&digits=6"));
@@ -50,7 +50,7 @@ public sealed class SetUpTwoFactorUseCaseTests
     [Fact]
     public async Task AnAlreadyEnabledAccount_IsRefused()
     {
-        _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.AlreadyEnabled);
+        _twoFactor.BeginSetupAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.AlreadyEnabled);
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -62,7 +62,7 @@ public sealed class SetUpTwoFactorUseCaseTests
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticated()
     {
-        _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.NoSuchAccount);
+        _twoFactor.BeginSetupAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.NoSuchAccount);
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -73,7 +73,7 @@ public sealed class SetUpTwoFactorUseCaseTests
     [Fact]
     public async Task AStoreRefusal_IsReportedAsSuch()
     {
-        _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.Rejected);
+        _twoFactor.BeginSetupAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.Rejected);
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -82,18 +82,18 @@ public sealed class SetUpTwoFactorUseCaseTests
     }
 
     [Fact]
-    public async Task TheCancellationToken_ReachesTheEnrollmentPort()
+    public async Task TheCancellationToken_ReachesTheTwoFactorPort()
     {
         using var cancellation = new CancellationTokenSource();
 
-        _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.Started("key", "uri"));
+        _twoFactor.BeginSetupAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.Started("key", "uri"));
 
         await UseCase().ExecuteAsync(cancellation.Token);
 
-        await _enrollment.Received(1).BeginAsync(_callerId, cancellation.Token);
+        await _twoFactor.Received(1).BeginSetupAsync(_callerId, cancellation.Token);
     }
 
-    private SetUpTwoFactorUseCase UseCaseFor(ICurrentUser currentUser) => new(_enrollment, currentUser);
+    private SetUpTwoFactorUseCase UseCaseFor(ICurrentUser currentUser) => new(_twoFactor, currentUser);
 
     private SetUpTwoFactorUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

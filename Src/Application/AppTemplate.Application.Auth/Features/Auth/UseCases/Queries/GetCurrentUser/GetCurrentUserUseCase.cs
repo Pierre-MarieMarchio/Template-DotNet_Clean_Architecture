@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 
@@ -10,7 +10,7 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.GetCurrent
 /// it any more.
 /// </summary>
 public sealed class GetCurrentUserUseCase(
-    IUserProfilesService profiles,
+    IAccountsService accounts,
     ICurrentUser currentUser) : IGetCurrentUserUseCase
 {
     /// <inheritdoc />
@@ -23,9 +23,9 @@ public sealed class GetCurrentUserUseCase(
             return userId.To<GetCurrentUserOutcome>();
         }
 
-        // Read from the store rather than from the principal's claims — see IUserProfilesService for why a
+        // Read from the store rather than from the principal's claims — see IAccountsService for why a
         // claim-built profile would be stale.
-        var profile = await profiles.FindByIdAsync(userId.Value.Value, cancellationToken);
+        var profile = await accounts.FindProfileAsync(userId.Value.Value, cancellationToken);
 
         if (profile is null)
         {

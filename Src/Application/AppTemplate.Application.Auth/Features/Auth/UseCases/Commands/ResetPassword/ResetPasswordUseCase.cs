@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.Ports.PasswordResetTokens;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
 using FluentValidation;
@@ -15,8 +15,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResetPass
 /// sessions may not be theirs.
 /// </summary>
 public sealed class ResetPasswordUseCase(
-    IPasswordResetTokensService resetTokens,
-    IRefreshTokenGrantsService refreshTokens,
+    IEmailTokensService emailTokens,
+    ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     IValidator<ResetPasswordCommand> validator) : IResetPasswordUseCase
 {
@@ -32,7 +32,7 @@ public sealed class ResetPasswordUseCase(
             return validation;
         }
 
-        var reset = await resetTokens.RedeemAsync(
+        var reset = await emailTokens.ResetPasswordAsync(
             request.Email,
             request.Token,
             request.NewPassword,
@@ -52,7 +52,7 @@ public sealed class ResetPasswordUseCase(
             return Result.Failure(AuthErrors.InvalidPasswordReset);
         }
 
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, userId, cancellationToken);
 
         return Result.Success();
     }

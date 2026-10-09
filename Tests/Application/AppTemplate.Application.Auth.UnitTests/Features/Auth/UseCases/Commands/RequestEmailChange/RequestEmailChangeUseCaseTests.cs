@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.EmailChangeEmailFactory;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailChangeTokens;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestEmailChange;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Ports;
@@ -16,8 +16,8 @@ public sealed class RequestEmailChangeUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly IEmailChangeTokensService _emailChangeTokens = Substitute.For<IEmailChangeTokensService>();
-    private readonly IEmailChangeEmailFactory _emailFactory = Substitute.For<IEmailChangeEmailFactory>();
+    private readonly IEmailTokensService _emailTokens = Substitute.For<IEmailTokensService>();
+    private readonly IAccountEmailFactory _emailFactory = Substitute.For<IAccountEmailFactory>();
     private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -30,7 +30,7 @@ public sealed class RequestEmailChangeUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        _emailChangeTokens.ReceivedCalls().ShouldBeEmpty();
+        _emailTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Theory]
@@ -42,7 +42,7 @@ public sealed class RequestEmailChangeUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _emailChangeTokens.ReceivedCalls().ShouldBeEmpty();
+        _emailTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
@@ -76,8 +76,8 @@ public sealed class RequestEmailChangeUseCaseTests
     public async Task AnAvailableAddress_IsSentAConfirmationLink()
     {
         GivenTheOutcomeIs(EmailChangeRequestOutcome.Issued("someone", "the-token"));
-        _emailFactory.CreateAsync("someone", "new@example.com", "the-token", Arg.Any<CancellationToken>())
-            .Returns(new EmailChangeEmail("Confirm your new email address", "<html>the body</html>"));
+        _emailFactory.CreateEmailChangeAsync("someone", "new@example.com", "the-token", Arg.Any<CancellationToken>())
+            .Returns(new AccountEmail("Confirm your new email address", "<html>the body</html>"));
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -112,8 +112,8 @@ public sealed class RequestEmailChangeUseCaseTests
     public async Task AnIssuedTokenAndASuppressedOne_AreAnsweredIdentically()
     {
         GivenTheOutcomeIs(EmailChangeRequestOutcome.Issued("someone", "the-token"));
-        _emailFactory.CreateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new EmailChangeEmail("Confirm your new email address", "<html>the body</html>"));
+        _emailFactory.CreateEmailChangeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new AccountEmail("Confirm your new email address", "<html>the body</html>"));
         var forIssued = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
         GivenTheOutcomeIs(EmailChangeRequestOutcome.Suppressed);
@@ -127,8 +127,8 @@ public sealed class RequestEmailChangeUseCaseTests
     public async Task AnUnreachableRelay_StillSucceeds()
     {
         GivenTheOutcomeIs(EmailChangeRequestOutcome.Issued("someone", "the-token"));
-        _emailFactory.CreateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new EmailChangeEmail("Confirm your new email address", "<html>the body</html>"));
+        _emailFactory.CreateEmailChangeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new AccountEmail("Confirm your new email address", "<html>the body</html>"));
         _emailSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("The relay is unreachable."));
 
@@ -141,8 +141,8 @@ public sealed class RequestEmailChangeUseCaseTests
     public async Task ACancelledDelivery_Propagates()
     {
         GivenTheOutcomeIs(EmailChangeRequestOutcome.Issued("someone", "the-token"));
-        _emailFactory.CreateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new EmailChangeEmail("Confirm your new email address", "<html>the body</html>"));
+        _emailFactory.CreateEmailChangeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new AccountEmail("Confirm your new email address", "<html>the body</html>"));
         _emailSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new OperationCanceledException());
 
@@ -152,12 +152,12 @@ public sealed class RequestEmailChangeUseCaseTests
     private static RequestEmailChangeCommand ARequest() => new("correct horse battery", "new@example.com");
 
     private void GivenTheOutcomeIs(EmailChangeRequestOutcome request) =>
-        _emailChangeTokens.IssueAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _emailTokens.IssueEmailChangeAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(request);
 
     private RequestEmailChangeUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(
-            _emailChangeTokens,
+            _emailTokens,
             _emailFactory,
             _emailSender,
             currentUser,

@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
-using AppTemplate.Application.Auth.Features.Auth.Ports.AccountLockouts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -14,7 +14,7 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.UnlockAcc
 /// target's it needs to invalidate.
 /// </summary>
 public sealed class UnlockAccountUseCase(
-    IAccountLockoutsService lockouts,
+    IAccountAdministrationService administration,
     ISecurityEventLog securityEventLog,
     IValidator<UnlockAccountCommand> validator) : IUnlockAccountUseCase
 {
@@ -30,11 +30,11 @@ public sealed class UnlockAccountUseCase(
             return validation;
         }
 
-        var outcome = await lockouts.UnlockAsync(request.UserId, cancellationToken);
+        var outcome = await administration.UnlockAsync(request.UserId, cancellationToken);
 
-        if (outcome is not LockoutChangeStatus.Applied)
+        if (outcome.Status is not AccountAdministrationStatus.Applied)
         {
-            return Result.Failure(ToError(outcome));
+            return Result.Failure(ToError(outcome.Status));
         }
 
         securityEventLog.Record(SecurityEvent.AccountUnlockedByAdministrator(request.UserId));
@@ -42,9 +42,9 @@ public sealed class UnlockAccountUseCase(
         return Result.Success();
     }
 
-    private static Error ToError(LockoutChangeStatus outcome) => outcome switch
+    private static Error ToError(AccountAdministrationStatus status) => status switch
     {
-        LockoutChangeStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
+        AccountAdministrationStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
         _ => AuthErrors.AccountLockoutRejected,
     };
 }

@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 
@@ -11,7 +11,7 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.LogoutEve
 /// fresh sign-in.
 /// </summary>
 public sealed class LogoutEverywhereUseCase(
-    IRefreshTokenGrantsService refreshTokens,
+    ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser) : ILogoutEverywhereUseCase
 {
@@ -27,7 +27,7 @@ public sealed class LogoutEverywhereUseCase(
 
         // Revocation only: rotating the security stamp here would also kill the access token the
         // caller just used to ask for this, signing out the very session that made the request.
-        await refreshTokens.RevokeAllForUserAsync(userId.Value.Value, cancellationToken);
+        await sessionTokens.RevokeAllRefreshTokensAsync(userId.Value.Value, cancellationToken);
         securityEventLog.Record(SecurityEvent.RefreshTokenRevoked(userId.Value.Value));
 
         return Result.Success();

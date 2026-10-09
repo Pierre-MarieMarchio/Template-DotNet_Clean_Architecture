@@ -36,7 +36,8 @@ internal sealed class IdempotencyRecord
     /// <summary>
     /// Only set once <see cref="IsCompleted"/> is true, and even then only when the response was
     /// small enough to keep — <c>null</c> here is what makes a later claim answer
-    /// <c>idempotency.notReplayable</c> instead of replaying a truncated body.
+    /// <c>idempotency.notReplayable</c> instead of replaying a truncated body. A 204 is the exception:
+    /// it has no body to keep, so its <c>null</c> is the response and it replays.
     /// </summary>
     public string? ResponseBody { get; set; }
 

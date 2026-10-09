@@ -144,7 +144,7 @@ curl -X POST "$API/todo-lists" -H "Authorization: Bearer $TOKEN" \
 | Situation | Answer |
 |---|---|
 | First use of the key | The request runs normally |
-| Same key, same body, after it completed | The original status, body and `Location`, plus `Idempotency-Replayed: true` — the action does **not** run again |
+| Same key, same body, after it completed | The original status, body (none for a `204`) and `Location`, plus `Idempotency-Replayed: true` — the action does **not** run again |
 | Same key, **different** body | `409` `idempotency.keyReused` |
 | Same key while the first is still running | `409` `idempotency.inProgress` |
 | Same key, but the first attempt **failed** | Runs normally — a failed attempt releases its claim, so a corrected retry is not blocked |

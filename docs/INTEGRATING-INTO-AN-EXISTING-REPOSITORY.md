@@ -41,15 +41,15 @@ it produced, and every fix is one that was applied and re-measured. The end stat
 `dotnet format --verify-no-changes` clean, all four hygiene gates green with 3 workflows validated,
 and `docker compose config` clean.
 
-Five things are **not** measured here, and you should treat them as reasoning:
+These things are **not** measured here, and you should treat them as reasoning:
 
 - **The root shape, end to end.** Its claim — that everything works as documented because the
   assumption every tool makes is satisfied — follows from what the subdirectory shape had to repair
   to reach the same place. No repository was actually assembled that way.
-<!--#if (ci)-->
+  <!--#if (ci)-->
 - **The release workflow.** Only the CI workflow was driven back to green. `release.yml` needs the
   same treatment and was not given it.
-<!--#endif-->
+  <!--#endif-->
 - **GitHub actually running the adapted workflow.** The gate that checks workflows structurally was
   satisfied; nothing was pushed to a real repository to watch it run.
 - **The container build and `docker compose up` in the integrated layout.** `docker compose config`
@@ -218,7 +218,11 @@ Step("dotnet", "run", Gate(repoRoot, "CheckWorkflows.cs"), Path.Combine(repoRoot
 — after which the target exited 0 with all four gates green.
 
 <!--#endif-->
+<!--#if (ci)-->
 ### 7. Compose
+<!--#else
+### 4. Compose
+#endif-->
 
 The compose file's build contexts are relative to the compose file itself, so the whole subtree
 moves as a unit and nothing needs re-pointing. It does need its environment file beside it, in the
@@ -232,7 +236,11 @@ docker compose config -q
 
 Measured: exit 1 without the copy, exit 0 with it and no warnings.
 
+<!--#if (ci)-->
 ### 8. What is left at the host's root
+<!--#else
+### 5. What is left at the host's root
+#endif-->
 
 The generated tree carries eight files that a host repository is likely to have already: README.md,
 LICENSE, `.gitignore`, `global.json`, `Directory.Build.props`, `Directory.Packages.props`,

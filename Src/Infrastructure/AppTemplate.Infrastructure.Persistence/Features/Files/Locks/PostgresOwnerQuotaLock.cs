@@ -24,7 +24,9 @@ internal sealed class PostgresOwnerQuotaLock(string connectionString, ILogger<Po
     /// <summary>How long a registration waits for another one of the same owner and category.</summary>
     internal static readonly TimeSpan WaitLimit = TimeSpan.FromSeconds(10);
 
-    private const string _keyNamespace = "apptemplate.files.quota";
+    // Free of the project name on purpose: the template engine renames that name wherever it
+    // appears, which would change the key and break the digest the unit test pins.
+    private const string _keyNamespace = "files.quota";
 
     private const string _setTimeoutSql = "SELECT set_config('lock_timeout', @timeout, false)";
 

@@ -8,14 +8,14 @@ account, no token, no third party — with one deliberate exception, named at th
 - [`TreatWarningsAsErrors` is not negotiable](#treatwarningsaserrors-is-not-negotiable)
 - [`.cs` files must be UTF-8 with BOM](#cs-files-must-be-utf-8-with-bom)
 - [`Tools/`](#tools)
-<!--#if (ci)-->
+  <!--#if (ci)-->
 - [CI](#ci)
-<!--#endif-->
+  <!--#endif-->
 - [Supply chain](#supply-chain)
 - [The container image](#the-container-image)
-<!--#if (sonar)-->
+  <!--#if (sonarWorkflow)-->
 - [Static analysis, and where its verdict lives](#static-analysis-and-where-its-verdict-lives)
-<!--#endif-->
+  <!--#endif-->
 
 ## A green build
 
@@ -289,8 +289,6 @@ linked stylesheet, so the shipped templates share a `<style>` block by construct
 reports each as a near clone of the others. Duplication only: every rule that judges the markup
 itself still applies.
 
-<!--#endif-->
-<!--#if (sonar)-->
 ### Running it locally
 
 ```bash

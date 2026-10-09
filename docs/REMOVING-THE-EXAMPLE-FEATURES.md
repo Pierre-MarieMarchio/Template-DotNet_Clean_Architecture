@@ -279,10 +279,10 @@ Plus, outside a `Features/` folder:
 - `Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/ATodoList.cs` (TodoLists) and
   `Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/AReminder.cs` (Reminders) — test
   doubles that build a real aggregate, so nothing is left for them to build.
-<!--#if (files)-->
+  <!--#if (files)-->
 - `Tests/Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests/` — the whole project, with
   `Files`.
-<!--#endif-->
+  <!--#endif-->
 
 One source file is easy to miss because it sits in the persistence layer without touching the
 database: `ReminderDiagnostics`, the adapter behind `IReminderDiagnostics`, an OpenTelemetry counter

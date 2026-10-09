@@ -1,8 +1,10 @@
 ﻿using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
+//#if (externalAuth)
 using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityQueries;
 using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityStore;
 using AppTemplate.Application.Features.ExternalIdentity.Ports.RoleAssignmentQueries;
+//#endif
 //#if (files)
 using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
@@ -42,8 +44,10 @@ using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
+//#if (externalAuth)
 using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Stores;
+//#endif
 //#if (files)
 using AppTemplate.Infrastructure.Persistence.Features.Files.Checkpoints;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Locks;
@@ -136,6 +140,7 @@ public static class PersistenceModule
 
         return services;
     }
+    //#if (externalAuth)
 
     /// <summary>
     /// Registers the stores behind the external-identity mapping: the subject-to-owner store, the
@@ -160,6 +165,7 @@ public static class PersistenceModule
 
         return services;
     }
+    //#endif
 
     /// <summary>
     /// <c>AddDbContext</c> has no <c>Try</c> form, so a second call would register a second context

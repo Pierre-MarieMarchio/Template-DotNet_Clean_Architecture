@@ -42,13 +42,14 @@ three switches leave parts of the template out, all on by default:
 ```bash
 dotnet new cleanarch-webapi -n Acme.OrderManagement --examples none --files false --ci false --sonar false
 dotnet new cleanarch-webapi -n Acme.OrderManagement --auth none --examples none --files false
+dotnet new cleanarch-webapi -n Acme.OrderManagement --auth external
 ```
 
 | `--auth` | Generates |
 |---|---|
 | `local` (default) | the supplied Auth module: local accounts, JWT access and refresh tokens, two-factor sign-in, the account routes, their own `identity` schema and migration, the refresh-token purge and the `Administrator` policy |
 | `none` | no accounts: a public API. No Auth projects or tests, no account routes, no identity schema, migration, readiness check or development seed, no refresh-token purge, no `Administrator` policy and so no maintenance endpoint, no `Jwt`, `Identity` or account-mail settings in configuration or Compose |
-| `external` | declared, not available yet: generation refuses it |
+| `external` | callers authenticated by an external OpenID Connect provider (Keycloak, Entra ID, Auth0…): no Auth projects or tests, no account routes, no identity schema or migration, and in their place bearer validation against `Authentication:External`, the mapping of each (issuer, subject) to an internal owner in two `external_identity` tables of the business migration, roles from a token claim or a local table, the `Administrator` policy on the configured role, the bearer scheme in the OpenAPI document, and a reminder recipient read from the address the provider last sent. The examples and `Files` are generated as with `local` |
 
 `--auth none` makes public access a choice written in the composition rather than the side effect of
 a missing scheme. `Program.cs` sets a fallback authorisation policy that admits every caller and
@@ -58,11 +59,21 @@ operation that needs a caller still fails, and an endpoint marked `[Authorize]` 
 opening, because there is no scheme to challenge with. The email module stays: `IEmailSender` is a
 capability a public API may well need, and keeping it costs a module the host already composes.
 
+`--auth external` keeps the default-deny policy and changes who issues the tokens. Two keys have no
+default and the API refuses to start without them: `Authentication:External:Authority`, the
+provider's issuer URL, whose discovery document supplies the signing keys, and
+`Authentication:External:Audience`, this API's identifier at the provider. Compose reads them from
+`EXTERNAL_AUTH_AUTHORITY` and `EXTERNAL_AUTH_AUDIENCE` in `.env`. Roles come from
+`Authentication:External:Roles:Source`: `Local`, the default, reads the `external_identity.RoleAssignments`
+table, and `Claim` reads the token at `Roles:ClaimPath` (`roles` for Entra ID, `realm_access.roles` for
+Keycloak); `Roles:AdministratorRole` names the role the `Administrator` policy requires. The
+generated [`CONFIGURATION.md`](CONFIGURATION.md) has every key, and its `SECURITY.md` how the
+provider's subject becomes an owner and how to keep owners across a change of provider.
+
 Every example feature and `Files` belong to a caller, so `--auth none` refuses them **at generation**:
 it needs `--examples none` and `--files false` spelled out, and `dotnet new` stops with
 `Missing mandatory option(s)` naming `--auth-none-needs-examples-none` or
-`--auth-none-needs-files-false` until they are. `--auth external` stops the same way, naming
-`--auth-external-is-not-available-yet`. Those names are hidden options the template declares only so
+`--auth-none-needs-files-false` until they are. Those names are hidden options the template declares only so
 the engine can refuse with them; passing one by hand gets past the engine and generates a file that
 fails the build with the same explanation. `Tools/NewFeature.cs` refuses in such a project too: both
 shapes it writes, owner and shared, need an authenticated caller.

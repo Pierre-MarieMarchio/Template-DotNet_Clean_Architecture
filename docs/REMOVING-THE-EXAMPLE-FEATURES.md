@@ -393,7 +393,11 @@ comment above each group, which counts the jobs.
 <!--#if (files)-->
 **`Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj`** **(F)**
 Remove the `<ProjectReference>` to `AppTemplate.Infrastructure.Storage.csproj`. The project keeps its
+<!--#if (localAuth)-->
 references to `AppTemplate.Infrastructure.Email.csproj` and `AppTemplate.Infrastructure.Auth.csproj`
+<!--#else
+reference to `AppTemplate.Infrastructure.Email.csproj`
+#endif-->
 for the reason above. `ModuleDependencyTests` reads the project-file graph, not just what the code
 calls, so a reference nobody uses is still a declared arrow.
 
@@ -421,6 +425,7 @@ it in `Tests/Architecture/AppTemplate.Architecture.Tests/Composition/HostComposi
 
 ## The migrations
 
+<!--#if (localAuth)-->
 Each context ships **one** migration, and they are independent:
 
 | Context | Migration | Creates |
@@ -431,6 +436,17 @@ Each context ships **one** migration, and they are independent:
 **Removing an example touches the business migration and nothing else.** Authentication's is a
 different file, in a different project, with a history table of its own, so no removal here can
 reach it.
+<!--#else
+The business context ships **one** migration:
+
+| Context | Migration | Creates |
+|---|---|---|
+| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/` | `todo`, `reminders`, `files`, `notes`, `platform` and `external_identity` — eleven tables |
+
+**Removing an example touches the business migration and nothing else in it.** The two
+`external_identity` tables map the provider's callers to owners; they belong to no example, and no
+removal here touches them.
+#endif-->
 
 Nothing outside the examples references any of the four example schemas, so on a project that has
 not yet applied a migration to a real database this is not a matter of generating a migration to
@@ -548,12 +564,16 @@ Everything else keeps a live example, because `Files` is one:
 | Ownership isolation for a resource addressed by id | the `{fileId:guid}` routes of `FilesController` and the tag replacement on `FileTagsController` |
 | `[Idempotent]` | `FilesController`'s registration action; the count drops from four to three |
 
+<!--#if (localAuth)-->
 Three of those need their test repointed rather than kept as is.
 `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/DefaultDenyAuthorizationTests.cs`
 enumerates every verb on the three classes answering the `todo-lists` prefix -- `TodoListsController`,
 `TodoItemsController` and `TodoItemTagsController` -- by hand, and asserts the enumeration covers all
 sixteen actions across them; repoint it at `FilesController` and `FileTagsController`, which rely on
 the fallback the same way.
+<!--#else
+Two of those need their test repointed rather than kept as is.
+#endif-->
 `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/OwnershipIsolationTests.cs` and
 `Tests/Integration/AppTemplate.Api.IntegrationTests/Idempotency/IdempotencyTests.cs` both drive
 `TodoLists` over real HTTP; both have a `Files` equivalent to be rewritten against.
@@ -655,8 +675,11 @@ number:
   `Reminders` lowers it by the use cases that feature declares; the comment has to lose the same
   clause, and the feature's entry comes out of the `FeatureCalls` theory data beside it. The number alone, without the comment
   saying what it now counts, is exactly the kind of assertion this repository's conventions warn
-  against. `Tests/Application/AppTemplate.Application.Auth.UnitTests/ApplicationAuthModuleTests.cs`
-  is its counterpart and no business removal touches it.
+  against.
+  <!--#if (localAuth)-->
+  `Tests/Application/AppTemplate.Application.Auth.UnitTests/ApplicationAuthModuleTests.cs` is its
+  counterpart and no business removal touches it.
+  <!--#endif-->
 - `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/IdempotentActionsAreAlwaysPostTests.cs`
   holds both a controller list and a count of `[Idempotent]` actions, which is four today.
 - `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/AdapterVisibilityTests.cs` holds a
@@ -742,6 +765,21 @@ it is redesigning one.
 This project was generated without `TodoLists` and `Reminders`, so the procedure this document
 carries for those two, and the dependency between them, does not apply here.
 [Removing authentication](#removing-authentication) below does.
+
+**For `Notes` or `Files`, if this project has either, the exact list is a difference you can
+generate.** Generate a second project with the same name and the same options except the one that
+leaves the example out — `--examples none` for `Notes`, `--files false` for `Files` — and compare the
+two trees. Every file absent from the second goes, and every file that differs shows the edit, the
+business migration and its snapshot included. That is the list the template's own conditions encode,
+so it cannot drift from the tree. Then run the [verification](#verification).
+
+#elseif (externalAuth)
+## What this project holds
+
+This project was generated without `TodoLists` and `Reminders`, so the procedure this document
+carries for those two, and the dependency between them, does not apply here. Its callers are
+authenticated by an external identity provider, and the subject-to-owner mapping under
+`Features/ExternalIdentity/` is not an example: it stays whatever else goes.
 
 **For `Notes` or `Files`, if this project has either, the exact list is a difference you can
 generate.** Generate a second project with the same name and the same options except the one that

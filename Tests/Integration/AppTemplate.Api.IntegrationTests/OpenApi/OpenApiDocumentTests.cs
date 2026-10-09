@@ -39,7 +39,7 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
         document.RootElement.GetProperty("info").GetProperty("title").GetString()
             .ShouldBe("AppTemplate.Api | v1");
     }
-    //#if (!publicApi)
+    //#if (signedInRoute)
 
     /// <summary>
     /// What AV0030 is about: one document per version, holding that version's actions and no others.
@@ -52,10 +52,12 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
         string[] paths = [.. document.RootElement.GetProperty("paths").EnumerateObject().Select(p => p.Name)];
 
         paths.ShouldNotBeEmpty();
+        //#if (localAuth)
 
         // Establishes the candidate set before asserting over it: an empty document would satisfy
         // "every path is a v1 path" without holding a single one.
         paths.Length.ShouldBeGreaterThan(30);
+        //#endif
 
         paths.ShouldAllBe(path => path.StartsWith("/api/v1/", StringComparison.Ordinal));
 

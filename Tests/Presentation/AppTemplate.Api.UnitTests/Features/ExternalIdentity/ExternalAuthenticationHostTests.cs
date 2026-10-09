@@ -4,15 +4,21 @@ using System.Security.Cryptography;
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.ExternalIdentity.Composition;
 using AppTemplate.Api.UnitTests.Composition;
+//#if (notes)
 using AppTemplate.Application;
+//#endif
 using AppTemplate.Application.Core.Common.Ports;
+//#if (notes)
 using AppTemplate.Application.Features.Notes.Dtos;
 using AppTemplate.Application.Features.Notes.Services;
+//#endif
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+//#if (notes)
 using Microsoft.AspNetCore.Http;
+//#endif
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
@@ -76,7 +82,9 @@ public sealed class ExternalAuthenticationHostTests : IAsyncLifetime
 
         var services = builder.Services;
         services.AddApiCallerIdentity();
+        //#if (notes)
         services.AddNotes();
+        //#endif
         services.AddExternalAuthentication(builder.Configuration);
         SqliteSavingHost.OnSqlite<AppDbContext>(services, database);
 
@@ -95,10 +103,12 @@ public sealed class ExternalAuthenticationHostTests : IAsyncLifetime
         _app.UseAuthorization();
 
         _app.MapGet("/me", (ICurrentUser caller) => caller.UserId?.Value.ToString() ?? "nobody");
+        //#if (notes)
         _app.MapPost("/notes", async (INoteService notes) =>
             (await notes.CreateAsync(new NoteContentDto("title", "body"))).Value.Value.Id.ToString());
         _app.MapGet("/notes/{id:guid}", async (Guid id, INoteService notes) =>
             (await notes.GetAsync(id)).IsSuccess ? Results.Ok() : Results.NotFound());
+        //#endif
         _app.MapGet("/admin", () => "ok").RequireAuthorization(AuthorizationPolicies.Administrator);
 
         await _app.StartAsync(TestToken);
@@ -131,6 +141,7 @@ public sealed class ExternalAuthenticationHostTests : IAsyncLifetime
         (await second.Content.ReadAsStringAsync(TestToken)).ShouldBe(owner);
     }
 
+    //#if (notes)
     [Fact]
     public async Task TwoSubjects_AreTwoOwners_ThatSeeOnlyTheirOwnNotes()
     {
@@ -148,6 +159,7 @@ public sealed class ExternalAuthenticationHostTests : IAsyncLifetime
         byOther.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
+    //#endif
     [Fact]
     public async Task NoToken_IsUnauthorized()
     {

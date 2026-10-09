@@ -13,7 +13,20 @@ get right here.
 Each ships **one** initial migration, and they are independent: a change to one is invisible to the
 other. Features separate themselves by schema, declared table by table in each feature's
 `IEntityTypeConfiguration` — not by a context each.
-<!--#else
+<!--#elseif (externalAuth)
+**One `DbContext`, one migration history, one database.** This project was generated with
+`--auth external`: the identity provider holds the accounts, so there is no identity context, and
+every command below is about the business context. The mapping from the provider's subjects to
+internal owners is two tables of that context, in the `external_identity` schema, and its initial
+migration creates them.
+
+| Context | Project | Schemas | History table |
+|---|---|---|---|
+| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence` | one per business feature, `external_identity`, and `platform` for what belongs to no feature | `public.__EFMigrationsHistory` |
+
+It ships **one** initial migration. Features separate themselves by schema, declared table by table
+in each feature's `IEntityTypeConfiguration` — not by a context each.
+#else
 **One `DbContext`, one migration history, one database.** This project was generated without the
 supplied accounts (`--auth none`), so the identity context and its schema are absent and every
 command below is about the business context.

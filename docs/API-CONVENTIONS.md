@@ -321,7 +321,7 @@ curl -s -X POST http://localhost:8080/api/v1/auth/register \
 # the confirmation mail in mailpit now reads "Confirmez votre adresse e-mail"
 ```
 
-<!--#if (reminders)-->
+<!--#if (reminders && localAuth)-->
 **Adding a language is adding files.** Drop `<Mail>EmailTemplate.<tag>.html` beside the ones
 in `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates/` and
 `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/`, and that language
@@ -334,6 +334,11 @@ in `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates/`
 is available — there is no list to update, because a list could name a language no template
 backs. `EmailTemplateCoverageTests` refuses a language added to one mail folder and not to every
 other, and refuses two languages of one mail sharing a subject.
+#elseif (reminders)
+**Adding a language is adding files.** Drop `<Mail>EmailTemplate.<tag>.html` beside the ones
+in `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/`, and that language is
+available — there is no list to update, because a list could name a language no template backs.
+The identity provider writes its own mail, so the reminder is the only one this project renders.
 #else
 **Adding a language is adding files**, once this project sends a mail: a module that renders one
 embeds `<Mail>EmailTemplate.<tag>.html` per language, and that language is available. Generated

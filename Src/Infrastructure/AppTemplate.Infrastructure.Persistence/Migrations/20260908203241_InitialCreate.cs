@@ -11,9 +11,11 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            //#if (externalAuth)
             migrationBuilder.EnsureSchema(
                 name: "external_identity");
 
+            //#endif
             //#if (files)
             migrationBuilder.EnsureSchema(
                 name: "files");
@@ -76,6 +78,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_IdempotencyKeys", x => new { x.UserId, x.Key });
                 });
 
+            //#if (externalAuth)
             migrationBuilder.CreateTable(
                 name: "ExternalIdentities",
                 schema: "external_identity",
@@ -108,6 +111,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_RoleAssignments", x => new { x.UserId, x.Role });
                 });
 
+            //#endif
             //#if (notes)
             migrationBuilder.CreateTable(
                 name: "Notes",
@@ -280,6 +284,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 table: "IdempotencyKeys",
                 column: "ExpiresAt");
 
+            //#if (externalAuth)
             migrationBuilder.CreateIndex(
                 name: "IX_ExternalIdentities_Issuer_Subject",
                 schema: "external_identity",
@@ -293,6 +298,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 table: "ExternalIdentities",
                 columns: new[] { "UserId", "LastSeenAt" });
 
+            //#endif
             //#if (notes)
             migrationBuilder.CreateIndex(
                 name: "IX_Notes_OwnerId_CreatedAt_Id",
@@ -398,6 +404,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            //#if (externalAuth)
             migrationBuilder.DropTable(
                 name: "ExternalIdentities",
                 schema: "external_identity");
@@ -406,6 +413,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 name: "RoleAssignments",
                 schema: "external_identity");
 
+            //#endif
             //#if (files)
             migrationBuilder.DropTable(
                 name: "ContentSweepCheckpoints",

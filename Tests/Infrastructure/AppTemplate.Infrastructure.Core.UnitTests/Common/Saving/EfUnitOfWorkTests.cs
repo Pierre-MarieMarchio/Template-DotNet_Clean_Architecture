@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Infrastructure.Core.Common.Saving;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 
@@ -19,6 +20,8 @@ namespace AppTemplate.Infrastructure.Core.UnitTests.Common.Saving;
 /// </remarks>
 public sealed class EfUnitOfWorkTests
 {
+    private const string _neverOpened = "Host=localhost;Database=never-opened;Username=none;Password=none";
+
     [Fact]
     public async Task SaveChangesAsync_TranslatesAConcurrencyConflict_AndKeepsTheOriginal()
     {
@@ -54,10 +57,32 @@ public sealed class EfUnitOfWorkTests
         failure.ShouldBeSameAs(violation);
     }
 
+    /// <summary>
+    /// The commit boundary is all a context needs to commit. A feature that stores plain records, with
+    /// no aggregate tracker, mapper or event source, composes this call and nothing else.
+    /// </summary>
+    [Fact]
+    public async Task AddContextUnitOfWork_CommitsOnItsOwn_WithNoSavingMechanismRegistered()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<EmptyContext>(options => options.UseNpgsql(_neverOpened));
+        services.AddContextUnitOfWork<EmptyContext>();
+
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        await using var scope = provider.CreateAsyncScope();
+
+        int written = await scope.ServiceProvider
+            .GetRequiredService<IContextUnitOfWork<EmptyContext>>()
+            .SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        written.ShouldBe(0, "nothing was staged, so nothing was written and no connection was opened");
+    }
+
     private static EmptyContext AContextThatFailsWith(Exception failure)
     {
         var options = new DbContextOptionsBuilder<EmptyContext>()
-            .UseNpgsql("Host=localhost;Database=never-opened;Username=none;Password=none")
+            .UseNpgsql(_neverOpened)
             .AddInterceptors(new FailingSaveChangesInterceptor(failure))
             .Options;
 

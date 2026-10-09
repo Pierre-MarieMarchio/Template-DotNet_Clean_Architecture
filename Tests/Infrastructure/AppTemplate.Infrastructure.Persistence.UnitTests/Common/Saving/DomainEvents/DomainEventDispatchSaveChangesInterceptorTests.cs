@@ -2,9 +2,11 @@
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
+using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;
 using AppTemplate.Infrastructure.Persistence.UnitTests.Features.TodoLists;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Shouldly;
 using Xunit;
@@ -15,15 +17,26 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Saving.DomainE
 /// Publishing after the commit is only half the guarantee. The other half is what happens when the
 /// commit does not arrive, and when a consumer misbehaves after it has.
 /// </summary>
-public sealed class DomainEventDispatchSaveChangesInterceptorTests
+/// <remarks>
+/// The contexts are real and never connect: a save is described to the interceptor rather than run,
+/// and the context only has to say which rows it is tracking.
+/// </remarks>
+public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
 {
+    private const string _neverOpened = "Host=nowhere;Database=never-opened;Username=none;Password=none";
+
     private static readonly DateTimeOffset _now = new(2026, 6, 7, 8, 9, 10, TimeSpan.Zero);
 
     private readonly TodoListMapper _mapper = new();
     private readonly TodoListTracker _tracker;
     private readonly RecordingLogger<DomainEventDispatchSaveChangesInterceptor> _logger = new();
 
+    /// <summary>The context the tracked rows are staged on.</summary>
+    private readonly AppDbContext _context = AnAppDbContext();
+
     public DomainEventDispatchSaveChangesInterceptorTests() => _tracker = new TodoListTracker(_mapper);
+
+    public void Dispose() => _context.Dispose();
 
     [Fact]
     public async Task ACommittedSave_PublishesEveryCollectedEventOnce()
@@ -78,13 +91,14 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests
 
         Track(ANewList("Groceries"));
 
-        interceptor.SavingChanges(ASaveChangesEvent.Saving(), default);
-        interceptor.SaveChangesFailed(ASaveChangesEvent.Failed(new InvalidOperationException("nope")));
+        interceptor.SavingChanges(ASaveChangesEvent.Saving(_context), default);
+        interceptor.SaveChangesFailed(
+            ASaveChangesEvent.Failed(_context, new InvalidOperationException("nope")));
 
         dispatcher.Dispatched.ShouldBeEmpty();
 
-        interceptor.SavingChanges(ASaveChangesEvent.Saving(), default);
-        interceptor.SavedChanges(ASaveChangesEvent.Saved(rowsAffected: 1), result: 1);
+        interceptor.SavingChanges(ASaveChangesEvent.Saving(_context), default);
+        interceptor.SavedChanges(ASaveChangesEvent.Saved(_context, rowsAffected: 1), result: 1);
 
         dispatcher.Dispatched.ShouldHaveSingleItem();
     }
@@ -155,40 +169,139 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests
         dispatched.Count.ShouldBe(1);
     }
 
+    /// <summary>
+    /// The idempotency store commits through a second instance of the same context in the same
+    /// request. Its save is not the business commit, so it takes none of the business events.
+    /// </summary>
+    [Fact]
+    public async Task ASaveOfAnotherInstanceOfTheContext_TakesNoneOfTheEvents()
+    {
+        var dispatcher = new RecordingDomainEventDispatcher();
+        var interceptor = AnInterceptor(dispatcher);
+
+        Track(ANewList("Groceries"));
+
+        await using (var other = AnAppDbContext())
+        {
+            await SaveSucceedsAsync(interceptor, other);
+        }
+
+        dispatcher.Dispatched.ShouldBeEmpty("that commit did not write the list");
+
+        await SaveSucceedsAsync(interceptor);
+
+        dispatcher.Dispatched.ShouldHaveSingleItem().ShouldBeOfType<TodoListCreatedDomainEvent>();
+    }
+
+    /// <summary>
+    /// A context whose model has no such row, as the identity module's has none of the business
+    /// rows, is answered without being asked about a row it cannot map.
+    /// </summary>
+    [Fact]
+    public async Task ASaveOfAContextThatDoesNotMapTheRows_TakesNoneOfTheEvents()
+    {
+        var dispatcher = new RecordingDomainEventDispatcher();
+        var interceptor = AnInterceptor(dispatcher);
+
+        Track(ANewList("Groceries"));
+
+        await using (var unrelated = new UnrelatedContext(
+            new DbContextOptionsBuilder<UnrelatedContext>().UseNpgsql(_neverOpened).Options))
+        {
+            await SaveSucceedsAsync(interceptor, unrelated);
+        }
+
+        dispatcher.Dispatched.ShouldBeEmpty();
+
+        await SaveSucceedsAsync(interceptor);
+
+        dispatcher.Dispatched.ShouldHaveSingleItem();
+    }
+
+    /// <summary>
+    /// What a save collected belongs to that save: another context's failure hands nothing back, and
+    /// does not stop the save that collected the events from publishing them.
+    /// </summary>
+    [Fact]
+    public async Task AnotherContextsFailure_LeavesThisSavesEventsToIt()
+    {
+        var dispatcher = new RecordingDomainEventDispatcher();
+        var interceptor = AnInterceptor(dispatcher);
+
+        Track(ANewList("Groceries"));
+
+        await interceptor.SavingChangesAsync(
+            ASaveChangesEvent.Saving(_context),
+            default,
+            TestContext.Current.CancellationToken);
+
+        await using (var other = AnAppDbContext())
+        {
+            await interceptor.SaveChangesFailedAsync(
+                ASaveChangesEvent.Failed(other, new InvalidOperationException("the claim lost its race")),
+                TestContext.Current.CancellationToken);
+        }
+
+        await interceptor.SavedChangesAsync(
+            ASaveChangesEvent.Saved(_context, rowsAffected: 1),
+            1,
+            TestContext.Current.CancellationToken);
+
+        dispatcher.Dispatched.ShouldHaveSingleItem().ShouldBeOfType<TodoListCreatedDomainEvent>();
+    }
+
     // ---- Fixture -------------------------------------------------------------------------------
 
     private DomainEventDispatchSaveChangesInterceptor AnInterceptor(IDomainEventDispatcher dispatcher) =>
         new(dispatcher, [_tracker], _logger);
 
+    private Task<int> SaveSucceedsAsync(
+        DomainEventDispatchSaveChangesInterceptor interceptor,
+        int rowsAffected = 1) => SaveSucceedsAsync(interceptor, _context, rowsAffected);
+
     private static async Task<int> SaveSucceedsAsync(
         DomainEventDispatchSaveChangesInterceptor interceptor,
+        DbContext context,
         int rowsAffected = 1)
     {
         await interceptor.SavingChangesAsync(
-            ASaveChangesEvent.Saving(),
+            ASaveChangesEvent.Saving(context),
             default,
             TestContext.Current.CancellationToken);
 
         return await interceptor.SavedChangesAsync(
-            ASaveChangesEvent.Saved(rowsAffected),
+            ASaveChangesEvent.Saved(context, rowsAffected),
             rowsAffected,
             TestContext.Current.CancellationToken);
     }
 
-    private static async Task SaveFailsAsync(DomainEventDispatchSaveChangesInterceptor interceptor)
+    private async Task SaveFailsAsync(DomainEventDispatchSaveChangesInterceptor interceptor)
     {
         await interceptor.SavingChangesAsync(
-            ASaveChangesEvent.Saving(),
+            ASaveChangesEvent.Saving(_context),
             default,
             TestContext.Current.CancellationToken);
 
         await interceptor.SaveChangesFailedAsync(
-            ASaveChangesEvent.Failed(new InvalidOperationException("the row was gone")),
+            ASaveChangesEvent.Failed(_context, new InvalidOperationException("the row was gone")),
             TestContext.Current.CancellationToken);
     }
 
     private static TodoList ANewList(string name) =>
         TodoList.Create(ATodoListAggregate.OwnerId, name, _now);
 
-    private void Track(TodoList aggregate) => _tracker.Track(aggregate, _mapper.ToNewRecord(aggregate));
+    /// <summary>Stages the list's row on <see cref="_context"/>, as the repository does.</summary>
+    private void Track(TodoList aggregate)
+    {
+        var record = _mapper.ToNewRecord(aggregate);
+
+        _context.Add(record);
+        _tracker.Track(aggregate, record);
+    }
+
+    private static AppDbContext AnAppDbContext() =>
+        new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_neverOpened).Options);
+
+    /// <summary>A context with a provider and a model that maps none of the business rows.</summary>
+    private sealed class UnrelatedContext(DbContextOptions<UnrelatedContext> options) : DbContext(options);
 }

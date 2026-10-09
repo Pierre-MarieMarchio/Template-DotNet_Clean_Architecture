@@ -16,7 +16,7 @@ using System.Text.RegularExpressions;
 /// </para>
 /// <para>
 /// A second pass covers the files that explain themselves in comments rather than in Markdown —
-/// the deployment manifests, the <c>.http</c> scratchpad, the build scripts. They cite a document
+/// the workflows, the <c>.http</c> scratchpad, the build scripts. They cite a document
 /// by bare path with no backticks around it, so the first pass cannot see them, and deleting a
 /// documentation directory leaves seven such references pointing at nothing while a backtick-only
 /// check stays green. Only the documentation directory's own prefix is considered there: unlike a

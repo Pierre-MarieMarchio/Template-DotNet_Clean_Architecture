@@ -207,7 +207,7 @@ internal static class NewFeature
             return 1;
         }
 
-        Report(output, spec, plan, manifest.Emission.Path, skipped);
+        Report(output, root, spec, plan, manifest.Emission.Path, skipped);
 
         return 0;
     }
@@ -1036,7 +1036,7 @@ internal static class NewFeature
         }
     }
 
-    private static void Report(TextWriter output, Spec spec, List<Emission> plan, string manifest, List<string> skipped)
+    private static void Report(TextWriter output, string root, Spec spec, List<Emission> plan, string manifest, List<string> skipped)
     {
         string p = spec.Prefix;
         string f = spec.Features;
@@ -1113,10 +1113,12 @@ internal static class NewFeature
         }
 
         output.WriteLine();
-        output.WriteLine($"  4. Src/Presentation/{p}.Api/Program.cs: builder.Services.Add{f}(); beside the other features");
+        output.WriteLine($"  4. Src/Presentation/{p}.Api/Program.cs: builder.Services.Add{f}(); beside the other features,");
+        output.WriteLine($"     with using {p}.Application; if the file has none yet");
         output.WriteLine();
         output.WriteLine($"  5. Tests/Architecture/{p}.Architecture.Tests/Composition/HostComposition.cs: services.Add{f}(); in each");
-        output.WriteLine("     composition that offers the feature, so the container tests resolve what it registers");
+        output.WriteLine("     composition that offers the feature, so the container tests resolve what it registers,");
+        output.WriteLine($"     with using {p}.Application; if the file has none yet");
         output.WriteLine();
 
         string[] ports =
@@ -1126,14 +1128,25 @@ internal static class NewFeature
             .. flags.Contains("rq") ? [$"I{a}Queries"] : Array.Empty<string>(),
         ];
 
-        output.WriteLine($"  6. Tests/Application/{p}.Application.UnitTests/ApplicationModuleTests.cs: nameof(ApplicationModule.Add{f}) in");
-        output.WriteLine($"     FeatureCalls, services.Add{f}(); in ComposeEveryFeature, and in BuildProvider a double for each port");
-        output.WriteLine($"     the application layer declares ({string.Join(", ", ports)}), so the container builds");
+        string moduleTests = $"Tests/Application/{p}.Application.UnitTests/ApplicationModuleTests.cs";
 
-        if (!record)
+        if (File.Exists(Path.Combine(root, moduleTests)))
         {
-            output.WriteLine($"     and _knownUseCaseCount raised by {spec.Operations.Length}, the use cases this feature declares");
+            output.WriteLine($"  6. {moduleTests}: nameof(ApplicationModule.Add{f}) in");
+            output.WriteLine($"     FeatureCalls, services.Add{f}(); in ComposeEveryFeature, and in BuildProvider a double for each port");
+            output.WriteLine($"     the application layer declares ({string.Join(", ", ports)}), so the container builds");
+
+            if (!record)
+            {
+                output.WriteLine($"     and _knownUseCaseCount raised by {spec.Operations.Length}, the use cases this feature declares");
+            }
         }
+        else
+        {
+            output.WriteLine($"  6. Nothing to edit: {moduleTests} is only generated with a feature,");
+            output.WriteLine("     and this project had none. Step 5 is what makes the container tests resolve the feature.");
+        }
+
         output.WriteLine();
         output.WriteLine($"When integration tests exercise the feature, AppDbContext.{f}Schema also joins the schemas their database");
         output.WriteLine("fixture truncates between tests (Tests/Integration, TestDatabase).");

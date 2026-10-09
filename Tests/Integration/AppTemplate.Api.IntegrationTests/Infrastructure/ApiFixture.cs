@@ -1,4 +1,6 @@
-﻿using AppTemplate.Infrastructure.Auth.Common.Contexts;
+﻿//#if (localAuth)
+using AppTemplate.Infrastructure.Auth.Common.Contexts;
+//#endif
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
@@ -56,9 +58,11 @@ public sealed class ApiFixture : IAsyncLifetime
         // idempotently, so the schema is a stated precondition of the suite rather than a side
         // effect of which environment the test host happens to run under.
         await using var scope = _factory.Services.CreateAsyncScope();
+        //#if (localAuth)
 
         await scope.ServiceProvider.GetRequiredService<AuthDbContext>().Database
             .MigrateAsync(TestContext.Current.CancellationToken);
+        //#endif
 
         await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database
             .MigrateAsync(TestContext.Current.CancellationToken);

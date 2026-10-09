@@ -4,7 +4,9 @@ using AppTemplate.Api.Common.Errors;
 using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Common.Localization;
 using AppTemplate.Api.Common.Observability;
+//#if (!publicApi)
 using AppTemplate.Api.Common.OpenApi;
+//#endif
 using AppTemplate.Api.Common.Security;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
@@ -121,8 +123,8 @@ public static class HttpPipelineModule
     }
 
     /// <summary>
-    /// What every document of this template declares: the bearer scheme, and the one version group
-    /// it describes.
+    /// What every document of this template declares: the bearer scheme when the API authenticates,
+    /// and the one version group it describes.
     /// </summary>
     /// <param name="options">The document being configured.</param>
     /// <param name="groupName">The group this document is for, from <see cref="ApiVersionGroups"/>.</param>
@@ -146,7 +148,9 @@ public static class HttpPipelineModule
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        //#if (!publicApi)
         options.AddDocumentTransformer<OpenApiSecurityTransformer>();
+        //#endif
         options.ShouldInclude = apiDescription => apiDescription.GroupName == groupName;
     }
 

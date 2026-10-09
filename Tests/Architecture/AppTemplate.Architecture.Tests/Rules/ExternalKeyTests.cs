@@ -28,8 +28,10 @@ public sealed class ExternalKeyTests
     /// </summary>
     private static readonly Dictionary<string, string> _sectionExceptions = new(StringComparer.Ordinal)
     {
+        //#if (localAuth)
         ["IdentityPolicyOptions"] = "Identity",
         ["IdentityTokenOptions"] = "IdentityTokens",
+        //#endif
         ["ProblemTypeOptions"] = "ProblemTypes",
         ["SecurityHeaderOptions"] = "SecurityHeaders",
         ["TelemetryOptions"] = "OpenTelemetry",
@@ -40,10 +42,12 @@ public sealed class ExternalKeyTests
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
+    //#if (localAuth)
     private static readonly Regex _providerName = new(
         @"public\s+const\s+string\s+Value\s*=\s*""([^""]+)""",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
+    //#endif
 
     /// <summary>
     /// An options class named <c>XOptions</c> binds the section named <c>X</c>, unless it is one of
@@ -56,7 +60,7 @@ public sealed class ExternalKeyTests
         var declared = ConstantsIn("*Options.cs", _sectionName);
 
         declared.Count.ShouldBeGreaterThanOrEqualTo(
-            20,
+            18,
             "Far fewer options classes were found than this template holds, so this rule is reading " +
             "the wrong tree and passing for the wrong reason.");
 
@@ -71,6 +75,7 @@ public sealed class ExternalKeyTests
             "A configuration section name is a key in an operator's file. Anchoring it to the type " +
             "name is what makes a rename of the type fail here instead of at the next deployment.");
     }
+    //#if (localAuth)
 
     /// <summary>
     /// A token-provider name is handed to ASP.NET Identity and stored against the user row that
@@ -96,6 +101,7 @@ public sealed class ExternalKeyTests
             "A provider name is written into AspNetUserTokens. A value that no longer matches its " +
             "type name is either a rename nobody meant, or one that needs a migration.");
     }
+    //#endif
 
     private static string Expected(string typeName) =>
         _sectionExceptions.TryGetValue(typeName, out string? section)

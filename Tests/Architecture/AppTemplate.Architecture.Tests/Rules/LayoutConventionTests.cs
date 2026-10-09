@@ -39,12 +39,14 @@ public sealed class LayoutConventionTests
         // work that is genuinely a use case rather than a mechanism — here, purging what the
         // idempotency store has let expire.
         ["Src/Application/AppTemplate.Application.Core"] = ["UseCases"],
+        //#if (localAuth)
 
         // Four words, and no Services/ or Consumers/: this feature registers no service and
         // answers no domain event. What it offers is use cases over ports an identity module
         // satisfies.
         ["Src/Application/AppTemplate.Application.Auth"] =
             ["Errors", "Policies", "Ports", "UseCases"],
+        //#endif
         ["Src/Domain/AppTemplate.Domain"] =
             ["Entities", "Events", "Repositories", "ValueObjects"],
 
@@ -71,6 +73,7 @@ public sealed class LayoutConventionTests
         // than use cases — a module, a readiness check, a policy — so a host can leave it out whole.
         ["Src/Presentation/AppTemplate.Api"] =
             ["Composition", "Contracts", "Controllers", "Directories", "Jobs", "Mapping"],
+        //#if (localAuth)
 
         // Every word here is the plural of a nature word the file names already carry — the rule the
         // rest of the repository follows, where a …Repository is in Repositories/ and a …Tracker in
@@ -79,6 +82,7 @@ public sealed class LayoutConventionTests
         ["Src/Infrastructure/AppTemplate.Infrastructure.Auth"] =
             ["Configurations", "Directories", "Factories", "Issuers", "Logs", "Models", "Options", "Providers",
              "Seeding", "Services", "Tables", "Templates", "Verifiers"],
+        //#endif
         //#if (files)
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Inventories", "Options", "Scanners", "Stores", "Transfers"],
@@ -122,6 +126,10 @@ public sealed class LayoutConventionTests
         /*#if (reminders)*/
         /*#else
         "Src/Infrastructure/AppTemplate.Infrastructure.Email",
+        #endif*/
+        /*#if (localAuth || reminders || files)*/
+        /*#else
+        "Src/Infrastructure/AppTemplate.Infrastructure.InMemory",
         #endif*/
     ];
 
@@ -173,10 +181,12 @@ public sealed class LayoutConventionTests
         ["Src/Application/AppTemplate.Application"] = null,
         #endif*/
 
+        //#if (localAuth)
         // One feature, so nothing is shared *between* features here. A Common/ would only mean
         // this project had grown a second subject, which is the thing to argue about rather than
         // the folder.
         ["Src/Application/AppTemplate.Application.Auth"] = null,
+        //#endif
 
         // The agnostic half of this layer: a mechanism a module needs and no module owns. A module
         // may not reference a sibling, so without this project two modules needing one mechanism
@@ -188,8 +198,10 @@ public sealed class LayoutConventionTests
             ["Http", "Smtp"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] =
             ["Email", "Time"],
+        //#if (localAuth)
         ["Src/Infrastructure/AppTemplate.Infrastructure.Auth"] =
             ["Contexts", "Directories", "Options"],
+        //#endif
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
             ["Contexts", "Idempotency", "Leases"],
         //#if (files)
@@ -201,8 +213,14 @@ public sealed class LayoutConventionTests
         // a folder here may not do is name a feature — HttpCommonBoundaryTests holds that — so
         // a word on this list is a mechanism, never a subject.
         ["Src/Presentation/AppTemplate.Api"] =
-            ["Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
-             "Idempotency", "Jobs", "Localization", "Observability", "OpenApi", "Security"],
+            [
+                "Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
+                "Idempotency", "Jobs", "Localization", "Observability",
+                //#if (!publicApi)
+                "OpenApi",
+                //#endif
+                "Security",
+            ],
 
         // The five subjects a host needs whatever its transport: recurring work, the language a
         // flow is written in, telemetry, an outbound budget, and the identity of a process with no
@@ -364,7 +382,7 @@ public sealed class LayoutConventionTests
             .ToHashSet(StringComparer.Ordinal);
 
         onDisk.Count.ShouldBeGreaterThanOrEqualTo(
-            12,
+            10,
             "Far fewer projects were found under Src than this template holds, so the project walk " +
             "is not reading the tree it is meant to describe and every project in it would read as " +
             "listed.");
@@ -443,7 +461,7 @@ public sealed class LayoutConventionTests
         }
 
         checkedProjects.ShouldBeGreaterThanOrEqualTo(
-            12,
+            10,
             "Fewer projects were found under Src than this template ships, so this rule read no " +
             "root at all and every root in it would report as clean.");
 
@@ -526,7 +544,7 @@ public sealed class LayoutConventionTests
         // the count is printed with the offenders below for the same reason: a rule that says how
         // many files it read is one whose silence can be checked.
         examined.ShouldBeGreaterThanOrEqualTo(
-            400,
+            167,
             "Far fewer source files were found than this template holds, so the walk is not reading " +
             "the tree it is meant to describe and every file in it would read as well named.");
 
@@ -555,7 +573,7 @@ public sealed class LayoutConventionTests
         // rule that leans on a neighbour to be non-vacuous is one that stops being a guarantee the
         // day the neighbour moves.
         walked.Count.ShouldBeGreaterThanOrEqualTo(
-            180,
+            101,
             "Far fewer folders were found than this template holds, so the walk is not reading the " +
             "tree it is meant to describe and every folder in it would read as non-empty.");
 
@@ -589,7 +607,7 @@ public sealed class LayoutConventionTests
             .ToList();
 
         files.Count.ShouldBeGreaterThanOrEqualTo(
-            300,
+            167,
             "Far fewer source files were found than this template holds, so the walk is not reading " +
             "the tree it is meant to describe.");
 

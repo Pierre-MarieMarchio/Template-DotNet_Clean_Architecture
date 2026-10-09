@@ -120,45 +120,56 @@ public sealed class TemplatePackagingTests
     /// those lines, and the generated solution would then name projects that were not generated.
     /// </summary>
     [Fact]
-    public void EveryStorageProjectLine_InTheSolution_IsConditionedOnFiles()
+    public void EveryStorageProjectLine_InTheSolution_IsConditionedOnFiles() =>
+        // Spelled in two halves: written whole, the template engine would read the literal as a
+        // condition of its own when it generates this file.
+        AssertEveryProjectLineIsConditioned(".Storage", "#" + "if (files)", expectedProjects: 2);
+
+    /// <summary>
+    /// <c>--auth none</c> removes the supplied Auth projects the same way, through conditional lines
+    /// on <c>localAuth</c>: the two modules, their two unit-test projects and the integration-test
+    /// project of the identity store.
+    /// </summary>
+    [Fact]
+    public void EveryAuthProjectLine_InTheSolution_IsConditionedOnLocalAuth() =>
+        AssertEveryProjectLineIsConditioned(".Auth", "#" + "if (localAuth)", expectedProjects: 5);
+
+    private static void AssertEveryProjectLineIsConditioned(string marker, string opening, int expectedProjects)
     {
         if (ManifestPath() is null)
         {
             Assert.Skip("No .template.config/: this is a project generated from the template, not the template.");
         }
 
-        // Spelled in two halves: written whole, the template engine would read these literals as
-        // conditions of its own when it generates this file.
-        string opening = "#" + "if (files)";
         string closing = "#" + "endif";
 
         string[] lines = File.ReadAllLines(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "AppTemplate.sln"));
-        var storageGuids = lines
-            .Where(line => line.StartsWith("Project(", StringComparison.Ordinal) && line.Contains(".Storage", StringComparison.Ordinal))
+        var guids = lines
+            .Where(line => line.StartsWith("Project(", StringComparison.Ordinal) && line.Contains(marker, StringComparison.Ordinal))
             .Select(line => _guid.Matches(line)[^1].Value)
             .ToList();
 
-        storageGuids.Count.ShouldBe(2, "The storage module and its unit tests were expected in the solution.");
+        guids.Count.ShouldBe(expectedProjects, $"{expectedProjects} projects named '{marker}' were expected in the solution.");
 
         var unconditioned = new List<string>();
-        bool inFiles = false;
+        bool inBlock = false;
         foreach (string line in lines)
         {
             if (line == opening)
             {
-                inFiles = true;
+                inBlock = true;
             }
             else if (line == closing)
             {
-                inFiles = false;
+                inBlock = false;
             }
-            else if (!inFiles && storageGuids.Any(guid => line.Contains(guid, StringComparison.OrdinalIgnoreCase)))
+            else if (!inBlock && guids.Any(guid => line.Contains(guid, StringComparison.OrdinalIgnoreCase)))
             {
                 unconditioned.Add(line.Trim());
             }
         }
 
-        unconditioned.ShouldBeEmpty("These solution lines name a storage project outside a block conditioned on files.");
+        unconditioned.ShouldBeEmpty($"These solution lines name a '{marker}' project outside a block opened by '{opening}'.");
     }
 
     /// <summary>

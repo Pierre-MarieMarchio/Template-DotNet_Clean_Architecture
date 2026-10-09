@@ -1,4 +1,6 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
+﻿//#if (localAuth)
+using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
+//#endif
 using AppTemplate.Application.Core.Common.Ports;
 //#if (files)
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
@@ -13,7 +15,9 @@ using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 //#endif
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
+//#if (localAuth)
 using AppTemplate.Infrastructure.InMemory.Features.Auth;
+//#endif
 //#if (files)
 using AppTemplate.Infrastructure.InMemory.Features.Files;
 //#endif
@@ -37,12 +41,11 @@ namespace AppTemplate.Infrastructure.InMemory;
 public static class InMemoryModule
 {
     /// <summary>
-    /// Replaces the clock, the email sender, the external identity verifier and every feature port
-    /// whose real adapter reaches outside the process with controllable, recording doubles.
-    /// <see cref="IEmailSender"/>'s real adapter sends actual mail, and so does any feature's
-    /// notifier built over it; a file port's talks to a bucket, a disk or a scanner, and
-    /// <see cref="IExternalIdentityVerifier"/>'s fetches a key set from an identity provider, which
-    /// are the same kind of dependency.
+    /// Replaces the clock, the email sender and every port whose real adapter reaches outside the
+    /// process with controllable, recording doubles. <see cref="IEmailSender"/>'s real adapter sends
+    /// actual mail, and so does any feature's notifier built over it; a file port's talks to a
+    /// bucket, a disk or a scanner, and the external identity verifier of the supplied accounts
+    /// fetches a key set from an identity provider, which are the same kind of dependency.
     /// <para>
     /// It <b>removes and re-adds</b> rather than relying on last-registration-wins, and it
     /// takes no <c>IConfiguration</c> because there is nothing to configure. Replacement is
@@ -80,10 +83,13 @@ public static class InMemoryModule
         //#if (files)
         services.AddInMemoryFileContent();
         //#endif
+        //#if (localAuth)
         services.AddInMemoryExternalIdentities();
+        //#endif
 
         return services;
     }
+    //#if (localAuth)
 
     /// <summary>
     /// Registers the arranged <see cref="IExternalIdentityVerifier"/> on its own, without the clock
@@ -106,8 +112,9 @@ public static class InMemoryModule
 
         return services;
     }
-
+    //#endif
     //#if (reminders)
+
     /// <summary>
     /// Registers the recording <see cref="IReminderNotifier"/> on its own, without the clock and
     /// email-sender swaps <see cref="AddInMemoryModule"/> also makes — useful to a test that wants

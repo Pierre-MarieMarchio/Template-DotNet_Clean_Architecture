@@ -65,10 +65,10 @@ public sealed class AdapterVisibilityTests
 
         // Non-vacuity: if no adapter were found at all, the rule would hold and mean nothing.
         adaptersFound.ShouldBeGreaterThanOrEqualTo(
-            10,
-            "Fewer adapters were found than the modules are known to contain: a unit of work, a " +
-            "clock, an email sender, a repository and a query service, plus the five authentication " +
-            "adapters. The discovery in this rule has stopped matching them.");
+            7,
+            "Fewer adapters were found than the modules are known to contain even with no feature " +
+            "and no accounts: a unit of work, a clock and an email sender among them. The discovery " +
+            "in this rule has stopped matching them.");
 
         offenders.ShouldBeEmpty(
             "An adapter is internal to its module. Only the port it implements is public, which is " +

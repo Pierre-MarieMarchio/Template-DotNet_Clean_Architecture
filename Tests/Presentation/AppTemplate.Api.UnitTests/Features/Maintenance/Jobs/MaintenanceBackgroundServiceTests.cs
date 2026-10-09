@@ -1,6 +1,8 @@
 ﻿using AppTemplate.Api.Features.Maintenance.Jobs;
 using AppTemplate.Api.UnitTests.TestSupport;
+//#if (localAuth)
 using Microsoft.Extensions.Logging;
+//#endif
 using Shouldly;
 using Xunit;
 
@@ -16,6 +18,7 @@ public sealed class MaintenanceBackgroundServiceTests
 {
     private static readonly TimeSpan _tinyInterval = TimeSpan.FromMilliseconds(20);
 
+    //#if (localAuth)
     [Fact]
     public async Task Loop_KeepsRunning_WhenTheIdempotencyPurgeAlwaysThrows()
     {
@@ -72,6 +75,7 @@ public sealed class MaintenanceBackgroundServiceTests
         idempotency.CallCount.ShouldBe(0);
     }
 
+    //#endif
     /// <summary>
     /// A long interval proves the point: if the host waited out the interval instead of honouring
     /// the token, this would time out. The hanging use case only ever returns via cancellation, so
@@ -86,7 +90,12 @@ public sealed class MaintenanceBackgroundServiceTests
         var options = EnabledOptions();
         options.Interval = TimeSpan.FromMinutes(10);
 
-        using var service = MaintenanceJobsHarness.Create(idempotencyPurge, new FakeRefreshTokenPurge(), options);
+        using var service = MaintenanceJobsHarness.Create(
+            idempotencyPurge,
+            //#if (localAuth)
+            new FakeRefreshTokenPurge(),
+            //#endif
+            options);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -99,6 +108,7 @@ public sealed class MaintenanceBackgroundServiceTests
 
         completed.ShouldBe(stopTask, "StopAsync must not wait out a 10-minute interval to return");
     }
+    //#if (localAuth)
 
     /// <summary>
     /// A task switched off is a task that decided to do nothing, and it has to look different from
@@ -127,6 +137,7 @@ public sealed class MaintenanceBackgroundServiceTests
         line.Message.ShouldContain("disabled");
         line.Message.ShouldContain("nothing else removes them");
     }
+    //#endif
 
     /// <summary>
     /// The stop landing while a purge is mid-flight is the case that matters: an operator watching
@@ -144,9 +155,13 @@ public sealed class MaintenanceBackgroundServiceTests
 
         using var service = MaintenanceJobsHarness.Create(
             idempotencyPurge,
+            //#if (localAuth)
             new FakeRefreshTokenPurge(),
+            //#endif
             options,
+            //#if (localAuth)
             refreshTokensEnabled: true,
+            //#endif
             logger);
 
         await service.StartAsync(CancellationToken.None);
@@ -161,10 +176,12 @@ public sealed class MaintenanceBackgroundServiceTests
             "Maintenance worker stopping", StringComparison.Ordinal));
     }
 
+    //#if (localAuth)
     private static bool IsTheDisabledRefreshTokenLine((LogLevel Level, string Message) line) =>
         line.Level == LogLevel.Warning
         && line.Message.Contains("expired refresh-token grants", StringComparison.Ordinal);
 
+    //#endif
     private static MaintenanceWorkerOptions EnabledOptions() => new()
     {
         Interval = _tinyInterval,

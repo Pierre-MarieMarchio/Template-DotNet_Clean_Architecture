@@ -1,7 +1,9 @@
 ﻿using System.Reflection;
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Application;
+//#if (localAuth)
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePassword;
+//#endif
 using AppTemplate.Application.Core.Common.Concurrency;
 //#if (todoLists)
 using AppTemplate.Application.Features.TodoLists.Dtos;
@@ -39,7 +41,7 @@ public sealed class ControllerContractTests
     /// controller at all — and anchoring on a controller would make
     /// <see cref="Discovery_FindsTheControllers"/> unable to fail.
     /// </summary>
-    private static readonly Assembly _api = typeof(AuthorizationPolicies).Assembly;
+    private static readonly Assembly _api = typeof(SecurityHeaderOptions).Assembly;
 
     /// <summary>
     /// Every assembly of the application layer, not one of them. The layer is split across three
@@ -51,7 +53,9 @@ public sealed class ControllerContractTests
     [
         typeof(ApplicationModule).Assembly,
         typeof(VersionPrecondition).Assembly,
+        //#if (localAuth)
         typeof(ChangePasswordCommand).Assembly,
+        //#endif
     ];
 
     [Fact]
@@ -59,9 +63,18 @@ public sealed class ControllerContractTests
     {
         var controllers = Controllers();
 
+        /*#if (!publicApi)*/
         controllers.ShouldNotBeEmpty(
             "No controller was found in the API assembly, so every rule in this class would pass "
             + "for the wrong reason.");
+        /*#else
+        if (controllers.Count == 0)
+        {
+            // Generated without accounts and without examples, the API declares no controller until
+            // the first feature brings one; from then on the rules below read it.
+            return;
+        }
+        #endif*/
 
         controllers.SelectMany(Actions).ShouldNotBeEmpty("The controllers found expose no actions to inspect.");
     }
@@ -132,9 +145,13 @@ public sealed class ControllerContractTests
         // And it flags one from every project of the layer, which "not empty" above does not say.
         // Drop an assembly from the list and this is what notices; the rules themselves would go on
         // reporting no offender for whatever that project holds.
+        /*#if (localAuth)*/
         var authAction = typeof(LeakingController).GetMethod(nameof(LeakingController.LeakFromAuth))!;
 
         ApplicationTypesIn(ResponseTypes(action).Concat(ResponseTypes(authAction)))
+        /*#else
+        ApplicationTypesIn(ResponseTypes(action))
+        #endif*/
             .Select(type => type.Assembly)
             .Distinct()
             .ShouldBe(
@@ -243,17 +260,19 @@ public sealed class ControllerContractTests
         public Task<ActionResult<Versioned<TodoItemDto>>> Leak(TodoItemDto body) =>
             throw new NotSupportedException(nameof(Leak));
         /*#else
-        // One leak per project of the application layer: a type from the business project, the
-        // Versioned<> wrapper from the Core, and the command from Auth. That is what makes the
-        // three-assembly list above self-verifying rather than asserted. The business type is the
-        // composition class because it is the one type that project always holds; a feature's DTO
-        // is the realistic leak once there is one.
+        // One leak per project of the application layer: a type from the business project, and the
+        // Versioned<> wrapper and its precondition from the Core; the command from Auth, in a project
+        // that has it, is the leak below. That is what makes the assembly list above self-verifying rather than
+        // asserted. The business type is the composition class because it is the one type that
+        // project always holds; a feature's DTO is the realistic leak once there is one.
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ApplicationModule))]
-        public Task<ActionResult<Versioned<ChangePasswordCommand>>> Leak(ChangePasswordCommand body) =>
+        public Task<ActionResult<Versioned<VersionPrecondition>>> Leak(VersionPrecondition body) =>
             throw new NotSupportedException(nameof(Leak));
         #endif*/
+        //#if (localAuth)
 
         public Task<ActionResult<ChangePasswordCommand>> LeakFromAuth(ChangePasswordCommand body) =>
             throw new NotSupportedException(nameof(LeakFromAuth));
+        //#endif
     }
 }

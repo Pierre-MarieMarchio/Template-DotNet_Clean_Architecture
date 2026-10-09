@@ -1,7 +1,9 @@
 ﻿using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.Security;
+//#if (localAuth)
 using AppTemplate.Api.Features.Auth.Composition;
+//#endif
 using AppTemplate.Api.Features.BackgroundJobs.Jobs;
 //#if (reminders)
 using AppTemplate.Api.Features.Reminders.Directories;
@@ -77,11 +79,13 @@ builder.Services.AddApiObservability(builder.Configuration);
 // separate runner can make the same one. The caller and audit identity that tells a job's scope from
 // a request's is registered with the HTTP pipeline above.
 builder.Services.AddBackgroundJobs(builder.Configuration);
+//#if (localAuth)
 
 // Local accounts, whole: use cases, identity module, refresh-token purge, readiness check, the
 // Administrator policy and the identity schema's development bootstrap. After the jobs, so the purge
 // runs after the idempotency purge. A host without local accounts deletes this line and Features/Auth.
 builder.Services.AddAuthFeature(builder.Configuration);
+//#endif
 
 // Versioning first: it is what partitions actions into the version groups the loop below reads.
 builder.Services.AddUrlSegmentApiVersioning();
@@ -94,11 +98,24 @@ foreach (string versionGroup in builder.Services.ApiVersionGroups())
     builder.Services.AddOpenApi(versionGroup, options => options.UseApiDocumentConventions(versionGroup));
 }
 
+/*#if (!publicApi)*/
 // Authenticated by default: an endpoint reachable anonymously has to opt out explicitly.
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build());
+/*#else
+// Public by choice: generated without accounts, this API authenticates nobody, and the fallback
+// policy says every endpoint answers anonymous callers rather than leaving that to a missing one.
+// Nothing private is opened by it: no endpoint needs a caller, an operation that does still fails
+// because ICurrentUser has none to give, and an endpoint marked [Authorize] fails rather than
+// opening, since there is no scheme to challenge with. Accounts come back with an authentication
+// scheme and the default-deny policy of the authenticated templates.
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAssertion(static _ => true)
+        .Build());
+#endif*/
 
 // AddApiHealthChecks brings the shutdown check; the business database check is this host's own, and
 // each module with a store of its own adds its check with its composition.
@@ -112,7 +129,9 @@ var app = builder.Build();
 app.UseHttpPipeline(
     app.Environment.IsDevelopment() ? ApiReferenceContentSecurityPolicy.For : null);
 
+//#if (!publicApi)
 app.UseAuthentication();
+//#endif
 app.UseAuthorization();
 
 app.MapControllers();
@@ -121,7 +140,9 @@ app.MapApiHealthEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
+    //#if (!publicApi)
     // Without AllowAnonymous the fallback policy answers 401 to whoever opened the page.
+    //#endif
     app.MapOpenApi().AllowAnonymous();
 
     // The page carries one inline module script. The nonce is what lets it run under a policy that

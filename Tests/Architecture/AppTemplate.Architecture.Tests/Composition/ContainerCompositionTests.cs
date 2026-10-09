@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using AppTemplate.Application.Core;
+//#if (localAuth)
 using AppTemplate.Application.Core.Common.Ports;
+//#endif
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Architecture.Tests.Fixtures;
@@ -212,6 +214,7 @@ public sealed class ContainerCompositionTests
             "fail here.",
             HostComposition.ComposeBackgroundOnly);
     }
+    //#if (localAuth)
 
     /// <summary>
     /// The jobs need no authentication port. The reminder job reaches its owner through
@@ -245,9 +248,11 @@ public sealed class ContainerCompositionTests
             "A module has started depending on an authentication port, so removing authentication " +
             "is no longer a matter of leaving its composition out.");
     }
+    //#endif
 
     // ---- Proof that the checks above can fail -------------------------------------------------
 
+    /*#if (localAuth)*/
     /// <summary>
     /// Drops one module and asserts the container refuses to build. The application layer's sign-up
     /// use cases depend on <see cref="IEmailSender"/>, which no module but the email one implements,
@@ -257,16 +262,35 @@ public sealed class ContainerCompositionTests
     /// <see cref="TheApiContainer_ResolvesEveryRegisteredService"/> would be incapable of failing.
     /// </para>
     /// </summary>
+    /*#else
+    /// <summary>
+    /// Drops one module and asserts the container refuses to build. The idempotency purge depends on
+    /// <c>IIdempotencyStore</c>, which no module but the persistence one implements, so the host is
+    /// the only thing that can complete the graph.
+    /// <para>
+    /// If this test passed, <c>ValidateOnBuild</c> would be inspecting nothing and
+    /// <see cref="TheApiContainer_ResolvesEveryRegisteredService"/> would be incapable of failing.
+    /// </para>
+    /// </summary>
+    #endif*/
     [Fact]
     public void TheContainer_RefusesToBuild_WhenAModuleIsNotComposed()
     {
+        /*#if (localAuth)*/
         var services = HostComposition.ComposeApiWithoutTheEmailModule(HostComposition.Configuration());
+        /*#else
+        var services = HostComposition.ComposeApiWithoutThePersistenceModule(HostComposition.Configuration());
+        #endif*/
 
         var exception = Should.Throw<AggregateException>(
             () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose());
 
         // The diagnostic must name the missing port, or it is not actionable.
+        /*#if (localAuth)*/
         exception.Message.ShouldContain(nameof(IEmailSender));
+        /*#else
+        exception.Message.ShouldContain(nameof(AppTemplate.Application.Core.Common.Idempotency.IIdempotencyStore));
+        #endif*/
     }
 
     /// <summary>
@@ -297,16 +321,29 @@ public sealed class ContainerCompositionTests
         exception.Message.ShouldContain(nameof(ISecondContract));
     }
 
+    /*#if (localAuth)*/
     /// <summary>
     /// Proves the options half of the guarantee: every section is validated with
     /// <c>ValidateOnStart</c>, so a signing key too short for HS256 stops the process instead of
     /// producing tokens nothing can verify.
     /// </summary>
+    /*#else
+    /// <summary>
+    /// Proves the options half of the guarantee: every section is validated with
+    /// <c>ValidateOnStart</c>, so a mail relay with no host stops the process instead of failing the
+    /// first message it is asked to send.
+    /// </summary>
+    #endif*/
     [Fact]
     public void TheContainer_RefusesToStart_WhenAnOptionsSectionIsInvalid()
     {
+        /*#if (localAuth)*/
         var configuration = HostComposition.Configuration(
             new KeyValuePair<string, string?>("Jwt:Key", "too-short"));
+        /*#else
+        var configuration = HostComposition.Configuration(
+            new KeyValuePair<string, string?>("Email:Host", ""));
+        #endif*/
 
         var services = HostComposition.ComposeApi(configuration);
 
@@ -315,7 +352,11 @@ public sealed class ContainerCompositionTests
         var exception = Should.Throw<OptionsValidationException>(
             provider.GetRequiredService<IStartupValidator>().Validate);
 
+        /*#if (localAuth)*/
         exception.Message.ShouldContain("Jwt:Key");
+        /*#else
+        exception.Message.ShouldContain("Email:Host");
+        #endif*/
     }
 
     // ---- Helpers -------------------------------------------------------------------------------
@@ -334,10 +375,10 @@ public sealed class ContainerCompositionTests
         var descriptors = services.ToList();
 
         descriptors.Count.ShouldBeGreaterThan(
-            100,
-            "The composed host is expected to hold hundreds of descriptors (Identity, JWT bearer, " +
-            "the context, the interceptor pipeline, the application layer). Far fewer means the " +
-            "composition failed quietly and this test is walking an almost-empty collection.");
+            50,
+            "The composed host is expected to hold dozens of descriptors even with no feature and no " +
+            "accounts (the context, the interceptor pipeline, the application layer). Far fewer means " +
+            "the composition failed quietly and this test is walking an almost-empty collection.");
 
         using var provider = services.BuildServiceProvider(HostComposition.StrictValidation);
         using var scope = provider.CreateScope();
@@ -395,7 +436,7 @@ public sealed class ContainerCompositionTests
         }
 
         resolved.ShouldBeGreaterThan(
-            50,
+            45,
             $"Only {resolved} services were resolved out of {descriptors.Count} descriptors " +
             $"({openGenerics.Count} open generics skipped), which is too few to be a real check.");
 

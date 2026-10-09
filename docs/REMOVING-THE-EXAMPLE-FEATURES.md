@@ -11,8 +11,9 @@ the same use cases as the controllers. A derived project deletes what it has rea
 takes `--examples all|notes|none`, `all` by default: `TodoLists`, `Reminders` and `Notes`, `Notes`
 alone, or none of the three, and `--files false` leaves `Files` out
 ([`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md#generation-options)). A project that knows it wants
-none of them says so there. This document is for the other case: a project generated with an example
-it now wants gone.
+none of them says so there, and so does one that wants no accounts: `--auth none` leaves the supplied
+Auth module out and refuses every example and `Files`, which each belong to a caller. This document is
+for the other case: a project generated with an example, or with the accounts, it now wants gone.
 
 `Files` is the one where "delete it" is not the only sensible answer. Structurally it sits at
 exactly the same rank as the other two — its own aggregate, its own use cases, its own controller,
@@ -735,7 +736,7 @@ it is redesigning one.
 
 <!--#endif-->
 <!--#if (todoLists)-->
-<!--#else
+<!--#elseif (localAuth)
 ## What this project holds
 
 This project was generated without `TodoLists` and `Reminders`, so the procedure this document
@@ -749,12 +750,34 @@ two trees. Every file absent from the second goes, and every file that differs s
 business migration and its snapshot included. That is the list the template's own conditions encode,
 so it cannot drift from the tree. Then run the [verification](#verification).
 
+#else
+## What this project holds
+
+This project was generated with `--auth none`: no example feature, no `Files`, and none of the
+supplied accounts — no Auth projects, no account routes, no identity schema, no JWT settings. There is
+nothing here for this document to remove. What it describes is how a project generated with the
+examples or the accounts takes them out, which is a reason to generate a second project with those
+options and compare, not a procedure to run on this one.
+
+The API is public on purpose: `Program.cs` sets a fallback authorisation policy that admits every
+caller, and says so. Nothing private is opened by it. No endpoint here needs a caller,
+`ICurrentUser` answers no one rather than inventing a user, so an operation that requires a caller
+still fails, and an endpoint marked `[Authorize]` errors instead of opening because there is no
+scheme to challenge with. A feature that needs a caller comes after an authentication scheme and an
+`ICurrentUser` that reads it, which is why `Tools/NewFeature.cs` refuses to scaffold one here.
+
 #endif-->
+<!--#if (localAuth)-->
 ## Removing authentication
 
 Authentication is not an example feature — it is the capability a derived project is most likely to
 keep and the second most likely to replace wholesale with its own identity provider. It is also the
 one removal that is **not** symmetrical with the example ones, so it gets its own section.
+
+**A new project that wants no accounts does not follow it.** `dotnet new cleanarch-webapi --auth none
+--examples none --files false` generates the project this section ends with, and refuses the
+examples and `Files`, which need a caller to belong to. What follows is for a project that was
+generated with the accounts and has grown past being generated again.
 
 Both halves are asserted rather than claimed.
 `LayerDependencyTests.TheApplicationLayer_KnowsNothingOfAuthentication` reads the assembly manifests
@@ -803,6 +826,7 @@ line in the composition, and that one host-side adapter.
 accounts, so removing authentication is the projects, their composition line and an authentication
 scheme of your own.
 #endif-->
+<!--#endif-->
 
 ## Verification
 

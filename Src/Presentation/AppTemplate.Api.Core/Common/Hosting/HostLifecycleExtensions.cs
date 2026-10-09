@@ -16,14 +16,6 @@ namespace AppTemplate.Api.Core.Common.Hosting;
 /// </summary>
 internal static class HostLifecycleExtensions
 {
-    /// <summary>
-    /// Name to pass to <c>[RequestTimeout(HostLifecycleExtensions.LongRequestTimeoutPolicy)]</c> on a
-    /// non-streaming endpoint whose normal work legitimately runs longer than
-    /// <see cref="RequestTimeoutsOptions.Default"/>. Read the XML doc on
-    /// <see cref="RequestTimeoutsOptions.Extended"/> before reaching for this on a stream.
-    /// </summary>
-    public const string LongRequestTimeoutPolicy = "long";
-
     public static IServiceCollection AddApiLifecycle(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -47,26 +39,16 @@ internal static class HostLifecycleExtensions
 
         services.AddSingleton<IValidateOptions<RequestTimeoutsOptions>, RequestTimeoutsOptionsValidator>();
 
-        // AddRequestTimeouts builds its policies once at registration time, with no per-request
-        // IOptions access, so the section is read eagerly here. ValidateOnStart above still fails
-        // the host on an out-of-range value.
-        var requestTimeouts = configuration.GetSection(RequestTimeoutsOptions.SectionName).Get<RequestTimeoutsOptions>()
-            ?? new RequestTimeoutsOptions();
-
-        services.AddRequestTimeouts(options =>
-        {
-            options.DefaultPolicy = new RequestTimeoutPolicy
-            {
-                Timeout = requestTimeouts.Default,
-                WriteTimeoutResponse = WriteTimeoutProblemAsync,
-            };
-
-            options.AddPolicy(LongRequestTimeoutPolicy, new RequestTimeoutPolicy
-            {
-                Timeout = requestTimeouts.Extended,
-                WriteTimeoutResponse = WriteTimeoutProblemAsync,
-            });
-        });
+        // Configured through the bound options rather than a second read of the section, so the
+        // validated values are the ones the middleware uses.
+        services.AddRequestTimeouts();
+        services.AddOptions<RequestTimeoutOptions>()
+            .Configure<IOptions<RequestTimeoutsOptions>>(
+                static (options, requestTimeouts) => options.DefaultPolicy = new RequestTimeoutPolicy
+                {
+                    Timeout = requestTimeouts.Value.Default,
+                    WriteTimeoutResponse = WriteTimeoutProblemAsync,
+                });
 
         return services;
     }

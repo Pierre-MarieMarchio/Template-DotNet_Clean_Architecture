@@ -517,7 +517,7 @@ deletion event is a fast path on top of it, never the guarantee.
 
 **Anything the second store holds is untrusted until something has looked at it.**
 `InspectDepositedFilesUseCase` checks the declared media type against the bytes and
-scans the content before a file becomes readable, in the worker rather than in the
+scans the content before a file becomes readable, in a background job rather than in the
 request. See `SECURITY.md` for which threats that answers and which it does not.
 
 The cost is a state machine, which a single-store feature does not need: `Pending →
@@ -551,11 +551,11 @@ declares five members, and that is legitimate: it lives in the domain, and
 `AppTemplate.Application.Features.<F>.Ports`. **`ReminderFiredDomainEvent` is a live
 entry in `_deliberatelyUnconsumed`**, with the reason written next to it — the worked
 example of the decision section 1 asks you to make. **And the feature is driven from
-two hosts**: `RemindersController` serves the HTTP side, while `FireDueRemindersUseCase`
-is called by the Worker, which is why the feature has ports for a notifier
+two triggers**: `RemindersController` serves the HTTP side, while `FireDueRemindersUseCase`
+is called by a background job, which is why the feature has ports for a notifier
 (`Ports/ReminderNotifier/`), for its own metrics (`Ports/ReminderDiagnostics/`) and for
 the targets it notifies (`Ports/ReminderTargetQueries/`). A use case is a use case
-whichever host calls it; nothing about the shape changes.
+whichever trigger calls it; nothing about the shape changes.
 
 ## 4d. When the feature shares, caches, or runs on a timer
 
@@ -600,8 +600,10 @@ command that changes the answer calls `RemoveAsync` with the same key. An entry 
 before its lifetime is over, so the caller has to be correct when it does: the port
 promises to be faster, never to remember.
 
-**Work that runs on a timer.** A `BackgroundService` in `AppTemplate.Worker/Features/<F>/`,
-and its loop is `PeriodicJob.RunAsync` from `AppTemplate.Presentation.Core/Common/Jobs/` —
+**Work that runs on a timer.** A `BackgroundService` in `AppTemplate.Api/Features/<F>/Jobs/`,
+started by an `AddXJobs()` extension beside it that `AddBackgroundJobs` calls — opening each pass
+with `CreateBackgroundScope()`, so the scope has no caller and its writes record no user — and its
+loop is `PeriodicJob.RunAsync` from `AppTemplate.Presentation.Core/Common/Jobs/` —
 one interval, one asynchronous iteration, ticks coalesced so an iteration never overlaps
 itself, and a return rather than a throw when the host stops. It is a primitive the
 service composes, not a base class it derives from, so a feature needing three passes on

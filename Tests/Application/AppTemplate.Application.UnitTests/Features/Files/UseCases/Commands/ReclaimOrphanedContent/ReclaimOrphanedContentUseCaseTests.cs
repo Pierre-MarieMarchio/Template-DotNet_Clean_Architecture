@@ -25,7 +25,7 @@ public sealed class ReclaimOrphanedContentUseCaseTests
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
     /// <summary>
-    /// Same trap as the abandonment purge: the worker's current user throws rather than invent a
+    /// Same trap as the abandonment purge: a background scope's current user throws rather than invent a
     /// caller, and the objects swept here belong to every owner and to none of them.
     /// </summary>
     [Fact]

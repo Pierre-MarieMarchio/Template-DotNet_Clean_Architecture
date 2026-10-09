@@ -28,8 +28,9 @@ subject, and that page says which one answers the question you actually have.
   reflection-driven fidelity test fails when a property does not survive the round trip
 - **Conditional requests** (`ETag`/`If-Match`), **idempotent creates** (`Idempotency-Key`), and a
   closed collection contract with offset *and* keyset paging
-- **A second host** — `AppTemplate.Worker` runs the same use cases on timers, behind a PostgreSQL
-  advisory-lock lease so it can be replicated
+- **One process, jobs included** — the API serves HTTP and runs the periodic jobs that call the same
+  use cases on timers, with `BackgroundJobs:Enabled` to turn them off per instance and a PostgreSQL
+  advisory-lock lease so the reminder pass is safe to run on more than one
 - **Multilingual transactional mail**, subject and body from one template per language
 - **Options validated at startup** — a bad setting fails the host, not the first request
 - **Central Package Management**, warnings as errors, `.editorconfig` enforced in the build and CI
@@ -126,7 +127,7 @@ Src/
                      AppTemplate.Application.Auth
   Infrastructure/    AppTemplate.Infrastructure.Core, .Persistence, .Auth,
                      .Email, .Storage, .InMemory
-  Presentation/      AppTemplate.Presentation.Core, AppTemplate.Api, AppTemplate.Worker
+  Presentation/      AppTemplate.Presentation.Core, AppTemplate.Api
 Tests/               a 1:1 mirror of Src/, plus Architecture/ and Integration/
 Tools/               the file-based C# apps this repository runs on itself
 docs/                the documentation index and everything it lists

@@ -118,7 +118,7 @@ lets a test choose the address the rate limiter partitions on. Under the identit
 race deliberately, and `AnonymousAuditActor`.
 
 **Two name the product and have to be edited, and they are the two that matter.** `ApiFactory`
-names ten product namespaces and `IntegrationTestBase` eight: the modules a test host replaces, the
+names eleven product namespaces and `IntegrationTestBase` eight: the modules a test host replaces, the
 options it overrides, the use cases it reaches past HTTP. Nothing can be done about that — a fixture
 that boots this application knows this application — so treat them as your own code from the first
 commit, and expect the edit to be a real one when a feature is removed or a module swapped.
@@ -151,7 +151,7 @@ k6 run -e BASE_URL=http://localhost:8080 Tests/Load/smoke.js
 
 NetArchTest resolves each type through `Type.GetType(name, throwOnError: true)`, and that
 resolution is sensitive to how the assembly it is looking in was instrumented — it fails outright
-against a Coverlet-instrumented one. The collector the platform uses does not break it: all 131
+against a Coverlet-instrumented one. The collector the platform uses does not break it: all 134
 rules in `AppTemplate.Architecture.Tests` pass with the twelve product assemblies that project
 references instrumented, which is why coverage is collected over the whole solution in one
 invocation.

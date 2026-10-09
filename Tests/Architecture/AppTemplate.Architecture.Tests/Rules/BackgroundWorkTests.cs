@@ -9,13 +9,31 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// Where a guarantee about running once across the fleet is allowed to live.
 /// <para>
 /// Read from the source tree rather than from metadata, because this project deliberately does not
-/// reference <c>AppTemplate.Worker</c> — it composes the worker's modules itself, so that the rules
-/// here stay about the modules rather than about one host. The background services are therefore
-/// invisible to reflection from here, and the text is what is left.
+/// reference <c>AppTemplate.Api</c> — it composes the modules itself, so that the rules here stay
+/// about the modules rather than about one host. The background services are therefore invisible to
+/// reflection from here, and the text is what is left.
 /// </para>
 /// </summary>
 public sealed class BackgroundWorkTests
 {
+    /// <summary>
+    /// A scope opened the framework's way. <c>CreateBackgroundScope</c> does not match, because the
+    /// name before <c>Scope</c> has to be <c>Create</c> or <c>CreateAsync</c> itself.
+    /// </summary>
+    private static readonly Regex _plainScope = new(
+        @"\.Create(?:Async)?Scope\(",
+        RegexOptions.None,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>
+    /// A namespace from the authentication layers of the application or the infrastructure, or from
+    /// the API's own authentication feature — a name in code, not a word in a sentence.
+    /// </summary>
+    private static readonly Regex _authenticationReference = new(
+        @"AppTemplate\.(?:Application|Infrastructure)\.Auth\b|AppTemplate\.Api\.Features\.Auth\b",
+        RegexOptions.None,
+        TimeSpan.FromSeconds(5));
+
     /// <summary>
     /// A constructor parameter, not a mention. The distinction is not pedantry: the first loop this
     /// rule was written for names the port in its own documentation, to say that it deliberately
@@ -109,6 +127,106 @@ public sealed class BackgroundWorkTests
             "No use case takes the leader lease, so the rule above is forbidding background " +
             "services from doing something nothing does anywhere — which would make it a rule " +
             "about a port that has quietly stopped being used.");
+    }
+
+    /// <summary>
+    /// A scope opened any other way is, to the caller identity, a request that happens to carry no
+    /// principal: <c>ICurrentUser</c> answers null instead of refusing, and a use case that wrongly
+    /// asks who is calling runs on as an anonymous caller. <c>CreateBackgroundScope</c> is what marks
+    /// a scope as a job's, so a service that skipped it compiles, runs and quietly loses the guard.
+    /// </summary>
+    [Fact]
+    public void EveryBackgroundService_OpensItsScopeAsABackgroundScope()
+    {
+        var services = BackgroundServices();
+
+        var offenders = services
+            .Where(service => _plainScope.IsMatch(CodeOf(service)))
+            .Select(Relative)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        offenders.ShouldBeEmpty(
+            "A background service opened a scope with CreateScope or CreateAsyncScope. Use " +
+            "CreateBackgroundScope, so that the scope has no caller and its writes record no user.");
+
+        services
+            .Count(service => CodeOf(service).Contains("CreateBackgroundScope(", StringComparison.Ordinal))
+            .ShouldBeGreaterThanOrEqualTo(
+                3,
+                "Fewer background services open a background scope than this template ships, so " +
+                "the rule above is reading the wrong tree and passing for the wrong reason.");
+    }
+
+    [Fact]
+    public void TheScopeRule_IsSensitive_AndSeesTheCallsItForbids()
+    {
+        _plainScope.IsMatch("await using var scope = scopeFactory.CreateAsyncScope();").ShouldBeTrue();
+        _plainScope.IsMatch("using var scope = provider.CreateScope();").ShouldBeTrue();
+        _plainScope.IsMatch("await using var scope = scopeFactory.CreateBackgroundScope();").ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// What a project built without authentication must be able to delete without editing the
+    /// background composition: the composition, the options it binds and the jobs' own folders name
+    /// nothing from authentication. Its refresh-token purge joins the maintenance timer from
+    /// <c>Features/Auth/Jobs</c>, which is the one folder that does.
+    /// </summary>
+    [Fact]
+    public void TheBackgroundComposition_NamesNoAuthentication()
+    {
+        var files = BackgroundCompositionFiles();
+
+        files.Count.ShouldBeGreaterThanOrEqualTo(
+            15,
+            "Far fewer files were found in the background composition than this template ships, so " +
+            "this rule is reading the wrong tree and passing for the wrong reason.");
+
+        var offenders = files
+            .Where(file => _authenticationReference.IsMatch(CodeOf(file)))
+            .Select(Relative)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        offenders.ShouldBeEmpty(
+            "The background composition names authentication, so removing authentication would mean " +
+            "editing it. Let authentication register what it contributes — Features/Auth/Jobs does " +
+            "this for the refresh-token purge — and keep the composition ignorant of it.");
+    }
+
+    [Fact]
+    public void TheAuthenticationRule_IsSensitive_AndSeesWhatItForbids()
+    {
+        _authenticationReference.IsMatch("using AppTemplate.Application.Auth.Features.Auth.UseCases;")
+            .ShouldBeTrue();
+        _authenticationReference.IsMatch("using AppTemplate.Infrastructure.Auth;").ShouldBeTrue();
+        _authenticationReference.IsMatch("using AppTemplate.Api.Features.Auth.Jobs;").ShouldBeTrue();
+        _authenticationReference.IsMatch("using AppTemplate.Api.Features.Maintenance.Jobs;").ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// The shared job mechanisms and every feature's <c>Jobs/</c> folder but authentication's own —
+    /// which includes the composition feature.
+    /// </summary>
+    private static List<string> BackgroundCompositionFiles()
+    {
+        string api = ProjectReferenceGraph.RootOf(ProjectReferenceGraph.Project("AppTemplate.Api"));
+
+        var folders = new List<string> { Path.Combine(api, "Common", "Jobs") };
+
+        folders.AddRange(Directory
+            .EnumerateDirectories(Path.Combine(api, "Features"))
+            .Where(feature => !string.Equals(Path.GetFileName(feature), "Auth", StringComparison.Ordinal))
+            .Select(feature => Path.Combine(feature, "Jobs"))
+            .Where(Directory.Exists));
+
+        return
+        [
+            .. folders
+                .SelectMany(folder => Directory.EnumerateFiles(folder, "*.cs", SearchOption.AllDirectories))
+                .Where(IsProductionSource)
+                .Order(StringComparer.Ordinal),
+        ];
     }
 
     private static List<string> BackgroundServices() =>

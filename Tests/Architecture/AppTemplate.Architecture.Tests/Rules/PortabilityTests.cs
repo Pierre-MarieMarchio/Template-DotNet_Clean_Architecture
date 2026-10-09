@@ -6,7 +6,7 @@ namespace AppTemplate.Architecture.Tests.Rules;
 
 /// <summary>
 /// That everything under the HTTP host can be taken by a host that is not one: a desktop front
-/// end, a command line, the worker. Domain, application, infrastructure and the presentation
+/// end, a command line, a runner that only does background work. Domain, application, infrastructure and the presentation
 /// foundation may not require the ASP.NET shared framework, whether they declare it, take it from
 /// the Web SDK, or inherit it through a package or through a project they reference.
 /// <para>

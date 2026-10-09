@@ -22,7 +22,7 @@ public sealed class CurrentUserAuditActorTests
     }
 
     /// <summary>
-    /// An anonymous request records nobody — the same answer the worker gives, and a fact worth
+    /// An anonymous request records nobody — the same answer a background scope gives, and a fact worth
     /// keeping rather than a missing value.
     /// </summary>
     [Fact]

@@ -30,7 +30,7 @@ public static class CurrentLanguage
 {
     /// <summary>
     /// The language every mail is written in when nothing more specific is known — for
-    /// <c>AppTemplate.Worker</c>, that is every mail it sends.
+    /// a background job, that is every mail it sends.
     /// </summary>
     public const string FallbackTag = "en";
 

@@ -61,7 +61,7 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         (await FireDueRemindersAsync()).ShouldBe(1);
         Notifications.Snapshot().Count.ShouldBe(1);
 
-        // A second pass over the same batch — exactly what a crash-and-retry, or the worker's own
+        // A second pass over the same batch — exactly what a crash-and-retry, or the job's own
         // next tick, would also see.
         int notifiedAgain = await FireDueRemindersAsync();
 

@@ -61,6 +61,7 @@ answer "what nature of thing is this?", so the suffix is not decoration:
 | `…Service` | an injected implementation that has dependencies |
 | `…Mapper` / `…Mapping` | a mapping, injected / static — and named for what comes **out** of it |
 | `…Extensions` | a static class of extension methods, filed with the type it extends — `ResultExtensions` in `Common/Results/`, `CurrentUserExtensions` in `Common/Ports/`. In a host's `Common/` it is the composition class holding that folder's `AddX`/`UseX` |
+| `…BackgroundService`, `…Instruments` | a hosted loop and the counters and spans it emits, filed together under `Features/<F>/Jobs/` in the API |
 | `…Options`, `…Validator`, `…Policy`, `…Consumer`, `…Dto`, `…Controller`, `…Request`, `…Response` | as they read |
 
 Two rules follow from having been broken:

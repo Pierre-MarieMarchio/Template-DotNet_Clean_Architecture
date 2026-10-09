@@ -72,11 +72,13 @@ AppTemplate.Infrastructure.InMemory  Common/{Email,Time}         Features/<F>/
 AppTemplate.Presentation.Core   Common/{Jobs,Localization,Observability,Outbound,Security}
                                 no Features/: what any host needs whatever its transport
 AppTemplate.Api                 Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
-                                        Idempotency,Localization,Observability,OpenApi,Security}
-                                Common/ names no feature: the HTTP mechanisms every feature shares
-                                Features/<F>/{Controllers,Contracts/{Requests,Responses},Mapping}
-AppTemplate.Worker              Common/{Observability,Security}
-                                Features/<F>/   one BackgroundService, its options, its metrics
+                                        Idempotency,Jobs,Localization,Observability,OpenApi,Security}
+                                Common/ names no feature: the HTTP mechanisms and the job
+                                mechanisms (the role switch, the background scope) every feature shares
+                                Features/<F>/{Controllers,Contracts/{Requests,Responses},Jobs,Mapping}
+                                Jobs/ holds what a feature runs on a timer: its BackgroundService, its
+                                options, its instruments, and the extension that registers them
+                                Features/BackgroundJobs/Jobs/  the one composition call, AddBackgroundJobs
 Tests/                          a 1:1 mirror of Src/
 ```
 
@@ -210,9 +212,9 @@ in the tree above.**
 in both directions.** Null is not an empty word list: empty says the folder exists and its features
 hold their files side by side, null says the folder is not there at all. So a `Common/` or
 `Features/` appearing where the entry says none fails the build, and so does one vanishing from
-under a list of words. `AppTemplate.Application.Auth` is the one null `Common/`; `AppTemplate.Worker`
-is the one empty `Features/` word list, so the first subfolder anyone adds there has to be argued
-for in the pull request that adds it.
+under a list of words. `AppTemplate.Application.Auth` is the one null `Common/`, and the empty
+`Features/` word lists belong to the two smallest infrastructure modules, so the first subfolder anyone
+adds there has to be argued for in the pull request that adds it.
 
 ## The word "Module"
 

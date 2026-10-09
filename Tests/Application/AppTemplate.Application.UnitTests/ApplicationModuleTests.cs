@@ -46,7 +46,7 @@ public sealed class ApplicationModuleTests
     /// <summary>
     /// Fifteen to-do list operations, five reminder ones, nine for files — of which three, the
     /// abandonment purge, the orphan reclamation and the deposit inspection, are reached only from
-    /// the worker.
+    /// background jobs.
     /// </summary>
     private const int _knownUseCaseCount = 32;
 

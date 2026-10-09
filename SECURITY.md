@@ -230,7 +230,7 @@ says otherwise.
   released — a grant lives `Storage:MaxGrantLifetime` (thirty minutes) while inspection runs every
   minute, so for most of its life the file it belongs to has already been examined. Measured before
   the digest was bound: a second deposit of different bytes of the same length answered `200`.
-- **Inspection happens in the worker, not in the request.** Scanning 200 MiB inside an HTTP request
+- **Inspection happens in a background job, not in the request.** Scanning 200 MiB inside an HTTP request
   is the same CPU-denial problem as resizing an image there, which this template refuses by name.
   The consequence is a state a client can observe: a confirmed upload is `deposited`, not
   `available`, until the loop has decided — and `FileWorker:InspectDepositedFilesInterval` is
@@ -280,17 +280,15 @@ says otherwise.
   auditable choice.
 - The container runs as a non-root user and exposes only `8080/tcp`; CI asserts both.
 - **Migrations are not applied at startup outside Development.**
-- **The access-token signing key reaches one host, not both.** `AppTemplate.Worker` composes the
-  identity module — it has to, see `docs/CONFIGURATION.md` — and `JwtOptionsValidator` therefore
-  demands a `Jwt:Key` of it at startup. That host signs nothing and verifies nothing: `AccessTokenIssuer`
-  is the only thing that uses the key, no background loop resolves it, and bearer validation needs an
-  inbound request this process does not have. `docker-compose.yml` gives the Worker a
-  self-describing placeholder and gives only the API the real key; other deployments must do the
-  same. Both hosts still share `Jwt:Issuer` and `Jwt:Audience`, which are the two values they
-  genuinely have to agree about.
-  Until this change the worker mounted the API's signing key, which made a container whose whole job
-  is sending reminder mail and deleting expired rows one compromise away from minting an access
-  token for any user in the system.
+- **The jobs share the API's process, and so its signing key.** The periodic jobs now run inside
+  `AppTemplate.Api`, which signs and verifies every token, so the process that sends reminder mail and
+  deletes expired rows holds the real `Jwt:Key`. That is a deliberate trade for one process and one
+  image, and it removes a separation the template used to have: a separate worker needed the `Jwt`
+  section only to start — no background loop resolves `AccessTokenIssuer` — and was given a
+  self-describing placeholder, so a compromised background container could not mint a token. A
+  deployment that wants that property back runs the jobs in a process of its own, sets
+  `BackgroundJobs:Enabled=false` on the API, and gives that process a placeholder `Jwt:Key` with the
+  same `Jwt:Issuer` and `Jwt:Audience`; nothing in the jobs reads the key.
 
 ## What a deployment must still do
 
@@ -310,7 +308,8 @@ says otherwise.
    bypass the limiter just as completely. The options validator refuses to start in that state.
 4. **Supply `Jwt:Key` from a secret manager**, with real entropy, and rotate it. Never from a file
    in source control. Same for `ConnectionStrings:Default` and the SMTP credentials. Give it to
-   `AppTemplate.Api` and to nothing else — the worker needs the *section*, not the *key*.
+   `AppTemplate.Api` and to nothing else — a separate job runner, if you extract one, needs the *section*,
+   not the *key*.
 5. **Set `Cors:AllowedOrigins`** to your real origins, and **narrow `AllowedHosts`** from `*` to the
    hostnames you serve.
 6. **Apply migrations as a separate step** — the release workflow builds a self-contained bundle.
@@ -356,17 +355,19 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   Closing it means taking delivery off the request: queue the message durably and answer on both
   branches at once. A detached task is not the fix — it drops the mail on the next deployment — and
   neither is a fixed delay, which would have to exceed the relay's own variance to hide anything.
-- **The background work needs an availability signal.** With every Worker down, no reminder
-  is rung, no expired refresh-token grant is deleted and no idempotency key is reclaimed, and
-  nothing alerts on any of it — the host serves no traffic, so it has no readiness probe. Each of
-  the three loops does now emit a heartbeat, and it is what a deployment should alert on going flat:
+- **The background work needs an availability signal, and `/health/ready` is not it.** The jobs run
+  in the API process, whose readiness probe answers for HTTP — the database checks and the shutdown
+  state — so with every instance's jobs stopped, or switched off with `BackgroundJobs:Enabled=false`,
+  no reminder is rung, no expired refresh-token grant is deleted and no idempotency key is reclaimed,
+  and the probe stays green. Each of the three jobs emits a heartbeat, and it is what a deployment
+  should alert on going flat, on the instance designated to run them:
   `apptemplate.worker.{maintenance,files,reminders}.iterations`, counted once per pass and never
-  gated on how much the pass found, so a healthy quiet system still produces samples. Alert on the
-  Worker's restart count alongside them.
+  gated on how much the pass found, so a healthy quiet system still produces samples. Alert on that
+  instance's restart count alongside them.
   Do **not** alert on the absence of `apptemplate.reminders.missed_cancellations`, which this
   paragraph used to advise: that counter increments only when a cancellation was missed, so silence
   is its healthy state and it cannot tell a working loop from a dead one.
-  Running multiple Workers is now **safe** for the reminder pass, and it was not before. The two
+  Running the jobs on more than one instance is **safe** for the reminder pass, and it was not before. The two
   purges are idempotent deletes over an already-covered range, so a second process wastes a
   connection and nothing more. The reminder loop is where concurrency mattered:
   `FireDueRemindersUseCase` claims a reminder with `Reminder.TryClaim` **in memory**, notifies, and
@@ -415,18 +416,18 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   and no alert on lag is worse than an acknowledged gap, because it looks solved.
   The reminder feature shows the alternative, and it is the pattern to copy: the effect re-reads
   the state it depends on at the moment it acts, so a lost cancellation delays a reminder's
-  retirement instead of firing it wrongly, and the reminder worker counts every such divergence —
+  retirement instead of firing it wrongly, and the reminder job counts every such divergence —
   a non-zero `apptemplate.reminders.missed_cancellations` is the number of events that went missing. A
   consumer whose effect *cannot* be re-derived, because nothing re-reads the state later — mail,
   money, a call to a third party — still needs an outbox before you rely on it.
   No consumer is the only thing keeping a rule true: every effect re-derives its precondition when
   it runs, so a lost event leaves the system stale rather than wrong.
-- **Idempotency keys expire only where the worker runs.** `Idempotency:Retention` stamps each row's
-  `ExpiresAt`; it does not delete anything. `AppTemplate.Worker`'s maintenance loop calls the purge
-  on its own schedule, and the same operation is exposed as
+- **Idempotency keys expire only where the jobs run.** `Idempotency:Retention` stamps each row's
+  `ExpiresAt`; it does not delete anything. The API's maintenance job calls the purge on its own
+  schedule, and the same operation is exposed as
   `DELETE /api/v1/maintenance/idempotency-keys/expired` behind the `Administrator` policy for a
-  deployment that runs no worker. Deploy neither and a completed key stays replayable past its
-  retention window while the table grows without bound.
+  deployment that runs the jobs on no instance. Deploy neither and a completed key stays replayable
+  past its retention window while the table grows without bound.
 - **The auth wire format has two owners.** `ConfigureJwtBearerOptions` in the Identity module builds
   its own `ProblemDetails` and owns the `auth.required` / `auth.forbidden` codes, so a change to how
   failures look must be made in two places.

@@ -98,19 +98,55 @@ services:
 
       # --- Database: connection-pool bound and command timeout. See -----------
       # docs/CONFIGURATION.md for how DATABASE_MAX_POOL_SIZE must be sized
-      # against replica count (api + worker, and every replica of each) and
-      # PostgreSQL's own max_connections. The worker service below reads the
-      # same two variables, so raising replica count and lowering the
-      # per-instance pool stays a one-place change.
+      # against replica count (every api instance, with or without the jobs) and
+      # PostgreSQL's own max_connections. Every instance reads the same two
+      # variables, so raising replica count and lowering the per-instance pool
+      # stays a one-place change.
       Database__MaxPoolSize: ${DATABASE_MAX_POOL_SIZE:-20}
       Database__CommandTimeoutSeconds: ${DATABASE_COMMAND_TIMEOUT_SECONDS:-30}
 
       # --- IdempotencyPurge ----------------------------------------------------
       IdempotencyPurge__BatchSize: ${IDEMPOTENCY_PURGE_BATCH_SIZE:-1000}
 
+      # --- Background jobs -----------------------------------------------------
+      # This process runs the periodic jobs as well as serving HTTP, which is the template's default:
+      # one application process. BACKGROUND_JOBS_ENABLED=false makes an instance serve HTTP only; with
+      # several instances, leave it true on exactly one. See docs/CONFIGURATION.md. The sections below
+      # are read only while it is true.
+      BackgroundJobs__Enabled: ${BACKGROUND_JOBS_ENABLED:-true}
+
+      # --- MaintenanceWorker ---------------------------------------------------
+      # The same purges MaintenanceController exposes over HTTP, on a timer.
+      MaintenanceWorker__Interval: ${MAINTENANCE_WORKER_INTERVAL:-01:00:00}
+      MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: ${MAINTENANCE_WORKER_PURGE_IDEMPOTENCY_KEYS:-true}
+      MaintenanceWorker__PurgeExpiredRefreshTokensEnabled: ${MAINTENANCE_WORKER_PURGE_REFRESH_TOKENS:-true}
+
+      # --- ReminderWorker ------------------------------------------------------
+      # The second job, on its own timer. Enabled is the off switch for a stack that wants the
+      # maintenance purges running without any reminder mail leaving the box — the job stops, the
+      # rest of the process keeps going. See docs/CONFIGURATION.md.
+      ReminderWorker__Interval: ${REMINDER_WORKER_INTERVAL:-00:01:00}
+      ReminderWorker__Enabled: ${REMINDER_WORKER_ENABLED:-true}
+
+      # --- FileWorker ----------------------------------------------------------
+      # THREE passes for the Files feature, not two. The inspection pass is the one a user waits on:
+      # it is the only thing that moves a file from deposited to available, so with it off or slow no
+      # upload ever becomes readable. The reclamation sweep is the correctness guarantee of the whole
+      # feature — with no soft delete, bytes are only reclaimed because it re-derives "an object no
+      # row references is garbage" — so turning it off leaks storage silently. The purge of abandoned
+      # registrations retires a client that asked for an upload grant and never used it.
+      # See docs/CONFIGURATION.md.
+      FileWorker__InspectDepositedFilesInterval: ${FILE_WORKER_INSPECT_INTERVAL:-00:01:00}
+      FileWorker__InspectDepositedFilesEnabled: ${FILE_WORKER_INSPECT_ENABLED:-true}
+      FileWorker__PurgeAbandonedRegistrationsInterval: ${FILE_WORKER_PURGE_INTERVAL:-01:00:00}
+      FileWorker__PurgeAbandonedRegistrationsEnabled: ${FILE_WORKER_PURGE_ENABLED:-true}
+      FileWorker__ReclaimOrphanedContentInterval: ${FILE_WORKER_RECLAIM_INTERVAL:-12:00:00}
+      FileWorker__ReclaimOrphanedContentEnabled: ${FILE_WORKER_RECLAIM_ENABLED:-true}
+
       # --- Localization ------------------------------------------------------
-      # The language a mail is written in when the reader has not said which one they read. There is
-      # no list of supported languages: what a mail can be written in is which templates the
+      # The language a mail is written in when the reader has not said which one they read, and the
+      # language every mail a background job sends is written in. There is no list of
+      # supported languages: what a mail can be written in is which templates the
       # infrastructure modules embed. See docs/CONFIGURATION.md.
       Localization__DefaultCulture: ${LOCALIZATION_DEFAULT_CULTURE:-en}
 
@@ -211,135 +247,6 @@ services:
       retries: 5
       # Generous: the first start runs EF migrations against an empty database.
       start_period: 60s
-    networks: [backend]
-
-  worker:
-    # The template's proof that Clean Architecture pays for itself: this process calls the exact
-    # same IPurgeExpiredIdempotencyKeysUseCase and IPurgeExpiredRefreshTokensUseCase as the api
-    # service's MaintenanceController, through the same application layer, with no use case and
-    # no domain type touched to run it here instead of over HTTP. See
-    # Src/Presentation/AppTemplate.Worker.
-    image: app-template-worker:dev
-    build:
-      context: .
-      dockerfile: Src/Presentation/AppTemplate.Worker/Dockerfile
-    restart: unless-stopped
-    environment:
-      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
-
-      ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true"
-
-      # Same two variables as the api service — this process holds its own pool against the same
-      # server, and MaxPoolSize must be sized with the api's replicas in mind, not just its own.
-      # See docs/CONFIGURATION.md.
-      Database__MaxPoolSize: ${DATABASE_MAX_POOL_SIZE:-20}
-      Database__CommandTimeoutSeconds: ${DATABASE_COMMAND_TIMEOUT_SECONDS:-30}
-
-      IdempotencyPurge__BatchSize: ${IDEMPOTENCY_PURGE_BATCH_SIZE:-1000}
-
-      # --- Localization ------------------------------------------------------
-      # This host serves no request, so every mail its loops send is written in this language. Same
-      # value as the api service: one deployment, one voice.
-      Localization__DefaultCulture: ${LOCALIZATION_DEFAULT_CULTURE:-en}
-
-      # --- MaintenanceWorker ---------------------------------------------------
-      MaintenanceWorker__Interval: ${MAINTENANCE_WORKER_INTERVAL:-01:00:00}
-      MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: ${MAINTENANCE_WORKER_PURGE_IDEMPOTENCY_KEYS:-true}
-      MaintenanceWorker__PurgeExpiredRefreshTokensEnabled: ${MAINTENANCE_WORKER_PURGE_REFRESH_TOKENS:-true}
-
-      # --- ReminderWorker ------------------------------------------------------
-      # The host's second loop, on its own timer. Enabled is the off switch for a stack that wants
-      # the maintenance purges running without any reminder mail leaving the box — the loop stops,
-      # the rest of the process keeps going. See docs/CONFIGURATION.md.
-      ReminderWorker__Interval: ${REMINDER_WORKER_INTERVAL:-00:01:00}
-      ReminderWorker__Enabled: ${REMINDER_WORKER_ENABLED:-true}
-
-      # --- FileWorker ----------------------------------------------------------
-      # THREE passes for the Files feature, not two. The inspection pass is the one a user waits on:
-      # it is the only thing that moves a file from deposited to available, so with it off or slow no
-      # upload ever becomes readable. The reclamation sweep is the correctness guarantee of the whole
-      # feature — with no soft delete, bytes are only reclaimed because it re-derives "an object no
-      # row references is garbage" — so turning it off leaks storage silently. The purge of abandoned
-      # registrations retires a client that asked for an upload grant and never used it.
-      # See docs/CONFIGURATION.md.
-      FileWorker__InspectDepositedFilesInterval: ${FILE_WORKER_INSPECT_INTERVAL:-00:01:00}
-      FileWorker__InspectDepositedFilesEnabled: ${FILE_WORKER_INSPECT_ENABLED:-true}
-      FileWorker__PurgeAbandonedRegistrationsInterval: ${FILE_WORKER_PURGE_INTERVAL:-01:00:00}
-      FileWorker__PurgeAbandonedRegistrationsEnabled: ${FILE_WORKER_PURGE_ENABLED:-true}
-      FileWorker__ReclaimOrphanedContentInterval: ${FILE_WORKER_RECLAIM_INTERVAL:-12:00:00}
-      FileWorker__ReclaimOrphanedContentEnabled: ${FILE_WORKER_RECLAIM_ENABLED:-true}
-
-      # --- Jwt, RefreshToken, EmailConfirmation, PasswordReset, EmailChange ----
-      # AppTemplate.Infrastructure.Auth is composed for two things, and the smaller one used to
-      # be the only one written down: IRefreshTokenMaintenance's sole adapter. The one that decides
-      # it is IUserProfilesService, which EmailReminderNotifier resolves to find the address a due
-      # reminder is rung at — so the reminder loop needs this module whatever happens to the
-      # maintenance adapter. It validates its whole configuration surface at startup regardless of
-      # whether this host ever authenticates anybody. Same variables and same required values as
-      # the api service — see docs/CONFIGURATION.md.
-      # Not ${JWT_KEY}, on purpose: this host never signs or checks a token, so the api service's
-      # signing key has no business in this container's environment. JwtOptionsValidator only
-      # requires 32 non-blank bytes, and this value names itself in any stack trace it reaches.
-      # Issuer and audience DO match the api service — those two are what the two hosts have to
-      # agree about. See SECURITY.md.
-      Jwt__Key: "this-host-neither-signs-nor-verifies-a-token"
-      Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
-      Jwt__Audience: ${JWT_AUDIENCE:?set JWT_AUDIENCE in .env}
-      RefreshToken__LifetimeInDays: ${REFRESH_TOKEN_LIFETIME_DAYS:-7}
-      # All three URLs are validated at start-up by the Identity module this host composes,
-      # even though a background loop sends none of that mail.
-      EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
-      PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
-      EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:8080/confirm-email-change}
-
-      # --- Storage (object store for the Files feature) -----------------------
-      # The endpoint is the compose service, but the SIGNED URLs this host mints have to be
-      # reachable by whoever follows them — a browser on the host, not a container on this
-      # network. STORAGE_PUBLIC_ENDPOINT is what a client sees; leave it at localhost:9000 for
-      # the stack as shipped. ForcePathStyle is required for MinIO: virtual-host addressing
-      # would resolve <bucket>.minio, which nothing here serves.
-      Storage__BucketName: ${STORAGE_BUCKET_NAME:-app-files}
-      Storage__Endpoint: ${STORAGE_ENDPOINT:-http://minio:9000}
-      # The name a client OUTSIDE the Docker network resolves. The API reaches MinIO at
-      # minio:9000 here, and a presigned URL covers the host it was signed for — so nothing
-      # downstream can rewrite it, and left unset this stack would mint URLs only a container
-      # could follow. See docs/CONFIGURATION.md.
-      Storage__PublicEndpoint: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
-      Storage__ForcePathStyle: ${STORAGE_FORCE_PATH_STYLE:-true}
-      Storage__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
-      Storage__AccessKeyId: ${MINIO_ROOT_USER:-minioadmin}
-      Storage__SecretAccessKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
-
-      # --- Email (SMTP) --------------------------------------------------------
-      # Unlike the Jwt/Identity sections above, this one is not a side effect of composing
-      # AppTemplate.Infrastructure.Auth: this service composes AppTemplate.Infrastructure.Email
-      # in its own right, for IReminderNotifier's adapter — a reminder that comes due is rung by
-      # mail, see AppTemplate.Worker.csproj. Same variables and same values as the api service, so
-      # both hosts reach the same mailpit sink.
-      Email__Host: ${EMAIL_HOST:-mailpit}
-      Email__Port: ${EMAIL_PORT:-1025}
-      Email__Security: ${EMAIL_SECURITY:-None}
-      Email__AllowInsecureTransport: ${EMAIL_ALLOW_INSECURE_TRANSPORT:-true}
-      Email__UserName: ${EMAIL_USERNAME:-}
-      Email__Password: ${EMAIL_PASSWORD:-}
-      Email__FromAddress: ${EMAIL_FROM_ADDRESS:-no-reply@localhost}
-      Email__FromName: ${EMAIL_FROM_NAME:-AppTemplate (dev)}
-    depends_on:
-      db:
-        condition: service_healthy
-      mailpit:
-        condition: service_started
-      # The reclamation and inspection passes both talk to the object store.
-      minio-bucket:
-        condition: service_completed_successfully
-      # A COMPOSE ordering, not a runtime dependency: this host never calls the api service, and in a
-      # real deployment the two scale apart. But in this stack the api is what applies the
-      # migrations, and its healthcheck only passes once it has — so without this, every cold `up`
-      # ran this host's first passes against an empty schema and logged two errors about a relation
-      # that did not exist yet. They recovered on the next interval; they were still the first thing
-      # a newcomer saw. Where a migration job runs separately, depend on that instead.
-      api:
-        condition: service_healthy
     networks: [backend]
 
   # The object store the Files feature writes to. In production this is S3 (or R2, or Azure Blob

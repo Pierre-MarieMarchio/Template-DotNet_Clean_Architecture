@@ -165,16 +165,14 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Both hosts ship. The worker runs the same use cases from a non-HTTP process, so a
-    # deployment that scales them separately needs its own image, not a second copy of the API's.
+    # One image: the API, which serves HTTP and runs the periodic jobs. A separate runner process,
+    # if one is ever extracted, earns its own entry here rather than a second copy of the API's.
     strategy:
       fail-fast: false
       matrix:
         include:
           - component: api
             dockerfile: Src/Presentation/AppTemplate.Api/Dockerfile
-          - component: worker
-            dockerfile: Src/Presentation/AppTemplate.Worker/Dockerfile
     permissions:
       contents: read
       packages: write        # push to GHCR

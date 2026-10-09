@@ -13,7 +13,7 @@ Both end at the same place: an account you registered, confirmed and signed in w
 
 ## With Compose
 
-Brings up PostgreSQL, a mail catcher, an S3-compatible object store, the API and the Worker.
+Brings up PostgreSQL, a mail catcher, an S3-compatible object store and the API, which serves HTTP and runs the periodic jobs.
 
 ```bash
 cp .env.example .env          # working localhost defaults; edit if you like

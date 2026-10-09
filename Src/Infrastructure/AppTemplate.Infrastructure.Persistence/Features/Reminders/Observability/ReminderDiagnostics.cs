@@ -13,17 +13,15 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Reminders.Observabilit
 /// counter by name, so the instrument name below is not free to drift from it.
 /// </summary>
 /// <remarks>
-/// Static fields, the same shape as <c>MaintenanceInstruments</c> in <c>AppTemplate.Worker</c>: a
-/// <see cref="Meter"/> is meant to be created once per process, not once per scope. Exported by
-/// <c>AppTemplate.Worker</c>'s own OpenTelemetry setup — the only host that ever calls
-/// <see cref="IReminderDiagnostics.RecordMissedCancellation"/> — which is why the meter name below
-/// has to be kept in sync with the literal <c>AddMeter</c> call there rather than shared as a
-/// compile-time constant: this class is internal, and Worker cannot reference it across the
-/// assembly boundary just to read one string.
+/// Static fields, the same shape as <c>MaintenanceInstruments</c> in <c>AppTemplate.Api</c>: a
+/// <see cref="Meter"/> is meant to be created once per process, not once per scope. Exported by the
+/// API's telemetry registration when its background jobs run — the only place that ever calls
+/// <see cref="IReminderDiagnostics.RecordMissedCancellation"/> — under
+/// <see cref="PersistenceModule.RemindersMeterName"/>, the one constant both sides read.
 /// </remarks>
 internal sealed class ReminderDiagnostics : IReminderDiagnostics
 {
-    private static readonly Meter _meter = new("AppTemplate.Reminders");
+    private static readonly Meter _meter = new(PersistenceModule.RemindersMeterName);
 
     private static readonly Counter<long> _missedCancellations = _meter.CreateCounter<long>(
         "apptemplate.reminders.missed_cancellations",

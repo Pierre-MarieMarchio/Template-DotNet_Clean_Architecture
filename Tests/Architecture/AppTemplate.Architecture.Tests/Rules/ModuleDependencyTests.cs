@@ -507,14 +507,21 @@ public sealed class ModuleDependencyTests
     }
 
     /// <summary>
-    /// More than one host is the whole claim of the architecture made executable: the same use cases
-    /// answer an HTTP request and a background loop, and neither transport appears below them.
+    /// The host composes the application layer, which is what keeps the use cases reachable from a
+    /// request and from a background job alike. That the same use cases also run with no HTTP
+    /// context at all is shown by the background-only composition in
+    /// <c>ContainerCompositionTests</c>, not by counting hosts.
     /// </summary>
     [Fact]
-    public void TheApplicationLayer_IsComposedByMoreThanOneHost() =>
-        ProjectReferenceGraph.Hosts
-            .Count(host => host.References.Contains(_applicationProject))
-            .ShouldBeGreaterThan(
-                1,
-                "One host cannot show that the application layer is independent of its transport.");
+    public void EveryHost_ComposesTheApplicationLayer()
+    {
+        var hosts = ProjectReferenceGraph.Hosts.ToList();
+
+        hosts.ShouldNotBeEmpty("No host was found, so this rule would pass having checked nothing.");
+
+        hosts
+            .Where(host => !host.References.Contains(_applicationProject))
+            .Select(host => host.RelativePath)
+            .ShouldBeEmpty("A host that does not compose the application layer runs none of its use cases.");
+    }
 }

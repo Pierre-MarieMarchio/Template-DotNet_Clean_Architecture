@@ -132,8 +132,8 @@ body on this controller is metadata — a name, a media type, a length, a digest
 hundred characters whatever the file weighs, which is why no action here raises the limit.
 
 **Confirming does not make the file readable.** It leaves the file `deposited` — the bytes
-arrived and are the ones declared, but nothing has looked at them — until the Worker's
-inspection pass has, and `FileWorker:InspectDepositedFilesInterval`, one minute by default,
+arrived and are the ones declared, but nothing has looked at them — until the inspection
+job has, and `FileWorker:InspectDepositedFilesInterval`, one minute by default,
 is a latency a user feels. `availableAt` is `null` until then.
 
 `status` has **four** values, and a client that branches on it must handle all of them:

@@ -17,15 +17,15 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// </para>
 /// <para>
 /// Read from the source tree, for the reason <c>BackgroundWorkTests</c> gives: this project
-/// deliberately does not reference either host, so the hosts are invisible to reflection from here
-/// and the text is what is left. The hosts themselves come from the disk, so a third one is covered
-/// the day it exists.
+/// deliberately does not reference the host, so the host is invisible to reflection from here and
+/// the text is what is left. The hosts themselves come from the disk, so a second one is covered the
+/// day it exists.
 /// </para>
 /// <para>
 /// Only a host's <em>own</em> instruments are in scope. A meter belonging to a module a host
-/// composes is that host's decision to export or not — the worker names
-/// <c>"AppTemplate.Reminders"</c> from the persistence module and the API does not, correctly, since
-/// reminders fire in one of the two.
+/// composes is that host's decision to export or not — the API names the persistence module's
+/// reminder meter beside its jobs, through <c>PersistenceModule.RemindersMeterName</c>, since the
+/// reminder pass is the one thing that records on it.
 /// </para>
 /// </summary>
 public sealed class ObservabilityRegistrationTests
@@ -70,11 +70,10 @@ public sealed class ObservabilityRegistrationTests
 
             string registrations = ReadObservabilitySource(directory);
 
-            // The folder this rule reads has to exist wherever there is an instrument to register.
-            // A missing one yields no registration text, and every instrument the host declares is
-            // then reported with no place named to fix it in — a failure that reads as the host's
-            // and is the rule's. It cannot be caught by the count below, which the other host
-            // satisfies on its own, so it is asserted here.
+            // Somewhere this rule reads has to exist wherever there is an instrument to register.
+            // Without one, no registration text is read and every instrument the host declares is
+            // reported with no place named to fix it in — a failure that reads as the host's and is
+            // the rule's. The count below cannot catch it, so it is asserted here.
             bool declaresAnything = SourceFilesUnder(directory).Any(file =>
             {
                 string text = File.ReadAllText(file);
@@ -85,10 +84,10 @@ public sealed class ObservabilityRegistrationTests
             if (declaresAnything && registrations.Length == 0)
             {
                 offenders.Add(
-                    $"{host.Name}: declares an instrument and has no 'Common/Observability/' to " +
-                    "register it in. A host keeps a thin extension of its own over the shared one, " +
-                    "and that is where its own instruments are named; folding the call straight " +
-                    "into Program.cs leaves this rule nothing to read.");
+                    $"{host.Name}: declares an instrument and has no 'Common/Observability/' or " +
+                    "'*Telemetry.cs' to register it in. A host keeps a thin extension of its own over " +
+                    "the shared one, and that is where its own instruments are named; folding the " +
+                    "call straight into Program.cs leaves this rule nothing to read.");
                 continue;
             }
 
@@ -149,7 +148,8 @@ public sealed class ObservabilityRegistrationTests
 
         offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
             "An instrument is recorded whether or not it is exported, so this costs the same as " +
-            "working and reports nothing. Name it in the host's Common/Observability/ registration — " +
+            "working and reports nothing. Name it in the host's Common/Observability/ registration or " +
+            "in the *Telemetry.cs beside the feature that owns it — " +
             "AddMeter for a Meter, AddSource for an ActivitySource.");
     }
 
@@ -162,7 +162,7 @@ public sealed class ObservabilityRegistrationTests
     [Fact]
     public void TheRegistrationMatcher_IsSensitive_AndTellsTheTwoSpellingsFromSilence()
     {
-        const string name = "AppTemplate.Worker.Probe";
+        const string name = "AppTemplate.Probe";
 
         IsRegistered(".AddMeter(ProbeDiagnostics.Name)", "AddMeter", "ProbeDiagnostics", name)
             .ShouldBeTrue("The constant is how every registration in this repository is written.");
@@ -188,17 +188,27 @@ public sealed class ObservabilityRegistrationTests
             TimeSpan.FromSeconds(5));
 
     /// <summary>
-    /// Every <c>Common/Observability/</c> file of one host, concatenated. A host that has no such
-    /// folder registers nothing, which is an empty string and therefore an offender for each
-    /// instrument it declares — the correct answer rather than a skip.
+    /// Where a host names what it exports: every <c>Common/Observability/</c> file, which is the
+    /// host's own registration, and every file called <c>*Telemetry.cs</c>, which is how a feature
+    /// that owns instruments adds them to that pipeline — Common may not name a feature, so the jobs'
+    /// registration sits beside the jobs. Concatenated. A host with neither registers nothing, which
+    /// is an empty string and therefore an offender for each instrument it declares — the correct
+    /// answer rather than a skip.
     /// </summary>
     private static string ReadObservabilitySource(string hostDirectory)
     {
         string folder = Path.Combine(hostDirectory, "Common", "Observability");
 
-        return Directory.Exists(folder)
-            ? string.Join('\n', Directory.EnumerateFiles(folder, "*.cs").Select(File.ReadAllText))
-            : string.Empty;
+        IEnumerable<string> registrations = Directory.Exists(folder)
+            ? Directory.EnumerateFiles(folder, "*.cs")
+            : [];
+
+        var features = SourceFilesUnder(hostDirectory)
+            .Where(file => file.EndsWith("Telemetry.cs", StringComparison.Ordinal));
+
+        return string.Join(
+            '\n',
+            registrations.Concat(features).Distinct(StringComparer.Ordinal).Select(File.ReadAllText));
     }
 
     private static IEnumerable<string> SourceFilesUnder(string hostDirectory) =>

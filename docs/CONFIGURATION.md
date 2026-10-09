@@ -1,4 +1,4 @@
-﻿# Configuration
+﻿﻿# Configuration
 
 Every setting the application reads is listed here — this page, not a file, is the complete
 list. The tracked `Src/Presentation/AppTemplate.Api/appsettings.json` is the schema of record for
@@ -59,9 +59,10 @@ be filled from user secrets or environment variables.
 > | `Email`, `Postmark` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Common/Smtp/` and `Common/Http/` |
 > | `Storage` | `AddStorageModule` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
 > | `ContentInspection` | `AddStorageModule` | `AppTemplate.Infrastructure.Storage/Features/Files/Options/` |
-> | `MaintenanceWorker`, `ReminderWorker`, `FileWorker` | `AppTemplate.Worker`'s own `Program.cs` | `AppTemplate.Worker/Features/<Feature>/` |
-> | `OpenTelemetry` | `AddObservability`, called from each host's `Program.cs` | `AppTemplate.Presentation.Core/Common/Observability/` |
-> | `Localization` | `AddLocalizationOptions`, called from each host's `Program.cs` | `AppTemplate.Presentation.Core/Common/Localization/` |
+> | `BackgroundJobs` | `AddBackgroundJobs`, called from `AppTemplate.Api`'s `Program.cs` | `AppTemplate.Api/Common/Jobs/` |
+> | `MaintenanceWorker`, `ReminderWorker`, `FileWorker` | `AddBackgroundJobs`, and only when `BackgroundJobs:Enabled` is true | `AppTemplate.Api/Features/<Feature>/Jobs/` |
+> | `OpenTelemetry` | `AddObservability`, through the API's `AddApiObservability` | `AppTemplate.Presentation.Core/Common/Observability/` |
+> | `Localization` | `AddLocalizationOptions`, through the API's `AddRequestLanguage` | `AppTemplate.Presentation.Core/Common/Localization/` |
 > | Everything else | `AppTemplate.Api`'s own `Program.cs`, through `AddHttpPipeline` | beside the middleware that reads it, under `AppTemplate.Api/Common/` |
 >
 > `IdentitySeed` sits with the seeder because seeding is a persistence concern, not an
@@ -77,99 +78,72 @@ be filled from user secrets or environment variables.
 > qualified `Microsoft.Extensions.Options.Options.Create`, and
 > `ConfirmationEmailFactoryTests` uses `OptionsWrapper<T>` instead.
 
-## Two hosts, one configuration schema
+## One process: HTTP and the periodic jobs
 
-`AppTemplate.Worker` (`Src/Presentation/AppTemplate.Worker`) is a second entry point that calls
-`IPurgeExpiredIdempotencyKeysUseCase` and `IPurgeExpiredRefreshTokensUseCase` — the exact same
-application-layer use cases `MaintenanceController` exposes over HTTP — on a timer instead of a
-request, and rings a due reminder by mail through the exact same `IReminderNotifier` port the API
-would use if it ever called it. It composes the same ten lines the API does — `AddTodoLists`,
-`AddReminders`, `AddFiles`, `AddAuthApplication`, `AddPurgeExpiredIdempotencyKeys`,
-`AddCacheStore`, `AddPersistenceModule`, `AddAuthModule`, `AddEmailModule` **and**
-`AddStorageModule` — so it reads `ConnectionStrings`, `Database`, `IdempotencyPurge`, `Jwt`,
-`RefreshToken`, `IdentityTokens`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `Email`,
-`Storage` and `ContentInspection` exactly like the API, plus the three sections that are its own:
-`MaintenanceWorker`, `ReminderWorker` and `FileWorker` below. `AddCacheStore` binds nothing: the
-cache's lifetimes are decided at each call site, which is why no section answers for it. `IdentitySeed` is
-bound and validated too — `AddPersistenceModule` does that unconditionally — but every one of its
-members has a safe default (`Enabled: false`), so an absent section validates cleanly; the worker
-never *exercises* seeding either way, since `IIdentitySeeder`/`MigrateAndSeedForDevelopmentAsync`
-are only ever called from `AppTemplate.Api/Program.cs`. It reads `OpenTelemetry` and
-`Localization` too, and both hosts bind each of them through the one options class
-`AppTemplate.Presentation.Core` declares for it — one class over one section, so an option one host
-honours and the other ignores is not a state this template can reach. A sampling ratio, or the
-language an unattributed mail is written in, means the same thing in every process of a deployment.
-The worker does **not** read `Cors`,
-`ReverseProxy`, `SecurityHeaders`, `Concurrency`, `Idempotency`, `RequestLimits`,
-`Shutdown` or `RequestTimeouts` — those are the API's transport-layer concerns, and the worker has
-no transport layer. The worker still waits for its own in-flight iteration to finish on shutdown,
-on `HostOptions.ShutdownTimeout`'s framework default — nothing here raises it for that host.
+`AppTemplate.Api` serves HTTP and, by default, runs the periodic jobs in the same process: the two
+maintenance purges, the reminder pass and the three file passes. There is no second host and no
+second configuration schema — every section below is read by the one process, and `AddBackgroundJobs`
+(`Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`) is the
+single call that composes the jobs. The jobs call the same application-layer use cases the controllers
+do — `MaintenanceController` exposes the two purges over HTTP, for example — on a timer instead of a
+request, and a due reminder is rung through the same `IReminderNotifier` port.
 
-**Why the worker validates `Jwt`, `Identity`, `RefreshToken`, `EmailConfirmation`, `PasswordReset`
-and `EmailChange` at startup even though it never authenticates anybody.**
-Two reasons, and the second is the one that decides it.
+**`BackgroundJobs:Enabled` is a deployment role, not a job setting.** It defaults to `true`, so a
+single instance does everything. Set it to `false` and the instance still serves every route, but
+starts no periodic pass — and binds none of the three job sections, so it is not made to supply or
+validate settings it never reads. When it is `true`, each job's section is bound and validated at
+startup like any other: an invalid interval fails the host with a message naming the key, and is
+never quietly read as "disabled". A job is disabled only by its own `Enabled` flag, which keeps
+counting and logging as disabled on every tick.
 
-The smaller: `IRefreshTokenMaintenanceService`'s only adapter lives in
-`AppTemplate.Infrastructure.Auth`. Read alone, that invites an obvious conclusion — move that
-one adapter into the persistence project, where the `IRefreshTokenTable` it drives already lives,
-and the worker sheds six configuration sections. **That conclusion is wrong**, which is worth
-saying plainly because it is the first thing anyone reading this reaches for.
+**Several instances.** Set `BackgroundJobs__Enabled=false` on every instance that should only serve
+HTTP and leave it `true` on exactly one designated instance. That keeps the file passes — which walk
+the object store — from being multiplied by the number of replicas, without a queue or a global
+scheduler. The protections underneath stay in place and are not a substitute for that choice: the
+reminder pass takes the leader lease inside its use case, the other passes are idempotent, and a
+rolling deployment, a manual `MaintenanceController` call or a mistaken double-enable can overlap
+without corrupting anything. They can still repeat work, and the lease is not a fencing token, so
+reminder delivery remains at-least-once. **`/health/ready` reports HTTP readiness** — the database
+checks and the shutdown state — and says nothing about whether the jobs run: watch the designated
+instance's job heartbeats (the `iterations` counters under [`OpenTelemetry`](#opentelemetry)) for that.
 
-The one that decides it: `EmailReminderNotifier` resolves `IUserProfilesService` — an identity
-port — to find the address a due reminder is rung at. That is the reminder loop, which is this
-host's own feature and its main reason to exist. So the worker needs the identity module whatever
-happens to the maintenance adapter.
+**A separate runner, later.** If measured load or release needs justify a process of its own, the
+jobs' hosting adapters and their one composition call move into it, and the API sets
+`BackgroundJobs:Enabled=false`. That process supplies its own caller and audit identity
+(`AddNoCallerIdentity()` and an `IAuditActor` that answers nobody, both of which already exist) and
+its own telemetry. Use cases, contracts and storage guarantees do not move.
 
-And above both: this host calls `AddAuthApplication`, which registers *every* use case
-`AppTemplate.Application.Auth` declares, and `Host.CreateApplicationBuilder` turns on
-`ValidateOnBuild` in Development. Every one of that project's twenty ports therefore has to be
-resolvable here — not only the ports this host's own loops reach. A worker composed without the
-identity module fails to build its container naming twenty-odd unresolvable use cases, not one.
-Which is also the only way this host could shed the module: by not making that call at all, and
-then answering for `EmailReminderNotifier`, which needs an authentication port whatever else
-changes.
-`TheWorkerContainer_NeedsIdentityForItsReminderLoop_NotOnlyForThePurgeAdapter` holds all of this,
-so the paragraph cannot drift back to the convenient version.
+**What the jobs need from the other modules.** The reminder pass is the one that reaches furthest:
+`EmailReminderNotifier` resolves `IUserProfilesService` — an identity port — to find the address a due
+reminder is rung at, and `IReminderNotifier`'s only adapter lives in `AppTemplate.Infrastructure.Email`,
+which cannot be composed without validating `Email` at startup. So any process that fires reminders
+composes the identity module and the email module, with the `Jwt`, `RefreshToken`,
+`EmailConfirmation`, `PasswordReset`, `EmailChange` and `Email` sections they validate, whether or not
+it ever authenticates anybody. And `AddAuthApplication` registers every authentication use case, so
+under `ValidateOnBuild` — which a Development host turns on — every port that project declares has to
+be resolvable, not only the ones a job reaches.
+`TheBackgroundOnlyContainer_NeedsIdentityForTheReminderJob_NotOnlyForThePurgeAdapter` holds this, so
+the paragraph cannot drift back to the convenient version in which moving one purge adapter would
+free a composition of the identity module. Composing that module composes ASP.NET Identity, bearer
+validation and its configuration as a whole — there is no narrower call — which is a real cost of
+the current module boundary rather than an oversight.
 
-Composing that module also composes ASP.NET Identity, bearer validation and its own configuration
-surface as a whole — there is no narrower call that gets only one adapter. This is a
-real coupling cost of the current module boundary, not an oversight.
+**The refresh-token purge belongs to authentication.** It is not listed in the background
+composition: `AddAuthMaintenanceJobs`
+(`Src/Presentation/AppTemplate.Api/Features/Auth/Jobs/AuthJobsExtensions.cs`) registers it with the
+maintenance timer, from the authentication feature's own folder, and
+[`MaintenanceWorker:PurgeExpiredRefreshTokensEnabled`](#maintenanceworkerpurgeexpiredrefreshtokensenabled)
+is read by an options class that lives beside it. A project built without authentication deletes that
+call and that folder and edits nothing in the composition — `BackgroundWorkTests` fails the build if
+the composition ever names authentication.
 
-**One consequence is worth separating from the rest: the worker needs the `Jwt` section, not the
-`Jwt:Key` value.** `AccessTokenIssuer` is the only thing that signs with it, no loop in this host
-resolves it, and bearer validation needs an inbound request this process does not have — so
-`docker-compose.yml` gives it a fixed, self-describing placeholder, while the API receives the real
-key. Other deployments must preserve that separation. `Jwt:Issuer` and `Jwt:Audience`
-are kept identical between the two, because those are what the hosts have to agree about. See
-`SECURITY.md`.
-
-The worker's `appsettings.json`
-therefore carries the same required `Jwt:Key`, `Jwt:Issuer`, `Jwt:Audience`,
-`EmailConfirmation:ConfirmEmailUrl`, `PasswordReset:ResetPasswordUrl` and
-`EmailChange:ConfirmEmailChangeUrl` as the API, and its generic host reads `DOTNET_ENVIRONMENT`
-(not `ASPNETCORE_ENVIRONMENT` — there is no ASP.NET Core host here) to select
-`appsettings.Development.json`.
-
-**Why the worker also validates `Email` (SMTP) at startup, even though it renders no confirmation
-mail of its own.** Same shape of cost, one module over: `IReminderNotifier`'s only adapter lives
-in `AppTemplate.Infrastructure.Email`, and there is no way to compose that adapter without also
-composing `EmailOptions` and its validator — `AddEmailModule` does not offer a narrower call
-either. This is real, not incidental: a deployment that never enables reminders still has to point
-this host at a working SMTP relay (`Email:Host`, `Email:FromAddress`, …) for the process to start
-at all. See `AppTemplate.Worker.csproj` for the same note next to the `AddEmailModule` reference.
-No mechanism in this template lets a host opt out of an options section a composed module always
-validates; if that stops being acceptable, the fix is a narrower module boundary — a package that
-exposes only `IReminderNotifier`'s adapter without the rest of `AppTemplate.Infrastructure.Email`'s
-surface — not a per-host configuration override.
-
-**`ICurrentUser` outside a request.** The API's `CurrentUser` reads `IHttpContextAccessor`, which
-the worker cannot depend on and would be `null` for every call anyway — silently producing a
-`UserId` of `null` indistinguishable from a legitimate anonymous HTTP request. The worker instead
-calls `AddNoCallerIdentity()`, which registers `AppTemplate.Presentation.Core`'s
-`NoCallerCurrentUser` scoped — the same lifetime the API gives its own caller, so the use-case graph
-is identical in both. Its `UserId` getter throws `NotSupportedException`: a use case moved onto this
-host that reads the caller's identity must fail loudly at that call, not proceed as if it were an
-anonymous request. Nothing configures this, and there is no section for it.
+**`ICurrentUser` and the audit actor in a job.** One container serves both, so the caller and the
+audit actor are registered once and answer by the kind of scope they are resolved in. A request keeps
+its principal and its audit attribution, an anonymous request included. A job opens every pass
+through `CreateBackgroundScope`, and in that scope `ICurrentUser` is `NoCallerCurrentUser`, whose
+`UserId` throws `NotSupportedException` — a use case that reads the caller there must fail loudly,
+not proceed as though the request were anonymous — and `IAuditActor` is `BackgroundAuditActor`,
+which records a null user because nobody made the write. Nothing configures this.
 
 ## Secrets: use `dotnet user-secrets`
 
@@ -211,7 +185,7 @@ there: what is deliberately not configurable, and how a key becomes an environme
 | The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [`RateLimiting`](#ratelimiting) |
 | Correctness mechanisms | [`Concurrency`](#concurrency) · [`Idempotency`](#idempotency) · [`IdempotencyPurge`](#idempotencypurge) |
 | Lifecycle and observability | [`Shutdown`](#shutdown) · [`OpenTelemetry`](#opentelemetry) · [standard ASP.NET Core keys](#standard-aspnet-core-keys) |
-| `AppTemplate.Worker` only | [`FileWorker`](#fileworker--apptemplateworker-only) · [`MaintenanceWorker`](#maintenanceworker--apptemplateworker-only) · [`ReminderWorker`](#reminderworker--apptemplateworker-only) |
+| Background jobs | [`BackgroundJobs`](#backgroundjobs) · [`FileWorker`](#fileworker) · [`MaintenanceWorker`](#maintenanceworker) · [`ReminderWorker`](#reminderworker) |
 | Read these anyway | [not configurable, and why](#not-configurable--and-why-that-is-worth-knowing) · [outbound HTTP](#outbound-http--deliberately-not-configurable) · [environment-variable mapping](#environment-variable-mapping) |
 
 ### `ConnectionStrings`
@@ -237,8 +211,8 @@ itself — before options validation runs — with the message
 `max_connections` also defaults to 100 **for the whole server**, not per client. Two replicas of
 this process at the driver default (100 each) are already enough to exhaust it before anything
 else — a monitoring dashboard, a `psql` session, a second application — gets a connection at all.
-20 is deliberately conservative so that running several replicas, of the API *and* the worker,
-against one PostgreSQL instance does not by itself approach the server's ceiling.
+20 is deliberately conservative so that running several replicas of the API against one
+PostgreSQL instance does not by itself approach the server's ceiling.
 
 **Bound once, for both contexts.** This section is bound by whichever modules own a context —
 `AddPersistenceModule` and `AddAuthModule` — into one options type in
@@ -247,7 +221,7 @@ identical string share **one** pool of `MaxPoolSize`, not one each. Deriving the
 the two modules is what would turn it into two.
 
 **Sizing this against replica count and `max_connections`.** Every replica of every process that
-composes either module — each API instance and each worker instance — holds its own pool up
+composes either module — each API instance, whether or not it runs the jobs — holds its own pool up
 to `MaxPoolSize`. Budget:
 
 ```
@@ -257,7 +231,7 @@ sum over every replica of (that replica's Database:MaxPoolSize)
 ```
 
 With the shipped default of 20 and `max_connections=100`, that is room for **4–5 replicas total**
-(API and worker combined) before the server itself starts refusing connections — and refusing a
+before the server itself starts refusing connections — and refusing a
 connection is not a graceful degradation, it is a hard failure of every feature that touches the
 database at once. Raising `max_connections` costs PostgreSQL memory per slot; lowering
 `MaxPoolSize` costs this process concurrency headroom under its own load. Pick the one that is
@@ -275,9 +249,10 @@ idempotent endpoint. `AddContextFactory` deliberately shares `AddContext`'s opti
 than building a second one, specifically so both draw from the one pool this setting bounds
 instead of a second, unbounded one.
 
-**The worker is a replica of the same budget, not a bystander.** `AppTemplate.Worker` composes
-`AddPersistenceModule` too, and its own `Database:MaxPoolSize` — independently configurable —
-holds connections against the same server. Size it in, not around.
+**The jobs draw from the same pool as requests.** An instance with `BackgroundJobs:Enabled=true`
+runs its passes — the reminder pass, the purges, the file passes — on connections from its own
+`Database:MaxPoolSize`, beside the requests it is serving. Leave headroom for a pass running during
+load rather than sizing the pool for requests alone.
 
 **The leader lease sits outside the pool, and that is deliberate.** `PostgresLeaderLease` opens its
 own `NpgsqlConnection` with `Pooling=false` for the duration of one guarded run, so a host running
@@ -402,12 +377,10 @@ behaviour — they all speak OIDC — so adding Okta or Keycloak is a configurat
 class. Apple's one real quirk (the address arrives only at the first authorisation) is handled where
 it belongs, in the use case, because it is about linking rather than about verification.
 
-### `FileWorker` — `AppTemplate.Worker` only
+### `FileWorker`
 
-The Files feature's two sweeps and its inspection pass. Bound by the worker's own `Program.cs`; the
-API never reads this
-section, and deliberately does not carry it — a section nothing binds is a value an operator will
-believe they changed.
+The Files feature's two sweeps and its inspection pass. Bound by `AddBackgroundJobs`, and only when
+`BackgroundJobs:Enabled` is true: an instance that runs no jobs never reads it.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
@@ -424,10 +397,11 @@ re-derives "an object no row references is garbage". Turn it off and storage gro
 nothing to say so. The deletion domain event reclaims promptly as a fast path, and — per this
 repository's standing rule — nothing depends on it having run.
 
-Neither loop takes the leader lease. Both are idempotent, and the reclamation's safety comes from
-listing the store *before* reading the live keys rather than from being alone. At two replicas the
-reclamation does pay for a second full walk each cycle; the day that stops being worth paying, the
-lease belongs in the use case, not in the loop.
+No pass takes the leader lease. Each is idempotent, and the reclamation's safety comes from
+listing the store *before* reading the live keys rather than from being alone. With the jobs enabled
+on two instances the reclamation does pay for a second full walk each cycle, which is why
+[`BackgroundJobs:Enabled`](#backgroundjobs) is set to `false` on all but one instance; the day that
+stops being worth doing, the lease belongs in the use case, not in the loop.
 
 ### `ContentInspection`
 
@@ -563,7 +537,7 @@ opposite. 1000 is a starting point, not a measured optimum for your ingestion ra
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `LifetimeInDays` | int | `7` | Range **1–90**. Token size (32 bytes) and hashing (SHA-256) are not configurable. |
-| `RetentionInDays` | int | `7` | Range **1–90**. How long an expired grant's row survives before `IRefreshTokenMaintenanceService` deletes it — a retention window on rows, not a lifetime on tokens. Read only where that sweep runs, so it appears in `AppTemplate.Worker/appsettings.json` and not the API's; both hosts bind and validate it. |
+| `RetentionInDays` | int | `7` | Range **1–90**. How long an expired grant's row survives before `IRefreshTokenMaintenanceService` deletes it — a retention window on rows, not a lifetime on tokens. Read by the sweep that runs in the maintenance job. |
 
 ### `Identity`
 
@@ -706,25 +680,24 @@ body, so the two are one file and cannot end up in different languages — which
 happened while the subject lived here: an English `Subject` was delivered above a French body for
 as long as nobody opened the mail. See [`Localization`](#localization).
 
-**Both hosts validate all three of `EmailConfirmation`, `PasswordReset` and `EmailChange` at
-startup.** All three are bound by `AddAuthModule`, not by anything HTTP-specific, so
-`AppTemplate.Worker` — which composes that module for its reminder loop's `IUserProfilesService`
-and for `IRefreshTokenMaintenanceService`'s adapter, see
-[above](#two-hosts-one-configuration-schema) — requires all three URLs too, even though it never
-serves any of these three requests itself.
+**All three of `EmailConfirmation`, `PasswordReset` and `EmailChange` are validated at startup.**
+All three are bound by `AddAuthModule`, not by anything HTTP-specific, so a process that composes that
+module — for the reminder job's `IUserProfilesService` and `IRefreshTokenMaintenanceService`'s
+adapter as much as for the account routes, see [above](#one-process-http-and-the-periodic-jobs) —
+requires all three URLs.
 
 ### `Localization`
 
-The language a mail is written in. Bound by **both hosts**, from the one options class in
+The language a mail is written in. Bound from the one options class in
 `Src/Presentation/AppTemplate.Presentation.Core/Common/Localization/LocalizationOptions.cs`, so a
 deployment cannot write a password reset in one language and a reminder in another.
 
 `AddLocalizationOptions()` binds and validates the section and does nothing else. Reading the value
-into `CurrentLanguage.Default` is each host's own call, because *when* that has to happen differs:
-`AppTemplate.Api` does it as the request pipeline is built, inside `UseRequestLanguage`, and
-`AppTemplate.Worker` does it once the container exists and before the first loop runs. The key and
-its validation are the same either way — a blank or malformed tag fails startup in both hosts with
-the same message.
+into `CurrentLanguage.Default` is the host's own call, because *when* that has to happen is a host's
+question: `AppTemplate.Api` does it as the request pipeline is built, inside `UseRequestLanguage`,
+which is before the first job pass runs, so every mail a job sends is written in the configured
+default. A process with no pipeline would do it once the container exists and before the first loop
+runs. A blank or malformed tag fails startup either way with the same message.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
@@ -747,13 +720,13 @@ language no template backs. Adding a language is adding
   template can set. The tag decides which text is chosen and nothing else: how a value parses stays
   invariant everywhere, which is what keeps one body from meaning different things to different
   callers. `CurrentLanguage`'s own remarks carry the reasoning.
-- A request that names no language, and every mail `AppTemplate.Worker` sends, uses
-  `DefaultCulture`. The worker serves no request, so it has no reader to ask.
+- A request that names no language, and every mail a background job sends, uses
+  `DefaultCulture`. A job serves no request, so it has no reader to ask.
 - A language with no template falls back to English, which every template family must ship.
 
 **To follow a stored per-account preference instead**, add the column to `AppUser`, carry it on
-`UserProfile`, and set `CurrentLanguage.Tag` from it — in `EmailReminderNotifier` for the worker's
-mail, and ahead of the use case for the API's, where the request header has already set it and the
+`UserProfile`, and set `CurrentLanguage.Tag` from it — in `EmailReminderNotifier` for the reminder
+job's mail, and ahead of the use case for the API's, where the request header has already set it and the
 stored preference would win. That is the one change that would make a reminder follow its reader
 rather than the deployment; nothing else here would move.
 
@@ -867,10 +840,9 @@ terminating TLS is required to send it.
 
 Bound and validated once, by `AddObservability` in
 `Src/Presentation/AppTemplate.Presentation.Core/Common/Observability/ObservabilityExtensions.cs`,
-which both hosts call. Both therefore read the same five keys from the same section through the same
-options class, so a sampling ratio set for a deployment means the same thing in each of its
-processes. What that call registers is everything two hosts disagreeing about would be a bug rather
-than a difference: the resource, the sampler, the outbound-`HttpClient` instrumentation, the
+which every host calls, so a sampling ratio set for a deployment means the same thing in each of its
+processes, should it ever run more than one kind. What that call registers is everything two hosts
+disagreeing about would be a bug rather than a difference: the resource, the sampler, the outbound-`HttpClient` instrumentation, the
 `System.Runtime` runtime meters and the OTLP exporter. With `Enabled` left false it registers none
 of it — no instrumentation, no exporter, no background flush.
 
@@ -879,7 +851,7 @@ still gives each host its own spans. Each is forced rather than preferred:
 
 - **The service name.** The call takes the host's `Assembly`, not a string: `service.name` and
   `service.version` are read off it, so a rename or a version bump cannot leave a stale literal
-  behind. It cannot read its own assembly, because both hosts would then announce themselves under
+  behind. It cannot read its own assembly, because two hosts would then announce themselves under
   one name, and two processes reporting as one is worse than either reporting nothing. `ServiceName`
   above overrides the result when several deployments share one collector.
 - **The diagnostics names.** A host's `ActivitySource` and `Meter` names are constants on classes in
@@ -899,10 +871,20 @@ exclusion of `/health*` from both traces and the request log, and what only this
 `AddNpgsql()`, the `Npgsql` meter, and its own assembly, from which `service.name` is read.
 Together with the shared registration, traces cover ASP.NET Core, `HttpClient` and Npgsql, and
 metrics cover ASP.NET Core, `HttpClient`, the runtime, the connection pool and the rate limiter.
-`Src/Presentation/AppTemplate.Worker/Common/Observability/WorkerObservabilityExtensions.cs` adds its
-three loops' own sources and meters, the persistence project's `AppTemplate.Reminders` meter, and
-`AddNpgsql()`. It instruments no ASP.NET Core, because it answers no request. `service.name` is
-`AppTemplate.Api` in the one and `AppTemplate.Worker` in the other, each read from its own assembly.
+`Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` adds the
+jobs' own sources and meters to that same pipeline — the three jobs' `ActivitySource`s and `Meter`s and
+the persistence project's reminder meter, by `PersistenceModule.RemindersMeterName` — through
+callbacks that run only when telemetry is enabled and the jobs run, so an instance with no collector,
+or with `BackgroundJobs:Enabled=false`, registers nothing for them. `service.name` is `AppTemplate.Api`,
+read from its assembly, for the jobs as for requests.
+
+**The jobs' signals** are what tells a stopped loop from a quiet one. Each pass adds one to an
+`iterations` counter tagged with its `outcome` (`success`, `failure`, `exception` or `disabled`) and
+its `task`, whether or not it found anything, and writes a log line on start, stop and every skip; a
+flat `iterations` series is a loop that stopped, and `outcome != "disabled"` is what an alert on that
+should read. The meters keep the names they had when the jobs ran in a process of their own —
+`AppTemplate.Worker.Files`, `AppTemplate.Worker.Maintenance` and `AppTemplate.Worker.Reminders` —
+so a dashboard built against them keeps working.
 
 - **An unreachable collector is safe.** Startup succeeds and the failing export cycles produce
   no log output at all, because the OTLP exporter reports failures on its own `EventSource`
@@ -1050,41 +1032,71 @@ of a clean error either way.
 failing under normal load, not just under a real incident. **Set it outside 1 second – 1 hour** and
 the host fails `ValidateOnStart()` and does not boot.
 
-### `MaintenanceWorker` — `AppTemplate.Worker` only
+### `BackgroundJobs`
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `Interval` | timespan | `01:00:00` | How often the worker wakes up. Governs both tasks below. Range **1 second – 1 day**. |
+| `Enabled` | bool | `true` | Whether this instance runs the periodic jobs at all. `false` still serves HTTP; no pass runs and no job section is bound or required. |
+
+A role switch, read by `AddBackgroundJobs` before it registers anything, so it is not an
+`IValidateOptions` rule — a value that is not a boolean fails startup from the binder. See
+[One process](#one-process-http-and-the-periodic-jobs) for running several instances.
+
+### `MaintenanceWorker`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Interval` | timespan | `01:00:00` | How often the maintenance job wakes up. Governs every task. Range **1 second – 1 day**. |
 | `PurgeExpiredIdempotencyKeysEnabled` | bool | `true` | Runs `IPurgeExpiredIdempotencyKeysUseCase` each iteration when `true`. |
-| `PurgeExpiredRefreshTokensEnabled` | bool | `true` | Runs `IPurgeExpiredRefreshTokensUseCase` each iteration when `true`. |
 
-Read by `AppTemplate.Worker/Features/Maintenance/MaintenanceWorkerOptions.cs`. Each task can be
-switched off independently — an operator running the idempotency purge here but the refresh-token
-purge some other way is not forced into both.
+Read by `AppTemplate.Api/Features/Maintenance/Jobs/MaintenanceWorkerOptions.cs`, when
+`BackgroundJobs:Enabled` is true. Each task can be switched off independently — an operator running
+the idempotency purge here but the refresh-token purge some other way is not forced into both. The
+refresh-token switch is documented next, because it belongs to authentication.
 
-- Every iteration resolves both use cases from a fresh DI scope (`IServiceScopeFactory.CreateAsyncScope()`),
-  never from a scope held for the process lifetime, so neither use case's scoped dependencies (a
-  `DbContext`, a context factory) become an accidental singleton.
-- A task that throws is logged and the loop retries at the next interval; it never stops the host,
-  and it never stops its sibling task in the same iteration. A permanently broken idempotency purge
-  must not also silence refresh-token cleanup.
+- Every iteration resolves its use cases from one fresh background scope
+  (`IServiceScopeFactory.CreateBackgroundScope()`), never from a scope held for the process lifetime,
+  so no use case's scoped dependencies (a `DbContext`, a context factory) become an accidental
+  singleton.
+- A task that throws is logged and retried at the next interval; it never stops the host, and it
+  never stops its sibling task in the same iteration. A permanently broken idempotency purge must not
+  also silence refresh-token cleanup.
 - The loop honours cancellation immediately rather than waiting out the current `Interval`, and
   does not treat a shutdown mid-iteration as a failure to log.
-- **Set outside 1 second – 1 day** and the host fails `ValidateOnStart()` and does not boot.
+- `MaintenanceController` is a second, authorized entry point to the same two purges, and a purge is
+  safe to run while the timer's own pass overlaps it.
+- **Set outside 1 second – 1 day** and an instance that runs the jobs fails `ValidateOnStart()` and
+  does not boot.
 
-### `ReminderWorker` — `AppTemplate.Worker` only
+### `MaintenanceWorker:PurgeExpiredRefreshTokensEnabled`
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `Interval` | timespan | `00:01:00` | How often the worker looks for due reminders. Range **1 second – 1 hour**. |
-| `Enabled` | bool | `true` | Off leaves the rest of this host running without firing reminders — a maintenance window, or a deployment still validating the `IReminderNotifier` it wired in before letting it ring anyone for real. |
+| `PurgeExpiredRefreshTokensEnabled` | bool | `true` | Runs `IPurgeExpiredRefreshTokensUseCase` each iteration when `true`. |
 
-Read by `AppTemplate.Worker/Features/Reminders/ReminderWorkerOptions.cs`. There is no batch-size
-knob: `IFireDueRemindersUseCase` takes no command, so how many reminders one pass claims is
-`FireDueRemindersUseCase.BatchSize`'s concern and not something this host could pass through.
+A key of the `MaintenanceWorker` section above, read by
+`AppTemplate.Api/Features/Auth/Jobs/RefreshTokenPurgeOptions.cs` — a class of its own that
+`AddAuthMaintenanceJobs` binds to that section, so a project without authentication loses the key
+with the purge. Off, rotated and expired grants accumulate: nothing else removes them, and the
+maintenance job says so at warning level on every skipped iteration.
 
-- **Set outside 1 second – 1 hour** and the host fails `ValidateOnStart()` and does not boot.
-- `docker-compose.yml` sets both keys explicitly for local development.
+### `ReminderWorker`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Interval` | timespan | `00:01:00` | How often the reminder job looks for due reminders. Range **1 second – 1 hour**. |
+| `Enabled` | bool | `true` | Off leaves the rest of the process running without firing reminders — a maintenance window, or a deployment still validating the `IReminderNotifier` it wired in before letting it ring anyone for real. |
+
+Read by `AppTemplate.Api/Features/Reminders/Jobs/ReminderWorkerOptions.cs`, when
+`BackgroundJobs:Enabled` is true. There is no batch-size knob: `IFireDueRemindersUseCase` takes no
+command, so how many reminders one pass claims is `FireDueRemindersUseCase.BatchSize`'s concern and
+not something the job could pass through. Two instances with the job enabled do not systematically
+send twice — the use case takes the leader lease — but the lease is not a fencing token, so delivery
+stays at-least-once.
+
+- **Set outside 1 second – 1 hour** and an instance that runs the jobs fails `ValidateOnStart()` and
+  does not boot.
+- `docker-compose.yml` sets these keys explicitly for local development.
 
 ### Not configurable — and why that is worth knowing
 
@@ -1162,6 +1174,7 @@ them to an options class with a validator — do not read them straight from
 | `Cors:AllowedOrigins[0]` | `Cors__AllowedOrigins__0` |
 | `Database:MaxPoolSize` | `Database__MaxPoolSize` |
 | `IdempotencyPurge:BatchSize` | `IdempotencyPurge__BatchSize` |
+| `BackgroundJobs:Enabled` | `BackgroundJobs__Enabled` |
 | `MaintenanceWorker:Interval` | `MaintenanceWorker__Interval` |
 
 Colons do not work as separators in environment variables on all platforms; the double

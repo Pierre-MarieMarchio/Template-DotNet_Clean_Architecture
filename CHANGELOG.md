@@ -531,6 +531,20 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **The API runs the periodic jobs; `AppTemplate.Worker` is gone.** The maintenance purges, the
+  reminder pass and the three file passes start from `AppTemplate.Api` through one call,
+  `AddBackgroundJobs()`, so a generated project starts with one application process and one image.
+  `BackgroundJobs:Enabled` (default `true`) is the deployment role: `false` serves HTTP only and binds
+  no job section, and with several instances it belongs on all but one. The `MaintenanceWorker`,
+  `ReminderWorker` and `FileWorker` sections keep their names and keys, are validated when the jobs
+  are enabled, and `docker-compose.yml` configures them on the `api` service. The use cases, their
+  transactions and the reminder lease are untouched. A job's scope has no caller — `ICurrentUser`
+  throws and the audit actor records nobody — while a request keeps its principal; the refresh-token
+  purge registers itself from the authentication feature, so removing authentication removes it. The
+  meters keep their `AppTemplate.Worker.*` names. **Migration for a derived project:** delete your
+  worker's Compose service, Kubernetes manifests and image, move its `MaintenanceWorker`,
+  `ReminderWorker` and `FileWorker` settings to the API's, and give the API the real `Jwt:Key` it
+  already had — the placeholder key the worker used no longer has a process to live in.
 - **Authentication owns its storage, and the module is `AppTemplate.Infrastructure.Auth`.**
   `AuthDbContext` maps the nine identity tables, the refresh-token grants and the data-protection
   key ring in the `identity` schema, with a migrations history of its own; `AppDbContext` keeps the

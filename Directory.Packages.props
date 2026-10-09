@@ -24,8 +24,8 @@
     <!-- IHttpClientFactory and AddHttpClient. Referenced by the one infrastructure module that
          registers a typed client without also referencing ASP.NET Core: the identity module gets
          the same assembly from the Microsoft.AspNetCore.App framework reference its Identity
-         package brings, but the email module is composed by the worker too, and a framework
-         reference there would make a non-web host require the ASP.NET Core runtime. -->
+         package brings, but the email module may be composed by a host with no ASP.NET Core, and a
+         framework reference there would make that host require the ASP.NET Core runtime. -->
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />

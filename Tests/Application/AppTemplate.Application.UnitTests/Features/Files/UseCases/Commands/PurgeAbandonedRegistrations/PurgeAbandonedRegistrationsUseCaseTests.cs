@@ -28,7 +28,7 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
     /// <para>
     /// A use case has no ambient route to the caller: the only way to read one is to take it in the
     /// constructor, so the constructor is where the guarantee can be stated. Adding
-    /// <see cref="ICurrentUser"/> to this use case turns this red before the worker ever runs it.
+    /// <see cref="ICurrentUser"/> to this use case turns this red before a background job ever runs it.
     /// </para>
     /// </summary>
     [Fact]

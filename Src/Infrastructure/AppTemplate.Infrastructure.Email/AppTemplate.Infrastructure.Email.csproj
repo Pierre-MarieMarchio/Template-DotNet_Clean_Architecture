@@ -18,7 +18,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <!-- AddHttpClient, and with it the typed client that inherits each host's outbound budget.
          Referenced explicitly rather than taken from Microsoft.AspNetCore.App: this module is
-         composed by AppTemplate.Worker, which is a generic host and must not be made to require the
+         composed by a process that may be a generic host, which must not be made to require the
          ASP.NET Core runtime by one of its modules. -->
     <PackageReference Include="Microsoft.Extensions.Http" />
   </ItemGroup>

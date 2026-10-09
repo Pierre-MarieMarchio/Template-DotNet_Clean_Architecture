@@ -18,6 +18,12 @@ namespace AppTemplate.Api.Core.Common.Observability;
 /// reason: a caller chooses its contents.
 /// </para>
 /// <para>
+/// <b>Why not <c>UseHttpLogging</c>.</b> It writes a request entry and a response entry (or one
+/// combined entry) whose fields are chosen by flags, and it carries neither identifier as a property
+/// of the entry. Redaction there is an allow-list of headers that one flag can widen; here nothing
+/// is read that could leak.
+/// </para>
+/// <para>
 /// <b>Why two identifiers.</b> <c>TraceIdentifier</c> is the value the API puts in the
 /// <c>traceId</c> member of every ProblemDetails response, so it is what a caller quotes.
 /// <c>TraceId</c> is the W3C trace the exporter sends, so it is what a trace is looked up by. Logging

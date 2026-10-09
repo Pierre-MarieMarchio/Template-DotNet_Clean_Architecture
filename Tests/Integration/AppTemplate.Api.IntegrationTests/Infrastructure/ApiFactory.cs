@@ -96,7 +96,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             // itself can stop a slow run from crossing a real one-minute boundary between one
             // request and the next and getting a false replenish. Widened far past anything a test
             // could plausibly take, which leaves the permit counts under test untouched.
-            services.Replace(ServiceDescriptor.Singleton(new RateLimiterWindow(TimeSpan.FromHours(1))));
+            services.PostConfigure<RateLimitingOptions>(options => options.Window = TimeSpan.FromHours(1));
 
             ExposeTheReasonATokenWasRefused(services);
         });

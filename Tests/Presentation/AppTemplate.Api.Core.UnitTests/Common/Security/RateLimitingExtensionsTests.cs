@@ -1,10 +1,12 @@
 ﻿using System.Net;
+using System.Text.Json;
 using System.Threading.RateLimiting;
+using AppTemplate.Api.Core.Common.Errors;
 using AppTemplate.Api.Core.Common.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
@@ -12,156 +14,188 @@ using Xunit;
 namespace AppTemplate.Api.Core.UnitTests.Common.Security;
 
 /// <summary>
-/// What <c>AddApiRateLimiting</c> composes, read from the options the middleware would be handed.
+/// What <c>AddApiRateLimiting</c> composes, read from the options the middleware would be handed and
+/// exercised through the same <c>PartitionedRateLimiter</c> the middleware drives.
 /// </summary>
 /// <remarks>
-/// <para>
 /// <c>RateLimiterOptions</c> keeps its named policies in an internal map, so the <c>authentication</c>
-/// policy cannot be invoked from here — but both policies ask the counters for their partitioner while
-/// the host is composed, and that is observable, so the budget that policy was built with is provable
-/// without a live pipeline. What it does with the partitioner afterwards is the integration suite's.
-/// </para>
-/// <para>
-/// The double below is written by hand rather than substituted: <c>IRateLimitCounters</c> is internal,
-/// and Castle cannot proxy an internal interface unless the assembly grants its internals to
-/// <c>DynamicProxyGenAssembly2</c> as well — a wider grant than one test is worth.
-/// </para>
+/// policy cannot be invoked from here. Both policies are built by the same helper, which is tested
+/// directly; what the policy does with it afterwards is the integration suite's.
 /// </remarks>
 public sealed class RateLimitingExtensionsTests
 {
+    private static readonly TimeSpan _anHour = TimeSpan.FromHours(1);
+
     [Fact]
-    public void AddApiRateLimiting_InstallsTheInProcessCounters()
+    public void TheGlobalLimiter_AdmitsTheConfiguredPermits_ThenRefuses()
     {
-        using var provider = new ServiceCollection().AddApiRateLimiting().BuildServiceProvider();
-
-        provider.GetRequiredService<IRateLimitCounters>().ShouldBeOfType<InProcessRateLimitCounters>();
-    }
-
-    /// <summary>
-    /// The two budgets this file declares, read back from the counters they were handed to. These are
-    /// the numbers <c>docs/CONFIGURATION.md</c> publishes and the integration suite spends.
-    /// </summary>
-    [Fact]
-    public void BothPolicies_AskTheCountersForTheirPublishedBudget()
-    {
-        var counters = new RecordingCounters(RateLimitPartition.GetNoLimiter("permit-everything"));
-
-        using var provider = BuildProvider(counters, RateLimiterWindow.Default);
-
-        _ = OptionsOf(provider);
-
-        counters.Budgets.ShouldBe(
-            [
-                new RateLimitBudget(RateLimitingExtensions.AuthenticationPermitLimit, TimeSpan.FromMinutes(1)),
-                new RateLimitBudget(RateLimitingExtensions.GlobalPermitLimit, TimeSpan.FromMinutes(1)),
-            ],
-            ignoreOrder: true);
-    }
-
-    /// <summary>
-    /// A partitioner is asked for once, while the host is composed — not per request. The limiter is
-    /// the one component here that has to stay cheap while it is being attacked.
-    /// </summary>
-    [Fact]
-    public void ThePartitioners_AreBuiltOnce_NotPerRequest()
-    {
-        var counters = new RecordingCounters(RateLimitPartition.GetNoLimiter("permit-everything"));
-
-        using var provider = BuildProvider(counters, RateLimiterWindow.Default);
+        using var provider = BuildProvider(("GlobalPermitLimit", "3"), ("Window", "01:00:00"));
         using var globalLimiter = GlobalLimiterOf(provider);
+        var caller = CreateHttpContext("203.0.113.7");
 
-        for (int request = 1; request <= 5; request++)
+        for (int request = 1; request <= 3; request++)
         {
-            using var lease = globalLimiter.AttemptAcquire(CreateHttpContext("203.0.113.7"));
-            lease.IsAcquired.ShouldBeTrue();
+            using var allowed = globalLimiter.AttemptAcquire(caller);
+            allowed.IsAcquired.ShouldBeTrue($"request {request} of 3 is inside the budget");
         }
 
-        counters.Budgets.Count.ShouldBe(2, "one partitioner for each of the two policies, and no more");
+        using var refused = globalLimiter.AttemptAcquire(caller);
+
+        refused.IsAcquired.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The seam is load-bearing rather than decorative: the global limiter routes every request
-    /// through the partitioner the registered counters built — and through the one built for the
-    /// <em>global</em> budget, which is also what settles that the other budget went to the other
-    /// policy.
-    /// </summary>
     [Fact]
-    public void TheGlobalLimiter_UsesThePartitionerBuiltForTheGlobalBudget()
+    public void WithNothingConfigured_TheGlobalLimiterAdmitsTheDefaultPermits()
     {
-        var counters = new RecordingCounters(RateLimitPartition.GetNoLimiter("permit-everything"));
+        var defaults = new RateLimitingOptions();
 
-        using var provider = BuildProvider(counters, RateLimiterWindow.Default);
-        var httpContext = CreateHttpContext("203.0.113.7");
-
+        using var provider = BuildProvider(("Window", "01:00:00"));
         using var globalLimiter = GlobalLimiterOf(provider);
-        using var lease = globalLimiter.AttemptAcquire(httpContext);
+        var caller = CreateHttpContext("203.0.113.7");
 
-        lease.IsAcquired.ShouldBeTrue();
-
-        var partitioned = counters.Partitioned.ShouldHaveSingleItem();
-
-        partitioned.Context.ShouldBeSameAs(httpContext);
-        partitioned.Budget.ShouldBe(
-            new RateLimitBudget(RateLimitingExtensions.GlobalPermitLimit, RateLimiterWindow.Default.Duration));
-    }
-
-    /// <summary>
-    /// The same statement read from the other end: nothing between the middleware and the counters
-    /// second-guesses them, so counters that refuse are counters whose refusal stands.
-    /// </summary>
-    [Fact]
-    public void AHostsCounters_DecideTheOutcome()
-    {
-        var oneThenNothing = RateLimitPartition.GetFixedWindowLimiter(
-            "one-permit-per-hour",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 1,
-                Window = TimeSpan.FromHours(1),
-                QueueLimit = 0,
-            });
-
-        using var provider = BuildProvider(new RecordingCounters(oneThenNothing), RateLimiterWindow.Default);
-        var httpContext = CreateHttpContext("203.0.113.7");
-
-        using var globalLimiter = GlobalLimiterOf(provider);
-
-        using (var spent = globalLimiter.AttemptAcquire(httpContext))
+        for (int request = 1; request <= defaults.GlobalPermitLimit; request++)
         {
-            spent.IsAcquired.ShouldBeTrue();
+            using var allowed = globalLimiter.AttemptAcquire(caller);
+            allowed.IsAcquired.ShouldBeTrue($"request {request} is inside the default budget");
         }
 
-        using var refused = globalLimiter.AttemptAcquire(httpContext);
+        using var refused = globalLimiter.AttemptAcquire(caller);
 
-        refused.IsAcquired.ShouldBeFalse(
-            "the host's counters had one permit an hour, and the composition must not have quietly " +
-            "kept a limiter of its own in front of them");
+        refused.IsAcquired.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void TheDefaults_AreThePublishedLimits()
+    {
+        var defaults = new RateLimitingOptions();
+
+        defaults.AuthenticationPermitLimit.ShouldBe(10);
+        defaults.GlobalPermitLimit.ShouldBe(300);
+        defaults.Window.ShouldBe(TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
+    public void ExhaustingOneAddressesBudget_LeavesAnotherAddressUnaffected()
+    {
+        using var limiter = PartitionedRateLimiter.Create(RateLimitingExtensions.FixedWindowPerAddress(2, _anHour));
+        var exhausted = CreateHttpContext("203.0.113.7");
+        var other = CreateHttpContext("203.0.113.8");
+
+        for (int request = 1; request <= 2; request++)
+        {
+            using var allowed = limiter.AttemptAcquire(exhausted);
+            allowed.IsAcquired.ShouldBeTrue();
+        }
+
+        using var refused = limiter.AttemptAcquire(exhausted);
+        refused.IsAcquired.ShouldBeFalse();
+
+        using var fromTheOtherCaller = limiter.AttemptAcquire(other);
+        fromTheOtherCaller.IsAcquired.ShouldBeTrue();
     }
 
     /// <summary>
-    /// <c>RateLimiterWindow</c> is the one lever a host has over a limiter with no injectable clock,
-    /// and the integration suite widens it to an hour to stay off a real window boundary. Reading it
-    /// into the budget is what carries that lever across the <see cref="IRateLimitCounters"/> seam.
+    /// The refusal carries the metadata the rejection turns into the <c>Retry-After</c> header; a
+    /// limiter that refused without it would still answer 429 and the documented header would vanish.
     /// </summary>
     [Fact]
-    public void AReplacedWindow_ReachesTheCountersThroughBothBudgets()
+    public void ARefusal_CarriesRetryAfter()
     {
-        var counters = new RecordingCounters(RateLimitPartition.GetNoLimiter("permit-everything"));
+        using var limiter = PartitionedRateLimiter.Create(RateLimitingExtensions.FixedWindowPerAddress(1, _anHour));
+        var caller = CreateHttpContext("203.0.113.7");
 
-        using var provider = BuildProvider(counters, new RateLimiterWindow(TimeSpan.FromHours(3)));
+        using var allowed = limiter.AttemptAcquire(caller);
+        allowed.IsAcquired.ShouldBeTrue();
 
-        _ = OptionsOf(provider);
+        using var refused = limiter.AttemptAcquire(caller);
 
-        counters.Budgets.Select(budget => budget.Window)
-            .ShouldBe([TimeSpan.FromHours(3), TimeSpan.FromHours(3)]);
+        refused.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter).ShouldBeTrue();
+        retryAfter.ShouldBeGreaterThan(TimeSpan.Zero);
+        retryAfter.ShouldBeLessThanOrEqualTo(_anHour);
     }
 
-    private static ServiceProvider BuildProvider(IRateLimitCounters counters, RateLimiterWindow window)
+    /// <summary>
+    /// A caller over budget is told so rather than parked: with a queue, the awaiting request would
+    /// hold a thread for the rest of the window, the opposite of shedding load.
+    /// </summary>
+    [Fact]
+    public async Task ACallerOverBudget_IsRefusedImmediatelyRatherThanQueued()
     {
-        var services = new ServiceCollection().AddApiRateLimiting();
+        using var limiter = PartitionedRateLimiter.Create(RateLimitingExtensions.FixedWindowPerAddress(1, _anHour));
+        var caller = CreateHttpContext("203.0.113.7");
+        var cancellationToken = TestContext.Current.CancellationToken;
 
-        services.Replace(ServiceDescriptor.Singleton(counters));
-        services.Replace(ServiceDescriptor.Singleton(window));
+        using var allowed = await limiter.AcquireAsync(caller, cancellationToken: cancellationToken);
+        allowed.IsAcquired.ShouldBeTrue();
+
+        using var refused = await limiter.AcquireAsync(caller, cancellationToken: cancellationToken);
+
+        refused.IsAcquired.ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// The 429 is written by hand because <c>IProblemDetailsService</c> writes nothing when the
+    /// request's <c>Accept</c> header excludes JSON. A browser-style header must still get the body,
+    /// the content type, <c>Retry-After</c> and the members every other problem carries.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("application/json")]
+    [InlineData("text/html")]
+    [InlineData("application/xml")]
+    public async Task TheRejection_AnswersTheSameProblemWhateverTheAcceptHeaderSays(string? accept)
+    {
+        using var provider = BuildProvider();
+        var options = OptionsOf(provider);
+
+        var httpContext = CreateHttpContext("203.0.113.7");
+        httpContext.RequestServices = provider;
+        httpContext.TraceIdentifier = "trace-1";
+        httpContext.Response.Body = new MemoryStream();
+
+        if (accept is not null)
+        {
+            httpContext.Request.Headers.Accept = accept;
+        }
+
+        using var limiter = PartitionedRateLimiter.Create(RateLimitingExtensions.FixedWindowPerAddress(1, _anHour));
+        using var allowed = limiter.AttemptAcquire(httpContext);
+        using var refused = limiter.AttemptAcquire(httpContext);
+
+        await options.OnRejected!(
+            new OnRejectedContext { HttpContext = httpContext, Lease = refused },
+            TestContext.Current.CancellationToken);
+
+        httpContext.Response.ContentType.ShouldStartWith("application/problem+json");
+        httpContext.Response.Headers.RetryAfter.ToString().ShouldNotBeNullOrEmpty();
+
+        httpContext.Response.Body.Position = 0;
+        using var body = await JsonDocument.ParseAsync(
+            httpContext.Response.Body,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var root = body.RootElement;
+
+        root.GetProperty("status").GetInt32().ShouldBe(429);
+        root.GetProperty("title").GetString().ShouldBe("Too many requests");
+        root.GetProperty("code").GetString().ShouldBe("rateLimit.exceeded");
+        root.GetProperty("traceId").GetString().ShouldBe("trace-1");
+        root.GetProperty("type").GetString().ShouldEndWith("/rateLimit.exceeded");
+        options.RejectionStatusCode.ShouldBe(StatusCodes.Status429TooManyRequests);
+    }
+
+    private static ServiceProvider BuildProvider(params (string Key, string Value)[] settings)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(settings.ToDictionary(
+                setting => $"{RateLimitingOptions.SectionName}:{setting.Key}",
+                setting => (string?)setting.Value))
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddApiProblemDetails();
+        services.AddApiRateLimiting(configuration);
 
         return services.BuildServiceProvider();
     }
@@ -180,30 +214,4 @@ public sealed class RateLimitingExtensionsTests
 
     private static DefaultHttpContext CreateHttpContext(string address) =>
         new() { Connection = { RemoteIpAddress = IPAddress.Parse(address) } };
-
-    private sealed record PartitionedRequest(RateLimitBudget Budget, HttpContext Context);
-
-    private sealed class RecordingCounters(RateLimitPartition<string> partition) : IRateLimitCounters
-    {
-        /// <summary>The budgets a partitioner was asked for, in the order they were asked.</summary>
-        public List<RateLimitBudget> Budgets { get; } = [];
-
-        /// <summary>
-        /// The requests those partitioners were handed, each tagged with the budget its partitioner
-        /// was built for — which is what tells one policy's partitioner from the other's.
-        /// </summary>
-        public List<PartitionedRequest> Partitioned { get; } = [];
-
-        public Func<HttpContext, RateLimitPartition<string>> PartitionerFor(RateLimitBudget budget)
-        {
-            Budgets.Add(budget);
-
-            return httpContext =>
-            {
-                Partitioned.Add(new PartitionedRequest(budget, httpContext));
-
-                return partition;
-            };
-        }
-    }
 }

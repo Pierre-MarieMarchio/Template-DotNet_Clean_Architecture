@@ -87,8 +87,8 @@ public sealed class FeatureIsolationTests
     /// <summary>
     /// The one exemption from having a domain model, stated as a shape rather than as a list: a
     /// feature with no domain folder has no rules protecting a state, so what it offers is a service
-    /// over a store port, one method per operation, and nothing that would only make sense with an
-    /// aggregate — no use cases, no repository. A feature that grows a rule moves to the rich shape
+    /// over its storage ports (a store to write, queries to read), one method per operation, and
+    /// nothing that would only make sense with an aggregate — no use cases, no repository. A feature that grows a rule moves to the rich shape
     /// (<c>docs/ADDING-A-FEATURE.md</c>), and this rule stops applying to it.
     /// <para>
     /// Not floored on purpose: the example of this shape is removable, and a template without it has
@@ -122,16 +122,19 @@ public sealed class FeatureIsolationTests
                 offenders.Add($"{feature}: has no domain folder and still declares use cases; one use case per operation is the rich shape");
             }
 
+            // A Store is the write port; a feature that only reads has just the Queries port, and a
+            // service over that is still a service over storage with nothing to protect.
             if (!types.Any(type => type is { IsInterface: true, IsPublic: true }
-                && type.Name.EndsWith("Store", StringComparison.Ordinal)
+                && (type.Name.EndsWith("Store", StringComparison.Ordinal)
+                    || type.Name.EndsWith("Queries", StringComparison.Ordinal))
                 && type.Namespace!.Split('.').Contains(_portsSegment, StringComparer.Ordinal)))
             {
-                offenders.Add($"{feature}: has no domain folder and declares no Store port for its storage");
+                offenders.Add($"{feature}: has no domain folder and declares no Store or Queries port for its storage");
             }
         }
 
         offenders.ShouldBeEmpty(
-            "A feature may omit its domain folder only while it is a service over a store port: no "
+            "A feature may omit its domain folder only while it is a service over its storage ports: no "
             + "rules protect a state, so there is no aggregate to hold and no use case to split the "
             + "service into.");
     }

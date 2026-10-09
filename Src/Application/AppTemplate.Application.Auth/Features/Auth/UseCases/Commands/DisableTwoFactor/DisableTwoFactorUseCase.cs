@@ -43,6 +43,12 @@ public sealed class DisableTwoFactorUseCase(
 
         var disabled = await enrollment.DisableAsync(userId.Value.Value, request.CurrentPassword, cancellationToken);
 
+        // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
+        if (disabled.Status is TwoFactorDisableStatus.NoSuchAccount)
+        {
+            return Result.Failure(CommonErrors.NotAuthenticated);
+        }
+
         if (disabled.Status is TwoFactorDisableStatus.IncorrectPassword)
         {
             return Result.Failure(AuthErrors.IncorrectCurrentPassword);

@@ -47,6 +47,12 @@ public sealed class ChangePasswordUseCase(
             request.NewPassword,
             cancellationToken);
 
+        // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
+        if (change.Status is PasswordChangeStatus.NoSuchAccount)
+        {
+            return Result.Failure(CommonErrors.NotAuthenticated);
+        }
+
         if (change.Status is PasswordChangeStatus.IncorrectCurrentPassword)
         {
             return Result.Failure(AuthErrors.IncorrectCurrentPassword);

@@ -13,6 +13,9 @@ public sealed record PasswordChangeOutcome(PasswordChangeStatus Status, string? 
     public static PasswordChangeOutcome IncorrectCurrentPassword { get; } =
         new(PasswordChangeStatus.IncorrectCurrentPassword);
 
+    /// <summary>Nothing was replaced — see <see cref="PasswordChangeStatus.NoSuchAccount"/>.</summary>
+    public static PasswordChangeOutcome NoSuchAccount { get; } = new(PasswordChangeStatus.NoSuchAccount);
+
     /// <summary>The current password matched; the store refused the new one itself.</summary>
     public static PasswordChangeOutcome Rejected(string message) => new(PasswordChangeStatus.Rejected, message);
 }

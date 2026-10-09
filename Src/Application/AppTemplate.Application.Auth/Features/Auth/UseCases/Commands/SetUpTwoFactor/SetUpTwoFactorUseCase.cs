@@ -34,17 +34,20 @@ public sealed class SetUpTwoFactorUseCase(
 
         var started = await enrollment.BeginAsync(userId.Value.Value, cancellationToken);
 
-        if (started.Status is TwoFactorSetupStatus.AlreadyEnabled)
+        if (started.Status is not TwoFactorSetupStatus.Started)
         {
-            return Result.Failure<SetUpTwoFactorOutcome>(AuthErrors.TwoFactorAlreadyEnabled);
-        }
-
-        // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
-        if (started.Status is TwoFactorSetupStatus.NoSuchAccount)
-        {
-            return Result.Failure<SetUpTwoFactorOutcome>(CommonErrors.NotAuthenticated);
+            return Result.Failure<SetUpTwoFactorOutcome>(ToError(started.Status));
         }
 
         return Result.Success(new SetUpTwoFactorOutcome(started.SharedKey!, started.AuthenticatorUri!));
     }
+
+    private static Error ToError(TwoFactorSetupStatus status) => status switch
+    {
+        TwoFactorSetupStatus.AlreadyEnabled => AuthErrors.TwoFactorAlreadyEnabled,
+
+        // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
+        TwoFactorSetupStatus.NoSuchAccount => CommonErrors.NotAuthenticated,
+        _ => AuthErrors.TwoFactorSetupRejected,
+    };
 }

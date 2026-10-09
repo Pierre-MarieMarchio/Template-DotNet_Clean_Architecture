@@ -171,7 +171,7 @@ internal sealed class UserAccountsService(
         // enumeration here: an absent account only means it was deleted after the token was issued.
         if (user is null)
         {
-            return PasswordChangeOutcome.IncorrectCurrentPassword;
+            return PasswordChangeOutcome.NoSuchAccount;
         }
 
         var result = await userManager.ChangePasswordAsync(user, currentPassword, newPassword);

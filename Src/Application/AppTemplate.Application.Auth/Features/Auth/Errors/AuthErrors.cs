@@ -102,8 +102,11 @@ public static class AuthErrors
         "auth.resetPassword.invalid",
         "The password reset link is invalid or has expired.");
 
-    /// <summary>The token was valid; the store refused the new password itself. See <see cref="RegistrationRejected"/>.</summary>
-    public static Error PasswordResetRejected(string message) => ValidationError.ForField("password", message);
+    /// <summary>
+    /// The token was valid; the store refused the new password itself. Attached to "newPassword",
+    /// the field the caller typed it in. See <see cref="RegistrationRejected"/>.
+    /// </summary>
+    public static Error PasswordResetRejected(string message) => ValidationError.ForField("newPassword", message);
 
     /// <summary>
     /// Identical whether the token is unknown, expired, already used, or issued for a different
@@ -208,6 +211,11 @@ public static class AuthErrors
     public static Error CannotDisableOwnTwoFactor { get; } = Error.Forbidden(
         "auth.twoFactor.cannotTargetSelf",
         "An administrator cannot disable two-factor sign-in on their own account this way.");
+
+    /// <summary>The store refused to provision a secret, so none was handed back. See <see cref="AccountDeletionRejected"/> for why no message is carried.</summary>
+    public static Error TwoFactorSetupRejected { get; } = Error.Validation(
+        "auth.twoFactor.setupRejected",
+        "Two-factor setup could not be started on this account.");
 
     /// <summary>Password and code matched, but the store refused to arm the factor. See <see cref="AccountDeletionRejected"/> for why no message is carried.</summary>
     public static Error TwoFactorEnableRejected { get; } = Error.Validation(

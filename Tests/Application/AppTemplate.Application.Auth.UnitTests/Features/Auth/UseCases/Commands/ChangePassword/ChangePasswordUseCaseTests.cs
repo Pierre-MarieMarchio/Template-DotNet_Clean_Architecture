@@ -54,6 +54,19 @@ public sealed class ChangePasswordUseCaseTests
         result.IsSuccess.ShouldBeTrue();
     }
 
+    /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
+    [Fact]
+    public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticatedAndRevokesNothing()
+    {
+        GivenTheOutcomeIs(PasswordChangeOutcome.NoSuchAccount);
+
+        var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("auth.required");
+        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task AWrongCurrentPassword_IsRefused()
     {

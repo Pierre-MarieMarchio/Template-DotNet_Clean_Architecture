@@ -41,6 +41,20 @@ public sealed class DisableTwoFactorUseCaseTests
         _enrollment.ReceivedCalls().ShouldBeEmpty();
     }
 
+    /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
+    [Fact]
+    public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticatedAndRevokesNothing()
+    {
+        GivenTheOutcomeIs(TwoFactorDisableOutcome.NoSuchAccount);
+
+        var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("auth.required");
+        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _securityEventLog.ReceivedCalls().ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task AWrongPassword_IsRefused()
     {

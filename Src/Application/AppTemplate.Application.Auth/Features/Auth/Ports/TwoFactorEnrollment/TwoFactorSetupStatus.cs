@@ -18,4 +18,10 @@ public enum TwoFactorSetupStatus
     /// was issued.
     /// </summary>
     NoSuchAccount,
+
+    /// <summary>
+    /// The store refused to provision the secret, so none is pending and none is handed back.
+    /// Describes the store's state, never anything the caller submitted.
+    /// </summary>
+    Rejected,
 }

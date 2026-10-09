@@ -1,4 +1,6 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
+﻿//#if (localAuth)
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
+//#endif
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 
@@ -31,6 +33,7 @@ internal sealed class FakeIdempotencyPurge : IPurgeExpiredIdempotencyKeysUseCase
     }
 }
 
+//#if (localAuth)
 /// <summary>Counts calls and always succeeds with a fixed count, unless told to throw.</summary>
 internal sealed class FakeRefreshTokenPurge : IPurgeExpiredRefreshTokensUseCase
 {
@@ -58,6 +61,7 @@ internal sealed class FakeRefreshTokenPurge : IPurgeExpiredRefreshTokensUseCase
     }
 }
 
+//#endif
 /// <summary>
 /// Never completes on its own: it only ever returns by observing the cancellation token, so it
 /// can stand in for "a use case that is mid-flight when the host is asked to stop".

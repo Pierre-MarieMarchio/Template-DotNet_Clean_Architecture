@@ -1,9 +1,11 @@
 ﻿using System.Globalization;
+//#if (localAuth)
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
+//#endif
 //#if (todoLists)
 using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
@@ -18,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
+//#if (localAuth)
 
 /// <summary>
 /// An account, as far as a caller that has only signed up can know it. It carries no id: nothing in
@@ -28,6 +31,7 @@ public sealed record TestUser(string UserName, string Email, string Password);
 
 /// <param name="UserId">Read from <c>GET /auth/me</c>, the only endpoint that publishes a profile.</param>
 public sealed record TestSession(Guid UserId, TokenResponse Tokens);
+//#endif
 
 /// <summary>
 /// What every test class shares: the fixture, a clean database, a clean mailbox, a clock parked at a
@@ -52,12 +56,15 @@ public sealed record TestSession(Guid UserId, TokenResponse Tokens);
 [Collection(ApiCollectionDefinition.Name)]
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
+    //#if (localAuth)
     /// <summary>Satisfies every rule in the <c>Identity</c> policy the test host configures.</summary>
     protected const string ValidPassword = "Integration!Test1";
 
+    //#endif
     //#if (todoLists)
     protected const string TodoListsRoute = "/api/v1/todo-lists";
     //#endif
+    //#if (localAuth)
     protected const string AuthRoute = "/api/v1/auth";
 
     /// <summary>
@@ -69,6 +76,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     /*#else
     protected const string ProtectedRoute = AuthRoute + "/me";
     #endif*/
+    //#endif
 
     private static int _clientAddressCounter;
 
@@ -146,6 +154,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return client;
     }
 
+    //#if (localAuth)
     #region Accounts
 
     /// <summary>
@@ -324,6 +333,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
     #endregion
 
+    //#endif
     //#if (todoLists)
     #region Todo lists
 

@@ -132,6 +132,7 @@ identity module — the API does, for the account routes — validates the `Jwt`
 module composes ASP.NET Identity and bearer validation with no narrower call.
 #endif-->
 
+<!--#if (localAuth)-->
 **The refresh-token purge belongs to authentication.** It is not listed in the background
 composition: `AddAuthFeature` (`Src/Presentation/AppTemplate.Api/Features/Auth/Composition/AuthComposition.cs`)
 registers it with the maintenance timer, from the authentication feature's own folder, and
@@ -139,6 +140,7 @@ registers it with the maintenance timer, from the authentication feature's own f
 is read by an options class that lives beside it. A project built without authentication deletes that
 call and that folder and edits nothing in the composition — `BackgroundWorkTests` fails the build if
 the composition ever names authentication.
+<!--#endif-->
 
 **`ICurrentUser` and the audit actor in a job.** One container serves both, so the caller and the
 audit actor are registered once and answer by the kind of scope they are resolved in. A request keeps

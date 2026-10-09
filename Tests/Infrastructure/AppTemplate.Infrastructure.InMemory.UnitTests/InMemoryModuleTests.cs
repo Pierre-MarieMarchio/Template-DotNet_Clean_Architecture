@@ -1,8 +1,12 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
+﻿//#if (localAuth)
+using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
+//#endif
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
+//#if (localAuth)
 using AppTemplate.Infrastructure.InMemory.Features.Auth;
+//#endif
 using AppTemplate.Infrastructure.InMemory.UnitTests.Fixtures;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -57,6 +61,7 @@ public sealed class InMemoryModuleTests
             Arg.Any<string>(),
             Arg.Any<CancellationToken>());
     }
+    //#if (localAuth)
 
     /// <summary>
     /// The identity verifier gets the same treatment for the same reason: its real adapter fetches a
@@ -88,6 +93,7 @@ public sealed class InMemoryModuleTests
         scope.ServiceProvider.GetRequiredService<AcceptedExternalIdentities>()
             .ShouldBeSameAs(provider.GetRequiredService<AcceptedExternalIdentities>());
     }
+    //#endif
 
     /// <summary>
     /// One registration per contract afterwards, however many there were before. Counting is the only

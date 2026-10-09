@@ -28,7 +28,9 @@ public sealed partial class HttpCommonBoundaryTests
     [
         $"{ArchitectureAssemblies.PresentationNamespace}.Features",
         ArchitectureAssemblies.ApplicationFeaturesNamespace,
+        //#if (localAuth)
         $"{ArchitectureAssemblies.ApplicationAuthNamespace}.Features",
+        //#endif
         ArchitectureAssemblies.DomainFeaturesNamespace,
     ];
 

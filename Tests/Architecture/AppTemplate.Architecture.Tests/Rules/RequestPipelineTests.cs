@@ -88,7 +88,7 @@ public sealed partial class RequestPipelineTests
     [Fact]
     public void TheHostInstallsTheHttpPipeline_BeforeAnyMiddlewareOfItsOwn()
     {
-        var order = MiddlewareOrderIn(_programPath, floor: 3);
+        var order = MiddlewareOrderIn(_programPath, floor: 2);
 
         order[0].ShouldBe(
             "UseHttpPipeline",

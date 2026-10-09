@@ -1,14 +1,18 @@
 ﻿//#if (anyFeature)
 using AppTemplate.Application;
 //#endif
+//#if (localAuth)
 using AppTemplate.Application.Auth;
+//#endif
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Ports;
 //#if (reminders)
 using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 //#endif
 using AppTemplate.Domain.Core.Common.Primitives;
+//#if (localAuth)
 using AppTemplate.Infrastructure.Auth;
+//#endif
 using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Email;
@@ -43,12 +47,14 @@ namespace AppTemplate.Architecture.Tests.Composition;
 /// </summary>
 internal static class HostComposition
 {
+    //#if (localAuth)
     /// <summary>
     /// Long enough for HS256: <c>JwtOptionsValidator</c> rejects a key under 32 bytes, and every
     /// options section in the identity and email modules is validated with <c>ValidateOnStart</c>.
     /// </summary>
     internal const string JwtKey = "architecture-tests-signing-key-0123456789-abcdefghij";
 
+    //#endif
     /// <summary>
     /// Strict on both counts. <c>ValidateOnBuild</c> checks that every constructor-registered
     /// service can be constructed; <c>ValidateScopes</c> makes capturing a scoped service in a
@@ -72,6 +78,7 @@ internal static class HostComposition
             ["ConnectionStrings:Default"] =
                 "Host=localhost;Port=5432;Database=apptemplate_architecture_tests;Username=postgres;Password=postgres",
 
+            //#if (localAuth)
             ["Jwt:Key"] = JwtKey,
             ["Jwt:Issuer"] = "https://localhost/app-template",
             ["Jwt:Audience"] = "app-template-api",
@@ -96,17 +103,20 @@ internal static class HostComposition
             // Off, which is what IdentitySeedOptionsValidator requires when no password is supplied.
             ["IdentitySeed:Enabled"] = "false",
 
+            //#endif
             // A culture the runtime knows, and the one every template family must ship — see
             // EmailTemplateCoverageTests. A subject is deliberately not configured: it is the
             // <title> of the template that renders the body.
             ["Localization:DefaultCulture"] = "en",
 
+            //#if (localAuth)
             // Absolute, http(s), and carrying no fragment — the confirmation parameters become one.
             ["EmailConfirmation:ConfirmEmailUrl"] = "https://localhost:5001/confirm-email",
 
             ["EmailChange:ConfirmEmailChangeUrl"] = "https://localhost:5001/confirm-email-change",
             ["PasswordReset:ResetPasswordUrl"] = "https://localhost:5001/reset-password",
 
+            //#endif
             ["Email:Host"] = "smtp.example.invalid",
             ["Email:Port"] = "587",
             ["Email:FromAddress"] = "no-reply@example.invalid",
@@ -168,11 +178,15 @@ internal static class HostComposition
         //#if (notes)
         services.AddNotes();
         //#endif
+        //#if (localAuth)
         services.AddAuthApplication();
+        //#endif
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
+        //#if (localAuth)
         services.AddAuthModule(configuration);
+        //#endif
         services.AddEmailModule(configuration);
         //#if (files)
         services.AddStorageModule(configuration);
@@ -217,11 +231,15 @@ internal static class HostComposition
         //#if (notes)
         services.AddNotes();
         //#endif
+        //#if (localAuth)
         services.AddAuthApplication();
+        //#endif
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
+        //#if (localAuth)
         services.AddAuthModule(configuration);
+        //#endif
         services.AddEmailModule(configuration);
         //#if (files)
         services.AddStorageModule(configuration);
@@ -248,6 +266,7 @@ internal static class HostComposition
         return services;
     }
 
+    //#if (localAuth)
     /// <summary>
     /// The background-only composition with authentication left out entirely: no
     /// <c>AddAuthApplication</c> and no identity module. A job that needs an account's details reaches
@@ -284,12 +303,22 @@ internal static class HostComposition
         return services;
     }
 
+    //#endif
+    /*#if (localAuth)*/
     /// <summary>
     /// The API's composition with one module left out, used to prove that the container test can
     /// actually fail. The application layer's sign-up use cases depend on <c>IEmailSender</c> and no
     /// other module implements it, so dropping the email module must break the graph.
     /// </summary>
     internal static ServiceCollection ComposeApiWithoutTheEmailModule(IConfiguration configuration)
+    /*#else
+    /// <summary>
+    /// The API's composition with one module left out, used to prove that the container test can
+    /// actually fail. The idempotency purge depends on <c>IIdempotencyStore</c> and no other module
+    /// implements it, so dropping the persistence module must break the graph.
+    /// </summary>
+    internal static ServiceCollection ComposeApiWithoutThePersistenceModule(IConfiguration configuration)
+    #endif*/
     {
         var services = new ServiceCollection();
 
@@ -307,17 +336,24 @@ internal static class HostComposition
         //#if (notes)
         services.AddNotes();
         //#endif
+        //#if (localAuth)
         services.AddAuthApplication();
+        //#endif
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
+        /*#if (localAuth)*/
         services.AddPersistenceModule(configuration);
         services.AddAuthModule(configuration);
+        /*#else
+        services.AddEmailModule(configuration);
+        #endif*/
 
         AddHostSuppliedAdapters(services);
 
         return services;
     }
 
+    //#if (localAuth)
     /// <summary>
     /// The API's composition with authentication left out entirely — no <c>AddAuthApplication</c>
     /// and no identity module, every other module kept. What a derived project that brings its own
@@ -355,6 +391,7 @@ internal static class HostComposition
         return services;
     }
 
+    //#endif
     /// <summary>
     /// What <c>WebApplicationBuilder</c> has already put in the container before <c>Program.cs</c>
     /// composes its first module.

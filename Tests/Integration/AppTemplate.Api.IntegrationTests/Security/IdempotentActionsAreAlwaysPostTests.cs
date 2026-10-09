@@ -1,10 +1,14 @@
 ﻿using System.Reflection;
 using AppTemplate.Api.Common.Idempotency;
+//#if (localAuth)
 using AppTemplate.Api.Features.Auth.Controllers;
+//#endif
 //#if (files)
 using AppTemplate.Api.Features.Files.Controllers;
 //#endif
+//#if (!publicApi)
 using AppTemplate.Api.Features.Maintenance.Controllers;
+//#endif
 //#if (notes)
 using AppTemplate.Api.Features.Notes.Controllers;
 //#endif
@@ -39,29 +43,39 @@ public sealed class IdempotentActionsAreAlwaysPostTests
     /// misapplied [Idempotent] on it escape this rule.</summary>
     private static readonly Type[] _controllers =
     [
+        //#if (localAuth)
         typeof(AccountAdministrationController),
         typeof(AccountController),
+        //#endif
         //#if (files)
         typeof(FilesController),
         typeof(FileTagsController),
         //#endif
+        //#if (!publicApi)
         typeof(MaintenanceController),
+        //#endif
         //#if (notes)
         typeof(NotesController),
         //#endif
+        //#if (localAuth)
         typeof(PasswordRecoveryController),
         typeof(RefreshTokenMaintenanceController),
         typeof(RegistrationController),
+        //#endif
         //#if (reminders)
         typeof(RemindersController),
         //#endif
+        //#if (localAuth)
         typeof(SessionsController),
+        //#endif
         //#if (todoLists)
         typeof(TodoItemsController),
         typeof(TodoItemTagsController),
         typeof(TodoListsController),
         //#endif
+        //#if (localAuth)
         typeof(TwoFactorController),
+        //#endif
     ];
 
     [Fact]
@@ -123,15 +137,20 @@ public sealed class IdempotentActionsAreAlwaysPostTests
     [Fact]
     public void TheControllerList_CoversEveryControllerInTheApiAssembly()
     {
-        var actualControllers = typeof(SessionsController).Assembly
+        var actualControllers = typeof(IdempotentAttribute).Assembly
             .GetTypes()
             .Where(type => type is { IsClass: true, IsAbstract: false }
                 && type.Name.EndsWith("Controller", StringComparison.Ordinal))
             .ToList();
 
+        /*#if (!publicApi)*/
         actualControllers.ShouldNotBeEmpty(
             "No controller was found in the API assembly by name convention, so this rule cannot " +
             "prove the enumeration above is complete.");
+        /*#else
+        // Generated without accounts and without examples, the API declares no controller until the
+        // first feature brings one; from then on the count below holds the list to it.
+        #endif*/
 
         actualControllers.Count.ShouldBe(
             _controllers.Length,

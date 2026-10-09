@@ -9,9 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup Label="Runtime — all Microsoft.* on the same 10.0.x band">
+    <!--#if (localAuth)-->
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.11" />
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
+    <!--#endif-->
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" />
@@ -34,11 +36,13 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
   </ItemGroup>
 
+  <!--#if (localAuth)-->
   <!-- Identity model: the modern JsonWebTokenHandler only. The legacy
        System.IdentityModel.Tokens.Jwt entry is gone along with its last consumer. -->
   <ItemGroup Label="Identity model">
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
   </ItemGroup>
+  <!--#endif-->
 
   <!-- Outbound HTTP resilience. Ships from dotnet/extensions on its own 10.9.x band rather than
        the 10.0.x band above — same owner, different release train — so it gets its own group

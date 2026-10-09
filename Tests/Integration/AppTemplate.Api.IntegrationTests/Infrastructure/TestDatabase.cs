@@ -1,7 +1,9 @@
 ﻿using System.Data;
 using System.Data.Common;
 using System.Globalization;
+//#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
+//#endif
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,7 +67,9 @@ public sealed class TestDatabase(IServiceProvider rootServices)
     {
         string[] schemas =
         [
+            //#if (localAuth)
             AuthDbContext.IdentitySchema,
+            //#endif
             //#if (todoLists)
             AppDbContext.TodoSchema,
             //#endif

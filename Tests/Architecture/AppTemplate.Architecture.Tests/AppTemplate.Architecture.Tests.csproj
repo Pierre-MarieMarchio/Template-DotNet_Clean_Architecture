@@ -21,10 +21,10 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
-  <!-- The identity module composes ASP.NET Core Identity and JWT bearer authentication, so the
-       container test needs the same shared framework the host runs on. Declared rather than
-       inherited transitively, because a rule about the host's container should not depend on which
-       package happens to drag the framework in. It also supplies the configuration, logging,
+  <!-- The host's composition is built on ASP.NET Core (with the supplied accounts, Identity and
+       JWT bearer authentication too), so the container test needs the same shared framework the
+       host runs on. Declared rather than inherited transitively, because a rule about the host's
+       container should not depend on which package happens to drag the framework in. It also supplies the configuration, logging,
        options and hosting abstractions this project uses, which is why there is no PackageReference
        for any of them — NuGet rejects one as redundant (NU1510). -->
   <ItemGroup>
@@ -41,13 +41,17 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Src\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
     <ProjectReference Include="..\..\..\Src\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
+    <!--#if (localAuth)-->
     <ProjectReference Include="..\..\..\Src\Application\AppTemplate.Application.Auth\AppTemplate.Application.Auth.csproj" />
+    <!--#endif-->
     <ProjectReference Include="..\..\..\Src\Presentation\AppTemplate.Presentation.Core\AppTemplate.Presentation.Core.csproj" />
     <ProjectReference Include="..\..\..\Src\Domain\AppTemplate.Domain\AppTemplate.Domain.csproj" />
     <ProjectReference Include="..\..\..\Src\Domain\AppTemplate.Domain.Core\AppTemplate.Domain.Core.csproj" />
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Core\AppTemplate.Infrastructure.Core.csproj" />
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />
+    <!--#if (localAuth)-->
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Auth\AppTemplate.Infrastructure.Auth.csproj" />
+    <!--#endif-->
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.InMemory\AppTemplate.Infrastructure.InMemory.csproj" />
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
     <!--#if (files)-->

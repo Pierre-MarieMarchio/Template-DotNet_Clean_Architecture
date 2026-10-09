@@ -167,7 +167,7 @@ public sealed class ConfigurationSurfaceTests
         var documented = DocumentedSections();
 
         bound.Count.ShouldBeGreaterThanOrEqualTo(
-            25,
+            18,
             "Far fewer bound sections were found than this template has, so the source scan is not " +
             "reading the tree it is meant to describe.");
 
@@ -177,17 +177,25 @@ public sealed class ConfigurationSurfaceTests
             "guide is being read with the wrong heading shape.");
 
         bound.Values.Sum(facts => facts.Keys.Count).ShouldBeGreaterThanOrEqualTo(
-            77,
+            43,
             "Far fewer bindable members were found than the options classes declare, so the member " +
             "pattern has stopped matching the shape they are written in.");
 
         // One section named explicitly, so that a scan which found sections but no keys — or keys
         // under the wrong section — cannot satisfy the counts above.
+        /*#if (localAuth)*/
         bound["TwoFactor"].Keys.ShouldBe(
             ["ChallengeLifetime", "Issuer", "MaxChallengeAttempts", "RecoveryCodeCount"],
             ignoreOrder: true,
             "TwoFactor is the section this rule was written for: it was bound, validated, described " +
             "in SECURITY.md's prose, and absent from the configuration guide entirely.");
+        /*#else
+        bound["Idempotency"].Keys.ShouldBe(
+            ["ClaimLease", "Enabled", "MaxKeyLength", "MaxStoredResponseBytes", "Retention"],
+            ignoreOrder: true,
+            "Idempotency is bound by the HTTP pipeline whatever the project was generated with, so it " +
+            "is the section a scan that reads the tree at all has to find, with every key it binds.");
+        #endif*/
     }
 
     private const string _configurationGuide = "docs/CONFIGURATION.md";

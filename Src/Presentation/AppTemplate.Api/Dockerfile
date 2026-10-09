@@ -59,12 +59,16 @@ COPY ["global.json", "Directory.Build.props", "Directory.Build.targets", "Direct
 COPY ["Src/Domain/AppTemplate.Domain.Core/AppTemplate.Domain.Core.csproj",                                       "Src/Domain/AppTemplate.Domain.Core/"]
 COPY ["Src/Domain/AppTemplate.Domain/AppTemplate.Domain.csproj",                                                 "Src/Domain/AppTemplate.Domain/"]
 COPY ["Src/Application/AppTemplate.Application.Core/AppTemplate.Application.Core.csproj",                        "Src/Application/AppTemplate.Application.Core/"]
+#if (localAuth)
 COPY ["Src/Application/AppTemplate.Application.Auth/AppTemplate.Application.Auth.csproj",                        "Src/Application/AppTemplate.Application.Auth/"]
+#endif
 COPY ["Src/Application/AppTemplate.Application/AppTemplate.Application.csproj",                                  "Src/Application/AppTemplate.Application/"]
 COPY ["Src/Presentation/AppTemplate.Presentation.Core/AppTemplate.Presentation.Core.csproj",                     "Src/Presentation/AppTemplate.Presentation.Core/"]
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Core/AppTemplate.Infrastructure.Core.csproj",             "Src/Infrastructure/AppTemplate.Infrastructure.Core/"]
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence/AppTemplate.Infrastructure.Persistence.csproj", "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/"]
+#if (localAuth)
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Auth/AppTemplate.Infrastructure.Auth.csproj",       "Src/Infrastructure/AppTemplate.Infrastructure.Auth/"]
+#endif
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Email/AppTemplate.Infrastructure.Email.csproj",             "Src/Infrastructure/AppTemplate.Infrastructure.Email/"]
 #if (files)
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Storage/AppTemplate.Infrastructure.Storage.csproj",         "Src/Infrastructure/AppTemplate.Infrastructure.Storage/"]

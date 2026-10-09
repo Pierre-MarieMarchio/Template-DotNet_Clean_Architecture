@@ -1,5 +1,6 @@
 ﻿# Migrations
 
+<!--#if (localAuth)-->
 **Two `DbContext`s, two migration histories, one database.** One connection string, one pool, six
 schemas. Every command below has to name which of the two it is about, and that is the one thing to
 get right here.
@@ -12,6 +13,18 @@ get right here.
 Each ships **one** initial migration, and they are independent: a change to one is invisible to the
 other. Features separate themselves by schema, declared table by table in each feature's
 `IEntityTypeConfiguration` — not by a context each.
+<!--#else
+**One `DbContext`, one migration history, one database.** This project was generated without the
+supplied accounts (`--auth none`), so the identity context and its schema are absent and every
+command below is about the business context.
+
+| Context | Project | Schemas | History table |
+|---|---|---|---|
+| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence` | one per business feature, and `platform` for what belongs to no feature | `public.__EFMigrationsHistory` |
+
+It ships **one** initial migration. Features separate themselves by schema, declared table by table
+in each feature's `IEntityTypeConfiguration` — not by a context each.
+#endif-->
 
 - [The tool](#the-tool)
 - [Adding a migration](#adding-a-migration)

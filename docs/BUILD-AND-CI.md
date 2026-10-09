@@ -190,9 +190,32 @@ the meaning of a build** — in particular none relaxes `TreatWarningsAsErrors`.
 | Docs and workflows | the four hygiene gates, each preceded by its own self-test |
 | Vulnerable packages | `dotnet list package --vulnerable --include-transitive`, failing on any hit |
 | Docker image | builds the image, then asserts it does not run as root and exposes only 8080 |
-| Template acceptance | install → generate under a different name → bootstrap → build → test, so a template that generates a broken project fails the build |
+| Template acceptance (five legs) | install → generate under a different name with one option combination → assert the template's name leaked nowhere → bootstrap → build → Docker-free tests → no pending model change per generated context → the generated project's `hygiene` task; see [below](#template-acceptance) |
+| Template refuses unsupported options | `--auth none` alone and with `--examples notes` must exit non-zero and write no file |
 | Load smoke | the k6 script, **non-blocking** — see [`TESTING.md`](TESTING.md#the-load-smoke-test) |
 | Compose manifest | `docker compose config` against `.env.example` |
+
+### Template acceptance
+
+A template that generates a broken project is worse than a repository to clone, and every option is a
+different generated project, so the job is a matrix with `fail-fast: false` — one red leg must not hide
+another. The legs are the combinations that exercise a different shape, not the cross product:
+
+| Leg | Options | Contexts compared |
+|---|---|---|
+| defaults | `--auth local --examples all --files true` | Persistence, Auth |
+| auth none, smallest project | `--auth none --examples none --files false` | Persistence |
+| external auth, notes | `--auth external --examples notes` | Persistence |
+| local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false` | Persistence, Auth |
+| external auth, all examples | `--auth external --examples all --files true` | Persistence |
+
+Each leg builds with `TreatWarningsAsErrors` (from `Directory.Build.props`, as everywhere), runs the
+test projects that do not reference Testcontainers — integration tests stay with the repository's own
+build — and runs `dotnet run Tools/Tasks.cs hygiene` in the generated project, which already knows
+whether it carries the workflow gate. Only `--auth local` generates the Auth context, so only those legs
+compare its model. The separate refusal job covers the rule the other way round: `--auth none` needs
+`--examples none` and `--files false`, enforced by hidden required parameters, and an unsupported
+combination must fail before it writes anything.
 
 All actions are pinned to a commit SHA, `permissions:` is `contents: read`, and a concurrency group
 supersedes superseded runs. **No CI step passes a flag that would turn warnings back into

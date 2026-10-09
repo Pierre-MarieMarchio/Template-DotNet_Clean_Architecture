@@ -286,7 +286,7 @@ split runs there rather than putting every port in one layer:
 | Port | Declared in | Implementation (Infrastructure) |
 |---|---|---|
 | `ITodoListRepository`, `IReminderRepository` | `AppTemplate.Domain` | EF Core repositories over `AppDbContext` |
-| `ITodoListQueries`, `IReminderTargetQueries` | `AppTemplate.Application` | EF Core projections to DTOs |
+| `ITodoListQueries`, `ITodoItemQueries`, `IReminderQueries` | `AppTemplate.Application` | EF Core projections to DTOs |
 | `IUnitOfWork` | `AppTemplate.Application.Core` | one `SaveChangesAsync` on `AppDbContext` |
 | `IEmailSender` | `AppTemplate.Application.Core` | `MailKitEmailSender` |
 | `ICurrentUser` | `AppTemplate.Application.Core` | `CurrentUser`, reading `HttpContext` claims |
@@ -472,6 +472,27 @@ If a second database engine ever genuinely arrives, the split is mechanical then
 the real second implementation in hand to shape it. Doing it speculatively means
 guessing at that shape.
 
+## Features meet through ports and events
+
+**A feature uses another feature only through that feature's public application port or its
+domain events — never through its records, its EF configurations, its `DbSet`s or its tables.**
+The surface of a feature is two namespaces: `Application/Features/<F>/Ports/` and
+`Domain/Features/<F>/Events/`. Everything else of it is its own, and `FeatureIsolationTests`
+reads both the application and the persistence project to hold the line, with a sensitivity check
+so it cannot go quiet.
+
+The reason is extraction. Every feature must be able to leave the shared projects later without
+the others being edited, and each reference that reaches past a port is a place where one would
+have to be. `Reminders` is the worked case: it needs to know that an item exists and who owns it,
+and whether it is done. It does not read `TodoLists`' rows to find out; it asks
+`ITodoItemQueries`, a port `TodoLists` declares and implements in its own persistence folder, and
+the day `Reminders` is extracted that port is the only thing to replace. The port is deliberately
+narrow — two questions, each answerable in one indexed query — because a wide one would be the
+records again with an interface in front of them.
+
+There is no exception today. If one is ever justified it is named in `FeatureIsolationTests`
+with its reason, not hidden by moving a type into a namespace the rule does not read.
+
 ## Background jobs in the API process
 
 `AppTemplate.Api` serves HTTP and runs the periodic jobs in the same process, which is the template's
@@ -582,12 +603,13 @@ two ports rather than two stacks:
 | Port | Purpose |
 |---|---|
 | `ITodoListRepository`, `IReminderRepository` | Write side. Load and stage whole aggregates. |
-| `ITodoListQueries`, `IReminderTargetQueries` | Read side. Return DTOs projected in SQL, no aggregate materialisation. |
+| `ITodoListQueries`, `ITodoItemQueries`, `IReminderQueries` | Read side. Return DTOs or plain answers projected in SQL, no aggregate materialisation. |
 
 Reads do not need invariants enforced, and loading a full aggregate to render a list
-view is pure waste. Both read methods take the owner's id as a parameter, so
+view is pure waste. The reads a caller makes take the owner's id as a parameter, so
 "only the caller's own rows" is part of the port's signature rather than something a
-future implementation might forget.
+future implementation might forget; the one read that does not —
+`ITodoItemQueries.GetCompletionStatesAsync` — serves the firing pass, which acts for every owner.
 
 ## No generic repository
 

@@ -554,7 +554,9 @@ example of the decision section 1 asks you to make. **And the feature is driven 
 two triggers**: `RemindersController` serves the HTTP side, while `FireDueRemindersUseCase`
 is called by a background job, which is why the feature has ports for a notifier
 (`Ports/ReminderNotifier/`), for its own metrics (`Ports/ReminderDiagnostics/`) and for
-the targets it notifies (`Ports/ReminderTargetQueries/`). A use case is a use case
+its own reads (`Ports/ReminderQueries/`); what it needs to know about a to-do item it asks
+of `TodoLists`' `ITodoItemQueries`, never of that feature's rows — see "Features meet through
+ports and events" in [`ARCHITECTURE.md`](ARCHITECTURE.md). A use case is a use case
 whichever trigger calls it; nothing about the shape changes.
 
 ## 4d. When the feature shares, caches, or runs on a timer

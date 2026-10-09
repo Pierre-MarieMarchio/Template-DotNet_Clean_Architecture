@@ -2,16 +2,15 @@
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
 using AppTemplate.Application.Features.Reminders.Dtos;
-using AppTemplate.Application.Features.Reminders.Mapping;
-using AppTemplate.Domain.Features.Reminders.Repositories;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminders;
 
 /// <summary>
-/// <see cref="IReminderRepository.GetForTodoItemAsync"/> is not itself scoped to an owner — it
-/// answers "every reminder on this item," the way a consumer cancelling on completion needs it
-/// to — so filtering to the caller's own is this use case's job, not the repository's.
+/// Reads through <see cref="IReminderQueries"/>, which filters to the caller's own reminders for
+/// this item in the query itself and projects straight to DTOs. A read, so it writes nothing and
+/// needs no transaction, token or retry policy of its own.
 /// <para>
 /// <b>It deliberately does not check that the item still exists</b>, which is why this route answers
 /// <c>200</c> with an empty list where every other route into an item answers <c>404</c>. A reminder
@@ -24,7 +23,7 @@ namespace AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminde
 /// </para>
 /// </summary>
 public sealed class GetRemindersUseCase(
-    IReminderRepository repository,
+    IReminderQueries queries,
     ICurrentUser currentUser,
     IValidator<GetRemindersQuery> validator) : IGetRemindersUseCase
 {
@@ -48,16 +47,11 @@ public sealed class GetRemindersUseCase(
             return userId.To<IReadOnlyList<ReminderDto>>();
         }
 
-        var candidates = await repository.GetForTodoItemAsync(query.TodoItemId, cancellationToken);
-
-        IReadOnlyList<ReminderDto> reminders =
-        [
-            .. candidates
-                .Where(reminder => reminder.OwnerId == userId.Value)
-                .Where(reminder => reminder.TodoListId == query.TodoListId)
-                .OrderBy(reminder => reminder.DueAt)
-                .Select(ReminderDtoMapping.ToDto),
-        ];
+        var reminders = await queries.GetForTodoItemAsync(
+            userId.Value,
+            query.TodoListId,
+            query.TodoItemId,
+            cancellationToken);
 
         // Result<TValue>'s implicit operator does not apply here: TValue is an interface type,
         // and C# never considers a user-defined conversion when the source or target is one.

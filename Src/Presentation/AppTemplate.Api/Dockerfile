@@ -66,7 +66,9 @@ COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Core/AppTemplate.Infrastruc
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence/AppTemplate.Infrastructure.Persistence.csproj", "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/"]
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Auth/AppTemplate.Infrastructure.Auth.csproj",       "Src/Infrastructure/AppTemplate.Infrastructure.Auth/"]
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Email/AppTemplate.Infrastructure.Email.csproj",             "Src/Infrastructure/AppTemplate.Infrastructure.Email/"]
+#if (files)
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Storage/AppTemplate.Infrastructure.Storage.csproj",         "Src/Infrastructure/AppTemplate.Infrastructure.Storage/"]
+#endif
 COPY ["Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj",                                                 "Src/Presentation/AppTemplate.Api/"]
 
 # Restoring the API transitively restores the projects it references.

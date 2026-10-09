@@ -1,19 +1,27 @@
 ﻿using AppTemplate.Application.Core;
+//#if (files)
 using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Services;
+//#endif
 using AppTemplate.Application.Features.Notes.Services;
 using AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.Reminders.Services;
 using AppTemplate.Application.Features.TodoLists.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.TodoLists.Services;
+//#if (files)
 using AppTemplate.Domain.Features.Files.Events;
+//#endif
 using AppTemplate.Domain.Features.TodoLists.Events;
 using FluentValidation;
+//#if (files)
 using Microsoft.Extensions.Configuration;
+//#endif
 using Microsoft.Extensions.DependencyInjection;
+//#if (files)
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+//#endif
 
 namespace AppTemplate.Application;
 
@@ -26,15 +34,17 @@ namespace AppTemplate.Application;
 /// every host's graph, which under <c>ValidateOnBuild</c> makes each of them mandatory everywhere.
 /// </para>
 /// <para>
-/// Only <see cref="AddFiles"/> takes an <c>IConfiguration</c>: its categories are application policy
-/// a deployment declares. The other features read no settings.
+/// A feature takes an <c>IConfiguration</c> only when it has application policy a deployment
+/// declares, as the Files categories are. The other features read no settings.
 /// </para>
 /// </summary>
 public static class ApplicationModule
 {
     private const string _todoLists = "TodoLists";
     private const string _reminders = "Reminders";
+    //#if (files)
     private const string _files = "Files";
+    //#endif
     private const string _notes = "Notes";
 
     /// <summary>
@@ -82,6 +92,7 @@ public static class ApplicationModule
         return services;
     }
 
+    //#if (files)
     /// <summary>
     /// Registers the stored-file feature and binds <c>Files</c> (its categories and the API upload
     /// ceiling), validated at start-up.
@@ -112,6 +123,7 @@ public static class ApplicationModule
         return services;
     }
 
+    //#endif
     /// <summary>
     /// Registers the notes feature: its service and its validator. It has no use cases and answers no
     /// domain event, and it depends on none of the other features.

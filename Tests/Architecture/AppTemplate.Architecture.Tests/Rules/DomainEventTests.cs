@@ -36,6 +36,7 @@ public sealed class DomainEventTests
         // Firing is already recorded on the aggregate and counted by the reminder job's own log. A
         // consumer would be a second place to keep in step for no gain.
         "ReminderFiredDomainEvent",
+        //#if (files)
 
         // The hook a project adds derivative generation to — thumbnails, previews, transcoding.
         // Deliberately empty here: the template has no image pipeline, and an unused consumer that
@@ -48,6 +49,7 @@ public sealed class DomainEventTests
         // consumer here could only ever be a notification, never the thing that makes the refusal
         // true.
         "StoredFileQuarantinedDomainEvent",
+        //#endif
     ];
 
     [Fact]
@@ -60,7 +62,7 @@ public sealed class DomainEventTests
             .ToList();
 
         events.Count.ShouldBeGreaterThanOrEqualTo(
-            5,
+            4,
             "Far fewer domain events were found than this template raises, so this rule is reading " +
             "the wrong assembly and passing for the wrong reason.");
 

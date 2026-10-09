@@ -27,8 +27,13 @@ public sealed class LayoutConventionTests
     private static readonly Dictionary<string, string[]?> _vocabulary = new(StringComparer.Ordinal)
     {
         ["Src/Application/AppTemplate.Application"] =
-            ["Consumers", "Dtos", "Errors", "Extensions", "Mapping", "Options", "Policies", "Ports", "Services",
-             "UseCases", "Validators"],
+            [
+                "Consumers", "Dtos", "Errors", "Extensions", "Mapping",
+                //#if (files)
+                "Options",
+                //#endif
+                "Policies", "Ports", "Services", "UseCases", "Validators",
+            ],
 
         // One vertical, holding one operation. A mechanism project earns a Features/ folder only for
         // work that is genuinely a use case rather than a mechanism — here, purging what the
@@ -49,7 +54,16 @@ public sealed class LayoutConventionTests
         // this entry is what reports it. A shared *business* concept belongs in AppTemplate.Domain.
         ["Src/Domain/AppTemplate.Domain.Core"] = null,
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
-            ["Checkpoints", "Configurations", "Locks", "Mapping", "Models", "Observability", "Queries", "Repositories", "Stores", "Tracking"],
+            [
+                //#if (files)
+                "Checkpoints",
+                //#endif
+                "Configurations",
+                //#if (files)
+                "Locks",
+                //#endif
+                "Mapping", "Models", "Observability", "Queries", "Repositories", "Stores", "Tracking",
+            ],
         // Jobs/ holds what a feature runs on a timer: the hosted service, its options and its
         // instruments, side by side — the nature word for them, as Controllers/ is for the HTTP half.
         // Directories/ holds an adapter the host supplies because it joins two features that may
@@ -65,8 +79,10 @@ public sealed class LayoutConventionTests
         ["Src/Infrastructure/AppTemplate.Infrastructure.Auth"] =
             ["Configurations", "Directories", "Factories", "Issuers", "Logs", "Models", "Options", "Providers",
              "Seeding", "Services", "Tables", "Templates", "Verifiers"],
+        //#if (files)
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Inventories", "Options", "Scanners", "Stores", "Transfers"],
+        //#endif
 
         // Null, not empty: this project has no Features/ and may not grow one. What is here
         // is what any host needs whatever its transport, so a feature folder appearing would
@@ -146,8 +162,10 @@ public sealed class LayoutConventionTests
             ["Contexts", "Directories", "Options"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
             ["Contexts", "Idempotency", "Leases"],
+        //#if (files)
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Budgets", "Factories", "Options"],
+        //#endif
         // The HTTP mechanisms no feature owns: what a controller inherits, how a failure is
         // answered, which headers every response carries, what the host composes at start-up. What
         // a folder here may not do is name a feature — HttpCommonBoundaryTests holds that — so
@@ -306,7 +324,7 @@ public sealed class LayoutConventionTests
             .ToHashSet(StringComparer.Ordinal);
 
         onDisk.Count.ShouldBeGreaterThanOrEqualTo(
-            13,
+            12,
             "Far fewer projects were found under Src than this template holds, so the project walk " +
             "is not reading the tree it is meant to describe and every project in it would read as " +
             "listed.");
@@ -385,7 +403,7 @@ public sealed class LayoutConventionTests
         }
 
         checkedProjects.ShouldBeGreaterThanOrEqualTo(
-            13,
+            12,
             "Fewer projects were found under Src than this template ships, so this rule read no " +
             "root at all and every root in it would report as clean.");
 

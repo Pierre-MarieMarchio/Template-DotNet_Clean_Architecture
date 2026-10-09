@@ -67,7 +67,7 @@ public sealed class FeatureIsolationTests
         var persistence = FeaturesIn(ArchitectureAssemblies.Persistence, _persistenceFeatures);
 
         domain.Count.ShouldBeGreaterThanOrEqualTo(
-            3,
+            2,
             "Fewer features were found in the domain project than this template holds, so the rules "
             + "in this class would be read over a population that is not the real one.");
 

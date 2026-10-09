@@ -1,4 +1,6 @@
-﻿using AppTemplate.Api.Features.Files.Jobs;
+﻿//#if (files)
+using AppTemplate.Api.Features.Files.Jobs;
+//#endif
 using AppTemplate.Api.Features.Maintenance.Jobs;
 using AppTemplate.Api.Features.Reminders.Jobs;
 using AppTemplate.Infrastructure.Persistence;
@@ -24,7 +26,9 @@ internal static class BackgroundJobsTelemetry
 
         // Each job's own span per task. One AddSource per ActivitySource a job declares.
         services.ConfigureOpenTelemetryTracerProvider((_, tracing) => tracing
+            //#if (files)
             .AddSource(FileInstruments.Name)
+            //#endif
             .AddSource(MaintenanceInstruments.Name)
             .AddSource(ReminderInstruments.Name));
 
@@ -32,7 +36,9 @@ internal static class BackgroundJobsTelemetry
         // counter, which only a firing pass can record. A meter declared and not named here is
         // measured and thrown away.
         services.ConfigureOpenTelemetryMeterProvider((_, metrics) => metrics
+            //#if (files)
             .AddMeter(FileInstruments.Name)
+            //#endif
             .AddMeter(MaintenanceInstruments.Name)
             .AddMeter(ReminderInstruments.Name)
             .AddMeter(PersistenceModule.RemindersMeterName));

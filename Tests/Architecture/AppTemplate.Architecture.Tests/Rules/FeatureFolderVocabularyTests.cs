@@ -79,9 +79,13 @@ public sealed class FeatureFolderVocabularyTests
         // The value a policy hands back. It lives beside the policy that produces it for the same
         // reason a port's messages live beside the port: a type in the signature does not move away
         // from the thing whose signature it is.
+        //#if (files)
         ["ContentDecision.cs"] = "the decision StoredFileContentPolicy returns",
+        //#endif
         ["ExternalAccountLinkDecision.cs"] = "the decision the external-account policy returns",
+        //#if (files)
         ["MediaTypeSignatures.cs"] = "the magic-byte table StoredFileContentPolicy reads",
+        //#endif
 
         // ASP.NET Core Identity names these, not this repository: they are what IdentityUser<Guid>
         // and IdentityRole<Guid> are subclassed as, and a …Record suffix on them would be this

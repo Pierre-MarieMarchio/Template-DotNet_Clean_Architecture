@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
+//#if (files)
 using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
@@ -11,6 +12,7 @@ using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
+//#endif
 using AppTemplate.Application.Features.Notes.Dtos;
 using AppTemplate.Application.Features.Notes.Ports.NoteQueries;
 using AppTemplate.Application.Features.Notes.Ports.NoteStore;
@@ -38,15 +40,21 @@ using AppTemplate.Application.Features.TodoLists.UseCases.Commands.UpdateTodoIte
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItem;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItems;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoList;
+//#if (files)
 using AppTemplate.Domain.Features.Files.Repositories;
+//#endif
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using FluentValidation;
+//#if (files)
 using Microsoft.Extensions.Configuration;
+//#endif
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+//#if (files)
 using Microsoft.Extensions.Options;
+//#endif
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -55,12 +63,14 @@ namespace AppTemplate.Application.UnitTests;
 
 public sealed class ApplicationModuleTests
 {
-    /// <summary>
-    /// Sixteen to-do list operations, five reminder ones, twelve for files — of which three, the
-    /// abandonment purge, the orphan reclamation and the deposit inspection, are reached only from
-    /// background jobs.
-    /// </summary>
-    private const int _knownUseCaseCount = 33;
+    // Sixteen to-do list operations and five reminder ones.
+    private const int _knownUseCaseCount = 16 + 5
+        //#if (files)
+        // Twelve for files, of which three (the abandonment purge, the orphan reclamation and the
+        // deposit inspection) are reached only from background jobs.
+        + 12
+        //#endif
+        ;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
@@ -70,7 +80,9 @@ public sealed class ApplicationModuleTests
     [
         nameof(ApplicationModule.AddTodoLists),
         nameof(ApplicationModule.AddReminders),
+        //#if (files)
         nameof(ApplicationModule.AddFiles),
+        //#endif
         nameof(ApplicationModule.AddNotes),
     ];
 
@@ -136,7 +148,9 @@ public sealed class ApplicationModuleTests
     [InlineData(typeof(IValidator<GetTodoItemQuery>))]
     [InlineData(typeof(IValidator<GetTodoItemsQuery>))]
     [InlineData(typeof(IValidator<ScheduleReminderCommand>))]
+    //#if (files)
     [InlineData(typeof(IValidator<RegisterFileCommand>))]
+    //#endif
     [InlineData(typeof(IValidator<NoteContentDto>))]
     public void EveryValidator_IsDiscovered(Type validatorType)
     {
@@ -153,7 +167,9 @@ public sealed class ApplicationModuleTests
     [Theory]
     [InlineData(typeof(IValidator<CreateTodoListCommand>))]
     [InlineData(typeof(IValidator<ScheduleReminderCommand>))]
+    //#if (files)
     [InlineData(typeof(IValidator<RegisterFileCommand>))]
+    //#endif
     [InlineData(typeof(IValidator<NoteContentDto>))]
     public void EachValidator_IsRegisteredExactlyOnce(Type validatorType)
     {
@@ -202,7 +218,9 @@ public sealed class ApplicationModuleTests
 
         services.ShouldContain(descriptor => descriptor.ServiceType == typeof(ICreateTodoListUseCase));
         services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IScheduleReminderUseCase));
+        //#if (files)
         services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IRegisterFileUseCase));
+        //#endif
     }
 
     [Theory]
@@ -210,6 +228,7 @@ public sealed class ApplicationModuleTests
     public void EveryFeatureCall_Rejects_ANullServiceCollection(string call) =>
         Should.Throw<ArgumentNullException>(() => Invoke(call, null!));
 
+    //#if (files)
     /// <summary>
     /// Only the Files feature reads settings — its categories are application policy a deployment
     /// declares — so it alone takes an <c>IConfiguration</c>, and no other feature call may.
@@ -258,14 +277,19 @@ public sealed class ApplicationModuleTests
         category.Quota.MaxFiles.ShouldBe(1_000);
     }
 
+    //#endif
     private static MethodInfo MethodNamed(string call) =>
         typeof(ApplicationModule).GetMethod(call)!;
 
     private static void Invoke(string call, IServiceCollection services)
     {
-        object?[] arguments = call == nameof(ApplicationModule.AddFiles)
-            ? [services, FilesConfiguration()]
-            : [services];
+        object?[] arguments = [services];
+        //#if (files)
+        if (call == nameof(ApplicationModule.AddFiles))
+        {
+            arguments = [services, FilesConfiguration()];
+        }
+        //#endif
 
         try
         {
@@ -287,12 +311,15 @@ public sealed class ApplicationModuleTests
 
         services.AddTodoLists();
         services.AddReminders();
+        //#if (files)
         services.AddFiles(FilesConfiguration());
+        //#endif
         services.AddNotes();
 
         return services;
     }
 
+    //#if (files)
     /// <summary>The smallest valid <c>Files</c> section: one category.</summary>
     private static IConfiguration FilesConfiguration() =>
         new ConfigurationBuilder()
@@ -304,6 +331,7 @@ public sealed class ApplicationModuleTests
             })
             .Build();
 
+    //#endif
     /// <summary>
     /// Scope validation plus eager building means a missing dependency fails here rather than at
     /// the first request.
@@ -325,6 +353,7 @@ public sealed class ApplicationModuleTests
         services.AddScoped(_ => Substitute.For<INoteStore>());
         services.AddScoped(_ => Substitute.For<IUnitOfWork>());
         services.AddScoped(_ => Substitute.For<ILeaderLease>());
+        //#if (files)
         services.AddScoped(_ => Substitute.For<IStoredFileRepository>());
         services.AddScoped(_ => Substitute.For<IStoredFileQueries>());
         services.AddScoped(_ => Substitute.For<IStoredFileTagQueries>());
@@ -334,6 +363,7 @@ public sealed class ApplicationModuleTests
         services.AddScoped(_ => Substitute.For<IFileDirectTransfer>());
         services.AddSingleton(_ => Substitute.For<IOwnerQuotaLock>());
         services.AddScoped(_ => Substitute.For<IOrphanSweepCheckpoint>());
+        //#endif
         services.AddScoped(_ => Substitute.For<ICurrentUser>());
         services.AddScoped(_ => Substitute.For<IDateTimeProvider>());
         services.AddScoped(_ => Substitute.For<IIdempotencyStore>());

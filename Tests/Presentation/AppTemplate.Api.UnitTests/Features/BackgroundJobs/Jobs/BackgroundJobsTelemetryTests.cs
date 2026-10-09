@@ -1,7 +1,9 @@
 ﻿using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Features.BackgroundJobs.Jobs;
+//#if (files)
 using AppTemplate.Api.Features.Files.Jobs;
+//#endif
 using AppTemplate.Api.Features.Maintenance.Jobs;
 using AppTemplate.Api.Features.Reminders.Jobs;
 using AppTemplate.Presentation.Core.Common.Observability;
@@ -41,7 +43,9 @@ public sealed class BackgroundJobsTelemetryTests
         provider.GetRequiredService<TracerProvider>().ShouldNotBeNull();
         provider.GetRequiredService<MeterProvider>().ShouldNotBeNull();
 
+        //#if (files)
         FileInstruments.ActivitySource.HasListeners().ShouldBeTrue();
+        //#endif
         MaintenanceInstruments.ActivitySource.HasListeners().ShouldBeTrue();
         ReminderInstruments.ActivitySource.HasListeners().ShouldBeTrue();
     }
@@ -54,7 +58,9 @@ public sealed class BackgroundJobsTelemetryTests
         provider.GetRequiredService<TracerProvider>().ShouldNotBeNull();
         provider.GetRequiredService<MeterProvider>().ShouldNotBeNull();
 
+        //#if (files)
         FileInstruments.ActivitySource.HasListeners().ShouldBeFalse();
+        //#endif
         MaintenanceInstruments.ActivitySource.HasListeners().ShouldBeFalse();
         ReminderInstruments.ActivitySource.HasListeners().ShouldBeFalse();
     }

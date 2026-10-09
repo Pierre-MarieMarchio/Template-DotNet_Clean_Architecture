@@ -11,7 +11,9 @@ using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+//#if (files)
 using AppTemplate.Infrastructure.Storage;
+//#endif
 using AppTemplate.Presentation.Core.Common.Outbound;
 using Scalar.AspNetCore;
 
@@ -30,7 +32,9 @@ builder.Services.AddOutboundHttp();
 
 builder.Services.AddTodoLists();
 builder.Services.AddReminders();
+//#if (files)
 builder.Services.AddFiles(builder.Configuration);
+//#endif
 builder.Services.AddNotes();
 // Who a due reminder rings, read from the local accounts. Neither feature names the other, so the
 // host is where they meet.
@@ -43,7 +47,9 @@ builder.Services.AddPurgeExpiredIdempotencyKeys();
 builder.Services.AddCacheStore();
 builder.Services.AddPersistenceModule(builder.Configuration);
 builder.Services.AddEmailModule(builder.Configuration);
+//#if (files)
 builder.Services.AddStorageModule(builder.Configuration);
+//#endif
 
 builder.Services.AddControllers();
 

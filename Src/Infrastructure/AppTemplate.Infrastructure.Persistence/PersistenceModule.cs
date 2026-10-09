@@ -1,9 +1,11 @@
 ﻿using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
+//#if (files)
 using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
+//#endif
 using AppTemplate.Application.Features.Notes.Ports.NoteQueries;
 using AppTemplate.Application.Features.Notes.Ports.NoteStore;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
@@ -11,7 +13,9 @@ using AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemTagQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
+//#if (files)
 using AppTemplate.Domain.Features.Files.Repositories;
+//#endif
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using AppTemplate.Infrastructure.Core;
@@ -23,12 +27,14 @@ using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
+//#if (files)
 using AppTemplate.Infrastructure.Persistence.Features.Files.Checkpoints;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Locks;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Repositories;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Tracking;
+//#endif
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Stores;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
@@ -44,7 +50,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+//#if (files)
 using Microsoft.Extensions.Logging;
+//#endif
 using Microsoft.Extensions.Options;
 using Npgsql;
 
@@ -87,7 +95,9 @@ public static class PersistenceModule
         AddSharedServices(services);
         AddTodoListsFeature(services);
         AddRemindersFeature(services);
+        //#if (files)
         AddFilesFeature(services, connectionString);
+        //#endif
         AddNotesFeature(services);
         AddIdempotencyFeature(services, configuration);
         AddContext(services, connectionString);
@@ -157,6 +167,7 @@ public static class PersistenceModule
         services.TryAddScoped<ITodoItemTagQueries, TodoItemTagQueries>();
     }
 
+    //#if (files)
     private static void AddFilesFeature(IServiceCollection services, string connectionString)
     {
         services.TryAddSingleton<IOwnerQuotaLock>(provider => new PostgresOwnerQuotaLock(
@@ -173,6 +184,7 @@ public static class PersistenceModule
         services.TryAddScoped<IOrphanSweepCheckpoint, OrphanSweepCheckpoint>();
     }
 
+    //#endif
     private static void AddNotesFeature(IServiceCollection services)
     {
         // A store and its queries, and nothing else: notes have no mapper, tracker or event source,
@@ -237,8 +249,8 @@ public static class PersistenceModule
 
     /// <summary>
     /// A second way to create an <see cref="AppDbContext"/>, for <see cref="IdempotencyStore"/> and
-    /// <see cref="OrphanSweepCheckpoint"/>: their own change tracker, connection and commit, rather
-    /// than the request-scoped one.
+    /// the orphan sweep's checkpoint: their own change tracker, connection and commit, rather than the
+    /// request-scoped one.
     /// <para>
     /// The factory takes no options action of its own, and that is load-bearing. An action here would
     /// be a second configuration layered after <see cref="AddContext"/>'s: it would replace the

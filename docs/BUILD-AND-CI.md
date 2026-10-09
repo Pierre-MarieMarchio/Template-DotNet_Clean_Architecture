@@ -8,10 +8,14 @@ account, no token, no third party — with one deliberate exception, named at th
 - [`TreatWarningsAsErrors` is not negotiable](#treatwarningsaserrors-is-not-negotiable)
 - [`.cs` files must be UTF-8 with BOM](#cs-files-must-be-utf-8-with-bom)
 - [`Tools/`](#tools)
+<!--#if (ci)-->
 - [CI](#ci)
+<!--#endif-->
 - [Supply chain](#supply-chain)
 - [The container image](#the-container-image)
+<!--#if (sonar)-->
 - [Static analysis, and where its verdict lives](#static-analysis-and-where-its-verdict-lives)
+<!--#endif-->
 
 ## A green build
 
@@ -110,6 +114,7 @@ second one.
 
 ## `Tools/`
 
+<!--#if (ci && sonar)-->
 Seven single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond the
 SDK `global.json` pins — no interpreter to find, no package to install, and the same line typed on
 Windows, Linux and macOS. The last entry is the one exception, and it is a Dockerfile rather than
@@ -126,11 +131,55 @@ an app.
 | [`Tools/CheckNarrativeComments.cs`](../Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
 | [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
 | [`Tools/sonar-scanner.Dockerfile`](../Tools/sonar-scanner.Dockerfile) | not a C# app: the image the local Sonar analysis runs in, which is where its JRE lives instead of on your machine |
+<!--#elseif (ci)
+Seven single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond the
+SDK `global.json` pins — no interpreter to find, no package to install, and the same line typed on
+Windows, Linux and macOS.
+
+| File | What it is |
+|---|---|
+| [`Tools/Tasks.cs`](../Tools/Tasks.cs) | the task launcher: thin wrappers over the real `dotnet` and `docker` commands |
+| [`Tools/NewFeature.cs`](../Tools/NewFeature.cs) | the feature generator — the skeleton of one feature in the shape, operations and concurrency chosen, plus a creation manifest, so `ADDING-A-FEATURE.md` can be about the thinking. Its `--self-test` runs the real command against throwaway trees |
+| [`Tools/CheckDocPaths.cs`](../Tools/CheckDocPaths.cs) | every repository path cited in a Markdown code span resolves on disk |
+| [`Tools/CheckWorkflows.cs`](../Tools/CheckWorkflows.cs) | what a YAML parse does not catch: a dangling `needs:`, an action on a mutable tag, a missing `permissions:`, a `$VAR` in no `env:`, a script named in a `run:` and absent from disk |
+| [`Tools/CoverageGate.cs`](../Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |
+| [`Tools/CheckNarrativeComments.cs`](../Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
+| [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
+#elseif (sonar)
+Six single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond the
+SDK `global.json` pins — no interpreter to find, no package to install, and the same line typed on
+Windows, Linux and macOS. The last entry is the one exception, and it is a Dockerfile rather than
+an app.
+
+| File | What it is |
+|---|---|
+| [`Tools/Tasks.cs`](../Tools/Tasks.cs) | the task launcher: thin wrappers over the real `dotnet` and `docker` commands |
+| [`Tools/NewFeature.cs`](../Tools/NewFeature.cs) | the feature generator — the skeleton of one feature in the shape, operations and concurrency chosen, plus a creation manifest, so `ADDING-A-FEATURE.md` can be about the thinking. Its `--self-test` runs the real command against throwaway trees |
+| [`Tools/CheckDocPaths.cs`](../Tools/CheckDocPaths.cs) | every repository path cited in a Markdown code span resolves on disk |
+| [`Tools/CoverageGate.cs`](../Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |
+| [`Tools/CheckNarrativeComments.cs`](../Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
+| [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
+| [`Tools/sonar-scanner.Dockerfile`](../Tools/sonar-scanner.Dockerfile) | not a C# app: the image the local Sonar analysis runs in, which is where its JRE lives instead of on your machine |
+#else
+Six single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond the
+SDK `global.json` pins — no interpreter to find, no package to install, and the same line typed on
+Windows, Linux and macOS.
+
+| File | What it is |
+|---|---|
+| [`Tools/Tasks.cs`](../Tools/Tasks.cs) | the task launcher: thin wrappers over the real `dotnet` and `docker` commands |
+| [`Tools/NewFeature.cs`](../Tools/NewFeature.cs) | the feature generator — the skeleton of one feature in the shape, operations and concurrency chosen, plus a creation manifest, so `ADDING-A-FEATURE.md` can be about the thinking. Its `--self-test` runs the real command against throwaway trees |
+| [`Tools/CheckDocPaths.cs`](../Tools/CheckDocPaths.cs) | every repository path cited in a Markdown code span resolves on disk |
+| [`Tools/CoverageGate.cs`](../Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |
+| [`Tools/CheckNarrativeComments.cs`](../Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
+| [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
+#endif-->
 
 `Tools/Tasks.cs` prints each command before running it, which is what keeps the launcher honest:
 copy the printed line and you get the same result without it. **No task hides a flag that changes
 the meaning of a build** — in particular none relaxes `TreatWarningsAsErrors`.
 
+<!--#if (ci)-->
 ## CI
 
 `.github/workflows/ci.yml`, on push and pull request to `main`:
@@ -160,6 +209,7 @@ self-contained migration bundle built from the same commit. It needs no secret b
 `GITHUB_TOKEN`. [`MIGRATIONS.md`](MIGRATIONS.md#applying-them) names what that bundle does and does
 not cover.
 
+<!--#endif-->
 ## Supply chain
 
 `Directory.Build.props` sets `NuGetAudit` with `NuGetAuditMode=all` and `NuGetAuditLevel=low`, so a
@@ -203,6 +253,7 @@ The API is the only application image, and the release workflow builds that one:
 runs the periodic jobs. A separate runner process, if one is ever extracted, would get a Dockerfile of
 its own and an entry in the workflow's image matrix.
 
+<!--#if (sonarWorkflow)-->
 ## Static analysis, and where its verdict lives
 
 SonarQube is wired up, and it is deliberately **not** one of the gates above. Those are the ones you
@@ -238,6 +289,8 @@ linked stylesheet, so the shipped templates share a `<style>` block by construct
 reports each as a near clone of the others. Duplication only: every rule that judges the markup
 itself still applies.
 
+<!--#endif-->
+<!--#if (sonar)-->
 ### Running it locally
 
 ```bash
@@ -264,3 +317,4 @@ Two things about that local run are worth knowing before they surprise you:
   git-ignored, so your next build on the machine still works. That path is inside the checkout on
   purpose: the architecture suite finds the repository root by climbing from its own assembly, and
   built anywhere outside the tree every one of its rules fails before it runs.
+<!--#endif-->

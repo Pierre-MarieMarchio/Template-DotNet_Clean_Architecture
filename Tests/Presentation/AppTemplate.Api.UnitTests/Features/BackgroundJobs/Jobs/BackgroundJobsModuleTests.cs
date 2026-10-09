@@ -1,15 +1,19 @@
 ﻿using AppTemplate.Api.Features.Auth.Jobs;
 using AppTemplate.Api.Features.BackgroundJobs.Jobs;
+//#if (files)
 using AppTemplate.Api.Features.Files.Jobs;
+//#endif
 using AppTemplate.Api.Features.Maintenance.Jobs;
 using AppTemplate.Api.Features.Reminders.Jobs;
 using AppTemplate.Api.UnitTests.TestSupport;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
+//#if (files)
 using AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
 using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
+//#endif
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -45,7 +49,9 @@ public sealed class BackgroundJobsModuleTests
 
         hosted.ShouldContain(typeof(MaintenanceBackgroundService));
         hosted.ShouldContain(typeof(ReminderBackgroundService));
+        //#if (files)
         hosted.ShouldContain(typeof(FileBackgroundService));
+        //#endif
     }
 
     [Fact]
@@ -57,10 +63,17 @@ public sealed class BackgroundJobsModuleTests
 
         provider.GetServices<IHostedService>().ShouldBeEmpty();
 
+        Type[] jobValidators =
+        [
+            typeof(IValidateOptions<MaintenanceWorkerOptions>),
+            typeof(IValidateOptions<ReminderWorkerOptions>),
+            //#if (files)
+            typeof(IValidateOptions<FileWorkerOptions>),
+            //#endif
+        ];
+
         services.ShouldNotContain(
-            descriptor => descriptor.ServiceType == typeof(IValidateOptions<MaintenanceWorkerOptions>)
-                || descriptor.ServiceType == typeof(IValidateOptions<ReminderWorkerOptions>)
-                || descriptor.ServiceType == typeof(IValidateOptions<FileWorkerOptions>),
+            descriptor => jobValidators.Contains(descriptor.ServiceType),
             "an instance that only serves HTTP must not be made to validate settings it never reads");
     }
 
@@ -72,7 +85,9 @@ public sealed class BackgroundJobsModuleTests
             ["BackgroundJobs:Enabled"] = "false",
             ["MaintenanceWorker:Interval"] = "00:00:00",
             ["ReminderWorker:Interval"] = "7.00:00:00",
+            //#if (files)
             ["FileWorker:InspectDepositedFilesInterval"] = "00:00:01",
+            //#endif
         });
 
         await Should.NotThrowAsync(() => host.StartAsync(TestContext.Current.CancellationToken));
@@ -82,9 +97,11 @@ public sealed class BackgroundJobsModuleTests
     [Theory]
     [InlineData("MaintenanceWorker:Interval", "00:00:00")]
     [InlineData("ReminderWorker:Interval", "7.00:00:00")]
+    //#if (files)
     [InlineData("FileWorker:InspectDepositedFilesInterval", "00:00:01")]
     [InlineData("FileWorker:ReclaimOrphanedContentInterval", "00:00:05")]
     [InlineData("FileWorker:PurgeAbandonedRegistrationsInterval", "00:00:00")]
+    //#endif
     public async Task Enabled_RefusesToStart_OnAnInvalidJobSetting(string key, string value)
     {
         using var host = BuildHost(new Dictionary<string, string?> { [key] = value });
@@ -101,16 +118,20 @@ public sealed class BackgroundJobsModuleTests
         var idempotency = Substitute.For<IPurgeExpiredIdempotencyKeysUseCase>();
         var refreshTokens = Substitute.For<IPurgeExpiredRefreshTokensUseCase>();
         var reminders = Substitute.For<IFireDueRemindersUseCase>();
+        //#if (files)
         var abandoned = Substitute.For<IPurgeAbandonedRegistrationsUseCase>();
         var orphaned = Substitute.For<IReclaimOrphanedContentUseCase>();
         var inspection = Substitute.For<IInspectDepositedFilesUseCase>();
+        //#endif
 
         idempotency.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         refreshTokens.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         reminders.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        //#if (files)
         abandoned.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         orphaned.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         inspection.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        //#endif
 
         using var host = BuildHost(
             new Dictionary<string, string?>(),
@@ -119,16 +140,29 @@ public sealed class BackgroundJobsModuleTests
                 services.AddScoped(_ => idempotency);
                 services.AddScoped(_ => refreshTokens);
                 services.AddScoped(_ => reminders);
+                //#if (files)
                 services.AddScoped(_ => abandoned);
                 services.AddScoped(_ => orphaned);
                 services.AddScoped(_ => inspection);
+                //#endif
             });
 
         await host.StartAsync(TestContext.Current.CancellationToken);
 
+        Func<bool>[] passes =
+        [
+            () => Received(idempotency),
+            () => Received(refreshTokens),
+            () => Received(reminders),
+            //#if (files)
+            () => Received(abandoned),
+            () => Received(orphaned),
+            () => Received(inspection),
+            //#endif
+        ];
+
         await BackgroundServiceProbe.WaitUntilAsync(
-            () => Received(idempotency) && Received(refreshTokens) && Received(reminders)
-                && Received(abandoned) && Received(orphaned) && Received(inspection),
+            () => passes.All(pass => pass()),
             "every job to have run its first pass");
 
         await host.StopAsync(TestContext.Current.CancellationToken);

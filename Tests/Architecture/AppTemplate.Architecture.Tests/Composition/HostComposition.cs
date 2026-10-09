@@ -10,7 +10,9 @@ using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.InMemory;
 using AppTemplate.Infrastructure.Persistence;
+//#if (files)
 using AppTemplate.Infrastructure.Storage;
+//#endif
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -108,6 +110,7 @@ internal static class HostComposition
             // Mandatory STARTTLS: EmailOptionsValidator rejects any mode that can fall back to
             // plaintext against a non-loopback host.
             ["Email:Security"] = "StartTls",
+            //#if (files)
 
             // The bucket is the only required value: with no endpoint the module addresses AWS S3
             // itself, and with no credentials the SDK's own chain resolves an instance role — which
@@ -119,6 +122,7 @@ internal static class HostComposition
             ["Files:Categories:document:AllowedMediaTypes:0"] = "application/pdf",
             ["Files:Categories:document:MaxSizeInBytes"] = "52428800",
             ["Files:Categories:document:UploadModes:0"] = "Direct",
+            //#endif
         };
 
     /// <summary>
@@ -150,7 +154,9 @@ internal static class HostComposition
 
         services.AddTodoLists();
         services.AddReminders();
+        //#if (files)
         services.AddFiles(configuration);
+        //#endif
         services.AddNotes();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
@@ -158,7 +164,9 @@ internal static class HostComposition
         services.AddPersistenceModule(configuration);
         services.AddAuthModule(configuration);
         services.AddEmailModule(configuration);
+        //#if (files)
         services.AddStorageModule(configuration);
+        //#endif
 
         AddHostSuppliedAdapters(services);
 
@@ -189,7 +197,9 @@ internal static class HostComposition
 
         services.AddTodoLists();
         services.AddReminders();
+        //#if (files)
         services.AddFiles(configuration);
+        //#endif
         services.AddNotes();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
@@ -197,7 +207,9 @@ internal static class HostComposition
         services.AddPersistenceModule(configuration);
         services.AddAuthModule(configuration);
         services.AddEmailModule(configuration);
+        //#if (files)
         services.AddStorageModule(configuration);
+        //#endif
 
         AddBackgroundOnlyAdapters(services);
 
@@ -234,13 +246,17 @@ internal static class HostComposition
 
         services.AddTodoLists();
         services.AddReminders();
+        //#if (files)
         services.AddFiles(configuration);
+        //#endif
         services.AddNotes();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
         services.AddEmailModule(configuration);
+        //#if (files)
         services.AddStorageModule(configuration);
+        //#endif
 
         AddBackgroundOnlyAdapters(services);
 
@@ -260,7 +276,9 @@ internal static class HostComposition
 
         services.AddTodoLists();
         services.AddReminders();
+        //#if (files)
         services.AddFiles(configuration);
+        //#endif
         services.AddNotes();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
@@ -287,13 +305,17 @@ internal static class HostComposition
 
         services.AddTodoLists();
         services.AddReminders();
+        //#if (files)
         services.AddFiles(configuration);
+        //#endif
         services.AddNotes();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
         services.AddEmailModule(configuration);
+        //#if (files)
         services.AddStorageModule(configuration);
+        //#endif
 
         AddHostSuppliedAdapters(services);
 

@@ -120,6 +120,24 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
     }
 
     /// <summary>
+    /// A second confirmation leaves the armed factor and its recovery codes alone, and so has no
+    /// posture change to record or revoke for.
+    /// </summary>
+    [Fact]
+    public async Task AnAccountAlreadyArmed_IsAConflictAndRevokesNothingRecordsNothing()
+    {
+        GivenTheOutcomeIs(TwoFactorConfirmationOutcome.AlreadyEnabled);
+
+        var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("auth.twoFactor.alreadyEnabled");
+        result.Error.Type.ShouldBe(ErrorType.Conflict);
+        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        _securityEventLog.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    /// <summary>
     /// The store refusing to arm the factor is not the caller's wrong code: the code was right and
     /// retrying it may well succeed.
     /// </summary>

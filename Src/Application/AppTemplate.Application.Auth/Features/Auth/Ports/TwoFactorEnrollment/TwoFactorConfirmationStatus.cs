@@ -22,6 +22,12 @@ public enum TwoFactorConfirmationStatus
     NoSuchAccount,
 
     /// <summary>
+    /// Two-factor sign-in is already on. Nothing was checked or written: the recovery codes on file
+    /// stay the ones the caller was shown.
+    /// </summary>
+    AlreadyEnabled,
+
+    /// <summary>
     /// Password and code both matched, but the store refused to arm the second factor, so it stays
     /// off. Describes the store's state, never anything the caller submitted.
     /// </summary>

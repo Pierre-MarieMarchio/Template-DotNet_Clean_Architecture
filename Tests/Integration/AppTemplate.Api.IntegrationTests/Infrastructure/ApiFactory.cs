@@ -1,5 +1,5 @@
 ﻿using System.Globalization;
-using AppTemplate.Api.Core.Common.Security;
+using AppTemplate.Api.Common.Security;
 using AppTemplate.Application.Core;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using AppTemplate.Infrastructure.Auth.Common.Options;
@@ -26,10 +26,9 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// <para>
 /// <b>Why the entry-point type argument is <c>Program</c>.</b>
 /// <see cref="WebApplicationFactory{TEntryPoint}"/> uses it to locate the assembly that owns the
-/// entry point, and refuses a type from an assembly that has none. The API's own base controller
-/// would not do: it belongs to <c>AppTemplate.Api.Core</c>, which is a class library. The host
-/// declares <c>Program</c> public for exactly this, which costs it no member and no
-/// <c>InternalsVisibleTo</c>.
+/// entry point, and refuses a type from an assembly that has none. <c>Program</c> is the one type
+/// that names that assembly's entry point itself. The host declares it public for exactly this,
+/// which costs it no member and no <c>InternalsVisibleTo</c>.
 /// </para>
 /// <para>
 /// <b>Why configuration is supplied through environment variables.</b> <c>Program.cs</c> reads

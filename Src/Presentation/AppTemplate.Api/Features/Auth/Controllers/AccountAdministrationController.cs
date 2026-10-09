@@ -1,6 +1,5 @@
-﻿using AppTemplate.Api.Common.Security;
-using AppTemplate.Api.Core.Common.Controllers;
-using AppTemplate.Api.Core.Common.Security;
+﻿using AppTemplate.Api.Common.Controllers;
+using AppTemplate.Api.Common.Security;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.AddRole;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteAccount;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DisableAccountTwoFactor;

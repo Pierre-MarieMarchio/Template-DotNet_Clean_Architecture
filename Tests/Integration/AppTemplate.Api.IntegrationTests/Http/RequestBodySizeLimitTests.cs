@@ -2,7 +2,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using AppTemplate.Api.Core.Common.Hosting;
+using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;

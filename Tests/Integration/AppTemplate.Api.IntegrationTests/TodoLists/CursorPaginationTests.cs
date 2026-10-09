@@ -1,6 +1,6 @@
 ﻿using System.Net;
 using System.Text;
-using AppTemplate.Api.Core.Common.Contracts;
+using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Core.Common.Collections;

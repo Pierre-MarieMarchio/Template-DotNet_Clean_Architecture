@@ -200,19 +200,19 @@ dotnet_diagnostic.S3267.severity = none
 # boundary that knows it is the database bootstrap, and then fails to start rather than serving.
 dotnet_diagnostic.S2139.severity = none
 
-[Src/Presentation/AppTemplate.Api.Core/ApiCoreModule.cs]
+[Src/Presentation/AppTemplate.Api/Common/Hosting/HttpPipelineModule.cs]
 # AV0011 reports that the default API version is stated explicitly as 1.0. In a template, reading
 # the version off a library's default is the less legible of the two -- the call site is where a
 # derived project looks for it.
 dotnet_diagnostic.AV0011.severity = none
 
-[Src/Presentation/AppTemplate.Api.Core/Common/Controllers/ApiControllerBase.cs]
+[Src/Presentation/AppTemplate.Api/Common/Controllers/ApiControllerBase.cs]
 # S4136 asks that the `OkOrProblem` overloads be adjacent. The private helper between them carries
 # the `DeclaredType` argument that makes the first one correct, and sits under its only caller;
 # moving it away to group the overloads would separate the explanation from what it explains.
 dotnet_diagnostic.S4136.severity = none
 
-[Src/Presentation/AppTemplate.Api.Core/Common/Errors/ProblemTypes.cs]
+[Src/Presentation/AppTemplate.Api/Common/Errors/ProblemTypes.cs]
 # S1075 reports a hard-coded URI. It is the default base for a `ProblemDetails` `type` member, on
 # the reserved `.example` TLD, and `ProblemTypeOptions.BaseUri` replaces it in any deployment that
 # publishes its own problem documents.

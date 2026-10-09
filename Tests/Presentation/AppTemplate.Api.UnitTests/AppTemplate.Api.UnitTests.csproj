@@ -1,8 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Unit tests for the API layer's own logic: ProblemDetails normalisation, ETag encoding,
-       If-Match parsing, and the ApiControllerBase primitives — all pure or near-pure decisions that
-       run in microseconds and do not need a live HTTP pipeline to verify. -->
+  <!-- Unit tests for the API host's own logic: the cross-cutting HTTP mechanisms under Common —
+       ProblemDetails normalisation, ETag encoding, If-Match parsing, the ApiControllerBase
+       primitives, the option validators and the rate-limit counters — and the feature mappings and
+       controllers. All pure or near-pure decisions that run in microseconds and do not need a live
+       HTTP pipeline to verify. The one assembly the API's internals are granted to. -->
 
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>

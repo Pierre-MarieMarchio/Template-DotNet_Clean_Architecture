@@ -33,8 +33,9 @@
 #   2026-09-09   94.69%  (7269/7677)  3350 tests   extension, Debug    (the lower of the two)
 #
 # Two of the fifteen assemblies sit under the floor: AppTemplate.Infrastructure.Auth at 85.78%
-# (869/1013) and AppTemplate.Api.Core at 89.20% (917/1028). Then AppTemplate.Presentation.Core at
-# 93.62%, AppTemplate.Infrastructure.Persistence and AppTemplate.Infrastructure.Storage both at
+# (869/1013) and the HTTP mechanisms now under AppTemplate.Api/Common, measured as their own assembly
+# at 89.20% (917/1028). Then AppTemplate.Presentation.Core at 93.62%,
+# AppTemplate.Infrastructure.Persistence and AppTemplate.Infrastructure.Storage both at
 # 94.26%, and AppTemplate.Infrastructure.Core at 94.51%. Highest are AppTemplate.Domain and
 # AppTemplate.Domain.Core at 100.00%, then AppTemplate.Application.Auth at 99.62% and
 # AppTemplate.Application at 99.00%. Read from the Debug row, which is the lower one.

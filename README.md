@@ -126,17 +126,17 @@ Src/
                      AppTemplate.Application.Auth
   Infrastructure/    AppTemplate.Infrastructure.Core, .Persistence, .Auth,
                      .Email, .Storage, .InMemory
-  Presentation/      AppTemplate.Presentation.Core, AppTemplate.Api.Core,
-                     AppTemplate.Api, AppTemplate.Worker
+  Presentation/      AppTemplate.Presentation.Core, AppTemplate.Api, AppTemplate.Worker
 Tests/               a 1:1 mirror of Src/, plus Architecture/ and Integration/
 Tools/               the file-based C# apps this repository runs on itself
 docs/                the documentation index and everything it lists
 ```
 
 The directory under `Src/` names the **layer**; the project inside keeps its own name and root
-namespace, so moving a project between layer folders changes no namespace. Six of those projects
-are vendored SDK projects, copied into a derived repository rather than published. [`docs/PROJECT-LAYOUT.md`](docs/PROJECT-LAYOUT.md) is the full map, down to
-what each folder holds and which architecture test enforces it.
+namespace, so moving a project between layer folders changes no namespace. Five of those projects
+are vendored SDK projects, copied into a derived repository rather than published.
+[`docs/PROJECT-LAYOUT.md`](docs/PROJECT-LAYOUT.md) is the full map, down to what each folder holds
+and which architecture test enforces it.
 
 ## Licence
 

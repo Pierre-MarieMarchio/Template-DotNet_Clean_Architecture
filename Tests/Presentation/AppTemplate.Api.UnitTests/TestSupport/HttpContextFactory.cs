@@ -1,5 +1,5 @@
-﻿using AppTemplate.Api.Core.Common.Concurrency;
-using AppTemplate.Api.Core.Common.Errors;
+﻿using AppTemplate.Api.Common.Concurrency;
+using AppTemplate.Api.Common.Errors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

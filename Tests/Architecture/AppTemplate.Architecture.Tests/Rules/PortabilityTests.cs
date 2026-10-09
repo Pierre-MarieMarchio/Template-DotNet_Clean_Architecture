@@ -82,6 +82,28 @@ public sealed class PortabilityTests
     }
 
     /// <summary>
+    /// The vendored SDK projects carry no HTTP half any more, so every one of them is a subject of
+    /// the rule above. Stated over what each declares, so an SDK project added later that lands
+    /// outside the layers read there is caught here instead of escaping both rules.
+    /// </summary>
+    [Fact]
+    public void EverySdkProject_IsHeldToThePortabilityRule()
+    {
+        var subjects = PortableProjects().Select(project => project.Name).ToHashSet(StringComparer.Ordinal);
+
+        var unheld = ProjectReferenceGraph.SdkProjects
+            .Select(project => project.Name)
+            .Where(name => !subjects.Contains(name))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        unheld.ShouldBeEmpty(
+            "An SDK project is not covered by the portability rule. The SDK exists to be taken by "
+            + "any .NET host, so it may not require ASP.NET Core: add the project to the layers "
+            + "this rule reads, or to the subjects it names.");
+    }
+
+    /// <summary>
     /// The exemptions are claims too. One that no longer holds — the adapter dropped its
     /// ASP.NET dependency, or the project was removed — would keep exempting a project that has
     /// become subject to the rule, and nothing would say so.

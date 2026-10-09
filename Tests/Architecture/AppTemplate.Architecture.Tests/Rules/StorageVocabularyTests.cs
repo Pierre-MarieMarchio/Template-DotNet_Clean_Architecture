@@ -60,10 +60,12 @@ public sealed class StorageVocabularyTests
     {
         var tables = ContractsNamed("Table");
 
+        //#if (localAuth)
         tables.Count.ShouldBeGreaterThanOrEqualTo(
             1,
             "No Table contract was found at all, so this rule is checking an empty set.");
 
+        //#endif
         Offenders(tables).ShouldBeEmpty(
             "A Table is row access to one table. One whose signature names a domain entity is a " +
             "Repository wearing a persistence word.");
@@ -84,10 +86,12 @@ public sealed class StorageVocabularyTests
         // empty set satisfies for free. Its two siblings above assert this floor and this one did
         // not, so the day the word stopped being used — or the discovery stopped finding it — this
         // rule would have gone on passing while observing nothing.
+        //#if (localAuth)
         tables.Count.ShouldBeGreaterThanOrEqualTo(
             1,
             "No Table contract was found at all, so this rule is checking an empty set.");
 
+        //#endif
         var declaredOutsideARowOwner = tables
             .Where(table => !_rowOwners.Contains(table.Assembly))
             .Select(table => table.FullName ?? table.Name)
@@ -121,7 +125,9 @@ public sealed class StorageVocabularyTests
             {
                 ArchitectureAssemblies.Application,
                 ArchitectureAssemblies.Persistence,
+                //#if (localAuth)
                 ArchitectureAssemblies.IdentityInfrastructure,
+                //#endif
                 ArchitectureAssemblies.EmailInfrastructure,
                 ArchitectureAssemblies.InMemoryInfrastructure,
             }
@@ -153,7 +159,9 @@ public sealed class StorageVocabularyTests
     private static readonly Assembly[] _rowOwners =
     [
         ArchitectureAssemblies.Persistence,
+        //#if (localAuth)
         ArchitectureAssemblies.IdentityInfrastructure,
+        //#endif
     ];
 
     private static List<Type> ContractsNamed(string suffix) =>

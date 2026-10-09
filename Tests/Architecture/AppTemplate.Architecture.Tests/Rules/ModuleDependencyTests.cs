@@ -28,7 +28,9 @@ public sealed class ModuleDependencyTests
 
     private static readonly string[] _modulesThatMustNotReachIntoPersistence =
     [
+        //#if (localAuth)
         ArchitectureAssemblies.IdentityInfrastructureNamespace,
+        //#endif
         ArchitectureAssemblies.EmailInfrastructureNamespace,
         ArchitectureAssemblies.InMemoryInfrastructureNamespace,
     ];
@@ -42,12 +44,14 @@ public sealed class ModuleDependencyTests
         ArchitectureAssemblies.DomainFeaturesNamespace,
         ArchitectureAssemblies.PersistenceFeaturesNamespace,
         ArchitectureAssemblies.ApplicationFeaturesNamespace,
+        //#if (localAuth)
 
         // Authentication is a feature like any other, and it is a project of its own rather than a
         // folder under the one above — so the prefix that catches the business features does not
         // reach it. Listed separately, because a shared mechanism that named an authentication port
         // would otherwise be the one feature this rule stopped seeing.
         ArchitectureAssemblies.ApplicationAuthNamespace,
+        //#endif
     ];
 
     /// <summary>
@@ -56,7 +60,9 @@ public sealed class ModuleDependencyTests
     /// </summary>
     private static readonly (string Module, System.Reflection.Assembly Assembly)[] _moduleCommons =
     [
+        //#if (localAuth)
         ("AppTemplate.Infrastructure.Auth", ArchitectureAssemblies.IdentityInfrastructure),
+        //#endif
         //#if (files)
         ("AppTemplate.Infrastructure.Storage", ArchitectureAssemblies.StorageInfrastructure),
         //#endif
@@ -131,12 +137,14 @@ public sealed class ModuleDependencyTests
                 + "with the reason it belongs to no single subject.");
         }
 
-        // Four modules have a Common/, and all four are read. A filter that stopped matching would
-        // otherwise leave this test reporting success over nothing at all.
+        // Every module with a Common/ is read: two even in the smallest project this template
+        // generates. A filter that stopped matching would otherwise leave this test reporting success
+        // over nothing at all.
         checkedModules.ShouldBeGreaterThanOrEqualTo(
-            3,
+            2,
             $"Only {checkedModules} module Common namespaces yielded types. This rule is written "
-            + "against four, so either a module lost its Common/ or the namespace match is stale.");
+            + "against every module that has one, so either a module lost its Common/ or the "
+            + "namespace match is stale.");
     }
 
     [Fact]
@@ -268,7 +276,7 @@ public sealed class ModuleDependencyTests
             .ToHashSet(StringComparer.Ordinal);
 
         onDisk.Count.ShouldBeGreaterThanOrEqualTo(
-            4,
+            3,
             "Far fewer infrastructure modules were found under Src than this template has, so the " +
             "project walk is not reading the tree it is meant to describe.");
 
@@ -384,7 +392,7 @@ public sealed class ModuleDependencyTests
         var applicationProjects = ProjectReferenceGraph.ProjectsInLayer("Application").ToList();
 
         applicationProjects.Count.ShouldBeGreaterThanOrEqualTo(
-            3,
+            2,
             "Fewer projects were found in the application layer than this template holds, so this " +
             "rule read no reference list at all and every list in it would report as clean.");
 

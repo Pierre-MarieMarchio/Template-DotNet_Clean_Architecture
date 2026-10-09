@@ -68,7 +68,7 @@ public sealed class StorageShapeTests
     public void NoApplicationPort_ExposesAQueryable()
     {
         ApplicationPorts.All.Count.ShouldBeGreaterThanOrEqualTo(
-            15,
+            7,
             "Almost no port was discovered, so this rule is checking an empty set.");
 
         var offenders = ApplicationPorts.All

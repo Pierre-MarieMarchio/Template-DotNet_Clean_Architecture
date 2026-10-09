@@ -82,10 +82,13 @@ public sealed class FeatureFolderVocabularyTests
         //#if (files)
         ["ContentDecision.cs"] = "the decision StoredFileContentPolicy returns",
         //#endif
+        //#if (localAuth)
         ["ExternalAccountLinkDecision.cs"] = "the decision the external-account policy returns",
+        //#endif
         //#if (files)
         ["MediaTypeSignatures.cs"] = "the magic-byte table StoredFileContentPolicy reads",
         //#endif
+        //#if (localAuth)
 
         // ASP.NET Core Identity names these, not this repository: they are what IdentityUser<Guid>
         // and IdentityRole<Guid> are subclassed as, and a …Record suffix on them would be this
@@ -97,6 +100,7 @@ public sealed class FeatureFolderVocabularyTests
         // The state SigningKeyDirectory holds, not a second directory — the same shape as
         // RecordedEmails and StoredObjects, which sit where no nature word applies at all.
         ["CachedSigningKeys.cs"] = "the cache SigningKeyDirectory reads and fills",
+        //#endif
     };
 
     [Fact]
@@ -131,7 +135,7 @@ public sealed class FeatureFolderVocabularyTests
         }
 
         checkedFiles.ShouldBeGreaterThan(
-            200,
+            8,
             "Far fewer feature files were found than this template holds, so the walk is not reading "
             + "the tree it is meant to describe and this rule would pass on almost nothing.");
 

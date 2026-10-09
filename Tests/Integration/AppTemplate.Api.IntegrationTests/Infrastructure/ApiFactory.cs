@@ -1,4 +1,6 @@
-﻿using System.Globalization;
+﻿//#if (localAuth)
+using System.Globalization;
+//#endif
 using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Api.Common.Security;
 //#if (todoLists)
@@ -7,13 +9,17 @@ using AppTemplate.Application.Core;
 //#if (todoLists)
 using AppTemplate.Domain.Features.TodoLists.Events;
 //#endif
+//#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Options;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Options;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
+//#endif
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Email.Common.Smtp;
 using AppTemplate.Infrastructure.InMemory;
+//#if (localAuth)
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+//#endif
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -47,6 +53,7 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// </remarks>
 public sealed class ApiFactory : WebApplicationFactory<Program>
 {
+    //#if (localAuth)
     /// <summary>Well above the 32-byte HS256 floor <see cref="JwtOptions"/> enforces.</summary>
     private const string _signingKey = "integration-tests-signing-key-0123456789abcdef0123456789abcdef";
 
@@ -59,6 +66,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     /// <summary>The <c>Identity</c> policy the suite asserts against, not the laxer development one.</summary>
     public const int PasswordRequiredLength = 12;
 
+    //#endif
     public ApiFactory(string connectionString)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
@@ -102,11 +110,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             // request and the next and getting a false replenish. Widened far past anything a test
             // could plausibly take, which leaves the permit counts under test untouched.
             services.PostConfigure<RateLimitingOptions>(options => options.Window = TimeSpan.FromHours(1));
+            //#if (localAuth)
 
             ExposeTheReasonATokenWasRefused(services);
+            //#endif
         });
     }
 
+    //#if (localAuth)
     /// <summary>
     /// Surfaces why bearer validation refused a token, in a header only this host writes.
     /// </summary>
@@ -138,12 +149,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
                 };
             });
 
+    //#endif
     private static void ApplyConfiguration(string connectionString)
     {
         var settings = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["ConnectionStrings__" + DefaultConnectionString.Name] = connectionString,
 
+            //#if (localAuth)
             [$"{JwtOptions.SectionName}__Key"] = _signingKey,
             [$"{JwtOptions.SectionName}__Issuer"] = "AppTemplate.Api.IntegrationTests",
             [$"{JwtOptions.SectionName}__Audience"] = "AppTemplate.Client.IntegrationTests",
@@ -166,6 +179,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             [$"{IdentityPolicyOptions.SectionName}__RequireConfirmedEmail"] = "true",
             [$"{IdentityPolicyOptions.SectionName}__RequireUniqueEmail"] = "true",
 
+            //#endif
             // Validated even though InMemoryModule replaces the sender: ValidateOnStart does not
             // care which adapter ends up consuming the section. A loopback host is what lets
             // Security=None pass without the explicit insecure-transport opt-in.
@@ -176,6 +190,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             [$"{EmailOptions.SectionName}__FromAddress"] = "no-reply@integration.test",
             [$"{EmailOptions.SectionName}__FromName"] = "AppTemplate (integration tests)",
 
+            //#if (localAuth)
             [$"{EmailConfirmationOptions.SectionName}__ConfirmEmailUrl"] =
                 "https://client.integration.test/confirm-email",
             [$"{EmailConfirmationOptions.SectionName}__Subject"] = "Confirm your email address",
@@ -192,6 +207,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
             [$"{IdentitySeedOptions.SectionName}__Enabled"] = "false",
 
+            //#endif
             // The suite drives the jobs' use cases itself, one pass on demand, so a timer running
             // them in the background would race the assertions. The role switch is the supported
             // way to say so, and is what keeps every other job setting unrequired here.

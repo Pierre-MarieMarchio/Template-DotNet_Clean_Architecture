@@ -25,6 +25,7 @@ public sealed class HttpSurfaceTests
     /// </summary>
     private static readonly string[] _anonymousActions =
     [
+        //#if (localAuth)
         "ConfirmEmail",
         "Login",
         // The external-provider entry point. Anonymous for exactly the reason /auth/login is: it is
@@ -38,6 +39,7 @@ public sealed class HttpSurfaceTests
         "RequestPasswordReset",
         "ResendConfirmationEmail",
         "ResetPassword",
+        //#endif
     ];
 
     /// <summary>
@@ -124,10 +126,12 @@ public sealed class HttpSurfaceTests
             .Order(StringComparer.Ordinal)
             .ToList();
 
+        //#if (localAuth)
         found.Count.ShouldBeGreaterThanOrEqualTo(
             5,
             "The scan found almost no [AllowAnonymous] action, so it is not reading the controllers " +
             "it is meant to describe and every rule in this class is passing vacuously.");
+        //#endif
 
         found.ShouldBe(
             [.. _anonymousActions.Order(StringComparer.Ordinal)],
@@ -211,7 +215,7 @@ public sealed class HttpSurfaceTests
             .ToList();
 
         files.Count.ShouldBeGreaterThanOrEqualTo(
-            90,
+            69,
             "Far fewer presentation source files were found than this template holds, so the walk " +
             "is not reading the projects it is meant to describe.");
 

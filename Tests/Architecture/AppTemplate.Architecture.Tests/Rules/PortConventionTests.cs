@@ -75,10 +75,10 @@ public sealed class PortConventionTests
     public void NoApplicationPort_IsAMultiCapabilityFacade()
     {
         Ports.Count.ShouldBeGreaterThanOrEqualTo(
-            8,
-            "Fewer ports were found than the application layer is known to declare: a unit of work, " +
-            "a clock, a current user, an email sender, a to-do list query service and the " +
-            "authentication capabilities. The discovery in this rule has stopped matching them.");
+            6,
+            "Fewer ports were found than the application layer declares even with no feature and no " +
+            "accounts: a unit of work, a clock, a current user and an email sender among them. The " +
+            "discovery in this rule has stopped matching them.");
 
         Ports
             .Where(port => OperationsOf(port).Count > _maximumOperationsPerPort)
@@ -129,6 +129,11 @@ public sealed class PortConventionTests
         /*#else
         "IUnitOfWork",
         #endif*/
+        /*#if (localAuth)*/
+        /*#else
+        "ICurrentUser",
+        "IEmailSender",
+        #endif*/
     ];
 
     [Fact]
@@ -176,9 +181,9 @@ public sealed class PortConventionTests
             .ToList();
 
         verticals.Count.ShouldBeGreaterThanOrEqualTo(
-            2,
-            "Fewer than two verticals were found, so the discovery has stopped reading the " +
-            "Features/<Vertical> layout and this rule is guarding nothing.");
+            1,
+            "No vertical was found, so the discovery has stopped reading the Features/<Vertical> " +
+            "layout and this rule is guarding nothing.");
 
         var offenders = new List<string>();
         int verticalsChecked = 0;
@@ -209,16 +214,19 @@ public sealed class PortConventionTests
                         $"{port.FullName} is taken by all {useCases.Count} use cases in '{vertical}'"));
         }
 
+        //#if (localAuth)
         verticalsChecked.ShouldBeGreaterThan(
             0,
             "No vertical had both several use cases and a port of its own, so the condition below " +
             "was never evaluated.");
+        //#endif
 
         offenders.ShouldBeEmpty(
             "A port that every use case in its vertical depends on is that vertical's façade, and " +
             "the use cases are wrappers around it. Split it by capability so that each use case " +
             "names only the capabilities it actually sequences.");
     }
+    //#if (localAuth)
 
     /// <summary>
     /// The point of splitting the façade, stated as a rule: a use case that takes one collaborator
@@ -256,6 +264,7 @@ public sealed class PortConventionTests
             "single collaborator for those means the sequencing has moved back behind a port, and " +
             "there is nothing in this layer left to test.");
     }
+    //#endif
 
     /// <summary>Every type the application layer declares, across every project of it.</summary>
     private static IEnumerable<Type> ApplicationLayerTypes =>

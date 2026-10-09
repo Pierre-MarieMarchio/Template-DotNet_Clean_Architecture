@@ -1,4 +1,6 @@
-﻿using AppTemplate.Api.Features.Auth.Jobs;
+﻿//#if (localAuth)
+using AppTemplate.Api.Features.Auth.Jobs;
+//#endif
 using AppTemplate.Api.Features.BackgroundJobs.Jobs;
 //#if (files)
 using AppTemplate.Api.Features.Files.Jobs;
@@ -8,7 +10,9 @@ using AppTemplate.Api.Features.Maintenance.Jobs;
 using AppTemplate.Api.Features.Reminders.Jobs;
 //#endif
 using AppTemplate.Api.UnitTests.TestSupport;
+//#if (localAuth)
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
+//#endif
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 //#if (files)
@@ -125,10 +129,16 @@ public sealed class BackgroundJobsModuleTests
     }
 
     [Fact]
+    /*#if (localAuth)*/
     public async Task Enabled_RunsOnePassOfEveryJob_IncludingAuthenticationsPurge()
+    /*#else
+    public async Task Enabled_RunsOnePassOfEveryJob()
+    #endif*/
     {
         var idempotency = Substitute.For<IPurgeExpiredIdempotencyKeysUseCase>();
+        //#if (localAuth)
         var refreshTokens = Substitute.For<IPurgeExpiredRefreshTokensUseCase>();
+        //#endif
         //#if (reminders)
         var reminders = Substitute.For<IFireDueRemindersUseCase>();
         //#endif
@@ -139,7 +149,9 @@ public sealed class BackgroundJobsModuleTests
         //#endif
 
         idempotency.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        //#if (localAuth)
         refreshTokens.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        //#endif
         //#if (reminders)
         reminders.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#endif
@@ -154,7 +166,9 @@ public sealed class BackgroundJobsModuleTests
             services =>
             {
                 services.AddScoped(_ => idempotency);
+                //#if (localAuth)
                 services.AddScoped(_ => refreshTokens);
+                //#endif
                 //#if (reminders)
                 services.AddScoped(_ => reminders);
                 //#endif
@@ -170,7 +184,9 @@ public sealed class BackgroundJobsModuleTests
         Func<bool>[] passes =
         [
             () => Received(idempotency),
+            //#if (localAuth)
             () => Received(refreshTokens),
+            //#endif
             //#if (reminders)
             () => Received(reminders),
             //#endif
@@ -199,7 +215,9 @@ public sealed class BackgroundJobsModuleTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddBackgroundJobs(configuration);
+        //#if (localAuth)
         services.AddAuthMaintenanceJobs(configuration);
+        //#endif
 
         return services;
     }
@@ -210,7 +228,9 @@ public sealed class BackgroundJobsModuleTests
         builder.Configuration.AddInMemoryCollection(settings);
         builder.Services.AddLogging();
         builder.Services.AddBackgroundJobs(builder.Configuration);
+        //#if (localAuth)
         builder.Services.AddAuthMaintenanceJobs(builder.Configuration);
+        //#endif
         configure?.Invoke(builder.Services);
 
         return builder.Build();

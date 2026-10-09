@@ -66,7 +66,10 @@ jobs:
           # A round number below the real total of the smallest suite this project can be
           # generated with, raised by what it was generated with. Later lines win,
           # so the floor is the largest one whose feature is present.
+          minimum_tests=800
+          #if (localAuth)
           minimum_tests=1500
+          #endif
           #if (files)
           minimum_tests=2500
           #endif
@@ -120,6 +123,7 @@ jobs:
       #   ./efbundle --connection "$CONNECTION_STRING"
       # Use a migration-time principal with DDL rights, NOT the application's
       # runtime user — the app should not be able to alter its own schema.
+      #if (localAuth)
       # One bundle per context, and both, because one bundle covers one context. A release
       # carrying only the business bundle leaves the `identity` schema absent, and an API whose
       # identity tables do not exist starts and then fails the first sign-in. The two are
@@ -136,6 +140,7 @@ jobs:
             --force \
             --output efbundle-identity
 
+      #endif
       - name: Build the business bundle
         run: |
           dotnet ef migrations bundle \
@@ -151,20 +156,30 @@ jobs:
       # half a schema, which is the failure this step exists to catch.
       - name: Assert both bundles exist and are executable
         run: |
+          #if (localAuth)
           for bundle in efbundle-identity efbundle; do
+          #else
+          for bundle in efbundle; do
+          #endif
             test -x "$bundle" || {
               echo "::error title=No bundle::$bundle was not produced."
               exit 1
             }
           done
+          #if (localAuth)
           ls -l efbundle-identity efbundle
+          #else
+          ls -l efbundle
+          #endif
 
       - name: Upload bundles
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: migration-bundle-${{ inputs.tag || github.ref_name }}
           path: |
+            #if (localAuth)
             efbundle-identity
+            #endif
             efbundle
           if-no-files-found: error
           retention-days: 90

@@ -1,12 +1,16 @@
 ﻿using System.Reflection;
 using AppTemplate.Application;
+//#if (localAuth)
 using AppTemplate.Application.Auth;
+//#endif
 using AppTemplate.Application.Core;
 //#if (tagging)
 using AppTemplate.Domain.Common.Tagging;
 //#endif
 using AppTemplate.Domain.Core.Common.Primitives;
+//#if (localAuth)
 using AppTemplate.Infrastructure.Auth;
+//#endif
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.InMemory;
 using AppTemplate.Infrastructure.Persistence;
@@ -43,13 +47,17 @@ internal static class ArchitectureAssemblies
     internal const string DomainCoreNamespace = "AppTemplate.Domain.Core";
     internal const string ApplicationNamespace = "AppTemplate.Application";
     internal const string ApplicationCoreNamespace = "AppTemplate.Application.Core";
+    //#if (localAuth)
     internal const string ApplicationAuthNamespace = "AppTemplate.Application.Auth";
+    //#endif
     internal const string InfrastructureNamespace = "AppTemplate.Infrastructure";
     internal const string PresentationNamespace = "AppTemplate.Api";
     internal const string PresentationCoreNamespace = "AppTemplate.Presentation.Core";
 
     internal const string PersistenceNamespace = "AppTemplate.Infrastructure.Persistence";
+    //#if (localAuth)
     internal const string IdentityInfrastructureNamespace = "AppTemplate.Infrastructure.Auth";
+    //#endif
     internal const string EmailInfrastructureNamespace = "AppTemplate.Infrastructure.Email";
     internal const string InMemoryInfrastructureNamespace = "AppTemplate.Infrastructure.InMemory";
     //#if (files)
@@ -114,18 +122,22 @@ internal static class ArchitectureAssemblies
     private static readonly Lazy<Assembly> _applicationCore =
         new(() => Anchor(typeof(ApplicationCoreModule), ApplicationCoreNamespace));
 
+    //#if (localAuth)
     private static readonly Lazy<Assembly> _applicationAuth =
         new(() => Anchor(typeof(ApplicationAuthModule), ApplicationAuthNamespace));
 
+    //#endif
     private static readonly Lazy<Assembly> _presentationCore =
         new(() => Anchor(typeof(PresentationCoreModule), PresentationCoreNamespace));
 
     private static readonly Lazy<Assembly> _persistence =
         new(() => Anchor(typeof(PersistenceModule), PersistenceNamespace));
 
+    //#if (localAuth)
     private static readonly Lazy<Assembly> _identityInfrastructure =
         new(() => Anchor(typeof(AuthModule), IdentityInfrastructureNamespace));
 
+    //#endif
     private static readonly Lazy<Assembly> _emailInfrastructure =
         new(() => Anchor(typeof(EmailModule), EmailInfrastructureNamespace));
 
@@ -158,14 +170,18 @@ internal static class ArchitectureAssemblies
 
     internal static Assembly ApplicationCore => _applicationCore.Value;
 
+    //#if (localAuth)
     internal static Assembly ApplicationAuth => _applicationAuth.Value;
 
+    //#endif
     internal static Assembly PresentationCore => _presentationCore.Value;
 
     internal static Assembly Persistence => _persistence.Value;
 
+    //#if (localAuth)
     internal static Assembly IdentityInfrastructure => _identityInfrastructure.Value;
 
+    //#endif
     internal static Assembly EmailInfrastructure => _emailInfrastructure.Value;
 
     internal static Assembly InMemoryInfrastructure => _inMemoryInfrastructure.Value;

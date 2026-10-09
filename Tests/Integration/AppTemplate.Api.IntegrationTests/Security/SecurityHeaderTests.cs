@@ -1,5 +1,7 @@
 ﻿using System.Net;
+//#if (!publicApi)
 using AppTemplate.Api.Common.Security;
+//#endif
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using Shouldly;
 using Xunit;
@@ -18,6 +20,7 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 /// </remarks>
 public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
+    //#if (!publicApi)
     [Fact]
     public async Task ASuccessfulResponse_CarriesEverySecurityHeader()
     {
@@ -43,6 +46,7 @@ public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBas
         AssertSecurityHeaders(response);
     }
 
+    //#endif
     [Fact]
     public async Task TheLivenessProbe_CarriesEverySecurityHeader()
     {
@@ -54,6 +58,7 @@ public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBas
 
         AssertSecurityHeaders(response);
     }
+    //#if (!publicApi)
 
     /// <summary>
     /// The strict policy, asserted as the exact string. A partial assertion would pass on a policy
@@ -69,6 +74,7 @@ public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBas
         Policy(response).ShouldBe(SecurityHeaderOptions.DefaultContentSecurityPolicy);
         Policy(response).ShouldBe("default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
     }
+    //#endif
 
     /// <summary>
     /// Both halves of the clickjacking control, so that dropping either one fails. The header is for

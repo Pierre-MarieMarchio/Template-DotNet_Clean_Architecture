@@ -14,10 +14,15 @@
 # client sends bytes to, so there has to be an object store to send them to, with its bucket made.
 #
 #endif
+#if (localAuth)
 # Run the requests top to bottom. Every value a later request needs is captured from an earlier
 # response, except the email confirmation token: it arrives by mail, and this file format has no way
 # to pull a substring out of a message body. Request 4 fetches the mail so you can read the token;
 # paste it into @confirmationToken and carry on. That step is marked MANUAL below.
+#else
+# Run the requests top to bottom. This API was generated without accounts (--auth none): every
+# endpoint answers anonymous callers on purpose, so no request carries a token.
+#endif
 #
 # Works in the VS Code REST Client extension and in Visual Studio's .http editor. Both resolve
 # {{requestName.response.body.$.field}} against a named earlier response.
@@ -25,6 +30,7 @@
 
 @host = http://localhost:5187
 @api = {{host}}/api/v1
+#if (localAuth)
 @mailpit = http://localhost:8025
 
 # Password satisfies appsettings.Development.json: >= 8 chars, upper, lower, digit, non-alphanumeric.
@@ -710,6 +716,7 @@ Content-Type: application/json
 DELETE {{api}}/auth/accounts/{{myUserId}}/two-factor
 Authorization: Bearer {{freshAccessToken}}
 
+#endif
 ###
 # 34. Liveness. No dependency is checked, so an orchestrator does not restart the API because the
 #     database blinked. Anonymous by design.
@@ -719,6 +726,7 @@ GET {{host}}/health
 # 35. Readiness. Checks the database, and is what a load balancer should poll.
 GET {{host}}/health/ready
 
+#if (localAuth)
 ###
 # 36. Rate limiting. The auth policy allows 10 requests per minute per client address; run this
 #     block repeatedly to get a 429 carrying Retry-After and a ProblemDetails body.
@@ -749,6 +757,7 @@ Authorization: Bearer {{accessToken}}
 DELETE {{api}}/maintenance/refresh-tokens/expired
 Authorization: Bearer {{accessToken}}
 
+#endif
 #if (files)
 ###
 # 39. Register a file. This does NOT carry the bytes: it declares the metadata and answers 201 with

@@ -39,10 +39,12 @@ public sealed class PortabilityTests
     private static readonly Dictionary<string, string> _httpSpecificAdapters =
         new(StringComparer.Ordinal)
         {
+            //#if (localAuth)
             ["AppTemplate.Infrastructure.Auth"] =
                 "its Microsoft.AspNetCore.Authentication.JwtBearer package is the bearer-token handler "
                 + "of the ASP.NET authentication pipeline, and carries the shared framework in its own "
                 + "nuspec",
+            //#endif
         };
 
     /// <summary>

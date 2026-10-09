@@ -328,12 +328,16 @@ in `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates/`
 is available — there is no list to update, because a list could name a language no template
 backs. `EmailTemplateCoverageTests` refuses a language added to one folder and not the other,
 and refuses two languages of one mail sharing a subject.
-<!--#else
+<!--#elseif (localAuth)
 **Adding a language is adding files.** Drop `<Mail>EmailTemplate.<tag>.html` beside the ones
 in `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates/`, and that language
 is available — there is no list to update, because a list could name a language no template
 backs. `EmailTemplateCoverageTests` refuses a language added to one mail folder and not to every
 other, and refuses two languages of one mail sharing a subject.
+#else
+**Adding a language is adding files**, once this project sends a mail: a module that renders one
+embeds `<Mail>EmailTemplate.<tag>.html` per language, and that language is available. Generated
+without the supplied accounts and without `Reminders`, this project ships no mail template yet.
 #endif-->
 
 **Two things to know before changing this.** The repository builds with

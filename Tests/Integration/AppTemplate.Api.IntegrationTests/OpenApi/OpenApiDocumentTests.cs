@@ -39,6 +39,7 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
         document.RootElement.GetProperty("info").GetProperty("title").GetString()
             .ShouldBe("AppTemplate.Api | v1");
     }
+    //#if (!publicApi)
 
     /// <summary>
     /// What AV0030 is about: one document per version, holding that version's actions and no others.
@@ -63,9 +64,12 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
         paths.ShouldNotContain("/health");
         paths.ShouldNotContain("/health/ready");
 
+        //#if (localAuth)
         paths.ShouldContain("/api/v1/auth/login");
+        //#endif
         paths.ShouldContain(ProtectedRoute);
     }
+    //#endif
 
     [Fact]
     public async Task AVersionWithNoActions_HasNoDocument()
@@ -78,6 +82,7 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
         // it, and every assertion above would still pass.
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
+    //#if (!publicApi)
 
     /// <summary>
     /// The bearer scheme <c>OpenApiSecurityTransformer</c> declares, and the global requirement it
@@ -102,6 +107,8 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
             "A global security requirement would put a padlock on every operation, including the "
             + "anonymous ones, describing the document rather than the runtime.");
     }
+    //#endif
+    //#if (localAuth)
 
     /// <summary>
     /// The assertion the two suppressed analyzers in <c>AppTemplate.Api.csproj</c> rest on.
@@ -127,6 +134,7 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
         description.ShouldNotBeNull();
         description.ShouldContain("ConfirmEmailRequest");
     }
+    //#endif
 
     private async Task<JsonDocument> GetDocumentAsync(string path)
     {

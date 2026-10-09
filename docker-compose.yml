@@ -10,12 +10,16 @@
 #
 # There is deliberately no `env_file:` on the services. Mapping each variable
 # explicitly under `environment:` means a container holds only the keys it needs;
+#if (localAuth)
 # `env_file: .env` would additionally push POSTGRES_PASSWORD, JWT_KEY and every
+#else
+# `env_file: .env` would additionally push POSTGRES_PASSWORD, EMAIL_PASSWORD and every
+#endif
 # other raw variable into the API process, readable from /proc/self/environ and
 # from any crash dump, for no benefit.
 #
 # Environment-variable names use the double-underscore form that ASP.NET Core
-# maps onto configuration sections: Jwt__Key -> "Jwt": { "Key": ... }.
+# maps onto configuration sections: Email__Host -> "Email": { "Host": ... }.
 
 name: app-template
 
@@ -116,10 +120,16 @@ services:
       BackgroundJobs__Enabled: ${BACKGROUND_JOBS_ENABLED:-true}
 
       # --- MaintenanceWorker ---------------------------------------------------
+      #if (!publicApi)
       # The same purges MaintenanceController exposes over HTTP, on a timer.
+      #else
+      # The same purges as the maintenance use cases, on a timer; no endpoint exposes them.
+      #endif
       MaintenanceWorker__Interval: ${MAINTENANCE_WORKER_INTERVAL:-01:00:00}
       MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: ${MAINTENANCE_WORKER_PURGE_IDEMPOTENCY_KEYS:-true}
+      #if (localAuth)
       MaintenanceWorker__PurgeExpiredRefreshTokensEnabled: ${MAINTENANCE_WORKER_PURGE_REFRESH_TOKENS:-true}
+      #endif
 
       #if (reminders)
       # --- ReminderWorker ------------------------------------------------------
@@ -154,6 +164,7 @@ services:
       # infrastructure modules embed. See docs/CONFIGURATION.md.
       Localization__DefaultCulture: ${LOCALIZATION_DEFAULT_CULTURE:-en}
 
+      #if (localAuth)
       # --- Jwt ---------------------------------------------------------------
       Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env (min 32 bytes; openssl rand -base64 48)}
       Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
@@ -176,6 +187,7 @@ services:
       Identity__LockoutDurationInMinutes: ${IDENTITY_LOCKOUT_DURATION_MINUTES:-1}
       Identity__RequireConfirmedEmail: ${IDENTITY_REQUIRE_CONFIRMED_EMAIL:-true}
       Identity__RequireUniqueEmail: ${IDENTITY_REQUIRE_UNIQUE_EMAIL:-true}
+      #endif
 
 
       #if (files)
@@ -211,6 +223,7 @@ services:
       Email__FromAddress: ${EMAIL_FROM_ADDRESS:-no-reply@localhost}
       Email__FromName: ${EMAIL_FROM_NAME:-AppTemplate (dev)}
 
+      #if (localAuth)
       # --- EmailConfirmation -------------------------------------------------
       EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
 
@@ -228,6 +241,7 @@ services:
       IdentitySeed__AdminUserName: ${SEED_ADMIN_USERNAME:-administrator}
       IdentitySeed__AdminEmail: ${SEED_ADMIN_EMAIL:-}
       IdentitySeed__AdminPassword: ${SEED_ADMIN_PASSWORD:-}
+      #endif
 
       # --- Cors. Arrays bind by index with the __N suffix. -------------------
       Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN_0:-http://localhost:4200}

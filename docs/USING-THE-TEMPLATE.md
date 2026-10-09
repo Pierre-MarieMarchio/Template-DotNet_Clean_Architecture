@@ -36,12 +36,36 @@ adding its GUID there.
 
 ## Generation options
 
-One choice says which example features the project starts with, and three switches leave parts of
-the template out, all on by default:
+Two choices say who the API's callers are and which example features the project starts with, and
+three switches leave parts of the template out, all on by default:
 
 ```bash
 dotnet new cleanarch-webapi -n Acme.OrderManagement --examples none --files false --ci false --sonar false
+dotnet new cleanarch-webapi -n Acme.OrderManagement --auth none --examples none --files false
 ```
+
+| `--auth` | Generates |
+|---|---|
+| `local` (default) | the supplied Auth module: local accounts, JWT access and refresh tokens, two-factor sign-in, the account routes, their own `identity` schema and migration, the refresh-token purge and the `Administrator` policy |
+| `none` | no accounts: a public API. No Auth projects or tests, no account routes, no identity schema, migration, readiness check or development seed, no refresh-token purge, no `Administrator` policy and so no maintenance endpoint, no `Jwt`, `Identity` or account-mail settings in configuration or Compose |
+| `external` | declared, not available yet: generation refuses it |
+
+`--auth none` makes public access a choice written in the composition rather than the side effect of
+a missing scheme. `Program.cs` sets a fallback authorisation policy that admits every caller and
+says why; there is no authentication middleware and no bearer scheme in the OpenAPI document.
+Nothing private is opened by it: `ICurrentUser` reads an empty principal and answers no one, so an
+operation that needs a caller still fails, and an endpoint marked `[Authorize]` errors instead of
+opening, because there is no scheme to challenge with. The email module stays: `IEmailSender` is a
+capability a public API may well need, and keeping it costs a module the host already composes.
+
+Every example feature and `Files` belong to a caller, so `--auth none` refuses them **at generation**:
+it needs `--examples none` and `--files false` spelled out, and `dotnet new` stops with
+`Missing mandatory option(s)` naming `--auth-none-needs-examples-none` or
+`--auth-none-needs-files-false` until they are. `--auth external` stops the same way, naming
+`--auth-external-is-not-available-yet`. Those names are hidden options the template declares only so
+the engine can refuse with them; passing one by hand gets past the engine and generates a file that
+fails the build with the same explanation. `Tools/NewFeature.cs` refuses in such a project too: both
+shapes it writes, owner and shared, need an authenticated caller.
 
 | `--examples` | Generates |
 |---|---|
@@ -66,7 +90,7 @@ feature of its own gives them a subject.
 
 What is left out is absent, not disabled: no project, file, configuration section, table or test
 names it, and the generated solution builds, passes its Docker-free tests and reports no pending
-model change for either context. The template engine reads a condition written inside each file
+model change for any context it keeps. The template engine reads a condition written inside each file
 type's own comment syntax, and `.template.config/template.json` excludes whole paths; in this
 repository those conditions are plain comments, so it builds and tests as the default generation
 does.

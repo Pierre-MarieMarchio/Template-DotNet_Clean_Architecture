@@ -206,7 +206,9 @@ internal static class Tasks
         string repoRoot = ResolveRepoRoot();
         string solution = Path.Combine(repoRoot, "AppTemplate.sln");
         string persistence = Path.Combine(repoRoot, "Src", "Infrastructure", "AppTemplate.Infrastructure.Persistence");
+        //#if (localAuth)
         string auth = Path.Combine(repoRoot, "Src", "Infrastructure", "AppTemplate.Infrastructure.Auth");
+        //#endif
         string api = Path.Combine(repoRoot, "Src", "Presentation", "AppTemplate.Api");
         string runsettings = Path.Combine(repoRoot, "coverage.runsettings");
 
@@ -302,7 +304,9 @@ internal static class Tasks
                 // authentication goes first, as it does in the Development bootstrap.
                 foreach ((string project, string output) in new[]
                 {
+                    //#if (localAuth)
                     (auth, "efbundle-identity"),
+                    //#endif
                     (persistence, "efbundle"),
                 })
                 {
@@ -384,11 +388,13 @@ internal static class Tasks
                     "--project", persistence,
                     "--startup-project", persistence,
                     "--no-build");
+                //#if (localAuth)
                 Step(
                     "dotnet", "ef", "migrations", "has-pending-model-changes",
                     "--project", auth,
                     "--startup-project", auth,
                     "--no-build");
+                //#endif
                 VulnerablePackages(solution);
                 break;
 

@@ -1,6 +1,8 @@
 ﻿using System.Net;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
+//#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
+//#endif
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -15,11 +17,22 @@ namespace AppTemplate.Api.IntegrationTests.Health;
 /// </summary>
 public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
+    /// <summary>Every check the host registers, each one a readiness check.</summary>
+    /*#if (localAuth)*/
+    private static readonly string[] _registeredChecks = ["auth-database", "database", "shutdown"];
+    /*#else
+    private static readonly string[] _registeredChecks = ["database", "shutdown"];
+    #endif*/
+
     [Fact]
     public async Task Liveness_IsAnonymousAndHealthy()
     {
+        /*#if (!publicApi)*/
         // No Authorization header: the fallback policy requires an authenticated user, so a probe
         // that had to log in would be useless to an orchestrator.
+        /*#else
+        // No Authorization header: a probe that had to log in would be useless to an orchestrator.
+        #endif*/
         var client = CreateClient();
 
         using var response = await client.GetAsync(new Uri("/health", UriKind.Relative), TestToken);
@@ -49,7 +62,7 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
         // Which checks, not in which order: the predicate selects them by tag, and the order they
         // were registered in is an artefact of the shutdown check arriving with AddApiHealthChecks
         // and the database check being chained onto the builder it returns.
-        ReadyCheckNames().ShouldBe(["auth-database", "database", "shutdown"], ignoreOrder: true);
+        ReadyCheckNames().ShouldBe(_registeredChecks, ignoreOrder: true);
 
     /// <summary>
     /// Liveness must have no dependency at all: a database blip should not make an orchestrator
@@ -64,7 +77,7 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
         // excludes all of them.
         Registrations()
             .Select(registration => registration.Name)
-            .ShouldBe(["auth-database", "database", "shutdown"], ignoreOrder: true);
+            .ShouldBe(_registeredChecks, ignoreOrder: true);
     }
 
     [Fact]
@@ -79,7 +92,9 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
             TestToken);
 
         schemas.ShouldContain(AppDbContext.PlatformSchema);
+        //#if (localAuth)
         schemas.ShouldContain(AuthDbContext.IdentitySchema);
+        //#endif
     }
 
     /// <summary>
@@ -99,7 +114,11 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
             """,
             TestToken);
 
+        /*#if (localAuth)*/
         histories.ShouldBe([AuthDbContext.MigrationsHistorySchema, AppDbContext.MigrationsHistorySchema]);
+        /*#else
+        histories.ShouldBe([AppDbContext.MigrationsHistorySchema]);
+        #endif*/
     }
 
     private IEnumerable<HealthCheckRegistration> Registrations() =>

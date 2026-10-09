@@ -18,6 +18,74 @@
     "type": "solution"
   },
   "symbols": {
+    "auth": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "local",
+      "choices": [
+        {
+          "choice": "local",
+          "description": "The supplied Auth module: local accounts, JWT access and refresh tokens, its own database context."
+        },
+        {
+          "choice": "external",
+          "description": "Not available yet: generation refuses it. Accounts held by an external identity provider."
+        },
+        {
+          "choice": "none",
+          "description": "No accounts: a public API. Needs --examples none and --files false, whose features belong to a caller."
+        }
+      ],
+      "description": "Who the API's callers are. none generates no Auth module and makes every endpoint public on purpose."
+    },
+    "authNoneNeedsExamplesNone": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(auth == \"none\" && examples != \"none\")",
+      "description": "Never set. --auth none refuses the example features, which each belong to a caller: add --examples none."
+    },
+    "authNoneNeedsFilesFalse": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(auth == \"none\" && files)",
+      "description": "Never set. --auth none refuses the Files module, whose files belong to a caller: add --files false."
+    },
+    "authExternalIsNotAvailableYet": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(auth == \"external\")",
+      "description": "Never set. --auth external is declared and not implemented yet: use --auth local or --auth none."
+    },
+    "localAuth": {
+      "type": "computed",
+      "value": "(auth == \"local\")"
+    },
+    "publicApi": {
+      "type": "computed",
+      "value": "(auth == \"none\")"
+    },
+    "refusedOptions": {
+      "type": "computed",
+      "value": "(auth == \"external\" || (auth == \"none\" && (examples != \"none\" || files)))"
+    },
     "files": {
       "type": "parameter",
       "datatype": "bool",
@@ -165,6 +233,41 @@
           ]
         },
         {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "Src/Application/AppTemplate.Application.Auth/**",
+            "Src/Infrastructure/AppTemplate.Infrastructure.Auth/**",
+            "Src/**/Features/Auth/**",
+            "Tests/Application/AppTemplate.Application.Auth.UnitTests/**",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Auth.UnitTests/**",
+            "Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/**",
+            "Tests/**/Features/Auth/**",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Auth/**",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AccountLockoutTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AdministratorPolicyTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AuthenticationProblemDetailsTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/DefaultDenyAuthorizationTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/LoginUniformityTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/PasswordPolicyTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RateLimitingTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RefreshTokenTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RequestLogRedactionTests.cs",
+            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/EmailTemplateCoverageTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/SecurityStampRotationTests.cs"
+          ]
+        },
+        {
+          "condition": "(publicApi)",
+          "exclude": [
+            "Src/Presentation/AppTemplate.Api/Common/OpenApi/OpenApiSecurityTransformer.cs",
+            "Src/Presentation/AppTemplate.Api/Common/Security/AuthorizationPolicies.cs",
+            "Src/Presentation/AppTemplate.Api/Features/Maintenance/Controllers/**",
+            "Src/Presentation/AppTemplate.Api/Features/Maintenance/Contracts/**",
+            "Src/Presentation/AppTemplate.Api/Features/Maintenance/Mapping/**",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Maintenance/Mapping/**"
+          ]
+        },
+        {
           "condition": "(!files)",
           "exclude": [
             "Src/**/Features/Files/**",
@@ -265,6 +368,11 @@
       "source": "./.template.config/variants/no-sonar/",
       "target": "./",
       "condition": "(!sonar)"
+    },
+    {
+      "source": "./.template.config/variants/refused/",
+      "target": "./",
+      "condition": "(refusedOptions)"
     }
   ],
   "primaryOutputs": [

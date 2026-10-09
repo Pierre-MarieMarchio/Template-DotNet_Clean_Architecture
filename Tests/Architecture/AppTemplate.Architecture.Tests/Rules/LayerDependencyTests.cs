@@ -201,6 +201,7 @@ public sealed class LayerDependencyTests
             }
         }
     }
+    //#if (localAuth)
 
     /// <summary>
     /// The half of "authentication is optional" that is actually true, and the one the split bought:
@@ -247,6 +248,7 @@ public sealed class LayerDependencyTests
                 "The mechanisms are the innermost thing in this layer; anything they learned would " +
                 "be learned by everything above them.");
     }
+    //#endif
 
     /// <summary>
     /// Proves the machinery behind <see cref="TheDomainLayer_DependsOnNothing"/> can fail.

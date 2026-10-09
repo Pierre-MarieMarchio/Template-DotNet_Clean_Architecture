@@ -139,7 +139,36 @@ internal static class NewFeature
             return 0;
         }
 
+        /*#if (!publicApi)*/
         return Run(args, Console.Out, Console.Error);
+        /*#else
+        // Both shapes this tool writes belong to a caller: owner scopes every operation to the
+        // caller's id, shared serves any authenticated caller. This project was generated with
+        // --auth none and has no caller to give them, so writing one into it would only produce a
+        // feature that refuses every request. Only this project is refused: a tree --root names
+        // elsewhere is another project, whose callers this one cannot speak for.
+        int rootOption = Array.IndexOf(args, "--root");
+        string target = rootOption >= 0 && rootOption + 1 < args.Length ? args[rootOption + 1] : ".";
+        string thisProject = Path.GetDirectoryName(Path.GetDirectoryName(ThisFile())!)!;
+
+        if (string.Equals(
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(target)),
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(thisProject)),
+            StringComparison.Ordinal))
+        {
+            Console.Error.WriteLine(
+                "This project was generated with --auth none: it authenticates nobody, and every "
+                + "feature this tool writes (--access owner or shared) needs an authenticated caller. "
+                + "Add an authentication scheme and an ICurrentUser that reads it before scaffolding a "
+                + "feature, or write a public feature by hand.");
+
+            return 1;
+        }
+
+        return Run(args, Console.Out, Console.Error);
+
+        static string ThisFile([System.Runtime.CompilerServices.CallerFilePath] string path = "") => path;
+        #endif*/
     }
 
     /// <summary>The whole command, over writers, so the self-test can run it against a throwaway tree.</summary>

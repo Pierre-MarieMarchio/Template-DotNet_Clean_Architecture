@@ -21,6 +21,17 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **A public API without the supplied accounts.** `dotnet new cleanarch-webapi` takes
+  `--auth local|external|none`, `local` by default. `none` generates no Auth projects or tests, no
+  account routes, no identity schema, migration, readiness check or development seed, no
+  refresh-token purge, no `Administrator` policy and so no maintenance endpoint, and no `Jwt`,
+  `Identity` or account-mail settings in configuration, Compose or the release workflow. Public
+  access is stated in `Program.cs` as a fallback policy that admits every caller, with no
+  authentication middleware; `ICurrentUser` answers no one, so an operation that needs a caller still
+  fails, and an `[Authorize]` endpoint errors rather than opens. `--auth none` refuses the examples
+  and `Files` at generation (`Missing mandatory option(s)`, naming the option to add), and
+  `Tools/NewFeature.cs` refuses to scaffold a feature in such a project. `external` is declared and
+  refused until it is implemented. The email module stays in every mode.
 - **Choosing the example features.** `dotnet new cleanarch-webapi` takes `--examples none|notes|all`,
   `all` by default. `all` generates `TodoLists`, `Reminders` and `Notes`; `notes` generates `Notes`
   only; `none` generates no example feature. `Reminders` needs `TodoLists` and comes only with

@@ -21,7 +21,9 @@ public sealed class MaintenanceInstrumentsTests
     public async Task RunningTask_RecordsAnIteration_EvenWhenNothingWasPurged()
     {
         var idempotency = new FakeIdempotencyPurge(count: 0);
+        //#if (localAuth)
         var refreshTokens = new FakeRefreshTokenPurge(count: 0);
+        //#endif
 
         // Concurrent, not a List, for the reason FileInstrumentsTests already records: the listener
         // below is enabled on a static meter, so it receives every measurement any thread in this
@@ -63,12 +65,21 @@ public sealed class MaintenanceInstrumentsTests
             PurgeExpiredIdempotencyKeysEnabled = true,
         };
 
+        /*#if (localAuth)*/
         using var service = MaintenanceJobsHarness.Create(idempotency, refreshTokens, options);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await BackgroundServiceProbe.WaitUntilAsync(
             () => idempotency.CallCount >= 1 && refreshTokens.CallCount >= 1,
             "both purges to have run once");
+        /*#else
+        using var service = MaintenanceJobsHarness.Create(idempotency, options);
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => idempotency.CallCount >= 1,
+            "the purge to have run once");
+        #endif*/
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         // No other fake in this project reports a success with zero purged, so a zero here can only
@@ -111,6 +122,7 @@ public sealed class MaintenanceInstrumentsTests
         });
         listener.Start();
 
+        /*#if (localAuth)*/
         var idempotency = new FakeIdempotencyPurge();
         var options = new MaintenanceWorkerOptions
         {
@@ -132,6 +144,24 @@ public sealed class MaintenanceInstrumentsTests
 
         iterationMeasurements.ShouldContain(m =>
             m.Task == "expired refresh-token grants" && m.Outcome == "disabled" && m.Value == 1);
+        /*#else
+        // The one task this project has, switched off: nothing runs, so what the loop records is
+        // the only sign it is alive.
+        var options = new MaintenanceWorkerOptions
+        {
+            Interval = _tinyInterval,
+            PurgeExpiredIdempotencyKeysEnabled = false,
+        };
+
+        using var service = MaintenanceJobsHarness.Create(new FakeIdempotencyPurge(), options);
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await BackgroundServiceProbe.WaitUntilAsync(
+            () => iterationMeasurements.Any(m =>
+                m.Task == "expired idempotency keys" && m.Outcome == "disabled" && m.Value == 1),
+            "the disabled purge to have recorded an iteration");
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        #endif*/
     }
 
 }

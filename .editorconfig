@@ -120,6 +120,7 @@ dotnet_diagnostic.S4136.severity = none
 # constructors are deliberately the whole surface.
 dotnet_diagnostic.CA1032.severity = none
 
+#if (localAuth)
 [Src/Application/AppTemplate.Application.Auth/Features/Auth/UseCases/Commands/SignInWithExternalProvider/SignInWithExternalProviderUseCase.cs]
 # S107 counts eight constructor parameters. They are eight distinct collaborators -- a token
 # verifier, the external-login store, accounts, access tokens, refresh grants, the two-factor
@@ -129,6 +130,7 @@ dotnet_diagnostic.CA1032.severity = none
 # `LayoutConventionTests` enforces and states the reason for.
 dotnet_diagnostic.S107.severity = none
 
+#endif
 #if (reminders)
 [Src/Application/AppTemplate.Application/Features/Reminders/UseCases/Commands/FireDueReminders/FireDueRemindersUseCase.cs]
 # S107 counts eight constructor parameters: the repository, the target queries, the notifier, the
@@ -158,6 +160,7 @@ dotnet_diagnostic.S3267.severity = none
 dotnet_diagnostic.S3267.severity = none
 
 #endif
+#if (localAuth)
 [Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Providers/EmailChangeTokenProvider.cs]
 # S6672 asks that an injected `ILogger<T>` name its enclosing type. The base class
 # `DataProtectorTokenProvider<AppUser>` declares its constructor parameter as
@@ -170,6 +173,7 @@ dotnet_diagnostic.S6672.severity = none
 # `DataProtectorTokenProvider<AppUser>`'s constructor, not chosen here.
 dotnet_diagnostic.S6672.severity = none
 
+#endif
 [Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Contexts/DefaultConnectionString.cs]
 # S2068 sees the word `password` in a string literal. The literal is the local compose database's
 # design-time fallback, documented as such three lines above it: it picks a provider when a

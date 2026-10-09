@@ -9,27 +9,16 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Inventories;
 
 /// <summary>
-/// <see cref="IFileContentInventory"/> over an S3-compatible object store, on the store's own
-/// listing call.
-/// <para>
-/// <b>The continuation token is the store's, passed back untouched.</b> It encodes where the walk
-/// stopped in a form only the store parses, and the sweep that reads this depends on the listing
-/// being ordered and resumable — so anything this adapter did to the token would be a second
-/// implementation of paging, disagreeing with the first at exactly the moment a page boundary falls
-/// between two keys.
-/// </para>
-/// <para>
-/// A listing carries no total, and the page below therefore has none: no object store will count its
-/// contents to answer one, which is why <see cref="PagedResult{TItem}"/>'s keyset half is the shape
-/// the port asks for.
-/// </para>
+/// <see cref="IFileContentInventory"/> over an S3-compatible bucket. <c>ListObjectsV2</c> answers in
+/// UTF-8 binary order and resumes from <c>StartAfter</c>, so a walk can resume from the last key it
+/// saw rather than from an opaque token that expires.
 /// </summary>
-internal sealed class S3FileContentInventory(IAmazonS3 client, IOptions<StorageOptions> options)
+internal sealed class S3FileContentInventory(IAmazonS3 client, IOptions<FilesStorageS3Options> options)
     : IFileContentInventory
 {
     public async Task<PagedResult<string>> ListKeysAsync(
         string prefix,
-        string? continuationToken,
+        string? startAfter,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
@@ -44,18 +33,15 @@ internal sealed class S3FileContentInventory(IAmazonS3 client, IOptions<StorageO
                 BucketName = options.Value.BucketName,
                 Prefix = prefix,
                 MaxKeys = pageSize,
-                ContinuationToken = continuationToken,
+                StartAfter = startAfter,
             },
             budget.Token);
 
-        // The token is only meaningful on a truncated page. S3 leaves it null when the walk is
-        // finished, but a compatible store echoing the previous one would put the caller in a loop
-        // that never ends and re-deletes the same page for ever.
-        string? nextCursor = response.IsTruncated is true ? response.NextContinuationToken : null;
+        List<string> keys = response.S3Objects is null ? [] : [.. response.S3Objects.Select(stored => stored.Key)];
 
-        return PagedResult.Keyset(KeysOf(response), pageSize, nextCursor);
+        // A cursor only on a truncated page that listed something: anything else could loop for ever.
+        string? nextCursor = response.IsTruncated is true && keys.Count > 0 ? keys[^1] : null;
+
+        return PagedResult.Keyset(keys, pageSize, nextCursor);
     }
-
-    private static List<string> KeysOf(ListObjectsV2Response response) =>
-        response.S3Objects is null ? [] : [.. response.S3Objects.Select(stored => stored.Key)];
 }

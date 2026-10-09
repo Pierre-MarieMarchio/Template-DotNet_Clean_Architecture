@@ -4,6 +4,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Infrastructure.Storage;
 using AppTemplate.Infrastructure.Storage.Common.Options;
 using Microsoft.Extensions.Configuration;
@@ -19,8 +20,8 @@ namespace AppTemplate.Api.IntegrationTests.Storage;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The adapters are reached through <see cref="IFileContentStore"/> and
-/// <see cref="IFileContentInventory"/> as <see cref="StorageModule.AddStorageModule"/> registers
+/// The adapters are reached through <see cref="IFileContentStore"/>, <see cref="IFileDirectTransfer"/>
+/// and <see cref="IFileContentInventory"/> as <see cref="StorageModule.AddStorageModule"/> registers
 /// them. They are <c>internal</c> and the module shares its internals with
 /// <c>AppTemplate.Infrastructure.Storage.UnitTests</c> alone, which is the right way round: what a
 /// use case depends on is the port, and a test naming the class could compose it with a client no
@@ -30,7 +31,7 @@ namespace AppTemplate.Api.IntegrationTests.Storage;
 /// <b>Presigning is arithmetic, and that is why the unit tests can assert the shape of a grant with
 /// no store at all.</b> Everything past the signature is a claim about a real store: that a URL this
 /// module signs is one MinIO accepts, that the headers named in the grant are the headers the
-/// signature covers, that a listing resumes where the token said. Nothing short of a store can
+/// signature covers, that a listing resumes after the key it was given. Nothing short of a store can
 /// answer those, and a stub would only agree with whatever this repository wrote it to say.
 /// </para>
 /// </remarks>
@@ -60,6 +61,8 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
 
     /// <summary>The store as a use case sees it.</summary>
     public IFileContentStore Content => Resolve<IFileContentStore>();
+
+    public IFileDirectTransfer Transfer => Resolve<IFileDirectTransfer>();
 
     public IFileContentInventory Inventory => Resolve<IFileContentInventory>();
 
@@ -189,13 +192,12 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
     /// <remarks>
     /// A second composition rather than a second container: what is under test is the name a
     /// signature is computed for, and one store answering under two names is exactly the deployment
-    /// <c>Storage:PublicEndpoint</c> exists for.
+    /// <c>Files:Storage:S3:PublicEndpoint</c> exists for.
     /// </remarks>
     public ServiceProvider ComposePublishingAt(string publicEndpoint) =>
         new ServiceCollection()
 
-            // The content inspector takes a logger, and this composition is the module whole rather
-            // than the two adapters the tests reach for.
+            // The module whole rather than the adapters the tests reach for.
             .AddLogging()
             .AddStorageModule(Configuration(publicEndpoint))
             .BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
@@ -244,29 +246,29 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
         new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
-                [$"{StorageOptions.SectionName}:BucketName"] = _bucketName,
+                [$"{FilesStorageS3Options.SectionName}:BucketName"] = _bucketName,
 
                 // The published port on this machine, which is also the endpoint every URL is signed
                 // for — see the class remarks on why the two being the same is a property of the test
                 // host rather than of the template.
-                [$"{StorageOptions.SectionName}:Endpoint"] = Endpoint,
+                [$"{FilesStorageS3Options.SectionName}:Endpoint"] = Endpoint,
 
                 // Empty for every suite but PublicEndpointTests, which is the point: the default has
                 // to be indistinguishable from the setting not existing.
-                [$"{StorageOptions.SectionName}:PublicEndpoint"] = publicEndpoint,
-                [$"{StorageOptions.SectionName}:Region"] = "us-east-1",
+                [$"{FilesStorageS3Options.SectionName}:PublicEndpoint"] = publicEndpoint,
+                [$"{FilesStorageS3Options.SectionName}:Region"] = "us-east-1",
 
                 // Required against any store reached by host and port: virtual-host addressing would
                 // resolve <bucket>.127.0.0.1, which nothing serves.
-                [$"{StorageOptions.SectionName}:ForcePathStyle"] = "true",
+                [$"{FilesStorageS3Options.SectionName}:ForcePathStyle"] = "true",
 
                 // Plain HTTP, and stated rather than inferred: Testcontainers usually maps the port
                 // onto loopback, where the validator allows http without asking, but a remote
                 // DOCKER_HOST publishes it somewhere else and the suite would then fail on
                 // configuration validation instead of on anything it means to assert.
-                [$"{StorageOptions.SectionName}:AllowInsecureTransport"] = "true",
-                [$"{StorageOptions.SectionName}:AccessKeyId"] = _credential,
-                [$"{StorageOptions.SectionName}:SecretAccessKey"] = _credential,
+                [$"{FilesStorageS3Options.SectionName}:AllowInsecureTransport"] = "true",
+                [$"{FilesStorageS3Options.SectionName}:AccessKeyId"] = _credential,
+                [$"{FilesStorageS3Options.SectionName}:SecretAccessKey"] = _credential,
             })
             .Build();
 

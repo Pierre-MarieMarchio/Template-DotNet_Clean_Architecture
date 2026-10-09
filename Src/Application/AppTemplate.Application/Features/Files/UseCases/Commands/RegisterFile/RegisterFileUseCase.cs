@@ -1,8 +1,9 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
+using AppTemplate.Application.Features.Files.Errors;
 using AppTemplate.Application.Features.Files.Policies;
-using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
@@ -24,13 +25,14 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 /// </para>
 /// <para>
 /// The quota is checked before anything is written, because the cost being refused is the grant
-/// rather than the row — see <see cref="StoredFileQuotaPolicy"/>.
+/// rather than the row — see <see cref="StoredFileQuotaPolicy"/>. A store that cannot sign refuses
+/// registration before anything is written too: its uploads go through the API instead.
 /// </para>
 /// </summary>
 public sealed class RegisterFileUseCase(
     IStoredFileRepository repository,
     IStoredFileQueries queries,
-    IFileContentStore content,
+    IFileDirectTransfer transfer,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     IDateTimeProvider dateTimeProvider,
@@ -64,6 +66,11 @@ public sealed class RegisterFileUseCase(
             return validation.To<RegisterFileOutcome>();
         }
 
+        if (!transfer.IsSupported)
+        {
+            return Result.Failure<RegisterFileOutcome>(StoredFileErrors.DirectUploadUnavailable());
+        }
+
         var usage = await queries.GetUsageForOwnerAsync(userId.Value, cancellationToken);
         var quota = StoredFileQuotaPolicy.EnsureRoomFor(usage, command.SizeInBytes);
 
@@ -92,7 +99,7 @@ public sealed class RegisterFileUseCase(
         repository.Add(storedFile);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var grant = await content.CreateUploadGrantAsync(
+        var grant = await transfer.CreateUploadGrantAsync(
             storedFile.ObjectKey.Value,
             storedFile.DeclaredMediaType.Value,
             storedFile.Size.Bytes,

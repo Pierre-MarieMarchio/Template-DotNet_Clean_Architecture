@@ -603,8 +603,8 @@ takes a `string` key and a `long` size, never an `ObjectKey` or a `FileSize` —
 `AppTemplate.Domain.Features`, and that refusal is what the word `Store` means here.
 The adapter lives in its own module, `AppTemplate.Infrastructure.Storage`, which
 follows the same nature-word vocabulary as everything else: `Common/{Budgets,
-Factories, Options}` and `Features/Files/{Inspectors, Inventories, Options, Scanners,
-Stores}`, one plural per nature of file and nothing else inside. A new infrastructure
+Factories, Options}` and `Features/Files/{Inventories, Options, Scanners, Stores,
+Transfers}`, one plural per nature of file and nothing else inside. A new infrastructure
 module of your own gets the same treatment — and so does a new project in any layer, because
 `LayoutConventionTests.EveryProjectOnDisk_HasAVocabularyOfItsOwn` reads every project under `Src/`
 off the disk rather than the infrastructure modules alone, and will not

@@ -67,7 +67,7 @@ AppTemplate.Infrastructure.Auth Common/{Contexts,Directories,Options}
                                 Migrations/   its own history, over the identity schema
 AppTemplate.Infrastructure.Email     Common/{Http,Smtp}          Features/<F>/
 AppTemplate.Infrastructure.Storage   Common/{Budgets,Factories,Options}
-                                     Features/Files/{Inspectors,Inventories,Options,Scanners,Stores}
+                                     Features/Files/{Inventories,Options,Scanners,Stores,Transfers}
 AppTemplate.Infrastructure.InMemory  Common/{Email,Time}         Features/<F>/
 AppTemplate.Presentation.Core   Common/{Jobs,Localization,Observability,Outbound,Security}
                                 no Features/: what any host needs whatever its transport

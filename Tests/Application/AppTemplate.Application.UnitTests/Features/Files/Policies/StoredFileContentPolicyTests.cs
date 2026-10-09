@@ -1,6 +1,6 @@
 ﻿using System.Text;
 using AppTemplate.Application.Features.Files.Policies;
-using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
+using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using Shouldly;
 using Xunit;
@@ -128,7 +128,7 @@ public sealed class StoredFileContentPolicyTests
     /// The evasion the markup search cannot catch, and the reason a second check exists.
     /// </summary>
     /// <remarks>
-    /// The search reads at most <c>ContentInspectionOutcome.MaxHeadBytes</c>, so a kibibyte of XML
+    /// The search reads at most <c>StoredFileContentPolicy.MaxHeadBytes</c>, so a kibibyte of XML
     /// comment in front of <c>&lt;svg</c> pushes the marker past everything anything ever reads —
     /// and raising the bound only moves the boundary. The head is truncated here exactly as the
     /// adapter truncates it, because a test that handed the policy the whole file would be asserting
@@ -139,10 +139,10 @@ public sealed class StoredFileContentPolicyTests
     {
         byte[] padded = Encoding.ASCII.GetBytes(
             "<?xml version=\"1.0\"?><!--"
-            + new string('p', ContentInspectionOutcome.MaxHeadBytes * 2)
+            + new string('p', StoredFileContentPolicy.MaxHeadBytes * 2)
             + "--><svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>");
 
-        var inspected = padded.AsMemory(0, ContentInspectionOutcome.MaxHeadBytes);
+        var inspected = padded.AsMemory(0, StoredFileContentPolicy.MaxHeadBytes);
 
         MediaTypeSignatures.IsScriptContainer(inspected.Span).ShouldBeFalse(
             "the premise of this test: within the prefix an adapter actually reads there is no " +
@@ -226,7 +226,8 @@ public sealed class StoredFileContentPolicyTests
     public void InfectedContent_IsQuarantined() =>
         StoredFileContentPolicy.Decide(
                 DeclaredMediaType.Create("image/png"),
-                new ContentInspectionOutcome(ContentInspectionStatus.Infected, _png, "Eicar-Test-Signature"))
+                FileScanOutcome.Infected("Eicar-Test-Signature"),
+                _png)
             .ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
@@ -239,7 +240,8 @@ public sealed class StoredFileContentPolicyTests
     public void ContentTheScannerRefusedToLookAt_IsQuarantined() =>
         StoredFileContentPolicy.Decide(
                 DeclaredMediaType.Create("image/png"),
-                new ContentInspectionOutcome(ContentInspectionStatus.NotInspectable, _png, null))
+                FileScanOutcome.NotInspectable,
+                _png)
             .ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
@@ -252,10 +254,8 @@ public sealed class StoredFileContentPolicyTests
     public void ContentThatCouldNotBeExaminedAtAll_IsRetriedRatherThanDecided() =>
         StoredFileContentPolicy.Decide(
                 DeclaredMediaType.Create("image/png"),
-                new ContentInspectionOutcome(
-                    ContentInspectionStatus.Unavailable,
-                    ReadOnlyMemory<byte>.Empty,
-                    null))
+                FileScanOutcome.Unavailable,
+                ReadOnlySpan<byte>.Empty)
             .ShouldBe(ContentDecision.Retry);
 
     /// <summary>
@@ -268,10 +268,8 @@ public sealed class StoredFileContentPolicyTests
     public void AnOutageIsNeverMistakenForAFailedTypeCheck() =>
         StoredFileContentPolicy.Decide(
                 DeclaredMediaType.Create("image/png"),
-                new ContentInspectionOutcome(
-                    ContentInspectionStatus.Unavailable,
-                    ReadOnlyMemory<byte>.Empty,
-                    null))
+                FileScanOutcome.Unavailable,
+                ReadOnlySpan<byte>.Empty)
             .ShouldNotBe(ContentDecision.Quarantine);
 
     #endregion
@@ -281,11 +279,9 @@ public sealed class StoredFileContentPolicyTests
     [Fact]
     public void ANullArgument_IsRejected()
     {
-        var clean = new ContentInspectionOutcome(ContentInspectionStatus.Clean, _png, null);
-
-        Should.Throw<ArgumentNullException>(() => StoredFileContentPolicy.Decide(null!, clean));
+        Should.Throw<ArgumentNullException>(() => StoredFileContentPolicy.Decide(null!, FileScanOutcome.Clean, _png));
         Should.Throw<ArgumentNullException>(
-            () => StoredFileContentPolicy.Decide(DeclaredMediaType.Create("image/png"), null!));
+            () => StoredFileContentPolicy.Decide(DeclaredMediaType.Create("image/png"), null!, _png));
     }
 
     #endregion
@@ -293,7 +289,8 @@ public sealed class StoredFileContentPolicyTests
     private static ContentDecision Decide(string declaredMediaType, ReadOnlyMemory<byte> head) =>
         StoredFileContentPolicy.Decide(
             DeclaredMediaType.Create(declaredMediaType),
-            new ContentInspectionOutcome(ContentInspectionStatus.Clean, head, null));
+            FileScanOutcome.Clean,
+            head.Span);
 
     private static byte[] HeadFor(string mediaType) => mediaType switch
     {

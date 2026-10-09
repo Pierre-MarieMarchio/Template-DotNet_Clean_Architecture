@@ -10,7 +10,7 @@ using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Dtos;
 using AppTemplate.Application.Features.Files.Errors;
-using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUpload;
 using AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
@@ -131,7 +131,11 @@ public sealed class FilesControllerTests
         var httpContext = AContext();
 
         _issueFileDownload.ExecuteAsync(Arg.Any<IssueFileDownloadQuery>(), Arg.Any<CancellationToken>())
-            .Returns(new IssuedDownloadGrant(url, _registeredAt.AddMinutes(5)));
+            .Returns(FileDownload.RedirectTo(
+                new IssuedDownloadGrant(url, _registeredAt.AddMinutes(5)),
+                "report.pdf",
+                "application/pdf",
+                3));
 
         var action = await AController(httpContext).GetContent(Guid.CreateVersion7(), TestContext.Current.CancellationToken);
 
@@ -139,6 +143,33 @@ public sealed class FilesControllerTests
 
         httpContext.Response.StatusCode.ShouldBe(StatusCodes.Status302Found);
         httpContext.Response.Headers.Location.ToString().ShouldBe(url);
+    }
+
+    /// <summary>
+    /// A store that cannot sign: the bytes come back as the body, offered as an attachment under the
+    /// file's own name, with the declared type and <c>nosniff</c> — a browser never renders what the
+    /// uploader chose.
+    /// </summary>
+    [Fact]
+    public async Task GetContent_StreamsTheBytesAsAnAttachment_WhenTheStoreCannotSign()
+    {
+        var httpContext = AContext();
+        var content = new MemoryStream([1, 2, 3]);
+
+        _issueFileDownload.ExecuteAsync(Arg.Any<IssueFileDownloadQuery>(), Arg.Any<CancellationToken>())
+            .Returns(FileDownload.Streamed(content, "rapport été.pdf", "application/pdf", 3));
+
+        var action = await AController(httpContext).GetContent(Guid.CreateVersion7(), TestContext.Current.CancellationToken);
+
+        var file = action.ShouldBeOfType<FileStreamResult>();
+        file.FileStream.ShouldBeSameAs(content);
+        file.ContentType.ShouldBe("application/pdf");
+        file.FileDownloadName.ShouldBeNullOrEmpty(
+            "the disposition is written by DownloadDispositionPolicy, the same one a signed URL carries; "
+            + "a FileDownloadName would make MVC write a second one.");
+        httpContext.Response.Headers.ContentDisposition.ToString().ShouldBe(
+            "attachment; filename=\"rapport _t_.pdf\"; filename*=UTF-8''rapport%20%C3%A9t%C3%A9.pdf");
+        httpContext.Response.Headers.XContentTypeOptions.ToString().ShouldBe("nosniff");
     }
 
     /// <summary>
@@ -164,7 +195,7 @@ public sealed class FilesControllerTests
         var fileId = Guid.CreateVersion7();
 
         _issueFileDownload.ExecuteAsync(Arg.Any<IssueFileDownloadQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<IssuedDownloadGrant>(StoredFileErrors.FileNotFound(fileId)));
+            .Returns(Result.Failure<FileDownload>(StoredFileErrors.FileNotFound(fileId)));
 
         var action = await AController().GetContent(fileId, TestContext.Current.CancellationToken);
 
@@ -181,7 +212,7 @@ public sealed class FilesControllerTests
         var fileId = Guid.CreateVersion7();
 
         _issueFileDownload.ExecuteAsync(Arg.Any<IssueFileDownloadQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<IssuedDownloadGrant>(StoredFileErrors.FileNotAvailable(fileId)));
+            .Returns(Result.Failure<FileDownload>(StoredFileErrors.FileNotAvailable(fileId)));
 
         var action = await AController().GetContent(fileId, TestContext.Current.CancellationToken);
 

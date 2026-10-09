@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Policies;
-using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 using AppTemplate.Application.UnitTests.TestDoubles;
@@ -27,7 +27,7 @@ public sealed class RegisterFileUseCaseTests
 
     private readonly IStoredFileRepository _repository = Substitute.For<IStoredFileRepository>();
     private readonly IStoredFileQueries _queries = Substitute.For<IStoredFileQueries>();
-    private readonly IFileContentStore _content = Substitute.For<IFileContentStore>();
+    private readonly IFileDirectTransfer _transfer = Substitute.For<IFileDirectTransfer>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     public RegisterFileUseCaseTests()
@@ -35,7 +35,9 @@ public sealed class RegisterFileUseCaseTests
         _queries.GetUsageForOwnerAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
             .Returns(new OwnerStorageUsage(0, 0, 0, 0));
 
-        _content.CreateUploadGrantAsync(
+        _transfer.IsSupported.Returns(true);
+
+        _transfer.CreateUploadGrantAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<long>(),
@@ -70,7 +72,36 @@ public sealed class RegisterFileUseCaseTests
 
         _repository.DidNotReceive().Add(Arg.Any<StoredFile>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
-        await _content.DidNotReceive().CreateUploadGrantAsync(
+        await _transfer.DidNotReceive().CreateUploadGrantAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<long>(),
+            Arg.Any<string>(),
+            Arg.Any<TimeSpan>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    #endregion
+
+    #region A store that cannot sign
+
+    /// <summary>
+    /// A store without direct transfer refuses registration before anything is written: a row with
+    /// no way to deposit against it would only wait for the abandonment sweep.
+    /// </summary>
+    [Fact]
+    public async Task AStoreThatCannotSign_RefusesRegistrationAndWritesNothing()
+    {
+        _transfer.IsSupported.Returns(false);
+
+        var result = await UseCase().ExecuteAsync(ACommand(), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Conflict);
+        result.Error.Code.ShouldBe("storedFile.directUploadUnavailable");
+        _repository.DidNotReceive().Add(Arg.Any<StoredFile>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _transfer.DidNotReceive().CreateUploadGrantAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<long>(),
@@ -107,7 +138,7 @@ public sealed class RegisterFileUseCaseTests
 
         await UseCase().ExecuteAsync(ACommand(), TestToken);
 
-        await _content.DidNotReceive().CreateUploadGrantAsync(
+        await _transfer.DidNotReceive().CreateUploadGrantAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<long>(),
@@ -253,7 +284,7 @@ public sealed class RegisterFileUseCaseTests
             return 1;
         });
 
-        _content.CreateUploadGrantAsync(
+        _transfer.CreateUploadGrantAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<long>(),
@@ -286,7 +317,7 @@ public sealed class RegisterFileUseCaseTests
         await UseCase().ExecuteAsync(ACommand(), TestToken);
 
         staged.ShouldNotBeNull();
-        await _content.Received(1).CreateUploadGrantAsync(
+        await _transfer.Received(1).CreateUploadGrantAsync(
             staged.ObjectKey.Value,
             AStoredFile.MediaType,
             AStoredFile.SizeInBytes,
@@ -315,7 +346,7 @@ public sealed class RegisterFileUseCaseTests
     {
         await UseCase().ExecuteAsync(ACommand(), TestToken);
 
-        await _content.Received(1).CreateUploadGrantAsync(
+        await _transfer.Received(1).CreateUploadGrantAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<long>(),
@@ -334,7 +365,7 @@ public sealed class RegisterFileUseCaseTests
     private RegisterFileUseCase UseCaseFor(ICurrentUser currentUser) => new(
         _repository,
         _queries,
-        _content,
+        _transfer,
         _unitOfWork,
         currentUser,
         new StubDateTimeProvider(),

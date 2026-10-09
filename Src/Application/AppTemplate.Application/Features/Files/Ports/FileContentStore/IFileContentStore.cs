@@ -1,82 +1,50 @@
 ﻿namespace AppTemplate.Application.Features.Files.Ports.FileContentStore;
 
 /// <summary>
-/// The object store, as this application uses it: mint a right to write one object, mint a right to
-/// read one object, say what is actually under a key, and remove it.
+/// The bytes of stored files, addressed by object key: write one object, read it, describe it,
+/// remove it.
 /// <para>
-/// <b>It never carries a byte, in either direction.</b> The client deposits directly against a
-/// signed URL this port produces and comes back to confirm; reading answers with a right, not with
-/// content. See <c>SECURITY.md</c> for what makes routing an upload through this process untenable.
-/// </para>
-/// <para>
-/// <b>A grant is a bearer right.</b> Whoever holds the URL can use it, so nothing about it is a
-/// substitute for the ownership check a use case makes before asking for one, and every lifetime
-/// passed here is short. The decision about who may read a file belongs to the domain; this port
-/// only knows how to express a decision already made.
-/// </para>
-/// <para>
-/// <b>No signature here names a type from <c>AppTemplate.Domain.Features</c>, deliberately.</b>
-/// The word <c>Store</c> promises storage with no aggregate behind it — see
-/// <c>docs/DECISIONS.md</c>'s four storage words — so this speaks in <see cref="string"/>,
-/// <see cref="long"/> and the records beside it. An adapter for it needs no reference to the domain
-/// at all, and <c>StorageVocabularyTests</c> is what holds that.
-/// </para>
-/// <para>
-/// Four operations is the ceiling <c>PortConventionTests</c> imposes, and this port is at it. A
-/// fifth capability — listing what the store holds — is <see cref="FileContentInventory.IFileContentInventory"/>
-/// precisely because there was no room to pretend it was part of this one.
+/// No signature names a domain type: a <c>Store</c> has no aggregate behind it
+/// (<c>StorageVocabularyTests</c>). Signed URLs are a separate capability,
+/// <see cref="FileDirectTransfer.IFileDirectTransfer"/>, which not every store has.
 /// </para>
 /// </summary>
 public interface IFileContentStore
 {
     /// <summary>
-    /// A right to deposit the bytes of one object, valid for <paramref name="lifetime"/>.
+    /// Stores <paramref name="content"/> under <paramref name="objectKey"/>, provided it is exactly
+    /// <paramref name="sizeInBytes"/> long and has the SHA-256 <paramref name="sha256Hex"/>.
+    /// <para>
+    /// Atomic: on <see cref="ContentWriteOutcome.ContentMismatch"/>, or when the call throws,
+    /// nothing is stored under the key. Writing a key twice leaves one object; since a key is bound
+    /// to one declared digest, it holds the same bytes either way.
+    /// </para>
     /// </summary>
-    /// <param name="declaredMediaType">Bound into the grant so the deposit cannot claim a different
-    /// one. It is still only a claim about the bytes — nothing here reads them.</param>
-    /// <param name="sizeInBytes">Bound into the grant as well, so a client that declared one size
-    /// and deposits another is refused by the store rather than at confirmation.</param>
-    /// <param name="declaredSha256">
-    /// The SHA-256 the client said the content has, as 64 hexadecimal characters. Bound into the
-    /// grant, which is what makes it authorise <em>one</em> deposit of <em>one</em> body: a store that
-    /// is told the digest refuses content that does not match it, so a grant cannot be replayed with
-    /// different bytes after the file has been inspected and released. It is also what lets
-    /// <see cref="DescribeAsync"/> answer with a digest at all — a store asked only for an algorithm
-    /// records nothing.
-    /// </param>
-    Task<IssuedUploadGrant> CreateUploadGrantAsync(
+    /// <param name="sha256Hex">The declared digest, 64 hexadecimal characters.</param>
+    Task<ContentWriteOutcome> WriteAsync(
         string objectKey,
+        Stream content,
         string declaredMediaType,
         long sizeInBytes,
-        string declaredSha256,
-        TimeSpan lifetime,
+        string sha256Hex,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// A right to read one object, valid for <paramref name="lifetime"/>.
+    /// Opens the object for reading. The caller owns and disposes the stream.
     /// </summary>
-    /// <param name="downloadFileName">Offered to the client as the name to save under. It is a
-    /// label the user chose and it addresses nothing: <paramref name="objectKey"/> is what names the
-    /// object.</param>
-    Task<IssuedDownloadGrant> CreateDownloadGrantAsync(
-        string objectKey,
-        string downloadFileName,
-        string declaredMediaType,
-        TimeSpan lifetime,
-        CancellationToken cancellationToken = default);
+    /// <returns><c>null</c> when nothing is stored under the key.</returns>
+    Task<Stream?> OpenReadAsync(string objectKey, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// What is really stored under a key. This is the only fact in the whole feature that does not
-    /// come from the client, which is why confirmation is worth anything at all.
+    /// What is really stored under a key: the store's own measurement, never the client's claim,
+    /// which is what makes confirmation worth anything.
     /// </summary>
-    /// <returns><c>null</c> when nothing is stored under that key — a deposit that never happened,
-    /// or one already reclaimed.</returns>
+    /// <returns><c>null</c> when nothing is stored under that key.</returns>
     Task<StoredObjectDescription?> DescribeAsync(string objectKey, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Removes the object. Deleting one that is not there must succeed silently: both the fast path
-    /// that reacts to a deletion and the sweep that reclaims unreferenced bytes may reach the same
-    /// key, and neither is coordinated with the other.
+    /// Removes the object. Idempotent: deleting a key that holds nothing succeeds, because the
+    /// deletion consumer and the orphan sweep may both reach the same key.
     /// </summary>
     Task DeleteAsync(string objectKey, CancellationToken cancellationToken = default);
 }

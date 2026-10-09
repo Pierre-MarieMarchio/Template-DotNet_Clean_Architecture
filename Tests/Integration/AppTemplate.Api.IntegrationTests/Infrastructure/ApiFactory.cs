@@ -9,7 +9,6 @@ using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Email.Common.Smtp;
 using AppTemplate.Infrastructure.InMemory;
-using AppTemplate.Infrastructure.Storage.Common.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -195,7 +194,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             // Same reasoning as the email section above: InMemoryModule replaces the content store,
             // and ValidateOnStart still runs against whatever this section holds. A bucket name is
             // the only required value, and no object is ever addressed under it here.
-            [$"{StorageOptions.SectionName}__BucketName"] = "apptemplate-integration-tests",
+            ["Files__Storage__S3__BucketName"] = "apptemplate-integration-tests",
 
             // Information, because a test asserts on a log the product's domain-event consumer
             // writes at that level. The two noisiest categories are turned down.

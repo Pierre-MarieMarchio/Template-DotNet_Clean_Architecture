@@ -1,13 +1,15 @@
 ﻿using Amazon.S3;
-using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
+using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Infrastructure.Storage.Common.Factories;
 using AppTemplate.Infrastructure.Storage.Common.Options;
-using AppTemplate.Infrastructure.Storage.Features.Files.Inspectors;
 using AppTemplate.Infrastructure.Storage.Features.Files.Inventories;
 using AppTemplate.Infrastructure.Storage.Features.Files.Options;
+using AppTemplate.Infrastructure.Storage.Features.Files.Scanners;
 using AppTemplate.Infrastructure.Storage.Features.Files.Stores;
+using AppTemplate.Infrastructure.Storage.Features.Files.Transfers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -15,37 +17,27 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Infrastructure.Storage;
 
 /// <summary>
-/// Composes object storage: two options types, two validators, two clients, three adapters.
+/// Composes how this application reaches a file's bytes: the store chosen by
+/// <c>Files:Storage:Provider</c>, its inventory and direct-transfer capability, and the malware
+/// scanner. The half of the Files feature that lives in a database is the persistence module's; the
+/// two meet only in a use case.
 /// <para>
-/// This module has one reason to change — <b>how this application reaches a file's bytes</b>. It is
-/// the half of the Files feature that is not in the database, and it shares nothing with the half
-/// that is: the aggregate is loaded through a repository in
-/// <c>AppTemplate.Infrastructure.Persistence</c>, the bytes are reached through the three ports
-/// registered here, and the only place the two meet is a use case. That is what the port boundary
-/// buys, and why swapping S3 for another store is a change inside this project.
-/// </para>
-/// <para>
-/// <b>The content inspector is here rather than in a module of its own</b>, and that is the same
-/// reason rather than a widening of it: examining a file means opening it, which means this bucket,
-/// these credentials and this budget. A module beside this one would need its own copy of all three
-/// — only the persistence project may be shared between infrastructure modules — and the seam that
-/// would let it borrow them would be an application port no use case consumes, which
-/// <c>PortConventionTests</c> refuses. The malware daemon it may also talk to is a collaborator of
-/// one adapter, not a second reason for this module to exist.
+/// The scanner is here because scanning a file means reading this store; a module beside this one
+/// would need its own copy of the configuration that reaches it.
 /// </para>
 /// </summary>
 public static class StorageModule
 {
     /// <summary>
-    /// Registers the S3 adapters behind <see cref="IFileContentStore"/>,
-    /// <see cref="IFileContentInventory"/> and <see cref="IFileContentInspector"/>.
+    /// Registers <see cref="IFileContentStore"/>, <see cref="IFileContentInventory"/>,
+    /// <see cref="IFileDirectTransfer"/> and <see cref="IFileContentScanner"/>.
     /// </summary>
     /// <param name="services">The container being composed.</param>
-    /// <param name="configuration">Must supply the <c>Storage</c> section; it is validated at
-    /// start-up, so a bucket nobody can sign for stops the process from booting rather than failing
-    /// on the first file anyone registers. The <c>ContentInspection</c> section is optional in its
-    /// entirety — see <see cref="ContentInspectionOptions"/> for what a deployment that supplies
-    /// none of it gets.</param>
+    /// <param name="configuration">
+    /// Supplies <c>Files:Storage</c> and <c>Files:Scanning</c>. Only the chosen provider's section is
+    /// bound and validated at start-up, so a misconfigured store stops the process from booting
+    /// rather than failing on the first file.
+    /// </param>
     public static IServiceCollection AddStorageModule(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -53,34 +45,82 @@ public static class StorageModule
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddOptions<StorageOptions>()
-            .Bind(configuration.GetSection(StorageOptions.SectionName))
+        services.AddOptions<FilesStorageOptions>()
+            .Bind(configuration.GetSection(FilesStorageOptions.SectionName))
             .ValidateOnStart();
-        services.AddSingleton<IValidateOptions<StorageOptions>, StorageOptionsValidator>();
+        services.AddSingleton<IValidateOptions<FilesStorageOptions>, FilesStorageOptionsValidator>();
 
-        services.AddOptions<ContentInspectionOptions>()
-            .Bind(configuration.GetSection(ContentInspectionOptions.SectionName))
+        // Read now, because it decides what is registered; an unknown provider is refused at start-up
+        // by the validator above.
+        var storage = configuration.GetSection(FilesStorageOptions.SectionName).Get<FilesStorageOptions>()
+            ?? new FilesStorageOptions();
+
+        if (storage.UsesFileSystem)
+        {
+            AddFileSystemStore(services, configuration);
+        }
+        else
+        {
+            AddS3Store(services, configuration);
+        }
+
+        AddScanner(services, configuration);
+
+        return services;
+    }
+
+    private static void AddS3Store(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<FilesStorageS3Options>()
+            .Bind(configuration.GetSection(FilesStorageS3Options.SectionName))
             .ValidateOnStart();
-        services.AddSingleton<IValidateOptions<ContentInspectionOptions>, ContentInspectionOptionsValidator>();
+        services.AddSingleton<IValidateOptions<FilesStorageS3Options>, FilesStorageS3OptionsValidator>();
 
-        // One client for the process: it is thread-safe and owns a connection pool and a retry
-        // schedule, which a second one would double.
+        // One client for the process: it owns a connection pool and a retry schedule.
         services.AddSingleton<IAmazonS3>(provider =>
-            BucketClientFactory.Create(provider.GetRequiredService<IOptions<StorageOptions>>().Value));
+            BucketClientFactory.Create(provider.GetRequiredService<IOptions<FilesStorageS3Options>>().Value));
 
-        // A second client, for presigning only. Storage:PublicEndpoint may name a host this process
-        // never connects to, and a Signature Version 4 URL covers the host it was signed for, so the
-        // name has to be right at signing time. It doubles no pool: presigning is a local hash and
-        // opens no socket. Keyed, because the two differ only by endpoint.
+        // A second client for presigning only, on the public endpoint: a SigV4 URL covers the host it
+        // was signed for. It opens no connection.
         services.AddKeyedSingleton<IAmazonS3>(
             BucketClientFactory.SigningClientKey,
             (provider, _) =>
-                BucketClientFactory.CreateForSigning(provider.GetRequiredService<IOptions<StorageOptions>>().Value));
+                BucketClientFactory.CreateForSigning(provider.GetRequiredService<IOptions<FilesStorageS3Options>>().Value));
 
         services.AddScoped<IFileContentStore, S3FileContentStore>();
         services.AddScoped<IFileContentInventory, S3FileContentInventory>();
-        services.AddScoped<IFileContentInspector, S3FileContentInspector>();
+        services.AddScoped<IFileDirectTransfer, S3FileDirectTransfer>();
+    }
 
-        return services;
+    private static void AddFileSystemStore(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<FilesStorageFileSystemOptions>()
+            .Bind(configuration.GetSection(FilesStorageFileSystemOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<FilesStorageFileSystemOptions>, FilesStorageFileSystemOptionsValidator>();
+
+        services.AddScoped<IFileContentStore, FileSystemFileContentStore>();
+        services.AddScoped<IFileContentInventory, FileSystemFileContentInventory>();
+        services.AddScoped<IFileDirectTransfer, FileSystemFileDirectTransfer>();
+    }
+
+    private static void AddScanner(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<FilesScanningOptions>()
+            .Bind(configuration.GetSection(FilesScanningOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<FilesScanningOptions>, FilesScanningOptionsValidator>();
+
+        bool enabled = configuration.GetSection(FilesScanningOptions.SectionName)
+            .GetValue<bool>(nameof(FilesScanningOptions.Enabled));
+
+        if (enabled)
+        {
+            services.AddScoped<IFileContentScanner, ClamAvFileContentScanner>();
+        }
+        else
+        {
+            services.AddScoped<IFileContentScanner, NoOpFileContentScanner>();
+        }
     }
 }

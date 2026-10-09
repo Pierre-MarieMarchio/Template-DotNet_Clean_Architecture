@@ -77,14 +77,14 @@ public sealed class ReclaimOrphanedContentUseCase(
     {
         int reclaimed = 0;
         int pages = 0;
-        string? continuationToken = null;
+        string? startAfter = null;
 
         do
         {
-            var page = await inventory.ListKeysAsync(_prefix, continuationToken, _pageSize, cancellationToken);
+            var page = await inventory.ListKeysAsync(_prefix, startAfter, _pageSize, cancellationToken);
 
             pages++;
-            continuationToken = page.NextCursor;
+            startAfter = page.NextCursor;
 
             if (page.Items.Count == 0)
             {
@@ -105,9 +105,9 @@ public sealed class ReclaimOrphanedContentUseCase(
                 reclaimed++;
             }
         }
-        while (continuationToken is not null && pages < _maxPagesPerPass);
+        while (startAfter is not null && pages < _maxPagesPerPass);
 
-        if (continuationToken is not null && logger.IsEnabled(LogLevel.Information))
+        if (startAfter is not null && logger.IsEnabled(LogLevel.Information))
         {
             // Worth saying out loud: a pass that stopped short did not finish the store, and a
             // steady stream of these means the bucket has outgrown one pass rather than that

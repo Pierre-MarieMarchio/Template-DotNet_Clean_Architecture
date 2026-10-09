@@ -129,7 +129,7 @@ internal static class MediaTypeSignatures
     /// <remarks>
     /// <para>
     /// <b>This is what makes the search above unevadable, and it is why the two exist together.</b>
-    /// <see cref="IsScriptContainer"/> reads a bounded prefix — <c>ContentInspectionOutcome.MaxHeadBytes</c>
+    /// <see cref="IsScriptContainer"/> reads a bounded prefix — <c>StoredFileContentPolicy.MaxHeadBytes</c>
     /// — so an author who puts a kibibyte of XML comment in front of <c>&lt;svg</c> pushes the marker
     /// past the end of what anything ever reads, and the file is released. Raising the bound only
     /// moves the boundary; there is always one more byte of padding.

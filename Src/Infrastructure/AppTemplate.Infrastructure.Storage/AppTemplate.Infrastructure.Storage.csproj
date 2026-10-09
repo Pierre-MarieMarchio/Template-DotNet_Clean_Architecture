@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- One bucket, two adapters. The module references AppTemplate.Application for the ports it
-       satisfies and no other infrastructure module — not even the persistence project, which it has
-       no reason to reach: the half of the Files feature that lives in a database is behind a
-       repository somebody else implements, and the two halves meet in a use case rather than here. -->
+  <!-- The Files feature's bytes: an S3-compatible or local file system store, chosen by
+       configuration, and the malware scanner. References AppTemplate.Application for the ports it
+       satisfies and no other infrastructure module: the database half of the feature is behind a
+       repository somebody else implements, and the two halves meet in a use case. -->
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />

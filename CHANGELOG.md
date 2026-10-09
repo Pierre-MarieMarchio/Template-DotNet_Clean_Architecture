@@ -109,6 +109,16 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `Tools/sonar-scanner.Dockerfile` supplies the JRE the scanner needs, so the prerequisites are
   still the SDK and Docker.
 
+- **`dotnet run Tools/Tasks.cs remove-feature Widgets` reports what removing a feature involves, and `--apply` undoes an untouched generated one.**
+  The report lists the files the feature owns, what elsewhere is confirmed to depend on it (a registration,
+  an EF model configuration, a migration or the snapshot, a use of its types or namespace), what only
+  contains its name, and the checks to run afterwards; it writes nothing and can be run on a dirty tree.
+  `--apply` reads the manifest `new-feature` wrote and deletes the listed files, the manifest and the
+  folders left empty, only when every file still hashes as written, nothing was added to the feature's
+  generated folders, and none of the six hand edits the generator prints has been made. Otherwise it
+  refuses before deleting anything. A migration is never touched, and a feature with no manifest, such as
+  a shipped example, is only reported. Its `--self-test` generates features with the real generator and
+  removes them, with the other hygiene gates.
 - **A feature generator with four choices: `dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared`.**
   `--access owner|shared` is required; `--operations` (default all five), `--model record|aggregate`
   (default `record`) and `--concurrency none|etag` (default `none`, last-write-wins) are the rest. The

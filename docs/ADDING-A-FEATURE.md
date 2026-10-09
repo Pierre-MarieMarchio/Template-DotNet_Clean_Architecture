@@ -22,6 +22,34 @@ singular** — `TodoList`, `Reminder`, `StoredFile`. Folders under `Features/` c
 feature; file and type names carry the aggregate. `TodoListErrors` lives in
 `Features/TodoLists/Errors/`, and nothing in the tree is called `TodoListsErrors`.
 
+## Choose the shape first
+
+**Does the feature have rules that protect a state?** A forbidden transition, uniqueness within a
+collection, a cap, a consistency between fields. The answer decides the shape, and nothing else does
+— not how many operations the feature has, not whether it is owned, not whether it is versioned.
+
+| | Simple feature (no state to protect) | Rich feature (state to protect) |
+|---|---|---|
+| Example | `Notes` | `TodoLists` (and `Reminders`, `Files`) |
+| Domain | nothing | aggregate, value objects, events |
+| Application | one service (`INoteService`, one method per operation) over a store port and a queries port | one use case per operation, a repository port in the domain, a queries port |
+| Persistence | the EF record is the model; the store projects to DTOs | record, mapper and tracker, so the domain stays free of EF |
+| Validation | FluentValidation | FluentValidation, and the domain's invariants |
+| Commit | `IUnitOfWork` | `IUnitOfWork`, the same boundary |
+
+Both are first-class. Neither is the old way, and neither is the shortcut: giving an aggregate to a
+feature that has no rule makes it pay for a mapper, a tracker and a repository to guard nothing, and
+giving a service to one that has a rule leaves the rule nowhere to live. Three things hold in both
+shapes — CQS (a read stages and commits nothing; separate read and write methods are enough, two
+models are not required), the commit boundary, and the modular rule (a feature reaches another only
+through that feature's ports and events).
+
+The question is also the way out. A simple feature that acquires a rule moves to the rich shape by
+the path in [section 8](#8-from-simple-to-rich--the-promotion-path), which is the only bridge between
+them. Sections 1 to 6 below build the rich shape with `TodoLists`; [section 7](#7-the-simple-shape--the-notes-example)
+builds the simple one with `Notes`. **The scaffolder below writes the rich shape only**; for a
+simple feature, copy `Notes`.
+
 **There is a scaffolder, and it writes the shape so this document can be about the thinking.**
 
 ```bash
@@ -34,7 +62,11 @@ nobody stated. **It creates files and edits none**, because registration is opt-
 precisely so that a feature nobody composes is visibly registered nowhere; it prints the five edits
 instead. Read the sections below for what to put in what it wrote.
 
-**The vertical, in order**
+**Which shape**
+
+- [Choose the shape first](#choose-the-shape-first) — the one question, and what each answer builds
+
+**The vertical, in order** (the rich shape)
 
 1. [Domain — the aggregate](#1-domain--the-aggregate)
 2. [Application — the use case and its port](#2-application--the-use-case-and-its-port)
@@ -50,6 +82,11 @@ instead. Read the sections below for what to put in what it wrote.
 - [It shares, caches, or runs on a timer](#4d-when-the-feature-shares-caches-or-runs-on-a-timer)
 - [The closed lists a new feature lands in](#5b-the-closed-lists-a-new-feature-lands-in) — the
   dictionaries that fail the build until they name your feature
+
+**When the feature has no state to protect**
+
+- [The simple shape — the `Notes` example](#7-the-simple-shape--the-notes-example)
+- [From simple to rich — the promotion path](#8-from-simple-to-rich--the-promotion-path)
 
 ## 1. Domain — the aggregate
 
@@ -711,6 +748,121 @@ result here is not on its own evidence that your table exists.
 [`MIGRATIONS.md`](MIGRATIONS.md) is the whole subject, both contexts: why the API applies migrations
 at startup only in Development, and what a deployment does instead. `SECURITY.md` says what it owes
 beyond the mechanics.
+
+## 7. The simple shape — the `Notes` example
+
+`Notes` has no domain folder at all. A note is a title and a body with an owner and a version, and
+its only rules are limits on input: a title is required and bounded, a body is bounded. A limit on
+input is validation, not state to protect, so the feature is a service over storage.
+
+`Src/Application/AppTemplate.Application/Features/Notes/`
+
+```
+Dtos/                   NoteDto, NoteSummaryDto (what is read); NoteContentDto, NoteListQueryDto (what the service is given)
+Errors/                 NoteErrors — note.notFound
+Policies/               NoteInputPolicy (the length limits), NoteCollectionPolicy (the sort whitelist)
+Ports/NoteQueries/      INoteQueries, NoteFilter — the reads, projected to DTOs
+Ports/NoteStore/        INoteStore, NoteChangeStatus — the writes, which only stage
+Services/               INoteService, NoteService — one method per operation
+Validators/             NoteContentDtoValidator
+```
+
+- **One service, one method per operation** — `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`,
+  `DeleteAsync` — behind an interface, because an entry point keeps its interface in both shapes.
+  The service reads `ICurrentUser` itself and no method takes an owner, so no caller can name
+  somebody else's. An anonymous caller is `auth.required` before storage is touched.
+- **The owner never comes from the body.** `NoteContentDto` is the title and the body and nothing
+  else; the id comes from the route and the owner from the caller.
+- **A missing note and a foreign one are one answer.** Every `INoteStore` and `INoteQueries` method
+  names the owner and scopes to it, so there is no row to read first and compare afterwards.
+- **Validation is FluentValidation** on `NoteContentDto`, measured after trimming because that is
+  what is stored. `ApplicationModule.AddFeature` discovers the validator by its namespace, as it
+  does for every vertical.
+- **Reads stage nothing.** The write half of storage is its own port because a port is one
+  capability and an architecture rule caps it at four operations; `INoteStore` only stages, and the
+  service commits through `IUnitOfWork`. The version is assigned by the database, so a write's
+  answer is read back rather than assembled.
+
+`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Notes/`
+
+```
+Models/NoteRecord.cs                 the row, and the only model there is
+Configurations/NoteRecordConfiguration.cs
+Queries/NoteQueries.cs, NoteSortMap.cs
+Stores/NoteStore.cs
+```
+
+`NoteRecord` is not `IAuditable`: the service sets the two instants, so the business context's audit
+interceptor has nothing to stamp, and no tracker or event source holds a note, so its flush and
+dispatch interceptors have nothing to act on either. `NoteStore` takes the `AppDbContext` and
+nothing else — no mapper, no tracker. The edits in the context are the usual three (the
+`NotesSchema` constant, the `Notes` `DbSet`, the `ApplyConfiguration` call), and
+`PersistenceModule.AddNotesFeature` registers the store and the queries.
+
+**How a stale write is refused.** The `xmin` column is the concurrency token. `INoteStore` loads the
+owner's row tracked, compares the caller's `If-Match` against it (a stale one is
+`ConcurrencyErrors.PreconditionFailed`, `412`) and stages the edit. EF then writes
+`UPDATE … WHERE "Id" = @id AND xmin = @loaded`, and `DELETE` likewise. A competing writer that
+commits between the load and the commit leaves no row at that `xmin`; the update touches nothing,
+`EfUnitOfWork` turns EF's exception into `ConcurrencyConflictException`, and the API answers `409`
+`concurrency.conflict`. That check is made by the database at the write, not by comparing against an
+earlier read.
+
+`Src/Presentation/AppTemplate.Api/Features/Notes/` is a controller, the request and response
+contracts and a mapping, built on the same helpers as the others: `ETag` on a single read and on
+every write's answer, `If-Match` on update and delete through `ReadPrecondition`, `[Idempotent]` on
+the create only, and the complete `ProducesResponseType` set for the OpenAPI document.
+
+**Composition is explicit, and it is three lines plus a test host.** `AddNotes()` in
+`ApplicationModule`, called from `Program.cs`; `AddNotesFeature` inside `AddPersistenceModule`; and
+`AddNotes()` in `Tests/Architecture/AppTemplate.Architecture.Tests/Composition/HostComposition.cs`
+and `Tests/Presentation/AppTemplate.Api.UnitTests/Composition/SqliteSavingHost.cs`, which compose the
+host the way `Program.cs` does.
+
+**Two words are new to the vocabulary.** `Validators/` (application) and `Stores/` (persistence) are
+the folders this shape needs and the other does not, so they sit in both closed vocabularies in
+`Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`. The rule that
+every feature has a domain folder became
+`FeatureIsolationTests.AFeatureWithoutADomainFolder_IsAServiceOverAStore`: the exemption exists only
+for a service over a store port that declares no use cases.
+
+**What each write guarantees.**
+
+| Write | Transaction | Concurrency | Idempotence | Retry |
+|---|---|---|---|---|
+| Create | One save of one row | None: nothing exists yet to have a version | `Idempotency-Key` replays the first response | Safe with a key; without one a repeat creates a second note |
+| Update | One `UPDATE … WHERE xmin = @loaded` | `If-Match` stale is `412`; losing the race at the write is `409` | Same final state, with `If-Match` it applies once | The same `If-Match` is refused after the first success |
+| Delete | One `DELETE … WHERE xmin = @loaded` | As update | Same final state | A repeat is `404` |
+
+**Tests.** `Tests/Application/AppTemplate.Application.UnitTests/Features/Notes/` proves the matrix
+once for all five operations (ownership, not-found against foreign, validation, the conflict
+passing through). `Tests/Presentation/AppTemplate.Api.UnitTests/Composition/NotesSavingTests.cs` runs
+the real module composition on SQLite, with `xmin` played by an integer column, and shows that a
+note commits through the unit of work alone and that a stale write is refused at the write.
+`Tests/Integration/AppTemplate.Api.IntegrationTests/Notes/` drives CRUD, cross-user isolation, the
+stale and competing writes and the idempotent create through the real API against PostgreSQL.
+
+## 8. From simple to rich — the promotion path
+
+A note that acquires a rule — at most a hundred notes per owner, or a note that cannot be edited once
+archived — now has a state to protect. The way across is the only bridge between the shapes, and it
+changes the inside of the feature, not its surface:
+
+1. **Extract the aggregate.** `Note` in the domain's `Entities/`, with a factory and a rehydration
+   path that run the same invariants, its value objects, and `INoteRepository` in `Repositories/`
+   (section 1).
+2. **Replace the store by a repository.** `NoteRecord` stays, since it is already the row; add the
+   mapper and the tracker and register them the way `AddTodoListsFeature` does (section 3). The write
+   half of `INoteStore` moves into the repository and the port goes; `INoteQueries` stays as the read
+   port.
+3. **Split the service into use cases.** One folder per operation with its command, validator and
+   named interface (section 2). Keep a service only if the operations share a gate, as
+   `ITodoListService` does for loading an owned aggregate.
+4. **Point the controller at the use cases.**
+
+Routes, contracts and responses do not change, and neither do `ETag`, `If-Match`, `Idempotency-Key`
+or the owner scoping: none of them was ever the aggregate's. The migration is empty unless the new
+rule needs a column or an index.
 
 ## Removing the sample instead
 

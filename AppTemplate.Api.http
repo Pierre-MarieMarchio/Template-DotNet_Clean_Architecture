@@ -810,3 +810,80 @@ Authorization: Bearer {{accessToken}}
 #      precondition, which is what lets the row simply disappear.
 DELETE {{api}}/files/{{storedFileId}}
 Authorization: Bearer {{accessToken}}
+
+###
+# 46. Notes — the feature with no domain model. Create one with an Idempotency-Key. 201 with the note,
+#     its ETag, and a Location. The owner is the caller: it is not a field of the body, and a body that
+#     names one has it ignored.
+# @name createNote
+POST {{api}}/notes
+Authorization: Bearer {{accessToken}}
+Idempotency-Key: 4c8a1f0e-6d2b-4b7e-9a51-0e3f7c2d9b64
+Content-Type: application/json
+
+{
+  "title": "Groceries",
+  "body": "Milk, eggs"
+}
+
+###
+@noteId = {{createNote.response.body.$.id}}
+@noteETag = {{createNote.response.headers.ETag}}
+
+###
+# 47. Replay request 46 byte for byte. The same note comes back with "Idempotency-Replayed: true", and
+#     no second note is created.
+POST {{api}}/notes
+Authorization: Bearer {{accessToken}}
+Idempotency-Key: 4c8a1f0e-6d2b-4b7e-9a51-0e3f7c2d9b64
+Content-Type: application/json
+
+{
+  "title": "Groceries",
+  "body": "Milk, eggs"
+}
+
+###
+# 48. Read it. The ETag is the version a conditional write has to name. A GET carrying a matching
+#     If-None-Match answers 304 with no body.
+GET {{api}}/notes/{{noteId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# 49. Replace it conditionally, naming the version from request 46. 200, with the new ETag. The id
+#     comes from the route; the body carries only the text.
+PUT {{api}}/notes/{{noteId}}
+Authorization: Bearer {{accessToken}}
+If-Match: {{noteETag}}
+Content-Type: application/json
+
+{
+  "title": "Groceries (this week)",
+  "body": "Milk, eggs, bread"
+}
+
+###
+# 50. Replay request 49 with the same If-Match. The update above moved the note past that version, so
+#     this one is refused: 412 with "code": "precondition.failed". Two writers racing at the same
+#     moment get 409 "concurrency.conflict" instead — the database refused the loser at the write.
+PUT {{api}}/notes/{{noteId}}
+Authorization: Bearer {{accessToken}}
+If-Match: {{noteETag}}
+Content-Type: application/json
+
+{
+  "title": "Too late",
+  "body": "Too late"
+}
+
+###
+# 51. The caller's notes, paged and sorted. Summaries only: no body, so a page does not grow with the
+#     length of the notes on it. `title` and `createdAt` are the sortable fields; there is no filter.
+GET {{api}}/notes?sort=title:asc&pageSize=20
+Authorization: Bearer {{accessToken}}
+
+###
+# 52. Delete it. 204. Naming a stale version in If-Match is a 412, as for an update; a second delete
+#     is a 404, the same answer a note that belongs to somebody else gets.
+DELETE {{api}}/notes/{{noteId}}
+Authorization: Bearer {{accessToken}}

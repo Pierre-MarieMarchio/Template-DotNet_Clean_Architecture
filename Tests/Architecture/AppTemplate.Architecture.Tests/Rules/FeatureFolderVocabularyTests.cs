@@ -61,6 +61,7 @@ public sealed class FeatureFolderVocabularyTests
         ["Templates"] = [],
         ["Tracking"] = ["Tracker"],
         ["UseCases"] = [],
+        ["Validators"] = ["Validator"],
         ["ValueObjects"] = [],
         ["Verifiers"] = ["Verifier"],
     };

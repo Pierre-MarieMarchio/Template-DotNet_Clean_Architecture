@@ -21,6 +21,35 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **A feature with no domain model: `Notes`, and the question that chooses its shape.**
+  `api/v1/notes` is a caller's private notes — list, read, create, replace, delete — and it is built
+  as a service over storage rather than as an aggregate: `INoteService` with one method per
+  operation, an `INoteStore` that stages writes and an `INoteQueries` that projects reads, a
+  `NoteRecord` that is the only model there is, and no mapper, tracker or domain-event source. The
+  rule it teaches is one question, *does the feature have rules that protect a state?* — `Notes` has
+  none, `TodoLists` has several — and `docs/ADDING-A-FEATURE.md` states it, tabulates both shapes and
+  documents the path from the simple one to the rich one. Both shapes keep the same commit boundary
+  (`IUnitOfWork`), the same CQS (a read stages and commits nothing) and the same modular rule.
+  The guarantees are the ones the other examples make, held at the real boundary: the owner comes
+  from `ICurrentUser` and never from the body, and a missing note and somebody else's are one `404`
+  `note.notFound`; a single read publishes an `ETag` and an update or delete honours `If-Match`;
+  the version is the row's `xmin`, and the `UPDATE` and `DELETE` carry the version they loaded, so a
+  writer that loses a race is refused by the database (`409` `concurrency.conflict`) and a stale
+  `If-Match` is `412`; and the create takes `Idempotency-Key`. The business `InitialCreate` now
+  includes `notes.Notes`; the template is unreleased, so the migration was regenerated under the same
+  id rather than followed by a second one, and a development database that applied the previous one
+  has to be recreated.
+  **Two architecture rules were adapted, and none weakened.** A feature may omit its domain folder
+  only while it is a service over a store port with no use cases
+  (`FeatureIsolationTests.AFeatureWithoutADomainFolder_IsAServiceOverAStore` replaces the rule that
+  every feature has one), and `Validators/` and `Stores/` joined the two closed folder vocabularies
+  as the words this shape needs. The port-width rule is unchanged, which is why storage is a read
+  port and a write port.
+  `docs/API-CONVENTIONS.md` now says what it always meant: `ETag` and `If-Match` belong to versioned
+  resources, and a resource without a version is last-write-wins.
+  `docs/REMOVING-THE-EXAMPLE-FEATURES.md` lists what removing `Notes` takes out.
+  Integration tests for it need Docker and are compiled but were not run where this was written.
+
 - **Features meet only through ports and domain events, and a test says so.**
   `FeatureIsolationTests` fails when a type under `Features/<A>/` of the application or persistence
   project names anything of `Features/<B>/` except its `Ports/` or its domain `Events/` — no record,

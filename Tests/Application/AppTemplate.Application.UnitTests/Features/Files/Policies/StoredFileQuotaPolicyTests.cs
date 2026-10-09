@@ -23,7 +23,10 @@ public sealed class StoredFileQuotaPolicyTests
         MaxBytes = 10_000,
     };
 
-    /// <summary>The defaults a category gets when it declares no quota: the former global bounds.</summary>
+    /// <summary>
+    /// The defaults a category gets when it declares no quota: the former global bounds, held under
+    /// concurrency.
+    /// </summary>
     [Fact]
     public void TheDefaultQuota_IsTwentyPendingAThousandFilesAndTenGibibytes()
     {
@@ -32,7 +35,7 @@ public sealed class StoredFileQuotaPolicyTests
         quota.MaxPendingUploads.ShouldBe(20);
         quota.MaxFiles.ShouldBe(1_000);
         quota.MaxBytes.ShouldBe(10L * 1024 * 1024 * 1024);
-        quota.Mode.ShouldBe(FileCategoryQuotaOptions.IndicativeMode);
+        quota.Mode.ShouldBe(FileCategoryQuotaOptions.StrictMode);
     }
 
     [Fact]

@@ -276,10 +276,15 @@ says otherwise.
   an image, not after.
 - **Storage exhaustion is bounded per owner and per category**, by a policy in the application layer
   rather than by the store — a registration mints a signed upload grant, so an unbounded one is a
-  free way to fill someone else's bucket. The bounds are the category's `Quota`; in `Indicative`
-  mode (the only behaviour today, `Strict` included) concurrent registrations can overshoot by one
-  file per extra concurrent request. Pending registrations and available bytes are budgeted separately, because
-  an unconfirmed registration costs a reserved key and nothing more.
+  free way to fill someone else's bucket. The bounds are the category's `Quota`. In `Strict` mode
+  (the shipped default) the usage read, the insert and the commit run under a PostgreSQL advisory
+  lock on (owner, category), so the bound holds under concurrency across every host sharing the
+  database, at the cost of one extra connection per registration in flight and one registration at
+  a time per owner and category; a wait over 10 seconds is refused (`storedFile.quotaBusy`). In
+  `Indicative` mode there is no lock, and a burst of N concurrent registrations can overshoot by at
+  most N − 1 files and their declared bytes. Deletion, purge and inspection never take the lock.
+  Pending registrations and available bytes are budgeted separately, because an unconfirmed
+  registration costs a reserved key and nothing more.
 - **Long-lived storage credentials are avoided by default.** `Files:Storage:S3:AccessKeyId` and
   `Files:Storage:S3:SecretAccessKey` are empty in every tracked file, and empty is the intended production
   shape: the SDK's own chain resolves an instance role, and nothing holds a key pair. The validator

@@ -1,7 +1,4 @@
-﻿using System.Buffers.Binary;
-using System.Security.Cryptography;
-using System.Text;
-using AppTemplate.Application.Core.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -43,7 +40,7 @@ internal sealed class PostgresLeaderLease(IConfiguration configuration, ILogger<
         ArgumentException.ThrowIfNullOrWhiteSpace(leaseName);
         ArgumentNullException.ThrowIfNull(work);
 
-        long key = KeyOf(leaseName);
+        long key = AdvisoryLockKey.Of(leaseName);
 
         // An advisory lock is held by the session, not by the command or transaction that took it,
         // so the lease owns its connection: a borrowed one would release the lock when EF chose to.
@@ -111,27 +108,6 @@ internal sealed class PostgresLeaderLease(IConfiguration configuration, ILogger<
                 "Releasing the '{LeaseName}' lease failed; the lock goes when the session closes.",
                 leaseName);
         }
-    }
-
-    /// <summary>
-    /// The <c>bigint</c> the lock is taken on, derived from the lease name.
-    /// </summary>
-    /// <remarks>
-    /// SHA-256 truncated to eight bytes, read big-endian — chosen against the two shortcuts that
-    /// look equivalent and are not. <c>string.GetHashCode()</c> is randomised per process, and
-    /// <c>BitConverter.ToInt64</c> follows the machine's endianness; either one gives two replicas
-    /// two different keys. Each would then take a lock nothing else contends for, every host would
-    /// believe it is the leader, and the mechanism would serialise nothing while looking perfectly
-    /// healthy — a single-process test cannot see the difference. This mapping has to hold across
-    /// processes, machines and releases, so it is written out explicitly rather than delegated to
-    /// anything whose stability is not part of its contract.
-    /// </remarks>
-    private static long KeyOf(string leaseName)
-    {
-        Span<byte> digest = stackalloc byte[SHA256.HashSizeInBytes];
-        SHA256.HashData(Encoding.UTF8.GetBytes(leaseName), digest);
-
-        return BinaryPrimitives.ReadInt64BigEndian(digest);
     }
 
     /// <summary>

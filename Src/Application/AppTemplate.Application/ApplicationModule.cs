@@ -101,6 +101,7 @@ public static class ApplicationModule
 
         services.AddFeature(_files);
         services.AddScoped<IStoredFileService, StoredFileService>();
+        services.AddScoped<IStoredFileRegistrationService, StoredFileRegistrationService>();
 
         // The prompt half of reclaiming a deleted file's bytes. The orphan sweep is what makes it
         // correct; this only makes it fast — see the consumer's own doc.

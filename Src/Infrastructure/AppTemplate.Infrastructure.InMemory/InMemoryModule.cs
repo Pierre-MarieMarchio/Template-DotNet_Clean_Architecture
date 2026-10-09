@@ -4,6 +4,7 @@ using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
+using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
@@ -108,6 +109,27 @@ public static class InMemoryModule
         services.RemoveAll<RecordedReminderNotifications>();
         services.AddSingleton<RecordedReminderNotifications>();
         services.AddScoped<IReminderNotifier, InMemoryReminderNotifier>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Replaces the owner's quota lock with one held in this process, for a host that runs alone and
+    /// has no PostgreSQL to take the lock from. Not part of <see cref="AddInMemoryModule"/>: a test
+    /// host with a real database keeps the database lock, which is the one that holds across hosts.
+    /// </summary>
+    /// <param name="services">The container being composed.</param>
+    /// <param name="waitLimit">How long a registration waits for the lock; ten seconds when omitted,
+    /// as in the PostgreSQL adapter.</param>
+    public static IServiceCollection AddInMemoryOwnerQuotaLock(
+        this IServiceCollection services,
+        TimeSpan? waitLimit = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.RemoveAll<IOwnerQuotaLock>();
+        services.AddSingleton<IOwnerQuotaLock>(
+            new InMemoryOwnerQuotaLock(waitLimit ?? InMemoryOwnerQuotaLock.DefaultWaitLimit));
 
         return services;
     }

@@ -71,4 +71,12 @@ public static class StoredFileErrors
     public static Error QuotaExceeded(string message) => Error.Conflict(
         "storedFile.quotaExceeded",
         message);
+
+    /// <summary>
+    /// Another registration of the caller in the same strict category held the quota lock for longer
+    /// than the wait limit. Nothing was written; the request can be retried.
+    /// </summary>
+    public static Error QuotaBusy(string category) => Error.Conflict(
+        "storedFile.quotaBusy",
+        $"Another upload of yours in category '{category}' is being registered. Try again in a moment.");
 }

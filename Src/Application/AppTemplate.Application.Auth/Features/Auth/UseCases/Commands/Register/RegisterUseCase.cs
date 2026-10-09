@@ -71,7 +71,9 @@ public sealed class RegisterUseCase(
         creation.Status is AccountCreationStatus.Conflict
             ? AuthErrors.RegistrationConflict
             : AuthErrors.RegistrationRejected(
-                creation.RejectionMessage ?? "The submitted password does not meet the required policy.");
+                creation.UserNameRejection,
+                creation.EmailRejection,
+                creation.PasswordRejection);
 
     private async Task<bool> TrySendConfirmationEmailAsync(
         Guid userId,

@@ -55,7 +55,7 @@ public sealed class ChangePasswordUseCase(
         if (change.Status is PasswordChangeStatus.Rejected)
         {
             return Result.Failure(
-                AuthErrors.RegistrationRejected(
+                AuthErrors.PasswordChangeRejected(
                     change.RejectionMessage ?? "The submitted password does not meet the required policy."));
         }
 

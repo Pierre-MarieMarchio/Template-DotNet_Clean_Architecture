@@ -49,6 +49,17 @@ public static class ValidationError
     }
 
     /// <summary>
+    /// The same as <see cref="ForField"/>, for a store rule that can refuse several fields at once.
+    /// Keys are used as given, so they must already be camelCase field paths.
+    /// </summary>
+    public static Error ForFields(IReadOnlyDictionary<string, IReadOnlyList<string>> details)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        return Error.Validation(Code, _message, details);
+    }
+
+    /// <summary>
     /// Camel-cases each segment of a FluentValidation property path, e.g. <c>Tags[0]</c> becomes
     /// <c>tags[0]</c> and <c>Address.City</c> becomes <c>address.city</c> — the indexer suffix is
     /// left untouched, since <see cref="JsonNamingPolicy.CamelCase"/> only knows identifiers.

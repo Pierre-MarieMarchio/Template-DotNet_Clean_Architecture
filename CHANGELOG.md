@@ -606,6 +606,12 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `AccountAdministrationOutcome`, and external verification returns the identity or `null`.
   `PortConventionTests` now caps a port at six operations instead of four. Routes, responses and
   error codes are unchanged.
+- **The API composes local accounts behind one call, `AddAuthFeature()`.** It registers the use cases,
+  the identity module, the refresh-token purge, the `auth-database` readiness check, the
+  `Administrator` policy and the identity schema's development migration and seed, from
+  `Features/Auth/Composition/`. The development bootstrap runs one step per module instead of naming
+  the identity context. `DELETE /api/v1/maintenance/refresh-tokens/expired` moved to authentication's
+  own controller with the same route, tag, policy and responses.
 - **A reminder's recipient comes from a port Reminders owns, and authentication can be left out of
   the container.** `FireDueRemindersUseCase` resolves the owner's name and address through
   `IReminderRecipientDirectory` and hands them to `IReminderNotifier`; the host supplies

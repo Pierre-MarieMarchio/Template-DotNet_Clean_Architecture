@@ -798,10 +798,11 @@ Authorization: Bearer {{accessToken}}
 # 44. Download. Answers 409 storedFile.notAvailable until the inspection pass has run — wait out
 #      FileWorker:InspectDepositedFilesInterval and send it again, or shorten that interval with
 #      FILE_WORKER_INSPECT_INTERVAL in .env.
-#      Then answers 302 to a short-lived signed URL rather than streaming the object: serving
-#      bytes is not this API's job, issuing the right to read them is. Note that the signed URL is a
-#      BEARER right — anyone holding it can read the object until it expires — which is why
-#      Storage:MaxGrantLifetime is short and why the redirect must not be cached beyond it.
+#      Then, with the S3 store, answers 302 to a short-lived signed URL rather than streaming the
+#      object. That URL is a BEARER right — anyone holding it can read the object until it expires —
+#      which is why Files:Storage:S3:MaxGrantLifetime is short and why the redirect must not be
+#      cached beyond it. With the FileSystem store nothing can be signed: the API answers 200 and
+#      streams the bytes itself.
 GET {{api}}/files/{{storedFileId}}/content
 Authorization: Bearer {{accessToken}}
 

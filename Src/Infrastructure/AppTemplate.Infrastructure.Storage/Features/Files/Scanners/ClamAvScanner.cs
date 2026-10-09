@@ -8,13 +8,9 @@ using AppTemplate.Infrastructure.Storage.Common.Budgets;
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Scanners;
 
 /// <summary>
-/// One conversation with <c>clamd</c>, in its <c>INSTREAM</c> dialect. Static: <c>clamd</c> wants a
-/// fresh connection per command, so there is nothing to hold between calls.
-/// <para>
-/// Nothing is unpacked here: the stream is copied past the daemon in chunks, uninterpreted.
-/// <c>clamd</c> unpacks archives in its own process under its own <c>MaxScanSize</c>,
-/// <c>MaxFiles</c> and <c>MaxRecursion</c>, which a deployment owes itself to set.
-/// </para>
+/// One conversation with <c>clamd</c> in its <c>INSTREAM</c> dialect, on a fresh connection per command.
+/// Nothing is unpacked here: archive limits (<c>MaxScanSize</c>, <c>MaxFiles</c>, <c>MaxRecursion</c>)
+/// are the daemon's, and a deployment must set them.
 /// </summary>
 internal static class ClamAvScanner
 {
@@ -31,15 +27,11 @@ internal static class ClamAvScanner
     private const int _maxReplyBytes = 512;
 
     /// <summary>
-    /// Streams <paramref name="content"/> past the daemon and reads its verdict.
+    /// Streams <paramref name="content"/> past the daemon and reads its verdict. Past
+    /// <paramref name="maxBytes"/> the transfer stops and the outcome is
+    /// <see cref="FileScanStatus.NotInspectable"/>. An unreachable or misbehaving daemon is
+    /// <see cref="FileScanStatus.Unavailable"/>, never an exception; cancellation propagates.
     /// </summary>
-    /// <param name="maxBytes">
-    /// Past this many bytes the transfer stops and the content is reported
-    /// <see cref="FileScanStatus.NotInspectable"/>, rather than as a pipe the daemon breaks midway.
-    /// </param>
-    /// <returns>Never throws for an unreachable or misbehaving daemon: that is
-    /// <see cref="FileScanStatus.Unavailable"/>. Cancellation of <paramref name="cancellationToken"/>
-    /// propagates.</returns>
     internal static async Task<FileScanOutcome> ScanAsync(
         string host,
         int port,
@@ -69,10 +61,7 @@ internal static class ClamAvScanner
         }
     }
 
-    /// <summary>
-    /// Connects under its own attempt timeout: a host that resolves to something silent would
-    /// otherwise spend the whole budget here.
-    /// </summary>
+    /// <summary>Connects under its own attempt timeout so a silent host cannot spend the whole budget.</summary>
     private static async Task ConnectAsync(TcpClient client, string host, int port, CancellationToken cancellationToken)
     {
         using var attempt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -82,9 +71,8 @@ internal static class ClamAvScanner
     }
 
     /// <summary>
-    /// Sends the content and reads the verdict at the same time. <c>clamd</c> answers as soon as it
-    /// detects something and then resets a connection still holding unread bytes; reading only after
-    /// sending would lose that verdict to the reset.
+    /// Sends the content and reads the verdict concurrently: <c>clamd</c> answers on detection and then
+    /// resets a connection with unread bytes, which would lose a verdict read only after sending.
     /// </summary>
     private static async Task<FileScanOutcome> ExchangeAsync(
         Stream socket,
@@ -117,7 +105,7 @@ internal static class ClamAvScanner
         return Interpret(await reply);
     }
 
-    /// <summary>Stops waiting for a verdict and observes the read, so it is never left unobserved.</summary>
+    /// <summary>Stops waiting for a verdict and observes the read so it is never left unobserved.</summary>
     private static async Task AbandonAsync(CancellationTokenSource exchange, Task<string> reply)
     {
         await exchange.CancelAsync();
@@ -165,8 +153,7 @@ internal static class ClamAvScanner
         }
         catch (IOException)
         {
-            // The daemon may have answered and hung up; the reply is read either way, and a socket
-            // that really is gone fails there.
+            // The daemon may have answered and hung up; the reply read decides.
         }
         finally
         {
@@ -212,10 +199,7 @@ internal static class ClamAvScanner
         return Encoding.ASCII.GetString(reply, 0, filled).TrimEnd('\0', '\n', ' ');
     }
 
-    /// <summary>
-    /// <c>stream: OK</c>, <c>stream: &lt;name&gt; FOUND</c> or <c>&lt;reason&gt; ERROR</c>. Anything
-    /// else is no verdict: the only direction to guess in would be "clean".
-    /// </summary>
+    /// <summary>Anything but <c>OK</c>, <c>FOUND</c> or <c>ERROR</c> is no verdict: the only guess would be "clean".</summary>
     private static FileScanOutcome Interpret(string reply)
     {
         if (reply.EndsWith("FOUND", StringComparison.Ordinal))

@@ -3,9 +3,8 @@
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Options;
 
 /// <summary>
-/// The directory the Files feature's bytes live in when <c>Files:Storage:Provider</c> is
-/// <c>FileSystem</c>. Bound from <c>Files:Storage:FileSystem</c> and validated at start-up only for
-/// that provider.
+/// The directory the bytes live in when <c>Files:Storage:Provider</c> is <c>FileSystem</c>; bound from
+/// <c>Files:Storage:FileSystem</c> and validated only for that provider.
 /// </summary>
 public sealed class FilesStorageFileSystemOptions
 {
@@ -18,10 +17,7 @@ public sealed class FilesStorageFileSystemOptions
     public string RootPath { get; set; } = string.Empty;
 }
 
-/// <summary>
-/// Refuses a missing or relative root. A relative one would resolve against the working directory,
-/// which moves the store when the process is started from elsewhere.
-/// </summary>
+/// <summary>Refuses a missing or relative root: a relative one moves the store with the working directory.</summary>
 internal sealed class FilesStorageFileSystemOptionsValidator : IValidateOptions<FilesStorageFileSystemOptions>
 {
     public ValidateOptionsResult Validate(string? name, FilesStorageFileSystemOptions options)

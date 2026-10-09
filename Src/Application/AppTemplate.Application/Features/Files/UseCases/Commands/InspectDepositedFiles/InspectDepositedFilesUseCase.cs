@@ -13,19 +13,14 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
 
 /// <summary>
-/// Reads the content of files whose deposit is confirmed and either releases them or quarantines
-/// them: the head decides what the file is, the scanner whether it carries malware, and
-/// <see cref="StoredFileContentPolicy"/> what that means. The file's category says whether its
-/// content is scanned and whether its head must match its declared type; a category no longer
-/// configured gets both. Runs from a background job and must not read <see cref="ICurrentUser"/>.
+/// Reads the content of confirmed deposits and releases or quarantines each file: the head decides
+/// what it is, the scanner whether it is malware, <see cref="StoredFileContentPolicy"/> what that
+/// means. The file's category chooses the checks; an unconfigured category gets both. Background
+/// job: must not read <see cref="ICurrentUser"/>.
 /// <para>
-/// <b>Retry guarantee.</b> One host at a time, under the <c>apptemplate.files.inspect-deposited</c>
-/// lease. Each file is committed on its own. A file that gets no verdict (bytes missing, store or
-/// scanner unreachable) is deferred — one minute, doubled per attempt, capped at one hour — and goes
-/// behind the files that have waited longer, so every deposited file is offered again at most an
-/// hour after its last attempt and none can hold the front of the queue. An outage never releases or
-/// refuses a file. A concurrency conflict ends the pass: the files committed before it keep their
-/// verdicts, and the next pass reads the rest afresh.
+/// One host at a time, each file committed on its own. A file with no verdict is deferred with
+/// backoff and never released or refused (see <c>docs/DECISIONS.md</c>). A concurrency conflict ends
+/// the pass; the next one reads the rest afresh.
 /// </para>
 /// </summary>
 public sealed class InspectDepositedFilesUseCase(
@@ -41,10 +36,7 @@ public sealed class InspectDepositedFilesUseCase(
     /// <summary>Files per pass. Small, because each one is read end to end.</summary>
     internal const int BatchSize = 20;
 
-    /// <summary>
-    /// The lock key is derived from this name, so it is a contract across releases: renaming it lets
-    /// two releases of a rolling deploy both run the pass.
-    /// </summary>
+    /// <summary>The lock key derives from this name: a cross-release contract, renaming it lets two releases both run the pass.</summary>
     private const string _leaseName = "apptemplate.files.inspect-deposited";
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
@@ -110,8 +102,7 @@ public sealed class InspectDepositedFilesUseCase(
         return decided;
     }
 
-    /// <returns><c>false</c> when somebody else changed the file first; the failed write stays staged
-    /// in this scope, so the pass has to stop.</returns>
+    /// <returns><c>false</c> when somebody else changed the file first; the failed write stays staged, so the pass stops.</returns>
     private async Task<bool> TryCommitAsync(StoredFile storedFile, CancellationToken cancellationToken)
     {
         try
@@ -133,9 +124,8 @@ public sealed class InspectDepositedFilesUseCase(
     }
 
     /// <summary>
-    /// Opens the content once: the head is read off the front, then the whole content — head
-    /// included — is streamed to the scanner. A store that cannot be read is no verdict, never a
-    /// refusal: quarantining over a store fault would destroy a file over somebody else's outage.
+    /// Reads the head, then streams the whole content to the scanner. An unreadable store is no
+    /// verdict, never a refusal: it must not quarantine a file over somebody else's outage.
     /// </summary>
     private async Task<(ContentDecision Verdict, FileScanOutcome? Scan)> InspectAsync(
         StoredFile storedFile,
@@ -204,8 +194,7 @@ public sealed class InspectDepositedFilesUseCase(
 
         storedFile.Quarantine(now);
 
-        // The only record of why, and a log line rather than a response: the signature is a third
-        // party's string that must not reach the uploader.
+        // The only record of why: the malware signature must not reach the uploader.
         logger.LogError(
             "Stored file {StoredFileId} was quarantined. Category {Category}, declared " +
             "{DeclaredMediaType}, scan {ScanStatus}, signature {MalwareSignature}.",
@@ -216,9 +205,7 @@ public sealed class InspectDepositedFilesUseCase(
             scan?.MalwareSignature ?? "none");
     }
 
-    /// <summary>
-    /// Without it, a scanner unreachable for a day looks exactly like a system with nothing to inspect.
-    /// </summary>
+    /// <summary>Makes a scanner unreachable for a day visible instead of looking like an empty queue.</summary>
     private void ReportDeferrals(int deferred)
     {
         if (deferred > 0)

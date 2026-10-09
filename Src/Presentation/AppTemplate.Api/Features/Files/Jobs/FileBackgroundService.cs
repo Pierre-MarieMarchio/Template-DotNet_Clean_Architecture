@@ -13,22 +13,9 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Api.Features.Files.Jobs;
 
 /// <summary>
-/// Runs the file feature's three background passes, each on its own timer and its own interval:
-/// the two sweeps, <see cref="IPurgeAbandonedRegistrationsUseCase"/> and
-/// <see cref="IReclaimOrphanedContentUseCase"/>, and <see cref="IInspectDepositedFilesUseCase"/> —
-/// which is not a sweep, and is the one a user feels, since nothing else moves a file from
-/// deposited to available. <c>docs/ARCHITECTURE.md</c> carries the argument for three timers rather
-/// than one.
-/// <para>
-/// Each pass takes a fresh scope, is switched on or off by its own option, and is logged and
-/// retried at the next tick when it fails. Each use case takes its own <see cref="ILeaderLease"/>,
-/// so one host at a time runs it whoever calls it; a standby host's pass reports zero.
-/// </para>
-/// <para>
-/// <b>Nothing here narrows what the orphan sweep covers.</b> No prefix and no time segment: the
-/// sweep walks the whole namespace from its own checkpoint — see
-/// <see cref="ReclaimOrphanedContentUseCase"/>.
-/// </para>
+/// Runs the three file passes (abandoned-registration purge, orphan reclamation and deposit
+/// inspection), each on its own timer and option. A failing pass is logged and retried at the next
+/// tick; each use case takes its own <see cref="ILeaderLease"/>, so a standby host's pass reports zero.
 /// </summary>
 internal sealed class FileBackgroundService(
     IServiceScopeFactory scopeFactory,
@@ -88,11 +75,8 @@ internal sealed class FileBackgroundService(
         logger.LogInformation("File worker stopping.");
     }
 
-    /// <param name="disabledConsequence">What goes wrong while the sweep is switched off, said on
-    /// every skipped pass. Both of these fail silently by construction — what accumulates is rows
-    /// and bytes that nothing else in the system will ever remove — so this is logged at warning
-    /// level, unlike <c>ReminderBackgroundService</c>'s own disabled skip, where the person waiting
-    /// for the reminder is the alarm.</param>
+    /// <param name="disabledConsequence">What goes wrong while the pass is off, logged at warning level on
+    /// every skipped tick: what accumulates fails silently.</param>
     private Task RunLoopAsync<TUseCase>(
         string label,
         string disabledConsequence,
@@ -111,9 +95,7 @@ internal sealed class FileBackgroundService(
                 }
                 else
                 {
-                    // Counted, not skipped: a flat Iterations series must distinguish a loop switched
-                    // off from one that died, and a stopped inspection loop leaves every upload
-                    // unreadable.
+                    // Counted so a flat Iterations series tells a disabled loop from a dead one.
                     FileInstruments.Iterations.Add(
                         1,
                         new KeyValuePair<string, object?>(JobTags.Task, label),
@@ -127,10 +109,7 @@ internal sealed class FileBackgroundService(
             },
             stoppingToken);
 
-    /// <summary>
-    /// Runs one sweep and isolates its failure from the other loops: an orphan sweep that cannot
-    /// reach the object store must not also stop stale registrations being purged.
-    /// </summary>
+    /// <summary>Runs one pass, isolating its failure from the other loops.</summary>
     private async Task RunPassAsync<TUseCase>(string label, Counter<long> volume, CancellationToken stoppingToken)
         where TUseCase : IUseCase<Result<int>>
     {
@@ -152,8 +131,7 @@ internal sealed class FileBackgroundService(
                 volume.Add(result.Value, taskTag);
                 activity?.SetTag("files.removed", result.Value);
 
-                // Unconditional: both sweeps report zero for long stretches, so a line that appeared
-                // only on a removal would make a broken sweep look like an idle one.
+                // Unconditional: a line only on removal would make a broken pass look idle.
                 if (logger.IsEnabled(LogLevel.Information))
                 {
                     logger.LogInformation("Sweep of {Label} completed: {Count} removed.", label, result.Value);
@@ -173,7 +151,7 @@ internal sealed class FileBackgroundService(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Shutdown, not a failed sweep: it ends the loop instead of being logged as an error.
+            // Shutdown, not a failed pass.
             throw;
         }
         catch (Exception exception)

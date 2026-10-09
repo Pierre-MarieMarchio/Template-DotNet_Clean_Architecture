@@ -8,15 +8,9 @@ using FluentValidation;
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredFile;
 
 /// <summary>
-/// Deleting a file is removing its row. There is no deleted state and no deletion instant — see
-/// <c>docs/DECISIONS.md</c>'s "No soft delete" — so this use case has nothing to set and nothing to
-/// project back.
-/// <para>
-/// <c>StoredFile.Delete</c> is called alongside the removal rather than instead of it. It writes
-/// nothing; it raises the event that lets the bytes be reclaimed now instead of at the next sweep.
-/// If that event is never delivered the file is still gone and its content is still reclaimed, by
-/// the sweep that deletes what no row names — which is what makes it safe to have no outbox here.
-/// </para>
+/// Deleting a file is removing its row (see "No soft delete" in <c>docs/DECISIONS.md</c>).
+/// <c>StoredFile.Delete</c> writes nothing: it raises the event that reclaims the bytes now rather
+/// than at the next orphan sweep, which reclaims them anyway if the event is never delivered.
 /// </summary>
 public sealed class DeleteStoredFileUseCase(
     IStoredFileService files,
@@ -47,8 +41,7 @@ public sealed class DeleteStoredFileUseCase(
 
         var storedFile = access.Value;
 
-        // Caught: the aggregate refuses a second announcement in one unit of work, which depends on
-        // what has already happened to this instance rather than on anything the caller sent.
+        // Caught: the aggregate refuses a second announcement in one unit of work.
         var announcement = DomainGuard.Try(() => storedFile.Delete(dateTimeProvider.UtcNow));
 
         if (announcement.IsFailure)

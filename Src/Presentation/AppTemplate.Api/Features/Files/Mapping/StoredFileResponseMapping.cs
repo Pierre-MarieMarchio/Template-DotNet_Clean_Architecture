@@ -10,9 +10,7 @@ using AppTemplate.Domain.Features.Files.ValueObjects;
 namespace AppTemplate.Api.Features.Files.Mapping;
 
 /// <summary>
-/// Projects the feature's application DTOs onto its wire contracts. <see cref="ToStatus"/> answers
-/// with the same two words <c>StoredFileFilter</c> parses on the way in, so a client filters with
-/// the value it just read.
+/// Projects the feature's application DTOs onto its wire contracts.
 /// </summary>
 internal static class StoredFileResponseMapping
 {
@@ -57,21 +55,12 @@ internal static class StoredFileResponseMapping
         result.Map(ToResponse);
 
     /// <summary>
-    /// A string on the wire rather than the domain enum's numeric default, on the same terms as
-    /// <c>ReminderResponseMapping</c>: the API's contract is its own, not a view of
-    /// <see cref="StoredFileState"/>.
+    /// A string on the wire rather than the enum's number, in the words <c>StoredFileFilter</c> parses,
+    /// so a client filters with the value it just read.
     /// </summary>
     /// <remarks>
-    /// Every member is named, and the throwing arm is what makes that a requirement rather than a
-    /// habit. This repository has already paid for the alternative once: an exhaustive switch over
-    /// an event enum threw on a newly added member and turned the first real call into a 500, with
-    /// every unit test around it green because they had substituted the collaborator away. Adding a
-    /// state to <see cref="StoredFileState"/> without adding a word here does exactly that to a
-    /// caller reading a file.
-    /// <para>
-    /// The words themselves are the contract, and they must match what <c>StoredFileFilter</c>
-    /// parses — a client has to be able to filter by the value it just read.
-    /// </para>
+    /// Every member is named and the default arm throws, so a state added without a word here fails
+    /// loudly in tests rather than as a 500 on the first read.
     /// </remarks>
     private static string ToStatus(StoredFileState state) => state switch
     {

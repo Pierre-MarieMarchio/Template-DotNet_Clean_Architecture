@@ -4,10 +4,8 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Options;
 
 /// <summary>
-/// Which store holds the Files feature's bytes. Bound from <c>Files:Storage</c>; the chosen
-/// provider's own section (<c>Files:Storage:S3</c> or <c>Files:Storage:FileSystem</c>) is the only
-/// one bound and validated.
-/// <para>Public because its section is part of the template's contract with whoever deploys it.</para>
+/// Which store holds the bytes, bound from <c>Files:Storage</c>; only the chosen provider's own section
+/// is bound and validated. Public because the section is part of the deployment contract.
 /// </summary>
 public sealed class FilesStorageOptions
 {

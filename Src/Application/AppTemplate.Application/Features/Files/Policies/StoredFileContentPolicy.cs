@@ -14,18 +14,17 @@ namespace AppTemplate.Application.Features.Files.Policies;
 public static class StoredFileContentPolicy
 {
     /// <summary>
-    /// How many leading bytes the decision reads. Every known signature sits in the first sixteen;
-    /// the kibibyte is for markup, whose <c>&lt;svg</c> may follow a declaration, a doctype and comments.
+    /// How many leading bytes the decision reads: every signature sits in the first sixteen, and the rest is for
+    /// markup after a declaration, doctype and comments.
     /// </summary>
     public const int MaxHeadBytes = 1024;
 
     /// <summary>
-    /// Whether a file whose content starts with <paramref name="head"/> and scanned as
-    /// <paramref name="scan"/> may be released, must be refused, or has to be asked about again.
+    /// Whether a file starting with <paramref name="head"/> and scanned as <paramref name="scan"/> may be released,
+    /// must be refused, or has to be asked about again.
     /// </summary>
-    /// <param name="declared">What the client said the file is, already normalised, so the
-    /// comparison below is ordinal.</param>
-    /// <param name="scan">The scanner's verdict, or <c>null</c> when the category is not scanned.</param>
+    /// <param name="declared">What the client said the file is, already normalised.</param>
+    /// <param name="scan">The scanner's verdict, or null when the category is not scanned.</param>
     /// <param name="head">At most <see cref="MaxHeadBytes"/> leading bytes of the content.</param>
     /// <param name="verifySignature">Whether the head must agree with <paramref name="declared"/>.</param>
     public static ContentDecision Decide(

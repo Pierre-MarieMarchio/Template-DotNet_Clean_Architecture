@@ -62,6 +62,18 @@ saved after each page and reset at the end of the namespace, so every object pre
 starts is visited within ⌈objects / per-pass budget⌉ + 1 passes across restarts; the `FileSystem`
 store's temporary files older than a day are reclaimed by the same walk.
 
+**A stored object's key is data, minted once and persisted, not a formula over the file's id.** A
+derived key would make the scheme part of the format of every stored object, so changing it would
+mean copying them all, and the id is a UUIDv7, guessable in sequence, so one key would name its
+neighbours. `ObjectKey.New` mints `t0/<yyyyMM>/<128 random bits in hex>`: `t0` is a reserved
+partition where a tenant identifier would go, and the UTC month slice is what keeps the orphan
+sweep ordered and cheap. The slice is not a licence to visit recent months only — a file deleted
+today may sit under a two-year-old prefix, so the sweep covers every slice — and mint and sweep
+share one method so they cannot disagree about a month boundary and delete a live file.
+`StoredFileState`'s persisted integers are a column, not an order: `Deposited` is `2` and
+`Available` is `1`, so reordering the members is free and renumbering one rewrites the meaning of
+every row.
+
 **Extract what two real cases prove identical, and nothing more.** A guessed abstraction is a worse
 defect than an assumed duplication: the duplication is visible and local, the wrong abstraction is
 neither. Measure first — `wc -l`, `diff` — and require two cases that do the same thing, not two

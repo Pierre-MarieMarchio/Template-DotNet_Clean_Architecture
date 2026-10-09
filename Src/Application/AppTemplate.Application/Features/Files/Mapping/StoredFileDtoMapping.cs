@@ -5,11 +5,8 @@ using AppTemplate.Domain.Features.Files.Entities;
 namespace AppTemplate.Application.Features.Files.Mapping;
 
 /// <summary>
-/// Turns the aggregate a command just wrote into the same shape a read would have produced, without
-/// a second query — the same reasoning as <c>TodoListDtoMapping</c>, and sound for the same reason:
-/// the tracker writes the store-assigned version and audit stamps back onto the aggregate inside
-/// <c>SaveChangesAsync</c>, so once that call has returned the values here are the ones the row was
-/// committed with.
+/// Maps the aggregate a command just wrote to the shape a read produces, without a second query: the tracker writes
+/// the store-assigned version and audit stamps back inside <c>SaveChangesAsync</c>.
 /// </summary>
 internal static class StoredFileDtoMapping
 {

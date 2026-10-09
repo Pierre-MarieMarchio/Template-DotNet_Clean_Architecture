@@ -3,8 +3,8 @@
 namespace AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 
 /// <summary>
-/// How a file's content is handed over: either <see cref="Redirect"/> is set — the client follows a
-/// signed URL to the store — or <see cref="Content"/> is, and the API streams the bytes itself.
+/// How a file's content is handed over: <see cref="Redirect"/> to a signed URL, or
+/// <see cref="Content"/> streamed by the API.
 /// </summary>
 public sealed class FileDownload
 {

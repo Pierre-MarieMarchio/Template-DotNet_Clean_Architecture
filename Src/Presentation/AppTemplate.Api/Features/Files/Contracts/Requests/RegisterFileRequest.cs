@@ -3,28 +3,19 @@
 namespace AppTemplate.Api.Features.Files.Contracts.Requests;
 
 /// <summary>
-/// What the client says about a file it is about to deposit. Metadata only — the bytes never travel
-/// through this API, so this body is a few hundred characters whatever the file weighs.
+/// What the client says about a file it is about to deposit directly: metadata only, the bytes go
+/// to the store.
 /// </summary>
 /// <param name="Category">One of the categories configured in <c>Files:Categories</c>; it decides
 /// the media types, size, upload modes and quota that apply.</param>
-/// <param name="Name">A label to show, and the name a download is offered under. It addresses
-/// nothing: the object key is minted by the domain and never leaves it.</param>
-/// <param name="DeclaredMediaType">
-/// Named "declared" on the way in as well as on the way out, because nothing in this feature ever
-/// reads the bytes to check it. A client that learns the word here is not surprised to meet it in
-/// the response.
-/// </param>
-/// <param name="SizeInBytes">
-/// Bound into the upload grant, so a deposit of a different length is refused by the store rather
-/// than at confirmation. Required in the body: an omitted length binds to zero and is then
-/// refused for being under the minimum, which reads as a rejected file rather than a missing
-/// field.
-/// </param>
-/// <param name="Checksum">
-/// SHA-256 of the content, 64 hexadecimal characters. Asked for now rather than at confirmation:
-/// a digest supplied after the upload would be the client agreeing with itself.
-/// </param>
+/// <param name="Name">A label to show and the name a download is offered under; it addresses
+/// nothing.</param>
+/// <param name="DeclaredMediaType">A claim, checked against the leading bytes by the background
+/// inspection when the category verifies signatures.</param>
+/// <param name="SizeInBytes">Bound into the upload grant, so the store refuses a deposit of another
+/// length. Required: an omitted length would bind to zero and read as a rejected file.</param>
+/// <param name="Checksum">SHA-256 of the content, 64 hexadecimal characters, bound into the grant.
+/// Asked for at registration: a digest supplied afterwards would be the client agreeing with itself.</param>
 public sealed record RegisterFileRequest(
     string Category,
     string Name,

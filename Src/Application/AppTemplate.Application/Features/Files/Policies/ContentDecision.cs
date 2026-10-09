@@ -10,9 +10,8 @@ public enum ContentDecision
     Quarantine,
 
     /// <summary>
-    /// No decision was reachable this time. The file stays where it is and is offered again on the
-    /// next pass. This is the only one of the three that is not final, and it exists so that an
-    /// outage cannot be mistaken for either an approval or a refusal.
+    /// No decision was reachable this time: the file stays put and is offered again. The only non-final outcome, so
+    /// an outage is never taken for an approval or a refusal.
     /// </summary>
     Retry,
 }

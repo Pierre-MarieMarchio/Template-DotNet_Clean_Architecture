@@ -2,18 +2,15 @@
 namespace AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 
 /// <summary>
-/// What this owner has labelled their files with. One capability of its own rather than a fifth
-/// method on the file queries: reading a file and reading the vocabulary the owner has built up are
-/// different questions, and only one of them is worth caching.
+/// The vocabulary an owner has built up with their file tags, apart from the file queries because it is the one
+/// answer worth caching.
 /// </summary>
 public interface IStoredFileTagQueries
 {
     /// <summary>
-    /// The distinct tags this owner has put on their files. Counted in the database rather than by
-    /// loading their files: the answer is one column of a join, and materialising every file to
-    /// collect it would cost more than the picker it fills.
+    /// The distinct tags on this owner's files, each once and ordered, counted in the database rather than by loading
+    /// files.
     /// </summary>
-    /// <returns>Every tag value in use, each once, ordered so two calls agree.</returns>
     Task<IReadOnlyList<string>> GetUsedTagsForOwnerAsync(
         UserId ownerId,
         CancellationToken cancellationToken = default);

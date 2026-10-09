@@ -23,8 +23,7 @@ internal sealed class StoredFileDepositService(
             return Result.Failure(StoredFileErrors.DepositMissing(storedFile.Id));
         }
 
-        // Inside the guard as well: FileSize refuses the zero-byte object an interrupted deposit
-        // leaves behind.
+        // Inside the guard too: FileSize refuses the zero-byte object an interrupted deposit leaves.
         var confirmation = DomainGuard.Try(() => storedFile.ConfirmDeposit(
             FileSize.Create(description.SizeInBytes),
             Sha256Checksum.Create(description.Checksum)));

@@ -4,9 +4,7 @@ using AppTemplate.Application.Core.Common.UseCases;
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 
 /// <summary>
-/// No command: everything this needs is ambient — the clock, and every owner's stale registrations
-/// — which is also why it must never read <c>ICurrentUser</c>. See
-/// <see cref="PurgeAbandonedRegistrationsUseCase"/>. The count it answers with is how many
-/// registrations were removed.
+/// One purge pass over every owner's stale registrations, so it never reads <c>ICurrentUser</c>.
+/// Answers with the number of registrations removed.
 /// </summary>
 public interface IPurgeAbandonedRegistrationsUseCase : IUseCase<Result<int>>;

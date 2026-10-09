@@ -6,27 +6,14 @@ using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Tracking;
 
 /// <summary>
-/// The change tracker EF cannot be, for one aggregate, for the duration of one request.
+/// The change tracker EF cannot be for one aggregate during one request: an identity map, the list
+/// of aggregates to write, and the source of their domain events.
 /// <para>
-/// EF's change tracker does three things this layer still needs, but cannot supply, because it is not
-/// tracking the domain type. It is an <b>identity map</b> — ask for the same aggregate twice and get the
-/// same object, so two use cases in one request cannot each hold a divergent copy. It is the <b>list of
-/// things to write</b> when a save happens. And it is where the <b>domain events</b> raised during the
-/// request can be found, since the aggregates that raised them are reachable from nowhere else.
-/// </para>
-/// <para>
-/// <b>This interface inherits the other two contracts on purpose, and the registration has to match.</b>
-/// One instance per request has to answer to all three — this one for the repository,
-/// <see cref="IAggregateFlusher"/> for the flush interceptor, <see cref="IDomainEventSource"/> for the
-/// dispatch interceptor. Registered as three independent descriptors it resolves as three objects: the
-/// repository fills one identity map, the interceptor flushes a different and empty one, and every write
-/// reports success while persisting nothing. <c>SharedInstanceRegistrationTests</c> is the guard, and
-/// <c>PersistenceModule</c> registers the concrete type once and delegates to it from each contract.
-/// </para>
-/// <para>
-/// Draining still matters when the row is on its way out: deleting a file raises
-/// <c>StoredFileDeletedDomainEvent</c>, which is what reclaims its bytes promptly rather than at the next
-/// sweep.
+/// It inherits <see cref="IAggregateFlusher"/> and <see cref="IDomainEventSource"/> because one
+/// instance per request must answer to all three contracts: registered as three descriptors they
+/// resolve as three objects, and writes would report success while persisting nothing.
+/// <c>PersistenceModule</c> registers the concrete type once and delegates; <c>SharedInstanceRegistrationTests</c>
+/// holds it.
 /// </para>
 /// </summary>
 internal interface IStoredFileTracker : IAggregateFlusher, IDomainEventSource
@@ -44,10 +31,9 @@ internal interface IStoredFileTracker : IAggregateFlusher, IDomainEventSource
     StoredFileRecord? FindRecord(Guid id);
 
     /// <summary>
-    /// Notes that an aggregate's row has been staged for deletion: nothing more is written to it, and
-    /// <see cref="Find"/> stops returning it. Its pending domain events are still drained on the next
-    /// save, which is why the aggregate is passed rather than its id — one that was never loaded in this
-    /// request has to be taken in here, or it would never be drained at all.
+    /// Notes that the row is staged for deletion: nothing more is written to it and <see cref="Find"/>
+    /// stops returning it, but its pending events are still drained, so the aggregate is passed to be
+    /// taken in even if it was never loaded in this request.
     /// </summary>
     void MarkRemoved(StoredFile aggregate, StoredFileRecord record);
 }

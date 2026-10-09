@@ -22,11 +22,8 @@ internal sealed class FileSystemFileContentStore(IOptions<FilesStorageFileSystem
 
     /// <summary>
     /// <inheritdoc cref="IFileContentStore.WriteAsync"/>
-    /// <para>
-    /// The bytes go to a temporary file in the target's directory while being counted and hashed;
-    /// only a match is published, by a rename that cannot overwrite. A key that already holds an
-    /// object keeps it — the key is bound to one declared digest, so it holds the same bytes.
-    /// </para>
+    /// Bytes go to a temporary file while counted and hashed; only a match is published, by a rename
+    /// that cannot overwrite. An existing key keeps its object: a key is bound to one declared digest.
     /// </summary>
     public async Task<ContentWriteOutcome> WriteAsync(
         string objectKey,
@@ -82,7 +79,7 @@ internal sealed class FileSystemFileContentStore(IOptions<FilesStorageFileSystem
 
     /// <summary>
     /// <inheritdoc cref="IFileContentStore.DescribeAsync"/>
-    /// <para>The disk records no digest, so this one is computed by reading the whole file.</para>
+    /// The disk records no digest, so it is computed by reading the whole file.
     /// </summary>
     public async Task<StoredObjectDescription?> DescribeAsync(
         string objectKey,
@@ -116,10 +113,7 @@ internal sealed class FileSystemFileContentStore(IOptions<FilesStorageFileSystem
         return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// The file an object key names, refused unless it lies strictly under the root. Object keys
-    /// already forbid <c>..</c>; this holds even for a key that did not come from one.
-    /// </summary>
+    /// <summary>The file an object key names, refused unless strictly under the root.</summary>
     internal static string PathFor(string rootPath, string objectKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);

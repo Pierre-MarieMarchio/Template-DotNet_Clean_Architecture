@@ -9,8 +9,7 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Files.Checkpoints;
 
 /// <summary>
 /// <see cref="IOrphanSweepCheckpoint"/> as one row of <c>files.ContentSweepCheckpoints</c>. Each call
-/// opens its own context from the factory, like <c>IdempotencyStore</c>: the checkpoint is committed at
-/// once and shares no transaction with the scope's unit of work.
+/// opens its own context, so the checkpoint commits at once, outside the scope's unit of work.
 /// </summary>
 internal sealed class OrphanSweepCheckpoint(
     IDbContextFactory<AppDbContext> contextFactory,

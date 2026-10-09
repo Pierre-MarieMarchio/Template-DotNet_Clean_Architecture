@@ -14,9 +14,9 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Files.Locks;
 /// released with <c>pg_advisory_unlock</c> once the work, commit included, has returned.
 /// </summary>
 /// <remarks>
-/// The connection is not pooled: the lock belongs to the session, so it must end with this call and
-/// not when a pool recycles the connection, and the registration's own connection must not wait
-/// behind it in the same pool. Stateless; registered as a singleton.
+/// The connection is not pooled: the lock belongs to the session, so it must end with this call
+/// rather than when a pool recycles the connection, and must not hold a pooled connection the
+/// registration itself needs. Stateless; registered as a singleton.
 /// </remarks>
 internal sealed class PostgresOwnerQuotaLock(string connectionString, ILogger<PostgresOwnerQuotaLock> logger)
     : IOwnerQuotaLock

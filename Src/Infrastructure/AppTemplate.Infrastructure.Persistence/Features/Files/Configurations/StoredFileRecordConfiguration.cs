@@ -7,13 +7,8 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Configurations;
 
 /// <summary>
-/// Mapping for the stored-file row. Every string length is read from the domain's own constant, so a
-/// column and the invariant behind it cannot drift apart.
-/// <para>
-/// Seven indexes, and each one is here for a caller that can be named. Nothing is indexed
-/// speculatively: an index nobody queries through is a write cost and a page of storage bought
-/// against a guess.
-/// </para>
+/// Mapping for the stored-file row. String lengths come from the domain constants, and each of the
+/// seven indexes serves a named caller: nothing is indexed speculatively.
 /// </summary>
 internal sealed class StoredFileRecordConfiguration : IEntityTypeConfiguration<StoredFileRecord>
 {
@@ -48,8 +43,7 @@ internal sealed class StoredFileRecordConfiguration : IEntityTypeConfiguration<S
 
         builder.Property(file => file.SizeInBytes).IsRequired();
 
-        // Not IsFixedLength: character(n) pads with spaces and ignores trailing ones when comparing,
-        // which would disagree with Sha256Checksum's ordinal equality.
+        // Not IsFixedLength: character(n) pads and ignores trailing spaces, unlike Sha256Checksum's ordinal equality.
         builder.Property(file => file.Checksum)
             .HasMaxLength(Sha256Checksum.Length)
             .IsRequired();
@@ -60,15 +54,13 @@ internal sealed class StoredFileRecordConfiguration : IEntityTypeConfiguration<S
         builder.Property(file => file.InspectionAttempts).IsRequired();
         builder.Property(file => file.NextInspectionAt);
 
-        // Unique as a safety property, not as an optimisation: bytes are reclaimed by deleting every
-        // object no row names, so two rows sharing a key would have either deletion reclaim both.
+        // Unique for safety: two rows sharing a key would have either deletion reclaim both rows' bytes.
         builder.HasIndex(file => file.ObjectKey)
             .IsUnique()
             .HasDatabaseName("IX_StoredFiles_ObjectKey");
 
-        // One index per field StoredFileCollectionPolicy whitelists, leading with OwnerId, which
-        // every read filters by, and ending in Id, the tiebreaker StoredFileSortMap always appends:
-        // the ORDER BY and the keyset comparison that resumes it both stay index-ordered.
+        // One per field StoredFileCollectionPolicy whitelists: OwnerId first, Id last (the tiebreaker
+        // StoredFileSortMap appends), so ORDER BY and the keyset comparison stay index-ordered.
         builder.HasIndex(file => new { file.OwnerId, file.Name, file.Id })
             .HasDatabaseName("IX_StoredFiles_OwnerId_Name_Id");
 
@@ -82,20 +74,17 @@ internal sealed class StoredFileRecordConfiguration : IEntityTypeConfiguration<S
         builder.HasIndex(file => new { file.State, file.RegisteredAt })
             .HasDatabaseName("IX_StoredFiles_State_RegisteredAt");
 
-        // The inspection queue, partial so it holds only deposited rows: the due filter reads it,
-        // and the sort on coalesce(NextInspectionAt, RegisteredAt) runs over that short set.
+        // The inspection queue, partial so it holds only deposited rows.
         builder.HasIndex(file => new { file.NextInspectionAt, file.RegisteredAt, file.Id })
             .HasFilter($"\"State\" = {(int)StoredFileState.Deposited}")
             .HasDatabaseName("IX_StoredFiles_Deposited_NextInspectionAt_RegisteredAt_Id");
 
-        // The quota read: one owner's rows in one category, summed by state. SizeInBytes is included
-        // so the sums are answered from the index alone.
+        // The quota read; SizeInBytes is included so the sums come from the index alone.
         builder.HasIndex(file => new { file.OwnerId, file.Category, file.State })
             .IncludeProperties(file => file.SizeInBytes)
             .HasDatabaseName("IX_StoredFiles_OwnerId_Category_State");
 
-        // PostgreSQL's xmin system column, which already exists: EF reads it back after a write and
-        // puts it in the WHERE clause of the next one.
+        // PostgreSQL's xmin system column, read back after a write and used in the next one's WHERE.
         builder.Property(file => file.Version)
             .HasColumnName("xmin")
             .HasColumnType("xid")

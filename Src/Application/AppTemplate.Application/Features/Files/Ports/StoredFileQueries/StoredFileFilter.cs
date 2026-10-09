@@ -5,14 +5,9 @@ using AppTemplate.Domain.Features.Files.ValueObjects;
 namespace AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 
 /// <summary>
-/// The file feature's own filter: a closed set of typed parameters, never an expression a caller
-/// composes — see <c>docs/DECISIONS.md</c> for why there is no filter language. Adding a filter here
-/// means adding a parameter and a test, which is the point.
-/// <para>
-/// <see cref="Search"/> matches the file's name only, case-insensitively, as a contains. The name is
-/// a label the user chose; the object key is not searchable and is not meant to be, since it
-/// addresses bytes and nothing about it is the user's to look for.
-/// </para>
+/// A closed set of typed parameters, never a composable expression (see <c>docs/DECISIONS.md</c>).
+/// <see cref="Search"/> is a case-insensitive contains over the name only; the object key addresses bytes and is not
+/// the user's to search.
 /// </summary>
 public sealed record StoredFileFilter
 {
@@ -27,11 +22,8 @@ public sealed record StoredFileFilter
     public SearchTerm? Search { get; }
 
     /// <summary>
-    /// Which part of the life to show. Worth having as a filter rather than inferring: "the uploads
-    /// that never finished" is the question a user asks when their quota is full, and the answer is
-    /// exactly <see cref="StoredFileState.Pending"/> — while "why can I not download this?" is
-    /// answered by <see cref="StoredFileState.Quarantined"/>, which is the whole reason a refused
-    /// file keeps a row.
+    /// Which part of the life to show: "uploads that never finished" (pending) when the quota is full, "why can I not
+    /// download this?" (quarantined).
     /// </summary>
     public StoredFileState? State { get; }
 
@@ -55,10 +47,8 @@ public sealed record StoredFileFilter
 
         if (!string.IsNullOrWhiteSpace(state))
         {
-            // Matched by name against the members this enum has, rather than through Enum.TryParse:
-            // that helper also accepts the underlying number, so "7" would parse into a
-            // StoredFileState no switch anywhere handles, and the failure would surface as an empty
-            // page rather than as a refused request.
+            // By name, not Enum.TryParse, which also accepts numbers: "7" would parse into a state
+            // nothing handles and surface as an empty page.
             parsedState = state.Trim().ToLowerInvariant() switch
             {
                 "pending" => StoredFileState.Pending,

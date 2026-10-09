@@ -377,7 +377,7 @@ Each context ships **one** migration, and they are independent:
 
 | Context | Migration | Creates |
 |---|---|---|
-| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/` | `todo`, `reminders`, `files`, `notes` and `platform` — eight tables |
+| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/` | `todo`, `reminders`, `files`, `notes` and `platform` — nine tables |
 | `AuthDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Migrations/` | `identity` — nine tables plus the key ring |
 
 **Removing an example touches the business migration and nothing else.** Authentication's is a
@@ -491,12 +491,12 @@ Everything else keeps a live example, because `Files` is one:
 
 | Mechanism | Where it stays demonstrated |
 |---|---|
-| `IUnitOfWork` | six files under `Src/Application/AppTemplate.Application/Features/Files/` |
+| `IUnitOfWork` | use cases and services under `Src/Application/AppTemplate.Application/Features/Files/` |
 | The aggregate tracker / identity map, registered under three contracts | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Tracking/StoredFileTracker.cs` |
 | The default-deny fallback authorisation policy | both `Src/Presentation/AppTemplate.Api/Features/Files/Controllers/FilesController.cs` and `Src/Presentation/AppTemplate.Api/Features/Files/Controllers/FileTagsController.cs` carry no `[Authorize]` and no `[AllowAnonymous]`, on the class or on any action |
 | Domain events at all | three under `Src/Domain/AppTemplate.Domain/Features/Files/Events/`, one with a consumer |
 | `ICollectionPolicy` | `Src/Application/AppTemplate.Application/Features/Files/Policies/StoredFileCollectionPolicy.cs` |
-| Ownership isolation for a resource addressed by id | five `{fileId:guid}` routes, four on `FilesController` and the tag replacement on `FileTagsController` |
+| Ownership isolation for a resource addressed by id | the `{fileId:guid}` routes of `FilesController` and the tag replacement on `FileTagsController` |
 | `[Idempotent]` | `FilesController`'s registration action; the count drops from four to three |
 
 Three of those need their test repointed rather than kept as is.
@@ -595,8 +595,8 @@ number:
 
 - `Tests/Application/AppTemplate.Application.UnitTests/ApplicationModuleTests.cs` holds
   `_knownUseCaseCount`, and a doc comment that breaks the total down per vertical. Removing
-  `Reminders` takes it from 29 to 24; the comment has to lose the same clause, and the feature's
-  entry comes out of the `FeatureCalls` theory data beside it. The number alone, without the comment
+  `Reminders` lowers it by the use cases that feature declares; the comment has to lose the same
+  clause, and the feature's entry comes out of the `FeatureCalls` theory data beside it. The number alone, without the comment
   saying what it now counts, is exactly the kind of assertion this repository's conventions warn
   against. `Tests/Application/AppTemplate.Application.Auth.UnitTests/ApplicationAuthModuleTests.cs`
   is its counterpart and no business removal touches it.

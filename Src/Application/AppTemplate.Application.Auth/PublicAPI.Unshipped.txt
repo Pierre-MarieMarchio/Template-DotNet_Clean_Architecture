@@ -1,1 +1,11 @@
 #nullable enable
+AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorConfirmationStatus.NoSuchAccount = 3 -> AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorConfirmationStatus
+AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorConfirmationStatus.Rejected = 4 -> AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorConfirmationStatus
+AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorDisableStatus.Rejected = 2 -> AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorDisableStatus
+AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorSetupStatus.NoSuchAccount = 2 -> AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorSetupStatus
+static AppTemplate.Application.Auth.Features.Auth.Errors.AuthErrors.TwoFactorDisableRejected.get -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Auth.Features.Auth.Errors.AuthErrors.TwoFactorEnableRejected.get -> AppTemplate.Application.Core.Common.Results.Error!
+static AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorConfirmationOutcome.NoSuchAccount.get -> AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorConfirmationOutcome!
+static AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorConfirmationOutcome.Rejected.get -> AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorConfirmationOutcome!
+static AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorDisableOutcome.Rejected.get -> AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorDisableOutcome!
+static AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorSetupOutcome.NoSuchAccount.get -> AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorSetupOutcome!

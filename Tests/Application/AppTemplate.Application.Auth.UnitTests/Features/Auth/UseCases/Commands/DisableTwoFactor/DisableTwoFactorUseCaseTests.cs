@@ -63,6 +63,23 @@ public sealed class DisableTwoFactorUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
+    /// <summary>
+    /// The factor is still on, so nothing about the account's posture changed: no event, and no
+    /// session revoked for a change that did not happen.
+    /// </summary>
+    [Fact]
+    public async Task AStoreRefusal_IsReportedAndRevokesNothingAndRecordsNothing()
+    {
+        GivenTheOutcomeIs(TwoFactorDisableOutcome.Rejected);
+
+        var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("auth.twoFactor.disableRejected");
+        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        _securityEventLog.ReceivedCalls().ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task ARightPassword_Succeeds()
     {

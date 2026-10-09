@@ -12,4 +12,10 @@ public enum TwoFactorSetupStatus
     /// warning that the old one is about to stop being checked.
     /// </summary>
     AlreadyEnabled,
+
+    /// <summary>
+    /// The caller's token names an account that no longer exists: it was deleted after the token
+    /// was issued.
+    /// </summary>
+    NoSuchAccount,
 }

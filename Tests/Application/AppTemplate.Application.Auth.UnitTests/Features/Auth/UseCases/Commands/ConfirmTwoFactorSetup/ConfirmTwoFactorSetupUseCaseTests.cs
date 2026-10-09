@@ -105,6 +105,37 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
+    /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
+    [Fact]
+    public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticatedAndRevokesNothing()
+    {
+        GivenTheOutcomeIs(TwoFactorConfirmationOutcome.NoSuchAccount);
+
+        var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("auth.required");
+        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        _securityEventLog.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// The store refusing to arm the factor is not the caller's wrong code: the code was right and
+    /// retrying it may well succeed.
+    /// </summary>
+    [Fact]
+    public async Task AStoreRefusal_IsReportedAsSuchAndArmsNothingRevokesNothingRecordsNothing()
+    {
+        GivenTheOutcomeIs(TwoFactorConfirmationOutcome.Rejected);
+
+        var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("auth.twoFactor.enableRejected");
+        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        _securityEventLog.ReceivedCalls().ShouldBeEmpty();
+    }
+
     /// <summary>Non-regression: the right password still arms the second factor.</summary>
     [Fact]
     public async Task ARightPasswordAndCode_AnswersWithTheFreshRecoveryCodes()

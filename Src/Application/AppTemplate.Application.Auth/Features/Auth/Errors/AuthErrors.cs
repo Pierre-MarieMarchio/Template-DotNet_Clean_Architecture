@@ -183,6 +183,16 @@ public static class AuthErrors
         "auth.twoFactor.cannotTargetSelf",
         "An administrator cannot disable two-factor sign-in on their own account this way.");
 
+    /// <summary>Password and code matched, but the store refused to arm the factor. See <see cref="AccountDeletionRejected"/> for why no message is carried.</summary>
+    public static Error TwoFactorEnableRejected { get; } = Error.Validation(
+        "auth.twoFactor.enableRejected",
+        "Two-factor sign-in could not be enabled on this account.");
+
+    /// <summary>The password matched, but the store refused to disarm the factor. See <see cref="AccountDeletionRejected"/> for why no message is carried.</summary>
+    public static Error TwoFactorDisableRejected { get; } = Error.Validation(
+        "auth.twoFactor.disableRejected",
+        "Two-factor sign-in could not be disabled on this account.");
+
     /// <summary>The account was found but the store refused the change itself. See <see cref="AccountDeletionRejected"/> for why no message is carried.</summary>
     public static Error TwoFactorAdministrativeDisableRejected { get; } = Error.Validation(
         "auth.twoFactor.administrativeDisableRejected",

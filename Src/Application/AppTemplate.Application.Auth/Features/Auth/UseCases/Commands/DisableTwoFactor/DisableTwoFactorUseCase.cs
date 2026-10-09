@@ -48,6 +48,12 @@ public sealed class DisableTwoFactorUseCase(
             return Result.Failure(AuthErrors.IncorrectCurrentPassword);
         }
 
+        // Nothing changed, so there is no posture change to record or revoke for.
+        if (disabled.Status is TwoFactorDisableStatus.Rejected)
+        {
+            return Result.Failure(AuthErrors.TwoFactorDisableRejected);
+        }
+
         securityEventLog.Record(SecurityEvent.TwoFactorDisabled(userId.Value.Value));
 
         await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value.Value, cancellationToken);

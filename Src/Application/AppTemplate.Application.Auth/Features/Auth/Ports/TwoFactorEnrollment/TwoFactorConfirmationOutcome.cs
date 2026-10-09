@@ -16,6 +16,12 @@ public sealed record TwoFactorConfirmationOutcome(
     public static TwoFactorConfirmationOutcome IncorrectPassword { get; } =
         new(TwoFactorConfirmationStatus.IncorrectPassword);
 
+    /// <summary>Nothing armed — see <see cref="TwoFactorConfirmationStatus.NoSuchAccount"/>.</summary>
+    public static TwoFactorConfirmationOutcome NoSuchAccount { get; } = new(TwoFactorConfirmationStatus.NoSuchAccount);
+
+    /// <summary>Nothing armed, and no recovery codes minted — see <see cref="TwoFactorConfirmationStatus.Rejected"/>.</summary>
+    public static TwoFactorConfirmationOutcome Rejected { get; } = new(TwoFactorConfirmationStatus.Rejected);
+
     /// <summary>Two-factor sign-in is armed. The codes travel here because nothing reads them back.</summary>
     public static TwoFactorConfirmationOutcome Confirmed(IReadOnlyList<string> recoveryCodes) =>
         new(TwoFactorConfirmationStatus.Confirmed, recoveryCodes);

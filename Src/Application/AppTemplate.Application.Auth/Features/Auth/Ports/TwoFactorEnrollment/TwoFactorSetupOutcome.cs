@@ -16,6 +16,9 @@ public sealed record TwoFactorSetupOutcome(
     /// <summary>Nothing was provisioned — see <see cref="TwoFactorSetupStatus.AlreadyEnabled"/>.</summary>
     public static TwoFactorSetupOutcome AlreadyEnabled { get; } = new(TwoFactorSetupStatus.AlreadyEnabled);
 
+    /// <summary>Nothing was provisioned — see <see cref="TwoFactorSetupStatus.NoSuchAccount"/>.</summary>
+    public static TwoFactorSetupOutcome NoSuchAccount { get; } = new(TwoFactorSetupStatus.NoSuchAccount);
+
     /// <summary>A secret is pending confirmation, in both forms an authenticator app can take it.</summary>
     public static TwoFactorSetupOutcome Started(string sharedKey, string authenticatorUri) =>
         new(TwoFactorSetupStatus.Started, sharedKey, authenticatorUri);

@@ -84,6 +84,11 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("AvailableAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Checksum")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -145,6 +150,11 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OwnerId", "AvailableAt", "Id")
                         .HasDatabaseName("IX_StoredFiles_OwnerId_AvailableAt_Id");
+
+                    b.HasIndex("OwnerId", "Category", "State")
+                        .HasDatabaseName("IX_StoredFiles_OwnerId_Category_State");
+
+                    NpgsqlIndexBuilderExtensions.IncludeProperties(b.HasIndex("OwnerId", "Category", "State"), new[] { "SizeInBytes" });
 
                     b.HasIndex("OwnerId", "Name", "Id")
                         .HasDatabaseName("IX_StoredFiles_OwnerId_Name_Id");

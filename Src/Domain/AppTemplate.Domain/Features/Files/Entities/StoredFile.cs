@@ -48,6 +48,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     private StoredFile(
         Guid id,
         UserId ownerId,
+        FileCategory category,
         ObjectKey objectKey,
         StoredFileName name,
         DeclaredMediaType declaredMediaType,
@@ -62,6 +63,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         }
 
         ArgumentNullException.ThrowIfNull(ownerId);
+        ArgumentNullException.ThrowIfNull(category);
         ArgumentNullException.ThrowIfNull(objectKey);
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(declaredMediaType);
@@ -74,6 +76,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         }
 
         OwnerId = ownerId;
+        Category = category;
         ObjectKey = objectKey;
         Name = name;
         DeclaredMediaType = declaredMediaType;
@@ -93,6 +96,12 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// assigned once: a file does not change hands, so no operation below can move it.
     /// </summary>
     public UserId OwnerId { get; private set; }
+
+    /// <summary>
+    /// The configured category the file was registered under. Assigned once; what the category
+    /// allows is read from configuration when it matters, never stored here.
+    /// </summary>
+    public FileCategory Category { get; private set; }
 
     /// <summary>
     /// Where the bytes are. Minted once at registration and never recomputed — see
@@ -164,6 +173,8 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// this point nothing has happened that anything else could act on — there is a name and a
     /// promise, and no content behind either.
     /// </summary>
+    /// <param name="category">The category the caller named; the application has already checked it
+    /// against configuration.</param>
     /// <param name="size">What the client says the file weighs. Checked against the store at
     /// confirmation, so a lie here costs the client its own upload rather than this system anything.</param>
     /// <param name="now">Injected rather than read from a clock, so the aggregate has no ambient
@@ -171,6 +182,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// and the instant the key's time slice is minted from, and they have to be the same value.</param>
     public static StoredFile Register(
         UserId ownerId,
+        FileCategory category,
         StoredFileName name,
         DeclaredMediaType declaredMediaType,
         FileSize size,
@@ -179,6 +191,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         new(
             Guid.CreateVersion7(),
             ownerId,
+            category,
             ObjectKey.New(now),
             name,
             declaredMediaType,
@@ -224,6 +237,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         var file = new StoredFile(
             stored.Id,
             stored.OwnerId,
+            stored.Category,
             stored.ObjectKey,
             stored.Name,
             stored.DeclaredMediaType,

@@ -10,7 +10,7 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Files.Configurations;
 /// Mapping for the stored-file row. Every string length is read from the domain's own constant, so a
 /// column and the invariant behind it cannot drift apart.
 /// <para>
-/// Five indexes, and each one is here for a caller that can be named. Nothing is indexed
+/// Six indexes, and each one is here for a caller that can be named. Nothing is indexed
 /// speculatively: an index nobody queries through is a write cost and a page of storage bought
 /// against a guess.
 /// </para>
@@ -29,6 +29,10 @@ internal sealed class StoredFileRecordConfiguration : IEntityTypeConfiguration<S
         builder.Property(file => file.Id).ValueGeneratedNever();
 
         builder.Property(file => file.OwnerId).IsRequired();
+
+        builder.Property(file => file.Category)
+            .HasMaxLength(FileCategory.MaxLength)
+            .IsRequired();
 
         builder.Property(file => file.ObjectKey)
             .HasMaxLength(ObjectKey.MaxLength)
@@ -77,6 +81,12 @@ internal sealed class StoredFileRecordConfiguration : IEntityTypeConfiguration<S
         // sweeps read this shape, which is why the inspection pass orders by registration too.
         builder.HasIndex(file => new { file.State, file.RegisteredAt })
             .HasDatabaseName("IX_StoredFiles_State_RegisteredAt");
+
+        // The quota read: one owner's rows in one category, summed by state. SizeInBytes is included
+        // so the sums are answered from the index alone.
+        builder.HasIndex(file => new { file.OwnerId, file.Category, file.State })
+            .IncludeProperties(file => file.SizeInBytes)
+            .HasDatabaseName("IX_StoredFiles_OwnerId_Category_State");
 
         // PostgreSQL's xmin system column, which already exists: EF reads it back after a write and
         // puts it in the WHERE clause of the next one.

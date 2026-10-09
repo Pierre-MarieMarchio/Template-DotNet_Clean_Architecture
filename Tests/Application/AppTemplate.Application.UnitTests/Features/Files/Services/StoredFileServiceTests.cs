@@ -144,6 +144,75 @@ public sealed class StoredFileServiceTests
         result.Error!.Type.ShouldBe(ErrorType.NotFound);
     }
 
+    #region Reading content
+
+    [Fact]
+    public async Task Readable_AnAnonymousCallerIsRefused()
+    {
+        var result = await AccessFor(StubCurrentUser.Anonymous).LoadReadableAsync(Guid.CreateVersion7(), TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
+    }
+
+    /// <summary>The owner reads their file in any state; the use case answers the state.</summary>
+    [Fact]
+    public async Task Readable_TheOwnersPendingFileIsLoaded()
+    {
+        var pending = AStoredFile.PendingOwnedBy(_callerId);
+        _repository.GetAsync(pending.Id, Arg.Any<CancellationToken>()).Returns(pending);
+
+        var result = await Access().LoadReadableAsync(pending.Id, TestToken);
+
+        result.Value.ShouldBeSameAs(pending);
+    }
+
+    [Fact]
+    public async Task Readable_AnotherUsersAvailableFileInAnAuthenticatedCategoryIsLoaded()
+    {
+        var shared = AStoredFile.AvailableOwnedBy(UserId.Create(Guid.CreateVersion7()), category: FilesSettings.Image);
+        _repository.GetAsync(shared.Id, Arg.Any<CancellationToken>()).Returns(shared);
+
+        var result = await Access().LoadReadableAsync(shared.Id, TestToken);
+
+        result.Value.ShouldBeSameAs(shared);
+    }
+
+    [Fact]
+    public async Task Readable_AnotherUsersPendingFileInAnAuthenticatedCategoryIsNotFound()
+    {
+        var pending = AStoredFile.PendingOwnedBy(UserId.Create(Guid.CreateVersion7()), category: FilesSettings.Image);
+        _repository.GetAsync(pending.Id, Arg.Any<CancellationToken>()).Returns(pending);
+
+        var result = await Access().LoadReadableAsync(pending.Id, TestToken);
+
+        result.Error!.Code.ShouldBe("storedFile.notFound");
+    }
+
+    [Fact]
+    public async Task Readable_AnotherUsersFileInAPrivateCategoryIsNotFound()
+    {
+        var foreign = AStoredFile.AvailableOwnedBy(UserId.Create(Guid.CreateVersion7()), category: FilesSettings.Document);
+        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
+
+        var result = await Access().LoadReadableAsync(foreign.Id, TestToken);
+
+        result.Error!.Code.ShouldBe("storedFile.notFound");
+    }
+
+    /// <summary>Visibility opens the content only: every other operation still loads through ownership.</summary>
+    [Fact]
+    public async Task Owned_AnotherUsersFileInAnAuthenticatedCategoryIsStillNotFound()
+    {
+        var shared = AStoredFile.AvailableOwnedBy(UserId.Create(Guid.CreateVersion7()), category: FilesSettings.Image);
+        _repository.GetAsync(shared.Id, Arg.Any<CancellationToken>()).Returns(shared);
+
+        var result = await Access().LoadOwnedAsync(shared.Id, precondition: null, TestToken);
+
+        result.Error!.Code.ShouldBe("storedFile.notFound");
+    }
+
+    #endregion
+
     private StoredFile GivenTheCallerOwnsAFile()
     {
         var storedFile = AStoredFile.AvailableOwnedBy(_callerId);
@@ -154,5 +223,6 @@ public sealed class StoredFileServiceTests
 
     private StoredFileService Access() => AccessFor(StubCurrentUser.WithId(_callerId));
 
-    private StoredFileService AccessFor(StubCurrentUser currentUser) => new(_repository, currentUser);
+    private StoredFileService AccessFor(StubCurrentUser currentUser) =>
+        new(_repository, currentUser, FilesSettings.Default().AsOptions());
 }

@@ -34,6 +34,9 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
 {
     private const long _size = 4_096;
 
+    private static readonly FileCategory _document = FileCategory.Create("document");
+    private static readonly FileCategory _image = FileCategory.Create("image");
+
     [Fact]
     public async Task AQuarantinedFile_StillWeighsOnItsOwnersQuota()
     {
@@ -97,16 +100,34 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
         usage.CommittedBytes.ShouldBe(_size, "promised bytes are what the quota refuses to ignore.");
     }
 
+    /// <summary>The quota is per (owner, category): a file in one category weighs nothing on another.</summary>
+    [Fact]
+    public async Task AFileInAnotherCategory_DoesNotWeighOnThisOne()
+    {
+        var owner = UserId.Create(Guid.CreateVersion7());
+
+        await StoreAsync(owner, Confirm, _image);
+
+        var document = await UsageForAsync(owner, _document);
+        var image = await UsageForAsync(owner, _image);
+
+        document.TotalCount.ShouldBe(0);
+        document.CommittedBytes.ShouldBe(0);
+        image.StoredCount.ShouldBe(1);
+        image.StoredBytes.ShouldBe(_size);
+    }
+
     /// <summary>
     /// Registers one file for <paramref name="owner"/> and applies <paramref name="advance"/> to it
     /// before the single commit, so the row lands in whatever state that leaves it in.
     /// </summary>
-    private async Task StoreAsync(UserId owner, Action<StoredFile> advance)
+    private async Task StoreAsync(UserId owner, Action<StoredFile> advance, FileCategory? category = null)
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
 
         var file = StoredFile.Register(
             owner,
+            category ?? _document,
             StoredFileName.Create("quarterly-report.png"),
             DeclaredMediaType.Create("image/png"),
             FileSize.Create(_size),
@@ -126,12 +147,12 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
     private static void Confirm(StoredFile file) =>
         file.ConfirmDeposit(FileSize.Create(_size), Sha256Checksum.Create(new string('a', Sha256Checksum.Length)));
 
-    private async Task<OwnerStorageUsage> UsageForAsync(UserId owner)
+    private async Task<OwnerStorageUsage> UsageForAsync(UserId owner, FileCategory? category = null)
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
 
         return await scope.ServiceProvider
             .GetRequiredService<IStoredFileQueries>()
-            .GetUsageForOwnerAsync(owner, TestToken);
+            .GetUsageForOwnerAsync(owner, category ?? _document, TestToken);
     }
 }

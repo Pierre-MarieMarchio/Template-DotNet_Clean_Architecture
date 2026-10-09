@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using AppTemplate.Application.Features.Files.Options;
+using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Options;
 
@@ -71,6 +72,30 @@ internal sealed class FilesScanningOptionsValidator : IValidateOptions<FilesScan
                 $"{_minimumScannableBytes} bytes. A ceiling below that refuses ordinary files as " +
                 "not inspectable, which quarantines them.");
         }
+
+        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+}
+
+/// <summary>Refuses a category that asks for a scan while scanning is disabled: it would never be scanned.</summary>
+internal sealed class FilesCategoriesScanningValidator(IOptions<FilesScanningOptions> scanning)
+    : IValidateOptions<FilesOptions>
+{
+    public ValidateOptionsResult Validate(string? name, FilesOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (scanning.Value.Enabled)
+        {
+            return ValidateOptionsResult.Success;
+        }
+
+        var failures = options.Categories
+            .Where(category => category.Value is { Scan: true })
+            .Select(category =>
+                $"'{FilesOptions.SectionName}:Categories:{category.Key}:Scan' is true while " +
+                $"'{FilesScanningOptions.SectionName}:Enabled' is false.")
+            .ToList();
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }

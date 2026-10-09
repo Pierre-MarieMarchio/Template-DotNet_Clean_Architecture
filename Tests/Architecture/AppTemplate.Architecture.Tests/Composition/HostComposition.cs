@@ -113,6 +113,12 @@ internal static class HostComposition
             // itself, and with no credentials the SDK's own chain resolves an instance role — which
             // is the shape a deployment should be in, so it is the shape composed here.
             ["Files:Storage:S3:BucketName"] = "app-template-architecture-tests",
+
+            // One category, unscanned because scanning is off: FilesOptionsValidator refuses a
+            // deployment with none, and the storage module refuses a scan nothing would run.
+            ["Files:Categories:document:AllowedMediaTypes:0"] = "application/pdf",
+            ["Files:Categories:document:MaxSizeInBytes"] = "52428800",
+            ["Files:Categories:document:UploadModes:0"] = "Direct",
         };
 
     /// <summary>
@@ -144,7 +150,7 @@ internal static class HostComposition
 
         services.AddTodoLists();
         services.AddReminders();
-        services.AddFiles();
+        services.AddFiles(configuration);
         services.AddNotes();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
@@ -183,7 +189,7 @@ internal static class HostComposition
 
         services.AddTodoLists();
         services.AddReminders();
-        services.AddFiles();
+        services.AddFiles(configuration);
         services.AddNotes();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
@@ -228,7 +234,7 @@ internal static class HostComposition
 
         services.AddTodoLists();
         services.AddReminders();
-        services.AddFiles();
+        services.AddFiles(configuration);
         services.AddNotes();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
@@ -254,7 +260,7 @@ internal static class HostComposition
 
         services.AddTodoLists();
         services.AddReminders();
-        services.AddFiles();
+        services.AddFiles(configuration);
         services.AddNotes();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
@@ -281,7 +287,7 @@ internal static class HostComposition
 
         services.AddTodoLists();
         services.AddReminders();
-        services.AddFiles();
+        services.AddFiles(configuration);
         services.AddNotes();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();

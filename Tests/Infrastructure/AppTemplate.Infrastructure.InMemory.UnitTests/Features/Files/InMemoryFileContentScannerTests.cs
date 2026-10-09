@@ -69,7 +69,7 @@ public sealed class InMemoryFileContentScannerTests
         using var scope = host.CreateScope();
         using var content = new MemoryStream(_png);
 
-        (await FileContentHost.ScannerIn(scope).ScanAsync(otherKey, content, TestToken))
+        (await FileContentHost.ScannerIn(scope).ScanAsync(otherKey, content, content.Length, TestToken))
             .ShouldBe(FileScanOutcome.Clean);
     }
 
@@ -92,7 +92,7 @@ public sealed class InMemoryFileContentScannerTests
         using var scope = host.CreateScope();
         using var content = new MemoryStream(_png);
 
-        await FileContentHost.ScannerIn(scope).ScanAsync(_key, content, TestToken);
+        await FileContentHost.ScannerIn(scope).ScanAsync(_key, content, content.Length, TestToken);
 
         content.Position.ShouldBe(content.Length);
     }
@@ -104,7 +104,7 @@ public sealed class InMemoryFileContentScannerTests
         using var scope = host.CreateScope();
 
         await Should.ThrowAsync<ArgumentException>(
-            () => FileContentHost.ScannerIn(scope).ScanAsync(" ", Stream.Null, TestToken));
+            () => FileContentHost.ScannerIn(scope).ScanAsync(" ", Stream.Null, 0, TestToken));
     }
 
     private static async Task<FileScanOutcome> ScanAsync(IServiceProvider host)
@@ -112,6 +112,6 @@ public sealed class InMemoryFileContentScannerTests
         using var scope = host.CreateScope();
         using var content = new MemoryStream(_png);
 
-        return await FileContentHost.ScannerIn(scope).ScanAsync(_key, content, TestToken);
+        return await FileContentHost.ScannerIn(scope).ScanAsync(_key, content, content.Length, TestToken);
     }
 }

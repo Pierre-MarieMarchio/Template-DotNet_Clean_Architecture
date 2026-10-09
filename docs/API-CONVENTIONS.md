@@ -77,12 +77,12 @@ of the contract.
 
 | `code` | Status |
 |---|---|
-| `todoList.notFound` / `todoItem.notFound` / `storedFile.notFound` / `reminder.notFound` / `note.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated |
+| `todoList.notFound` / `todoItem.notFound` / `storedFile.notFound` / `reminder.notFound` / `note.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated. The one exception is the content of an available file whose category is `Authenticated` |
 | `reminder.targetNotFound` | 404 — the item a reminder is about does not exist or is not the caller's |
-| `storedFile.notAvailable` / `storedFile.quarantined` | 409 — the content has no verdict yet, or was examined and refused. The second never becomes available |
+| `storedFile.notAvailable` / `storedFile.quarantined` | 409 — the content has no verdict yet (or, for an available file, the store no longer holds it), or was examined and refused. The second never becomes available |
 | `storedFile.depositMissing` | 409 — `confirm` found nothing deposited against the registration |
 | `storedFile.quotaExceeded` | 409 — the caller's own pending, file-count or byte allowance |
-| `storedFile.directUploadUnavailable` | 409 — registration for a direct upload against a store that cannot sign URLs (the file system store) |
+| `storedFile.directUploadUnavailable` | 409 — registration for a direct upload against a store that cannot sign URLs (the file system store), or in a category configured for uploads through the API only |
 | `domain.invariantViolated` | 409 via `DomainGuard`; 400 if a use case's own catch is missing and `DomainException` reaches `GlobalExceptionHandler` |
 
 **The request itself**

@@ -220,8 +220,9 @@ public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTe
 
     private static RegisterFileRequest ARegistration() =>
         new(
-            "quarterly-report.png",
-            "image/png",
+            "document",
+            "quarterly-report.pdf",
+            "application/pdf",
             SizeInBytes: 4_096,
 
             // Any 64 hexadecimal characters: nothing is deposited here, so no digest is ever compared

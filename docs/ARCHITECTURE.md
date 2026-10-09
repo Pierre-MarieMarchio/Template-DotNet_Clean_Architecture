@@ -377,7 +377,7 @@ storage — one DbContext over the schemas it owns:
 | `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, `IUnitOfWork`, `ILeaderLease`, the aggregate repositories and read-side ports, the idempotency store | `AppDbContext` → `todo`, `reminders`, `files`, `platform` |
 | `AppTemplate.Infrastructure.Auth` | the authentication ports, ASP.NET Identity, JWT bearer, refresh-token rotation, `IRefreshTokenTable`, `IIdentitySeeder` | `AuthDbContext` → `identity` |
 | `AppTemplate.Infrastructure.Email` | `IEmailSender`, `IReminderNotifier`, email options | — |
-| `AppTemplate.Infrastructure.Storage` | `IFileContentStore`, `IFileDirectTransfer`, `IFileContentInventory`, `IFileContentScanner`, the `Files:Storage` and `Files:Scanning` options | an S3-compatible bucket or a local directory, chosen by `Files:Storage:Provider` |
+| `AppTemplate.Infrastructure.Storage` | `IFileContentStore`, `IFileDirectTransfer`, `IFileContentInventory`, `IFileContentScanner`, the `Files:Storage` and `Files:Scanning` options, and the checks of `Files:Categories` against them | an S3-compatible bucket or a local directory, chosen by `Files:Storage:Provider` |
 | `AppTemplate.Infrastructure.InMemory` | in-memory port implementations for tests and demos | — |
 
 **`AppTemplate.Infrastructure.Core` is not in that table, because it is not a capability.** It is
@@ -456,17 +456,19 @@ rather than two, and why EF maps rows rather than aggregates.
 
 **One DI module per project, and the application layer is composed a feature at a time.** The
 host's composition root starts with nine lines, in this order — `AddTodoLists()`,
-`AddReminders()`, `AddFiles()`, `AddNotes()`, then `AddPurgeExpiredIdempotencyKeys()`, then
-`AddCacheStore()`, then `AddPersistenceModule(builder.Configuration)`, `AddEmailModule` and
-`AddStorageModule`. The first six take no argument, because nothing in the application layer binds a
-configuration section of its own and the cache decides its lifetimes at each call site; the three
-modules each take one. Authentication is one more line, `AddAuthFeature(builder.Configuration)`
-from `Features/Auth/Composition/`, which composes its use cases, its module, its purge, its readiness
-check, the `Administrator` policy and its development migration and seed, so a host without local
-accounts deletes that line and that folder. Adding a capability adds one line there and touches nothing else; removing
+`AddReminders()`, `AddFiles(builder.Configuration)`, `AddNotes()`, then
+`AddPurgeExpiredIdempotencyKeys()`, then `AddCacheStore()`, then
+`AddPersistenceModule(builder.Configuration)`, `AddEmailModule` and `AddStorageModule`. Of the first
+six only `AddFiles` takes the configuration, because the Files categories are application policy a
+deployment declares (`Files:Categories`); the others bind nothing and the cache decides its lifetimes
+at each call site. The three modules each take one. Authentication is one more line,
+`AddAuthFeature(builder.Configuration)` from `Features/Auth/Composition/`, which composes its use
+cases, its module, its purge, its readiness check, the `Administrator` policy and its development
+migration and seed, so a host without local accounts deletes that line and that folder. Adding a
+capability adds one line there and touches nothing else; removing
 one deletes a project and a line.
 
-Three further lines are not among the eleven, because they compose host concerns rather than
+Three further lines are not among the nine, because they compose host concerns rather than
 capabilities: `AddOutboundHttp()`, the localisation binding — reached through `AddRequestLanguage()`,
 which adds the request-header middleware around `AddLocalizationOptions()` — and the host's own thin
 observability extension over the shared `AddObservability`. All three come from

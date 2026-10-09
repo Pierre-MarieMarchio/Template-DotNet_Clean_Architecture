@@ -747,6 +747,7 @@ Content-Type: application/json
 Idempotency-Key: {{$guid}}
 
 {
+  "category": "document",
   "name": "hello.txt",
   "declaredMediaType": "text/plain",
   "sizeInBytes": 12,

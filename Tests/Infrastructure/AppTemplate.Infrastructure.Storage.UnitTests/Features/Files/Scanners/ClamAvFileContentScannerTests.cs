@@ -18,8 +18,9 @@ public sealed class ClamAvFileContentScannerTests
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
     /// <summary>
-    /// A stream whose length is known is judged before a byte is sent. The host here resolves to
-    /// nothing listening, so any connection attempt would answer Unavailable instead.
+    /// Content whose confirmed size is past the ceiling is judged before a byte is sent, whatever the
+    /// stream can say about its own length. The host here resolves to nothing listening, so any
+    /// connection attempt would answer Unavailable instead.
     /// </summary>
     [Fact]
     public async Task ContentKnownToBePastTheCeiling_IsNotInspectableWithoutConnecting()
@@ -28,7 +29,8 @@ public sealed class ClamAvFileContentScannerTests
 
         var outcome = await scanner.ScanAsync(
             "t0/202608/0123456789abcdef0123456789abcdef",
-            new MemoryStream(new byte[(1024 * 1024) + 1]),
+            new MemoryStream([1, 2, 3]),
+            sizeInBytes: (1024 * 1024) + 1,
             TestToken);
 
         outcome.ShouldBe(FileScanOutcome.NotInspectable);
@@ -42,6 +44,7 @@ public sealed class ClamAvFileContentScannerTests
         var outcome = await scanner.ScanAsync(
             "t0/202608/0123456789abcdef0123456789abcdef",
             new MemoryStream([1, 2, 3]),
+            sizeInBytes: 3,
             TestToken);
 
         outcome.ShouldBe(FileScanOutcome.Unavailable);
@@ -55,6 +58,7 @@ public sealed class ClamAvFileContentScannerTests
         var outcome = await new NoOpFileContentScanner().ScanAsync(
             "t0/202608/0123456789abcdef0123456789abcdef",
             content,
+            content.Length,
             TestToken);
 
         outcome.ShouldBe(FileScanOutcome.Clean);

@@ -26,6 +26,7 @@ internal static class StoredFileDtoMapping
 
         return new StoredFileDto(
             storedFile.Id,
+            storedFile.Category.Value,
             storedFile.Name.Value,
             storedFile.DeclaredMediaType.Value,
             storedFile.Size.Bytes,

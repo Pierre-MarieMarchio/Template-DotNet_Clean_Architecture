@@ -75,6 +75,8 @@ internal static class HostLifecycleExtensions
     /// end as a truncated response — which is the reason a stream must have its timeout
     /// <b>disabled</b> rather than lengthened. Title, detail and code match
     /// <c>GlobalExceptionHandler</c>'s timeout arm, so a client cannot tell which path answered.
+    /// Written by hand rather than through <c>IProblemDetailsService</c>, which writes nothing when
+    /// the request's <c>Accept</c> header excludes JSON.
     /// </summary>
     private static async Task WriteTimeoutProblemAsync(HttpContext httpContext)
     {

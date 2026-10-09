@@ -64,6 +64,8 @@ internal static class RequestLimitsExtensions
         return app;
     }
 
+    // Written by hand rather than through IProblemDetailsService, which writes nothing when the
+    // request's Accept header excludes JSON: a refusal has to carry its body whatever was asked for.
     private static async Task WriteTooLargeAsync(HttpContext httpContext)
     {
         const int status = StatusCodes.Status413PayloadTooLarge;

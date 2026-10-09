@@ -2,7 +2,7 @@
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
-using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;
+using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using Microsoft.Extensions.Logging;
 
@@ -34,7 +34,7 @@ namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueRe
 /// consumer load-bearing.
 /// </para>
 /// <para>
-/// <b>An id absent from <see cref="IReminderTargetQueries.GetCompletionStatesAsync"/>'s result is
+/// <b>An id absent from <see cref="ITodoItemQueries.GetCompletionStatesAsync"/>'s result is
 /// cancelled here exactly like a completed one.</b> Removing a to-do item or deleting its list
 /// raises no domain event, and none is needed: the orphaned reminder is retired the next time it
 /// comes up for firing, which is also why it is not counted as a missed cancellation — see
@@ -43,7 +43,7 @@ namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueRe
 /// </summary>
 public sealed class FireDueRemindersUseCase(
     IReminderRepository reminders,
-    IReminderTargetQueries targets,
+    ITodoItemQueries todoItems,
     IReminderNotifier notifier,
     IReminderDiagnostics diagnostics,
     IUnitOfWork unitOfWork,
@@ -108,7 +108,7 @@ public sealed class FireDueRemindersUseCase(
 
         // One query for the whole batch, rather than one per reminder.
         Guid[] todoItemIds = [.. due.Select(reminder => reminder.TodoItemId).Distinct()];
-        var completionStates = await targets.GetCompletionStatesAsync(todoItemIds, cancellationToken);
+        var completionStates = await todoItems.GetCompletionStatesAsync(todoItemIds, cancellationToken);
 
         int notified = 0;
 

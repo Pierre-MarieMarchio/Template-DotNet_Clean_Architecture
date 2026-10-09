@@ -73,10 +73,11 @@ that shows up as real code, not just a shared theme:
 
 - `CancelRemindersOnTodoItemCompletedConsumer` (in `Reminders`) consumes
   `TodoItemCompletedDomainEvent`, a type owned by `TodoLists`.
-- `ScheduleReminderUseCase` calls `ITodoListQueries.GetDetailAsync` to confirm the item it is
+- `ScheduleReminderUseCase` calls `ITodoItemQueries.ExistsForOwnerAsync` to confirm the item it is
   scheduling against is real and belongs to the caller before it lets `Reminder.Schedule` run.
-- `ReminderTargetQueries` (the persistence adapter behind `IReminderTargetQueries`) queries
-  `context.TodoLists.SelectMany(list => list.Items)` to read completion state.
+- `FireDueRemindersUseCase` calls `ITodoItemQueries.GetCompletionStatesAsync` to read completion
+  state. `ITodoItemQueries` is declared in `TodoLists`' application layer and implemented in its
+  persistence folder, so `Reminders` reaches no `TodoLists` row itself.
 
 `Files` depends on neither, and neither depends on `Files`. The only arrow between them is a doc
 comment, and it points from `Files` to `TodoLists`.
@@ -629,11 +630,11 @@ never references `Reminders` outside two doc comments. What actually leaves is `
 consumer, the second consumer of `TodoItemCompletedDomainEvent`, and one `[Idempotent]` action.
 
 **Removing `TodoLists`, keeping `Reminders`.** Not a smaller version of the full removal — it does
-not compile. `Reminders` calls `ITodoListQueries`, consumes `TodoItemCompletedDomainEvent` and
-queries `context.TodoLists`. Either keep `TodoLists`, or accept that removing it means removing
-`Reminders` too and rewrite `Reminders`' three touch points — `ScheduleReminderUseCase`,
-`CancelRemindersOnTodoItemCompletedConsumer` and `ReminderTargetQueries` — against whatever replaces
-the to-do item as the thing a reminder is scheduled against. That is no longer removing an example;
+not compile. `Reminders` calls `ITodoItemQueries` and consumes `TodoItemCompletedDomainEvent`.
+Either keep `TodoLists`, or accept that removing it means removing `Reminders` too and rewrite
+`Reminders`' touch points — `ScheduleReminderUseCase`, `FireDueRemindersUseCase` and
+`CancelRemindersOnTodoItemCompletedConsumer` — against whatever replaces the to-do item as the thing
+a reminder is scheduled against, by supplying that feature's own `ITodoItemQueries` equivalent. That is no longer removing an example;
 it is redesigning one.
 
 ## Removing authentication

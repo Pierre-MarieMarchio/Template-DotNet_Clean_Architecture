@@ -21,6 +21,17 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **Features meet only through ports and domain events, and a test says so.**
+  `FeatureIsolationTests` fails when a type under `Features/<A>/` of the application or persistence
+  project names anything of `Features/<B>/` except its `Ports/` or its domain `Events/` — no record,
+  EF configuration, `DbSet`, DTO or use case. `Reminders` was the one offender: it read
+  `TodoLists`' item rows from its own persistence folder and loaded a whole list (up to 500 items)
+  to check a single item. It now asks `ITodoItemQueries`, a two-question port that `TodoLists`
+  declares and implements, and `GetRemindersUseCase` reads through a new `IReminderQueries` that
+  filters and orders in SQL instead of loading aggregates and filtering in memory. `IReminderTargetQueries`
+  is gone. Routes, responses and error codes are unchanged. The idea is that every feature stays
+  extractable: the day one leaves, the port is the only thing the others need replaced.
+
 - **SonarQube analysis, in its own workflow rather than in the gate.**
   `.github/workflows/sonarqube.yml` analyses the solution on SonarQube Cloud, and the six gates are
   unchanged: the gate stays answerable from a clone alone, with no account and no token, so a

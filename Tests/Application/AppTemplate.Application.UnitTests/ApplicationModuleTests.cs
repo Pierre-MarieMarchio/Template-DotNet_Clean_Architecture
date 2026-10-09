@@ -9,8 +9,9 @@ using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
-using AppTemplate.Application.Features.Reminders.Ports.ReminderTargetQueries;
+using AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
+using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemTagQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Application.Features.TodoLists.Services;
@@ -231,10 +232,11 @@ public sealed class ApplicationModuleTests
 
         services.AddScoped(_ => Substitute.For<ITodoListRepository>());
         services.AddScoped(_ => Substitute.For<ITodoListQueries>());
+        services.AddScoped(_ => Substitute.For<ITodoItemQueries>());
         services.AddScoped(_ => Substitute.For<ITodoItemTagQueries>());
         services.AddScoped(_ => Substitute.For<IReminderRepository>());
         services.AddScoped(_ => Substitute.For<IReminderNotifier>());
-        services.AddScoped(_ => Substitute.For<IReminderTargetQueries>());
+        services.AddScoped(_ => Substitute.For<IReminderQueries>());
         services.AddScoped(_ => Substitute.For<IReminderDiagnostics>());
         services.AddScoped(_ => Substitute.For<IUnitOfWork>());
         services.AddScoped(_ => Substitute.For<ILeaderLease>());

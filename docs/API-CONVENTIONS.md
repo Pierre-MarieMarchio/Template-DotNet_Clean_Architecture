@@ -281,7 +281,7 @@ a body can never end up in different languages. English and French ship.
 
 | Where the language comes from | |
 |---|---|
-| `AppTemplate.Api` | The request's `Accept-Language`. The first well-formed tag wins; `q` values are not weighed, because a mail is written in one language. |
+| `AppTemplate.Api` | The request's `Accept-Language`. The well-formed tag with the highest `q` weight wins (a missing `q` is 1, `q=0` excludes a tag, ties keep header order), as RFC 9110 negotiation says; a mail is written in one language, so only that tag is used. |
 | A request that names none | `Localization:DefaultCulture`. |
 | `AppTemplate.Worker` | `Localization:DefaultCulture`, always — a background pass has no request to read a preference from. |
 | A language with no template | English, which every mail must ship. `fr-CA` reaches the `fr` template before falling back. |

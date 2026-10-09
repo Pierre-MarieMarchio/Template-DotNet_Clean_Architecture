@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -16,8 +16,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DisableTw
 /// under the stronger one do not survive it.
 /// </summary>
 public sealed class DisableTwoFactorUseCase(
-    ITwoFactorEnrollmentService enrollment,
-    IRefreshTokenGrantsService refreshTokens,
+    ITwoFactorService twoFactor,
+    ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<DisableTwoFactorCommand> validator) : IDisableTwoFactorUseCase
@@ -41,28 +41,28 @@ public sealed class DisableTwoFactorUseCase(
             return userId;
         }
 
-        var disabled = await enrollment.DisableAsync(userId.Value.Value, request.CurrentPassword, cancellationToken);
+        var disabled = await twoFactor.DisableAsync(userId.Value.Value, request.CurrentPassword, cancellationToken);
 
         // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
-        if (disabled.Status is TwoFactorDisableStatus.NoSuchAccount)
+        if (disabled is TwoFactorDisableStatus.NoSuchAccount)
         {
             return Result.Failure(CommonErrors.NotAuthenticated);
         }
 
-        if (disabled.Status is TwoFactorDisableStatus.IncorrectPassword)
+        if (disabled is TwoFactorDisableStatus.IncorrectPassword)
         {
             return Result.Failure(AuthErrors.IncorrectCurrentPassword);
         }
 
         // Nothing changed, so there is no posture change to record or revoke for.
-        if (disabled.Status is TwoFactorDisableStatus.Rejected)
+        if (disabled is TwoFactorDisableStatus.Rejected)
         {
             return Result.Failure(AuthErrors.TwoFactorDisableRejected);
         }
 
         securityEventLog.Record(SecurityEvent.TwoFactorDisabled(userId.Value.Value));
 
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, userId.Value.Value, cancellationToken);
 
         return Result.Success();
     }

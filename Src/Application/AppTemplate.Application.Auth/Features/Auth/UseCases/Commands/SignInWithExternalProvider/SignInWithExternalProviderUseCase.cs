@@ -1,12 +1,11 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.Ports.AccessTokenIssuer;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorChallenge;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
 using FluentValidation;
@@ -25,10 +24,9 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SignInWit
 public sealed class SignInWithExternalProviderUseCase(
     IExternalIdentityVerifier verifier,
     IExternalLoginsService externalLogins,
-    IUserAccountsService accounts,
-    IAccessTokenIssuer accessTokens,
-    IRefreshTokenGrantsService refreshTokens,
-    ITwoFactorChallengeService twoFactorChallenge,
+    IAccountsService accounts,
+    ISessionTokensService sessionTokens,
+    ITwoFactorService twoFactor,
     ISecurityEventLog securityEventLog,
     IValidator<SignInWithExternalProviderCommand> validator) : ISignInWithExternalProviderUseCase
 {
@@ -46,19 +44,17 @@ public sealed class SignInWithExternalProviderUseCase(
             return validation.To<SignInWithExternalProviderOutcome>();
         }
 
-        var verification = await verifier.VerifyAsync(request.Provider, request.IdToken, cancellationToken);
+        var identity = await verifier.VerifyAsync(request.Provider, request.IdToken, cancellationToken);
 
         // Every refusal — a forged token, an expired one, an unconfigured provider — answers the
         // same way, so this cannot be used to learn which providers the installation accepts.
-        if (verification.Status is not ExternalIdentityStatus.Verified || verification.Identity is null)
+        if (identity is null)
         {
             securityEventLog.Record(
                 SecurityEvent.AuthenticationFailed(null, CredentialCheckStatus.NoSuchAccount));
 
             return Refused();
         }
-
-        var identity = verification.Identity;
 
         var linked = await externalLogins.FindByExternalLoginAsync(
             identity.Provider,
@@ -106,20 +102,20 @@ public sealed class SignInWithExternalProviderUseCase(
         VerifiedExternalIdentity identity,
         CancellationToken cancellationToken)
     {
-        var provision = await externalLogins.ProvisionAsync(
+        var account = await externalLogins.ProvisionAsync(
             identity.Email!,
             identity.Provider,
             identity.Subject,
             cancellationToken);
 
-        if (provision.Status is not ExternalAccountProvisionStatus.Provisioned || provision.Account is null)
+        if (account is null)
         {
             return Refused();
         }
 
-        securityEventLog.Record(SecurityEvent.Registered(provision.Account.UserId));
+        securityEventLog.Record(SecurityEvent.Registered(account.UserId));
 
-        return await CompleteSignInAsync(provision.Account, accountCreated: true, cancellationToken);
+        return await CompleteSignInAsync(account, accountCreated: true, cancellationToken);
     }
 
     /// <summary>
@@ -132,13 +128,13 @@ public sealed class SignInWithExternalProviderUseCase(
         VerifiedExternalIdentity identity,
         CancellationToken cancellationToken)
     {
-        var link = await externalLogins.LinkAsync(
+        bool linked = await externalLogins.LinkAsync(
             account.UserId,
             identity.Provider,
             identity.Subject,
             cancellationToken);
 
-        if (link is not ExternalLoginLinkStatus.Linked)
+        if (!linked)
         {
             return Refused();
         }
@@ -174,7 +170,7 @@ public sealed class SignInWithExternalProviderUseCase(
 
         if (account.TwoFactorEnabled)
         {
-            var challenge = await twoFactorChallenge.IssueAsync(account.UserId, cancellationToken);
+            var challenge = await twoFactor.IssueChallengeAsync(account.UserId, cancellationToken);
 
             return Result.Success<SignInWithExternalProviderOutcome>(
                 new SignInWithExternalProviderOutcome.TwoFactorRequired(challenge.ChallengeToken));
@@ -182,8 +178,8 @@ public sealed class SignInWithExternalProviderUseCase(
 
         securityEventLog.Record(SecurityEvent.LoginSucceeded(account.UserId));
 
-        var accessToken = await accessTokens.IssueAsync(account.UserId, cancellationToken);
-        var refreshToken = await refreshTokens.IssueAsync(account.UserId, cancellationToken);
+        var accessToken = await sessionTokens.IssueAccessTokenAsync(account.UserId, cancellationToken);
+        var refreshToken = await sessionTokens.IssueRefreshTokenAsync(account.UserId, cancellationToken);
 
         return Result.Success<SignInWithExternalProviderOutcome>(
             new SignInWithExternalProviderOutcome.Authenticated(

@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ConfirmationEmailFactory;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailConfirmationTokens;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResendConfirmationEmail;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
@@ -17,14 +17,14 @@ namespace AppTemplate.Application.Auth.UnitTests.Features.Auth.UseCases.Commands
 /// </summary>
 public sealed class ResendConfirmationEmailUseCaseTests
 {
-    private readonly IEmailConfirmationTokensService _confirmationTokens = Substitute.For<IEmailConfirmationTokensService>();
-    private readonly IConfirmationEmailFactory _emailFactory = Substitute.For<IConfirmationEmailFactory>();
+    private readonly IEmailTokensService _emailTokens = Substitute.For<IEmailTokensService>();
+    private readonly IAccountEmailFactory _emailFactory = Substitute.For<IAccountEmailFactory>();
     private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
     private readonly ResendConfirmationEmailUseCase _useCase;
 
     public ResendConfirmationEmailUseCaseTests() =>
         _useCase = new ResendConfirmationEmailUseCase(
-            _confirmationTokens,
+            _emailTokens,
             _emailFactory,
             _emailSender,
             new ResendConfirmationEmailCommandValidator(),
@@ -48,7 +48,7 @@ public sealed class ResendConfirmationEmailUseCaseTests
         result.Error!.Type.ShouldBe(ErrorType.Validation);
         result.Error.Code.ShouldBe("request.validationFailed");
         result.Error.Details!["email"].ShouldContain("Email is required.");
-        _confirmationTokens.ReceivedCalls().ShouldBeEmpty();
+        _emailTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class ResendConfirmationEmailUseCaseTests
 
         result.IsSuccess.ShouldBeTrue();
 
-        await _emailFactory.Received(1).CreateAsync(
+        await _emailFactory.Received(1).CreateConfirmationAsync(
             "someone",
             "someone@example.com",
             "confirmation-token",
@@ -80,8 +80,8 @@ public sealed class ResendConfirmationEmailUseCaseTests
     [Fact]
     public async Task AnAddressWithNothingPending_SendsNothingAndStillSucceeds()
     {
-        _confirmationTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((PendingConfirmation?)null);
+        _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns((IssuedEmailToken?)null);
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -100,8 +100,8 @@ public sealed class ResendConfirmationEmailUseCaseTests
         GivenAnAccountIsAwaitingConfirmation();
         var forPending = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
-        _confirmationTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((PendingConfirmation?)null);
+        _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns((IssuedEmailToken?)null);
         var forUnknown = await _useCase.ExecuteAsync(
             new ResendConfirmationEmailCommand("nobody@example.com"),
             TestToken);
@@ -159,7 +159,7 @@ public sealed class ResendConfirmationEmailUseCaseTests
 
         await _useCase.ExecuteAsync(ARequest(), cancellation.Token);
 
-        await _confirmationTokens.Received(1).IssueAsync("someone@example.com", cancellation.Token);
+        await _emailTokens.Received(1).IssueEmailConfirmationAsync("someone@example.com", cancellation.Token);
 
         await _emailSender.Received(1).SendAsync(
             Arg.Any<string>(),
@@ -172,14 +172,14 @@ public sealed class ResendConfirmationEmailUseCaseTests
 
     private void GivenAnAccountIsAwaitingConfirmation()
     {
-        _confirmationTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new PendingConfirmation("someone", "confirmation-token"));
+        _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new IssuedEmailToken("someone", "confirmation-token"));
 
-        _emailFactory.CreateAsync(
+        _emailFactory.CreateConfirmationAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
-            .Returns(new ConfirmationEmail("Confirm your email address", "<html>the body</html>"));
+            .Returns(new AccountEmail("Confirm your email address", "<html>the body</html>"));
     }
 }

@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePassword;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Ports;
@@ -15,8 +15,8 @@ public sealed class ChangePasswordUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly IUserAccountsService _accounts = Substitute.For<IUserAccountsService>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -64,7 +64,7 @@ public sealed class ChangePasswordUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class ChangePasswordUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _refreshTokens.Received(1).RevokeAllForUserAsync(_callerId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -118,8 +118,8 @@ public sealed class ChangePasswordUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        _refreshTokens.ReceivedCalls().Select(call => call.GetMethodInfo().Name)
-            .ShouldBe([nameof(IRefreshTokenGrantsService.RevokeAllForUserAsync)]);
+        _sessionTokens.ReceivedCalls().Select(call => call.GetMethodInfo().Name)
+            .ShouldBe([nameof(ISessionTokensService.RevokeAllRefreshTokensAsync)]);
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public sealed class ChangePasswordUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -150,7 +150,7 @@ public sealed class ChangePasswordUseCaseTests
             .Returns(change);
 
     private ChangePasswordUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_accounts, _refreshTokens, _securityEventLog, currentUser, new ChangePasswordCommandValidator());
+        new(_accounts, _sessionTokens, _securityEventLog, currentUser, new ChangePasswordCommandValidator());
 
     private ChangePasswordUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

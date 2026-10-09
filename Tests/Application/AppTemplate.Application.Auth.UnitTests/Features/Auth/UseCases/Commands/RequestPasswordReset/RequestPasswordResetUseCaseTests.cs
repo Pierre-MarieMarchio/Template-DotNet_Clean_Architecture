@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.PasswordResetEmailFactory;
-using AppTemplate.Application.Auth.Features.Auth.Ports.PasswordResetTokens;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestPasswordReset;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
@@ -17,14 +17,14 @@ namespace AppTemplate.Application.Auth.UnitTests.Features.Auth.UseCases.Commands
 /// </summary>
 public sealed class RequestPasswordResetUseCaseTests
 {
-    private readonly IPasswordResetTokensService _resetTokens = Substitute.For<IPasswordResetTokensService>();
-    private readonly IPasswordResetEmailFactory _emailFactory = Substitute.For<IPasswordResetEmailFactory>();
+    private readonly IEmailTokensService _emailTokens = Substitute.For<IEmailTokensService>();
+    private readonly IAccountEmailFactory _emailFactory = Substitute.For<IAccountEmailFactory>();
     private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
     private readonly RequestPasswordResetUseCase _useCase;
 
     public RequestPasswordResetUseCaseTests() =>
         _useCase = new RequestPasswordResetUseCase(
-            _resetTokens,
+            _emailTokens,
             _emailFactory,
             _emailSender,
             new RequestPasswordResetCommandValidator(),
@@ -41,7 +41,7 @@ public sealed class RequestPasswordResetUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _resetTokens.ReceivedCalls().ShouldBeEmpty();
+        _emailTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class RequestPasswordResetUseCaseTests
 
         result.IsSuccess.ShouldBeTrue();
 
-        await _emailFactory.Received(1).CreateAsync(
+        await _emailFactory.Received(1).CreatePasswordResetAsync(
             "someone",
             "someone@example.com",
             "reset-token",
@@ -69,8 +69,8 @@ public sealed class RequestPasswordResetUseCaseTests
     [Fact]
     public async Task AnUnknownAddress_SendsNothingAndStillSucceeds()
     {
-        _resetTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((PendingPasswordReset?)null);
+        _emailTokens.IssuePasswordResetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns((IssuedEmailToken?)null);
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -86,8 +86,8 @@ public sealed class RequestPasswordResetUseCaseTests
         GivenAnAccountExists();
         var forKnown = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
-        _resetTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((PendingPasswordReset?)null);
+        _emailTokens.IssuePasswordResetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns((IssuedEmailToken?)null);
         var forUnknown = await _useCase.ExecuteAsync(new RequestPasswordResetCommand("nobody@example.com"), TestToken);
 
         forUnknown.IsSuccess.ShouldBe(forKnown.IsSuccess);
@@ -122,10 +122,10 @@ public sealed class RequestPasswordResetUseCaseTests
 
     private void GivenAnAccountExists()
     {
-        _resetTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new PendingPasswordReset("someone", "reset-token"));
+        _emailTokens.IssuePasswordResetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new IssuedEmailToken("someone", "reset-token"));
 
-        _emailFactory.CreateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new PasswordResetEmail("Reset your password", "<html>the body</html>"));
+        _emailFactory.CreatePasswordResetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new AccountEmail("Reset your password", "<html>the body</html>"));
     }
 }

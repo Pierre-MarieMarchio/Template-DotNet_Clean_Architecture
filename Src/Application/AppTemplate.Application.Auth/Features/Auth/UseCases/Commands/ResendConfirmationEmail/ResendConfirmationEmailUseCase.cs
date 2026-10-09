@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ConfirmationEmailFactory;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailConfirmationTokens;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -13,8 +13,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResendCon
 /// registered or not, already confirmed or not, delivered or not.
 /// </summary>
 public sealed class ResendConfirmationEmailUseCase(
-    IEmailConfirmationTokensService confirmationTokens,
-    IConfirmationEmailFactory emailFactory,
+    IEmailTokensService emailTokens,
+    IAccountEmailFactory emailFactory,
     IEmailSender emailSender,
     IValidator<ResendConfirmationEmailCommand> validator,
     ILogger<ResendConfirmationEmailUseCase> logger) : IResendConfirmationEmailUseCase
@@ -33,7 +33,7 @@ public sealed class ResendConfirmationEmailUseCase(
             return validation;
         }
 
-        var pending = await confirmationTokens.IssueAsync(request.Email, cancellationToken);
+        var pending = await emailTokens.IssueEmailConfirmationAsync(request.Email, cancellationToken);
 
         if (pending is not null)
         {
@@ -47,12 +47,12 @@ public sealed class ResendConfirmationEmailUseCase(
 
     private async Task TrySendAsync(
         string email,
-        PendingConfirmation pending,
+        IssuedEmailToken pending,
         CancellationToken cancellationToken)
     {
         try
         {
-            var message = await emailFactory.CreateAsync(
+            var message = await emailFactory.CreateConfirmationAsync(
                 pending.UserName,
                 email,
                 pending.Token,

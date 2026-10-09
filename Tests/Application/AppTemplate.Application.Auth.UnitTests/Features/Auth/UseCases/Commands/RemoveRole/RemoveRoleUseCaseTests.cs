@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RoleAssignments;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RemoveRole;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Ports;
@@ -17,8 +17,8 @@ public sealed class RemoveRoleUseCaseTests
     private static readonly Guid _callerId = Guid.CreateVersion7();
     private static readonly Guid _targetId = Guid.CreateVersion7();
 
-    private readonly IRoleAssignmentsService _roles = Substitute.For<IRoleAssignmentsService>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly IAccountAdministrationService _administration = Substitute.For<IAccountAdministrationService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -31,7 +31,7 @@ public sealed class RemoveRoleUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        _roles.ReceivedCalls().ShouldBeEmpty();
+        _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class RemoveRoleUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _roles.ReceivedCalls().ShouldBeEmpty();
+        _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
     /// <summary>
@@ -57,13 +57,13 @@ public sealed class RemoveRoleUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.roles.cannotTargetSelf");
-        _roles.ReceivedCalls().ShouldBeEmpty();
+        _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task AnUnknownAccount_IsReportedAsNotFound()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.NoSuchAccount);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.NoSuchAccount);
 
         var result = await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
@@ -74,7 +74,7 @@ public sealed class RemoveRoleUseCaseTests
     [Fact]
     public async Task AKnownAccount_Succeeds()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         var result = await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
@@ -84,7 +84,7 @@ public sealed class RemoveRoleUseCaseTests
     [Fact]
     public async Task ARoleTheAccountDoesNotCarry_ReportsTheStoresMessage()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Rejected("User is not in role 'Admin'."));
+        GivenTheOutcomeIs(AccountAdministrationOutcome.RejectedBecause("User is not in role 'Admin'."));
 
         var result = await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
@@ -92,21 +92,21 @@ public sealed class RemoveRoleUseCaseTests
         result.Error!.Details!["role"].ShouldContain("User is not in role 'Admin'.");
     }
 
-    /// <summary>The gap this whole vertical exists to close: see <c>RoleAssignments</c>.</summary>
+    /// <summary>The gap this whole vertical exists to close: see <c>IAccountAdministrationService</c>.</summary>
     [Fact]
     public async Task ASuccessfulRevocation_RevokesEveryRefreshTokenForTheTarget()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
-        await _refreshTokens.Received(1).RevokeAllForUserAsync(_targetId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_targetId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ASuccessfulRevocation_RecordsBothTheAdministrativeActionAndTheStampRotation()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Applied);
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
 
         await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
@@ -117,19 +117,19 @@ public sealed class RemoveRoleUseCaseTests
     [Fact]
     public async Task AStoreRefusal_RevokesNothing()
     {
-        GivenTheOutcomeIs(RoleAssignmentChangeOutcome.Rejected("not in role"));
+        GivenTheOutcomeIs(AccountAdministrationOutcome.RejectedBecause("not in role"));
 
         await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    private void GivenTheOutcomeIs(RoleAssignmentChangeOutcome change) =>
-        _roles.RemoveRoleAsync(_targetId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(change);
+    private void GivenTheOutcomeIs(AccountAdministrationOutcome change) =>
+        _administration.RevokeRoleAsync(_targetId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(change);
 
     private RemoveRoleUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_roles, _refreshTokens, _securityEventLog, currentUser, new RemoveRoleCommandValidator());
+        new(_administration, _sessionTokens, _securityEventLog, currentUser, new RemoveRoleCommandValidator());
 
     private RemoveRoleUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

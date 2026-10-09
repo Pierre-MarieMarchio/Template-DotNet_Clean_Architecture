@@ -1,7 +1,7 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ConfirmationEmailFactory;
-using AppTemplate.Application.Auth.Features.Auth.Ports.EmailConfirmationTokens;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Register;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
@@ -21,9 +21,9 @@ public sealed class RegisterUseCaseTests
 {
     private const string _token = "confirmation-token";
 
-    private readonly IUserAccountsService _accounts = Substitute.For<IUserAccountsService>();
-    private readonly IEmailConfirmationTokensService _confirmationTokens = Substitute.For<IEmailConfirmationTokensService>();
-    private readonly IConfirmationEmailFactory _emailFactory = Substitute.For<IConfirmationEmailFactory>();
+    private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
+    private readonly IEmailTokensService _emailTokens = Substitute.For<IEmailTokensService>();
+    private readonly IAccountEmailFactory _emailFactory = Substitute.For<IAccountEmailFactory>();
     private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly RegisterUseCase _useCase;
@@ -31,7 +31,7 @@ public sealed class RegisterUseCaseTests
     public RegisterUseCaseTests() =>
         _useCase = new RegisterUseCase(
             _accounts,
-            _confirmationTokens,
+            _emailTokens,
             _emailFactory,
             _emailSender,
             _securityEventLog,
@@ -146,7 +146,7 @@ public sealed class RegisterUseCaseTests
 
         result.Error!.Type.ShouldBe(ErrorType.Conflict);
         result.Error.Code.ShouldBe("auth.register.unavailable");
-        _confirmationTokens.ReceivedCalls().ShouldBeEmpty();
+        _emailTokens.ReceivedCalls().ShouldBeEmpty();
         _emailSender.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -280,7 +280,7 @@ public sealed class RegisterUseCaseTests
         GivenTheAccountIsCreated();
         GivenTheConfirmationTokenIsIssued();
 
-        _emailFactory.CreateAsync(
+        _emailFactory.CreateConfirmationAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -340,9 +340,9 @@ public sealed class RegisterUseCaseTests
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>());
 
-            _confirmationTokens.IssueAsync("someone@example.com", Arg.Any<CancellationToken>());
+            _emailTokens.IssueEmailConfirmationAsync("someone@example.com", Arg.Any<CancellationToken>());
 
-            _emailFactory.CreateAsync(
+            _emailFactory.CreateConfirmationAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -368,7 +368,7 @@ public sealed class RegisterUseCaseTests
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
-        await _emailFactory.Received(1).CreateAsync(
+        await _emailFactory.Received(1).CreateConfirmationAsync(
             "someone",
             "someone@example.com",
             _token,
@@ -390,8 +390,8 @@ public sealed class RegisterUseCaseTests
     {
         GivenTheAccountIsCreated();
 
-        _confirmationTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((PendingConfirmation?)null);
+        _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns((IssuedEmailToken?)null);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -416,7 +416,7 @@ public sealed class RegisterUseCaseTests
             Arg.Any<string>(),
             cancellation.Token);
 
-        await _confirmationTokens.Received(1).IssueAsync(Arg.Any<string>(), cancellation.Token);
+        await _emailTokens.Received(1).IssueEmailConfirmationAsync(Arg.Any<string>(), cancellation.Token);
 
         await _emailSender.Received(1).SendAsync(
             Arg.Any<string>(),
@@ -446,14 +446,14 @@ public sealed class RegisterUseCaseTests
 
     private void GivenTheConfirmationTokenIsIssued()
     {
-        _confirmationTokens.IssueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new PendingConfirmation("someone", _token));
+        _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new IssuedEmailToken("someone", _token));
 
-        _emailFactory.CreateAsync(
+        _emailFactory.CreateConfirmationAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
-            .Returns(new ConfirmationEmail("Confirm your email address", "<html>the body</html>"));
+            .Returns(new AccountEmail("Confirm your email address", "<html>the body</html>"));
     }
 }

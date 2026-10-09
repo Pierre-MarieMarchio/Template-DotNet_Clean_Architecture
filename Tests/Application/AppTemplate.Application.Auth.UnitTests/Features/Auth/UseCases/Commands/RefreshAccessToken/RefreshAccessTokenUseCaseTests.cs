@@ -1,7 +1,6 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccessTokenIssuer;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RefreshAccessToken;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
@@ -20,17 +19,15 @@ public sealed class RefreshAccessTokenUseCaseTests
 
     private static readonly DateTimeOffset _refreshTokenExpiry = DateTimeOffset.UnixEpoch.AddDays(30);
 
-    private readonly IUserAccountsService _accounts = Substitute.For<IUserAccountsService>();
-    private readonly IAccessTokenIssuer _accessTokens = Substitute.For<IAccessTokenIssuer>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly RefreshAccessTokenUseCase _useCase;
 
     public RefreshAccessTokenUseCaseTests() =>
         _useCase = new RefreshAccessTokenUseCase(
             _accounts,
-            _accessTokens,
-            _refreshTokens,
+            _sessionTokens,
             _securityEventLog,
             new RefreshAccessTokenCommandValidator());
 
@@ -51,7 +48,7 @@ public sealed class RefreshAccessTokenUseCaseTests
         result.Error!.Type.ShouldBe(ErrorType.Validation);
         result.Error.Code.ShouldBe("request.validationFailed");
         result.Error.Details!["refreshToken"].ShouldContain("Refresh token is required.");
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     /// <summary>
@@ -61,7 +58,7 @@ public sealed class RefreshAccessTokenUseCaseTests
     [Fact]
     public async Task ARejectedRotation_IsAnsweredWithOneErrorAndMintsNothing()
     {
-        _refreshTokens.RotateAsync("already-used", Arg.Any<CancellationToken>())
+        _sessionTokens.RotateRefreshTokenAsync("already-used", Arg.Any<CancellationToken>())
             .Returns(RefreshTokenRotation.Rejected);
 
         var result = await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("already-used"), TestToken);
@@ -71,7 +68,7 @@ public sealed class RefreshAccessTokenUseCaseTests
             "auth.refreshToken.invalid",
             "The refresh token is invalid or has expired."));
 
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
+        await _sessionTokens.DidNotReceiveWithAnyArgs().IssueAccessTokenAsync(default, Arg.Any<CancellationToken>());
         _accounts.ReceivedCalls().ShouldBeEmpty("a rejected token names no account to ask about.");
     }
 
@@ -91,8 +88,8 @@ public sealed class RefreshAccessTokenUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.refreshToken.invalid");
 
-        await _refreshTokens.Received(1).RevokeAllForUserAsync(userId, Arg.Any<CancellationToken>());
-        _accessTokens.ReceivedCalls().ShouldBeEmpty("a refused refresh must not mint an access token.");
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(userId, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().IssueAccessTokenAsync(default, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -124,7 +121,7 @@ public sealed class RefreshAccessTokenUseCaseTests
         result.Value.RefreshToken.ShouldBe("successor");
         result.Value.RefreshTokenExpiresAt.ShouldBe(_refreshTokenExpiry);
 
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -139,7 +136,7 @@ public sealed class RefreshAccessTokenUseCaseTests
 
         await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("presented"), TestToken);
 
-        await _refreshTokens.DidNotReceiveWithAnyArgs().IssueAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().IssueRefreshTokenAsync(default, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -156,9 +153,9 @@ public sealed class RefreshAccessTokenUseCaseTests
 
         Received.InOrder(() =>
         {
-            _refreshTokens.RotateAsync("presented", Arg.Any<CancellationToken>());
+            _sessionTokens.RotateRefreshTokenAsync("presented", Arg.Any<CancellationToken>());
             _accounts.CanSignInAsync(userId, Arg.Any<CancellationToken>());
-            _accessTokens.IssueAsync(userId, Arg.Any<CancellationToken>());
+            _sessionTokens.IssueAccessTokenAsync(userId, Arg.Any<CancellationToken>());
         });
     }
 
@@ -171,21 +168,21 @@ public sealed class RefreshAccessTokenUseCaseTests
 
         await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("presented"), cancellation.Token);
 
-        await _refreshTokens.Received(1).RotateAsync("presented", cancellation.Token);
+        await _sessionTokens.Received(1).RotateRefreshTokenAsync("presented", cancellation.Token);
         await _accounts.Received(1).CanSignInAsync(userId, cancellation.Token);
-        await _accessTokens.Received(1).IssueAsync(userId, cancellation.Token);
+        await _sessionTokens.Received(1).IssueAccessTokenAsync(userId, cancellation.Token);
     }
 
     private Guid GivenTheGrantRotates()
     {
         var userId = Guid.CreateVersion7();
 
-        _refreshTokens.RotateAsync("presented", Arg.Any<CancellationToken>())
+        _sessionTokens.RotateRefreshTokenAsync("presented", Arg.Any<CancellationToken>())
             .Returns(RefreshTokenRotation.Rotated(
                 userId,
                 new IssuedRefreshToken("successor", _refreshTokenExpiry)));
 
-        _accessTokens.IssueAsync(userId, Arg.Any<CancellationToken>())
+        _sessionTokens.IssueAccessTokenAsync(userId, Arg.Any<CancellationToken>())
             .Returns(new IssuedAccessToken("access-token", _accessTokenExpiry));
 
         return userId;

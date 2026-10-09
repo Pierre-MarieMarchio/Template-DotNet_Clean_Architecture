@@ -4,7 +4,7 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmTw
 
 /// <summary>
 /// Presence only for both fields. The exact shape of a code — six digits from an authenticator app —
-/// is <c>ITwoFactorEnrollmentService</c>'s to enforce by simply not matching anything else; rejecting a
+/// is <c>ITwoFactorService</c>'s to enforce by simply not matching anything else; rejecting a
 /// malformed value here would just be a second, less informative place that decision is made.
 /// Whether the password is actually <em>right</em> is the same story, one layer over: the hasher is
 /// what knows that, not a validator.

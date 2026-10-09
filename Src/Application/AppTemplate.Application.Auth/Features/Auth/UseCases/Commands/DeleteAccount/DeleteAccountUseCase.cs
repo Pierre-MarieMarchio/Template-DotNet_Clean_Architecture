@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.Ports.AccountDeletion;
+using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
@@ -11,12 +11,12 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteAcc
 
 /// <summary>
 /// Removes exactly the account row and what ASP.NET Identity owns alongside it — see
-/// <see cref="IAccountDeletionService"/> for why nothing here reaches past that. No
+/// <see cref="IAccountAdministrationService"/> for why nothing here reaches past that. No
 /// <c>CredentialInvalidationPolicy</c> call either: there is no security stamp left to rotate once the row
 /// is gone, and the refresh-token grants go with it through the store's own cascading delete.
 /// </summary>
 public sealed class DeleteAccountUseCase(
-    IAccountDeletionService accountDeletion,
+    IAccountAdministrationService administration,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<DeleteAccountCommand> validator) : IDeleteAccountUseCase
@@ -50,11 +50,11 @@ public sealed class DeleteAccountUseCase(
             return guard;
         }
 
-        var outcome = await accountDeletion.DeleteAsync(request.UserId, cancellationToken);
+        var outcome = await administration.DeleteAsync(request.UserId, cancellationToken);
 
-        if (outcome is not AccountDeletionStatus.Deleted)
+        if (outcome.Status is not AccountAdministrationStatus.Applied)
         {
-            return Result.Failure(ToError(outcome));
+            return Result.Failure(ToError(outcome.Status));
         }
 
         securityEventLog.Record(SecurityEvent.AccountDeleted(request.UserId));
@@ -62,9 +62,9 @@ public sealed class DeleteAccountUseCase(
         return Result.Success();
     }
 
-    private static Error ToError(AccountDeletionStatus outcome) => outcome switch
+    private static Error ToError(AccountAdministrationStatus status) => status switch
     {
-        AccountDeletionStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
+        AccountAdministrationStatus.NoSuchAccount => AuthErrors.NoSuchAccount,
         _ => AuthErrors.AccountDeletionRejected,
     };
 }

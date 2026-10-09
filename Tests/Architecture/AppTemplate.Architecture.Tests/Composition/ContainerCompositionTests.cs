@@ -1,6 +1,6 @@
 ﻿using System.Collections;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenMaintenance;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserProfiles;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
@@ -222,10 +222,10 @@ public sealed class ContainerCompositionTests
     /// this repository once named the wrong reason and every one of them stayed true-looking for
     /// months.
     /// <para>
-    /// The obvious reason is <c>IRefreshTokenMaintenanceService</c>'s sole adapter, which invites
+    /// The obvious reason is <c>ISessionTokensService</c>'s sole adapter, which invites
     /// the conclusion that moving that one adapter would let a composition drop the module and its
     /// whole configuration surface with it. It would not. <c>EmailReminderNotifier</c> — the
-    /// adapter behind the reminder job — resolves <see cref="IUserProfilesService"/> to find the
+    /// adapter behind the reminder job — resolves <see cref="IAccountsService"/> to find the
     /// address a due reminder is rung at. And <c>AddAuthApplication</c> registers every
     /// authentication use case, so under <c>ValidateOnBuild</c> — which a Development host turns on
     /// — every port that project declares has to be resolvable, not merely the ports the jobs
@@ -244,13 +244,13 @@ public sealed class ContainerCompositionTests
             () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose());
 
         exception.Message.ShouldContain(
-            nameof(IUserProfilesService),
+            nameof(IAccountsService),
             customMessage: "If this port ever stops being needed here, a background composition " +
             "really can drop AddAuthModule — and the comments in Program.cs, docker-compose.yml " +
             "and docs/CONFIGURATION.md all become answerable at last.");
 
         exception.Message.ShouldContain(
-            nameof(IRefreshTokenMaintenanceService),
+            nameof(ISessionTokensService),
             customMessage: "The written reason is real too, just not the only one — if it were, " +
             "moving that adapter would be worth doing.");
     }

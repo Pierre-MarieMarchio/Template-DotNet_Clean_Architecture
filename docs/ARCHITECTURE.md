@@ -1,4 +1,4 @@
-﻿# Architecture
+# Architecture
 
 A Clean Architecture layout for a .NET 10 HTTP API. This document records the
 decisions and, more usefully, the reasons — including the things this template
@@ -43,7 +43,7 @@ one exists.
 | Domain | `AppTemplate.Domain` | aggregates, value objects, domain events, invariants | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application.Core` | the mechanisms a use case is written *from*: `Result`/`Error`, the `IUseCase` marker, validation, offset and cursor pagination, idempotency, optimistic concurrency, the cross-cutting ports | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application` | the business features' use cases, feature ports, DTOs, validators | `AppTemplate.Domain` + `AppTemplate.Application.Core` |
-| Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind twenty ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
+| Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind nine ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: what a context saves through — the unit of work, the three interceptors, the aggregate tracker — plus the system clock, multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Auth`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
 | Presentation | `AppTemplate.Presentation.Core` | what any host needs whatever its transport: one outbound HTTP policy, the language a flow is written in, OTLP traces and metrics, the identity of a process with no caller — and no framework reference, deliberately | `AppTemplate.Application.Core` |
@@ -60,7 +60,7 @@ graph RL
     Pers[AppTemplate.Infrastructure.Persistence<br/>the business context, per-feature models,<br/>mapping, trackers, repositories, queries,<br/>the idempotency table, the Postgres lease]
     InfraCore[AppTemplate.Infrastructure.Core<br/>the unit of work, the three save interceptors,<br/>the aggregate tracker, the clock, multilingual mail,<br/>the cache adapter behind ICacheStore]
     App[AppTemplate.Application<br/>the business features: use cases, feature ports, DTOs]
-    Auth[AppTemplate.Application.Auth<br/>sign-in, accounts, tokens, two-factor,<br/>behind twenty ports — no domain type]
+    Auth[AppTemplate.Application.Auth<br/>sign-in, accounts, tokens, two-factor,<br/>behind nine ports — no domain type]
     AppCore[AppTemplate.Application.Core<br/>Result, IUseCase, validation, pagination,<br/>idempotency, concurrency, cross-cutting ports]
     Dom[AppTemplate.Domain<br/>aggregates, value objects, events]
     DomCore[AppTemplate.Domain.Core<br/>entity, aggregate root, domain event,<br/>audit and concurrency contracts, domain exception]
@@ -102,7 +102,7 @@ graph RL
 nothing in `AppTemplate.Application` names `AppTemplate.Application.Auth`, so a project that needs
 it declares it: the identity module, the email module (its reminder notifier resolves a user profile
 to find an address), the in-memory doubles, and the host. `AppTemplate.Infrastructure.Auth`
-declares no arrow to `AppTemplate.Application` at all — it implements twenty Auth ports and nothing
+declares no arrow to `AppTemplate.Application` at all — it implements nine Auth ports and nothing
 else.
 
 `AppTemplate.Application.Core` is drawn by twelve arrows rather than reached through one, and that
@@ -173,8 +173,8 @@ Core: authentication and account administration as use cases — sign-in, refres
 password and email lifecycle, two-factor enrolment, external providers, roles and lockouts — under
 `Features/Auth/{Errors,Policies,Ports,UseCases}`. It declares one project reference,
 `AppTemplate.Application.Core`, and it names **no aggregate**: the identity model is not one here,
-it lives behind the twenty ports in `Features/Auth/Ports/`. The one domain type it names is
-`UserId`, which arrives through `ICurrentUser` — and every one of its own twenty ports takes the
+it lives behind the nine ports in `Features/Auth/Ports/`. The one domain type it names is
+`UserId`, which arrives through `ICurrentUser` — and every one of its own nine ports takes the
 raw `Guid` inside it instead, because what an account is identified by here is the subject a token
 carries rather than the business's notion of an owner. That is why the unwrap is visible at each of
 those calls. It has a project of its own because it
@@ -290,8 +290,8 @@ What the simple shape keeps is everything that is not the aggregate:
 
 - **CQS holds.** A service with separate read and write methods is sufficient: the reads stage and
   commit nothing, and two models are not required. `Notes` splits its storage into `INoteQueries`
-  (the reads) and `INoteStore` (the writes) because a port is one capability and the architecture
-  rule caps it at four operations, not because a read model is needed.
+  (the reads) and `INoteStore` (the writes) because a port is one capability and staging is not
+  reading, not because a read model is needed.
 - **The commit is the same one.** A note is staged through `INoteStore` and committed by
   `IUnitOfWork`, with no mapper, no tracker and no domain-event source. The business context's
   interceptors (flush, audit, event dispatch) find nothing of a note to act on: its record is not
@@ -339,31 +339,32 @@ split runs there rather than putting every port in one layer:
 | `ILeaderLease` | `AppTemplate.Application.Core` | `PostgresLeaderLease`, a session-level advisory lock |
 | `IIdempotencyStore` | `AppTemplate.Application.Core` | `IdempotencyStore`, the claim/complete/release state machine over one table |
 | `ICacheStore` | `AppTemplate.Application.Core` | `HybridCacheStore`, in process until a deployment registers a distributed second level |
-| `IUserAccountsService` | `AppTemplate.Application.Auth` | `UserManager` / `SignInManager` wrapper |
-| `IEmailConfirmationTokensService` | `AppTemplate.Application.Auth` | ASP.NET Identity's default token provider |
-| `IAccessTokenIssuer` | `AppTemplate.Application.Auth` | signed JWT over the account's current claims |
+| `IAccountsService` | `AppTemplate.Application.Auth` | `UserManager` / `SignInManager`: create, verify a password, may-sign-in, change password, read the profile |
+| `IEmailTokensService` | `AppTemplate.Application.Auth` | ASP.NET Identity's token providers: confirmation, password reset, email change |
+| `ISessionTokensService` | `AppTemplate.Application.Auth` | signed JWT over the account's current claims, and opaque rotating grants over `IRefreshTokenTable` |
+| `ITwoFactorService` | `AppTemplate.Application.Auth` | Identity's authenticator plumbing, and the sign-in challenge in its token store |
+| `IAccountAdministrationService` | `AppTemplate.Application.Auth` | lock, unlock, roles, two-factor removal and deletion, over `UserManager` |
 | `IExternalIdentityVerifier` | `AppTemplate.Application.Auth` | an `id_token` checked against a provider's JWKS |
 | `IExternalLoginsService` | `AppTemplate.Application.Auth` | the `(provider, subject)` link, over ASP.NET Identity |
-| `IRefreshTokenGrantsService` | `AppTemplate.Application.Auth` | opaque rotating grants over `IRefreshTokenTable` |
-| `IConfirmationEmailFactory` | `AppTemplate.Application.Auth` | HTML template plus the confirmation URL |
-| `IUserProfilesService` | `AppTemplate.Application.Auth` | `UserProfilesService`, over `UserManager` — the address a due reminder is rung at |
+| `IAccountEmailFactory` | `AppTemplate.Application.Auth` | HTML templates plus each link's page |
+| `ISecurityEventLog` | `AppTemplate.Application.Auth` | structured log entries, one per security event |
 
 There is no `IEfCoreRepository`, no `ISmtpClient`, no `IHttpContextWrapper`. The
 point of the seam is that the application layer can be read, and tested, without
 knowing that EF Core, MailKit or ASP.NET Identity exist. A port named after its
 implementation has already given that away.
 
-The authentication ports are the interesting ones. There are twenty of them, one per
-capability, rather than one `IAuthService`, and the split is what keeps the
+The authentication ports are the interesting ones. There are nine of them, one per
+intent, rather than one `IAuthService`, and the split is what keeps the
 *sequencing* in Application: `RegisterUseCase` creates the account, then mints a
 confirmation token, then composes and sends the mail through `IEmailSender`, and
 decides that a delivery failure is a success carrying `confirmationEmailSent: false`.
 `RefreshAccessTokenUseCase` rotates the presented grant, then revalidates the
 account, then revokes the whole family if it may no longer sign in. Each port is one
-capability an adapter can satisfy on its own,
+intent an adapter can satisfy on its own, and none declares more than six operations,
 and the ASP.NET Identity types (`AppUser`, `UserManager<>`) never appear in
 Application. An architecture test asserts that no port grows wide enough to take the
-sequencing back. Because those twenty ports are all `AppTemplate.Application.Auth` speaks in, that
+sequencing back. Because those nine ports are all `AppTemplate.Application.Auth` speaks in, that
 project names no aggregate: an account here is what its ports say about it.
 
 ## Infrastructure is split per capability, with no per-technology sub-split
@@ -485,7 +486,7 @@ template it does not, and
 `ContainerCompositionTests.RemovingAuthentication_IsHeldUpByOneInfrastructureCoupling_NotByTheApplicationLayer`
 pins the one reason so it cannot quietly stop being the reason: `IReminderNotifier`, which the
 reminder feature's own use case takes, has its single adapter in the email module — whose reminder
-notifier in turn resolves `IUserProfilesService`, an authentication port, to find the address a due
+notifier in turn resolves `IAccountsService`, an authentication port, to find the address a due
 reminder is rung at. That is **the single business-to-auth door**, it is deliberate, and the port is
 the joint that lets the adapter become a call across a process without anything business-side
 changing.

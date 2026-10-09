@@ -1,5 +1,5 @@
 ﻿using System.Security.Claims;
-using AppTemplate.Application.Auth.Features.Auth.Ports.AccessTokenIssuer;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Options;
@@ -10,7 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Issuers;
 
 /// <summary>
-/// Signs access tokens. Uses <see cref="JsonWebTokenHandler"/> rather than the legacy
+/// Signs access tokens for <c>SessionTokensService</c>. Uses <see cref="JsonWebTokenHandler"/> rather than the legacy
 /// <c>JwtSecurityTokenHandler</c>, and every timestamp comes from <see cref="IDateTimeProvider"/> in
 /// UTC so that <c>exp</c> agrees with what the rest of the system records.
 /// <para>
@@ -21,10 +21,11 @@ namespace AppTemplate.Infrastructure.Auth.Features.Auth.Issuers;
 internal sealed class AccessTokenIssuer(
     IAppUserDirectory directory,
     IOptions<JwtOptions> options,
-    IDateTimeProvider dateTimeProvider) : IAccessTokenIssuer
+    IDateTimeProvider dateTimeProvider)
 {
     private readonly JsonWebTokenHandler _handler = new();
 
+    /// <exception cref="InvalidOperationException">No account has that id.</exception>
     public async Task<IssuedAccessToken> IssueAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await directory.FindByIdAsync(userId, cancellationToken)

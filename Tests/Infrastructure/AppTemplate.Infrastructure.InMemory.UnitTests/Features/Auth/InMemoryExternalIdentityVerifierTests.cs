@@ -41,19 +41,13 @@ public sealed class InMemoryExternalIdentityVerifierTests : IDisposable
     {
         Accepted.Accept(_provider, _idToken, _identity);
 
-        var outcome = await Verify(_provider, _idToken);
-
-        outcome.Status.ShouldBe(ExternalIdentityStatus.Verified);
-        outcome.Identity.ShouldBe(_identity);
+        (await Verify(_provider, _idToken)).ShouldBe(_identity);
     }
 
     [Fact]
     public async Task VerifyAsync_RefusesATokenNobodyArranged()
     {
-        var outcome = await Verify(_provider, _idToken);
-
-        outcome.Status.ShouldBe(ExternalIdentityStatus.InvalidToken);
-        outcome.Identity.ShouldBeNull();
+        (await Verify(_provider, _idToken)).ShouldBeNull();
     }
 
     /// <summary>
@@ -65,29 +59,7 @@ public sealed class InMemoryExternalIdentityVerifierTests : IDisposable
     {
         Accepted.Accept(_provider, _idToken, _identity);
 
-        (await Verify("apple", _idToken)).Status.ShouldBe(ExternalIdentityStatus.InvalidToken);
-    }
-
-    [Fact]
-    public async Task VerifyAsync_ReturnsTheRefusalThatWasArrangedByName()
-    {
-        Accepted.Refuse(_provider, _idToken, ExternalIdentityStatus.UnknownProvider);
-
-        var outcome = await Verify(_provider, _idToken);
-
-        outcome.Status.ShouldBe(ExternalIdentityStatus.UnknownProvider);
-        outcome.Identity.ShouldBeNull();
-    }
-
-    /// <summary>
-    /// A refusal carrying an identity would be the double contradicting the port it stands for, and
-    /// the caller reads that identity the moment the status is not one it recognises as a refusal.
-    /// </summary>
-    [Fact]
-    public void Refuse_WillNotBeUsedToArrangeAVerification()
-    {
-        Should.Throw<ArgumentOutOfRangeException>(
-            () => Accepted.Refuse(_provider, _idToken, ExternalIdentityStatus.Verified));
+        (await Verify("apple", _idToken)).ShouldBeNull();
     }
 
     [Fact]
@@ -97,7 +69,7 @@ public sealed class InMemoryExternalIdentityVerifierTests : IDisposable
 
         Accepted.Clear();
 
-        (await Verify(_provider, _idToken)).Status.ShouldBe(ExternalIdentityStatus.InvalidToken);
+        (await Verify(_provider, _idToken)).ShouldBeNull();
     }
 
     [Fact]
@@ -114,7 +86,7 @@ public sealed class InMemoryExternalIdentityVerifierTests : IDisposable
                 .VerifyAsync(_provider, _idToken, cancelled.Token));
     }
 
-    private async Task<ExternalIdentityOutcome> Verify(string provider, string idToken)
+    private async Task<VerifiedExternalIdentity?> Verify(string provider, string idToken)
     {
         using var scope = _host.CreateScope();
 

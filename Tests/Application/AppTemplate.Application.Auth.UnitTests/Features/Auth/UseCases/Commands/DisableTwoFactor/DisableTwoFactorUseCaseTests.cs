@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DisableTwoFactor;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Ports;
@@ -15,8 +15,8 @@ public sealed class DisableTwoFactorUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly ITwoFactorEnrollmentService _enrollment = Substitute.For<ITwoFactorEnrollmentService>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly ITwoFactorService _twoFactor = Substitute.For<ITwoFactorService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -28,37 +28,37 @@ public sealed class DisableTwoFactorUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        _enrollment.ReceivedCalls().ShouldBeEmpty();
+        _twoFactor.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task ABlankPassword_NeverReachesTheEnrollmentPort()
+    public async Task ABlankPassword_NeverReachesTheTwoFactorPort()
     {
         var result = await UseCase().ExecuteAsync(new DisableTwoFactorCommand(""), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _enrollment.ReceivedCalls().ShouldBeEmpty();
+        _twoFactor.ReceivedCalls().ShouldBeEmpty();
     }
 
     /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticatedAndRevokesNothing()
     {
-        GivenTheOutcomeIs(TwoFactorDisableOutcome.NoSuchAccount);
+        GivenTheOutcomeIs(TwoFactorDisableStatus.NoSuchAccount);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task AWrongPassword_IsRefused()
     {
-        GivenTheOutcomeIs(TwoFactorDisableOutcome.IncorrectPassword);
+        GivenTheOutcomeIs(TwoFactorDisableStatus.IncorrectPassword);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -69,11 +69,11 @@ public sealed class DisableTwoFactorUseCaseTests
     [Fact]
     public async Task AWrongPassword_RevokesNoRefreshTokenAndRecordsNoEvent()
     {
-        GivenTheOutcomeIs(TwoFactorDisableOutcome.IncorrectPassword);
+        GivenTheOutcomeIs(TwoFactorDisableStatus.IncorrectPassword);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -84,20 +84,20 @@ public sealed class DisableTwoFactorUseCaseTests
     [Fact]
     public async Task AStoreRefusal_IsReportedAndRevokesNothingAndRecordsNothing()
     {
-        GivenTheOutcomeIs(TwoFactorDisableOutcome.Rejected);
+        GivenTheOutcomeIs(TwoFactorDisableStatus.Rejected);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.twoFactor.disableRejected");
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task ARightPassword_Succeeds()
     {
-        GivenTheOutcomeIs(TwoFactorDisableOutcome.Disabled);
+        GivenTheOutcomeIs(TwoFactorDisableStatus.Disabled);
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -107,7 +107,7 @@ public sealed class DisableTwoFactorUseCaseTests
     [Fact]
     public async Task ARightPassword_RecordsThatTwoFactorSignInIsNowOff()
     {
-        GivenTheOutcomeIs(TwoFactorDisableOutcome.Disabled);
+        GivenTheOutcomeIs(TwoFactorDisableStatus.Disabled);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
@@ -121,21 +121,21 @@ public sealed class DisableTwoFactorUseCaseTests
     [Fact]
     public async Task ARightPassword_RevokesEveryRefreshTokenForTheAccount()
     {
-        GivenTheOutcomeIs(TwoFactorDisableOutcome.Disabled);
+        GivenTheOutcomeIs(TwoFactorDisableStatus.Disabled);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _refreshTokens.Received(1).RevokeAllForUserAsync(_callerId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, Arg.Any<CancellationToken>());
         _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_callerId));
     }
 
     private static DisableTwoFactorCommand ARequest() => new("correct horse battery");
 
-    private void GivenTheOutcomeIs(TwoFactorDisableOutcome disable) =>
-        _enrollment.DisableAsync(_callerId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(disable);
+    private void GivenTheOutcomeIs(TwoFactorDisableStatus disable) =>
+        _twoFactor.DisableAsync(_callerId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(disable);
 
     private DisableTwoFactorUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_enrollment, _refreshTokens, _securityEventLog, currentUser, new DisableTwoFactorCommandValidator());
+        new(_twoFactor, _sessionTokens, _securityEventLog, currentUser, new DisableTwoFactorCommandValidator());
 
     private DisableTwoFactorUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

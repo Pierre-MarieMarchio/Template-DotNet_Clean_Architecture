@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -16,8 +16,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePas
 /// store refused.
 /// </summary>
 public sealed class ChangePasswordUseCase(
-    IUserAccountsService accounts,
-    IRefreshTokenGrantsService refreshTokens,
+    IAccountsService accounts,
+    ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
     IValidator<ChangePasswordCommand> validator) : IChangePasswordUseCase
@@ -65,7 +65,7 @@ public sealed class ChangePasswordUseCase(
                     change.RejectionMessage ?? "The submitted password does not meet the required policy."));
         }
 
-        await CredentialInvalidationPolicy.InvalidateAsync(refreshTokens, securityEventLog, userId.Value.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, userId.Value.Value, cancellationToken);
 
         return Result.Success();
     }

@@ -4,7 +4,7 @@ using System.Net.Http.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RoleAssignments;
+using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +24,7 @@ namespace AppTemplate.Api.IntegrationTests.Auth;
 /// This test host seeds no identity data at all (<c>IdentitySeed:Enabled</c> is <c>false</c> for the
 /// whole suite — see <c>ApiFactory</c> and <c>AdministratorPolicyTests</c>), and no HTTP route can
 /// grant the very first Administrator when none exists yet. <see cref="GrantRoleAsync"/> bootstraps
-/// one directly through <see cref="IRoleAssignmentsService"/> instead, inside a scope of the caller's own —
+/// one directly through <see cref="IAccountAdministrationService"/> instead, inside a scope of the caller's own —
 /// the same convention <c>LoadTodoListAsync</c> uses to read an aggregate back through the
 /// application port rather than a persistence internal.
 /// </remarks>
@@ -367,10 +367,10 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
 
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
 
-        var roles = scope.ServiceProvider.GetRequiredService<IRoleAssignmentsService>();
-        var change = await roles.AddRoleAsync(userId, role, TestToken);
+        var administration = scope.ServiceProvider.GetRequiredService<IAccountAdministrationService>();
+        var change = await administration.GrantRoleAsync(userId, role, TestToken);
 
-        if (change.Status != RoleAssignmentChangeStatus.Applied)
+        if (change.Status != AccountAdministrationStatus.Applied)
         {
             throw new InvalidOperationException(
                 $"Granting role '{role}' to '{userId}' failed with {change.Status}: {change.RejectionMessage}");
@@ -378,7 +378,7 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
     }
 
     /// <summary>
-    /// Puts the role's own catalog row in place. <see cref="IRoleAssignmentsService"/> only assigns a role
+    /// Puts the role's own catalog row in place. <see cref="IAccountAdministrationService"/> only assigns a role
     /// that already exists — it never invents one, the same as <c>AddToRoleAsync</c> underneath it —
     /// and the row <c>IdentitySeeder</c> would normally create is absent here because
     /// <c>IdentitySeed:Enabled</c> is <c>false</c> for the whole suite. Raw SQL against the schema

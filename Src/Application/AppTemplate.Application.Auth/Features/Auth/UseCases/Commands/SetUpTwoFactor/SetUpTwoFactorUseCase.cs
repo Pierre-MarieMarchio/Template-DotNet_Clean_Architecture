@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment;
+using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 
@@ -19,7 +19,7 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SetUpTwoF
 /// </para>
 /// </summary>
 public sealed class SetUpTwoFactorUseCase(
-    ITwoFactorEnrollmentService enrollment,
+    ITwoFactorService twoFactor,
     ICurrentUser currentUser) : ISetUpTwoFactorUseCase
 {
     /// <inheritdoc />
@@ -32,7 +32,7 @@ public sealed class SetUpTwoFactorUseCase(
             return userId.To<SetUpTwoFactorOutcome>();
         }
 
-        var started = await enrollment.BeginAsync(userId.Value.Value, cancellationToken);
+        var started = await twoFactor.BeginSetupAsync(userId.Value.Value, cancellationToken);
 
         if (started.Status is not TwoFactorSetupStatus.Started)
         {

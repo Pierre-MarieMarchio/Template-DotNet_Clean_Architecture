@@ -54,7 +54,7 @@ internal sealed class ExternalIdentityVerifier(
     /// </summary>
     private static readonly TimeSpan _clockSkew = TimeSpan.FromSeconds(30);
 
-    public async Task<ExternalIdentityOutcome> VerifyAsync(
+    public async Task<VerifiedExternalIdentity?> VerifyAsync(
         string provider,
         string idToken,
         CancellationToken cancellationToken = default)
@@ -65,7 +65,7 @@ internal sealed class ExternalIdentityVerifier(
 
         if (configured is null)
         {
-            return ExternalIdentityOutcome.Refused(ExternalIdentityStatus.UnknownProvider);
+            return null;
         }
 
         var keys = await signingKeys.GetAsync(configured, cancellationToken);
@@ -82,7 +82,7 @@ internal sealed class ExternalIdentityVerifier(
         // Everything after this point reads attacker-supplied text unless IsValid holds.
         if (!validation.IsValid || validation.SecurityToken is not JsonWebToken token)
         {
-            return ExternalIdentityOutcome.Refused(ExternalIdentityStatus.InvalidToken);
+            return null;
         }
 
         if (!token.TryGetPayloadValue(JwtRegisteredClaimNames.Sub, out string? subject)
@@ -90,15 +90,14 @@ internal sealed class ExternalIdentityVerifier(
         {
             // A token with no subject verifies but identifies nobody, and (provider, subject) is the
             // only key a local account is resolved by.
-            return ExternalIdentityOutcome.Refused(ExternalIdentityStatus.InvalidToken);
+            return null;
         }
 
-        return ExternalIdentityOutcome.Verified(
-            new VerifiedExternalIdentity(
-                configured.Name,
-                subject,
-                ReadEmail(token),
-                ReadEmailVerified(token)));
+        return new VerifiedExternalIdentity(
+            configured.Name,
+            subject,
+            ReadEmail(token),
+            ReadEmailVerified(token));
     }
 
     private static Task<TokenValidationResult> ValidateAsync(

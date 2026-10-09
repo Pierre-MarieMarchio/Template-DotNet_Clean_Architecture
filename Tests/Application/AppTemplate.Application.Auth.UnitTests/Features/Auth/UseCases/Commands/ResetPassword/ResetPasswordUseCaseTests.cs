@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.PasswordResetTokens;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResetPassword;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
@@ -11,15 +11,15 @@ namespace AppTemplate.Application.Auth.UnitTests.Features.Auth.UseCases.Commands
 
 public sealed class ResetPasswordUseCaseTests
 {
-    private readonly IPasswordResetTokensService _resetTokens = Substitute.For<IPasswordResetTokensService>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly IEmailTokensService _emailTokens = Substitute.For<IEmailTokensService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly ResetPasswordUseCase _useCase;
 
     public ResetPasswordUseCaseTests() =>
         _useCase = new ResetPasswordUseCase(
-            _resetTokens,
-            _refreshTokens,
+            _emailTokens,
+            _sessionTokens,
             _securityEventLog,
             new ResetPasswordCommandValidator());
 
@@ -35,7 +35,7 @@ public sealed class ResetPasswordUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _resetTokens.ReceivedCalls().ShouldBeEmpty();
+        _emailTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
@@ -49,12 +49,11 @@ public sealed class ResetPasswordUseCaseTests
         result.IsSuccess.ShouldBeTrue();
     }
 
-    /// <summary>An unknown address and an invalid or expired token must not be distinguishable.</summary>
-    [Theory]
-    [MemberData(nameof(EnumerationRefusals))]
-    public async Task AnUnknownAddressOrABadToken_AnswerWithTheSameError(PasswordResetStatus outcome)
+    /// <summary>An unknown address and an invalid or expired token are one refusal, so they cannot be told apart.</summary>
+    [Fact]
+    public async Task AnUnknownAddressOrABadToken_AnswerWithTheSameError()
     {
-        GivenTheOutcomeIs(new PasswordResetOutcome(outcome, null, null));
+        GivenTheOutcomeIs(PasswordResetOutcome.InvalidToken);
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -63,9 +62,6 @@ public sealed class ResetPasswordUseCaseTests
             "auth.resetPassword.invalid",
             "The password reset link is invalid or has expired."));
     }
-
-    public static TheoryData<PasswordResetStatus> EnumerationRefusals =>
-        [PasswordResetStatus.NoSuchAccount, PasswordResetStatus.InvalidToken];
 
     /// <summary>On "newPassword", the request field the value came from.</summary>
     [Fact]
@@ -92,7 +88,7 @@ public sealed class ResetPasswordUseCaseTests
 
         await _useCase.ExecuteAsync(ARequest(), TestToken);
 
-        await _refreshTokens.Received(1).RevokeAllForUserAsync(userId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(userId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -113,13 +109,13 @@ public sealed class ResetPasswordUseCaseTests
 
         await _useCase.ExecuteAsync(ARequest(), TestToken);
 
-        await _refreshTokens.DidNotReceiveWithAnyArgs().RevokeAllForUserAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
     private static ResetPasswordCommand ARequest() => new("someone@example.com", "a-token", "correct horse battery");
 
     private void GivenTheOutcomeIs(PasswordResetOutcome reset) =>
-        _resetTokens.RedeemAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _emailTokens.ResetPasswordAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(reset);
 }

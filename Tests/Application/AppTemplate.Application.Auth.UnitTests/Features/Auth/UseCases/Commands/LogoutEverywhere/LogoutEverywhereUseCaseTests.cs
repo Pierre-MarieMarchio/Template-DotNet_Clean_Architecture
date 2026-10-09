@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.LogoutEverywhere;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Ports;
@@ -13,7 +13,7 @@ public sealed class LogoutEverywhereUseCaseTests
 {
     private static readonly Guid _callerId = Guid.CreateVersion7();
 
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -25,7 +25,7 @@ public sealed class LogoutEverywhereUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class LogoutEverywhereUseCaseTests
         var result = await UseCase().ExecuteAsync(TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        await _refreshTokens.Received(1).RevokeAllForUserAsync(_callerId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -64,11 +64,11 @@ public sealed class LogoutEverywhereUseCaseTests
 
         await UseCase().ExecuteAsync(cancellation.Token);
 
-        await _refreshTokens.Received(1).RevokeAllForUserAsync(_callerId, cancellation.Token);
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, cancellation.Token);
     }
 
     private LogoutEverywhereUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_refreshTokens, _securityEventLog, currentUser);
+        new(_sessionTokens, _securityEventLog, currentUser);
 
     private LogoutEverywhereUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

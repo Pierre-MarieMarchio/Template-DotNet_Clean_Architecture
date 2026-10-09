@@ -20,7 +20,7 @@ namespace AppTemplate.Infrastructure.InMemory.Features.Auth;
 internal sealed class InMemoryExternalIdentityVerifier(AcceptedExternalIdentities accepted)
     : IExternalIdentityVerifier
 {
-    public Task<ExternalIdentityOutcome> VerifyAsync(
+    public Task<VerifiedExternalIdentity?> VerifyAsync(
         string provider,
         string idToken,
         CancellationToken cancellationToken = default)

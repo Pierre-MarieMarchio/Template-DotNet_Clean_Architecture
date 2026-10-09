@@ -1,8 +1,7 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccessTokenIssuer;
-using AppTemplate.Application.Auth.Features.Auth.Ports.RefreshTokenGrants;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorChallenge;
-using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
@@ -21,19 +20,17 @@ public sealed class LoginUseCaseTests
 
     private static readonly DateTimeOffset _refreshTokenExpiry = DateTimeOffset.UnixEpoch.AddDays(30);
 
-    private readonly IUserAccountsService _accounts = Substitute.For<IUserAccountsService>();
-    private readonly IAccessTokenIssuer _accessTokens = Substitute.For<IAccessTokenIssuer>();
-    private readonly IRefreshTokenGrantsService _refreshTokens = Substitute.For<IRefreshTokenGrantsService>();
-    private readonly ITwoFactorChallengeService _twoFactorChallenge = Substitute.For<ITwoFactorChallengeService>();
+    private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
+    private readonly ITwoFactorService _twoFactor = Substitute.For<ITwoFactorService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly LoginUseCase _useCase;
 
     public LoginUseCaseTests() =>
         _useCase = new LoginUseCase(
             _accounts,
-            _accessTokens,
-            _refreshTokens,
-            _twoFactorChallenge,
+            _sessionTokens,
+            _twoFactor,
             _securityEventLog,
             new LoginCommandValidator());
 
@@ -194,8 +191,7 @@ public sealed class LoginUseCaseTests
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     /// <summary>
@@ -214,7 +210,7 @@ public sealed class LoginUseCaseTests
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
         result.IsFailure.ShouldBeTrue();
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     #endregion
@@ -260,8 +256,8 @@ public sealed class LoginUseCaseTests
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
-        await _accessTokens.Received(1).IssueAsync(account.UserId, Arg.Any<CancellationToken>());
-        await _refreshTokens.Received(1).IssueAsync(account.UserId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).IssueAccessTokenAsync(account.UserId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).IssueRefreshTokenAsync(account.UserId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -277,8 +273,8 @@ public sealed class LoginUseCaseTests
             Arg.Any<string>(),
             cancellation.Token);
 
-        await _accessTokens.Received(1).IssueAsync(account.UserId, cancellation.Token);
-        await _refreshTokens.Received(1).IssueAsync(account.UserId, cancellation.Token);
+        await _sessionTokens.Received(1).IssueAccessTokenAsync(account.UserId, cancellation.Token);
+        await _sessionTokens.Received(1).IssueRefreshTokenAsync(account.UserId, cancellation.Token);
     }
 
     #endregion
@@ -294,7 +290,7 @@ public sealed class LoginUseCaseTests
     {
         var account = GivenTheCredentialIsVerified(twoFactorEnabled: true);
 
-        _twoFactorChallenge.IssueAsync(account.UserId, Arg.Any<CancellationToken>())
+        _twoFactor.IssueChallengeAsync(account.UserId, Arg.Any<CancellationToken>())
             .Returns(new IssuedTwoFactorChallenge("a-challenge-token", DateTimeOffset.UnixEpoch.AddMinutes(5)));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
@@ -302,8 +298,7 @@ public sealed class LoginUseCaseTests
         result.IsSuccess.ShouldBeTrue();
         var challenge = result.Value.ShouldBeOfType<LoginOutcome.TwoFactorRequired>();
         challenge.ChallengeToken.ShouldBe("a-challenge-token");
-        _accessTokens.ReceivedCalls().ShouldBeEmpty();
-        _refreshTokens.ReceivedCalls().ShouldBeEmpty();
+        _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
     /// <summary>
@@ -315,7 +310,7 @@ public sealed class LoginUseCaseTests
     {
         var account = GivenTheCredentialIsVerified(twoFactorEnabled: true);
 
-        _twoFactorChallenge.IssueAsync(account.UserId, Arg.Any<CancellationToken>())
+        _twoFactor.IssueChallengeAsync(account.UserId, Arg.Any<CancellationToken>())
             .Returns(new IssuedTwoFactorChallenge("a-challenge-token", DateTimeOffset.UnixEpoch.AddMinutes(5)));
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
@@ -334,10 +329,10 @@ public sealed class LoginUseCaseTests
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(CredentialCheckOutcome.Verified(account));
 
-        _accessTokens.IssueAsync(account.UserId, Arg.Any<CancellationToken>())
+        _sessionTokens.IssueAccessTokenAsync(account.UserId, Arg.Any<CancellationToken>())
             .Returns(new IssuedAccessToken("access-token", _accessTokenExpiry));
 
-        _refreshTokens.IssueAsync(account.UserId, Arg.Any<CancellationToken>())
+        _sessionTokens.IssueRefreshTokenAsync(account.UserId, Arg.Any<CancellationToken>())
             .Returns(new IssuedRefreshToken("refresh-token", _refreshTokenExpiry));
 
         return account;

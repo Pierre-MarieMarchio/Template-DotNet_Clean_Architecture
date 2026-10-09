@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.PasswordResetEmailFactory;
-using AppTemplate.Application.Auth.Features.Auth.Ports.PasswordResetTokens;
+﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
@@ -13,8 +13,8 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestPa
 /// way, and a delivery failure is logged without the address it was bound for.
 /// </summary>
 public sealed class RequestPasswordResetUseCase(
-    IPasswordResetTokensService resetTokens,
-    IPasswordResetEmailFactory emailFactory,
+    IEmailTokensService emailTokens,
+    IAccountEmailFactory emailFactory,
     IEmailSender emailSender,
     IValidator<RequestPasswordResetCommand> validator,
     ILogger<RequestPasswordResetUseCase> logger) : IRequestPasswordResetUseCase
@@ -33,7 +33,7 @@ public sealed class RequestPasswordResetUseCase(
             return validation;
         }
 
-        var pending = await resetTokens.IssueAsync(request.Email, cancellationToken);
+        var pending = await emailTokens.IssuePasswordResetAsync(request.Email, cancellationToken);
 
         if (pending is not null)
         {
@@ -46,12 +46,12 @@ public sealed class RequestPasswordResetUseCase(
 
     private async Task TrySendAsync(
         string email,
-        PendingPasswordReset pending,
+        IssuedEmailToken pending,
         CancellationToken cancellationToken)
     {
         try
         {
-            var message = await emailFactory.CreateAsync(
+            var message = await emailFactory.CreatePasswordResetAsync(
                 pending.UserName,
                 email,
                 pending.Token,

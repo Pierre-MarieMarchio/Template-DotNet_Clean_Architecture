@@ -396,6 +396,32 @@ behaviour — they all speak OIDC — so adding Okta or Keycloak is a configurat
 class. Apple's one real quirk (the address arrives only at the first authorisation) is handled where
 it belongs, in the use case, because it is about linking rather than about verification.
 
+### `Authentication:External`
+
+The external OpenID Connect provider (Keycloak, Entra ID, Auth0…) whose access tokens authenticate
+callers in place of the local accounts. Bound by `AddExternalAuthentication`, the API's entry point
+for that mode; a host with local accounts never reads it. Not to be confused with `ExternalIdentity`
+above, which is the local accounts' *sign-in with* Google and the like.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Authority` | string | `""` | **Required.** The provider's issuer URL; its discovery document supplies the signing keys and the issuer a token must carry. |
+| `Audience` | string | `""` | **Required.** This API's identifier at the provider. Audience validation is never disabled. |
+| `RequireHttpsMetadata` | bool | `true` | Refuses an `http` authority. Only a provider on a developer's machine has business setting `false`. |
+| `SubjectClaim` | string | `sub` | The claim naming the caller at the provider. Mapped to an internal owner id, never used as one. |
+| `EmailClaim` | string | `email` | Kept on the mapping, for notifications. |
+| `NameClaim` | string | `name` | Kept on the mapping, for notifications. |
+| `Roles:Source` | `Claim` or `Local` | `Local` | Where roles come from: the token, or the `external_identity.RoleAssignments` table. |
+| `Roles:ClaimPath` | string | — | **Required when `Source` is `Claim`.** A dot path to a string or an array of strings: `roles` (Entra ID), `realm_access.roles` (Keycloak), a namespaced claim such as `https://example.com/roles` (Auth0, matched whole). |
+| `Roles:AdministratorRole` | string | `Admin` | The role the `Administrator` policy requires. |
+
+**The subject is never the owner.** Each (issuer, subject) pair is mapped to an internal `UserId`
+the first time it calls, and every business row carries that id; an email address is never the key.
+[`SECURITY.md`](../SECURITY.md#external-identity-provider) has the mapping, how to keep existing
+owners across a change of provider, and why a token that cannot be mapped is refused.
+
+**`Local` roles have no API.** Assignments are rows of `(UserId, Role)` written by SQL or a seed.
+
 ### `FileWorker`
 
 The Files feature's two sweeps and its inspection pass. Bound by `AddBackgroundJobs`, and only when

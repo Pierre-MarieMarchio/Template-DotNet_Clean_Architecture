@@ -195,6 +195,44 @@ untouched — which is what makes the same endpoint work for a SPA, a mobile app
 - **No client secret is involved.** Verifying an `id_token` is asymmetric cryptography; the template
   holds no secret for any provider, and a deployment configuring one has taken the wrong flow.
 
+### External identity provider
+
+A host can authenticate callers with access tokens from an external OpenID Connect provider instead
+of the local accounts: `AddExternalAuthentication` in `Api/Features/ExternalIdentity/Composition/`,
+configured by [`Authentication:External`](docs/CONFIGURATION.md#authenticationexternal).
+
+- **Validation is the framework's, with nothing switched off.** Signature against the authority's
+  published keys, `iss` from its discovery document, `aud`, `exp` and `nbf`, a 30-second skew.
+  Claim types are left as the provider wrote them, so `sub` never arrives as `NameIdentifier`.
+- **The provider's subject is opaque and never becomes an owner id.** The pair (issuer, subject) is
+  mapped to an internal `UserId` in `external_identity.ExternalIdentities`, and that id is what
+  `ICurrentUser` returns and every business row carries — even when the provider's subjects happen
+  to be GUIDs. An email address is never the key: it is kept, refreshed when the provider sends a
+  new one, and used only to reach the owner.
+- **The mapping is created on the caller's first request, exactly once.** A unique index on
+  (issuer, subject) decides between two concurrent first requests: the loser's insert is refused,
+  it reads the winner's row, and both answer the same owner. Each write commits on its own, outside
+  the request's unit of work, and a retried insert that had in fact committed is answered from its
+  own row. The owner id of a mapping is never rewritten.
+- **Fails closed.** A token that does not validate, or that validates but names no issuer or no
+  subject, is a 401 with the usual `auth.required` body. A store failure fails the request. There is
+  no anonymous fallback and no shared placeholder owner.
+- **Roles come from one configured source.** Either a claim path of the token (`roles`,
+  `realm_access.roles`, a namespaced claim) or the local `external_identity.RoleAssignments` table;
+  never both, and a provider-sent role claim is dropped when the source is local. A missing claim is
+  no role. The `Administrator` policy requires the configured role. Local assignments have no API:
+  they are written by SQL or a seed.
+- **Keeping existing owners across a change of provider.** Before the switch, insert one mapping row
+  per owner naming the new provider's issuer and subject and the owner's *existing* id:
+  `INSERT INTO external_identity."ExternalIdentities" ("Id", "Issuer", "Subject", "UserId", "Email",
+  "DisplayName", "CreatedAt", "LastSeenAt") VALUES (gen_random_uuid(), '<issuer>', '<subject>',
+  '<existing owner id>', NULL, NULL, now(), now());`. An owner may have one row per provider; all name
+  the same id. The subjects come from the provider (an export, or its admin API), matched on whatever
+  the migration trusts — that matching is the one step where an address may be used, by a person.
+- **Reminders still reach their owner.** A background pass has no token, so the recipient is read
+  from the address and name the provider last sent, kept on the mapping. An owner whose provider never
+  sent an address is skipped.
+
 <!--#if (files)-->
 ### File storage
 

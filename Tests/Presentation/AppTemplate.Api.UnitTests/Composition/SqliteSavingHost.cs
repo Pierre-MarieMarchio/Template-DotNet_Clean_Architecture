@@ -155,7 +155,7 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
         await _authKeeper.DisposeAsync();
     }
 
-    private static string AnInMemoryDatabase(string name) =>
+    internal static string AnInMemoryDatabase(string name) =>
         new SqliteConnectionStringBuilder
         {
             DataSource = string.Create(CultureInfo.InvariantCulture, $"{name}-{Guid.NewGuid():N}"),
@@ -167,7 +167,7 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
     /// Keeps the options the module composed and replaces only their provider. Both the scoped
     /// context and the idempotency factory are handed these, as they are handed the module's own.
     /// </summary>
-    private static void OnSqlite<TContext>(IServiceCollection services, string connectionString)
+    internal static void OnSqlite<TContext>(IServiceCollection services, string connectionString)
         where TContext : DbContext
     {
         var composed = services.Single(
@@ -193,12 +193,20 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
             composed.Lifetime));
     }
 
-    private async Task CreateSchemaAsync<TContext>(
+    private Task CreateSchemaAsync<TContext>(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+        where TContext : DbContext =>
+        CreateSchemaAsync<TContext>(Services, connection, cancellationToken);
+
+    /// <summary>Creates <typeparamref name="TContext"/>'s model in the database behind <paramref name="connection"/>.</summary>
+    internal static async Task CreateSchemaAsync<TContext>(
+        IServiceProvider services,
         SqliteConnection connection,
         CancellationToken cancellationToken)
         where TContext : DbContext
     {
-        await using var scope = Services.CreateAsyncScope();
+        await using var scope = services.CreateAsyncScope();
         string script = scope.ServiceProvider.GetRequiredService<TContext>().Database.GenerateCreateScript();
 
         await using var command = connection.CreateCommand();

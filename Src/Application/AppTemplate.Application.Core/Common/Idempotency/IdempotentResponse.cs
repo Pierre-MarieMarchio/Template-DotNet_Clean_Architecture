@@ -7,7 +7,7 @@
 /// <param name="Body">
 /// The JSON of the executed result's value, or <c>null</c> when it was too large to store — in
 /// which case a replay is answered with <see cref="IdempotencyErrors.NotReplayable"/> instead of a
-/// truncated body.
+/// truncated body. A 204 stores <c>null</c> too, but it has no body to lose and replays as it was.
 /// </param>
 /// <param name="ETag">
 /// The version the original response published, if any. Without this a replay of a create or

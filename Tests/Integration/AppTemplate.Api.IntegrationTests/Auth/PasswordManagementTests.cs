@@ -56,6 +56,28 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
         stillWorks.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>
+    /// Long enough for the shape validator, refused by the configured policy: the store's refusal is
+    /// reported on the field the caller typed the new password in.
+    /// </summary>
+    [Fact]
+    public async Task ChangePassword_ANewPasswordThePolicyRefuses_IsReportedOnTheNewPasswordField()
+    {
+        var (client, user, _) = await SignInAsync();
+
+        using var rejected = await client.PostAsJsonAsync(
+            $"{AuthRoute}/change-password",
+            new ChangePasswordRequest(user.Password, "Sh0rt!Aa"),
+            TestToken);
+
+        rejected.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        var problem = await ApiJson.ReadProblemAsync(rejected, TestToken);
+        problem.Code.ShouldBe("request.validationFailed");
+        problem.Body.ShouldContain("\"newPassword\"", Case.Sensitive);
+        problem.Body.ShouldNotContain("\"password\"", Case.Sensitive);
+    }
+
     #endregion
 
     #region forgot-password

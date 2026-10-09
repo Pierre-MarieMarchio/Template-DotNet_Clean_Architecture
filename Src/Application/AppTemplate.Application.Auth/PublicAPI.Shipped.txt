@@ -350,11 +350,7 @@ AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorSe
 AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorSetupStatus.Started = 0 -> AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorSetupStatus
 AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome
 AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.<Clone>$() -> AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome!
-AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.AccountCreationOutcome(AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationStatus Status, System.Guid UserId, string? RejectionMessage) -> void
-AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.Deconstruct(out AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationStatus Status, out System.Guid UserId, out string? RejectionMessage) -> void
 AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.Equals(AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome? other) -> bool
-AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.RejectionMessage.get -> string?
-AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.RejectionMessage.init -> void
 AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.Status.get -> AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationStatus
 AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.Status.init -> void
 AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.UserId.get -> System.Guid
@@ -1072,7 +1068,6 @@ static AppTemplate.Application.Auth.Features.Auth.Errors.AuthErrors.InvalidTwoFa
 static AppTemplate.Application.Auth.Features.Auth.Errors.AuthErrors.NoSuchAccount.get -> AppTemplate.Application.Core.Common.Results.Error!
 static AppTemplate.Application.Auth.Features.Auth.Errors.AuthErrors.PasswordResetRejected(string! message) -> AppTemplate.Application.Core.Common.Results.Error!
 static AppTemplate.Application.Auth.Features.Auth.Errors.AuthErrors.RegistrationConflict.get -> AppTemplate.Application.Core.Common.Results.Error!
-static AppTemplate.Application.Auth.Features.Auth.Errors.AuthErrors.RegistrationRejected(string! message) -> AppTemplate.Application.Core.Common.Results.Error!
 static AppTemplate.Application.Auth.Features.Auth.Errors.AuthErrors.RoleAssignmentRejected(string! message) -> AppTemplate.Application.Core.Common.Results.Error!
 static AppTemplate.Application.Auth.Features.Auth.Errors.AuthErrors.TwoFactorAdministrativeDisableRejected.get -> AppTemplate.Application.Core.Common.Results.Error!
 static AppTemplate.Application.Auth.Features.Auth.Errors.AuthErrors.TwoFactorAlreadyEnabled.get -> AppTemplate.Application.Core.Common.Results.Error!
@@ -1173,7 +1168,6 @@ static AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoF
 static AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorSetupOutcome.operator ==(AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorSetupOutcome? left, AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactorEnrollment.TwoFactorSetupOutcome? right) -> bool
 static AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.Conflict.get -> AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome!
 static AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.Created(System.Guid userId) -> AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome!
-static AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.Rejected(string! message) -> AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome!
 static AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.operator !=(AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome? left, AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome? right) -> bool
 static AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome.operator ==(AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome? left, AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountCreationOutcome? right) -> bool
 static AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountIdentity.operator !=(AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountIdentity? left, AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts.AccountIdentity? right) -> bool

@@ -63,11 +63,30 @@ internal sealed class UserAccountsService(
         }
 
         bool isConflict = result.Errors.Any(error =>
-            error.Code.Contains("Duplicate", StringComparison.OrdinalIgnoreCase));
+            error.Code is nameof(IdentityErrorDescriber.DuplicateUserName)
+                or nameof(IdentityErrorDescriber.DuplicateEmail));
 
-        return isConflict
-            ? AccountCreationOutcome.Conflict
-            : AccountCreationOutcome.Rejected(string.Join(" ", result.Errors.Select(error => error.Description)));
+        if (isConflict)
+        {
+            return AccountCreationOutcome.Conflict;
+        }
+
+        // Identity's password codes, and any code a derived project's own validator adds, stay on the
+        // password: the only value left that the store judges.
+        var refusals = result.Errors.ToLookup(
+            error => error.Code switch
+            {
+                nameof(IdentityErrorDescriber.InvalidUserName) => nameof(AppUser.UserName),
+                nameof(IdentityErrorDescriber.InvalidEmail) => nameof(AppUser.Email),
+                _ => nameof(password),
+            },
+            error => error.Description,
+            StringComparer.Ordinal);
+
+        return AccountCreationOutcome.Rejected(
+            JoinOrNull(refusals[nameof(AppUser.UserName)]),
+            JoinOrNull(refusals[nameof(AppUser.Email)]),
+            JoinOrNull(refusals[nameof(password)]));
     }
 
     public async Task<CredentialCheckOutcome> VerifyCredentialAsync(
@@ -169,4 +188,7 @@ internal sealed class UserAccountsService(
             ? PasswordChangeOutcome.IncorrectCurrentPassword
             : PasswordChangeOutcome.Rejected(string.Join(" ", result.Errors.Select(error => error.Description)));
     }
+
+    private static string? JoinOrNull(IEnumerable<string> descriptions) =>
+        descriptions.Any() ? string.Join(" ", descriptions) : null;
 }

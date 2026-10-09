@@ -115,4 +115,28 @@ public sealed class ValidationErrorTests
         Should.Throw<ArgumentNullException>(() => ValidationError.ForField("field", null!));
 
     #endregion
+
+    #region ForFields
+
+    [Fact]
+    public void ForFields_CarriesEveryFieldUnderTheSameStableCodeAndFixedMessage()
+    {
+        var error = ValidationError.ForFields(new Dictionary<string, IReadOnlyList<string>>
+        {
+            ["userName"] = ["That user name is invalid."],
+            ["password"] = ["Too short.", "Needs a digit."],
+        });
+
+        error.Type.ShouldBe(ErrorType.Validation);
+        error.Code.ShouldBe("request.validationFailed");
+        error.Message.ShouldBe("One or more fields are invalid.");
+        error.Details!["userName"].ShouldBe(["That user name is invalid."]);
+        error.Details["password"].ShouldBe(["Too short.", "Needs a digit."]);
+    }
+
+    [Fact]
+    public void ForFields_Rejects_NullDetails() =>
+        Should.Throw<ArgumentNullException>(() => ValidationError.ForFields(null!));
+
+    #endregion
 }

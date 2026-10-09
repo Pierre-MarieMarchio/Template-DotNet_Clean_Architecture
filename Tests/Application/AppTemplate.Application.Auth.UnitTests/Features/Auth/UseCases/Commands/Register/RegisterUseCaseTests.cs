@@ -177,13 +177,33 @@ public sealed class RegisterUseCaseTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
-            .Returns(AccountCreationOutcome.Rejected("Passwords must have at least one digit."));
+            .Returns(AccountCreationOutcome.Rejected(null, null, "Passwords must have at least one digit."));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
         result.Error.Details!["password"].ShouldContain("Passwords must have at least one digit.");
+        result.Error.Details.Keys.ShouldBe(["password"]);
         _emailSender.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    /// <summary>A refused user name or address is pointed at that field, not at the password.</summary>
+    [Fact]
+    public async Task ARejection_CarriesEachExplanationOnTheFieldItConcerns()
+    {
+        _accounts.CreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>())
+            .Returns(AccountCreationOutcome.Rejected("User name 'a b' is invalid.", "Email 'x' is invalid.", null));
+
+        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        result.Error!.Code.ShouldBe("request.validationFailed");
+        result.Error.Details!["userName"].ShouldBe(["User name 'a b' is invalid."]);
+        result.Error.Details["email"].ShouldBe(["Email 'x' is invalid."]);
+        result.Error.Details.ContainsKey("password").ShouldBeFalse();
     }
 
     #endregion

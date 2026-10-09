@@ -455,13 +455,15 @@ feature therefore lives with that feature, as
 rather than two, and why EF maps rows rather than aggregates.
 
 **One DI module per project, and the application layer is composed a feature at a time.** The
-host's composition root starts with eleven lines, in this order — `AddTodoLists()`,
-`AddReminders()`, `AddFiles()`, `AddNotes()`, then `AddAuthApplication()`, then
-`AddPurgeExpiredIdempotencyKeys()`, then `AddCacheStore()`, then
-`AddPersistenceModule(builder.Configuration)`, `AddAuthModule`, `AddEmailModule` and
-`AddStorageModule`. The first seven take no argument, because nothing in the application layer binds a
-configuration section of its own and the cache decides its lifetimes at each call site; the four
-modules each take one. Adding a capability adds one line there and touches nothing else; removing
+host's composition root starts with nine lines, in this order — `AddTodoLists()`,
+`AddReminders()`, `AddFiles()`, `AddNotes()`, then `AddPurgeExpiredIdempotencyKeys()`, then
+`AddCacheStore()`, then `AddPersistenceModule(builder.Configuration)`, `AddEmailModule` and
+`AddStorageModule`. The first six take no argument, because nothing in the application layer binds a
+configuration section of its own and the cache decides its lifetimes at each call site; the three
+modules each take one. Authentication is one more line, `AddAuthFeature(builder.Configuration)`
+from `Features/Auth/Composition/`, which composes its use cases, its module, its purge, its readiness
+check, the `Administrator` policy and its development migration and seed, so a host without local
+accounts deletes that line and that folder. Adding a capability adds one line there and touches nothing else; removing
 one deletes a project and a line.
 
 Three further lines are not among the eleven, because they compose host concerns rather than
@@ -469,7 +471,7 @@ capabilities: `AddOutboundHttp()`, the localisation binding — reached through 
 which adds the request-header middleware around `AddLocalizationOptions()` — and the host's own thin
 observability extension over the shared `AddObservability`. All three come from
 `AppTemplate.Presentation.Core`. The periodic jobs add one call of their own, `AddBackgroundJobs()`,
-and authentication adds one beside it, `AddAuthMaintenanceJobs()` — see below.
+and `AddAuthFeature` follows it so the refresh-token purge joins that timer — see below.
 
 **There is deliberately no call that adds the whole layer.** That is what makes a feature
 removable: deleting its folder and its one line here is the whole operation, and nothing else claims
@@ -546,10 +548,11 @@ Three `BackgroundService`s, composed by the one call `AddBackgroundJobs()`
 
 - `MaintenanceBackgroundService` runs every registered `IMaintenanceTask` on one timer. The
   idempotency-key purge is the maintenance feature's own; the refresh-token purge belongs to
-  authentication and is registered by `AddAuthMaintenanceJobs()` from `Features/Auth/Jobs/`, so the
+  authentication and is registered by `AddAuthFeature()` from `Features/Auth/`, so the
   composition and the timer name nothing from authentication and a project built without it deletes
-  one call and one folder. Both tasks run the exact same `IPurgeExpiredIdempotencyKeysUseCase` and
-  `IPurgeExpiredRefreshTokensUseCase` that `MaintenanceController` exposes over HTTP.
+  one call and one folder. Both tasks run the exact same use cases the maintenance routes expose over
+  HTTP: `MaintenanceController` for idempotency keys, and authentication's own
+  `RefreshTokenMaintenanceController`, under the same prefix and tag, for refresh-token grants.
 - `ReminderBackgroundService` runs `IFireDueRemindersUseCase` on its own timer — the only caller that
   use case ever has, since firing a reminder must never run behind a request.
 - `FileBackgroundService` runs three passes on three separate timers, because their costs are three

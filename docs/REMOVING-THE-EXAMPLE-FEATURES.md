@@ -701,15 +701,17 @@ Both halves are asserted rather than claimed.
 and finds that neither the business features nor the mechanisms name anything in
 `AppTemplate.Application.Auth`, and `ContainerCompositionTests.TheApiContainer_BuildsWithoutAuthentication`
 builds a container of every other module with no `AddAuthApplication()` and no identity module. So
-the first steps are small: delete the
-`AddAuthApplication()` and `AddAuthMaintenanceJobs(builder.Configuration)` lines from `Program.cs`,
-delete
-`Src/Application/AppTemplate.Application.Auth/` and `Src/Infrastructure/AppTemplate.Infrastructure.Auth/`
-with their test mirrors and solution entries, and delete
-`Src/Presentation/AppTemplate.Api/Features/Auth/` — its `Jobs/` folder, which holds the
-refresh-token purge's registration and its options, and six controllers: `RegistrationController`,
-`SessionsController`, `AccountController`, `TwoFactorController`, `PasswordRecoveryController` and
-`AccountAdministrationController`.
+the first steps are small: delete the `AddAuthFeature(builder.Configuration)` line from `Program.cs`,
+delete `Src/Application/AppTemplate.Application.Auth/` and
+`Src/Infrastructure/AppTemplate.Infrastructure.Auth/` with their test mirrors and solution entries,
+and delete `Src/Presentation/AppTemplate.Api/Features/Auth/`. That folder holds everything the API
+composes for local accounts: the entry point under `Composition/` (module, readiness check,
+`Administrator` policy, development migration and seed), the refresh-token purge and its options
+under `Jobs/`, and seven controllers — `RegistrationController`, `SessionsController`,
+`AccountController`, `TwoFactorController`, `PasswordRecoveryController`,
+`AccountAdministrationController` and `RefreshTokenMaintenanceController`. What a host without local
+accounts still owes is an authentication scheme and the `Administrator` policy the maintenance routes
+use, from its own identity provider.
 
 **Then three things answer back, and none of them is in either of those two projects.**
 

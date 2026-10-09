@@ -1,15 +1,12 @@
 ﻿using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.Security;
-using AppTemplate.Api.Features.Auth.Jobs;
+using AppTemplate.Api.Features.Auth.Composition;
 using AppTemplate.Api.Features.BackgroundJobs.Jobs;
 using AppTemplate.Api.Features.Reminders.Directories;
 using AppTemplate.Application;
-using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
-using AppTemplate.Infrastructure.Auth;
-using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Persistence;
@@ -35,8 +32,6 @@ builder.Services.AddTodoLists();
 builder.Services.AddReminders();
 builder.Services.AddFiles();
 builder.Services.AddNotes();
-builder.Services.AddAuthApplication();
-
 // Who a due reminder rings, read from the local accounts. Neither feature names the other, so the
 // host is where they meet.
 builder.Services.AddScoped<IReminderRecipientDirectory, AccountReminderRecipientDirectory>();
@@ -47,14 +42,13 @@ builder.Services.AddPurgeExpiredIdempotencyKeys();
 // In process. Registering an IDistributedCache beside this one adds a shared second level.
 builder.Services.AddCacheStore();
 builder.Services.AddPersistenceModule(builder.Configuration);
-builder.Services.AddAuthModule(builder.Configuration);
 builder.Services.AddEmailModule(builder.Configuration);
 builder.Services.AddStorageModule(builder.Configuration);
 
 builder.Services.AddControllers();
 
 // AddHttpPipeline leaves out telemetry and the authorisation policies: the first needs this assembly's
-// name and this host's database instrumentation, the second a role name from the auth module.
+// name and this host's database instrumentation, the second belongs to the features that define them.
 builder.Services.AddHttpPipeline(builder.Configuration);
 builder.Services.AddApiObservability(builder.Configuration);
 
@@ -63,9 +57,10 @@ builder.Services.AddApiObservability(builder.Configuration);
 // a request's is registered with the HTTP pipeline above.
 builder.Services.AddBackgroundJobs(builder.Configuration);
 
-// Authentication's purge joins the maintenance timer from its own side, after the call above so it
-// runs after the idempotency purge as before. A project without authentication deletes this line.
-builder.Services.AddAuthMaintenanceJobs(builder.Configuration);
+// Local accounts, whole: use cases, identity module, refresh-token purge, readiness check, the
+// Administrator policy and the identity schema's development bootstrap. After the jobs, so the purge
+// runs after the idempotency purge. A host without local accounts deletes this line and Features/Auth.
+builder.Services.AddAuthFeature(builder.Configuration);
 
 // Versioning first: it is what partitions actions into the version groups the loop below reads.
 builder.Services.AddUrlSegmentApiVersioning();
@@ -84,14 +79,10 @@ builder.Services.AddAuthorizationBuilder()
         .RequireAuthenticatedUser()
         .Build());
 
-// Both builders configure the same options, so this second one adds its policy without touching
-// the fallback above.
-builder.Services.AddApiAuthorizationPolicies();
-
-// AddApiHealthChecks brings the shutdown check; the two database checks are this host's own.
+// AddApiHealthChecks brings the shutdown check; the business database check is this host's own, and
+// each module with a store of its own adds its check with its composition.
 builder.Services.AddApiHealthChecks()
-    .AddDbContextCheck<AppDbContext>(name: "database", tags: [HealthEndpoints.ReadyTag])
-    .AddDbContextCheck<AuthDbContext>(name: "auth-database", tags: [HealthEndpoints.ReadyTag]);
+    .AddDbContextCheck<AppDbContext>(name: "database", tags: [HealthEndpoints.ReadyTag]);
 
 var app = builder.Build();
 
@@ -117,8 +108,8 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference(options => options.WithNonce()).AllowAnonymous();
 
     // Development only: migrating from the serving process needs DDL rights at runtime and races
-    // replicas on __EFMigrationsHistory — see docs/ARCHITECTURE.md. Seeding is additionally gated
-    // on IdentitySeed:Enabled and throws outside Development.
+    // replicas on __EFMigrationsHistory — see docs/ARCHITECTURE.md. Each module's schema and seed is
+    // a step its own composition registered.
     await app.MigrateAndSeedForDevelopmentAsync();
 }
 

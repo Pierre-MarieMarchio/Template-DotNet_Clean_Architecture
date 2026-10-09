@@ -84,6 +84,27 @@ public sealed class IdempotencyStoreReplayTests
         IdempotencyStore.Decide(AKey(), record).Status.ShouldBe(IdempotencyStatus.NotReplayable);
     }
 
+    /// <summary>
+    /// A 204 has no body by definition, so a null <c>ResponseBody</c> there is the response itself and
+    /// not a dropped one. The status, <c>Location</c> and validator stored beside it replay unchanged.
+    /// </summary>
+    [Fact]
+    public void Decide_ReplaysACompleted204_WhoseBodyIsNullByDefinition()
+    {
+        IdempotencyRecord record = ACompletedRecord(eTag: "\"AAAwOQ\"");
+        record.StatusCode = 204;
+        record.ResponseBody = null;
+
+        IdempotencyClaim claim = IdempotencyStore.Decide(AKey(), record);
+
+        claim.Status.ShouldBe(IdempotencyStatus.Replay);
+        IdempotentResponse response = claim.Response!;
+        response.StatusCode.ShouldBe(204);
+        response.Body.ShouldBeNull();
+        response.Location.ShouldBe("/api/v1/todo-lists/list");
+        response.ETag.ShouldBe("\"AAAwOQ\"");
+    }
+
     private static IdempotencyKey AKey() =>
         IdempotencyKey.Create(
             userId: Guid.Parse("11111111-1111-1111-1111-111111111111"),

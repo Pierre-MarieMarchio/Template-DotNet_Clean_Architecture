@@ -201,6 +201,82 @@ public sealed class IdempotencyFilterTests
         await store.Received(1).ReleaseAsync(Arg.Any<IdempotencyKey>(), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// A 204 is a <see cref="StatusCodeResult"/>, not an <see cref="ObjectResult"/>: completing its claim
+    /// is what lets a retry be answered instead of running the write again.
+    /// </summary>
+    [Fact]
+    public async Task ASuccessful204_CompletesTheClaim_WithItsStatusAndNoBody()
+    {
+        var store = AStoreThatClaims();
+        var filter = AFilterOver(store);
+        var context = CreateIdempotentPostContext(idempotencyKey: "some-key");
+
+        await filter.OnResourceExecutionAsync(context, () => Task.FromResult(
+            new ResourceExecutedContext(context, filters: []) { Result = new NoContentResult() }));
+
+        await store.Received(1).CompleteAsync(
+            Arg.Any<IdempotencyKey>(),
+            Arg.Is<IdempotentResponse>(response => response.StatusCode == StatusCodes.Status204NoContent && response.Body == null),
+            Arg.Any<CancellationToken>());
+        await store.DidNotReceive().ReleaseAsync(Arg.Any<IdempotencyKey>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ARepeated204_IsAnsweredWithTheReplayMarker_AndTheActionDoesNotRunAgain()
+    {
+        var store = Substitute.For<IIdempotencyStore>();
+        store.ClaimAsync(
+            Arg.Any<IdempotencyKey>(),
+            Arg.Any<DateTimeOffset>(),
+            Arg.Any<DateTimeOffset>(),
+            Arg.Any<CancellationToken>()).Returns(IdempotencyClaim.Replay(
+                new IdempotentResponse(StatusCodes.Status204NoContent, null, "/api/v1/things/1", "\"v1\"")));
+
+        var filter = AFilterOver(store);
+        var context = CreateIdempotentPostContext(idempotencyKey: "some-key");
+        bool nextWasCalled = false;
+
+        await filter.OnResourceExecutionAsync(context, () =>
+        {
+            nextWasCalled = true;
+            return Task.FromResult(new ResourceExecutedContext(context, filters: []));
+        });
+
+        nextWasCalled.ShouldBeFalse();
+        context.Result.ShouldBeOfType<StatusCodeResult>().StatusCode.ShouldBe(StatusCodes.Status204NoContent);
+
+        var headers = context.HttpContext.Response.Headers;
+        headers["Idempotency-Replayed"].ToString().ShouldBe("true");
+        headers.Location.ToString().ShouldBe("/api/v1/things/1");
+        headers.ETag.ToString().ShouldBe("\"v1\"");
+    }
+
+    private static IIdempotencyStore AStoreThatClaims()
+    {
+        var store = Substitute.For<IIdempotencyStore>();
+        store.ClaimAsync(
+            Arg.Any<IdempotencyKey>(),
+            Arg.Any<DateTimeOffset>(),
+            Arg.Any<DateTimeOffset>(),
+            Arg.Any<CancellationToken>()).Returns(IdempotencyClaim.Claimed());
+
+        return store;
+    }
+
+    private static IdempotencyFilter AFilterOver(IIdempotencyStore store)
+    {
+        var currentUser = Substitute.For<ICurrentUser>();
+        currentUser.UserId.Returns(UserId.Create(Guid.Parse("11111111-1111-1111-1111-111111111111")));
+
+        return new IdempotencyFilter(
+            store,
+            Options.Create(new IdempotencyOptions()),
+            currentUser,
+            Substitute.For<IDateTimeProvider>(),
+            new RecordingLogger<IdempotencyFilter>());
+    }
+
     /// <summary>A response that has already started sending, the way a real Kestrel one would report it.</summary>
     private sealed class AlreadyStartedResponseFeature : IHttpResponseFeature
     {

@@ -29,6 +29,8 @@ internal sealed class IdempotencyStore(
     IOptions<IdempotencyPurgeOptions> purgeOptions,
     ILogger<IdempotencyStore> logger) : IIdempotencyStore
 {
+    private const int _noContentStatusCode = 204;
+
     public async Task<IdempotencyClaim> ClaimAsync(
         IdempotencyKey key,
         DateTimeOffset expiresAt,
@@ -247,7 +249,9 @@ internal sealed class IdempotencyStore(
             return IdempotencyClaim.InProgress();
         }
 
-        if (existing.ResponseBody is null)
+        // A 204 has no body by definition, so null there is the response itself. For any other
+        // status null means the body was too large to store, and replaying it would be a lie.
+        if (existing.ResponseBody is null && existing.StatusCode != _noContentStatusCode)
         {
             return IdempotencyClaim.NotReplayable();
         }

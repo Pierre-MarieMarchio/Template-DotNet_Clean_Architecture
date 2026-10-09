@@ -21,6 +21,21 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **Upload through the API.** `POST /api/v1/files/uploads` takes `multipart/form-data` with
+  `category`, exactly one `file` part (its `Content-Type` is the declared media type) and an
+  optional `name` (the part's file name otherwise), and answers `201` with the file `deposited`,
+  its `ETag` and a `Location` — the state a confirmed direct upload reaches, and the same
+  background inspection follows. The API computes the SHA-256, commits the registration through
+  the same quota path as a direct one, writes the bytes outside the quota lock and commits the
+  confirmation; when the write or the confirmation fails the registration is removed at once, and
+  a removal that fails too is left to the abandonment purge and the orphan sweep. The body limit is
+  raised for this endpoint alone to `Files:ApiUploadMaxBytes` plus 16 KiB of framing (`413`
+  beyond); a file above the ceiling or the category maximum is `400` on `file`; a category without
+  `Api` in `UploadModes` is `409` `storedFile.apiUploadUnavailable`. Not `[Idempotent]`: a retry
+  uploads a second file. It is the upload path of the `FileSystem` store, which cannot sign.
+  `RequestBodyLimitAttribute` is the mechanism an endpoint uses to raise the limit from
+  configuration.
+
 - **File categories declared in configuration.** `Files:Categories` names each category a file may
   be registered under — allowed media types, maximum size, `Scan`, `VerifySignature`, `Visibility`
   (`Private` or `Authenticated`), `UploadModes` (`Direct`, `Api`) and a `Quota` — validated at

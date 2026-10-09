@@ -405,7 +405,7 @@ of an upload carried by the API. Bound by `AddFiles` and validated at start-up.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `ApiUploadMaxBytes` | long | `10485760` (10 MiB) | Largest body of an upload sent through the API. Range 1 KiB–30 MiB, under the host's own request ceiling. |
+| `ApiUploadMaxBytes` | long | `10485760` (10 MiB) | Largest file uploaded through the API (`POST /api/v1/files/uploads`). That endpoint alone accepts a body of this plus 16 KiB of multipart framing, above `RequestLimits:MaxRequestBodyBytes`; a larger body is `413`, a larger file `400`. Range 1 KiB–30 MiB. |
 | `Categories:<name>:AllowedMediaTypes` | string[] | — | **At least one.** Exact `type/subtype`, compared ignoring case; no wildcard, no parameters. |
 | `Categories:<name>:MaxSizeInBytes` | long | — | **Required.** 1 byte to 5 GiB. |
 | `Categories:<name>:Scan` | bool | `false` | Send the content to the malware scanner. Refused at start-up while `Files:Scanning:Enabled` is false. |
@@ -1051,6 +1051,9 @@ body is a few kilobytes.
   from the same value as the backstop for a chunked request that sends no `Content-Length`. The
   middleware exists because integration tests run on `TestServer`, where Kestrel limits do not
   apply — a Kestrel-only limit would be untestable and therefore unverified.
+- **One endpoint raises it**: `POST /api/v1/files/uploads` accepts `Files:ApiUploadMaxBytes` plus
+  16 KiB, applied to the `Content-Length` check, to Kestrel's limit for that request and to the
+  multipart body. Every other endpoint keeps this value.
 - **Set too low** and legitimate requests start failing with `413`; the validator's 1024-byte floor
   stops the value going so low that nothing works at all.
 - **Set outside the allowed range** and the host fails `ValidateOnStart()` and does not boot.

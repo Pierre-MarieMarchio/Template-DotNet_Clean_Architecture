@@ -55,11 +55,11 @@ namespace AppTemplate.Application.UnitTests;
 public sealed class ApplicationModuleTests
 {
     /// <summary>
-    /// Fifteen to-do list operations, five reminder ones, nine for files — of which three, the
+    /// Sixteen to-do list operations, five reminder ones, twelve for files — of which three, the
     /// abandonment purge, the orphan reclamation and the deposit inspection, are reached only from
     /// background jobs.
     /// </summary>
-    private const int _knownUseCaseCount = 32;
+    private const int _knownUseCaseCount = 33;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];

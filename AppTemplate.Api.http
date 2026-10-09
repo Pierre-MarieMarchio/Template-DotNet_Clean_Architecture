@@ -813,6 +813,29 @@ DELETE {{api}}/files/{{storedFileId}}
 Authorization: Bearer {{accessToken}}
 
 ###
+# 45b. Or upload through the API, in one request: multipart/form-data with `category`, exactly one
+#      `file` part whose Content-Type is the declared media type, and an optional `name` (the part's
+#      file name otherwise). The body is capped at Files:ApiUploadMaxBytes (10 MiB by default) plus
+#      16 KiB of framing; larger files take the signed grant of request 39. 201 with the file,
+#      `status` already `deposited`. Not [Idempotent]: a retry uploads a second file. This is the
+#      only way in with Files:Storage:Provider = FileSystem.
+# @name uploadFile
+POST {{api}}/files/uploads
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=AppTemplateUpload
+
+--AppTemplateUpload
+Content-Disposition: form-data; name="category"
+
+document
+--AppTemplateUpload
+Content-Disposition: form-data; name="file"; filename="hello.txt"
+Content-Type: text/plain
+
+hello world
+--AppTemplateUpload--
+
+###
 # 46. Notes — the feature with no domain model. Create one with an Idempotency-Key. 201 with the note,
 #     its ETag, and a Location. The owner is the caller: it is not a field of the body, and a body that
 #     names one has it ignored.

@@ -270,7 +270,6 @@ public sealed class ConfirmFileUploadUseCaseTests
 
     private ConfirmFileUploadUseCase UseCaseFor(ICurrentUser currentUser) => new(
         new StoredFileService(_repository, currentUser, FilesSettings.Default().AsOptions()),
-        _content,
-        _unitOfWork,
+        new StoredFileDepositService(_content, _unitOfWork),
         new ConfirmFileUploadCommandValidator());
 }

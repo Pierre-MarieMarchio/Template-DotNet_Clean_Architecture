@@ -1,11 +1,8 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
 using AppTemplate.Application.Features.Files.Dtos;
-using AppTemplate.Application.Features.Files.Errors;
 using AppTemplate.Application.Features.Files.Mapping;
-using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.ValueObjects;
@@ -33,15 +30,13 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUp
 /// wrong one, and this process has read neither.
 /// </para>
 /// <para>
-/// The store's report is turned into value objects inside the guard as well, because those factories
-/// refuse too: a zero-byte object is what an interrupted deposit leaves behind, and
-/// <c>FileSize</c> rejects it rather than letting an empty file be confirmed as a real one.
+/// The description, the transition and the commit are <see cref="IStoredFileDepositService"/>'s,
+/// shared with the upload through the API.
 /// </para>
 /// </summary>
 public sealed class ConfirmFileUploadUseCase(
     IStoredFileService files,
-    IFileContentStore content,
-    IUnitOfWork unitOfWork,
+    IStoredFileDepositService deposits,
     IValidator<ConfirmFileUploadCommand> validator) : IConfirmFileUploadUseCase
 {
     public async Task<Result<Versioned<StoredFileDto>>> ExecuteAsync(
@@ -66,23 +61,12 @@ public sealed class ConfirmFileUploadUseCase(
 
         var storedFile = access.Value;
 
-        var description = await content.DescribeAsync(storedFile.ObjectKey.Value, cancellationToken);
-
-        if (description is null)
-        {
-            return Result.Failure<Versioned<StoredFileDto>>(StoredFileErrors.DepositMissing(storedFile.Id));
-        }
-
-        var confirmation = DomainGuard.Try(() => storedFile.ConfirmDeposit(
-            FileSize.Create(description.SizeInBytes),
-            Sha256Checksum.Create(description.Checksum)));
+        var confirmation = await deposits.ConfirmAsync(storedFile, cancellationToken);
 
         if (confirmation.IsFailure)
         {
             return confirmation.To<Versioned<StoredFileDto>>();
         }
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return StoredFileDtoMapping.ToVersioned(storedFile);
     }

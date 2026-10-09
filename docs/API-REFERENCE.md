@@ -97,13 +97,19 @@ go through the item, rescheduling and cancelling go through the reminder's own i
 
 ## Files — `api/v1/files/*`
 
-Authentication required (no opt-out). **With the S3 store (the default), no byte of any file
-passes through this API, in either direction** — that is the one thing to understand before
-calling anything here. The API signs URLs and the client talks to the object store directly, so
-depositing a file is two requests and reading one back is a redirect. With the local file system
-store (`Files:Storage:Provider` = `FileSystem`) nothing can be signed: registering for a direct
-upload answers `409` `storedFile.directUploadUnavailable`, and reading answers `200` with the
-bytes.
+Authentication required (no opt-out). A file is deposited in one of two ways, and both end in
+the same state machine (`pending` → `deposited` → `available` | `quarantined`):
+
+- **Directly on the store** (S3 only): the API signs URLs and the client talks to the object
+  store, so depositing is two API calls around a `PUT` to the store, and reading is a redirect.
+  No byte passes through the API on this path. With the local file system store
+  (`Files:Storage:Provider` = `FileSystem`) nothing can be signed: registering for a direct upload
+  answers `409` `storedFile.directUploadUnavailable`, and reading answers `200` with the bytes.
+- **Through the API** (both stores): one `multipart/form-data` request to
+  `POST /api/v1/files/uploads`, bounded by `Files:ApiUploadMaxBytes` (10 MiB by default). The only
+  endpoint whose body carries file bytes.
+
+A category's `UploadModes` (`Direct`, `Api`) says which of the two it accepts.
 
 | Method | Route | Success |
 |---|---|---|
@@ -111,12 +117,13 @@ bytes.
 | GET, HEAD | `/api/v1/files/{fileId}` | 200 — the file's metadata, and the `ETag` the two writes below are conditioned on; 304 to a matching `If-None-Match` |
 | GET | `/api/v1/files/{fileId}/content` | **302** + `Location` — a short-lived signed URL, and no body; or, with the file system store, **200** and the bytes as an attachment. The owner's file, or any available file of an `Authenticated` category |
 | POST | `/api/v1/files` | 201 + `Location` — reserves a place and returns the upload grant |
+| POST | `/api/v1/files/uploads` | 201 + `Location` and `ETag` — `multipart/form-data`; registers the file, stores its bytes and answers it `deposited` |
 | POST | `/api/v1/files/{fileId}/confirm` | 200 — the file's metadata, with its new version |
 | PUT | `/api/v1/files/{fileId}/tags` | 200 — replaces the whole tag set, conditioned on the `ETag` above, by the same domain rules a to-do item's tags obey |
 | GET | `/api/v1/files/tags` | 200 — the tags the caller has already used on their files, for a picker or a filter. Read through the cache, so a tag added moments ago may be missing |
 | DELETE | `/api/v1/files/{fileId}` | 204 |
 
-**Depositing, in order.**
+**Depositing directly, in order.**
 
 1. `POST /api/v1/files` with metadata only — `category`, `name`, `declaredMediaType`,
    `sizeInBytes` and `checksum` (SHA-256, 64 hexadecimal characters). The category is one of
@@ -131,11 +138,34 @@ bytes.
 3. `POST /api/v1/files/{fileId}/confirm`, which asks the store what it actually holds and
    moves the file from `pending` to `deposited` only if that agrees with the declaration.
 
-Splitting it across two API calls is forced rather than chosen:
+Splitting it across two API calls keeps large files off the API:
 `RequestLimits:MaxRequestBodyBytes` caps an inbound body at 64 KiB, and the idempotency
-filter buffers and SHA-256s the whole body of every `POST` before a handler sees it. Every
-body on this controller is metadata — a name, a media type, a length, a digest — a few
-hundred characters whatever the file weighs, which is why no action here raises the limit.
+filter buffers and SHA-256s the whole body of every `[Idempotent]` `POST`. The registration
+body is metadata — a few hundred characters whatever the file weighs.
+
+**Uploading through the API.** `POST /api/v1/files/uploads` with a `multipart/form-data` body:
+
+| Field | Required | Meaning |
+|---|---|---|
+| `category` | yes | One of `Files:Categories`, with `Api` among its `UploadModes` |
+| `file` | yes, exactly one file part | The content. The part's `Content-Type` is the declared media type and must be allowed by the category |
+| `name` | no | The label; the part's file name when absent or blank. Held to the same rules as a registered name |
+
+The API computes the SHA-256 itself, registers the file (`pending`, committed, quota applied
+as for a direct registration), writes the bytes to the store outside the quota lock, then
+confirms the deposit and answers `201` with the file, `status` `deposited`, its `ETag` and a
+`Location`. The body may be `Files:ApiUploadMaxBytes` plus 16 KiB of multipart framing; a
+larger body is `413` `request.tooLarge`, refused before it is read when it declares its length.
+A file above `Files:ApiUploadMaxBytes` or above the category's maximum, a missing or second file
+part, or a media type the category does not allow is `400` on `file`. A category without `Api`
+is `409` `storedFile.apiUploadUnavailable`; the quota answers as below. A body that is not
+`multipart/form-data` is `415`.
+
+Not `[Idempotent]` — the filter would buffer the whole file — so a retried request uploads a
+second file; a client unsure whether its first attempt arrived lists its files. If the write
+or the confirmation fails after the registration, the registration is removed at once, freeing
+its quota slot; should that removal fail too, the abandonment purge and the orphan sweep reclaim
+the row and the bytes. The response is `no-store`.
 
 **Confirming does not make the file readable.** It leaves the file `deposited` — the bytes
 arrived and are the ones declared, but nothing has looked at them — until the inspection
@@ -175,7 +205,7 @@ sweep, so a client resuming after a long upload gets `412` rather than a `404` i
 read as "wrong id". Registration takes no precondition — there is no resource yet to have
 a version.
 
-**What refuses a registration.** `400` on `category` for a category the deployment does not
+**What refuses a direct registration.** `400` on `category` for a category the deployment does not
 declare, on `mediaType` for a type the category does not allow, and on `sizeInBytes` above the
 category's maximum (a single file may never exceed 5 GiB). `409`
 `storedFile.directUploadUnavailable` when the store cannot sign (the file system store) or the

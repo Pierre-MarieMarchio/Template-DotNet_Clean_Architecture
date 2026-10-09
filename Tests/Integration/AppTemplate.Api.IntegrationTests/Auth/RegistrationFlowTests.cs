@@ -222,7 +222,12 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
             TestToken);
 
         registered.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await ApiJson.ReadProblemAsync(registered, TestToken)).Code.ShouldBe("request.validationFailed");
+        var problem = await ApiJson.ReadProblemAsync(registered, TestToken);
+        problem.Code.ShouldBe("request.validationFailed");
+
+        // The store's refusal names the field it concerns, not the password beside it.
+        problem.Body.ShouldContain("\"userName\"", Case.Sensitive);
+        problem.Body.ShouldNotContain("\"password\"", Case.Sensitive);
 
         Emails.Snapshot().ShouldBeEmpty();
         (await Database.CountAsync("""SELECT count(*) FROM identity."User" """, TestToken)).ShouldBe(0);

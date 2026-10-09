@@ -56,12 +56,38 @@ public static class AuthErrors
         "That username or email address cannot be used.");
 
     /// <summary>
-    /// <paramref name="message"/> describes the submitted values — password policy, allowed
-    /// characters, format — so it is safe, and useful, to return verbatim. Attached to the
-    /// "password" field rather than used as the error message itself, so a client can render it
-    /// next to the field it concerns instead of parsing free text.
+    /// Each message describes the submitted value it is attached to — allowed characters, format,
+    /// password policy — so it is safe, and useful, to return verbatim. Attached to the
+    /// "userName", "email" and "password" fields rather than used as the error message itself, so a
+    /// client can render each next to the field it concerns instead of parsing free text.
     /// </summary>
-    public static Error RegistrationRejected(string message) => ValidationError.ForField("password", message);
+    public static Error RegistrationRejected(string? userName, string? email, string? password)
+    {
+        var details = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+
+        if (userName is not null)
+        {
+            details["userName"] = [userName];
+        }
+
+        if (email is not null)
+        {
+            details["email"] = [email];
+        }
+
+        if (password is not null || details.Count == 0)
+        {
+            details["password"] = [password ?? "The submitted password does not meet the required policy."];
+        }
+
+        return ValidationError.ForFields(details);
+    }
+
+    /// <summary>
+    /// The current password matched; the store refused the new one itself. Attached to
+    /// "newPassword", the field the caller typed it in. See <see cref="RegistrationRejected"/>.
+    /// </summary>
+    public static Error PasswordChangeRejected(string message) => ValidationError.ForField("newPassword", message);
 
     /// <summary>Attached to the "currentPassword" field, since it names exactly what the caller typed wrong.</summary>
     public static Error IncorrectCurrentPassword { get; } = ValidationError.ForField(

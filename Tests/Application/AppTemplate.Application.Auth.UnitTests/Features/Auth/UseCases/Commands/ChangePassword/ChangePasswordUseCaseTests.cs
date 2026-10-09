@@ -66,15 +66,17 @@ public sealed class ChangePasswordUseCaseTests
         result.Error.Details!["currentPassword"].ShouldContain("The current password is incorrect.");
     }
 
+    /// <summary>On "newPassword", the field the caller typed it in — the one the validator's own length rule names too.</summary>
     [Fact]
-    public async Task ARejectedNewPassword_ReportsTheStoresMessage()
+    public async Task ARejectedNewPassword_ReportsTheStoresMessageOnTheNewPasswordField()
     {
         GivenTheOutcomeIs(PasswordChangeOutcome.Rejected("Passwords must have at least one digit."));
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
         result.IsFailure.ShouldBeTrue();
-        result.Error!.Details!["password"].ShouldContain("Passwords must have at least one digit.");
+        result.Error!.Details!["newPassword"].ShouldContain("Passwords must have at least one digit.");
+        result.Error.Details.ContainsKey("password").ShouldBeFalse();
     }
 
     /// <summary>

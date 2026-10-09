@@ -37,11 +37,13 @@ public sealed class StorageVocabularyTests
     {
         var stores = ContractsNamed("Store");
 
+        //#if (notes || files)
         stores.Count.ShouldBeGreaterThanOrEqualTo(
             1,
             "No Store contract was found at all, so this rule is checking an empty set and passing " +
             "for the wrong reason.");
 
+        //#endif
         Offenders(stores).ShouldBeEmpty(
             "A Store is storage with no aggregate behind it. One whose signature names a domain " +
             "entity is a Repository, and a Repository is declared in AppTemplate.Domain beside the " +
@@ -135,10 +137,12 @@ public sealed class StorageVocabularyTests
             "beside the aggregate. A contract outside it that borrows the word promises an aggregate " +
             "it cannot name.");
 
+        //#if (aggregates)
         ApplicationPorts.DomainRepositories.Count.ShouldBeGreaterThanOrEqualTo(
-            2,
+            1,
             "No repository contract was found in the Domain either, so the assertion above proves " +
             "nothing about a word nobody is using.");
+        //#endif
     }
 
     /// <summary>

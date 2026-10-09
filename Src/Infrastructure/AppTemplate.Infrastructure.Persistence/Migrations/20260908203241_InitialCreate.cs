@@ -19,15 +19,21 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
             migrationBuilder.EnsureSchema(
                 name: "platform");
 
+            //#if (notes)
             migrationBuilder.EnsureSchema(
                 name: "notes");
 
+            //#endif
+            //#if (reminders)
             migrationBuilder.EnsureSchema(
                 name: "reminders");
 
+            //#endif
+            //#if (todoLists)
             migrationBuilder.EnsureSchema(
                 name: "todo");
 
+            //#endif
             //#if (files)
             migrationBuilder.CreateTable(
                 name: "ContentSweepCheckpoints",
@@ -67,6 +73,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_IdempotencyKeys", x => new { x.UserId, x.Key });
                 });
 
+            //#if (notes)
             migrationBuilder.CreateTable(
                 name: "Notes",
                 schema: "notes",
@@ -85,6 +92,8 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_Notes", x => x.Id);
                 });
 
+            //#endif
+            //#if (reminders)
             migrationBuilder.CreateTable(
                 name: "Reminders",
                 schema: "reminders",
@@ -110,6 +119,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_Reminders", x => x.Id);
                 });
 
+            //#endif
             //#if (files)
             migrationBuilder.CreateTable(
                 name: "StoredFiles",
@@ -141,6 +151,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 });
 
             //#endif
+            //#if (todoLists)
             migrationBuilder.CreateTable(
                 name: "TodoLists",
                 schema: "todo",
@@ -160,6 +171,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_TodoLists", x => x.Id);
                 });
 
+            //#endif
             //#if (files)
             migrationBuilder.CreateTable(
                 name: "StoredFileTags",
@@ -182,6 +194,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 });
 
             //#endif
+            //#if (todoLists)
             migrationBuilder.CreateTable(
                 name: "TodoItems",
                 schema: "todo",
@@ -225,12 +238,14 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            //#endif
             migrationBuilder.CreateIndex(
                 name: "IX_IdempotencyKeys_ExpiresAt",
                 schema: "platform",
                 table: "IdempotencyKeys",
                 column: "ExpiresAt");
 
+            //#if (notes)
             migrationBuilder.CreateIndex(
                 name: "IX_Notes_OwnerId_CreatedAt_Id",
                 schema: "notes",
@@ -243,6 +258,8 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 table: "Notes",
                 columns: new[] { "OwnerId", "Title", "Id" });
 
+            //#endif
+            //#if (reminders)
             migrationBuilder.CreateIndex(
                 name: "IX_Reminders_State_DueAt",
                 schema: "reminders",
@@ -255,6 +272,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 table: "Reminders",
                 column: "TodoItemId");
 
+            //#endif
             //#if (files)
             migrationBuilder.CreateIndex(
                 name: "IX_StoredFiles_Deposited_NextInspectionAt_RegisteredAt_Id",
@@ -302,6 +320,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 columns: new[] { "State", "RegisteredAt" });
 
             //#endif
+            //#if (todoLists)
             migrationBuilder.CreateIndex(
                 name: "IX_TodoItems_TodoListId",
                 schema: "todo",
@@ -325,6 +344,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 schema: "todo",
                 table: "TodoLists",
                 columns: new[] { "OwnerId", "Name", "Id" });
+            //#endif
         }
 
         /// <inheritdoc />
@@ -340,30 +360,37 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 name: "IdempotencyKeys",
                 schema: "platform");
 
+            //#if (notes)
             migrationBuilder.DropTable(
                 name: "Notes",
                 schema: "notes");
 
+            //#endif
+            //#if (reminders)
             migrationBuilder.DropTable(
                 name: "Reminders",
                 schema: "reminders");
 
+            //#endif
             //#if (files)
             migrationBuilder.DropTable(
                 name: "StoredFileTags",
                 schema: "files");
 
             //#endif
+            //#if (todoLists)
             migrationBuilder.DropTable(
                 name: "TodoItemTags",
                 schema: "todo");
 
+            //#endif
             //#if (files)
             migrationBuilder.DropTable(
                 name: "StoredFiles",
                 schema: "files");
 
             //#endif
+            //#if (todoLists)
             migrationBuilder.DropTable(
                 name: "TodoItems",
                 schema: "todo");
@@ -371,6 +398,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
             migrationBuilder.DropTable(
                 name: "TodoLists",
                 schema: "todo");
+            //#endif
         }
     }
 }

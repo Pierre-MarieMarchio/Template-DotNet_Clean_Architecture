@@ -143,6 +143,16 @@ jobs:
       # --coverage-settings is accepted and then ignored.
       - name: Test (with coverage)
         run: |
+          # A round number below the real total of the smallest suite this project can be
+          # generated with, raised by what it was generated with. Later lines win,
+          # so the floor is the largest one whose feature is present.
+          minimum_tests=1500
+          #if (files)
+          minimum_tests=2500
+          #endif
+          #if (todoLists)
+          minimum_tests=3000
+          #endif
           dotnet test \
             --solution "$SOLUTION" \
             --configuration "$CONFIGURATION" \
@@ -152,7 +162,7 @@ jobs:
             --coverage \
             --coverage-settings coverage.runsettings \
             --coverage-output-format cobertura \
-            --minimum-expected-tests 3000
+            --minimum-expected-tests "$minimum_tests"
 
       # Reads the TRX totals into the job summary, so a reviewer sees the counts
       # without downloading an artifact — and so the number that ran is a figure a

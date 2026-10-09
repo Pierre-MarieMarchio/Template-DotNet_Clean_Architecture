@@ -5,9 +5,15 @@ using AppTemplate.Api.Features.Auth.Controllers;
 using AppTemplate.Api.Features.Files.Controllers;
 //#endif
 using AppTemplate.Api.Features.Maintenance.Controllers;
+//#if (notes)
 using AppTemplate.Api.Features.Notes.Controllers;
+//#endif
+//#if (reminders)
 using AppTemplate.Api.Features.Reminders.Controllers;
+//#endif
+//#if (todoLists)
 using AppTemplate.Api.Features.TodoLists.Controllers;
+//#endif
 using Microsoft.AspNetCore.Mvc;
 using Shouldly;
 using Xunit;
@@ -40,15 +46,21 @@ public sealed class IdempotentActionsAreAlwaysPostTests
         typeof(FileTagsController),
         //#endif
         typeof(MaintenanceController),
+        //#if (notes)
         typeof(NotesController),
+        //#endif
         typeof(PasswordRecoveryController),
         typeof(RefreshTokenMaintenanceController),
         typeof(RegistrationController),
+        //#if (reminders)
         typeof(RemindersController),
+        //#endif
         typeof(SessionsController),
+        //#if (todoLists)
         typeof(TodoItemsController),
         typeof(TodoItemTagsController),
         typeof(TodoListsController),
+        //#endif
         typeof(TwoFactorController),
     ];
 
@@ -61,14 +73,26 @@ public sealed class IdempotentActionsAreAlwaysPostTests
             .Where(method => method.GetCustomAttribute<IdempotentAttribute>() is not null)
             .ToList();
 
+        //#if (anyFeature)
         idempotentActions.ShouldNotBeEmpty(
             "No action carrying [Idempotent] was found across the enumerated controllers, so this " +
             "rule is guarding nothing. Either the attribute was renamed, or the controller list above " +
             "has gone stale.");
 
-        // Today: NotesController.Create, TodoListsController.Create, TodoListsController.AddItem and
-        // RemindersController.Schedule.
-        int expected = 4
+        //#endif
+        int expected = 0
+            //#if (notes)
+            // NotesController.Create.
+            + 1
+            //#endif
+            //#if (todoLists)
+            // TodoListsController.Create and TodoListsController.AddItem.
+            + 2
+            //#endif
+            //#if (reminders)
+            // RemindersController.Schedule.
+            + 1
+            //#endif
             //#if (files)
             // FilesController's registration: the one file action a replay would otherwise
             // duplicate, since it is the only one that names no existing file.

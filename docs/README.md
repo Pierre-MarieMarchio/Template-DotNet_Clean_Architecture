@@ -22,7 +22,7 @@ Every document here has one subject. This page is how you find the one you need.
 | [`GETTING-STARTED.md`](GETTING-STARTED.md) | Compose, running on the host, and a register-to-first-request walkthrough |
 | [`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md) | `dotnet new`, what the project name substitutes into, and the one command that is not optional |
 | [`INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md`](INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md) | moving a generated project into a repository that already has a history |
-| [`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md) | deleting `TodoLists`, `Reminders`, `Files` and `Notes` once you have read them |
+| [`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md) | choosing the examples at generation, and deleting the ones a project was generated with once you have read them |
 
 **The HTTP surface**
 

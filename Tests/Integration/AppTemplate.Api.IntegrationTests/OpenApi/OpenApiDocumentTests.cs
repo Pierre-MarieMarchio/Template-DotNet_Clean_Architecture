@@ -64,7 +64,7 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
         paths.ShouldNotContain("/health/ready");
 
         paths.ShouldContain("/api/v1/auth/login");
-        paths.ShouldContain(TodoListsRoute);
+        paths.ShouldContain(ProtectedRoute);
     }
 
     [Fact]

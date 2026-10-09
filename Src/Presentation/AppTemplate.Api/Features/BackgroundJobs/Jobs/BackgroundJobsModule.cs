@@ -3,7 +3,9 @@
 using AppTemplate.Api.Features.Files.Jobs;
 //#endif
 using AppTemplate.Api.Features.Maintenance.Jobs;
+//#if (reminders)
 using AppTemplate.Api.Features.Reminders.Jobs;
+//#endif
 
 namespace AppTemplate.Api.Features.BackgroundJobs.Jobs;
 
@@ -54,7 +56,9 @@ public static class BackgroundJobsModule
         services.AddBackgroundScope();
 
         services.AddMaintenanceJobs(configuration);
+        //#if (reminders)
         services.AddReminderJobs(configuration);
+        //#endif
         //#if (files)
         services.AddFileJobs(configuration);
         //#endif

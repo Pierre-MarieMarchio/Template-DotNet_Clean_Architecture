@@ -40,12 +40,12 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
 
         // Sanity: with the access token this very request succeeds, so a 401 below can only be about
         // the token that was swapped in.
-        using var authorised = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        using var authorised = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
         authorised.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.Tokens.RefreshToken);
 
-        using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        using var response = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
@@ -99,7 +99,7 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
         second.AccessToken.ShouldNotBeNullOrWhiteSpace();
 
         // The replacement is a working credential, not just a different string.
-        using var withNewAccessToken = new HttpRequestMessage(HttpMethod.Get, TodoListsRoute);
+        using var withNewAccessToken = new HttpRequestMessage(HttpMethod.Get, ProtectedRoute);
         withNewAccessToken.Headers.Authorization = new AuthenticationHeaderValue("Bearer", second.AccessToken);
 
         using var authorised = await client.SendAsync(withNewAccessToken, TestToken);
@@ -258,7 +258,7 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
             new Uri($"{AuthRoute}/logout-all", UriKind.Relative), content: null, TestToken);
         loggedOutAll.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        using var stillAuthenticated = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        using var stillAuthenticated = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
         stillAuthenticated.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 

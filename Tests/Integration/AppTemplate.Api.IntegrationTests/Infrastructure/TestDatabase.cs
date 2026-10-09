@@ -28,7 +28,7 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// </para>
 /// <para>
 /// Those schemas are the six the two contexts declare between them — <c>identity</c> from the
-/// authentication half, and <c>todo</c>, <c>reminders</c>, <c>files</c>, <c>notes</c> and <c>platform</c> from the
+/// authentication half, and every feature's schema and <c>platform</c> from the
 /// business half. They are named one by one in <see cref="PrepareAsync"/> rather than discovered, so
 /// a module that adds a schema of its own has to be named there too: until it is, its rows survive
 /// from one test into the next.
@@ -66,12 +66,18 @@ public sealed class TestDatabase(IServiceProvider rootServices)
         string[] schemas =
         [
             AuthDbContext.IdentitySchema,
+            //#if (todoLists)
             AppDbContext.TodoSchema,
+            //#endif
+            //#if (reminders)
             AppDbContext.RemindersSchema,
+            //#endif
             //#if (files)
             AppDbContext.FilesSchema,
             //#endif
+            //#if (notes)
             AppDbContext.NotesSchema,
+            //#endif
             AppDbContext.PlatformSchema,
         ];
 

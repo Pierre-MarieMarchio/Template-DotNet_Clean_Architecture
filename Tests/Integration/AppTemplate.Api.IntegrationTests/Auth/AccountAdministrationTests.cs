@@ -25,8 +25,8 @@ namespace AppTemplate.Api.IntegrationTests.Auth;
 /// whole suite — see <c>ApiFactory</c> and <c>AdministratorPolicyTests</c>), and no HTTP route can
 /// grant the very first Administrator when none exists yet. <see cref="GrantRoleAsync"/> bootstraps
 /// one directly through <see cref="IAccountAdministrationService"/> instead, inside a scope of the caller's own —
-/// the same convention <c>LoadTodoListAsync</c> uses to read an aggregate back through the
-/// application port rather than a persistence internal.
+/// the same convention the suite uses to read an aggregate back: through the application port rather
+/// than a persistence internal.
 /// </remarks>
 public sealed class AccountAdministrationTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {

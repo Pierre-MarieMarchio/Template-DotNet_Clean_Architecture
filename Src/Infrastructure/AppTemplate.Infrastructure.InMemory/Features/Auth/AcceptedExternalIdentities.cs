@@ -5,10 +5,9 @@ namespace AppTemplate.Infrastructure.InMemory.Features.Auth;
 /// <summary>
 /// What <see cref="InMemoryExternalIdentityVerifier"/> answers with, arranged by a test.
 /// <para>
-/// Public and resolvable, the same shape as <c>RecordedEmails</c> and
-/// <c>RecordedReminderNotifications</c> — except that this one is arranged rather than read: a test
-/// cannot obtain a real <c>id_token</c> from Google, so the double has to be told what a given token
-/// means before the use case asks.
+/// Public and resolvable, the same shape as <c>RecordedEmails</c> — except that this one is arranged
+/// rather than read: a test cannot obtain a real <c>id_token</c> from Google, so the double has to be
+/// told what a given token means before the use case asks.
 /// </para>
 /// <para>
 /// It refuses anything nobody arranged, which is what the real adapter does with a token it cannot

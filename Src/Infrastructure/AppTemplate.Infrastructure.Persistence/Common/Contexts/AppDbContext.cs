@@ -3,12 +3,18 @@
 using AppTemplate.Infrastructure.Persistence.Features.Files.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 //#endif
+//#if (notes)
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Models;
+//#endif
+//#if (reminders)
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
+//#endif
+//#if (todoLists)
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
+//#endif
 using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
@@ -43,12 +49,16 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
 /// </summary>
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    //#if (todoLists)
     /// <summary>The schema the to-do list feature's tables live in.</summary>
     public const string TodoSchema = "todo";
 
+    //#endif
+    //#if (reminders)
     /// <summary>The schema the reminders feature's tables live in.</summary>
     public const string RemindersSchema = "reminders";
 
+    //#endif
     //#if (files)
     /// <summary>
     /// The schema the file feature's tables live in. Its own, like every other feature's, rather than
@@ -58,13 +68,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public const string FilesSchema = "files";
 
     //#endif
+    //#if (notes)
     /// <summary>The schema the notes feature's table lives in.</summary>
     public const string NotesSchema = "notes";
 
+    //#endif
     /// <summary>
     /// The schema for tables that are cross-cutting rather than owned by a feature — the idempotency
-    /// key store is the first of these. <see cref="TodoSchema"/> would not be honest: the table
-    /// belongs to no feature.
+    /// key store is the first of these. A feature's schema would not be honest: the table belongs to
+    /// no feature.
     /// </summary>
     public const string PlatformSchema = "platform";
 
@@ -79,6 +91,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// <summary>The schema the migrations history table lives in.</summary>
     public const string MigrationsHistorySchema = "public";
 
+    //#if (todoLists)
     /// <summary>
     /// The to-do list aggregate's root table. This is a <em>persistence model</em>, not the domain
     /// aggregate: the domain type is mapped onto it by
@@ -87,12 +100,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// </summary>
     internal DbSet<TodoListRecord> TodoLists => Set<TodoListRecord>();
 
+    //#endif
+    //#if (reminders)
     /// <summary>
     /// The reminder aggregate's table. Also a persistence model rather than the domain aggregate,
     /// mapped by <see cref="Features.Reminders.Mapping.IReminderMapper"/> and never tracked by EF.
     /// </summary>
     internal DbSet<ReminderRecord> Reminders => Set<ReminderRecord>();
 
+    //#endif
     //#if (files)
     /// <summary>
     /// The stored-file aggregate's table: everything about a file except its content, which never
@@ -106,12 +122,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     internal DbSet<ContentSweepCheckpointRecord> ContentSweepCheckpoints => Set<ContentSweepCheckpointRecord>();
 
     //#endif
+    //#if (notes)
     /// <summary>
-    /// The notes table. Unlike the three above it is the whole model of its feature: no aggregate is
+    /// The notes table. Unlike an aggregate's table it is the whole model of its feature: no aggregate is
     /// mapped onto it, and the store reads and writes the row directly. Internal for the same reason.
     /// </summary>
     internal DbSet<NoteRecord> Notes => Set<NoteRecord>();
 
+    //#endif
     /// <summary>
     /// Claimed idempotency keys. Internal for the same reason as every other row type here: the
     /// rules for claiming, completing and releasing one live in
@@ -130,20 +148,26 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         // compiler checks, instead of a reflection call that silently maps nothing when a
         // configuration class is renamed or moved. No default schema is set — every table names its
         // own, so a table cannot drift into the wrong one by omission.
+        //#if (todoLists)
         modelBuilder.ApplyConfiguration(new TodoListRecordConfiguration());
         modelBuilder.ApplyConfiguration(new TodoItemRecordConfiguration());
         modelBuilder.ApplyConfiguration(new TodoItemTagRecordConfiguration());
 
+        //#endif
+        //#if (reminders)
         modelBuilder.ApplyConfiguration(new ReminderRecordConfiguration());
 
+        //#endif
         //#if (files)
         modelBuilder.ApplyConfiguration(new StoredFileRecordConfiguration());
         modelBuilder.ApplyConfiguration(new StoredFileTagRecordConfiguration());
         modelBuilder.ApplyConfiguration(new ContentSweepCheckpointRecordConfiguration());
 
         //#endif
+        //#if (notes)
         modelBuilder.ApplyConfiguration(new NoteRecordConfiguration());
 
+        //#endif
         modelBuilder.ApplyConfiguration(new IdempotencyRecordConfiguration());
     }
 }

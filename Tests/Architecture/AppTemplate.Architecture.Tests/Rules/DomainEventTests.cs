@@ -25,6 +25,7 @@ public sealed class DomainEventTests
     /// </summary>
     private static readonly string[] _deliberatelyUnconsumed =
     [
+        //#if (todoLists)
         // A creation fact, published for an audit or a projection a project may want. Nothing in the
         // template needs it.
         "TodoListCreatedDomainEvent",
@@ -32,10 +33,13 @@ public sealed class DomainEventTests
         // The counterpart of completion. Reopening does not resurrect a cancelled reminder: firing
         // re-reads the item's state anyway, so a consumer here would duplicate that check.
         "TodoItemReopenedDomainEvent",
+        //#endif
+        //#if (reminders)
 
         // Firing is already recorded on the aggregate and counted by the reminder job's own log. A
         // consumer would be a second place to keep in step for no gain.
         "ReminderFiredDomainEvent",
+        //#endif
         //#if (files)
 
         // The hook a project adds derivative generation to — thumbnails, previews, transcoding.
@@ -61,11 +65,13 @@ public sealed class DomainEventTests
             .Where(type => typeof(IDomainEvent).IsAssignableFrom(type))
             .ToList();
 
+        //#if (aggregates)
         events.Count.ShouldBeGreaterThanOrEqualTo(
-            4,
+            3,
             "Far fewer domain events were found than this template raises, so this rule is reading " +
             "the wrong assembly and passing for the wrong reason.");
 
+        //#endif
         var consumed = ArchitectureAssemblies.ApplicationLayer
             .SelectMany(assembly => assembly.GetTypes())
             .Where(type => type is { IsClass: true, IsAbstract: false })
@@ -75,10 +81,12 @@ public sealed class DomainEventTests
             .Select(contract => contract.GetGenericArguments()[0].Name)
             .ToHashSet(StringComparer.Ordinal);
 
+        //#if (aggregates)
         consumed.ShouldNotBeEmpty(
             "No consumer was found at all, so every event would look deliberately unconsumed and " +
             "this rule would be checking a list against nothing.");
 
+        //#endif
         var unaccounted = events
             .Select(domainEvent => domainEvent.Name)
             .Where(name => !consumed.Contains(name))

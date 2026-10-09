@@ -1,8 +1,12 @@
-﻿using AppTemplate.Application;
+﻿//#if (anyFeature)
+using AppTemplate.Application;
+//#endif
 using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Ports;
+//#if (reminders)
 using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
+//#endif
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Core;
@@ -152,12 +156,18 @@ internal static class HostComposition
 
         AddHostSuppliedServices(services, configuration);
 
+        //#if (todoLists)
         services.AddTodoLists();
+        //#endif
+        //#if (reminders)
         services.AddReminders();
+        //#endif
         //#if (files)
         services.AddFiles(configuration);
         //#endif
+        //#if (notes)
         services.AddNotes();
+        //#endif
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
@@ -195,12 +205,18 @@ internal static class HostComposition
 
         AddHostSuppliedServices(services, configuration);
 
+        //#if (todoLists)
         services.AddTodoLists();
+        //#endif
+        //#if (reminders)
         services.AddReminders();
+        //#endif
         //#if (files)
         services.AddFiles(configuration);
         //#endif
+        //#if (notes)
         services.AddNotes();
+        //#endif
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
@@ -234,9 +250,8 @@ internal static class HostComposition
 
     /// <summary>
     /// The background-only composition with authentication left out entirely: no
-    /// <c>AddAuthApplication</c> and no identity module. The reminder job reaches its owner through
-    /// <c>IReminderRecipientDirectory</c>, which the host supplies, so nothing the jobs run needs an
-    /// authentication port.
+    /// <c>AddAuthApplication</c> and no identity module. A job that needs an account's details reaches
+    /// them through a port the host supplies, so nothing the jobs run needs an authentication port.
     /// </summary>
     internal static ServiceCollection ComposeBackgroundOnlyWithoutAuthentication(IConfiguration configuration)
     {
@@ -244,12 +259,18 @@ internal static class HostComposition
 
         AddHostSuppliedServices(services, configuration);
 
+        //#if (todoLists)
         services.AddTodoLists();
+        //#endif
+        //#if (reminders)
         services.AddReminders();
+        //#endif
         //#if (files)
         services.AddFiles(configuration);
         //#endif
+        //#if (notes)
         services.AddNotes();
+        //#endif
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
@@ -274,12 +295,18 @@ internal static class HostComposition
 
         AddHostSuppliedServices(services, configuration);
 
+        //#if (todoLists)
         services.AddTodoLists();
+        //#endif
+        //#if (reminders)
         services.AddReminders();
+        //#endif
         //#if (files)
         services.AddFiles(configuration);
         //#endif
+        //#if (notes)
         services.AddNotes();
+        //#endif
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
@@ -303,12 +330,18 @@ internal static class HostComposition
 
         AddHostSuppliedServices(services, configuration);
 
+        //#if (todoLists)
         services.AddTodoLists();
+        //#endif
+        //#if (reminders)
         services.AddReminders();
+        //#endif
         //#if (files)
         services.AddFiles(configuration);
         //#endif
+        //#if (notes)
         services.AddNotes();
+        //#endif
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
@@ -344,7 +377,9 @@ internal static class HostComposition
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, ArchitectureTestCurrentUser>();
         services.AddScoped<IAuditActor, ArchitectureTestAuditActor>();
+        //#if (reminders)
         services.AddScoped<IReminderRecipientDirectory, ArchitectureTestReminderRecipientDirectory>();
+        //#endif
     }
 
     /// <summary>
@@ -356,7 +391,9 @@ internal static class HostComposition
     {
         services.AddScoped<ICurrentUser, ArchitectureTestBackgroundCurrentUser>();
         services.AddScoped<IAuditActor, ArchitectureTestBackgroundAuditActor>();
+        //#if (reminders)
         services.AddScoped<IReminderRecipientDirectory, ArchitectureTestReminderRecipientDirectory>();
+        //#endif
     }
 }
 
@@ -388,6 +425,7 @@ internal sealed class ArchitectureTestBackgroundCurrentUser : ICurrentUser
         "run unmodified from there.");
 }
 
+//#if (reminders)
 /// <summary>
 /// Stands in for <c>AccountReminderRecipientDirectory</c>, which the API composes from the local
 /// accounts and which is internal to it.
@@ -397,6 +435,7 @@ internal sealed class ArchitectureTestReminderRecipientDirectory : IReminderReci
     public Task<ReminderRecipient?> FindAsync(UserId ownerId, CancellationToken cancellationToken = default) =>
         Task.FromResult<ReminderRecipient?>(null);
 }
+//#endif
 
 /// <summary>Stands in for <c>AppTemplate.Api.Common.Security.BackgroundAuditActor</c>.</summary>
 internal sealed class ArchitectureTestBackgroundAuditActor : IAuditActor

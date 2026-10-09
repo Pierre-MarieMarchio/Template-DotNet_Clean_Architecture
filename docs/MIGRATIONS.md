@@ -6,7 +6,7 @@ get right here.
 
 | Context | Project | Schemas | History table |
 |---|---|---|---|
-| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence` | `todo`, `reminders`, `files`, `notes`, and `platform` for what belongs to no feature | `public.__EFMigrationsHistory` |
+| `AppDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence` | one per business feature (`todo`, `reminders`, `files` and `notes` as the template ships), and `platform` for what belongs to no feature | `public.__EFMigrationsHistory` |
 | `AuthDbContext` | `Src/Infrastructure/AppTemplate.Infrastructure.Auth` | `identity` | `identity.__EFMigrationsHistory` |
 
 Each ships **one** initial migration, and they are independent: a change to one is invisible to the

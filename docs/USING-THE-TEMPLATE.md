@@ -36,11 +36,27 @@ adding its GUID there.
 
 ## Generation options
 
-Three switches leave parts of the template out, all on by default:
+One choice says which example features the project starts with, and three switches leave parts of
+the template out, all on by default:
 
 ```bash
-dotnet new cleanarch-webapi -n Acme.OrderManagement --files false --ci false --sonar false
+dotnet new cleanarch-webapi -n Acme.OrderManagement --examples none --files false --ci false --sonar false
 ```
+
+| `--examples` | Generates |
+|---|---|
+| `all` (default) | `TodoLists`, `Reminders` and `Notes` |
+| `notes` | `Notes` only: the simple shape, with no domain model and no other feature to lean on |
+| `none` | no example feature: the modules, the mechanisms and their tests only |
+
+`Reminders` is scheduled against a to-do item and does not compile without `TodoLists`, so the two
+come together or not at all. What two features share follows its real users rather than the option:
+the domain's and the application's `Common/Tagging/` stay whenever `Files` is kept, since stored files
+are tagged by the same rule, and leave only when neither `TodoLists` nor `Files` is generated. A test
+whose subject is an example's endpoint or aggregate — ownership isolation over to-do lists, the
+idempotent replay of a list's creation, the save-pipeline tests written against a to-do list — leaves
+with that example, so a project generated with `none` checks those mechanisms again only once a
+feature of its own gives them a subject.
 
 | Option | Leaves out when `false` |
 |---|---|
@@ -73,9 +89,10 @@ possible name. Commit the result before anything else.
 worked examples for [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md): one aggregate with child entities,
 one flat, one whose two halves live in different stores — metadata in PostgreSQL, bytes behind a
 port to an S3-compatible or local file store — and one with no domain model at all, a service over a store. `--files false`
-leaves `Files` out; the other three have no generator switch yet.
-[`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md) is the verified procedure and
-says what stops being demonstrated once they go.
+leaves `Files` out and `--examples` chooses among the other three, so a project that knows it wants
+none of them never receives them.
+[`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md) is the procedure for a project
+generated with them that later wants them gone, and says what stops being demonstrated once they go.
 
 `Files` is the one where deleting is not the only sensible answer: unlike the other two it is also
 a working capability, so a project that stores files re-points it at its own bucket rather than

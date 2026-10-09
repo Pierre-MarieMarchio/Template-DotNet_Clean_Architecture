@@ -110,7 +110,10 @@ curl -s -X POST http://localhost:5187/api/v1/auth/confirm-email \
 TOKEN=$(curl -s -X POST http://localhost:5187/api/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"alice@example.com","password":"Passw0rd!x"}' | jq -r .tokens.accessToken)
+```
 
+<!--#if (todoLists)-->
+```bash
 # 4. use the API
 curl -s -X POST http://localhost:5187/api/v1/todo-lists \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
@@ -119,6 +122,26 @@ curl -s -X POST http://localhost:5187/api/v1/todo-lists \
 curl -s -H "Authorization: Bearer $TOKEN" \
   'http://localhost:5187/api/v1/todo-lists?page=1&pageSize=20'
 ```
+<!--#endif-->
+<!--#if (todoLists || !notes)-->
+<!--#else
+```bash
+# 4. use the API
+curl -s -X POST http://localhost:5187/api/v1/notes \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"title":"Groceries","body":"Milk, eggs"}'                                   # 201 + Location
+
+curl -s -H "Authorization: Bearer $TOKEN" \
+  'http://localhost:5187/api/v1/notes?page=1&pageSize=20'
+```
+#endif-->
+<!--#if (todoLists || notes)-->
+<!--#else
+```bash
+# 4. use the API: the caller's own profile, the one route every project has
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:5187/api/v1/auth/me
+```
+#endif-->
 
 Skip step 2 and the sign-in fails with `auth.login.invalidCredentials`:
 `Identity:RequireConfirmedEmail` is `true`, and an unconfirmed account is deliberately

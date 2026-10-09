@@ -84,10 +84,12 @@ public sealed class CollectionContractTests
             .Where(type => typeof(ICollectionPolicy).IsAssignableFrom(type))
             .ToList();
 
+        //#if (anyFeature)
         policies.ShouldNotBeEmpty(
             "No ICollectionPolicy implementation was found, so this rule is not proving anything " +
             "about the exemption it describes.");
 
+        //#endif
         policies.ShouldAllBe(
             policy => !TypeFacts.IsRecord(policy),
             "A collection policy is a plain class with a public parameterless constructor, exempt " +
@@ -107,11 +109,13 @@ public sealed class CollectionContractTests
             .Where(type => typeof(ICollectionPolicy).IsAssignableFrom(type))
             .ToList();
 
+        //#if (anyFeature)
         policyTypes.ShouldNotBeEmpty(
             "No ICollectionPolicy implementation was found in the Application assembly, so this rule " +
             "is guarding nothing. Either the interface was renamed or no feature has whitelisted a " +
             "collection endpoint any more.");
 
+        //#endif
         var failures = new List<string>();
 
         foreach (var policyType in policyTypes)
@@ -215,8 +219,8 @@ public sealed class CollectionContractTests
             .Where(HasAValidatingFactory)
             .ToList();
 
-        // Cursor, PageRequest, SearchTerm, SortOrder from Common/Collections, and the feature's own
-        // TodoListFilter and StoredFileFilter, wherever the layout puts them.
+        // Cursor, PageRequest, SearchTerm, SortOrder from Common/Collections, and the features' own
+        // filters, wherever the layout puts them.
         validated.Count.ShouldBeGreaterThanOrEqualTo(
             6,
             "Fewer self-validating records were found than this template is known to declare. The " +

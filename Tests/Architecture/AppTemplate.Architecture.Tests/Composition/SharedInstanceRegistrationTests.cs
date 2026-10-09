@@ -38,11 +38,13 @@ public sealed class SharedInstanceRegistrationTests
 
         var trackers = TrackerTypes(services);
 
+        //#if (aggregates)
         trackers.Length.ShouldBeGreaterThanOrEqualTo(
-            2,
+            1,
             "fewer aggregate trackers were found than this template registers, so the discovery " +
             "here has stopped reading the composition.");
 
+        //#endif
         foreach (var tracker in trackers)
         {
             object instance = scope.ServiceProvider.GetRequiredService(tracker);
@@ -79,7 +81,16 @@ public sealed class SharedInstanceRegistrationTests
         using var provider = services.BuildServiceProvider(HostComposition.StrictValidation);
 
         var tracker = TrackerTypes(services).FirstOrDefault();
+        /*#if (aggregates)*/
         tracker.ShouldNotBeNull("no aggregate tracker was found in the composition.");
+        /*#else
+        if (tracker is null)
+        {
+            // Generated with no aggregate, the composition registers no tracker until the first
+            // aggregate brings one; from then on this reads it.
+            return;
+        }
+        #endif*/
 
         var contract = ContractsServedBy(services, tracker).FirstOrDefault();
         contract.ShouldNotBeNull($"no contract served by {tracker.Name} was found.");

@@ -24,6 +24,50 @@
       "defaultValue": "true",
       "description": "Include the Files module: stored files, their storage adapters, the MinIO containers and the Files tables of the business migration."
     },
+    "examples": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "all",
+      "choices": [
+        {
+          "choice": "all",
+          "description": "TodoLists, Reminders and Notes."
+        },
+        {
+          "choice": "notes",
+          "description": "Notes only: the simple example, with no domain model and no other feature to lean on."
+        },
+        {
+          "choice": "none",
+          "description": "No example feature: the modules, the mechanisms and their tests only."
+        }
+      ],
+      "description": "Which example features the project starts with. Reminders needs TodoLists, so they come together."
+    },
+    "todoLists": {
+      "type": "computed",
+      "value": "(examples == \"all\")"
+    },
+    "reminders": {
+      "type": "computed",
+      "value": "(examples == \"all\")"
+    },
+    "notes": {
+      "type": "computed",
+      "value": "(examples == \"all\" || examples == \"notes\")"
+    },
+    "tagging": {
+      "type": "computed",
+      "value": "(todoLists || files)"
+    },
+    "aggregates": {
+      "type": "computed",
+      "value": "(todoLists || files)"
+    },
+    "anyFeature": {
+      "type": "computed",
+      "value": "(todoLists || reminders || notes || files)"
+    },
     "ci": {
       "type": "parameter",
       "datatype": "bool",
@@ -133,6 +177,65 @@
             "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/InMemoryStoredFileStore.cs",
             "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/RecordingOrphanSweepCheckpoint.cs",
             "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/RecordingOwnerQuotaLock.cs"
+          ]
+        },
+        {
+          "condition": "(!todoLists)",
+          "exclude": [
+            "Src/**/Features/TodoLists/**",
+            "Tests/**/Features/TodoLists/**",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/TodoLists/**",
+            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/ATodoList.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Common/Saving/Auditing/AuditingSaveChangesInterceptorTests.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Common/Saving/DomainEvents/DomainEventDispatchSaveChangesInterceptorTests.cs",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Composition/ContextScopedSavingTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Caching/CacheHeaderTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Http/RequestBodySizeLimitTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Idempotency/IdempotencyTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/RecordedDomainEvents.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Saving/ContextScopedSavingTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/FrameworkProblemDetailsTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/OwnershipIsolationTests.cs"
+          ]
+        },
+        {
+          "condition": "(!reminders)",
+          "exclude": [
+            "Src/**/Features/Reminders/**",
+            "Tests/**/Features/Reminders/**",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Reminders/**",
+            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/AReminder.cs",
+            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/InMemoryReminderStore.cs"
+          ]
+        },
+        {
+          "condition": "(!notes)",
+          "exclude": [
+            "Src/**/Features/Notes/**",
+            "Tests/**/Features/Notes/**",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Notes/**",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Composition/NotesSavingTests.cs"
+          ]
+        },
+        {
+          "condition": "(!tagging)",
+          "exclude": [
+            "Src/Domain/AppTemplate.Domain/Common/Tagging/**",
+            "Src/Application/AppTemplate.Application/Common/Tagging/**",
+            "Tests/Domain/AppTemplate.Domain.UnitTests/Common/Tagging/**"
+          ]
+        },
+        {
+          "condition": "(!todoLists && !notes)",
+          "exclude": [
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Composition/SqliteSavingHost.cs",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Composition/PublishedEvents.cs"
+          ]
+        },
+        {
+          "condition": "(!anyFeature)",
+          "exclude": [
+            "Tests/Application/AppTemplate.Application.UnitTests/ApplicationModuleTests.cs"
           ]
         },
         {

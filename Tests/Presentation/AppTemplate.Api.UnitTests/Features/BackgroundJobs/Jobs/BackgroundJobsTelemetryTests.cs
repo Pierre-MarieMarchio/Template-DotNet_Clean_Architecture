@@ -5,7 +5,9 @@ using AppTemplate.Api.Features.BackgroundJobs.Jobs;
 using AppTemplate.Api.Features.Files.Jobs;
 //#endif
 using AppTemplate.Api.Features.Maintenance.Jobs;
+//#if (reminders)
 using AppTemplate.Api.Features.Reminders.Jobs;
+//#endif
 using AppTemplate.Presentation.Core.Common.Observability;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,7 +49,9 @@ public sealed class BackgroundJobsTelemetryTests
         FileInstruments.ActivitySource.HasListeners().ShouldBeTrue();
         //#endif
         MaintenanceInstruments.ActivitySource.HasListeners().ShouldBeTrue();
+        //#if (reminders)
         ReminderInstruments.ActivitySource.HasListeners().ShouldBeTrue();
+        //#endif
     }
 
     [Fact]
@@ -62,7 +66,9 @@ public sealed class BackgroundJobsTelemetryTests
         FileInstruments.ActivitySource.HasListeners().ShouldBeFalse();
         //#endif
         MaintenanceInstruments.ActivitySource.HasListeners().ShouldBeFalse();
+        //#if (reminders)
         ReminderInstruments.ActivitySource.HasListeners().ShouldBeFalse();
+        //#endif
     }
 
     [Fact]

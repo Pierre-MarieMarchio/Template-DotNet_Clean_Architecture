@@ -3,7 +3,9 @@ using AppTemplate.Api.Common.Security;
 using AppTemplate.Application;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePassword;
 using AppTemplate.Application.Core.Common.Concurrency;
+//#if (todoLists)
 using AppTemplate.Application.Features.TodoLists.Dtos;
+//#endif
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
@@ -233,12 +235,23 @@ public sealed class ControllerContractTests
     /// <summary>The violation both rules are written to catch, kept nested so discovery skips it.</summary>
     private sealed class LeakingController : ControllerBase
     {
+        /*#if (todoLists)*/
         // One leak per project of the application layer: the DTO from the business project, the
         // Versioned<> wrapper from the Core, and the command from Auth. That is what makes the
         // three-assembly list above self-verifying rather than asserted.
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TodoItemDto))]
         public Task<ActionResult<Versioned<TodoItemDto>>> Leak(TodoItemDto body) =>
             throw new NotSupportedException(nameof(Leak));
+        /*#else
+        // One leak per project of the application layer: a type from the business project, the
+        // Versioned<> wrapper from the Core, and the command from Auth. That is what makes the
+        // three-assembly list above self-verifying rather than asserted. The business type is the
+        // composition class because it is the one type that project always holds; a feature's DTO
+        // is the realistic leak once there is one.
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ApplicationModule))]
+        public Task<ActionResult<Versioned<ChangePasswordCommand>>> Leak(ChangePasswordCommand body) =>
+            throw new NotSupportedException(nameof(Leak));
+        #endif*/
 
         public Task<ActionResult<ChangePasswordCommand>> LeakFromAuth(ChangePasswordCommand body) =>
             throw new NotSupportedException(nameof(LeakFromAuth));

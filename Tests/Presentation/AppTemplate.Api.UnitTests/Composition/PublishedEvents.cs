@@ -1,4 +1,6 @@
-﻿using System.Globalization;
+﻿//#if (todoLists)
+using System.Globalization;
+//#endif
 using AppTemplate.Domain.Core.Common.Events;
 using Microsoft.Data.Sqlite;
 
@@ -31,6 +33,7 @@ internal sealed class PublishedEvents(string businessDatabase)
     public IReadOnlyList<TEvent> OfType<TEvent>()
         where TEvent : IDomainEvent => [.. All.Select(publication => publication.Event).OfType<TEvent>()];
 
+    //#if (todoLists)
     public async Task RecordAsync(
         IDomainEvent domainEvent,
         Guid todoListId,
@@ -53,6 +56,7 @@ internal sealed class PublishedEvents(string businessDatabase)
             _publications.Add(new Publication(domainEvent, committed));
         }
     }
+    //#endif
 
     public async Task<int> ExecuteAsync(string sql, CancellationToken cancellationToken)
     {

@@ -177,7 +177,7 @@ public sealed class ConfigurationSurfaceTests
             "guide is being read with the wrong heading shape.");
 
         bound.Values.Sum(facts => facts.Keys.Count).ShouldBeGreaterThanOrEqualTo(
-            79,
+            77,
             "Far fewer bindable members were found than the options classes declare, so the member " +
             "pattern has stopped matching the shape they are written in.");
 

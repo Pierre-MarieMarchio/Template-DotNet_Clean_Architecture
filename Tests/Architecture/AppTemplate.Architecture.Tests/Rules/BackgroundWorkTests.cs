@@ -68,7 +68,7 @@ public sealed class BackgroundWorkTests
         var services = BackgroundServices();
 
         services.Count.ShouldBeGreaterThanOrEqualTo(
-            2,
+            1,
             "Fewer background services were found than this template ships, so this rule is " +
             "reading the wrong tree and passing for the wrong reason.");
 
@@ -102,6 +102,7 @@ public sealed class BackgroundWorkTests
             .ShouldBeEmpty();
     }
 
+    //#if (reminders || files)
     /// <summary>
     /// The application layer is where the lease is allowed to be, and this asserts it actually is —
     /// so that the rule above cannot be satisfied by nobody using the port at all.
@@ -128,6 +129,7 @@ public sealed class BackgroundWorkTests
             "services from doing something nothing does anywhere — which would make it a rule " +
             "about a port that has quietly stopped being used.");
     }
+    //#endif
 
     /// <summary>
     /// A scope opened any other way is, to the caller identity, a request that happens to carry no
@@ -153,7 +155,7 @@ public sealed class BackgroundWorkTests
         services
             .Count(service => CodeOf(service).Contains("CreateBackgroundScope(", StringComparison.Ordinal))
             .ShouldBeGreaterThanOrEqualTo(
-                2,
+                1,
                 "Fewer background services open a background scope than this template ships, so " +
                 "the rule above is reading the wrong tree and passing for the wrong reason.");
     }
@@ -178,7 +180,7 @@ public sealed class BackgroundWorkTests
         var files = BackgroundCompositionFiles();
 
         files.Count.ShouldBeGreaterThanOrEqualTo(
-            14,
+            10,
             "Far fewer files were found in the background composition than this template ships, so " +
             "this rule is reading the wrong tree and passing for the wrong reason.");
 

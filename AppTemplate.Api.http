@@ -139,8 +139,13 @@ Authorization: Bearer {{accessToken}}
 ###
 # 8. Without a token: 401. The application's fallback policy requires an authenticated user,
 #    so an endpoint is protected unless it opts out.
+#if (todoLists)
 GET {{api}}/todo-lists
+#else
+GET {{api}}/auth/me
+#endif
 
+#if (todoLists)
 ###
 # 9. Create a list. 201 with the created list as the body, its ETag, and a Location header pointing
 #    at request 11 — so a client can go straight on to a conditional write without reading first.
@@ -280,6 +285,7 @@ Content-Type: application/json
 DELETE {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/tags/urgent
 Authorization: Bearer {{accessToken}}
 
+#if (reminders)
 ###
 # 16h. Schedule a reminder for the item. 201, with the reminder and its own ETag — a reminder is
 #      versioned independently of the list. Location has no reminder id to name: there is no
@@ -323,6 +329,7 @@ Content-Type: application/json
 DELETE {{api}}/reminders/{{reminderId}}
 Authorization: Bearer {{accessToken}}
 
+#endif
 ###
 # 17. First page of the caller's lists. Only lists the caller owns are visible: ownership is a
 #     filter inside the read query, so somebody else's list is 404, never 403.
@@ -429,6 +436,7 @@ Authorization: Bearer {{accessToken}}
 DELETE {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
 Authorization: Bearer {{accessToken}}
 
+#endif
 ###
 # 30. Rotate the token pair. The presented refresh token is always revoked; replaying one that was
 #     already used revokes the whole family for that user.
@@ -453,11 +461,13 @@ Content-Type: application/json
   "refreshToken": "{{refreshToken}}"
 }
 
+#if (todoLists)
 ###
 # 32. Delete the list. Cascades to its items. No If-Match, accepted for the same reason as request 15.
 DELETE {{api}}/todo-lists/{{todoListId}}
 Authorization: Bearer {{accessToken}}
 
+#endif
 ###
 # 33. Log out, revoking the refresh token from request 30.
 POST {{api}}/auth/logout
@@ -797,7 +807,7 @@ GET {{api}}/files/{{storedFileId}}
 Authorization: Bearer {{accessToken}}
 
 ###
-# 43. The owner's files, paged. Same pagination contract as to-do lists: the metadata is in the body.
+# 43. The owner's files, paged. Same pagination contract as every collection: the metadata is in the body.
 GET {{api}}/files?pageSize=20
 Authorization: Bearer {{accessToken}}
 
@@ -844,6 +854,7 @@ hello world
 --AppTemplateUpload--
 
 #endif
+#if (notes)
 ###
 # 46. Notes — the feature with no domain model. Create one with an Idempotency-Key. 201 with the note,
 #     its ETag, and a Location. The owner is the caller: it is not a field of the body, and a body that
@@ -920,3 +931,4 @@ Authorization: Bearer {{accessToken}}
 #     is a 404, the same answer a note that belongs to somebody else gets.
 DELETE {{api}}/notes/{{noteId}}
 Authorization: Bearer {{accessToken}}
+#endif

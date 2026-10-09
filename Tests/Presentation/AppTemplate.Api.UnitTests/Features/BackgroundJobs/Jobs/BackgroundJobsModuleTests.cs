@@ -4,7 +4,9 @@ using AppTemplate.Api.Features.BackgroundJobs.Jobs;
 using AppTemplate.Api.Features.Files.Jobs;
 //#endif
 using AppTemplate.Api.Features.Maintenance.Jobs;
+//#if (reminders)
 using AppTemplate.Api.Features.Reminders.Jobs;
+//#endif
 using AppTemplate.Api.UnitTests.TestSupport;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
 using AppTemplate.Application.Core.Common.Results;
@@ -14,7 +16,9 @@ using AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedF
 using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
 //#endif
+//#if (reminders)
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
+//#endif
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -48,7 +52,9 @@ public sealed class BackgroundJobsModuleTests
         var hosted = provider.GetServices<IHostedService>().Select(service => service.GetType()).ToList();
 
         hosted.ShouldContain(typeof(MaintenanceBackgroundService));
+        //#if (reminders)
         hosted.ShouldContain(typeof(ReminderBackgroundService));
+        //#endif
         //#if (files)
         hosted.ShouldContain(typeof(FileBackgroundService));
         //#endif
@@ -66,7 +72,9 @@ public sealed class BackgroundJobsModuleTests
         Type[] jobValidators =
         [
             typeof(IValidateOptions<MaintenanceWorkerOptions>),
+            //#if (reminders)
             typeof(IValidateOptions<ReminderWorkerOptions>),
+            //#endif
             //#if (files)
             typeof(IValidateOptions<FileWorkerOptions>),
             //#endif
@@ -84,7 +92,9 @@ public sealed class BackgroundJobsModuleTests
         {
             ["BackgroundJobs:Enabled"] = "false",
             ["MaintenanceWorker:Interval"] = "00:00:00",
+            //#if (reminders)
             ["ReminderWorker:Interval"] = "7.00:00:00",
+            //#endif
             //#if (files)
             ["FileWorker:InspectDepositedFilesInterval"] = "00:00:01",
             //#endif
@@ -96,7 +106,9 @@ public sealed class BackgroundJobsModuleTests
 
     [Theory]
     [InlineData("MaintenanceWorker:Interval", "00:00:00")]
+    //#if (reminders)
     [InlineData("ReminderWorker:Interval", "7.00:00:00")]
+    //#endif
     //#if (files)
     [InlineData("FileWorker:InspectDepositedFilesInterval", "00:00:01")]
     [InlineData("FileWorker:ReclaimOrphanedContentInterval", "00:00:05")]
@@ -117,7 +129,9 @@ public sealed class BackgroundJobsModuleTests
     {
         var idempotency = Substitute.For<IPurgeExpiredIdempotencyKeysUseCase>();
         var refreshTokens = Substitute.For<IPurgeExpiredRefreshTokensUseCase>();
+        //#if (reminders)
         var reminders = Substitute.For<IFireDueRemindersUseCase>();
+        //#endif
         //#if (files)
         var abandoned = Substitute.For<IPurgeAbandonedRegistrationsUseCase>();
         var orphaned = Substitute.For<IReclaimOrphanedContentUseCase>();
@@ -126,7 +140,9 @@ public sealed class BackgroundJobsModuleTests
 
         idempotency.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         refreshTokens.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        //#if (reminders)
         reminders.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        //#endif
         //#if (files)
         abandoned.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         orphaned.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
@@ -139,7 +155,9 @@ public sealed class BackgroundJobsModuleTests
             {
                 services.AddScoped(_ => idempotency);
                 services.AddScoped(_ => refreshTokens);
+                //#if (reminders)
                 services.AddScoped(_ => reminders);
+                //#endif
                 //#if (files)
                 services.AddScoped(_ => abandoned);
                 services.AddScoped(_ => orphaned);
@@ -153,7 +171,9 @@ public sealed class BackgroundJobsModuleTests
         [
             () => Received(idempotency),
             () => Received(refreshTokens),
+            //#if (reminders)
             () => Received(reminders),
+            //#endif
             //#if (files)
             () => Received(abandoned),
             () => Received(orphaned),

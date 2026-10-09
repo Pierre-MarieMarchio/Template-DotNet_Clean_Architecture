@@ -300,8 +300,8 @@ public sealed class TodoItemTests
     [InlineData("Reopen")]
     [InlineData("AddTag")]
     [InlineData("RemoveTag")]
-    [InlineData("ChangeTitle")]
-    [InlineData("ChangeDescription")]
+    [InlineData("Update")]
+    [InlineData("ReplaceTags")]
     public void TheMutators_AreNotPartOfThePublicSurface(string methodName) =>
         typeof(TodoItem).GetMethod(methodName).ShouldBeNull();
 

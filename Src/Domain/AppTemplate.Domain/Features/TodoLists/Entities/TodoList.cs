@@ -133,13 +133,14 @@ public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
     }
 
     /// <summary>Renames and/or redescribes an existing item in one step, so a caller does not
-    /// need two round trips — and two version bumps — to change both fields.</summary>
+    /// need two round trips — and two version bumps — to change both fields. Uniqueness is
+    /// checked on the normalised title, the value the item will hold.</summary>
     public void UpdateItem(Guid itemId, string title, string? description)
     {
         var item = RequireItem(itemId);
-        EnsureTitleIsFree(title, itemId);
-        item.ChangeTitle(title);
-        item.ChangeDescription(description);
+        var newTitle = TodoItemTitle.Create(title);
+        EnsureTitleIsFree(newTitle.Value, itemId);
+        item.Update(newTitle, description);
     }
 
     /// <summary>Total replacement, not a merge — see <see cref="TagSet.Replace"/> for what that

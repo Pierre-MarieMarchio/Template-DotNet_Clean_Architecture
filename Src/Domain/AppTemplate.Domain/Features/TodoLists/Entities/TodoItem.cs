@@ -85,9 +85,14 @@ public sealed class TodoItem : Entity<Guid>
 
     public IReadOnlyCollection<Tag> Tags => _tags.Tags;
 
-    internal void ChangeTitle(string title) => Title = TodoItemTitle.Create(title);
-
-    internal void ChangeDescription(string? description) => Description = NormaliseDescription(description);
+    /// <summary>Validates the description before assigning anything, so a refused update leaves
+    /// the item unchanged.</summary>
+    internal void Update(TodoItemTitle title, string? description)
+    {
+        string? normalisedDescription = NormaliseDescription(description);
+        Title = title;
+        Description = normalisedDescription;
+    }
 
     internal void Complete(DateTimeOffset completedAt)
     {

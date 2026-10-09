@@ -5,7 +5,6 @@
        an entity, an aggregate root or the domain exception, in memory. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

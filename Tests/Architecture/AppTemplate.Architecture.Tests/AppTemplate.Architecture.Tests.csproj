@@ -18,7 +18,6 @@
        AppTemplate.Infrastructure.TodoLists any more: all persistence lives in one project. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

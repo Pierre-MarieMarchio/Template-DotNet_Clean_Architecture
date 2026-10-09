@@ -1,12 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Written as if it were a NuGet package, and vendored rather than published: a derived
-       repository copies it and is free to tune it, which is why it carries no version. -->
+  <!-- One of the vendored SDK projects: a derived repository copies it and is free to tune it. The
+       marker below is what the architecture rules read to hold it to the SDK boundary. -->
   <PropertyGroup>
-    <IsPackable>true</IsPackable>
-    <PackageId>AppTemplate.Application.Auth</PackageId>
-    <Description>Authentication and account administration as application-layer use cases: sign-in, refresh-token rotation, password and email lifecycle, two-factor enrolment, external providers, roles and lockouts — behind ports an identity module satisfies.</Description>
-    <Authors>AppTemplate contributors</Authors>
+    <IsSdkProject>true</IsSdkProject>
   </PropertyGroup>
 
   <!-- CS1591 is suppressed repository-wide, and re-enabled here: this is a deliberate public
@@ -21,14 +18,6 @@
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-  </ItemGroup>
-
-  <!-- Any change to the public surface is an explicit diff in PublicAPI.Unshipped.txt to review,
-       rather than a side effect of an edit nobody read as one. -->
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
-    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
-    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
   </ItemGroup>
 
   <!-- The identity model is not an aggregate here: it lives behind the ports under

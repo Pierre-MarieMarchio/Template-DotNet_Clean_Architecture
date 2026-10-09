@@ -23,7 +23,6 @@
        Shared with exactly one assembly. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

@@ -132,13 +132,9 @@ so nothing of it reaches the compiled assembly — and `AppTemplate.Domain.cspro
 `ProjectReference` to it and nothing else. An architecture rule holds the first half, because a
 dependency taken by the innermost project is a dependency taken by every project above it.
 
-`AppTemplate.Domain.Core` is the primitives an aggregate is built from, written as a package and
-vendored rather than published. That is what its shape is for. Its public surface is tracked in
-`Src/Domain/AppTemplate.Domain.Core/PublicAPI.Shipped.txt` and
-`Src/Domain/AppTemplate.Domain.Core/PublicAPI.Unshipped.txt`, so widening it is an explicit diff to
-review; `CS1591` is re-enabled in that project alone, because a derived project reads those
-signatures rather than the code behind them, and `dotnet pack` runs over it, which is what proves
-the self-containment rather than merely asserting it. It carries no version, because a project that
+`AppTemplate.Domain.Core` is the primitives an aggregate is built from, vendored rather than
+published. That is what its shape is for. `CS1591` is re-enabled in that project alone, because a
+derived project reads those signatures rather than the code behind them. It carries no version, because a project that
 needs a primitive this one lacks copies the project and tunes it. The whole point of the division
 is what it leaves for a derived project to write: its own `Features/`, plus whatever its own
 features come to share as business.
@@ -172,12 +168,9 @@ named interface derives from, validation, offset and cursor pagination, idempote
 concurrency, and the cross-cutting ports a host has to satisfy. It references
 `AppTemplate.Domain.Core` and nothing else — never `AppTemplate.Domain`, because the two files here
 that need a domain type, `IDomainEventConsumer` and `DomainGuard`, need only the primitives — so
-this project knows no aggregate and cannot come to know one. It carries the same package-grade
-shape for the same reasons: a tracked public surface in
-`Src/Application/AppTemplate.Application.Core/PublicAPI.Shipped.txt` and
-`Src/Application/AppTemplate.Application.Core/PublicAPI.Unshipped.txt`, `CS1591` re-enabled so
-every public member owes a sentence to the reader who reads signatures instead of code, `dotnet
-pack` over it to prove the self-containment, and no version, because a project that needs a
+this project knows no aggregate and cannot come to know one. It carries the same shape for the
+same reasons: `CS1591` re-enabled so every public member owes a sentence to the reader who reads
+signatures instead of code, and no version, because a project that needs a
 mechanism this one lacks copies it and tunes it. Its single use case,
 `Features/Maintenance/UseCases/Commands/PurgeExpiredIdempotencyKeys/`, is the idempotency
 mechanism's own housekeeping and names no business type; a host opts into it with
@@ -202,10 +195,8 @@ those calls. It has a project of its own because it
 is the part of this template a derived application is most likely to replace wholesale with its own
 identity provider, and that is only possible if nothing composes it on that application's behalf —
 hence one call, `AddAuthApplication()`, and no arrow to it from either of the other two application
-projects. It is written package-grade for the same reasons the two `.Core` projects are: a tracked
-public surface in `Src/Application/AppTemplate.Application.Auth/PublicAPI.Shipped.txt` and
-`Src/Application/AppTemplate.Application.Auth/PublicAPI.Unshipped.txt`, `CS1591` re-enabled,
-`dotnet pack` over it, and no version.
+projects. It is shaped like the two `.Core` projects for the same reasons: `CS1591` re-enabled, and no
+version.
 
 `AppTemplate.Presentation.Core` is the presentation layer's fourth `.Core` and the outermost of
 them: what any host needs whatever its transport, and nothing that names one. Five subjects, one
@@ -214,11 +205,8 @@ file each — the outbound HTTP policy installed on `IHttpClientFactory`'s defau
 `TelemetryOptions` and the OTLP tracer and meter over it, `NoCallerCurrentUser`, the answer a
 process with no request gives to "who is calling", and `PeriodicJob`, the loop a host's recurring
 work is written on — see the Worker below for what that primitive does and does not decide. It
-declares one project reference, `AppTemplate.Application.Core`, and it is written package-grade for the same reasons the three projects inwards are: a
-tracked public surface in `Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Shipped.txt` and
-`Src/Presentation/AppTemplate.Presentation.Core/PublicAPI.Unshipped.txt`, `CS1591` re-enabled so a
-derived project can read the signatures instead of the code, `dotnet pack` over it, and no version,
-because it is vendored and meant to be tuned where it lands.
+declares one project reference, `AppTemplate.Application.Core`, and it is shaped like the three projects inwards for the same reasons: `CS1591` re-enabled so a
+derived project can read the signatures instead of the code, and no version, because it is vendored and meant to be tuned where it lands.
 
 **It carries no `FrameworkReference`, and that is why it is a project of its own rather than half of
 one presentation Core.** A host with no HTTP surface — a desktop client, a CLI — gets a clock, a
@@ -274,7 +262,7 @@ Two rules that a compiler cannot state on its own, so state them here:
   Application (as a port), in `AppTemplate.Infrastructure.Core` (as an agnostic mechanism), or in
   Persistence (as mechanics). `InfrastructureModules_ReferenceOnlyPersistenceHorizontally` is the
   rule, and it permits exactly those two horizontal edges — `Persistence`, and the layer's own
-  package-grade half — while asserting that both are really taken, so neither permission can
+  SDK half — while asserting that both are really taken, so neither permission can
   quietly become a hole nothing uses.
 
 Direction is enforced by the project graph, and is worth an architecture test —
@@ -377,8 +365,7 @@ never by naming the type, which is what
 what lets two modules share one mechanism without either owning it. What is public is what a module
 cannot delegate: the `AggregateTracker` it derives from, the `StoredStamps` its mapper calls, the
 `IAuditActor` its host answers, and the interceptors it attaches to its own context. Like the other
-five package-grade projects it carries a tracked public surface, `CS1591` re-enabled, `dotnet pack`
-over it, and no version.
+five SDK projects it has `CS1591` re-enabled and no version.
 
 Its `Common/` is held to the rule below by construction rather than by that rule: an SDK project
 may reference only SDK projects, so it cannot name `AppTemplate.Application` or

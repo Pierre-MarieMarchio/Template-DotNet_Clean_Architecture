@@ -19,7 +19,6 @@
        tell a complete mapper from one with a hole in it. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

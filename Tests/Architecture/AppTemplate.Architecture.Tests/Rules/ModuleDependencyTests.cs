@@ -291,7 +291,7 @@ public sealed class ModuleDependencyTests
             RuleAssertions.RequireTypes(assembly);
 
             // Two permitted horizontal dependencies, and neither is a module with its own vertical:
-            // Persistence is shared plumbing, and the layer's package-grade half is a mechanism no
+            // Persistence is shared plumbing, and the layer's SDK half is a mechanism no
             // module owns.
             string[] forbidden = ArchitectureAssemblies.AllInfrastructure
                 .Select(ArchitectureAssemblies.NamespaceOf)
@@ -309,7 +309,7 @@ public sealed class ModuleDependencyTests
                 .GetResult()
                 .ShouldHold(
                     $"'{self}' must not depend on another infrastructure module. Only " +
-                    "AppTemplate.Infrastructure.Persistence and the layer's package-grade half may be " +
+                    "AppTemplate.Infrastructure.Persistence and the layer's SDK half may be " +
                     "shared; anything else two modules need in common belongs behind a port in " +
                     "AppTemplate.Application, or in that shared half. Forbidden for this assembly: " +
                     string.Join(", ", forbidden));
@@ -429,7 +429,7 @@ public sealed class ModuleDependencyTests
     }
 
     /// <summary>
-    /// One horizontal edge is allowed in this layer, and it points at the layer's package-grade
+    /// One horizontal edge is allowed in this layer, and it points at the layer's SDK
     /// half. Nothing points at another module — including the persistence one, which is a module
     /// like any other now that what a context saves through is the Core's.
     /// </summary>
@@ -454,7 +454,7 @@ public sealed class ModuleDependencyTests
         }
 
         offenders.ShouldBeEmpty(
-            "An infrastructure module may reference the package-grade half of its own layer, and no " +
+            "An infrastructure module may reference the SDK half of its own layer, and no " +
             "other project of this layer. A mechanism two modules need belongs in that Core, where " +
             "both may take it; a module reaching sideways for one couples two adapter sets that a " +
             "host is supposed to be able to compose independently.");
@@ -464,7 +464,7 @@ public sealed class ModuleDependencyTests
         // has gone back to being copied.
         referencesToTheLayersCore.ShouldBeGreaterThan(
             0,
-            "No infrastructure module references the package-grade half of its own layer, so the " +
+            "No infrastructure module references the SDK half of its own layer, so the " +
             "permission this rule grants describes nothing.");
     }
 

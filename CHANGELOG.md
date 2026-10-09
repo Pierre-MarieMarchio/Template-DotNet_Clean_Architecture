@@ -67,7 +67,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   and writes only what it alone knows: its policy, its filter and its tiebreaker field. The request
   is unconstructible outside the project that validates it, which is stronger than the per-feature
   records were.
-- **Six projects are written to package grade, and a derived project writes only its own features.**
+- **Six projects are vendored SDK projects, and a derived project writes only its own features.**
   `AppTemplate.Domain.Core` holds the primitives an aggregate is built from;
   `AppTemplate.Application.Core` the mechanisms a use case is written *from* — `Result`, the
   `IUseCase` marker, validation, paging, idempotency, concurrency, the cross-cutting ports;
@@ -75,10 +75,8 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   type; `AppTemplate.Infrastructure.Core` the mechanisms no module owns;
   `AppTemplate.Presentation.Core` what any host needs whatever its transport, with no framework
   reference; and `AppTemplate.Api.Core` the half of an HTTP host that knows no feature — the whole
-  pipeline behind one `UseCorePipeline()`. Each carries a tracked public surface in
-  `PublicAPI.Shipped.txt` and `PublicAPI.Unshipped.txt`, so widening or narrowing it is a diff to
-  review rather than a side effect; `CS1591` re-enabled, so every public member owes the reader a
-  sentence; and `dotnet pack` in CI, which is what proves self-containment rather than asserting it.
+  pipeline behind one `UseCorePipeline()`. Each has `CS1591` re-enabled, so
+  every public member owes the reader a sentence, and the architecture tests hold their boundary.
   They carry **no version**: they are vendored, and a project needing something one of them lacks
   copies it and tunes it. Two things follow for anyone adopting this in an existing project. Every
   `AppTemplate.Application.*` and `AppTemplate.Domain.*` namespace a file names may have moved one
@@ -551,7 +549,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `IReminderNotifier`, whose only implementation resolves an authentication port to find the address
   a due reminder is rung at.
 - **No infrastructure module references another.** Every module takes what it shares from the
-  layer's package-grade half, so the permission for a horizontal reference to the persistence module
+  layer's SDK half, so the permission for a horizontal reference to the persistence module
   is withdrawn: the rule now reads "only the layer's Core horizontally", and the persistence module
   is a module like any other.
 

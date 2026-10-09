@@ -14,7 +14,6 @@
        InternalsVisibleTo from it. -->
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

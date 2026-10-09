@@ -11,4 +11,9 @@ public enum PasswordChangeStatus
 
     /// <summary>The current password matched, but the store refused the new one itself.</summary>
     Rejected,
+    /// <summary>
+    /// The caller's token names an account that no longer exists: it was deleted after the token
+    /// was issued.
+    /// </summary>
+    NoSuchAccount,
 }

@@ -71,6 +71,17 @@ public sealed class SetUpTwoFactorUseCaseTests
     }
 
     [Fact]
+    public async Task AStoreRefusal_IsReportedAsSuch()
+    {
+        _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.Rejected);
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("auth.twoFactor.setupRejected");
+    }
+
+    [Fact]
     public async Task TheCancellationToken_ReachesTheEnrollmentPort()
     {
         using var cancellation = new CancellationTokenSource();

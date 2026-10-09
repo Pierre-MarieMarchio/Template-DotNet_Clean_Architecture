@@ -42,6 +42,7 @@ public sealed class AccountAdministrationController(
     /// </summary>
     [HttpPost("{userId:guid}/lockout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> Lock(Guid userId, CancellationToken cancellationToken) =>
         NoContentOrProblem(await lockAccount.ExecuteAsync(new LockAccountCommand(userId), cancellationToken));
@@ -49,6 +50,7 @@ public sealed class AccountAdministrationController(
     /// <summary>Lifts an administrative lockout. A no-op, not a 404, on an account that was not locked.</summary>
     [HttpDelete("{userId:guid}/lockout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> Unlock(Guid userId, CancellationToken cancellationToken) =>
         NoContentOrProblem(await unlockAccount.ExecuteAsync(new UnlockAccountCommand(userId), cancellationToken));
@@ -84,6 +86,7 @@ public sealed class AccountAdministrationController(
     /// </summary>
     [HttpDelete("{userId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> Delete(Guid userId, CancellationToken cancellationToken) =>
         NoContentOrProblem(await deleteAccount.ExecuteAsync(new DeleteAccountCommand(userId), cancellationToken));

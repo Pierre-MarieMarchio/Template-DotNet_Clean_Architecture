@@ -99,6 +99,20 @@ public sealed class TwoFactorEnrollmentServiceTests
         _authenticatorKey.ShouldBeNull();
     }
 
+    /// <summary>A key the store refused to keep must not be handed out to be scanned.</summary>
+    [Fact]
+    public async Task BeginAsync_WhenTheStoreRefusesToProvisionTheKey_ReportsRejectedAndHandsBackNoKey()
+    {
+        GivenTheAccountExists();
+        GivenTheStoreRefusesUpdates();
+
+        var started = await CreateEnrollment().BeginAsync(_userId, TestToken);
+
+        started.Status.ShouldBe(TwoFactorSetupStatus.Rejected);
+        started.SharedKey.ShouldBeNull();
+        started.AuthenticatorUri.ShouldBeNull();
+    }
+
     /// <summary>A token that outlived its account is a status, not a 500.</summary>
     [Fact]
     public async Task BeginAsync_AnAccountThatNoLongerExists_ReportsNoSuchAccount()
@@ -122,21 +136,44 @@ public sealed class TwoFactorEnrollmentServiceTests
         confirmation.RecoveryCodes.ShouldBeNull();
     }
 
-    /// <summary>The code was right, so the refusal is the store's, and reporting it as a wrong code would mislead the caller.</summary>
+    /// <summary>
+    /// The code was right, so the refusal is the store's, and reporting it as a wrong code would
+    /// mislead the caller. The codes already stored are not handed out: with the factor off they
+    /// redeem nothing, and the next confirmation replaces them.
+    /// </summary>
     [Fact]
-    public async Task ConfirmAsync_WhenTheStoreRefusesToArmTheFactor_ReportsRejectedAndMintsNoRecoveryCodes()
+    public async Task ConfirmAsync_WhenTheStoreRefusesToArmTheFactor_ReportsRejectedAndHandsOutNoRecoveryCodes()
     {
         GivenTheAccountExists();
         string sharedKey = await GivenAPendingKeyAsync();
         _passwordHasher.NextVerification = PasswordVerificationResult.Success;
-        GivenTheStoreRefusesUpdates();
+        GivenTheStoreRefusesUpdatesOnceTheFactorIsArmed();
 
         var confirmation = await CreateEnrollment().ConfirmAsync(
             _userId, "correct horse battery", AuthenticatorCodes.CurrentCodeFor(sharedKey), TestToken);
 
         confirmation.Status.ShouldBe(TwoFactorConfirmationStatus.Rejected);
         confirmation.RecoveryCodes.ShouldBeNull();
-        _recoveryCodes.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// Armed without recovery codes, losing the authenticator app would be losing the account, so the
+    /// codes are stored first and a refusal there leaves the factor off and is reported.
+    /// </summary>
+    [Fact]
+    public async Task ConfirmAsync_WhenTheStoreRefusesTheRecoveryCodes_ArmsNothingAndReportsRejected()
+    {
+        var user = GivenTheAccountExists();
+        string sharedKey = await GivenAPendingKeyAsync();
+        _passwordHasher.NextVerification = PasswordVerificationResult.Success;
+        GivenTheStoreRefusesTheNextUpdateAfterReplacingRecoveryCodes();
+
+        var confirmation = await CreateEnrollment().ConfirmAsync(
+            _userId, "correct horse battery", AuthenticatorCodes.CurrentCodeFor(sharedKey), TestToken);
+
+        confirmation.Status.ShouldBe(TwoFactorConfirmationStatus.Rejected);
+        confirmation.RecoveryCodes.ShouldBeNull();
+        user.TwoFactorEnabled.ShouldBeFalse();
     }
 
     [Fact]
@@ -316,20 +353,44 @@ public sealed class TwoFactorEnrollmentServiceTests
         user.TwoFactorEnabled.ShouldBeTrue();
     }
 
-    /// <summary>The caller already authenticated as this id — see <c>UserAccountsService.ChangePasswordAsync</c>.</summary>
+    /// <summary>A token that outlived its account is not a wrong password.</summary>
     [Fact]
-    public async Task DisableAsync_AnAccountThatNoLongerExists_IsReportedAsAnIncorrectPassword()
+    public async Task DisableAsync_AnAccountThatNoLongerExists_ReportsNoSuchAccount()
     {
         _directory.FindByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns((AppUser?)null);
 
         var disabled = await CreateEnrollment().DisableAsync(_userId, "correct horse battery", TestToken);
 
-        disabled.Status.ShouldBe(TwoFactorDisableStatus.IncorrectPassword);
+        disabled.Status.ShouldBe(TwoFactorDisableStatus.NoSuchAccount);
     }
 
     private void GivenTheStoreRefusesUpdates() =>
         _store.UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>())
             .Returns(IdentityResult.Failed(new IdentityErrorDescriber().ConcurrencyFailure()));
+
+    private void GivenTheStoreRefusesUpdatesOnceTheFactorIsArmed() =>
+        _store.UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => ((AppUser)callInfo[0]!).TwoFactorEnabled
+                ? IdentityResult.Failed(new IdentityErrorDescriber().ConcurrencyFailure())
+                : IdentityResult.Success);
+
+    private void GivenTheStoreRefusesTheNextUpdateAfterReplacingRecoveryCodes()
+    {
+        bool codesJustReplaced = false;
+
+        ((IUserTwoFactorRecoveryCodeStore<AppUser>)_store)
+            .ReplaceCodesAsync(Arg.Any<AppUser>(), Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                codesJustReplaced = true;
+                return Task.CompletedTask;
+            });
+
+        _store.UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>())
+            .Returns(_ => codesJustReplaced
+                ? IdentityResult.Failed(new IdentityErrorDescriber().ConcurrencyFailure())
+                : IdentityResult.Success);
+    }
 
     private async Task<string> GivenAPendingKeyAsync()
     {

@@ -52,6 +52,7 @@ public sealed class TwoFactorController(
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
     [NoStore]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(SetUpTwoFactorResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<SetUpTwoFactorResponse>> SetUpTwoFactor(CancellationToken cancellationToken) =>

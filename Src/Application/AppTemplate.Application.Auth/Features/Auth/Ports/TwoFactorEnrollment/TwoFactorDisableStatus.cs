@@ -14,4 +14,9 @@ public enum TwoFactorDisableStatus
     /// Describes the store's state, never anything the caller submitted.
     /// </summary>
     Rejected,
+    /// <summary>
+    /// The caller's token names an account that no longer exists: it was deleted after the token
+    /// was issued.
+    /// </summary>
+    NoSuchAccount,
 }

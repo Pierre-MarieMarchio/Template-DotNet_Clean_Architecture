@@ -34,13 +34,14 @@ public sealed class EmailChangeTokensServiceTests
     #region IssueAsync
 
     [Fact]
-    public async Task AnAccountThatNoLongerExists_IsReportedAsAnIncorrectCurrentPassword()
+    public async Task AnAccountThatNoLongerExists_IsReportedAsSuch()
     {
         _directory.FindByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns((AppUser?)null);
 
         var request = await CreateTokens().IssueAsync(_userId, _currentPassword, _newEmail, TestToken);
 
-        request.Status.ShouldBe(EmailChangeRequestStatus.IncorrectCurrentPassword);
+        request.Status.ShouldBe(EmailChangeRequestStatus.NoSuchAccount);
+        request.Token.ShouldBeNull();
     }
 
     [Fact]

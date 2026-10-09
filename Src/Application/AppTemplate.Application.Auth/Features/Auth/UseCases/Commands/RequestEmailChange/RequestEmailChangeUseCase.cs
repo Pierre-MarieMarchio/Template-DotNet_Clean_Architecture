@@ -49,6 +49,12 @@ public sealed class RequestEmailChangeUseCase(
             request.NewEmail,
             cancellationToken);
 
+        // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
+        if (issued.Status is EmailChangeRequestStatus.NoSuchAccount)
+        {
+            return Result.Failure(CommonErrors.NotAuthenticated);
+        }
+
         if (issued.Status is EmailChangeRequestStatus.IncorrectCurrentPassword)
         {
             return Result.Failure(AuthErrors.IncorrectCurrentPassword);

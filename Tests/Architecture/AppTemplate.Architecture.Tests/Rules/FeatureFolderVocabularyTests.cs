@@ -28,6 +28,7 @@ public sealed class FeatureFolderVocabularyTests
     /// </summary>
     private static readonly Dictionary<string, string[]> _suffixes = new(StringComparer.Ordinal)
     {
+        ["Composition"] = ["Composition"],
         ["Configurations"] = ["Configuration"],
         ["Consumers"] = ["Consumer"],
         ["Contracts"] = ["Request", "Response"],

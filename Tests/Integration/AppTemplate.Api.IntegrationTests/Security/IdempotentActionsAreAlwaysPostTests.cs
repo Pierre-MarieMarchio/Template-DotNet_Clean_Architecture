@@ -36,6 +36,7 @@ public sealed class IdempotentActionsAreAlwaysPostTests
         typeof(FileTagsController),
         typeof(MaintenanceController),
         typeof(PasswordRecoveryController),
+        typeof(RefreshTokenMaintenanceController),
         typeof(RegistrationController),
         typeof(RemindersController),
         typeof(SessionsController),

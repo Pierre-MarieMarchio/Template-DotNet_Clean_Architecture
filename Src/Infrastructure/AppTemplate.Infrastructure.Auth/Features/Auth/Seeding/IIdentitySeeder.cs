@@ -4,8 +4,8 @@
 /// Puts the rows a fresh database needs in place: the <c>Admin</c> role, and — in Development only — one
 /// administrator account.
 /// <para>
-/// Public because the host calls it: <c>MigrateAndSeedForDevelopmentAsync</c> resolves this after applying
-/// migrations. The implementation is internal, so the only thing a caller can name is the operation.
+/// Public because the host calls it: the API's development bootstrap resolves this after applying
+/// the identity migrations. The implementation is internal, so the only thing a caller can name is the operation.
 /// </para>
 /// </summary>
 public interface IIdentitySeeder

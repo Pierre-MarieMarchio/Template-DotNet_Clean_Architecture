@@ -75,12 +75,13 @@ AppTemplate.Api                 Common/{Caching,Concurrency,Contracts,Controller
                                         Idempotency,Jobs,Localization,Observability,OpenApi,Security}
                                 Common/ names no feature: the HTTP mechanisms and the job
                                 mechanisms (the role switch, the background scope) every feature shares
-                                Features/<F>/{Controllers,Contracts/{Requests,Responses},Directories,
-                                              Jobs,Mapping}
+                                Features/<F>/{Composition,Controllers,Contracts/{Requests,Responses},
+                                              Directories,Jobs,Mapping}
                                 Jobs/ holds what a feature runs on a timer: its BackgroundService, its
                                 options, its instruments, and the extension that registers them;
                                 Directories/ an adapter the host supplies because it joins two
-                                features that may not name each other
+                                features that may not name each other; Composition/ a feature's one
+                                entry point when it composes more than use cases
                                 Features/BackgroundJobs/Jobs/  the one composition call, AddBackgroundJobs
 Tests/                          a 1:1 mirror of Src/
 ```

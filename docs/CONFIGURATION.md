@@ -124,9 +124,8 @@ as a whole, since composing that module composes ASP.NET Identity and bearer val
 narrower call.
 
 **The refresh-token purge belongs to authentication.** It is not listed in the background
-composition: `AddAuthMaintenanceJobs`
-(`Src/Presentation/AppTemplate.Api/Features/Auth/Jobs/AuthJobsExtensions.cs`) registers it with the
-maintenance timer, from the authentication feature's own folder, and
+composition: `AddAuthFeature` (`Src/Presentation/AppTemplate.Api/Features/Auth/Composition/AuthComposition.cs`)
+registers it with the maintenance timer, from the authentication feature's own folder, and
 [`MaintenanceWorker:PurgeExpiredRefreshTokensEnabled`](#maintenanceworkerpurgeexpiredrefreshtokensenabled)
 is read by an options class that lives beside it. A project built without authentication deletes that
 call and that folder and edits nothing in the composition — `BackgroundWorkTests` fails the build if
@@ -1076,7 +1075,7 @@ refresh-token switch is documented next, because it belongs to authentication.
 
 A key of the `MaintenanceWorker` section above, read by
 `AppTemplate.Api/Features/Auth/Jobs/RefreshTokenPurgeOptions.cs` — a class of its own that
-`AddAuthMaintenanceJobs` binds to that section, so a project without authentication loses the key
+the authentication feature's composition binds to that section, so a project without authentication loses the key
 with the purge. Off, rotated and expired grants accumulate: nothing else removes them, and the
 maintenance job says so at warning level on every skipped iteration.
 

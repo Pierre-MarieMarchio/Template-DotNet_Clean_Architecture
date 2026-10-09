@@ -43,7 +43,6 @@ public sealed class ReminderLifecycleTests(ApiFixture fixture) : RemindersTestBa
         created.TodoItemId.ShouldBe(itemId);
         created.DueAt.ShouldBe(dueAt);
         created.Status.ShouldBe("pending");
-        created.ClaimedAt.ShouldBeNull();
         created.NotifiedAt.ShouldBeNull();
 
         string etagAfterScheduling = scheduled.Headers.ETag!.ToString();

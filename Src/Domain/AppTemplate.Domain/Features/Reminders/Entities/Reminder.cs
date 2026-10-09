@@ -83,14 +83,6 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
 
     public ReminderState State { get; private set; } = ReminderState.Pending;
 
-    /// <summary>
-    /// When a host took responsibility for firing this reminder, cleared again if that attempt is
-    /// abandoned. Separate from <see cref="NotifiedAt"/> on purpose: with a single flag the state
-    /// "claimed, never notified" would not exist in the store, and an attempt lost to a crash
-    /// would be indistinguishable from one that never started.
-    /// </summary>
-    public DateTimeOffset? ClaimedAt { get; private set; }
-
     /// <summary>When the notification actually went out.</summary>
     public DateTimeOffset? NotifiedAt { get; private set; }
 
@@ -144,14 +136,8 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
     {
         ArgumentNullException.ThrowIfNull(stored);
 
-        // What the constructor at the bottom of this method cannot see: whether the three stored
-        // values describing progress agree. MarkNotified requires a claim and keeps it, Cancel
-        // clears it, so a cancelled row still holding one could not have been written.
-        if (stored.State == ReminderState.Cancelled && stored.ClaimedAt is not null)
-        {
-            throw new DomainException("A cancelled reminder cannot still hold a claim.");
-        }
-
+        // What the constructor at the bottom of this method cannot see: whether the stored values
+        // describing progress agree with each other.
         if (stored.State == ReminderState.Fired && stored.NotifiedAt is null)
         {
             throw new DomainException("A fired reminder must record when it was notified.");
@@ -175,35 +161,10 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
         return new Reminder(stored.Id, stored.OwnerId, stored.TodoListId, stored.TodoItemId, stored.DueAt)
         {
             State = stored.State,
-            ClaimedAt = stored.ClaimedAt,
             NotifiedAt = stored.NotifiedAt,
             FailedAttempts = stored.FailedAttempts,
             NextAttemptAt = stored.NextAttemptAt,
         };
-    }
-
-    /// <summary>
-    /// Takes responsibility for firing this reminder. A claim that has not produced a notification
-    /// within <paramref name="staleAfter"/> is taken over: a host that died mid-attempt must not
-    /// hold a reminder for ever.
-    /// </summary>
-    /// <returns><c>true</c> when the claim was taken, <c>false</c> when another host holds a fresh
-    /// one — in which case this host must leave the reminder alone.</returns>
-    public bool TryClaim(DateTimeOffset now, TimeSpan staleAfter)
-    {
-        if (State != ReminderState.Pending || DueAt > now)
-        {
-            return false;
-        }
-
-        if (ClaimedAt is { } claimedAt && now - claimedAt < staleAfter)
-        {
-            return false;
-        }
-
-        ClaimedAt = now;
-
-        return true;
     }
 
     /// <summary>
@@ -215,11 +176,6 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
         if (State != ReminderState.Pending)
         {
             throw new DomainException("Only a pending reminder can be marked as notified.");
-        }
-
-        if (ClaimedAt is null)
-        {
-            throw new DomainException("A reminder must be claimed before it is notified.");
         }
 
         State = ReminderState.Fired;
@@ -260,18 +216,6 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
     }
 
     /// <summary>
-    /// Gives up a claim without firing, so the next pass can pick the reminder up immediately
-    /// rather than waiting out the staleness window.
-    /// </summary>
-    public void ReleaseClaim()
-    {
-        if (State == ReminderState.Pending)
-        {
-            ClaimedAt = null;
-        }
-    }
-
-    /// <summary>
     /// Calls the reminder off. Idempotent by shape — it assigns a state rather than moving one —
     /// so a redelivered cancellation is a no-op instead of an error, and cancelling something
     /// already fired is refused rather than silently rewriting history.
@@ -284,7 +228,6 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
         }
 
         State = ReminderState.Cancelled;
-        ClaimedAt = null;
     }
 
     /// <summary>Moves a pending reminder to a new instant, under the same rule as scheduling.</summary>
@@ -301,7 +244,6 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
         }
 
         DueAt = dueAt;
-        ClaimedAt = null;
 
         // A new instant is a new reminder as far as delivery goes: the failures counted so far were
         // against a moment that no longer applies.

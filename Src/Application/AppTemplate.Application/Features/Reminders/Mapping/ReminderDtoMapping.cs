@@ -23,7 +23,6 @@ internal static class ReminderDtoMapping
             reminder.TodoItemId,
             reminder.DueAt,
             reminder.State,
-            reminder.ClaimedAt,
             reminder.NotifiedAt);
     }
 }

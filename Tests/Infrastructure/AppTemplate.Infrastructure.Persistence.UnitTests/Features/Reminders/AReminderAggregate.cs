@@ -12,8 +12,8 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Reminders;
 /// <remarks>
 /// A round-trip assertion that compares <c>null</c> against <c>null</c>, or the enum's default member
 /// against itself, passes for a property the mapper never copied — so a sample built from a freshly
-/// scheduled reminder would silently exempt exactly the properties a firing host sets: <c>ClaimedAt</c>,
-/// <c>NotifiedAt</c>, a non-<c>Pending</c> <c>State</c>. This builder goes through
+/// scheduled reminder would silently exempt exactly the properties a firing host sets: <c>NotifiedAt</c>,
+/// the retry state, a non-<c>Pending</c> <c>State</c>. This builder goes through
 /// <see cref="Reminder.Rehydrate"/> instead of the lifecycle methods, so it can put the aggregate
 /// straight into that fired shape without a clock to advance.
 /// </remarks>
@@ -26,7 +26,6 @@ internal static class AReminderAggregate
     internal static readonly Guid LastModifiedBy = new("66666666-7777-8888-9999-aaaaaaaaaaab");
 
     internal static readonly DateTimeOffset DueAt = new(2026, 6, 1, 9, 0, 0, TimeSpan.Zero);
-    internal static readonly DateTimeOffset ClaimedAt = new(2026, 6, 1, 8, 55, 0, TimeSpan.Zero);
     internal static readonly DateTimeOffset NotifiedAt = new(2026, 6, 1, 9, 0, 5, TimeSpan.Zero);
     internal static readonly DateTimeOffset NextAttemptAt = new(2026, 6, 1, 9, 2, 0, TimeSpan.Zero);
     internal static readonly DateTimeOffset CreatedAt = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
@@ -54,7 +53,6 @@ internal static class AReminderAggregate
             TodoItemId = TodoItemId,
             DueAt = DueAt,
             State = State,
-            ClaimedAt = ClaimedAt,
             NotifiedAt = NotifiedAt,
             FailedAttempts = FailedAttempts,
             NextAttemptAt = NextAttemptAt,
@@ -83,7 +81,6 @@ internal static class AReminderAggregate
             TodoItemId = OtherTodoItemId,
             DueAt = OtherDueAt,
             State = OtherState,
-            ClaimedAt = OtherClaimedAt,
             NotifiedAt = OtherNotifiedAt,
             FailedAttempts = OtherFailedAttempts,
             NextAttemptAt = OtherNextAttemptAt,
@@ -110,9 +107,9 @@ internal static class AReminderAggregate
 
     internal const uint OtherVersion = 123_456u;
 
-    // Cancelled rather than Fired, so it differs from FullyPopulated's State. Rehydrate ties both
-    // instants to that state — only a fired reminder carries a notification instant, and a cancelled
-    // one carries no claim — so this sample differs from the other by holding neither.
+    // Cancelled rather than Fired, so it differs from FullyPopulated's State. Rehydrate ties the
+    // notification instant to that state — only a fired reminder carries one — so this sample
+    // differs from the other by holding none.
     internal const ReminderState OtherState = ReminderState.Cancelled;
 
     internal const int OtherFailedAttempts = 5;
@@ -120,6 +117,4 @@ internal static class AReminderAggregate
     internal static readonly DateTimeOffset OtherNextAttemptAt = new(2025, 7, 8, 10, 11, 12, TimeSpan.Zero);
 
     internal static DateTimeOffset? OtherNotifiedAt => null;
-
-    internal static DateTimeOffset? OtherClaimedAt => null;
 }

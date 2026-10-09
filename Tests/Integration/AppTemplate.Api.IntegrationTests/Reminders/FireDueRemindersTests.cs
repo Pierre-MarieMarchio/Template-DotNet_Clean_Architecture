@@ -43,7 +43,6 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         var fired = (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single();
         fired.Status.ShouldBe("fired");
         fired.NotifiedAt.ShouldNotBeNull();
-        fired.ClaimedAt.ShouldNotBeNull();
     }
 
     [Fact]

@@ -756,6 +756,14 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Removed
 
+- **The reminder claim: `Reminder.TryClaim`, `ReleaseClaim`, `ClaimedAt` and the stale-claim timeout.**
+  The claim was taken in memory and settled — released on a failure, kept on success — before any
+  commit, so it never reached the store while a reminder was still pending: the state the timeout
+  exists to recover from could not occur, and a second replica never saw it. The leader lease is the
+  exclusivity, and delivery is at-least-once with or without it. **The `claimedAt` field is gone from
+  the reminder response** — it was null on every pending reminder and, on a fired one, only restated
+  when it fired; read `notifiedAt`. The initial migration no longer has a `ClaimedAt` column on
+  `Reminders`.
 - The `ValueObject` base class and its tests. Nothing derived from it: value objects in this
   template are `record`s, which is the idiom it now demonstrates without a second one alongside.
 - The `Required by EF Core` parameterless constructors on the domain entities. EF maps persistence

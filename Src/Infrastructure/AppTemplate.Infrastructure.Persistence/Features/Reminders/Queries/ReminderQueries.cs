@@ -33,7 +33,6 @@ internal sealed class ReminderQueries(AppDbContext context) : IReminderQueries
                 reminder.TodoItemId,
                 reminder.DueAt,
                 reminder.State,
-                reminder.ClaimedAt,
                 reminder.NotifiedAt))
             .ToListAsync(cancellationToken);
     }

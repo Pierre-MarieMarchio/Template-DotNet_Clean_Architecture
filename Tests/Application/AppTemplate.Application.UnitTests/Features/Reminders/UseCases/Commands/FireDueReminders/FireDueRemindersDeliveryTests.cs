@@ -176,38 +176,6 @@ public sealed class FireDueRemindersDeliveryTests
         _store.Committed(reminder.Id).State.ShouldBe(ReminderState.Fired);
     }
 
-    // ---- The claim the pass takes is not something the store ever holds ----------------------------
-
-    /// <summary>
-    /// The evidence for dropping the claim: across a success, a failure and a lost race, the only
-    /// rows a save ever wrote with a claim on them were fired ones. A pending reminder with a claim
-    /// — the state a stale-claim timeout exists to recover from — never reached the store.
-    /// </summary>
-    [Fact]
-    public async Task APendingClaim_NeverReachesTheStore()
-    {
-        var delivered = Seed(minutesOverdue: 3);
-        var failing = Seed(minutesOverdue: 2);
-        var raced = Seed(minutesOverdue: 1);
-        _notifier.FailFor.Add(failing.TodoItemId);
-        _notifier.OnNotify = notification =>
-        {
-            if (notification.TodoItemId == raced.TodoItemId)
-            {
-                _store.CancelBehindTheBack(raced.Id);
-            }
-        };
-
-        await Record.ExceptionAsync(() => RunPassAsync(_start));
-        await Record.ExceptionAsync(() => RunPassAsync(_start.AddMinutes(5)));
-
-        _store.Writes.ShouldNotBeEmpty();
-        _store.Writes
-            .Where(write => write.State == ReminderState.Pending && write.ClaimedAt is not null)
-            .ShouldBeEmpty();
-        _notifier.CountFor(delivered).ShouldBeGreaterThan(0);
-    }
-
     private Reminder Seed(int minutesOverdue)
     {
         var reminder = AReminder.Rehydrated(_ownerId, dueAt: _start.AddMinutes(-minutesOverdue));

@@ -10,5 +10,4 @@ public sealed record ReminderDto(
     Guid TodoItemId,
     DateTimeOffset DueAt,
     ReminderState State,
-    DateTimeOffset? ClaimedAt,
     DateTimeOffset? NotifiedAt);

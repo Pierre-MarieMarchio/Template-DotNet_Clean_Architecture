@@ -24,7 +24,6 @@ internal static class ReminderResponseMapping
             reminder.TodoItemId,
             reminder.DueAt,
             ToStatus(reminder.State),
-            reminder.ClaimedAt,
             reminder.NotifiedAt);
     }
 

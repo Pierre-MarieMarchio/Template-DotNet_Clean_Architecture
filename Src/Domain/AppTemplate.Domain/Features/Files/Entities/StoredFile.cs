@@ -8,49 +8,29 @@ using AppTemplate.Domain.Features.Files.ValueObjects;
 namespace AppTemplate.Domain.Features.Files.Entities;
 
 /// <summary>
-/// One file a user put into the system: everything about it except its content. A flat aggregate
-/// with no child entities — nothing about a file has to be consistent with anything else in the same
-/// transaction.
+/// One file a user put into the system: everything about it except its content, which this aggregate never holds. The
+/// row and the bytes are written by two parties with no shared transaction, so each state names a moment when they
+/// disagree and each transition is one party reporting that they agree again: <c>Pending → Deposited → Available</c>,
+/// with <c>Deposited → Quarantined</c> as the one branch. Neither terminal state can be left, because the bytes under
+/// a key never change.
 /// <para>
-/// <b>This aggregate never holds a byte.</b> The content lives in an object store and gets there
-/// without passing through this application at all: the client registers the file here, receives a
-/// signed URL, deposits the bytes directly onto the store, and comes back to confirm. See
-/// <c>SECURITY.md</c> for why the API carries no content in either direction.
-/// </para>
-/// <para>
-/// The consequence is the state machine below. Because the row and the bytes are written by two
-/// parties at two moments with no transaction spanning them, each state names a moment when the two
-/// are known to disagree, and the transition is one party reporting that they agree again.
-/// <c>Pending → Deposited → Available</c> is the whole of a successful life, and
-/// <c>Deposited → Quarantined</c> is the one branch off it. There is no path back from either
-/// terminal state: the bytes under a key never change, so a verdict about them never needs revising.
-/// </para>
-/// <para>
-/// <b>Deleting is removing the row.</b> There is no deleted state and no deletion instant: the
-/// file's bytes are reclaimed by a sweep that lists the store and deletes what no live row names, so
-/// nothing has to survive the row in order to say which bytes are owed.
-/// <see cref="StoredFileState.Quarantined"/> is not an exception — a quarantined file is a live row
-/// its owner can see and delete, not a tombstone every query has to filter out.
+/// Deleting removes the row; there is no deleted state. The bytes are reclaimed by a sweep that deletes what no live
+/// row names, and a quarantined file is a live row its owner can see and delete.
 /// </para>
 /// </summary>
 public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
-    /// <summary>How many tags one file carries. The rules that govern them are <see cref="TagSet"/>'s.</summary>
+    /// <summary>How many tags one file carries; the rules are <see cref="TagSet"/>'s.</summary>
     public const int MaxTags = 20;
 
-    /// <summary>The wait after the first inspection that reached no verdict; each further one doubles it.</summary>
     private static readonly TimeSpan _firstInspectionRetryDelay = TimeSpan.FromMinutes(1);
 
-    /// <summary>The longest wait between two inspection attempts, so a deposit is offered again at least hourly.</summary>
+    // A deposit is offered again at least hourly.
     private static readonly TimeSpan _longestInspectionRetryDelay = TimeSpan.FromHours(1);
 
     private readonly TagSet _tags = new(MaxTags, "stored file");
 
-    /// <summary>
-    /// The one place the shared invariants live, so that neither entry point can be given a rule the
-    /// other lacks. <see cref="Register"/> and <see cref="Rehydrate"/> add only the checks that are
-    /// theirs alone: what a caller may ask for, and what a stored row may claim.
-    /// </summary>
+    // The shared invariants live here, so Register and Rehydrate add only the checks that are theirs.
     private StoredFile(
         Guid id,
         UserId ownerId,
@@ -91,111 +71,60 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         RegisteredAt = registeredAt;
     }
 
-    /// <summary>
-    /// How the owner has labelled this file. Free-text, normalised, and bounded — see
-    /// <see cref="TagSet"/>, which a to-do item shares.
-    /// </summary>
     public IReadOnlyCollection<Tag> Tags => _tags.Tags;
 
-    /// <summary>
-    /// Who the file belongs to. Every authorisation decision about this file reads it, and it is
-    /// assigned once: a file does not change hands, so no operation below can move it.
-    /// </summary>
     public UserId OwnerId { get; private set; }
 
-    /// <summary>
-    /// The configured category the file was registered under. Assigned once; what the category
-    /// allows is read from configuration when it matters, never stored here.
-    /// </summary>
+    /// <summary>The configured category; what it allows is read from configuration, never stored.</summary>
     public FileCategory Category { get; private set; }
 
     /// <summary>
-    /// Where the bytes are. Minted once at registration and never recomputed — see
-    /// <see cref="ValueObjects.ObjectKey"/> for the two reasons, which are the load-bearing decision
-    /// of this whole feature.
+    /// Where the bytes are: minted once, never recomputed; see <see cref="ValueObjects.ObjectKey"/>.
     /// </summary>
     public ObjectKey ObjectKey { get; private set; }
 
-    /// <summary>What the client called the file. A label; it addresses nothing.</summary>
     public StoredFileName Name { get; private set; }
 
     /// <summary>
-    /// What the client said the file is. It keeps the word "declared" for the whole life of the
-    /// file, even after the content has been read.
-    /// <para>
-    /// The reason is that the inspection between <see cref="StoredFileState.Deposited"/> and
-    /// <see cref="StoredFileState.Available"/> does not <em>correct</em> this value, it
-    /// <em>refuses</em> the file whose content contradicts it. So an available file's declared type
-    /// is a claim that survived a check rather than a fact measured from the bytes — the difference
-    /// matters to anything downstream that would otherwise treat it as one. <see cref="Size"/> and
-    /// <see cref="Checksum"/> are the two values that really are replaced by what the store
-    /// measured, which is why only they lose the qualifier.
-    /// </para>
+    /// What the client said the file is. Inspection never corrects it, it refuses a file that contradicts it, so an
+    /// available file's type is a claim that survived a check, not a measurement.
     /// </summary>
     public DeclaredMediaType DeclaredMediaType { get; private set; }
 
     /// <summary>
-    /// The client's declaration while the file is <see cref="StoredFileState.Pending"/>, and a fact
-    /// the store has agreed with from <see cref="StoredFileState.Deposited"/> onwards:
-    /// <see cref="ConfirmDeposit"/> refuses to move the file on unless the two match.
+    /// The client's declaration while pending, what the store reported from deposited onwards:
+    /// <see cref="ConfirmDeposit"/> refuses unless they match.
     /// </summary>
     public FileSize Size { get; private set; }
 
-    /// <summary>The same two-lives value as <see cref="Size"/>, over the content rather than its length.</summary>
     public Sha256Checksum Checksum { get; private set; }
 
     public StoredFileState State { get; private set; } = StoredFileState.Pending;
 
     /// <summary>
-    /// When the file was registered and its key reserved.
-    /// <para>
-    /// Deliberately not <see cref="IAuditable.CreatedAt"/>, which looks like the same fact. That
-    /// one is written by the store's auditing interceptor at flush time, so it is <c>default</c>
-    /// for the entire life of the aggregate in memory and an unsaved file could not answer "how
-    /// long have I been pending?". More importantly, abandonment is a domain rule — see <see cref="IsAbandoned"/> —
-    /// and a domain rule reads a value the domain owns rather than an audit stamp whose meaning
-    /// belongs to the persistence layer and could reasonably be redefined there.
-    /// </para>
-    /// <para>
-    /// It is also the value that says which time slice of the object store holds this file's bytes,
-    /// via <see cref="ValueObjects.ObjectKey.TimeSegmentFor"/>. The two agree because
-    /// <see cref="Register"/> mints the key from this very instant, and nothing can move either
-    /// afterwards.
-    /// </para>
+    /// When the file was registered and its key reserved. Not <see cref="IAuditable.CreatedAt"/>, which is stamped at
+    /// flush time and belongs to persistence, while abandonment (<see cref="IsAbandoned"/>) is a domain rule. It is
+    /// also what the key's time slice is minted from (<see cref="ValueObjects.ObjectKey.TimeSegmentFor"/>).
     /// </summary>
     public DateTimeOffset RegisteredAt { get; private set; }
 
     /// <summary>
-    /// When the file became servable — which is when its content was cleared, not when its bytes
-    /// arrived. Null until then, and null for ever for a file that was never deposited against or
-    /// whose content was refused. It is the same fact as
-    /// <see cref="State"/> being <see cref="StoredFileState.Available"/>, and
-    /// <see cref="Rehydrate"/> refuses a row where the two disagree.
+    /// When the file was cleared for serving; null until then and for ever for a refused file.
+    /// <see cref="Rehydrate"/> refuses a row where this and <see cref="State"/> disagree.
     /// </summary>
     public DateTimeOffset? AvailableAt { get; private set; }
 
     /// <summary>How many inspections of this deposit ended without a verdict.</summary>
     public int InspectionAttempts { get; private set; }
 
-    /// <summary>
-    /// The earliest instant the next inspection may run after one that reached no verdict, or
-    /// <c>null</c> when none did. Written only while the file is <see cref="StoredFileState.Deposited"/>
-    /// and read only then; a verdict leaves it as the record of the last deferral.
-    /// </summary>
+    /// <summary>The earliest instant of the next inspection after one that reached no verdict, or null.</summary>
     public DateTimeOffset? NextInspectionAt { get; private set; }
 
     /// <summary>
-    /// Reserves a place for a file whose bytes have not been sent yet. Raises no domain event: at
-    /// this point nothing has happened that anything else could act on — there is a name and a
-    /// promise, and no content behind either.
+    /// Reserves a place for a file whose bytes have not been sent yet. Raises no event: there is nothing to act on.
     /// </summary>
-    /// <param name="category">The category the caller named; the application has already checked it
-    /// against configuration.</param>
-    /// <param name="size">What the client says the file weighs. Checked against the store at
-    /// confirmation, so a lie here costs the client its own upload rather than this system anything.</param>
-    /// <param name="now">Injected rather than read from a clock, so the aggregate has no ambient
-    /// dependency and its behaviour is reproducible in a test. It is both the registration instant
-    /// and the instant the key's time slice is minted from, and they have to be the same value.</param>
+    /// <param name="now">Injected so the aggregate has no ambient clock; it is both the registration instant and the
+    /// one the key's time slice is minted from, and they must be the same value.</param>
     public static StoredFile Register(
         UserId ownerId,
         FileCategory category,
@@ -216,22 +145,11 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
             now);
 
     /// <summary>
-    /// Rebuilds a file that already exists in a store, from the values that were stored. A row whose
-    /// state and instants contradict each other is refused on the way in rather than becoming an
-    /// aggregate that cannot honour its own rules.
+    /// Rebuilds a file from stored values; a row whose state and instants contradict each other is refused.
     /// <para>
-    /// There is no deleted file to rebuild, and that is the point of removing the row rather than
-    /// flagging it: this method cannot produce a file that is logically gone, so no caller has to
-    /// remember to check whether the file it just loaded still counts.
-    /// </para>
-    /// <para>
-    /// One rule is deliberately <em>not</em> checked: that <see cref="AvailableAt"/> is at or after
-    /// <see cref="RegisteredAt"/>. It is tempting — a file cannot be confirmed before it was
-    /// registered — but both values come from a wall clock that an NTP correction can step
-    /// backwards, and a row written across such a step is a legitimate row. Enforcing the order
-    /// would make it permanently unloadable, which is worse than the mis-ordered timestamp it would
-    /// catch: the file would become unreadable and undeletable over a field nothing makes a decision
-    /// from.
+    /// <see cref="AvailableAt"/> is deliberately not checked to be at or after <see cref="RegisteredAt"/>: both come
+    /// from a wall clock an NTP correction can step backwards, and enforcing the order would make a legitimate row
+    /// unloadable, so undeletable, over a field nothing decides from.
     /// </para>
     /// </summary>
     public static StoredFile Rehydrate(StoredFileSnapshot stored)
@@ -239,9 +157,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         ArgumentNullException.ThrowIfNull(stored);
         ArgumentNullException.ThrowIfNull(stored.Tags);
 
-        // Only MakeAvailable writes the instant, so "has an instant" and "is available" are the same
-        // fact and neither may appear without the other. An equivalence over the whole enum rather
-        // than a rule per state, so a member added to the enum is not exempt from it.
+        // An equivalence over the whole enum rather than a rule per state, so a new state is not exempt.
         if ((stored.State == StoredFileState.Available) != (stored.AvailableAt is not null))
         {
             throw new DomainException(
@@ -277,28 +193,17 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
             NextInspectionAt = stored.NextInspectionAt,
         };
 
-        // Through the set, so a row holding more tags than the cap allows, or the same tag twice, is
-        // refused rather than loaded.
+        // Through the set, so too many tags or a duplicate refuse the row.
         file.SetTags(stored.Tags);
 
         return file;
     }
 
     /// <summary>
-    /// Records that the bytes are on the store and are the ones that were promised. <b>It does not
-    /// make the file servable</b>, and the gap between this and <see cref="MakeAvailable"/> is where
-    /// the content is examined.
-    /// <para>
-    /// The observed values are what the object store reports for the deposited object, not what the
-    /// client says a second time — asking the client to confirm its own claim would confirm nothing.
-    /// A mismatch leaves the file <see cref="StoredFileState.Pending"/>, which is the safe direction:
-    /// nothing is served, and the abandonment sweep removes the registration on its own schedule
-    /// without anyone having to handle the failure.
-    /// </para>
-    /// <para>
-    /// It raises no event: a consumer would run the inspection in-process after commit, putting a
-    /// scan of the whole file back inside the request that confirmed it.
-    /// </para>
+    /// Records that the bytes are on the store and are the ones promised; it does not make the file servable. The
+    /// observed values come from the store, not a second claim from the client, and a mismatch leaves the file
+    /// pending for the abandonment sweep. No event is raised, or a consumer would run the inspection inside the
+    /// confirming request.
     /// </summary>
     /// <exception cref="DomainException">The file is not pending, or the deposit is not what was
     /// declared.</exception>
@@ -326,18 +231,12 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     }
 
     /// <summary>
-    /// Releases the file for serving, once its content has been examined and found acceptable. The
-    /// only transition that makes a file servable, and the only writer of
-    /// <see cref="AvailableAt"/>.
-    /// <para>
-    /// It refuses anything that is not <see cref="StoredFileState.Deposited"/>, which is the check
-    /// that makes quarantine worth having: the state machine, and not the caller's diligence, is
-    /// what stops a refused file from being released by a second pass, a retried message or a future
-    /// caller reaching the aggregate by a route nobody has written yet.
-    /// </para>
+    /// Releases the file for serving once its content was examined and accepted. Only a deposited file qualifies, so
+    /// the state machine, not the caller's diligence, stops a refused file being released by a second pass or a
+    /// retried message.
     /// </summary>
-    /// <exception cref="DomainException">The file has no confirmed deposit, or has already been
-    /// released or refused.</exception>
+    /// <exception cref="DomainException">The file has no confirmed deposit, or was already released or
+    /// refused.</exception>
     public void MakeAvailable(DateTimeOffset now)
     {
         if (State != StoredFileState.Deposited)
@@ -352,24 +251,16 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     }
 
     /// <summary>
-    /// Refuses the file on the evidence of its own content. Terminal, and reachable only from
-    /// <see cref="StoredFileState.Deposited"/> — a file whose bytes were never confirmed has nothing
-    /// to have a verdict about, and one already served cannot be un-served by changing a column.
+    /// Refuses the file on the evidence of its content. Terminal, from deposited only. No reason is recorded; see
+    /// <see cref="StoredFileState.Quarantined"/>.
     /// <para>
-    /// <b>The bytes are left alone.</b> Quarantining removes nothing from the object store, for two
-    /// reasons that point the same way. The row still names the key, so the orphan sweep would not
-    /// reclaim these bytes anyway and a deletion here would be the <em>only</em> thing that ever
-    /// did — precisely the shape this repository refuses, where a message that fails to arrive
-    /// becomes a leak instead of a delay. And a refused file is the one file somebody may need to
-    /// look at. Getting rid of it is deleting the row, which is what the owner can already do and
-    /// what reclaims the bytes on the path that is guaranteed.
-    /// </para>
-    /// <para>
-    /// No reason is recorded — see <see cref="StoredFileState.Quarantined"/>.
+    /// The bytes stay on the store: the row still names the key, so no sweep would reclaim them and a deletion here
+    /// would be the only thing that ever did, turning a lost message into a leak; and a refused file is the one
+    /// somebody may need to look at. Deleting the row reclaims them on the guaranteed path.
     /// </para>
     /// </summary>
-    /// <exception cref="DomainException">The file has no confirmed deposit, or has already been
-    /// released or refused.</exception>
+    /// <exception cref="DomainException">The file has no confirmed deposit, or was already released or
+    /// refused.</exception>
     public void Quarantine(DateTimeOffset now)
     {
         if (State != StoredFileState.Deposited)
@@ -383,9 +274,9 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     }
 
     /// <summary>
-    /// Records an inspection that reached no verdict — content missing, store or scanner unreachable —
-    /// and pushes the next one out: one minute, doubled per attempt, capped at one hour. It never
-    /// refuses the file: an outage must not become a quarantine.
+    /// Records an inspection that reached no verdict (content missing, store or scanner unreachable) and pushes the
+    /// next one out: one minute, doubled per attempt, capped at one hour. It never refuses the file: an outage must
+    /// not become a quarantine.
     /// </summary>
     /// <exception cref="DomainException">The file is not deposited.</exception>
     public void DeferInspection(DateTimeOffset now)
@@ -399,7 +290,9 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         NextInspectionAt = now + InspectionRetryDelayAfter(InspectionAttempts);
     }
 
-    /// <summary>The wait before the next inspection, once <paramref name="attempts"/> have reached no verdict.</summary>
+    /// <summary>
+    /// The wait before the next inspection once <paramref name="attempts"/> have reached no verdict.
+    /// </summary>
     public static TimeSpan InspectionRetryDelayAfter(int attempts)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(attempts, 1);
@@ -415,26 +308,13 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     }
 
     /// <summary>
-    /// Announces that this file is being deleted, so its bytes can be reclaimed promptly.
-    /// <para>
-    /// <b>It changes nothing about the file.</b> There is no state to move to and no instant to
-    /// record: deleting a file is <c>IStoredFileRepository.Remove</c> plus a commit, and this method
-    /// only raises the event that lets the bytes be reclaimed now instead of at the next sweep. It
-    /// is called alongside <c>Remove</c>, never instead of it — on its own it deletes nothing, and
-    /// the file stays exactly as it was.
-    /// </para>
-    /// <para>
-    /// Refusing a second call in one unit of work is about the event, not about the file: two
-    /// announcements would ask for the same bytes to be reclaimed twice. The check reads
-    /// <see cref="AggregateRoot{TId}.DomainEvents"/> because that is the only thing here that is
-    /// scoped to the unit of work — the aggregate holds no memory of a previous one, which is
-    /// correct, since after a commit the row is gone and there is no aggregate to call this on
-    /// again.
-    /// </para>
+    /// Raises the event that lets the bytes be reclaimed now rather than at the next sweep. It changes nothing about
+    /// the file and is called alongside <c>IStoredFileRepository.Remove</c>, never instead of it.
     /// </summary>
-    /// <exception cref="DomainException">Deletion has already been announced in this unit of work.</exception>
+    /// <exception cref="DomainException">Deletion was already announced in this unit of work.</exception>
     public void Delete(DateTimeOffset now)
     {
+        // The unit of work's events are the only per-unit-of-work memory the aggregate has.
         if (DomainEvents.OfType<StoredFileDeletedDomainEvent>().Any())
         {
             throw new DomainException("This stored file has already been deleted in this unit of work.");
@@ -444,31 +324,19 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     }
 
     /// <summary>
-    /// Whether this registration has been waiting for a deposit long enough to be given up on. The
-    /// sweep that reads it removes the row; the bytes, if the client did deposit some and never
-    /// confirmed, are then reclaimed by the orphan sweep like any others.
+    /// Whether this registration has waited for a deposit long enough to be given up on; the rule lives here so any
+    /// caller gets the same answer as the sweep's query.
     /// <para>
-    /// The rule lives here and not in the sweep's query for the same reason
-    /// <c>Reminder.TryClaim</c> re-checks a due date the query already filtered on: the query is a
-    /// coarse filter chosen for an index, and a second host, a maintenance endpoint or a future
-    /// caller reaching the aggregate by another route gets the same answer only if the aggregate is
-    /// the one giving it.
-    /// </para>
-    /// <para>
-    /// <b>It reads <see cref="StoredFileState.Pending"/> alone, and widening it would delete
-    /// people's uploads.</b> A file waiting for a verdict on content that has already arrived is not
-    /// a registration nobody used; it is a deposit this system has not finished with. A scanner down
-    /// for longer than the abandonment delay would otherwise turn its own outage into data loss.
+    /// It reads pending alone, and widening it would delete uploads: a file awaiting a verdict is a deposit that
+    /// arrived, and a scanner outage must never become data loss.
     /// </para>
     /// </summary>
     public bool IsAbandoned(DateTimeOffset now, TimeSpan abandonedAfter) =>
         State == StoredFileState.Pending && now - RegisteredAt >= abandonedAfter;
 
     /// <summary>
-    /// Replaces this file's tags with the set the caller wants it to end up with. Total
-    /// replacement, not a merge — see <see cref="TagSet.Replace"/> for what that means for the cap.
+    /// Replaces the file's tags with the given set (total replacement; see <see cref="TagSet.Replace"/>).
     /// </summary>
-    /// <param name="tags">The labels the file should carry afterwards.</param>
     public void SetTags(IEnumerable<string> tags)
     {
         ArgumentNullException.ThrowIfNull(tags);

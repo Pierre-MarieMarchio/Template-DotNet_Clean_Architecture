@@ -3,14 +3,9 @@
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
 /// <summary>
-/// What the malware scanner would say, arranged per object key — the observable surface of the
-/// in-memory scanner. Nothing arranged means clean, which is also what a deployment without a
-/// scanner gets.
-/// <para>
-/// Only the scanner's half is arranged: what a file <em>is</em> still comes from the bytes a test
-/// deposited, through the real signature table. Singleton and locked: an integration test may scan
-/// from several requests at once.
-/// </para>
+/// What the malware scanner would say, arranged per object key; nothing arranged means clean. Only the
+/// verdict is arranged: what a file is still comes from its deposited bytes and the real signature
+/// table. Singleton and locked.
 /// </summary>
 public sealed class ArrangedScans
 {

@@ -95,9 +95,6 @@ internal sealed class InMemoryStoredFileStore : IStoredFileRepository, IUnitOfWo
     public Task<StoredFile?> GetAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<StoredFile?>(_committed.TryGetValue(id, out var row) ? Track(row) : null);
 
-    public Task<StoredFile?> GetByObjectKeyAsync(ObjectKey objectKey, CancellationToken cancellationToken) =>
-        throw new NotSupportedException("No background-pass test looks a file up by key.");
-
     public Task<IReadOnlyList<StoredFile>> GetPendingRegisteredBeforeAsync(
         DateTimeOffset registeredBefore,
         int batchSize,

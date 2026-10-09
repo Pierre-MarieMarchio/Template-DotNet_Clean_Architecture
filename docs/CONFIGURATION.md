@@ -1196,9 +1196,6 @@ stays at-least-once.
 | Tag cap | 20 tags per item | `TodoItem.MaxTags` |
 | Readiness checks | a DbContext check and a shutdown-state check, both tagged `ready` | `Program.cs`, `Common/Hosting/ShutdownHealthCheck.cs` |
 | Largest single file | 5 GiB | `FileSize.MaxBytes` |
-| Uploads one owner may have outstanding | 20 | `StoredFileQuotaPolicy.MaxPendingRegistrations` |
-| Files one owner may keep | 1 000 | `StoredFileQuotaPolicy.MaxFiles` |
-| Bytes one owner may keep | 10 GiB | `StoredFileQuotaPolicy.MaxBytes` |
 | Max page size | 100 | `TodoListCollectionPolicy.MaxPageSize` |
 | Default page size | 20 | `TodoListCollectionPolicy.DefaultPageSize` |
 | Max sort terms | 3 | `TodoListCollectionPolicy.MaxSortTerms` |

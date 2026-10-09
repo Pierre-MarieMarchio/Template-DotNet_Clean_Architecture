@@ -5,9 +5,8 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Application.Features.Files.Options;
 
 /// <summary>
-/// The Files feature's application policy: the categories a file may be registered under and the
-/// ceiling of an upload carried by the API. Bound from <c>Files</c> and validated at start-up.
-/// <para>Public because its section is part of the template's contract with whoever deploys it.</para>
+/// The Files feature's application policy: the declared categories and the ceiling of an upload carried by the API.
+/// Bound from <c>Files</c> and validated at start-up.
 /// </summary>
 public sealed class FilesOptions
 {
@@ -18,8 +17,7 @@ public sealed class FilesOptions
     public const long DefaultApiUploadMaxBytes = 10L * 1024 * 1024;
 
     /// <summary>
-    /// The largest body an upload through the API may carry. Kept under the host's own 30 MiB
-    /// request ceiling.
+    /// The largest body an upload through the API may carry, kept under the host's 30 MiB request ceiling.
     /// </summary>
     public long ApiUploadMaxBytes { get; set; } = DefaultApiUploadMaxBytes;
 
@@ -27,8 +25,7 @@ public sealed class FilesOptions
     public Dictionary<string, FileCategoryOptions> Categories { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// The settings of <paramref name="category"/>, or <c>null</c> when configuration no longer
-    /// declares it.
+    /// The settings of <paramref name="category"/>, or null when configuration no longer declares it.
     /// </summary>
     public FileCategoryOptions? Find(FileCategory category)
     {
@@ -39,8 +36,8 @@ public sealed class FilesOptions
 }
 
 /// <summary>
-/// What a category declaration may be. Rules that need another section — scanning, the storage
-/// provider — are checked by the module that owns that section.
+/// Validates a category declaration. Rules that need another section (scanning, the storage provider) belong to the
+/// module owning it.
 /// </summary>
 internal sealed class FilesOptionsValidator : IValidateOptions<FilesOptions>
 {

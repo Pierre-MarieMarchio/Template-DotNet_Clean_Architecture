@@ -4,14 +4,8 @@ using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
 /// <summary>
-/// An <see cref="IFileContentInventory"/> over <see cref="StoredObjects"/>.
-/// <para>
-/// <b>It pages the way an object store pages, and that is the point of it existing at all.</b> The
-/// orphan sweep walks this port page by page and deletes what no row names, so a double that
-/// answered every listing in one page would leave the sweep's paging — the part that can loop for
-/// ever or skip a page — exercised by nothing. Keys are in ordinal order and a page resumes after
-/// the last key served, as a real listing does.
-/// </para>
+/// An <see cref="IFileContentInventory"/> over <see cref="StoredObjects"/> that pages as an object store
+/// does (ordinal order, resuming after the last key served), so the orphan sweep's paging is exercised.
 /// </summary>
 internal sealed class InMemoryFileContentInventory(StoredObjects objects) : IFileContentInventory
 {
@@ -31,8 +25,7 @@ internal sealed class InMemoryFileContentInventory(StoredObjects objects) : IFil
 
         List<string> page = [.. remaining.Take(pageSize)];
 
-        // A token only when there is something after this page. Handing one back on the last page is
-        // how a sweep loops for ever over an empty tail.
+        // A token only when something follows this page; one on the last page loops a sweep for ever.
         string? nextCursor = remaining.Count > page.Count ? page[^1] : null;
 
         return Task.FromResult(PagedResult.Keyset(page, pageSize, nextCursor));

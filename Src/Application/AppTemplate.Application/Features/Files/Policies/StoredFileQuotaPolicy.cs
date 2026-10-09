@@ -6,23 +6,15 @@ using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 namespace AppTemplate.Application.Features.Files.Policies;
 
 /// <summary>
-/// What one owner may hold in one category, and how many deposits they may have in flight there.
-/// Without it, registering is a free way to mint signed upload URLs.
-/// <para>
-/// Three bounds for three costs: pending registrations bound outstanding write rights, the file
-/// count bounds the read side, and the byte count bounds storage.
-/// </para>
+/// What one owner may hold in one category and how many deposits they may have in flight; without it, registering is
+/// a free way to mint signed upload URLs.
 /// </summary>
 public static class StoredFileQuotaPolicy
 {
     /// <summary>
-    /// Whether one more file of <paramref name="declaredSizeInBytes"/> fits in
-    /// <paramref name="quota"/>, given the owner's <paramref name="usage"/> of the same category.
-    /// <para>
-    /// Measured against <see cref="OwnerStorageUsage.CommittedBytes"/>, so promised bytes count as
-    /// stored. A check, not a reservation: it holds under concurrency only when run under the
-    /// owner's quota lock, as <see cref="FileCategoryQuotaOptions.StrictMode"/> does.
-    /// </para>
+    /// Whether one more file of <paramref name="declaredSizeInBytes"/> fits in <paramref name="quota"/>, given the
+    /// owner's <paramref name="usage"/>. Promised bytes count as stored. A check, not a reservation: it holds under
+    /// concurrency only under the owner's quota lock (<see cref="FileCategoryQuotaOptions.StrictMode"/>).
     /// </summary>
     public static Result EnsureRoomFor(
         OwnerStorageUsage usage,

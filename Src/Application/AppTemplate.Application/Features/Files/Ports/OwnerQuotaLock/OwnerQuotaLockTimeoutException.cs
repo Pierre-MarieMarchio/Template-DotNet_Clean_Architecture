@@ -1,8 +1,7 @@
 ﻿namespace AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 
 /// <summary>
-/// Thrown by <see cref="IOwnerQuotaLock"/> when another registration of the same owner in the same
-/// category held the lock for longer than the wait limit. Nothing was read or written.
+/// Thrown by <see cref="IOwnerQuotaLock"/> when the lock was held past the wait limit. Nothing was read or written.
 /// </summary>
 public sealed class OwnerQuotaLockTimeoutException : Exception
 {

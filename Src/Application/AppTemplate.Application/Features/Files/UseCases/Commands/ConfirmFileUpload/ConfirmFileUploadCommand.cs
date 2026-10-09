@@ -3,8 +3,7 @@
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUpload;
 
 /// <summary>
-/// Carries nothing about the deposit. What was uploaded is read from the store, not from the caller:
-/// a client repeating its own declaration would confirm only that it can repeat itself.
+/// Carries nothing about the deposit: what was uploaded is read from the store, not from the caller.
 /// </summary>
 /// <param name="Precondition">
 /// The versions the caller will accept, or <c>null</c> for an unconditional confirmation.

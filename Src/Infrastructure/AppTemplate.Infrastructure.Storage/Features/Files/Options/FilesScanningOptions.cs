@@ -4,12 +4,9 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Options;
 
 /// <summary>
-/// Whether deposited files are scanned for malware by a <c>clamd</c> daemon, and how it is reached.
-/// Bound from <c>Files:Scanning</c> and validated at start-up.
-/// <para>
-/// Disabled by default, and that is the shipped state: the type check on a file's leading bytes
-/// still runs, and the missing antivirus verdict is recorded in <c>SECURITY.md</c>.
-/// </para>
+/// Whether deposited files are scanned by a <c>clamd</c> daemon and how it is reached; bound from
+/// <c>Files:Scanning</c>. Disabled in the shipped state: the signature check still runs, and the
+/// missing antivirus verdict is recorded in <c>SECURITY.md</c>.
 /// </summary>
 public sealed class FilesScanningOptions
 {
@@ -21,26 +18,19 @@ public sealed class FilesScanningOptions
     /// <summary>Whether files are sent to the scanner. <c>false</c> registers a scanner that finds nothing.</summary>
     public bool Enabled { get; set; }
 
-    /// <summary>
-    /// The host running <c>clamd</c>. A host and a port rather than a URL: <c>clamd</c> speaks its own
-    /// line protocol over raw TCP, not HTTP.
-    /// </summary>
+    /// <summary>The host running <c>clamd</c>; a host and port, not a URL: it speaks raw TCP.</summary>
     public string Host { get; set; } = string.Empty;
 
     public int Port { get; set; } = DefaultPort;
 
     /// <summary>
-    /// The largest content offered to the scanner; at or below the daemon's own
-    /// <c>StreamMaxLength</c> (25 MiB by default, like this). Larger content is reported as not
-    /// inspectable and refused, so raising <c>FileSize.MaxBytes</c> means raising both.
+    /// The largest content offered to the scanner, at or below the daemon's <c>StreamMaxLength</c>.
+    /// Larger content is refused as not inspectable, so raising <c>FileSize.MaxBytes</c> means raising both.
     /// </summary>
     public long MaxScannableBytes { get; set; } = 25L * 1024 * 1024;
 }
 
-/// <summary>
-/// What a scanning configuration may be. Each rule refuses a value whose only other symptom would be
-/// found by a user: no host is every file waiting for ever, a ceiling of zero is every file refused.
-/// </summary>
+/// <summary>Refuses values whose only symptom would be a user's: no host, or a ceiling refusing every file.</summary>
 internal sealed class FilesScanningOptionsValidator : IValidateOptions<FilesScanningOptions>
 {
     /// <summary>Below a megabyte, ordinary files would be refused as not inspectable.</summary>

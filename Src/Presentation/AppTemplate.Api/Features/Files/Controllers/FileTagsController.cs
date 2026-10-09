@@ -11,18 +11,6 @@ namespace AppTemplate.Api.Features.Files.Controllers;
 /// <summary>
 /// The labels a stored file carries, and the labels a caller has already used.
 /// </summary>
-/// <remarks>
-/// Beside <see cref="FilesController"/> rather than inside it, and the route prefix is the same, so
-/// both paths below are what they always were. Tagging is the one part of this surface that is not
-/// about a file's content or its deposit: it names no object key, moves no bytes and has no
-/// two-request flow, and the file controller's own documentation is an argument about exactly those
-/// three things.
-/// <para>
-/// The set's rules -- normalisation, de-duplication, the cap -- are the domain's, and a to-do item
-/// obeys the same ones through the same code, which is why a refusal here reads the same as a
-/// refusal there.
-/// </para>
-/// </remarks>
 [Route("api/v{version:apiVersion}/files")]
 [Asp.Versioning.ApiVersion("1.0")]
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
@@ -32,19 +20,9 @@ public sealed class FileTagsController(
 {
     /// <summary>Replaces the labels a file carries.</summary>
     /// <remarks>
-    /// <b>PUT and not PATCH</b>, and the request carries the whole set: what a partial update of a
-    /// set would mean is not a question this API answers, so an omitted tag is a tag removed and
-    /// the body says so. Sending an empty list is how a caller clears them.
-    /// <para>
-    /// Conditional for the ordinary reason: two clients relabelling the same file unconditionally
-    /// would each overwrite the other's set, and the loser would never learn. <c>If-Match</c> on
-    /// the version the caller read turns that into a 412.
-    /// </para>
-    /// <para>
-    /// The rules the set obeys — normalisation, de-duplication, the cap — are the domain's, and a
-    /// to-do item obeys the same ones through the same code. A refusal here therefore reads the
-    /// same as a refusal there.
-    /// </para>
+    /// <c>PUT</c> of the whole set: an omitted tag is a tag removed, and an empty list clears them.
+    /// <c>If-Match</c> on the version read turns two clients relabelling the same file into a 412 for
+    /// the loser. Normalisation, de-duplication and the cap are the domain's, shared with to-do items.
     /// </remarks>
     [HttpPut("{fileId:guid}/tags")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(StoredFileResponse))]
@@ -73,8 +51,7 @@ public sealed class FileTagsController(
 
     /// <summary>The tags the caller has already used on their files.</summary>
     /// <remarks>
-    /// For a picker or a filter. Served from a cache with a short lifetime, so a tag added
-    /// moments ago may be missing: this is a suggestion, and no write depends on it.
+    /// For a picker or a filter. Cached briefly, so a tag added moments ago may be missing.
     /// </remarks>
     [HttpGet("tags")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(UsedTagsResponse))]

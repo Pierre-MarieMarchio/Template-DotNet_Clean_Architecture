@@ -8,58 +8,34 @@ namespace AppTemplate.Domain.Features.Files.ValueObjects;
 /// <summary>
 /// The name the bytes of a <see cref="Entities.StoredFile"/> are filed under in the object store.
 /// <para>
-/// <b>It is data, not a formula.</b> A key is minted once by <see cref="New"/> and persisted beside
-/// the file it belongs to; nothing anywhere recomputes it from the file's id. Two independent
-/// reasons, and either one on its own would be enough:
-/// </para>
-/// <para>
-/// First, a derived key makes the derivation part of the stored data's format. Changing the scheme
-/// — adding a segment, changing a separator, partitioning differently — would then mean rewriting
-/// the name of every object already written, which for an object store means copying the bytes.
-/// A stored key makes every one of those changes apply to new files only, and old files keep
-/// working because their name was never a function of anything.
-/// </para>
-/// <para>
-/// Second, the id is a UUIDv7: it embeds a timestamp and is therefore guessable in sequence. If the
-/// key were derived from it, anyone holding one key could enumerate its neighbours, and a bucket
-/// policy that is one clause too generous stops being a mistake and becomes a directory listing.
-/// The name segment is <see cref="NameLength"/> hexadecimal characters from a cryptographic
-/// generator instead, so knowing one key says nothing about any other.
+/// It is data, not a formula: minted once by <see cref="New"/>, persisted beside the file and never recomputed from
+/// its id (see <c>docs/DECISIONS.md</c>).
 /// </para>
 /// </summary>
 public sealed record ObjectKey
 {
     /// <summary>
-    /// The first segment of every key, and the reason a key has segments at all. It is opaque and
-    /// reserved: there is no tenancy in this repository today (no type names a tenant, and none is
-    /// being added), but the day one arrives its identifier goes in this slot, and the key namespace
-    /// is already partitioned — so a bucket policy or a prefix-scoped credential can be written per
-    /// tenant without a single existing object moving. Objects written before that day keep this
-    /// value for ever and stay addressable, which is only true because the key was stored.
+    /// The first segment of every key: an opaque, reserved partition. There is no tenancy today; the day one arrives
+    /// its identifier goes in this slot, so a prefix-scoped policy can be written per tenant without moving an
+    /// existing object.
     /// </summary>
     public const string UnpartitionedPrefix = "t0";
 
     /// <summary>
-    /// 32 hexadecimal characters, so 128 bits of entropy. Sized against guessing rather than against
-    /// collision: collision resistance would be satisfied by far fewer bits, but a key that leaks
-    /// through a mis-scoped bucket policy must still be useless as a starting point for enumeration.
+    /// 128 bits of entropy, sized against enumeration through a mis-scoped bucket policy rather than against
+    /// collision.
     /// </summary>
     public const int NameLength = 32;
 
     /// <summary>
-    /// The object store caps a key at 1024 bytes. Half of that is the domain's ceiling: it leaves
-    /// room for the tenant segment that does not exist yet without ever approaching the store's own
-    /// limit, where the failure would arrive as a rejected write rather than as a refused value.
+    /// Half the store's 1024-byte cap, leaving room for a future tenant segment so the failure is a refused value,
+    /// not a rejected write.
     /// </summary>
     public const int MaxLength = 512;
 
-    /// <summary>
-    /// Deliberately narrow, and narrower than the store would accept. A key is pasted into the path
-    /// of a signed URL, so every character that means something to a URL parser, a shell, or a
-    /// filesystem is one more place for two components to disagree about what the key was. Lower
-    /// case only, because half the tooling that will ever touch these names is case-insensitive and
-    /// two keys differing only in case would be one object to it.
-    /// </summary>
+    // Narrower than the store accepts: a key is pasted into a signed URL path, so every character a URL parser, shell
+    // or filesystem treats specially is a place for components to disagree. Lower case only, because case-insensitive
+    // tooling would see two keys as one.
     private static readonly SearchValues<char> _allowedCharacters =
         SearchValues.Create("abcdefghijklmnopqrstuvwxyz0123456789-_./");
 
@@ -67,48 +43,26 @@ public sealed record ObjectKey
 
     public string Value { get; }
 
-    /// <summary>Mints a key for a file that is about to be registered.</summary>
-    /// <param name="registeredAt">The instant the file is being registered, which becomes the key's
-    /// time segment. It must be the same value the aggregate stores as its registration instant, or
-    /// the sweep described on <see cref="TimeSegmentFor"/> would look for a file's bytes under a
-    /// prefix they are not in.</param>
+    /// <summary>Mints a key for a file about to be registered.</summary>
+    /// <param name="registeredAt">Must be the instant the aggregate stores as its registration instant, or the sweep
+    /// would look under the wrong <see cref="TimeSegmentFor"/> prefix.</param>
     public static ObjectKey New(DateTimeOffset registeredAt) =>
-        // Through Create, so minting and loading cannot disagree about what a valid key is: a rule
-        // this no longer satisfies fails on the first file registered, not the first one reloaded.
+        // Through Create, so minting and loading cannot disagree about what is valid.
         Create(
             $"{UnpartitionedPrefix}/{TimeSegmentFor(registeredAt)}/" +
             RandomNumberGenerator.GetHexString(NameLength, lowercase: true));
 
     /// <summary>
-    /// The time slice a key minted at <paramref name="instant"/> belongs to.
+    /// The UTC month slice a key minted at <paramref name="instant"/> belongs to.
     /// <para>
-    /// This is what keeps the orphan sweep bounded. Reclaiming the bytes of deleted files is done by
-    /// difference — list the store, subtract the keys the live rows name, delete what is left — and
-    /// with a flat namespace the rows to check for any one page of keys could be anywhere in the
-    /// table. The segment bounds that: an object under a given slice can only have been minted by a
-    /// row registered in that slice, because <c>Register</c> mints from the very instant it stores.
-    /// </para>
-    /// <para>
-    /// <b>What it does not license is visiting only recent slices.</b> A file registered two years
-    /// ago and deleted today has its bytes under a two-year-old prefix, and a sweep that only looked
-    /// at the current one would never reclaim them — the sweep would stop being the guarantee and
-    /// become a heuristic. Every slice has to be covered; the segment makes each pass cheap and
-    /// ordered, not the coverage narrower.
-    /// </para>
-    /// <para>
-    /// <b>UTC, deliberately.</b> The sweep computes this from a row's stored registration instant and
-    /// the mint computes it from the same instant, so the two must agree for every caller. A local
-    /// interpretation would put a file registered near midnight in one slice on one host and another
-    /// slice on another, and the sweep would find its bytes unreferenced and delete a live file. Both
-    /// sides call this method rather than formatting a date themselves, so there is one answer.
+    /// One method for mint and sweep, in UTC, so the two cannot disagree near a month boundary; every slice must be
+    /// swept (see <c>docs/DECISIONS.md</c>).
     /// </para>
     /// </summary>
     public static string TimeSegmentFor(DateTimeOffset instant) =>
         instant.UtcDateTime.ToString("yyyyMM", CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// Parses a key that already exists — from a stored row, or from a caller naming an object.
-    /// </summary>
+    /// <summary>Parses an existing key, from a stored row or a caller naming an object.</summary>
     /// <exception cref="DomainException">The value is not a well-formed key.</exception>
     public static ObjectKey Create(string value)
     {
@@ -117,8 +71,7 @@ public sealed record ObjectKey
             throw new DomainException("An object key cannot be empty.");
         }
 
-        // Not trimmed, unlike every other text value object here: " a/b" and "a/b" name two
-        // different objects, so trimming would hand back a key addressing other bytes.
+        // Not trimmed, unlike the other text value objects: " a/b" and "a/b" are different objects.
         if (value.Length > MaxLength)
         {
             throw new DomainException($"An object key cannot exceed {MaxLength} characters.");
@@ -131,9 +84,8 @@ public sealed record ObjectKey
 
         string[] segments = value.Split('/');
 
-        // Two, although New mints three: parsing is looser than minting on purpose. A key is stored
-        // rather than derived precisely because the scheme may change, and a parser insisting on
-        // the current shape could not load keys minted under an older one.
+        // Two, although New mints three: a parser insisting on the current shape could not load keys
+        // minted under another scheme.
         if (segments.Length < 2)
         {
             throw new DomainException("An object key must have a prefix segment and a name segment.");
@@ -141,10 +93,8 @@ public sealed record ObjectKey
 
         foreach (string segment in segments)
         {
-            // An empty segment is a leading, trailing or doubled slash, which some store clients
-            // normalise away and others do not. '.' and '..' are path traversal: the store resolves
-            // keys literally but the proxies and signers in front of it do not all agree, and a key
-            // escaping its prefix escapes the partition that prefix enforces.
+            // Empty segments (stray slashes) are normalised by some store clients and not others;
+            // '.' and '..' are traversal that proxies and signers do not all resolve alike.
             if (segment.Length == 0 || segment is "." or "..")
             {
                 throw new DomainException("An object key cannot contain an empty, '.' or '..' segment.");

@@ -11,22 +11,15 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Transfers;
 
 /// <summary>
-/// <see cref="IFileDirectTransfer"/> over an S3-compatible bucket: Signature Version 4 presigned
-/// URLs, so the bytes travel between the client and the store.
-/// <para>
-/// <paramref name="signer"/> is built on <see cref="FilesStorageS3Options.SigningEndpoint"/>: a presigned
-/// URL covers the host it was signed for, and nothing downstream can correct it. Presigning is a
-/// local hash and opens no connection.
-/// </para>
+/// <see cref="IFileDirectTransfer"/> over Signature Version 4 presigned URLs. <c>signer</c> is built
+/// on <see cref="FilesStorageS3Options.SigningEndpoint"/> because a URL covers the host it was signed
+/// for; presigning opens no connection.
 /// </summary>
 internal sealed class S3FileDirectTransfer(
     [FromKeyedServices(BucketClientFactory.SigningClientKey)] IAmazonS3 signer,
     IOptions<FilesStorageS3Options> options) : IFileDirectTransfer
 {
-    /// <summary>
-    /// Carries the digest itself, base64-encoded and signed: the store refuses other bytes and records
-    /// it, which is what lets <c>DescribeAsync</c> answer with a digest at all.
-    /// </summary>
+    /// <summary>The digest is signed into the upload: the store refuses other bytes and records it.</summary>
     private const string _checksumHeader = "x-amz-checksum-sha256";
 
     private const string _uploadMethod = "PUT";
@@ -85,8 +78,8 @@ internal sealed class S3FileDirectTransfer(
     }
 
     /// <summary>
-    /// The lifetime actually signed, clamped to <see cref="FilesStorageS3Options.MaxGrantLifetime"/>. The
-    /// store's deadline may fall up to one second earlier: SigV4 floors its date to the second.
+    /// The lifetime actually signed, clamped to <see cref="FilesStorageS3Options.MaxGrantLifetime"/>;
+    /// the store's deadline may fall up to a second earlier, as SigV4 floors to the second.
     /// </summary>
     private DateTimeOffset ExpiryFor(TimeSpan lifetime)
     {
@@ -113,10 +106,7 @@ internal sealed class S3FileDirectTransfer(
     private bool InsecureEndpoint() =>
         options.Value.SigningEndpoint.StartsWith(Uri.UriSchemeHttp + "://", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Read off the signed request rather than listed twice, so the grant cannot name headers the
-    /// signature does not cover.
-    /// </summary>
+    /// <summary>Read off the signed request so the grant cannot name headers the signature does not cover.</summary>
     private static Dictionary<string, string> RequiredHeadersOf(GetPreSignedUrlRequest request) =>
         request.Headers.Keys.ToDictionary(
             header => header,

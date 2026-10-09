@@ -13,12 +13,8 @@ using Microsoft.EntityFrameworkCore;
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 
 /// <summary>
-/// The read side. Every method projects straight from the persistence model into a DTO or a scalar, so
-/// the SQL selects only what the answer needs and nothing is ever materialised or tracked.
-/// <para>
-/// Internal and sealed, like the repository: it is the adapter for <see cref="IStoredFileQueries"/> and
-/// nothing outside this assembly names it. It reads through the context and never writes.
-/// </para>
+/// The read side: every method projects straight into a DTO or a scalar, never materialising or
+/// tracking an entity, and never writes.
 /// </summary>
 internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueries
 {
@@ -40,19 +36,14 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
             : await GetKeysetPageAsync(filtered, request, cancellationToken);
     }
 
-    /// <remarks>
-    /// <c>xmin</c> is selected by the same statement as the representation, so the version describes
-    /// exactly the row that was read. Fetching it in a second query would leave a window in which the
-    /// two disagree.
-    /// </remarks>
+    /// <remarks>The version is selected by the same statement, so it describes exactly the row read.</remarks>
     public Task<Versioned<StoredFileDto>?> GetDetailAsync(
         Guid id,
         UserId ownerId,
         CancellationToken cancellationToken = default) =>
         context.StoredFiles
             .AsNoTracking()
-            // One query, so a missing file and someone else's file are indistinguishable. Fetching
-            // by id and comparing the owner afterwards would read another user's row first.
+            // One query, so a missing file and someone else's are indistinguishable.
             .Where(file => file.Id == id && file.OwnerId == ownerId.Value)
             .Select(file => new Versioned<StoredFileDto>(
                 new StoredFileDto(
@@ -89,12 +80,10 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
             })
             .ToListAsync(cancellationToken);
 
-        // "not Pending" rather than a list of the other three, so a state added to the enum counts
-        // against the quota from the day it is added.
+        // "Not Pending" rather than a list, so a new state counts against the quota from the start.
         var stored = totals.Where(total => total.State != StoredFileState.Pending).ToList();
         var pending = totals.FirstOrDefault(total => total.State == StoredFileState.Pending);
 
-        // An owner with no file of a state has no row for it, hence the defaults.
         return new OwnerStorageUsage(
             stored.Sum(total => total.Count),
             stored.Sum(total => total.Bytes),
@@ -114,8 +103,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
             return [];
         }
 
-        // Bounded by the candidates the caller already holds. Asking for every live key instead
-        // would load one column of every row in the system. The unique index on ObjectKey serves it.
+        // Bounded by the caller's candidates and served by the unique index on ObjectKey.
         return await context.StoredFiles
             .AsNoTracking()
             .Where(file => candidateObjectKeys.Contains(file.ObjectKey))
@@ -129,8 +117,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
     {
         if (filter.Search is { } search)
         {
-            // The name only. A searchable object key would let a caller probe for other people's
-            // objects.
+            // The name only: a searchable object key would let a caller probe for others' objects.
             string pattern = StoredFileLikePattern.Contains(search.Value);
             source = source.Where(file => EF.Functions.ILike(file.Name, pattern, "\\"));
         }
@@ -167,8 +154,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
         FeaturePageRequest<StoredFileFilter> request,
         CancellationToken cancellationToken)
     {
-        // GetStoredFilesRequestBinder refuses a multi-term sort under paging=cursor, so there is
-        // always exactly one term here.
+        // The binder refuses a multi-term sort under paging=cursor: exactly one term here.
         var term = request.Sort.Terms[0];
         int pageSize = request.Paging.PageSize;
 
@@ -197,11 +183,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
         return PagedResult.Keyset(page, pageSize, nextCursor);
     }
 
-    /// <remarks>
-    /// One shape for every read, because the DTO has one — see <see cref="StoredFileDto"/> for why a
-    /// flat aggregate gets no summary/detail split. It carries no object key: that value addresses the
-    /// bytes and is the store's business, not the client's.
-    /// </remarks>
+    /// <remarks>One shape for every read. It carries no object key: that addresses the bytes and is not the client's business.</remarks>
     private static readonly Expression<Func<StoredFileRecord, StoredFileDto>> _toDto =
         file => new StoredFileDto(
             file.Id,

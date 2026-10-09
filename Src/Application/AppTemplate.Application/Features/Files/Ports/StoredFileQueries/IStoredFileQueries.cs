@@ -10,52 +10,40 @@ using AppTemplate.Domain.Features.Files.ValueObjects;
 namespace AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 
 /// <summary>
-/// The read side of the file feature. Separate from <see cref="IStoredFileRepository"/> for the
-/// usual reason — reads project straight to DTOs with no change tracking — and because two of the
-/// four answers below are columns rather than aggregates, which is exactly what the repository's own
-/// documentation says it will not pretend to serve.
+/// The read side of the Files feature: projections to DTOs and columns, which <see cref="IStoredFileRepository"/>
+/// does not serve.
 /// </summary>
 public interface IStoredFileQueries
 {
     /// <summary>
-    /// <paramref name="request"/> has already been through
-    /// <see cref="StoredFileCollectionPolicy"/>'s whitelist, so nothing here re-validates paging,
-    /// sort or filter — it only translates them.
+    /// The owner's files. <paramref name="request"/> has been through <see cref="StoredFileCollectionPolicy"/>, so
+    /// paging, sort and filter are only translated here.
     /// </summary>
     Task<PagedResult<StoredFileDto>> GetForOwnerAsync(
         UserId ownerId,
         FeaturePageRequest<StoredFileFilter> request,
         CancellationToken cancellationToken = default);
 
-    /// <returns>The file and the aggregate's version, or <c>null</c> when it does not exist or is
-    /// not owned by <paramref name="ownerId"/> — the two are deliberately indistinguishable, so a
-    /// caller cannot use this to probe for other users' file ids.</returns>
+    /// <summary>
+    /// The file and its version, or null when it does not exist or belongs to someone else; the two are
+    /// indistinguishable so a caller cannot probe for ids.
+    /// </summary>
     Task<Versioned<StoredFileDto>?> GetDetailAsync(
         Guid id,
         UserId ownerId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// One owner's totals in one category, counted in the database rather than by loading their
-    /// files: the quota is per (owner, category).
-    /// </summary>
+    /// <summary>One owner's totals in one category, counted in the database.</summary>
     Task<OwnerStorageUsage> GetUsageForOwnerAsync(
         UserId ownerId,
         FileCategory category,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Which of <paramref name="candidateObjectKeys"/> some row still names. The orphan sweep's half
-    /// of the difference: it holds a page of keys the store reported and needs to know which of them
-    /// are still owed, and this answers in one round trip per page instead of one per key.
-    /// <para>
-    /// Asked in this direction — "which of these are live?" rather than "give me every live key" —
-    /// because the answer is then bounded by the page the caller already holds, whatever the size of
-    /// the table behind it.
-    /// </para>
+    /// Which of <paramref name="candidateObjectKeys"/> some row still names: the orphan sweep's half of the
+    /// difference. Asked as "which of these are live?" so the answer is bounded by the page the caller holds,
+    /// whatever the table's size. Unordered.
     /// </summary>
-    /// <returns>The subset that exists, in no guaranteed order. A key absent from the result is
-    /// named by no row.</returns>
     Task<IReadOnlyList<string>> GetLiveObjectKeysAsync(
         IReadOnlyList<string> candidateObjectKeys,
         CancellationToken cancellationToken = default);

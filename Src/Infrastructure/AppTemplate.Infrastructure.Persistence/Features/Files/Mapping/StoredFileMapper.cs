@@ -7,15 +7,8 @@ using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 
 /// <summary>
-/// The one place that knows both shapes.
-/// <para>
-/// Stateless and registered as a singleton: it touches no <c>DbContext</c>, so it can be shared, and the
-/// fidelity tests can exercise it with no database at all.
-/// </para>
-/// <para>
-/// <b>Read <see cref="IStoredFileMapper"/> before editing anything about <c>ObjectKey</c> below.</b> It
-/// is the one value here whose corruption is not a lost field but a deleted file.
-/// </para>
+/// The one place that knows both shapes. Stateless, so it is a singleton and testable without a
+/// database. Read <see cref="IStoredFileMapper"/> before touching <c>ObjectKey</c>.
 /// </summary>
 internal sealed class StoredFileMapper : IStoredFileMapper
 {
@@ -23,8 +16,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        // Rebuilt through each value object's factory, so a row that predates a tightened rule is
-        // refused on the way in. ObjectKey.Create is looser than ObjectKey.New for that reason.
+        // Rebuilt through each value object's factory, so a row that breaks a tightened rule is refused.
         var aggregate = StoredFile.Rehydrate(new StoredFileSnapshot
         {
             Id = record.Id,
@@ -58,8 +50,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
             OwnerId = aggregate.OwnerId.Value,
             Category = aggregate.Category.Value,
 
-            // Verbatim, never normalised: the store resolves keys literally, and a key this row does
-            // not match is one the orphan sweep treats as belonging to nobody.
+            // Verbatim, never normalised: a key this row does not match belongs to nobody for the sweep.
             ObjectKey = aggregate.ObjectKey.Value,
             Name = aggregate.Name.Value,
             DeclaredMediaType = aggregate.DeclaredMediaType.Value,
@@ -71,8 +62,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
             InspectionAttempts = aggregate.InspectionAttempts,
             NextInspectionAt = aggregate.NextInspectionAt,
 
-            // Overwritten on insert, where PostgreSQL assigns xmin. Carried so the round trip stays
-            // total and the fidelity test can check it.
+            // Overwritten on insert by xmin; carried so the round trip stays total.
             Version = aggregate.Version,
 
             // Overwritten by the audit interceptor, which runs after this.
@@ -87,11 +77,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         return record;
     }
 
-    /// <summary>
-    /// The tag rows this file should end up with. By hand, and in both directions: a tag the
-    /// aggregate holds and the row does not is inserted, one the row holds and the aggregate does
-    /// not is deleted.
-    /// </summary>
+    /// <summary>Reconciles the tag rows by hand, inserting and deleting.</summary>
     private static void ReconcileTags(StoredFile aggregate, StoredFileRecord record)
     {
         var unmatched = record.Tags.ToDictionary(tag => tag.Value, StringComparer.Ordinal);
@@ -119,8 +105,6 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         record.OwnerId = aggregate.OwnerId.Value;
         record.Category = aggregate.Category.Value;
 
-        // Written on every flush although no operation moves it, so the column is asserted rather
-        // than assumed.
         record.ObjectKey = aggregate.ObjectKey.Value;
         record.Name = aggregate.Name.Value;
         record.DeclaredMediaType = aggregate.DeclaredMediaType.Value;
@@ -134,7 +118,6 @@ internal sealed class StoredFileMapper : IStoredFileMapper
 
         ReconcileTags(aggregate, record);
 
-        // Version and the audit stamps are not written here: the token is PostgreSQL's, the stamps
-        // are the interceptor's, and a second writer for either would eventually disagree.
+        // Version and audit stamps are not written here: PostgreSQL and the interceptor own them.
     }
 }

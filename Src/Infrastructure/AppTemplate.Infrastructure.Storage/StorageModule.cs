@@ -19,28 +19,16 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Infrastructure.Storage;
 
 /// <summary>
-/// Composes how this application reaches a file's bytes: the store chosen by
-/// <c>Files:Storage:Provider</c>, its inventory and direct-transfer capability, and the malware
-/// scanner. The half of the Files feature that lives in a database is the persistence module's; the
-/// two meet only in a use case.
-/// <para>
-/// The scanner is here because scanning a file means reading this store; a module beside this one
-/// would need its own copy of the configuration that reaches it.
-/// </para>
+/// Composes how the application reaches a file's bytes: the store chosen by
+/// <c>Files:Storage:Provider</c>, its inventory and direct-transfer capability, and the malware scanner
+/// (here because scanning reads this store).
 /// </summary>
 public static class StorageModule
 {
     /// <summary>
-    /// Registers <see cref="IFileContentStore"/>, <see cref="IFileContentInventory"/>,
-    /// <see cref="IFileDirectTransfer"/> and <see cref="IFileContentScanner"/>, and the checks of
-    /// <c>Files:Categories</c> against the chosen store and scanning.
+    /// Registers the four content ports and the checks of <c>Files:Categories</c> against the chosen
+    /// store and scanning. Only the chosen provider's section is bound and validated at start-up.
     /// </summary>
-    /// <param name="services">The container being composed.</param>
-    /// <param name="configuration">
-    /// Supplies <c>Files:Storage</c> and <c>Files:Scanning</c>. Only the chosen provider's section is
-    /// bound and validated at start-up, so a misconfigured store stops the process from booting
-    /// rather than failing on the first file.
-    /// </param>
     public static IServiceCollection AddStorageModule(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -53,8 +41,7 @@ public static class StorageModule
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<FilesStorageOptions>, FilesStorageOptionsValidator>();
 
-        // Read now, because it decides what is registered; an unknown provider is refused at start-up
-        // by the validator above.
+        // Read now because it decides what is registered; an unknown provider is the validator's to refuse.
         var storage = configuration.GetSection(FilesStorageOptions.SectionName).Get<FilesStorageOptions>()
             ?? new FilesStorageOptions();
 
@@ -69,8 +56,7 @@ public static class StorageModule
 
         AddScanner(services, configuration);
 
-        // The category rules that depend on this module's choices; the categories themselves are
-        // bound and validated by the application's AddFiles.
+        // Category rules that depend on this module's choices; the categories are the application's.
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<FilesOptions>, FilesCategoriesStorageValidator>());
         services.TryAddEnumerable(
@@ -90,8 +76,7 @@ public static class StorageModule
         services.AddSingleton<IAmazonS3>(provider =>
             BucketClientFactory.Create(provider.GetRequiredService<IOptions<FilesStorageS3Options>>().Value));
 
-        // A second client for presigning only, on the public endpoint: a SigV4 URL covers the host it
-        // was signed for. It opens no connection.
+        // A second client for presigning only, on the public endpoint (a SigV4 URL covers its host).
         services.AddKeyedSingleton<IAmazonS3>(
             BucketClientFactory.SigningClientKey,
             (provider, _) =>

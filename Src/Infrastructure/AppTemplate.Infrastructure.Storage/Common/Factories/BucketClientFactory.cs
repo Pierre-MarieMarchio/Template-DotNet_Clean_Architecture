@@ -7,39 +7,22 @@ using AppTemplate.Infrastructure.Storage.Common.Options;
 namespace AppTemplate.Infrastructure.Storage.Common.Factories;
 
 /// <summary>
-/// Builds the S3 clients this process uses, from validated options.
+/// Builds the S3 clients from validated options, in one place because endpoint, signing region,
+/// address style and budget must agree or the failure is a rejected signature naming none of them.
 /// <para>
-/// It is a single place on purpose. The settings below — the endpoint, the signing region, the
-/// address style, the budget — are meaningless individually: a compatible store needs all four to
-/// agree or the failure is a rejected signature that names none of them.
-/// </para>
-/// <para>
-/// <b>There are two clients and they cost one.</b> The rule that a client owns a connection pool and
-/// a retry schedule, so a second one silently doubles both, is still true — and it is why
-/// <see cref="Create"/>'s client is a process-wide singleton. It does not reach
-/// <see cref="CreateForSigning"/>, because presigning opens nothing: Signature Version 4 is a keyed
-/// hash of a string this process assembles from the request, and <c>GetPreSignedURLAsync</c> returns
-/// without a socket ever being created. The second client is that arithmetic configured for a
-/// different host name, which is the one thing a signature cannot be corrected for afterwards.
-/// <c>BucketClientFactoryTests.CreateForSigning_OpensNoConnectionToTheEndpointItSignsFor</c> is what
-/// keeps that from being a claim.
+/// The two clients cost one: <see cref="Create"/>'s is a process-wide singleton owning the connection
+/// pool and retry schedule, while <see cref="CreateForSigning"/>'s only does Signature Version 4
+/// arithmetic for a different host name and opens no socket.
 /// </para>
 /// </summary>
 internal static class BucketClientFactory
 {
-    /// <summary>
-    /// The key the presigning client is registered under. Two <see cref="IAmazonS3"/> registrations
-    /// differ by endpoint and by nothing else, so one of them has to be asked for by name.
-    /// </summary>
+    /// <summary>The key the presigning client is registered under; the clients differ by endpoint alone.</summary>
     internal const string SigningClientKey = "AppTemplate.Storage.Signing";
 
     /// <summary>
-    /// The client for the calls this process makes itself — a write, a read, a metadata read, a
-    /// delete, a listing.
-    /// <para>
-    /// <paramref name="options"/> must already have passed <see cref="FilesStorageS3OptionsValidator"/>;
-    /// this reads them rather than checking them again.
-    /// </para>
+    /// The client for the calls this process makes itself. <paramref name="options"/> must already have
+    /// passed <see cref="FilesStorageS3OptionsValidator"/>.
     /// </summary>
     internal static IAmazonS3 Create(FilesStorageS3Options options)
     {
@@ -49,10 +32,8 @@ internal static class BucketClientFactory
     }
 
     /// <summary>
-    /// The client every signed URL is minted by, built on <see cref="FilesStorageS3Options.SigningEndpoint"/>
-    /// — which is <see cref="FilesStorageS3Options.PublicEndpoint"/> where a deployment states one and
-    /// <see cref="FilesStorageS3Options.Endpoint"/> where it does not, so a configuration that names no
-    /// public endpoint signs with a client aimed at the same endpoint it calls the store on.
+    /// The client every signed URL is minted by, built on
+    /// <see cref="FilesStorageS3Options.SigningEndpoint"/>.
     /// </summary>
     internal static IAmazonS3 CreateForSigning(FilesStorageS3Options options)
     {
@@ -69,9 +50,7 @@ internal static class BucketClientFactory
             Timeout = BucketBudget.AttemptTimeout,
             MaxErrorRetry = BucketBudget.MaxRetryAttempts,
 
-            // Standard rather than Legacy: it is the mode with exponential backoff and jitter, which
-            // is the half of the outbound policy that matters when several replicas fail against the
-            // same store at the same moment.
+            // Standard: exponential backoff with jitter, which matters when replicas fail together.
             RetryMode = RequestRetryMode.Standard,
         };
 
@@ -81,15 +60,12 @@ internal static class BucketClientFactory
         }
         else
         {
-            // A named endpoint carries no region, and the region is part of the signing key — so it
-            // has to be stated separately or every request is signed for a region the store did not
-            // expect.
+            // A named endpoint carries no region, and the region is part of the signing key.
             configuration.ServiceURL = endpoint;
             configuration.AuthenticationRegion = options.Region;
         }
 
-        // No static credentials is the deployed case, not a degenerate one: the SDK's own chain
-        // resolves an instance role, and nothing about this process then holds a long-lived secret.
+        // No static credentials is the deployed case: the SDK's chain resolves an instance role.
         return string.IsNullOrWhiteSpace(options.AccessKeyId)
             ? new AmazonS3Client(configuration)
             : new AmazonS3Client(

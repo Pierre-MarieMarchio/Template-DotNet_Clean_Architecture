@@ -3,22 +3,17 @@
 namespace AppTemplate.Infrastructure.Storage.Common.Options;
 
 /// <summary>
-/// The S3-compatible bucket the Files feature's bytes live in, when <c>Files:Storage:Provider</c> is
-/// <c>S3</c>. Bound from <c>Files:Storage:S3</c> and validated at start-up only for that provider.
-/// <para>
-/// The bucket name is a setting, never a constant: a compiled-in name would let a staging process
-/// write into the production bucket.
-/// </para>
+/// The S3-compatible bucket the Files bytes live in, bound from <c>Files:Storage:S3</c> and validated
+/// only when <c>Files:Storage:Provider</c> is <c>S3</c>. The bucket name is a setting, never a
+/// constant, so a staging process cannot write into the production bucket.
 /// </summary>
 public sealed class FilesStorageS3Options
 {
     public const string SectionName = "Files:Storage:S3";
 
     /// <summary>
-    /// AWS Signature Version 4 refuses to sign a presigned URL valid for more than seven days, so no
-    /// configured ceiling above this could ever be honoured. It is stated here rather than left to
-    /// the SDK because the failure would otherwise arrive as a signing exception on the first upload
-    /// of whoever set it.
+    /// The longest lifetime Signature Version 4 allows a presigned URL; stated here so the failure is
+    /// not a signing exception on someone's first upload.
     /// </summary>
     public static readonly TimeSpan MaxSignableLifetime = TimeSpan.FromDays(7);
 
@@ -26,119 +21,65 @@ public sealed class FilesStorageS3Options
     public string BucketName { get; set; } = string.Empty;
 
     /// <summary>
-    /// The region the signature is computed for. It is part of the signing key, so it must match
-    /// what the store expects even when the store is not AWS: MinIO accepts any value and validates
-    /// the signature against the one it was given, which means a mismatch presents as a rejected
-    /// signature rather than as a wrong region.
+    /// The region the signature is computed for. MinIO validates the signature against it, so a
+    /// mismatch shows as a rejected signature.
     /// </summary>
     public string Region { get; set; } = "us-east-1";
 
     /// <summary>
-    /// The S3-compatible endpoint <b>this process</b> talks to, empty for AWS S3 itself. Set for
-    /// MinIO in development and for any other compatible store. What travels over it is what this
-    /// process does itself — metadata reads, deletes, listings, the reads of the inspection pass and
-    /// writes through the store; a direct deposit or download is the client's own request, made
-    /// against <see cref="PublicEndpoint"/>.
+    /// The S3-compatible endpoint <b>this process</b> talks to (metadata, deletes, listings, inspection
+    /// reads, writes), empty for AWS. Clients use <see cref="PublicEndpoint"/>.
     /// </summary>
     public string Endpoint { get; set; } = string.Empty;
 
     /// <summary>
     /// The endpoint <b>signed URLs are minted for</b>, empty to sign for <see cref="Endpoint"/>.
-    /// <para>
-    /// It exists because a Signature Version 4 presigned URL covers the host it was signed for —
-    /// <c>host</c> is always in <c>X-Amz-SignedHeaders</c> — so a URL signed for one name and
-    /// followed under another is refused with <c>SignatureDoesNotMatch</c>, even when both names
-    /// reach the same server on the same port. No proxy, no API and no client can rewrite the host
-    /// afterwards; the name has to be right at signing time.
-    /// </para>
-    /// <para>
-    /// Every self-hosted store therefore has two names and this has to be set: MinIO on a Docker
-    /// network is <c>minio:9000</c> to the API and <c>localhost:9000</c> to the browser, and a
-    /// cluster-internal service name is not resolvable outside its cluster. AWS S3 is the one case
-    /// where it stays empty along with <see cref="Endpoint"/>, because there is only ever one name.
-    /// </para>
-    /// <para>
-    /// <b>Its scheme decides the scheme of every signed URL this module mints</b>, and it is the
-    /// endpoint <see cref="AllowInsecureTransport"/> governs — see that property for why the rule is
-    /// here rather than on <see cref="Endpoint"/>.
-    /// </para>
+    /// A Signature Version 4 URL covers its host, so it must be signed for the name the client will
+    /// use: set this whenever the store has an internal and an external name (MinIO on a Docker
+    /// network). Its scheme decides the scheme of every signed URL this module mints.
     /// </summary>
     public string PublicEndpoint { get; set; } = string.Empty;
 
     /// <summary>
-    /// The endpoint a signature is actually computed against: <see cref="PublicEndpoint"/> when a
-    /// deployment states one, and <see cref="Endpoint"/> when it does not. Derived rather than
-    /// bound, so there is one answer to the question and both the client factory and the validator
-    /// read it.
+    /// <see cref="PublicEndpoint"/> when set, otherwise <see cref="Endpoint"/>; the one answer the
+    /// client factory and the validator share.
     /// </summary>
     public string SigningEndpoint =>
         string.IsNullOrWhiteSpace(PublicEndpoint) ? Endpoint : PublicEndpoint;
 
-    /// <summary>
-    /// Addresses the bucket as a path segment (<c>host/bucket/key</c>) instead of as a subdomain
-    /// (<c>bucket.host/key</c>). Required by every compatible store reached through a container
-    /// hostname, where the subdomain form resolves to nothing.
-    /// </summary>
+    /// <summary>Addresses the bucket as <c>host/bucket/key</c>; required behind container hostnames.</summary>
     public bool ForcePathStyle { get; set; }
 
     /// <summary>
-    /// Left empty in a deployment that has an instance role: the SDK's own credential chain then
-    /// supplies short-lived credentials nobody has to rotate by hand. Filled in only where there is
-    /// no such chain — a development MinIO, a compatible store outside AWS.
+    /// Empty in a deployment with an instance role, whose credentials the SDK chain supplies. Set both
+    /// keys only for a store with no such chain.
     /// </summary>
     public string AccessKeyId { get; set; } = string.Empty;
 
     public string SecretAccessKey { get; set; } = string.Empty;
 
     /// <summary>
-    /// Explicit opt-in to an unencrypted <see cref="SigningEndpoint"/> whose host is not loopback.
-    /// Exists for a containerised development store such as MinIO, which speaks plain HTTP under a
-    /// hostname that is not <c>localhost</c>. The same shape as
-    /// <c>EmailOptions.AllowInsecureTransport</c> and for a sharper reason: a signed URL is a bearer
-    /// credential, and one minted for an <c>http://</c> endpoint is handed to a client that will
-    /// send it in clear text.
-    /// <para>
-    /// <b>It governs the endpoint URLs are minted for, and nothing else.</b> A plain-HTTP
-    /// <see cref="Endpoint"/> is server-to-server traffic inside a network the operator chose — a
-    /// service mesh, a Docker network, a VPC — and Signature Version 4 puts a per-request signature
-    /// on the wire rather than the secret key, so watching it yields nothing anyone can re-use. It is
-    /// not free of content: the inspection pass reads objects over it.
-    /// A plain-HTTP <see cref="PublicEndpoint"/> is a different thing all the same: every grant this
-    /// module mints is a <em>reusable</em> right to read or write one object, valid until it expires,
-    /// travelling in clear to a client this deployment does not control and into whatever proxy log,
-    /// referrer header and browser history it passes through. Only the second is worth stopping a
-    /// process over, so only the second asks permission.
-    /// </para>
+    /// Allows a plain-HTTP <see cref="SigningEndpoint"/> on a non-loopback host, for containerised
+    /// development stores such as MinIO. It governs only the endpoint URLs are minted for: a signed URL
+    /// is a reusable bearer right that would travel in clear to the client, whereas the server-to-store
+    /// <see cref="Endpoint"/> carries per-request signatures only.
     /// </summary>
     public bool AllowInsecureTransport { get; set; }
 
     /// <summary>
-    /// The longest a minted grant may be valid for, whatever lifetime a caller asks for. A ceiling
-    /// rather than the lifetime itself: how long an upload window or a download window should be is
-    /// a decision the use cases make and state, and this is the operator's cap over all of them.
-    /// <para>
-    /// The default is the longest window any use case in this repository asks for — the 30 minutes
-    /// <c>RegisterFileUseCase</c> gives a client to deposit five gigabytes — so it is a value derived
-    /// from what the feature does rather than a round number picked for looking safe. Anything longer
-    /// than the deposit it was minted for is a write right sitting in somebody's logs.
-    /// </para>
+    /// The operator's ceiling on any grant lifetime. The default is the longest window a use case asks
+    /// for (30 minutes to deposit a large file); anything longer is a write right left in logs.
     /// </summary>
     public TimeSpan MaxGrantLifetime { get; set; } = TimeSpan.FromMinutes(30);
 }
 
 /// <summary>
-/// What a storage configuration is allowed to be. Every rule here is one whose violation would
-/// otherwise be discovered by a client: a malformed bucket name is a rejected request, a missing
-/// half of a credential pair is an unsigned call, and a plaintext signing endpoint is a credential
-/// in the clear that nothing reports at all.
+/// Refuses what a client would otherwise discover: a malformed bucket name, half a credential pair, a
+/// plaintext signing endpoint.
 /// </summary>
 internal sealed class FilesStorageS3OptionsValidator : IValidateOptions<FilesStorageS3Options>
 {
-    /// <summary>
-    /// S3's own bucket naming rules, in the only two respects that can be checked without a network
-    /// call: length, and the alphabet. A name outside them is refused by every S3-compatible store,
-    /// so accepting it here only moves the failure to the first request.
-    /// </summary>
+    /// <summary>S3 bucket-name length bounds; with the alphabet, the only rules checkable offline.</summary>
     private const int _minBucketNameLength = 3;
 
     private const int _maxBucketNameLength = 63;
@@ -183,8 +124,7 @@ internal sealed class FilesStorageS3OptionsValidator : IValidateOptions<FilesSto
                 $"and {_maxBucketNameLength} characters.");
         }
 
-        // Upper case is the one worth naming: a bucket created as `AppFiles` exists under that name
-        // nowhere, and the request fails with a signature or a redirect that never mentions casing.
+        // Upper case is the one worth naming: it fails with a signature or redirect that never says why.
         if (!bucket.All(IsBucketNameCharacter))
         {
             failures.Add(
@@ -201,16 +141,9 @@ internal sealed class FilesStorageS3OptionsValidator : IValidateOptions<FilesSto
     }
 
     /// <summary>
-    /// Both endpoints must be addresses; only the one URLs are signed for must be encrypted.
-    /// <para>
-    /// <b>Which rule lands on which endpoint is the whole point of the split.</b> Being a well-formed
-    /// http or https URL is a property each key needs on its own — a malformed
-    /// <see cref="FilesStorageS3Options.Endpoint"/> breaks the three server-to-store calls, a malformed
-    /// <see cref="FilesStorageS3Options.PublicEndpoint"/> breaks every grant — so each is refused under its
-    /// own name. The transport rule lands on <see cref="FilesStorageS3Options.SigningEndpoint"/> alone,
-    /// because what it protects is the bearer right a signed URL is, and that right exists only on
-    /// the endpoint URLs are minted for. See <see cref="FilesStorageS3Options.AllowInsecureTransport"/>.
-    /// </para>
+    /// Both endpoints must be well-formed http(s) URLs; the transport rule applies to
+    /// <see cref="FilesStorageS3Options.SigningEndpoint"/> alone, because only URLs minted for it are
+    /// bearer rights (see <see cref="FilesStorageS3Options.AllowInsecureTransport"/>).
     /// </summary>
     private static void ValidateEndpoints(FilesStorageS3Options options, List<string> failures)
     {

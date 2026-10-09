@@ -7,14 +7,10 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Inventories;
 
 /// <summary>
-/// <see cref="IFileContentInventory"/> over the directory <c>FileSystemFileContentStore</c> writes
-/// to. Keys are the files' paths relative to the root, with <c>/</c> separators, in ordinal order —
-/// the order an S3 listing has.
-/// <para>
-/// Temporary files of writes are not objects and are never listed. One older than
-/// <see cref="StaleTemporaryFileAge"/> is left by a write that crashed, and no key will ever name it,
-/// so the listing deletes it as it walks past: the orphan sweep reclaims it on its next pass.
-/// </para>
+/// <see cref="IFileContentInventory"/> over the directory the file system store writes to: keys are
+/// root-relative paths with <c>/</c> separators in ordinal order, as an S3 listing has. Temporary
+/// files are never listed, and one older than <see cref="StaleTemporaryFileAge"/> (a crashed write no
+/// key names) is deleted as the walk passes it.
 /// </summary>
 internal sealed class FileSystemFileContentInventory(IOptions<FilesStorageFileSystemOptions> options)
     : IFileContentInventory
@@ -36,8 +32,7 @@ internal sealed class FileSystemFileContentInventory(IOptions<FilesStorageFileSy
         string start = StartDirectory(root, prefix);
         List<string> remaining = [];
 
-        // Enumerating the whole subtree per page is the price of having no index; fine at the scale
-        // a local disk serves, and what keeps the walk resumable from a key alone.
+        // Walking the subtree per page is the price of having no index, and keeps the walk resumable from a key.
         if (Directory.Exists(start))
         {
             foreach (string path in Directory.EnumerateFiles(start, "*", SearchOption.AllDirectories))
@@ -67,10 +62,7 @@ internal sealed class FileSystemFileContentInventory(IOptions<FilesStorageFileSy
         return Task.FromResult(PagedResult.Keyset(page, pageSize, nextCursor));
     }
 
-    /// <summary>
-    /// Compared with the disk's own clock, which stamped the file, rather than the application's,
-    /// which a host may hold fixed.
-    /// </summary>
+    /// <summary>Compared with the disk's own clock, which stamped the file, not the application's.</summary>
     private static void DeleteIfStale(string path)
     {
         try

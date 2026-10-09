@@ -6,8 +6,6 @@ public enum ContentWriteOutcome
     /// <summary>The bytes matched the declared size and digest and are stored under the key.</summary>
     Written,
 
-    /// <summary>
-    /// The bytes did not match the declared size or digest. Nothing is stored under the key.
-    /// </summary>
+    /// <summary>The bytes did not match. Nothing is stored under the key.</summary>
     ContentMismatch,
 }

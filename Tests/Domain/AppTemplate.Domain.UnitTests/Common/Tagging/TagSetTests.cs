@@ -100,6 +100,20 @@ public sealed class TagSetTests
             [Tag.Create("a"), Tag.Create("b"), Tag.Create("c"), Tag.Create("d")]));
     }
 
+    [Fact]
+    public void ARefusedReplacement_LeavesTheTagsHeldBeforeIt()
+    {
+        var tags = ASet();
+
+        tags.Add(Tag.Create("keep"));
+        tags.Add(Tag.Create("drop"));
+
+        Should.Throw<DomainException>(() => tags.Replace(
+            [Tag.Create("w"), Tag.Create("x"), Tag.Create("y"), Tag.Create("z")]));
+
+        tags.Tags.Select(tag => tag.Value).ShouldBe(["keep", "drop"], ignoreOrder: true);
+    }
+
     /// <summary>
     /// Duplicates inside the replacement collapse before the cap is read, because
     /// <see cref="Tag"/> normalises before it compares — so four spellings of two tags are two.

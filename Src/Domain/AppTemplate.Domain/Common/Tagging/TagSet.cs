@@ -105,6 +105,12 @@ public sealed class TagSet
 
         var replacement = wanted.ToHashSet();
 
+        // Checked before anything is removed, so a refused replacement leaves the set as it was.
+        if (replacement.Count > Capacity)
+        {
+            throw new DomainException($"A {_subject} cannot carry more than {Capacity} tags.");
+        }
+
         foreach (var gone in _tags.Where(held => !replacement.Contains(held)).ToArray())
         {
             _tags.Remove(gone);

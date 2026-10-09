@@ -81,7 +81,7 @@ public static class PersistenceModule
         AddFilesFeature(services);
         AddIdempotencyFeature(services, configuration);
         AddContext(services, connectionString);
-        AddContextFactory(services, connectionString);
+        AddContextFactory(services);
 
         return services;
     }
@@ -216,16 +216,20 @@ public static class PersistenceModule
     /// A second way to create an <see cref="AppDbContext"/>, for <see cref="IdempotencyStore"/>
     /// alone: its own change tracker, connection and commit, rather than the request-scoped one.
     /// <para>
-    /// <c>Scoped</c> is load-bearing. <c>AddDbContextFactory</c> registers the options with
-    /// <c>TryAdd</c>, so <see cref="AddContext"/>'s scoped options win and the action below is never
-    /// invoked; the default <c>Singleton</c> lifetime would make the factory depend on those scoped
-    /// options, which <c>BuildServiceProvider(validateScopes: true)</c> refuses.
+    /// The factory takes no options action of its own, and that is load-bearing. An action here would
+    /// be a second configuration layered after <see cref="AddContext"/>'s: it would replace the
+    /// connection string built with <see cref="DatabaseOptions.MaxPoolSize"/> by the raw one, and the
+    /// factory's contexts would use a second pool. With none, the factory reuses the registered
+    /// options, so it gets the same connection string, retry policy and interceptors as the scoped
+    /// context.
+    /// </para>
+    /// <para>
+    /// <c>Scoped</c> is load-bearing too: the default <c>Singleton</c> lifetime would make the factory
+    /// depend on those scoped options, which <c>BuildServiceProvider(validateScopes: true)</c> refuses.
     /// </para>
     /// </summary>
-    private static void AddContextFactory(IServiceCollection services, string connectionString)
+    private static void AddContextFactory(IServiceCollection services)
     {
-        services.AddDbContextFactory<AppDbContext>(
-            options => options.UseNpgsql(connectionString),
-            lifetime: ServiceLifetime.Scoped);
+        services.AddDbContextFactory<AppDbContext>(lifetime: ServiceLifetime.Scoped);
     }
 }

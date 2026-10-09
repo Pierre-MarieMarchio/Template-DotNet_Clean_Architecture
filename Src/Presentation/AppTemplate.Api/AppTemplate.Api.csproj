@@ -49,7 +49,6 @@
     <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
     <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
     <ProjectReference Include="..\..\Application\AppTemplate.Application.Auth\AppTemplate.Application.Auth.csproj" />
-    <ProjectReference Include="..\AppTemplate.Api.Core\AppTemplate.Api.Core.csproj" />
     <ProjectReference Include="..\AppTemplate.Presentation.Core\AppTemplate.Presentation.Core.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
@@ -60,9 +59,12 @@
 
   <!-- EntityTagMapping, IfMatchPrecondition and ProblemDetailsNormaliser.Normalise are internal on
        purpose: nothing outside this assembly may read or mint a version token, or skip the one
-       normaliser every ProblemDetails producer funnels through. A test restricted to the public
-       surface could reach their branches only through a live HTTP pipeline, which would not isolate
-       the microsecond-scale decision from everything MVC does around it. Granted to exactly one
+       normaliser every ProblemDetails producer funnels through. The option validators, the
+       registration extensions, the idempotency filter and the request-log middleware are internal
+       for the converse reason: the container or the pipeline reaches them, never a caller. A test
+       restricted to the public surface could reach their branches only through a live HTTP
+       pipeline, which would not isolate the microsecond-scale decision from everything MVC does
+       around it. Granted to exactly one
        assembly, for the same reason AppTemplate.Application grants its own internals to exactly its
        unit tests. -->
   <ItemGroup>

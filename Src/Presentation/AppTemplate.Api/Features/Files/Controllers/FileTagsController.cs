@@ -1,4 +1,4 @@
-﻿using AppTemplate.Api.Core.Common.Controllers;
+﻿using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Features.Files.Contracts.Requests;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
 using AppTemplate.Api.Features.Files.Mapping;

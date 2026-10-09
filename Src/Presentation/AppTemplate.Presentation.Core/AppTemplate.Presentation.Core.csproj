@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <!-- No FrameworkReference, and that absence is the whole point of this project existing apart
-       from AppTemplate.Api.Core: a desktop or CLI host gets a clock, a culture and an outbound
+       from the HTTP host, AppTemplate.Api: a desktop or CLI host gets a clock, a culture and an outbound
        budget without inheriting ASP.NET.
 
        Which is also why four packages this repository uses are deliberately absent — each carries

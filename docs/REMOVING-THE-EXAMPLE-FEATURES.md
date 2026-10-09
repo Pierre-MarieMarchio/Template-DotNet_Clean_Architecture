@@ -116,11 +116,12 @@ which is what keeps this a list of directories rather than a list of edits.**
 `AppTemplate.Domain.Core` holds the primitives and `AppTemplate.Application.Core` holds the
 mechanisms — `Result`, `Error`, the `IUseCase` marker, validation, paging, idempotency, optimistic
 concurrency, the cross-cutting ports — and neither project names an example, so nothing below asks
-you to open one of them. Nor do the four written to the same grade further out:
+you to open one of them. Nor do the three written to the same grade further out:
 `AppTemplate.Application.Auth` is authentication and has its own section below,
-`AppTemplate.Presentation.Core` and `AppTemplate.Api.Core` are host and transport machinery, and
-`AppTemplate.Infrastructure.Core` holds the mail template engine and the cache adapter. None of
-the six names an example feature, which is what makes this a list of directories. `AppTemplate.Domain` and `AppTemplate.Application` hold the business, and
+`AppTemplate.Presentation.Core` is host machinery, and `AppTemplate.Infrastructure.Core` holds the
+mail template engine and the cache adapter. None of the five names an example feature, which is
+what makes this a list of directories. The HTTP mechanisms under `AppTemplate.Api/Common/` name
+none either, so they stay when the example controllers go. `AppTemplate.Domain` and `AppTemplate.Application` hold the business, and
 in this template that is `Features/` **plus one `Common/Tagging/` per layer**, which is the one
 thing two features share *as business*: `TodoLists` and `Files` are both tagged, by the same rule.
 

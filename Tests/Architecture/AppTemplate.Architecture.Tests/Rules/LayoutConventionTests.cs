@@ -73,10 +73,6 @@ public sealed class LayoutConventionTests
         // be a transport concern filed as a shared one.
         ["Src/Presentation/AppTemplate.Presentation.Core"] = null,
 
-        // Same, one transport down. What is here is what any HTTP host needs; a feature folder
-        // appearing would be a feature of the application leaking into the SDK.
-        ["Src/Presentation/AppTemplate.Api.Core"] = null,
-
         // Same reason, one layer down. These two modules have both a transverse adapter and a
         // feature-scoped one, which is what earns them Common/ and Features/ at all; the feature
         // half is one adapter and its recording double, side by side — including the reminder mail's
@@ -152,16 +148,11 @@ public sealed class LayoutConventionTests
             ["Contexts", "Idempotency", "Leases"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Budgets", "Factories", "Options"],
-        // Three words, and the criterion is executable rather than stylistic: what stays in a host's
-        // Common/ is what the host cannot delegate — what names a concrete infrastructure module, or
-        // what decides a deployment policy. Of the forty-eight files that were here, exactly the
-        // three importing AppTemplate.Infrastructure.* stayed, plus the reference page's policy and
-        // the telemetry residue that names this host's own database and assembly.
+        // The HTTP mechanisms no feature owns: what a controller inherits, how a failure is
+        // answered, which headers every response carries, what the host composes at start-up. What
+        // a folder here may not do is name a feature — HttpCommonBoundaryTests holds that — so
+        // a word on this list is a mechanism, never a subject.
         ["Src/Presentation/AppTemplate.Api"] =
-            ["Hosting", "Observability", "Security"],
-
-        // The same eleven the host had: this is the half of an HTTP host that knows no feature.
-        ["Src/Presentation/AppTemplate.Api.Core"] =
             ["Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
              "Idempotency", "Localization", "Observability", "OpenApi", "Security"],
         ["Src/Presentation/AppTemplate.Worker"] =

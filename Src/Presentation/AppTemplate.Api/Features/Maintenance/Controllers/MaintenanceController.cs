@@ -1,5 +1,5 @@
-﻿using AppTemplate.Api.Common.Security;
-using AppTemplate.Api.Core.Common.Controllers;
+﻿using AppTemplate.Api.Common.Controllers;
+using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Maintenance.Contracts.Responses;
 using AppTemplate.Api.Features.Maintenance.Mapping;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;

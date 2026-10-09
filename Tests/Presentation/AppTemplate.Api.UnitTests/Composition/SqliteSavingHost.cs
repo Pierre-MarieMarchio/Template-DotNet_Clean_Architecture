@@ -89,6 +89,7 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
         services.AddApiCallerIdentity();
 
         services.AddTodoLists();
+        services.AddNotes();
         services.AddReminders();
         services.AddPersistenceModule(Configuration());
         services.AddAuthModule(Configuration());

@@ -27,8 +27,8 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// commits, and it also clears rows written by <c>SaveChanges</c> calls the test never saw.
 /// </para>
 /// <para>
-/// Those schemas are the five the two contexts declare between them — <c>identity</c> from the
-/// authentication half, and <c>todo</c>, <c>reminders</c>, <c>files</c> and <c>platform</c> from the
+/// Those schemas are the six the two contexts declare between them — <c>identity</c> from the
+/// authentication half, and <c>todo</c>, <c>reminders</c>, <c>files</c>, <c>notes</c> and <c>platform</c> from the
 /// business half. They are named one by one in <see cref="PrepareAsync"/> rather than discovered, so
 /// a module that adds a schema of its own has to be named there too: until it is, its rows survive
 /// from one test into the next.
@@ -69,7 +69,7 @@ public sealed class TestDatabase(IServiceProvider rootServices)
             FROM information_schema.tables
             WHERE table_schema IN (
                 '{AuthDbContext.IdentitySchema}', '{AppDbContext.TodoSchema}',
-                '{AppDbContext.RemindersSchema}', '{AppDbContext.FilesSchema}',
+                '{AppDbContext.RemindersSchema}', '{AppDbContext.FilesSchema}', '{AppDbContext.NotesSchema}',
                 '{AppDbContext.PlatformSchema}')
               AND table_type = 'BASE TABLE'
               AND table_name NOT IN ('{AppDbContext.MigrationsHistoryTableName}', '{_dataProtectionKeysTableName}')

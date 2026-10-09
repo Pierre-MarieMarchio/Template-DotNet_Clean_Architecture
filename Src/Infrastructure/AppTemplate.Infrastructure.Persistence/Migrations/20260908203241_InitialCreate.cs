@@ -15,6 +15,9 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 name: "platform");
 
             migrationBuilder.EnsureSchema(
+                name: "notes");
+
+            migrationBuilder.EnsureSchema(
                 name: "reminders");
 
             migrationBuilder.EnsureSchema(
@@ -44,6 +47,24 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_IdempotencyKeys", x => new { x.UserId, x.Key });
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Notes",
+                schema: "notes",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    OwnerId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Body = table.Column<string>(type: "character varying(10000)", maxLength: 10000, nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    LastModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Notes", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -186,6 +207,18 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 column: "ExpiresAt");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Notes_OwnerId_CreatedAt_Id",
+                schema: "notes",
+                table: "Notes",
+                columns: new[] { "OwnerId", "CreatedAt", "Id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notes_OwnerId_Title_Id",
+                schema: "notes",
+                table: "Notes",
+                columns: new[] { "OwnerId", "Title", "Id" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Reminders_State_DueAt",
                 schema: "reminders",
                 table: "Reminders",
@@ -259,6 +292,10 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
             migrationBuilder.DropTable(
                 name: "IdempotencyKeys",
                 schema: "platform");
+
+            migrationBuilder.DropTable(
+                name: "Notes",
+                schema: "notes");
 
             migrationBuilder.DropTable(
                 name: "Reminders",

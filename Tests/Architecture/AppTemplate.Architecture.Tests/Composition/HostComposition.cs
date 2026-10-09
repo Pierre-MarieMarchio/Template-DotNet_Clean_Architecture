@@ -145,6 +145,7 @@ internal static class HostComposition
         services.AddTodoLists();
         services.AddReminders();
         services.AddFiles();
+        services.AddNotes();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
@@ -183,6 +184,7 @@ internal static class HostComposition
         services.AddTodoLists();
         services.AddReminders();
         services.AddFiles();
+        services.AddNotes();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
@@ -229,6 +231,7 @@ internal static class HostComposition
         services.AddTodoLists();
         services.AddReminders();
         services.AddFiles();
+        services.AddNotes();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
@@ -255,6 +258,7 @@ internal static class HostComposition
         services.AddTodoLists();
         services.AddReminders();
         services.AddFiles();
+        services.AddNotes();
         services.AddAuthApplication();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
@@ -286,6 +290,7 @@ internal static class HostComposition
         services.AddTodoLists();
         services.AddReminders();
         services.AddFiles();
+        services.AddNotes();
         services.AddPurgeExpiredIdempotencyKeys();
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);

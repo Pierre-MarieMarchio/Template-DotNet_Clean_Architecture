@@ -169,6 +169,47 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("StoredFileTags", "files");
                 });
 
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Notes.Models.NoteRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId", "CreatedAt", "Id")
+                        .HasDatabaseName("IX_Notes_OwnerId_CreatedAt_Id");
+
+                    b.HasIndex("OwnerId", "Title", "Id")
+                        .HasDatabaseName("IX_Notes_OwnerId_Title_Id");
+
+                    b.ToTable("Notes", "notes");
+                });
+
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Reminders.Models.ReminderRecord", b =>
                 {
                     b.Property<Guid>("Id")

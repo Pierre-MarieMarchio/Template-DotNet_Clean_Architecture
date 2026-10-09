@@ -13,6 +13,7 @@ at `/scalar/v1`.
 - [To-do lists](#to-do-lists--apiv1todo-lists)
 - [Reminders](#reminders--apiv1reminders-and-apiv1reminders)
 - [Files](#files--apiv1files)
+- [Notes](#notes--apiv1notes)
 - [Account administration](#account-administration--apiv1authaccounts)
 - [Maintenance](#maintenance--apiv1maintenance)
 
@@ -182,6 +183,36 @@ Everything else in
 
 A file that belongs to somebody else answers exactly as an absent one does — `404`
 `storedFile.notFound` — because a `403` next to a `404` is how an id becomes a probe.
+
+## Notes — `api/v1/notes/*`
+
+Authentication required (no opt-out). A note is the feature with no domain model: five routes over
+one service. The owner is always the caller and is not a field of any body, and a note that belongs
+to somebody else answers exactly as an absent one — `404` `note.notFound` — on every route, with or
+without an `If-Match`.
+
+| Method | Route | Success |
+|---|---|---|
+| GET | `/api/v1/notes?page=1&pageSize=20&sort=createdAt:desc` | 200 — paged summaries (id, title, instants, no body) of the caller's own notes |
+| GET, HEAD | `/api/v1/notes/{noteId}` | 200 — the note, and the `ETag` the two writes below are conditioned on; 304 to a matching `If-None-Match` |
+| POST | `/api/v1/notes` | 201 + `Location` and `ETag` |
+| PUT | `/api/v1/notes/{noteId}` | 200 — replaces title and body, answers with the new `ETag`; the id comes from the route, never the body |
+| DELETE | `/api/v1/notes/{noteId}` | 204 |
+
+A title is required and at most 200 characters once trimmed, and is stored trimmed; a body is
+required, may be empty, and is at most 10 000 characters. Both limits are `400`
+`request.validationFailed`. Sorting is `title` and `createdAt`, both keyset-capable, and there is
+no filter. Everything else in
+[Collection queries](API-CONVENTIONS.md#collection-queries--sorting-filtering-paging) applies
+unchanged.
+
+**What each write guarantees, and what a retry does.**
+
+| Write | Transaction | Concurrency | Retry |
+|---|---|---|---|
+| `POST` | One save of one row | None: there is no note yet to have a version | Safe with an `Idempotency-Key`, which replays the first response; without one, a repeat creates a second note |
+| `PUT` | One `UPDATE` conditioned on the `xmin` it loaded | `If-Match` stale: `412` `precondition.failed`. A writer that loses the race at the write: `409` `concurrency.conflict`. No `If-Match`: accepted, last write wins, unless `Concurrency:IfMatch` is `Required` (`428`) | The same `If-Match` sent again meets a version that has moved and is refused, so the change applies once |
+| `DELETE` | One `DELETE` conditioned on the `xmin` it loaded | As `PUT` | The note is gone, so a repeat is `404` (`412` with `If-Match: *`) |
 
 ## Account administration — `api/v1/auth/accounts/*`
 

@@ -54,29 +54,86 @@ public sealed class FeatureIsolationTests
 
     /// <summary>
     /// Every feature has to be a subject of the two rules above, or a feature that is not read is a
-    /// feature that may reach anywhere while the suite reports success.
+    /// feature that may reach anywhere while the suite reports success. The population is whatever
+    /// the application project holds, and each of its features must be present in the persistence
+    /// project too. A domain folder is not required of all of them, only of the rich shape: see
+    /// <see cref="AFeatureWithoutADomainFolder_IsAServiceOverAStore"/>.
     /// </summary>
     [Fact]
-    public void EveryFeatureOfTheDomain_IsASubjectInBothProjects()
+    public void EveryFeature_IsASubjectInBothProjects()
     {
         var domain = FeaturesIn(ArchitectureAssemblies.Domain, _domainFeatures);
+        var application = FeaturesIn(ArchitectureAssemblies.Application, _applicationFeatures);
+        var persistence = FeaturesIn(ArchitectureAssemblies.Persistence, _persistenceFeatures);
 
         domain.Count.ShouldBeGreaterThanOrEqualTo(
             3,
             "Fewer features were found in the domain project than this template holds, so the rules "
             + "in this class would be read over a population that is not the real one.");
 
-        FeaturesIn(ArchitectureAssemblies.Application, _applicationFeatures)
-            .Except(domain, StringComparer.Ordinal)
-            .ShouldBeEmpty("A feature has application code but no domain folder of its own.");
+        application
+            .Except(persistence, StringComparer.Ordinal)
+            .ShouldBeEmpty("A feature has application code but no persistence folder, so it is not a subject.");
+
+        persistence
+            .Except(application, StringComparer.Ordinal)
+            .ShouldBeEmpty("A feature has persistence code but no application folder, so it is not a subject.");
 
         domain
-            .Except(FeaturesIn(ArchitectureAssemblies.Application, _applicationFeatures), StringComparer.Ordinal)
+            .Except(application, StringComparer.Ordinal)
             .ShouldBeEmpty("A feature of the domain is absent from the application project, so it is not a subject.");
+    }
 
-        domain
-            .Except(FeaturesIn(ArchitectureAssemblies.Persistence, _persistenceFeatures), StringComparer.Ordinal)
-            .ShouldBeEmpty("A feature of the domain is absent from the persistence project, so it is not a subject.");
+    /// <summary>
+    /// The one exemption from having a domain model, stated as a shape rather than as a list: a
+    /// feature with no domain folder has no rules protecting a state, so what it offers is a service
+    /// over a store port, one method per operation, and nothing that would only make sense with an
+    /// aggregate — no use cases, no repository. A feature that grows a rule moves to the rich shape
+    /// (<c>docs/ADDING-A-FEATURE.md</c>), and this rule stops applying to it.
+    /// <para>
+    /// Not floored on purpose: the example of this shape is removable, and a template without it has
+    /// no feature this rule is about.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AFeatureWithoutADomainFolder_IsAServiceOverAStore()
+    {
+        var withoutDomain = FeaturesIn(ArchitectureAssemblies.Application, _applicationFeatures)
+            .Except(FeaturesIn(ArchitectureAssemblies.Domain, _domainFeatures), StringComparer.Ordinal);
+
+        List<string> offenders = [];
+
+        foreach (string feature in withoutDomain)
+        {
+            var types = ArchitectureAssemblies.Application.GetTypes()
+                .Where(type => type.Namespace?.StartsWith($"{_applicationFeatures}.{feature}.", StringComparison.Ordinal) == true)
+                .ToList();
+
+            bool Holds(string segment) =>
+                types.Any(type => type.Namespace!.Split('.').Contains(segment, StringComparer.Ordinal));
+
+            if (!Holds("Services"))
+            {
+                offenders.Add($"{feature}: has no domain folder and no Services/, so nothing offers its operations");
+            }
+
+            if (Holds("UseCases"))
+            {
+                offenders.Add($"{feature}: has no domain folder and still declares use cases; one use case per operation is the rich shape");
+            }
+
+            if (!types.Any(type => type is { IsInterface: true, IsPublic: true }
+                && type.Name.EndsWith("Store", StringComparison.Ordinal)
+                && type.Namespace!.Split('.').Contains(_portsSegment, StringComparer.Ordinal)))
+            {
+                offenders.Add($"{feature}: has no domain folder and declares no Store port for its storage");
+            }
+        }
+
+        offenders.ShouldBeEmpty(
+            "A feature may omit its domain folder only while it is a service over a store port: no "
+            + "rules protect a state, so there is no aggregate to hold and no use case to split the "
+            + "service into.");
     }
 
     /// <summary>

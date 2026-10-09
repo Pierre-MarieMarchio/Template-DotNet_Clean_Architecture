@@ -48,10 +48,10 @@ possible name. Commit the result before anything else.
 
 ## What a generated project inherits
 
-**The three example features ship by default.** `TodoLists`, `Reminders` and `Files` are the worked
-examples for [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md): one aggregate with child entities, one
-flat, and one whose two halves live in different stores — metadata in PostgreSQL, bytes behind a
-port to an S3-compatible object store. There is no generator switch to exclude them.
+**The four example features ship by default.** `TodoLists`, `Reminders`, `Files` and `Notes` are the
+worked examples for [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md): one aggregate with child entities,
+one flat, one whose two halves live in different stores — metadata in PostgreSQL, bytes behind a
+port to an S3-compatible object store — and one with no domain model at all, a service over a store. There is no generator switch to exclude them.
 [`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md) is the verified procedure and
 says what stops being demonstrated once they go.
 

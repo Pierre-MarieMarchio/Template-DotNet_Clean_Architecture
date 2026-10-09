@@ -6,6 +6,7 @@ using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Core.Common.Time;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -34,22 +35,38 @@ public static class InfrastructureCoreModule
     }
 
     /// <summary>
-    /// Registers the mechanisms one <typeparamref name="TContext"/> saves through: the three
-    /// interceptors, the domain-event dispatcher, and
-    /// <see cref="IContextUnitOfWork{TContext}"/> over that context.
+    /// Registers <see cref="IContextUnitOfWork{TContext}"/>: the commit boundary of one context, and
+    /// all a context needs to commit. Its saves are flushed, stamped or published only by the
+    /// interceptors its own options attach.
     /// </summary>
     /// <remarks>
     /// The commit boundary is registered under <see cref="IContextUnitOfWork{TContext}"/> and not
     /// under the unnamed <see cref="IUnitOfWork"/>, so two modules calling this do not overwrite
     /// each other: whichever module owns the context a use case should commit through registers
-    /// that mapping itself. Attaching the interceptors is a second step,
-    /// <see cref="AddCoreSavingInterceptors"/>, called where the context's options are built.
+    /// that mapping itself.
     /// </remarks>
-    /// <typeparam name="TContext">The context whose saves these mechanisms govern.</typeparam>
+    /// <typeparam name="TContext">The context whose staged changes it commits.</typeparam>
     /// <param name="services">The container to register into.</param>
     /// <returns><paramref name="services"/>, for chaining.</returns>
-    public static IServiceCollection AddCoreSaving<TContext>(this IServiceCollection services)
+    public static IServiceCollection AddContextUnitOfWork<TContext>(this IServiceCollection services)
         where TContext : DbContext
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddScoped<IContextUnitOfWork<TContext>, EfUnitOfWork<TContext>>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the three save interceptors and the domain-event dispatcher, so that a context's
+    /// options can attach the ones its records need: <see cref="UseAggregateFlushing"/>,
+    /// <see cref="UseAuditStamping"/> and <see cref="UseDomainEventDispatch"/>. Registering them
+    /// attaches nothing.
+    /// </summary>
+    /// <param name="services">The container to register into.</param>
+    /// <returns><paramref name="services"/>, for chaining.</returns>
+    public static IServiceCollection AddSavingInterceptors(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -57,31 +74,48 @@ public static class InfrastructureCoreModule
         services.TryAddScoped<AuditingSaveChangesInterceptor>();
         services.TryAddScoped<DomainEventDispatchSaveChangesInterceptor>();
         services.TryAddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
-        services.TryAddScoped<IContextUnitOfWork<TContext>, EfUnitOfWork<TContext>>();
 
         return services;
     }
 
     /// <summary>
-    /// Attaches the three save interceptors to a context's options, in the order they must run:
-    /// aggregates are flushed onto their rows, then the rows are stamped, then the events that
-    /// flush raised are drained.
+    /// Attaches <see cref="AggregateFlushSaveChangesInterceptor"/>: before a save, every aggregate
+    /// staged on the context being saved is written onto its rows. It must be attached before the
+    /// other two, which act on what it wrote.
     /// </summary>
     /// <param name="options">The context's options, as they are being built.</param>
-    /// <param name="provider">The scope the interceptors are resolved from.</param>
+    /// <param name="provider">The scope the interceptor is resolved from.</param>
     /// <returns><paramref name="options"/>, for chaining.</returns>
-    public static DbContextOptionsBuilder AddCoreSavingInterceptors(
+    public static DbContextOptionsBuilder UseAggregateFlushing(
         this DbContextOptionsBuilder options,
-        IServiceProvider provider)
-    {
-        ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(provider);
+        IServiceProvider provider) =>
+        Attach<AggregateFlushSaveChangesInterceptor>(options, provider);
 
-        return options.AddInterceptors(
-            provider.GetRequiredService<AggregateFlushSaveChangesInterceptor>(),
-            provider.GetRequiredService<AuditingSaveChangesInterceptor>(),
-            provider.GetRequiredService<DomainEventDispatchSaveChangesInterceptor>());
-    }
+    /// <summary>
+    /// Attaches <see cref="AuditingSaveChangesInterceptor"/>, which stamps every added or modified
+    /// <see cref="AppTemplate.Domain.Core.Common.Abstractions.IAuditable"/> row with the scope's
+    /// actor and clock. A context with no such row has no reason to resolve either.
+    /// </summary>
+    /// <param name="options">The context's options, as they are being built.</param>
+    /// <param name="provider">The scope the interceptor is resolved from.</param>
+    /// <returns><paramref name="options"/>, for chaining.</returns>
+    public static DbContextOptionsBuilder UseAuditStamping(
+        this DbContextOptionsBuilder options,
+        IServiceProvider provider) =>
+        Attach<AuditingSaveChangesInterceptor>(options, provider);
+
+    /// <summary>
+    /// Attaches <see cref="DomainEventDispatchSaveChangesInterceptor"/>, which collects the events of
+    /// the aggregates staged on the context being saved and publishes them once that save has
+    /// committed. Attached last, so it collects what the flush raised.
+    /// </summary>
+    /// <param name="options">The context's options, as they are being built.</param>
+    /// <param name="provider">The scope the interceptor is resolved from.</param>
+    /// <returns><paramref name="options"/>, for chaining.</returns>
+    public static DbContextOptionsBuilder UseDomainEventDispatch(
+        this DbContextOptionsBuilder options,
+        IServiceProvider provider) =>
+        Attach<DomainEventDispatchSaveChangesInterceptor>(options, provider);
 
     /// <summary>Registers <see cref="IDateTimeProvider"/> over the system clock.</summary>
     /// <param name="services">The container to register into.</param>
@@ -93,5 +127,17 @@ public static class InfrastructureCoreModule
         services.TryAddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
 
         return services;
+    }
+
+    private static DbContextOptionsBuilder Attach<TInterceptor>(
+        DbContextOptionsBuilder options,
+        IServiceProvider provider)
+        where TInterceptor : class, IInterceptor
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(provider);
+
+        // Appended: the order of the calls is the order EF runs them in.
+        return options.AddInterceptors(provider.GetRequiredService<TInterceptor>());
     }
 }

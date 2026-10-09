@@ -59,9 +59,10 @@ namespace AppTemplate.Infrastructure.Auth;
 /// policy, bearer validation, access-token signing, and refresh-token rotation.
 /// </para>
 /// <para>
-/// It names no other module. What its context saves through — the unit of work, the interceptors,
-/// the clock — comes from <c>AppTemplate.Infrastructure.Core</c>, which the business half composes
-/// the same way, so neither module has to know the other exists.
+/// It names no other module. What its context commits through — the unit of work — and the clock
+/// come from <c>AppTemplate.Infrastructure.Core</c>, which the business half composes the same way,
+/// so neither module has to know the other exists. Its context attaches no save interceptor: none of
+/// its rows is <c>IAuditable</c>, and it has no aggregate to flush and no domain event to publish.
 /// </para>
 /// <para>
 /// It sends no mail. <see cref="ConfirmationEmailFactory"/> renders the confirmation message and
@@ -119,7 +120,7 @@ public static class AuthModule
         AddSeedingOptions(services, configuration);
         AddDatabaseOptions(services, configuration);
         AddContext(services, DefaultConnectionString.Require(configuration));
-        services.AddCoreSaving<AuthDbContext>();
+        services.AddContextUnitOfWork<AuthDbContext>();
         services.AddSystemClock();
 
         services.TryAddScoped<IRefreshTokenTable, RefreshTokenTable>();
@@ -205,8 +206,7 @@ public static class AuthModule
                     .MigrationsAssembly(typeof(AuthDbContext).Assembly.GetName().Name)
                     .MigrationsHistoryTable(
                         AuthDbContext.MigrationsHistoryTableName,
-                        AuthDbContext.MigrationsHistorySchema))
-                .AddCoreSavingInterceptors(serviceProvider);
+                        AuthDbContext.MigrationsHistorySchema));
         });
     }
 

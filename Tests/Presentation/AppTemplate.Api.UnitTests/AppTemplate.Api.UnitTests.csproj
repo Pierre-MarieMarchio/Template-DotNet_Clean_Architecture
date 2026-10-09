@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- For Composition/: the host composes both persistence contexts, so whether a save on one can
+         flush or publish the other's work is checked here, against real contexts and real commits.
+         SQLite rather than PostgreSQL because these must run where no container runtime does; the
+         same scenarios run against PostgreSQL in AppTemplate.Api.IntegrationTests. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Shouldly" />

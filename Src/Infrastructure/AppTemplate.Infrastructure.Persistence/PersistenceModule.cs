@@ -125,7 +125,8 @@ public static class PersistenceModule
         // refuses a scoped dependency captured by one.
         services.TryAddSingleton<ILeaderLease, PostgresLeaderLease>();
 
-        services.AddCoreSaving<AppDbContext>();
+        services.AddContextUnitOfWork<AppDbContext>();
+        services.AddSavingInterceptors();
 
         // The unnamed port is registered once per container, by the module owning the context a use
         // case should commit through. A second module mapping it would commit those writes here.
@@ -194,7 +195,11 @@ public static class PersistenceModule
                         AppDbContext.MigrationsHistoryTableName,
                         AppDbContext.MigrationsHistorySchema))
 
-                .AddCoreSavingInterceptors(serviceProvider);
+                // In this order: aggregates are written onto their rows, the rows are stamped, then
+                // the events the flush raised are collected, to be published after the commit.
+                .UseAggregateFlushing(serviceProvider)
+                .UseAuditStamping(serviceProvider)
+                .UseDomainEventDispatch(serviceProvider);
         });
     }
 

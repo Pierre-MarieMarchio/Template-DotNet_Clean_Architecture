@@ -381,6 +381,17 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Fixed
 
+- **A save flushes and publishes only the work staged on the context being saved.** The flush and
+  dispatch interceptors acted on every aggregate tracker in the request, whichever context was being
+  saved. Committing the identity context while a business write was staged threw, because the flush
+  asked that context about a business row its model does not have; and an idempotency claim, which
+  commits through a second instance of the business context, published the staged write's events
+  before that write was committed, or ever. A tracker now answers `IsStagedOn(context)` from the
+  context's own change tracker, and the interceptors flush, refresh, collect and publish only what
+  the saved context holds. The identity context attaches no interceptor at all: none of its rows is
+  audited, and it has no aggregate and no event. Both cases are reproduced against real contexts and
+  real commits in `Tests/Presentation/AppTemplate.Api.UnitTests/Composition/`.
+
 - **Generating from a working clone no longer copies its build output into the new project.** The
   generator's exclude list named `bin/` and `obj/` but not the two directories a test run leaves at
   the root, so a project generated from a clone where the suite had been run arrived with 11 MB of
@@ -572,9 +583,11 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 - **What a context saves through now lives in `AppTemplate.Infrastructure.Core`**, not in the
   persistence module: `EfUnitOfWork` — generic over `DbContext` rather than one named context — the
-  three save interceptors, the aggregate-tracker base, and the system clock. A module composes them
-  with `AddCoreSaving<TContext>()` and attaches the interceptors with `AddCoreSavingInterceptors()`
-  where its context's options are built. Adopting this in an existing project means two things: the
+  three save interceptors, the aggregate-tracker base, and the system clock. A module registers its
+  commit boundary with `AddContextUnitOfWork<TContext>()`, which is enough to commit, and attaches
+  only the mechanisms its rows need where its context's options are built — `UseAggregateFlushing`,
+  `UseAuditStamping` and `UseDomainEventDispatch`, in that order, after `AddSavingInterceptors()`
+  has registered them. Adopting this in an existing project means two things: the
   namespaces `AppTemplate.Infrastructure.Persistence.Common.{Saving,Time}` are now
   `AppTemplate.Infrastructure.Core.Common.{Saving,Time}`, and a module that registered those types
   by name registers them by call instead — every adapter of an application port behind these calls

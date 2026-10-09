@@ -25,8 +25,7 @@ Sources, later overriding earlier:
 ## Validation happens at startup, not on first use
 
 Every section below binds to an options class with an `IValidateOptions<T>` validator
-registered with `.ValidateOnStart()` — every one but `Cors`, which is read straight off
-`IConfiguration` and is the single exception noted in its own section. A missing or
+registered with `.ValidateOnStart()`. A missing or
 out-of-range value **fails the host at startup** with a message naming the exact key.
 
 Verified — blanking `EmailConfirmation:ConfirmEmailUrl` and shortening `Jwt:Key`:
@@ -756,14 +755,10 @@ environment fails at that call site rather than being quietly ignored.
 |---|---|---|---|
 | `AllowedOrigins` | string[] | `[]` | Exact origins. Bind by index from the environment: `Cors__AllowedOrigins__0`, `…__1`, … |
 
-**This is the one section with no options class and no validator.**
-`Src/Presentation/AppTemplate.Api.Core/Common/Security/CorsExtensions.cs` reads
-`Cors:AllowedOrigins` straight off `IConfiguration` at composition time, so nothing checks
-the values: an entry that is not a well-formed origin — a trailing slash, a path, a
-hostname with no scheme — is registered exactly as written and then silently matches no
-browser request. Every other section on this page fails the host at startup instead. If you
-depend on CORS, verify the header on a real preflight rather than trusting that the process
-started.
+`CorsOptionsValidator` refuses an entry that is not a well-formed origin — a trailing slash, a
+path, a hostname with no scheme or a scheme other than `http`/`https` — and the host fails
+`ValidateOnStart()` and does not boot, since such an entry would otherwise match no browser request
+without any error. A lone `*` is accepted and means any origin.
 
 - **An empty or absent array allows nothing**, rather than silently allowing
   everything. A same-origin caller is unaffected, since CORS only governs
@@ -944,11 +939,11 @@ What each setting does when it is wrong:
   a retry take a key back from a claimant whose process died (a killed pod, an OOM) between claiming
   it and calling `CompleteAsync` or `ReleaseAsync`. Without it that key would answer `409`
   `idempotency.inProgress` for the rest of its 24-hour retention instead of minutes.
-- **`ClaimLease` too short** — a lease shorter than the platform's own `RequestTimeouts:Extended`
-  ceiling (10 minutes by default) can expire while a slow-but-legitimate write is still in flight,
+- **`ClaimLease` too short** — a lease shorter than the platform's own `RequestTimeouts:Default`
+  ceiling (5 minutes by default) can expire while a slow-but-legitimate write is still in flight,
   handing the same key to a second, concurrent retry: the exact double write this mechanism exists to
   prevent. The shipped default (15 minutes) is that ceiling plus headroom for clock drift and the
-  little work left after the action returns; shrink `RequestTimeouts:Extended` before shrinking this.
+  little work left after the action returns; shrink `RequestTimeouts:Default` before shrinking this.
 - **`Retention` ≤ 0 or > 30 days**, **`ClaimLease` ≤ 0 or greater than `Retention`**,
   **`MaxKeyLength` outside 1…512**, or **`MaxStoredResponseBytes` < 1** — the host fails
   `ValidateOnStart()` and does not boot.
@@ -999,10 +994,9 @@ crash would. **Set outside its range**, the host fails `ValidateOnStart()` and d
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `Default` | timespan | `00:05:00` | Applied to every endpoint that names no other policy. Must be 1 second – 1 hour. |
-| `Extended` | timespan | `00:10:00` | Reachable only through the `long` named policy. Must be 1 second – 1 hour, and greater than `Default`. |
 
 Read by `Src/Presentation/AppTemplate.Api.Core/Common/Hosting/HostLifecycleExtensions.cs`, which installs
-`AddRequestTimeouts`/`UseRequestTimeouts` with these two policies. A response still not started when
+`AddRequestTimeouts`/`UseRequestTimeouts` with this one default policy. A response still not started when
 the deadline hits gets a `504` `ProblemDetails` with `code: "request.timeout"`; a response already
 under way (headers or a first body chunk already sent) cannot be rewritten, so the connection is cut
 instead — `GlobalExceptionHandler` is what classifies that case correctly in the logs, as a server
@@ -1017,18 +1011,16 @@ turning a transient failure the driver would have recovered from into a write wh
 caller can no longer observe. If `Database:CommandTimeoutSeconds` or its retry budget ever change,
 this default has to move with them; it must never be the one that moves first.
 
-**`Extended`, named `long`, is for a future endpoint whose normal work — not a stream — legitimately
-runs longer than `Default`** (a bulk import, say): still an ordinary request/response, so a timeout
-can still answer a `ProblemDetails`. **A streaming endpoint (SSE, an `IAsyncEnumerable` response)
-must use `[DisableRequestTimeout]` instead of either policy, never a larger number.** Once the first
-byte is flushed there is no channel left to report a timeout on, so a "very large" value is not
-safer, only later — it is still reached eventually, at the worst possible moment, and produces a
-silent cutoff instead of a clean error either way.
+**An endpoint whose normal work legitimately runs longer than `Default`** (a bulk import, say) names
+its own policy with `[RequestTimeout]`; **a streaming endpoint (SSE, an `IAsyncEnumerable` response)
+must use `[DisableRequestTimeout]` instead, never a larger number.** Once the first byte is flushed
+there is no channel left to report a timeout on, so a "very large" value is not safer, only later —
+it is still reached eventually, at the worst possible moment, and produces a silent cutoff instead
+of a clean error either way.
 
 **Set `Default` too low** and any endpoint whose work legitimately nears the numbers above starts
-failing under normal load, not just under a real incident. **Set `Extended` below or equal to
-`Default`**, or either outside 1 second – 1 hour, and the host fails `ValidateOnStart()` and does
-not boot.
+failing under normal load, not just under a real incident. **Set it outside 1 second – 1 hour** and
+the host fails `ValidateOnStart()` and does not boot.
 
 ### `MaintenanceWorker` — `AppTemplate.Worker` only
 

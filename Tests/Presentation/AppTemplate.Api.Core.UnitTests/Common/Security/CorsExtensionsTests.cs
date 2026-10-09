@@ -1,10 +1,11 @@
 ﻿using AppTemplate.Api.Core.Common.Security;
-using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
+using CorsPolicy = Microsoft.AspNetCore.Cors.Infrastructure.CorsPolicy;
+using FrameworkCorsOptions = Microsoft.AspNetCore.Cors.Infrastructure.CorsOptions;
 
 namespace AppTemplate.Api.Core.UnitTests.Common.Security;
 
@@ -70,11 +71,19 @@ public sealed class CorsExtensionsTests
             "an empty configuration must close the policy, not open it.");
     }
 
+    [Fact]
+    public void AnOriginThatIsNotAnOrigin_IsRefusedWhereTheOptionsAreRead()
+    {
+        var exception = Should.Throw<OptionsValidationException>(() => ResolvePolicy(["https://app.test/"]));
+
+        exception.Message.ShouldContain("Cors:AllowedOrigins");
+    }
+
     private static CorsPolicy ResolvePolicy(string[] origins)
     {
         var settings = origins
             .Select((origin, index) =>
-                new KeyValuePair<string, string?>($"{CorsExtensions.AllowedOriginsKey}:{index}", origin));
+                new KeyValuePair<string, string?>($"{CorsOptions.SectionName}:{nameof(CorsOptions.AllowedOrigins)}:{index}", origin));
 
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
 
@@ -83,7 +92,7 @@ public sealed class CorsExtensionsTests
 
         using var provider = services.BuildServiceProvider();
 
-        var policy = provider.GetRequiredService<IOptions<CorsOptions>>().Value
+        var policy = provider.GetRequiredService<IOptions<FrameworkCorsOptions>>().Value
             .GetPolicy(CorsExtensions.Default);
 
         return policy.ShouldNotBeNull(

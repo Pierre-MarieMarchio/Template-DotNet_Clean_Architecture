@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Security.Cryptography;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
-using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
@@ -9,7 +9,7 @@ using Xunit;
 namespace AppTemplate.Api.IntegrationTests.Storage;
 
 /// <summary>
-/// Why <c>Storage:PublicEndpoint</c> exists, measured against a real store rather than argued from
+/// Why <c>Files:Storage:S3:PublicEndpoint</c> exists, measured against a real store rather than argued from
 /// the specification.
 /// </summary>
 /// <remarks>
@@ -66,7 +66,7 @@ public sealed class PublicEndpointTests(ObjectStoreFixture fixture)
 
         await DepositAsync(objectKey);
 
-        var grant = await fixture.Content.CreateDownloadGrantAsync(
+        var grant = await fixture.Transfer.CreateDownloadGrantAsync(
             objectKey,
             "anything.bin",
             _mediaType,
@@ -111,12 +111,12 @@ public sealed class PublicEndpointTests(ObjectStoreFixture fixture)
         using var published = fixture.ComposePublishingAt(_publicEndpoint);
         using var scope = published.CreateScope();
 
-        var content = scope.ServiceProvider.GetRequiredService<IFileContentStore>();
+        var transfer = scope.ServiceProvider.GetRequiredService<IFileDirectTransfer>();
 
         string prefix = ObjectStoreFixture.UniquePrefix("published");
         string objectKey = ObjectStoreFixture.KeyUnder(prefix);
 
-        var upload = await content.CreateUploadGrantAsync(
+        var upload = await transfer.CreateUploadGrantAsync(
             objectKey,
             _mediaType,
             _payload.Length,
@@ -140,7 +140,7 @@ public sealed class PublicEndpointTests(ObjectStoreFixture fixture)
             $"the store answered {(int)deposit.StatusCode} to a deposit signed for the name it " +
             $"arrived under: {await deposit.Content.ReadAsStringAsync(TestToken)}");
 
-        var download = await content.CreateDownloadGrantAsync(
+        var download = await transfer.CreateDownloadGrantAsync(
             objectKey,
             "published.bin",
             _mediaType,
@@ -160,7 +160,7 @@ public sealed class PublicEndpointTests(ObjectStoreFixture fixture)
         // the inventory had followed the public name into nothing.
         var inventory = scope.ServiceProvider.GetRequiredService<IFileContentInventory>();
 
-        var listed = await inventory.ListKeysAsync(prefix, continuationToken: null, 10, TestToken);
+        var listed = await inventory.ListKeysAsync(prefix, startAfter: null, 10, TestToken);
 
         listed.Items.ShouldBe([objectKey]);
     }
@@ -180,7 +180,7 @@ public sealed class PublicEndpointTests(ObjectStoreFixture fixture)
 
     private async Task DepositAsync(string objectKey)
     {
-        var grant = await fixture.Content.CreateUploadGrantAsync(
+        var grant = await fixture.Transfer.CreateUploadGrantAsync(
             objectKey,
             _mediaType,
             _payload.Length,

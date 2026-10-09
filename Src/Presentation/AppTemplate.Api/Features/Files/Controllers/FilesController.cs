@@ -6,6 +6,7 @@ using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Features.Files.Contracts.Requests;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
 using AppTemplate.Api.Features.Files.Mapping;
+using AppTemplate.Application.Features.Files.Policies;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUpload;
 using AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
@@ -17,26 +18,22 @@ using Microsoft.AspNetCore.Mvc;
 namespace AppTemplate.Api.Features.Files.Controllers;
 
 /// <summary>
-/// The stored file aggregate's HTTP surface. <b>No byte of any file passes through it</b>, in either
-/// direction.
+/// The stored file aggregate's HTTP surface.
 /// </summary>
 /// <remarks>
-/// <b>Depositing is two requests.</b> <c>RequestLimitsOptions.MaxRequestBodyBytes</c> caps an
-/// inbound body at 64 KiB, and <see cref="IdempotencyFilter"/> buffers and SHA-256s the whole body
-/// of every <c>POST</c> before a handler sees it — so no file's bytes pass through here.
+/// <b>Depositing is two requests, and no file byte passes through them.</b>
 /// <see cref="Register"/> reserves a place and hands back a signed grant, the client deposits the
 /// bytes on the object store, and <see cref="Confirm"/> makes the file readable. Every body on this
-/// controller is metadata, so no action carries a request-size limit of its own.
+/// controller is metadata, so no action raises the request-size limit.
 /// <para>
-/// <b>Reading is a redirect, never a body.</b> <see cref="GetContent"/> answers <c>302</c> with a
-/// short-lived signed URL; the content travels between the client and the store, and no bytes are
-/// served or transformed in this process.
+/// <b>Reading is a redirect when the store can sign, and a stream when it cannot.</b>
+/// <see cref="GetContent"/> answers <c>302</c> with a short-lived signed URL, or — with the local
+/// file system store — <c>200</c> with the bytes.
 /// </para>
 /// <para>
-/// <b>Conditional requests.</b> A file's content never changes but the resource does: the version
-/// moves when a deposit is confirmed. The reads naming one file publish it as a strong <c>ETag</c>
-/// and the two writes naming one file honour <c>If-Match</c>. Registration takes none — there is no
-/// resource yet to have a version.
+/// <b>Conditional requests.</b> The version moves when a deposit is confirmed. The reads naming one
+/// file publish it as a strong <c>ETag</c> and the two writes naming one file honour
+/// <c>If-Match</c>. Registration takes none — there is no resource yet to have a version.
 /// </para>
 /// </remarks>
 [Route("api/v{version:apiVersion}/files")]
@@ -119,38 +116,26 @@ public sealed class FilesController(
             StoredFileResponseMapping.ToFileResponse(await getStoredFile.ExecuteAsync(query, cancellationToken)));
     }
 
-    /// <summary>Redirects to a short-lived signed URL for the file's content.</summary>
+    /// <summary>The file's content: a redirect to a signed URL, or the bytes themselves.</summary>
     /// <remarks>
-    /// <b>302, and no body.</b> Minting a signature changes nothing anywhere, so this is a
-    /// <c>GET</c>; and a 302 is what lets an <c>&lt;img&gt;</c>, a download manager or a
-    /// <c>curl -L</c> follow it with no client code at all. 307 would promise the method is
-    /// preserved, which nothing here needs, and 301/308 would tell every cache the mapping is
+    /// <b>302</b> when the store signs URLs: an <c>&lt;img&gt;</c>, a download manager or
+    /// <c>curl -L</c> follows it with no client code. 301/308 would tell caches the mapping is
     /// permanent when the target is worthless in minutes.
     /// <para>
-    /// <b><c>[NoStore]</c>, and it is load-bearing.</b> The <c>Location</c> header is a bearer
-    /// credential: whoever holds it reads the file, with no identity attached. The default for a read
-    /// on this API is <c>private, no-cache</c>, which still permits a client to store the response —
-    /// and a stored redirect outlives the grant it names, so a client replaying it gets a signature
-    /// the store has already stopped honouring. <c>no-store</c> is the one directive that says the
-    /// answer is good once.
+    /// <b>200</b> with the bytes when it cannot (the local file system store): as an attachment
+    /// under the file's name, with the declared media type and <c>nosniff</c>, so a browser never
+    /// renders what the uploader chose.
     /// </para>
     /// <para>
-    /// <b>The URL names the store, the bucket and the object key, and that is accepted.</b> It is
-    /// disclosed only to the file's owner, who may read the bytes anyway; the key carries 128 bits
-    /// from a cryptographic generator and is derived from nothing, so holding one says nothing about
-    /// any other file's; and a bucket whose safety depends on its name being unknown is misconfigured
-    /// with or without this endpoint. What the disclosure does forbid is treating the URL as
-    /// ordinary: it is never logged, never stored and never handed to anyone but the caller who
-    /// earned it.
+    /// <b><c>[NoStore]</c>, and it is load-bearing.</b> The <c>Location</c> is a bearer credential,
+    /// and a stored redirect outlives the grant it names. The URL is disclosed only to the owner,
+    /// and must never be logged or stored.
     /// </para>
-    /// <para>
-    /// No <c>ETag</c>: this response represents a grant, not the file. Two calls a second apart
-    /// answer with different signatures and different expiries, so a validator over it would name
-    /// something that is never the same twice.
-    /// </para>
+    /// <para>No <c>ETag</c>: a grant is never the same twice.</para>
     /// </remarks>
     [HttpGet("{fileId:guid}/content")]
     [NoStore]
+    [ProducesResponseType(typeof(Stream), StatusCodes.Status200OK, "application/octet-stream")]
     [ProducesResponseType(StatusCodes.Status302Found)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
@@ -160,13 +145,23 @@ public sealed class FilesController(
         var query = new IssueFileDownloadQuery(fileId);
         var result = await issueFileDownload.ExecuteAsync(query, cancellationToken);
 
-        // Mapped here rather than through a base helper: ApiControllerBase turns a Result into a
-        // representation, and this action has none to return. ErrorMapping is the single place an
-        // Error becomes a response either way, so the failure path is the same one every other action
-        // takes.
-        return result.IsFailure
-            ? result.Error!.ToActionResult(HttpContext)
-            : Redirect(result.Value.Url);
+        // Mapped here rather than through a base helper: there is no representation to return.
+        if (result.IsFailure)
+        {
+            return result.Error!.ToActionResult(HttpContext);
+        }
+
+        var download = result.Value;
+
+        if (download.Redirect is { } grant)
+        {
+            return Redirect(grant.Url);
+        }
+
+        Response.Headers.ContentDisposition = DownloadDispositionPolicy.AttachmentFor(download.FileName);
+        Response.Headers.XContentTypeOptions = "nosniff";
+
+        return File(download.Content!, download.MediaType);
     }
 
     /// <summary>Reserves a place for a file and hands back the right to deposit its bytes.</summary>
@@ -192,7 +187,8 @@ public sealed class FilesController(
     /// nothing about a credential it carries.
     /// </para>
     /// <para>
-    /// 409 covers both refusals worth naming: the caller's quota (<c>storedFile.quotaExceeded</c>),
+    /// 409 covers the refusals worth naming: a store that cannot sign
+    /// (<c>storedFile.directUploadUnavailable</c>), the caller's quota (<c>storedFile.quotaExceeded</c>),
     /// and a value the domain refuses that this layer's validation cannot state without restating the
     /// domain's rules — a reserved device name, a wildcard media type, a checksum of the right length
     /// that is not hexadecimal.

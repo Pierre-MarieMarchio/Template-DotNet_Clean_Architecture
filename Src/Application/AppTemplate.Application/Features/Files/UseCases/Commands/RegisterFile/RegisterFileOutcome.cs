@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+﻿using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 

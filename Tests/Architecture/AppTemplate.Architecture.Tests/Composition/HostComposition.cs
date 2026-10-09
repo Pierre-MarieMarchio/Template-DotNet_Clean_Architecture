@@ -112,7 +112,7 @@ internal static class HostComposition
             // The bucket is the only required value: with no endpoint the module addresses AWS S3
             // itself, and with no credentials the SDK's own chain resolves an instance role — which
             // is the shape a deployment should be in, so it is the shape composed here.
-            ["Storage:BucketName"] = "app-template-architecture-tests",
+            ["Files:Storage:S3:BucketName"] = "app-template-architecture-tests",
         };
 
     /// <summary>

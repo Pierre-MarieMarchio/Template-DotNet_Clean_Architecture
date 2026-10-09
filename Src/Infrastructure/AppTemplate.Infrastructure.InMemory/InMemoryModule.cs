@@ -1,8 +1,9 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
+using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
@@ -30,8 +31,8 @@ public static class InMemoryModule
     /// external identity verifier with controllable, recording doubles.
     /// <see cref="IReminderNotifier"/>'s real adapter (<c>EmailReminderNotifier</c>, in
     /// <c>AppTemplate.Infrastructure.Email</c>) sends actual mail, exactly like
-    /// <see cref="IEmailSender"/>'s, so it gets the same treatment here; the two file ports' real
-    /// adapters talk to an S3 bucket and <see cref="IExternalIdentityVerifier"/>'s fetches a key set
+    /// <see cref="IEmailSender"/>'s, so it gets the same treatment here; the file ports' real
+    /// adapters talk to a bucket, a disk and a scanner, and <see cref="IExternalIdentityVerifier"/>'s fetches a key set
     /// from an identity provider, which are the same kind of dependency.
     /// <para>
     /// It <b>removes and re-adds</b> rather than relying on last-registration-wins, and it
@@ -112,20 +113,14 @@ public static class InMemoryModule
     }
 
     /// <summary>
-    /// Registers the in-memory object store behind all three file ports, without the clock and
+    /// Registers the in-memory object store behind the four file ports, without the clock and
     /// email-sender swaps <see cref="AddInMemoryModule"/> also makes.
     /// <para>
-    /// The three ports share one <see cref="StoredObjects"/>, and they have to: the sweep behind
-    /// <see cref="IFileContentInventory"/> lists what <see cref="IFileContentStore"/> holds and
-    /// deletes through it, so two instances would make the inventory answer about a bucket nothing
-    /// ever writes to and the sweep would reclaim nothing while appearing to work. The inspector
-    /// reads the same objects for the same reason: it answers about the bytes a deposit left, and a
-    /// second store would mean it answered about none.
-    /// </para>
-    /// <para>
-    /// It needs a clock — the double stamps a deposit and expires a grant from
-    /// <see cref="IDateTimeProvider"/> — which <see cref="AddInMemoryModule"/> registers just above.
-    /// Called on its own, it inherits whatever clock the host already has.
+    /// The store, the direct transfer and the inventory share one <see cref="StoredObjects"/>: the
+    /// sweep lists what the store holds and deletes through it, so two instances would make it
+    /// reclaim nothing while appearing to work. The scanner answers from <see cref="ArrangedScans"/>.
+    /// It needs a clock, which <see cref="AddInMemoryModule"/> registers; called on its own, it
+    /// inherits the host's.
     /// </para>
     /// </summary>
     public static IServiceCollection AddInMemoryFileContent(this IServiceCollection services)
@@ -133,15 +128,17 @@ public static class InMemoryModule
         ArgumentNullException.ThrowIfNull(services);
 
         services.RemoveAll<IFileContentStore>();
+        services.RemoveAll<IFileDirectTransfer>();
         services.RemoveAll<IFileContentInventory>();
-        services.RemoveAll<IFileContentInspector>();
+        services.RemoveAll<IFileContentScanner>();
         services.RemoveAll<StoredObjects>();
-        services.RemoveAll<ArrangedInspections>();
+        services.RemoveAll<ArrangedScans>();
         services.AddSingleton<StoredObjects>();
-        services.AddSingleton<ArrangedInspections>();
+        services.AddSingleton<ArrangedScans>();
         services.AddScoped<IFileContentStore, InMemoryFileContentStore>();
+        services.AddScoped<IFileDirectTransfer, InMemoryFileDirectTransfer>();
         services.AddScoped<IFileContentInventory, InMemoryFileContentInventory>();
-        services.AddScoped<IFileContentInspector, InMemoryFileContentInspector>();
+        services.AddScoped<IFileContentScanner, InMemoryFileContentScanner>();
 
         return services;
     }

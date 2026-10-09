@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
+using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
+using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
@@ -24,7 +25,8 @@ public sealed class InspectDepositedFilesUseCaseTests
         Encoding.ASCII.GetBytes("<svg xmlns=\"http://www.w3.org/2000/svg\"><script/></svg>");
 
     private readonly IStoredFileRepository _repository = Substitute.For<IStoredFileRepository>();
-    private readonly IFileContentInspector _inspector = Substitute.For<IFileContentInspector>();
+    private readonly IFileContentStore _content = Substitute.For<IFileContentStore>();
+    private readonly IFileContentScanner _scanner = Substitute.For<IFileContentScanner>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -35,7 +37,7 @@ public sealed class InspectDepositedFilesUseCaseTests
     public async Task ADepositWhoseContentMatchesWhatWasDeclared_IsMadeAvailable()
     {
         var storedFile = GivenOneDepositedFile();
-        GivenTheInspectorReports(storedFile, ContentInspectionStatus.Clean, _png);
+        GivenTheContent(storedFile, _png);
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -54,7 +56,7 @@ public sealed class InspectDepositedFilesUseCaseTests
     public async Task AReleasedFile_RaisesTheMadeAvailableEvent()
     {
         var storedFile = GivenOneDepositedFile();
-        GivenTheInspectorReports(storedFile, ContentInspectionStatus.Clean, _png);
+        GivenTheContent(storedFile, _png);
 
         await UseCase().ExecuteAsync(TestToken);
 
@@ -74,7 +76,7 @@ public sealed class InspectDepositedFilesUseCaseTests
     public async Task ADepositWhoseContentContradictsWhatWasDeclared_IsQuarantined()
     {
         var storedFile = GivenOneDepositedFile();
-        GivenTheInspectorReports(storedFile, ContentInspectionStatus.Clean, _svg);
+        GivenTheContent(storedFile, _svg);
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -88,7 +90,7 @@ public sealed class InspectDepositedFilesUseCaseTests
     public async Task AnInfectedDeposit_IsQuarantined()
     {
         var storedFile = GivenOneDepositedFile();
-        GivenTheInspectorReports(storedFile, ContentInspectionStatus.Infected, _png, "Eicar-Test-Signature");
+        GivenTheContent(storedFile, _png, FileScanOutcome.Infected("Eicar-Test-Signature"));
 
         await UseCase().ExecuteAsync(TestToken);
 
@@ -106,7 +108,7 @@ public sealed class InspectDepositedFilesUseCaseTests
     {
         var storedFile = GivenOneDepositedFile();
         var keyBefore = storedFile.ObjectKey;
-        GivenTheInspectorReports(storedFile, ContentInspectionStatus.Infected, _png, "Eicar-Test-Signature");
+        GivenTheContent(storedFile, _png, FileScanOutcome.Infected("Eicar-Test-Signature"));
 
         await UseCase().ExecuteAsync(TestToken);
 
@@ -126,7 +128,7 @@ public sealed class InspectDepositedFilesUseCaseTests
     public async Task AFileThatCouldNotBeInspected_IsLeftUntouchedAndNothingIsCommitted()
     {
         var storedFile = GivenOneDepositedFile();
-        GivenTheInspectorReports(storedFile, ContentInspectionStatus.Unavailable, ReadOnlyMemory<byte>.Empty);
+        GivenTheContent(storedFile, _png, FileScanOutcome.Unavailable);
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -134,6 +136,56 @@ public sealed class InspectDepositedFilesUseCaseTests
         storedFile.State.ShouldBe(StoredFileState.Deposited);
         storedFile.DomainEvents.ShouldBeEmpty();
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// A confirmed deposit whose object is gone is no verdict, not a refusal: quarantining on an
+    /// absence would refuse a file over a store fault.
+    /// </summary>
+    [Fact]
+    public async Task AFileWhoseContentIsMissing_IsLeftForTheNextPass()
+    {
+        var storedFile = GivenOneDepositedFile();
+        _content.OpenReadAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>()).Returns((Stream?)null);
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.Value.ShouldBe(0);
+        storedFile.State.ShouldBe(StoredFileState.Deposited);
+        await _scanner.DidNotReceive().ScanAsync(Arg.Any<string>(), Arg.Any<Stream>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// A store that fails while being read is an outage, and an outage is retried.
+    /// </summary>
+    [Fact]
+    public async Task AStoreThatCannotBeRead_IsAnOutageRatherThanAVerdict()
+    {
+        var storedFile = GivenOneDepositedFile();
+        _content.OpenReadAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>())
+            .Returns<Task<Stream?>>(_ => throw new IOException("connection reset"));
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.Value.ShouldBe(0);
+        storedFile.State.ShouldBe(StoredFileState.Deposited);
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Shutdown is not an outage: the caller's cancellation propagates instead of being logged as a
+    /// file that could not be read.
+    /// </summary>
+    [Fact]
+    public async Task TheCallersCancellation_Propagates()
+    {
+        var storedFile = GivenOneDepositedFile();
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+        _content.OpenReadAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>())
+            .Returns<Task<Stream?>>(_ => throw new OperationCanceledException(cancellation.Token));
+
+        await Should.ThrowAsync<OperationCanceledException>(() => UseCase().ExecuteAsync(cancellation.Token));
     }
 
     /// <summary>
@@ -147,8 +199,8 @@ public sealed class InspectDepositedFilesUseCaseTests
         var stuck = ADepositedFile();
         var clean = ADepositedFile();
         GivenTheRepositoryHolds(stuck, clean);
-        GivenTheInspectorReports(stuck, ContentInspectionStatus.Unavailable, ReadOnlyMemory<byte>.Empty);
-        GivenTheInspectorReports(clean, ContentInspectionStatus.Clean, _png);
+        GivenTheContent(stuck, _png, FileScanOutcome.Unavailable);
+        GivenTheContent(clean, _png);
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -174,25 +226,53 @@ public sealed class InspectDepositedFilesUseCaseTests
         var result = await UseCase().ExecuteAsync(TestToken);
 
         result.Value.ShouldBe(0);
-        await _inspector.DidNotReceive().InspectAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _content.DidNotReceive().OpenReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     /// <summary>
-    /// The inspector is asked about the key the aggregate holds, never one recomputed from anything
-    /// else. A pass that inspected the wrong object would clear a file on the strength of another
-    /// file's bytes.
+    /// The content is read from the key the aggregate holds, never one recomputed from anything
+    /// else. A pass that read the wrong object would clear a file on the strength of another file's
+    /// bytes.
     /// </summary>
     [Fact]
-    public async Task TheInspector_IsAskedAboutTheAggregatesOwnKey()
+    public async Task TheContent_IsReadFromTheAggregatesOwnKey()
     {
         var storedFile = GivenOneDepositedFile();
-        GivenTheInspectorReports(storedFile, ContentInspectionStatus.Clean, _png);
+        GivenTheContent(storedFile, _png);
 
         await UseCase().ExecuteAsync(TestToken);
 
-        await _inspector.Received(1)
-            .InspectAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>());
+        await _content.Received(1).OpenReadAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>());
+        await _scanner.Received(1)
+            .ScanAsync(storedFile.ObjectKey.Value, Arg.Any<Stream>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// The head is read off the front of the stream before the scan; the scanner must still receive
+    /// every byte, head included, or it would clear an executable whose signature sits in the
+    /// first kibibyte.
+    /// </summary>
+    [Fact]
+    public async Task TheScanner_ReceivesTheWholeContentHeadIncluded()
+    {
+        byte[] large = [.. _png, .. Enumerable.Repeat((byte)'x', 5_000)];
+        var storedFile = GivenOneDepositedFile();
+        GivenTheContent(storedFile, large);
+        byte[]? scanned = null;
+        _scanner.ScanAsync(storedFile.ObjectKey.Value, Arg.Any<Stream>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                using var copy = new MemoryStream();
+                call.Arg<Stream>().CopyTo(copy);
+                scanned = copy.ToArray();
+
+                return FileScanOutcome.Clean;
+            });
+
+        await UseCase().ExecuteAsync(TestToken);
+
+        scanned.ShouldBe(large);
     }
 
     /// <summary>
@@ -206,8 +286,8 @@ public sealed class InspectDepositedFilesUseCaseTests
         var first = ADepositedFile();
         var second = ADepositedFile();
         GivenTheRepositoryHolds(first, second);
-        GivenTheInspectorReports(first, ContentInspectionStatus.Clean, _png);
-        GivenTheInspectorReports(second, ContentInspectionStatus.Clean, _svg);
+        GivenTheContent(first, _png);
+        GivenTheContent(second, _svg);
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -231,17 +311,18 @@ public sealed class InspectDepositedFilesUseCaseTests
         _repository.GetDepositedAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(files);
 
-    private void GivenTheInspectorReports(
-        StoredFile storedFile,
-        ContentInspectionStatus status,
-        ReadOnlyMemory<byte> head,
-        string? signature = null) =>
-        _inspector.InspectAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>())
-            .Returns(new ContentInspectionOutcome(status, head, signature));
+    private void GivenTheContent(StoredFile storedFile, byte[] bytes, FileScanOutcome? scan = null)
+    {
+        _content.OpenReadAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>())
+            .Returns(_ => new MemoryStream(bytes, writable: false));
+        _scanner.ScanAsync(storedFile.ObjectKey.Value, Arg.Any<Stream>(), Arg.Any<CancellationToken>())
+            .Returns(scan ?? FileScanOutcome.Clean);
+    }
 
     private InspectDepositedFilesUseCase UseCase() => new(
         _repository,
-        _inspector,
+        _content,
+        _scanner,
         _unitOfWork,
         new StubDateTimeProvider(),
         NullLogger<InspectDepositedFilesUseCase>.Instance);

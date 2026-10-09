@@ -9,15 +9,15 @@ namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 /// <b>It pages the way an object store pages, and that is the point of it existing at all.</b> The
 /// orphan sweep walks this port page by page and deletes what no row names, so a double that
 /// answered every listing in one page would leave the sweep's paging — the part that can loop for
-/// ever or skip a page — exercised by nothing. The keys are ordered and the token is the last key
-/// served, which is the same keyset arrangement a real listing has.
+/// ever or skip a page — exercised by nothing. Keys are in ordinal order and a page resumes after
+/// the last key served, as a real listing does.
 /// </para>
 /// </summary>
 internal sealed class InMemoryFileContentInventory(StoredObjects objects) : IFileContentInventory
 {
     public Task<PagedResult<string>> ListKeysAsync(
         string prefix,
-        string? continuationToken,
+        string? startAfter,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
@@ -26,7 +26,7 @@ internal sealed class InMemoryFileContentInventory(StoredObjects objects) : IFil
         cancellationToken.ThrowIfCancellationRequested();
 
         var remaining = objects.KeysUnder(prefix)
-            .Where(key => continuationToken is null || string.CompareOrdinal(key, continuationToken) > 0)
+            .Where(key => startAfter is null || string.CompareOrdinal(key, startAfter) > 0)
             .ToList();
 
         List<string> page = [.. remaining.Take(pageSize)];

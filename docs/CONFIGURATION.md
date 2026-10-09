@@ -57,8 +57,8 @@ be filled from user secrets or environment variables.
 > | `Database` | `AddPersistenceModule` **and** `AddAuthModule` | `AppTemplate.Infrastructure.Core/Common/Options/` |
 > | `IdempotencyPurge` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Idempotency/` |
 > | `Email`, `Postmark` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Common/Smtp/` and `Common/Http/` |
-> | `Storage` | `AddStorageModule` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
-> | `ContentInspection` | `AddStorageModule` | `AppTemplate.Infrastructure.Storage/Features/Files/Options/` |
+> | `Files:Storage:S3` | `AddStorageModule`, when `Files:Storage:Provider` is `S3` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
+> | `Files:Storage`, `Files:Storage:FileSystem`, `Files:Scanning` | `AddStorageModule` (the `FileSystem` section only for that provider) | `AppTemplate.Infrastructure.Storage/Features/Files/Options/` |
 > | `BackgroundJobs` | `AddBackgroundJobs`, called from `AppTemplate.Api`'s `Program.cs` | `AppTemplate.Api/Common/Jobs/` |
 > | `MaintenanceWorker`, `ReminderWorker`, `FileWorker` | `AddBackgroundJobs`, and only when `BackgroundJobs:Enabled` is true | `AppTemplate.Api/Features/<Feature>/Jobs/` |
 > | `OpenTelemetry` | `AddObservability`, through the API's `AddApiObservability` | `AppTemplate.Presentation.Core/Common/Observability/` |
@@ -173,7 +173,7 @@ there: what is deliberately not configurable, and how a key becomes an environme
 
 | | Sections |
 |---|---|
-| Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Storage`](#storage) · [`ContentInspection`](#contentinspection) |
+| Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Files:Storage`](#filesstorage) · [`Files:Storage:S3`](#filesstorages3) · [`Files:Storage:FileSystem`](#filesstoragefilesystem) · [`Files:Scanning`](#filesscanning) |
 | Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
 | Mail | [`Email:Transport`](#emailtransport--smtp-or-an-http-api) · [`Email`](#email) · [`Postmark`](#postmark) · [`EmailConfirmation`](#emailconfirmation) · [`PasswordReset`](#passwordreset) · [`EmailChange`](#emailchange) · [`Localization`](#localization) |
 | The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [`RateLimiting`](#ratelimiting) |
@@ -397,31 +397,38 @@ on two instances the reclamation does pay for a second full walk each cycle, whi
 [`BackgroundJobs:Enabled`](#backgroundjobs) is set to `false` on all but one instance; the day that
 stops being worth doing, the lease belongs in the use case, not in the loop.
 
-### `ContentInspection`
+### `Files:Storage`
 
-What a deposited file is checked against before it becomes readable. Entirely optional: an empty
-`ScannerHost` means no scanner, and the process starts normally.
+Which store holds the Files feature's bytes. One choice, read at start-up; the chosen provider's own
+section below is the only one bound and validated.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `ScannerHost` | string | `""` | Empty = no scanner. Type sniffing still runs. |
-| `ScannerPort` | int | `3310` | clamd's default. Validated only when a host is set. |
-| `MaxScannableBytes` | long | `26214400` (25 MiB) | Must stay at or below the daemon's own `StreamMaxLength`. |
+| `Provider` | string | `S3` | `S3` or `FileSystem`. Anything else is refused at start-up. |
 
-**ClamAV speaks its own TCP protocol, not HTTP**, so the outbound resilience policy does not cover
-it — the same asymmetry the S3 SDK has. Its timeouts are set on the adapter by hand to agree with
-that budget.
+**The two providers differ in who carries the bytes.** `S3` signs URLs: a client deposits on the
+store and is redirected to it to download, and no file byte passes through the API. `FileSystem`
+cannot sign: registering a direct upload answers `409` `storedFile.directUploadUnavailable`, and
+`GET /files/{id}/content` streams the bytes from the API (`200`) instead of redirecting (`302`).
 
-**Inspection is the only thing that makes a file readable**, so
-`FileWorker:InspectDepositedFilesInterval` is a latency a user feels, not a background cost — and
-`FileWorker:InspectDepositedFilesEnabled` set to `false` does not degrade the feature, it stops it.
-That is why the two live under `FileWorker` with the sweeps but are documented as the opposite kind
-of switch.
+### `Files:Storage:FileSystem`
 
-### `Storage`
+A directory on a local or mounted disk, when `Files:Storage:Provider` is `FileSystem`.
 
-Where the Files feature's bytes live. Bound by `AddStorageModule` and validated at start-up, so a
-bucket nobody can sign for stops the process instead of failing on the first upload.
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `RootPath` | string | `""` | **Required** for this provider, and **absolute**. Created on first write. Exclusive to this feature — the orphan sweep deletes every file under it that no row names. |
+
+An object is the file at `RootPath/<object key>`; a client-supplied file name never reaches the disk,
+and a key that would resolve outside the root is refused. A write goes to a temporary file in the
+same directory while it is counted and hashed, and is published by a rename only when its size and
+SHA-256 match the declaration. Describing an object reads it whole to compute its digest.
+
+### `Files:Storage:S3`
+
+The bucket, when `Files:Storage:Provider` is `S3`. Bound by `AddStorageModule` and validated at
+start-up — only for that provider — so a bucket nobody can sign for stops the process instead of
+failing on the first upload.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
@@ -452,8 +459,9 @@ scheme of the signed URL, and the refusal to send a bearer right in clear withou
 `AllowInsecureTransport`, are properties of the endpoint that produces URLs. The typical deployment
 is plain HTTP inside the mesh and TLS at the ingress; validating against the *internal* endpoint
 would force such a deployment to allow insecure transport for the internal hop and then sign
-`http://` URLs for a public that is on `https://`. An internal endpoint in clear carries no file bytes and no
-reusable credential (Signature V4 puts a per-request signature on the wire, never the secret); a
+`http://` URLs for a public that is on `https://`. An internal endpoint in clear carries no
+reusable credential (Signature V4 puts a per-request signature on the wire, never the secret) —
+though it does carry the bytes the inspection pass reads, inside the network the operator chose; a
 **public** endpoint in clear puts a reusable right to read or write an object into a proxy log, a
 `Referer` and a browser history.
 
@@ -468,6 +476,28 @@ rather than lengthen it, and see `SECURITY.md`.
 **The bucket is exclusive to this feature.** The orphan sweep reclaims bytes by difference — it
 lists the bucket and deletes every object no row names — so anything else stored there is deleted on
 the next pass.
+
+### `Files:Scanning`
+
+Whether deposited files are scanned for malware by a `clamd` daemon. Entirely optional: disabled,
+the process starts normally and the type check on a file's leading bytes still runs.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Enabled` | bool | `false` | `false` registers a scanner that finds nothing. |
+| `Host` | string | `""` | **Required when `Enabled` is true.** |
+| `Port` | int | `3310` | clamd's default. Validated only when scanning is enabled. |
+| `MaxScannableBytes` | long | `26214400` (25 MiB) | Must stay at or below the daemon's own `StreamMaxLength`. Larger content is refused as not inspectable. |
+
+**ClamAV speaks its own TCP protocol, not HTTP**, so the outbound resilience policy does not cover
+it — the same asymmetry the S3 SDK has. Its timeouts are set on the adapter by hand to agree with
+that budget.
+
+**Inspection is the only thing that makes a file readable**, so
+`FileWorker:InspectDepositedFilesInterval` is a latency a user feels, not a background cost — and
+`FileWorker:InspectDepositedFilesEnabled` set to `false` does not degrade the feature, it stops it.
+That is why the two live under `FileWorker` with the sweeps but are documented as the opposite kind
+of switch.
 
 ### Outbound HTTP — deliberately not configurable
 
@@ -1173,6 +1203,7 @@ them to an options class with a validator — do not read them straight from
 | `Cors:AllowedOrigins[0]` | `Cors__AllowedOrigins__0` |
 | `Database:MaxPoolSize` | `Database__MaxPoolSize` |
 | `IdempotencyPurge:BatchSize` | `IdempotencyPurge__BatchSize` |
+| `Files:Storage:S3:BucketName` | `Files__Storage__S3__BucketName` |
 | `BackgroundJobs:Enabled` | `BackgroundJobs__Enabled` |
 | `MaintenanceWorker:Interval` | `MaintenanceWorker__Interval` |
 

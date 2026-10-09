@@ -3,22 +3,16 @@
 namespace AppTemplate.Infrastructure.Storage.Common.Options;
 
 /// <summary>
-/// Where the bytes live and how this process reaches them. Bound from the <c>Storage</c> section and
-/// validated at start-up, so a bucket that does not exist under a name nobody can sign for stops the
-/// process from booting rather than failing on the first upload anyone attempts.
+/// The S3-compatible bucket the Files feature's bytes live in, when <c>Files:Storage:Provider</c> is
+/// <c>S3</c>. Bound from <c>Files:Storage:S3</c> and validated at start-up only for that provider.
 /// <para>
-/// Public because it is bound from configuration and its section name is part of the template's
-/// contract with whoever deploys it. Everything else in this assembly is internal.
-/// </para>
-/// <para>
-/// <b>The bucket name is a setting and never a constant.</b> One bucket per environment is the
-/// normal deployment, and a name compiled in would make the staging process able to write into the
-/// production bucket by having been built from the same commit.
+/// The bucket name is a setting, never a constant: a compiled-in name would let a staging process
+/// write into the production bucket.
 /// </para>
 /// </summary>
-public sealed class StorageOptions
+public sealed class FilesStorageS3Options
 {
-    public const string SectionName = "Storage";
+    public const string SectionName = "Files:Storage:S3";
 
     /// <summary>
     /// AWS Signature Version 4 refuses to sign a presigned URL valid for more than seven days, so no
@@ -41,10 +35,10 @@ public sealed class StorageOptions
 
     /// <summary>
     /// The S3-compatible endpoint <b>this process</b> talks to, empty for AWS S3 itself. Set for
-    /// MinIO in development and for any other compatible store. What travels over it is a metadata
-    /// read, a delete, a listing — and, where content inspection is switched on, the bytes the
-    /// inspector reads to hand to its scanner. Nothing else: a deposit and a download are the
-    /// client's own requests, made against <see cref="PublicEndpoint"/>.
+    /// MinIO in development and for any other compatible store. What travels over it is what this
+    /// process does itself — metadata reads, deletes, listings, the reads of the inspection pass and
+    /// writes through the store; a direct deposit or download is the client's own request, made
+    /// against <see cref="PublicEndpoint"/>.
     /// </summary>
     public string Endpoint { get; set; } = string.Empty;
 
@@ -108,7 +102,7 @@ public sealed class StorageOptions
     /// <see cref="Endpoint"/> is server-to-server traffic inside a network the operator chose — a
     /// service mesh, a Docker network, a VPC — and Signature Version 4 puts a per-request signature
     /// on the wire rather than the secret key, so watching it yields nothing anyone can re-use. It is
-    /// not free of content: with content inspection switched on, the inspector reads objects over it.
+    /// not free of content: the inspection pass reads objects over it.
     /// A plain-HTTP <see cref="PublicEndpoint"/> is a different thing all the same: every grant this
     /// module mints is a <em>reusable</em> right to read or write one object, valid until it expires,
     /// travelling in clear to a client this deployment does not control and into whatever proxy log,
@@ -138,7 +132,7 @@ public sealed class StorageOptions
 /// half of a credential pair is an unsigned call, and a plaintext signing endpoint is a credential
 /// in the clear that nothing reports at all.
 /// </summary>
-internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
+internal sealed class FilesStorageS3OptionsValidator : IValidateOptions<FilesStorageS3Options>
 {
     /// <summary>
     /// S3's own bucket naming rules, in the only two respects that can be checked without a network
@@ -149,7 +143,7 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
 
     private const int _maxBucketNameLength = 63;
 
-    public ValidateOptionsResult Validate(string? name, StorageOptions options)
+    public ValidateOptionsResult Validate(string? name, FilesStorageS3Options options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -160,7 +154,7 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
         if (string.IsNullOrWhiteSpace(options.Region))
         {
             failures.Add(
-                $"'{StorageOptions.SectionName}:Region' is required. It is part of the signing key, " +
+                $"'{FilesStorageS3Options.SectionName}:Region' is required. It is part of the signing key, " +
                 "so there is no neutral value to fall back to.");
         }
 
@@ -171,11 +165,11 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 
-    private static void ValidateBucketName(StorageOptions options, List<string> failures)
+    private static void ValidateBucketName(FilesStorageS3Options options, List<string> failures)
     {
         if (string.IsNullOrWhiteSpace(options.BucketName))
         {
-            failures.Add($"'{StorageOptions.SectionName}:BucketName' is required.");
+            failures.Add($"'{FilesStorageS3Options.SectionName}:BucketName' is required.");
 
             return;
         }
@@ -185,7 +179,7 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
         if (bucket.Length is < _minBucketNameLength or > _maxBucketNameLength)
         {
             failures.Add(
-                $"'{StorageOptions.SectionName}:BucketName' must be between {_minBucketNameLength} " +
+                $"'{FilesStorageS3Options.SectionName}:BucketName' must be between {_minBucketNameLength} " +
                 $"and {_maxBucketNameLength} characters.");
         }
 
@@ -194,14 +188,14 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
         if (!bucket.All(IsBucketNameCharacter))
         {
             failures.Add(
-                $"'{StorageOptions.SectionName}:BucketName' may only contain lower-case letters, " +
+                $"'{FilesStorageS3Options.SectionName}:BucketName' may only contain lower-case letters, " +
                 "digits, '-' and '.'.");
         }
         else if (!char.IsAsciiLetterLower(bucket[0]) && !char.IsAsciiDigit(bucket[0])
             || !char.IsAsciiLetterLower(bucket[^1]) && !char.IsAsciiDigit(bucket[^1]))
         {
             failures.Add(
-                $"'{StorageOptions.SectionName}:BucketName' must start and end with a lower-case " +
+                $"'{FilesStorageS3Options.SectionName}:BucketName' must start and end with a lower-case " +
                 "letter or a digit.");
         }
     }
@@ -211,17 +205,17 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
     /// <para>
     /// <b>Which rule lands on which endpoint is the whole point of the split.</b> Being a well-formed
     /// http or https URL is a property each key needs on its own — a malformed
-    /// <see cref="StorageOptions.Endpoint"/> breaks the three server-to-store calls, a malformed
-    /// <see cref="StorageOptions.PublicEndpoint"/> breaks every grant — so each is refused under its
-    /// own name. The transport rule lands on <see cref="StorageOptions.SigningEndpoint"/> alone,
+    /// <see cref="FilesStorageS3Options.Endpoint"/> breaks the three server-to-store calls, a malformed
+    /// <see cref="FilesStorageS3Options.PublicEndpoint"/> breaks every grant — so each is refused under its
+    /// own name. The transport rule lands on <see cref="FilesStorageS3Options.SigningEndpoint"/> alone,
     /// because what it protects is the bearer right a signed URL is, and that right exists only on
-    /// the endpoint URLs are minted for. See <see cref="StorageOptions.AllowInsecureTransport"/>.
+    /// the endpoint URLs are minted for. See <see cref="FilesStorageS3Options.AllowInsecureTransport"/>.
     /// </para>
     /// </summary>
-    private static void ValidateEndpoints(StorageOptions options, List<string> failures)
+    private static void ValidateEndpoints(FilesStorageS3Options options, List<string> failures)
     {
-        ValidateEndpointSyntax(options.Endpoint, nameof(StorageOptions.Endpoint), failures);
-        ValidateEndpointSyntax(options.PublicEndpoint, nameof(StorageOptions.PublicEndpoint), failures);
+        ValidateEndpointSyntax(options.Endpoint, nameof(FilesStorageS3Options.Endpoint), failures);
+        ValidateEndpointSyntax(options.PublicEndpoint, nameof(FilesStorageS3Options.PublicEndpoint), failures);
         ValidateSigningTransport(options, failures);
     }
 
@@ -237,12 +231,12 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
             || (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps))
         {
             failures.Add(
-                $"'{StorageOptions.SectionName}:{key}' must be an absolute http or https URL, " +
+                $"'{FilesStorageS3Options.SectionName}:{key}' must be an absolute http or https URL, " +
                 "for example 'http://minio:9000'.");
         }
     }
 
-    private static void ValidateSigningTransport(StorageOptions options, List<string> failures)
+    private static void ValidateSigningTransport(FilesStorageS3Options options, List<string> failures)
     {
         if (!Uri.TryCreate(options.SigningEndpoint, UriKind.Absolute, out var signing)
             || signing.Scheme != Uri.UriSchemeHttp
@@ -255,18 +249,18 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
         // Named for the key that carries the value: a deployment that never wrote PublicEndpoint
         // would otherwise be sent looking for a line that is not in its file.
         string key = string.IsNullOrWhiteSpace(options.PublicEndpoint)
-            ? nameof(StorageOptions.Endpoint)
-            : nameof(StorageOptions.PublicEndpoint);
+            ? nameof(FilesStorageS3Options.Endpoint)
+            : nameof(FilesStorageS3Options.PublicEndpoint);
 
         failures.Add(
-            $"'{StorageOptions.SectionName}:{key}' is an http URL against a host that is not " +
+            $"'{FilesStorageS3Options.SectionName}:{key}' is an http URL against a host that is not " +
             "loopback, so every signed URL minted from it — each of which is a bearer right to " +
             $"read or write one object — travels in clear text. Use https, or set " +
-            $"'{StorageOptions.SectionName}:AllowInsecureTransport' to true to accept that " +
+            $"'{FilesStorageS3Options.SectionName}:AllowInsecureTransport' to true to accept that " +
             "deliberately.");
     }
 
-    private static void ValidateCredentials(StorageOptions options, List<string> failures)
+    private static void ValidateCredentials(FilesStorageS3Options options, List<string> failures)
     {
         bool hasKeyId = !string.IsNullOrWhiteSpace(options.AccessKeyId);
         bool hasSecret = !string.IsNullOrWhiteSpace(options.SecretAccessKey);
@@ -276,25 +270,25 @@ internal sealed class StorageOptionsValidator : IValidateOptions<StorageOptions>
         if (hasKeyId != hasSecret)
         {
             failures.Add(
-                $"'{StorageOptions.SectionName}:AccessKeyId' and " +
-                $"'{StorageOptions.SectionName}:SecretAccessKey' are set together or not at all. " +
+                $"'{FilesStorageS3Options.SectionName}:AccessKeyId' and " +
+                $"'{FilesStorageS3Options.SectionName}:SecretAccessKey' are set together or not at all. " +
                 "Leaving both empty is how a deployment with an instance role is configured.");
         }
     }
 
-    private static void ValidateGrantLifetime(StorageOptions options, List<string> failures)
+    private static void ValidateGrantLifetime(FilesStorageS3Options options, List<string> failures)
     {
         if (options.MaxGrantLifetime <= TimeSpan.Zero)
         {
             failures.Add(
-                $"'{StorageOptions.SectionName}:MaxGrantLifetime' must be positive; a ceiling of " +
+                $"'{FilesStorageS3Options.SectionName}:MaxGrantLifetime' must be positive; a ceiling of " +
                 "zero would refuse every grant the application asks for.");
         }
-        else if (options.MaxGrantLifetime > StorageOptions.MaxSignableLifetime)
+        else if (options.MaxGrantLifetime > FilesStorageS3Options.MaxSignableLifetime)
         {
             failures.Add(
-                $"'{StorageOptions.SectionName}:MaxGrantLifetime' cannot exceed " +
-                $"{StorageOptions.MaxSignableLifetime}, which is the longest lifetime a Signature " +
+                $"'{FilesStorageS3Options.SectionName}:MaxGrantLifetime' cannot exceed " +
+                $"{FilesStorageS3Options.MaxSignableLifetime}, which is the longest lifetime a Signature " +
                 "Version 4 presigned URL can carry.");
         }
     }

@@ -2,7 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
+using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Infrastructure.Storage.Features.Files.Scanners;
 using Shouldly;
 using Xunit;
@@ -29,11 +29,8 @@ public sealed class ClamAvScannerTests
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
     /// <summary>
-    /// The property the whole adapter rests on: the daemon receives the head the caller had already
-    /// read <em>and</em> everything after it, in order, exactly once. The head is not in the stream
-    /// any more by the time this is called, so a scanner that only forwarded the stream would scan a
-    /// file with its first kibibyte missing — and would clear an executable whose signature is in
-    /// precisely that kibibyte.
+    /// The property the whole adapter rests on: the daemon receives every byte of the content, in
+    /// order, exactly once, across as many chunks as it takes.
     /// </summary>
     [Fact]
     public async Task TheWholeObject_ReachesTheDaemonInOrder()
@@ -43,7 +40,7 @@ public sealed class ClamAvScannerTests
 
         var outcome = await ScanAsync(daemon, rest);
 
-        outcome.Status.ShouldBe(ContentInspectionStatus.Clean);
+        outcome.Status.ShouldBe(FileScanStatus.Clean);
         (await daemon.Received).ShouldBe([.. _head, .. rest]);
     }
 
@@ -64,8 +61,8 @@ public sealed class ClamAvScannerTests
 
         var outcome = await ScanAsync(daemon, []);
 
-        outcome.Status.ShouldBe(ContentInspectionStatus.Clean);
-        outcome.Signature.ShouldBeNull();
+        outcome.Status.ShouldBe(FileScanStatus.Clean);
+        outcome.MalwareSignature.ShouldBeNull();
     }
 
     [Fact]
@@ -75,8 +72,8 @@ public sealed class ClamAvScannerTests
 
         var outcome = await ScanAsync(daemon, []);
 
-        outcome.Status.ShouldBe(ContentInspectionStatus.Infected);
-        outcome.Signature.ShouldBe("Win.Test.EICAR_HDB-1");
+        outcome.Status.ShouldBe(FileScanStatus.Infected);
+        outcome.MalwareSignature.ShouldBe("Win.Test.EICAR_HDB-1");
     }
 
     /// <summary>
@@ -91,7 +88,7 @@ public sealed class ClamAvScannerTests
 
         var outcome = await ScanAsync(daemon, []);
 
-        outcome.Status.ShouldBe(ContentInspectionStatus.NotInspectable);
+        outcome.Status.ShouldBe(FileScanStatus.NotInspectable);
     }
 
     /// <summary>
@@ -105,7 +102,7 @@ public sealed class ClamAvScannerTests
 
         var outcome = await ScanAsync(daemon, []);
 
-        outcome.Status.ShouldBe(ContentInspectionStatus.Unavailable);
+        outcome.Status.ShouldBe(FileScanStatus.Unavailable);
     }
 
     /// <summary>
@@ -119,7 +116,7 @@ public sealed class ClamAvScannerTests
 
         var outcome = await ScanAsync(daemon, []);
 
-        outcome.Status.ShouldBe(ContentInspectionStatus.Unavailable);
+        outcome.Status.ShouldBe(FileScanStatus.Unavailable);
     }
 
     /// <summary>
@@ -134,12 +131,12 @@ public sealed class ClamAvScannerTests
         var outcome = await ClamAvScanner.ScanAsync(
             IPAddress.Loopback.ToString(),
             deadPort,
-            _head,
-            new MemoryStream(),
+            new MemoryStream(_head),
+            _noLimit,
             TestToken);
 
-        outcome.Status.ShouldBe(ContentInspectionStatus.Unavailable);
-        outcome.Signature.ShouldBeNull();
+        outcome.Status.ShouldBe(FileScanStatus.Unavailable);
+        outcome.MalwareSignature.ShouldBeNull();
     }
 
     /// <summary>
@@ -157,17 +154,52 @@ public sealed class ClamAvScannerTests
 
         var outcome = await ScanAsync(daemon, Encoding.ASCII.GetBytes(new string('x', 5_000_000)));
 
-        outcome.Status.ShouldBe(ContentInspectionStatus.Infected);
+        outcome.Status.ShouldBe(FileScanStatus.Infected);
     }
 
-    private static Task<(ContentInspectionStatus Status, string? Signature)> ScanAsync(
-        FakeDaemon daemon,
-        byte[] rest) =>
+    /// <summary>
+    /// Content past the ceiling is refused as not inspectable while it is being sent — the length of
+    /// a store's response stream is not always known up front — rather than as a pipe the daemon
+    /// breaks midway, which would read as an outage and be retried for ever.
+    /// </summary>
+    [Fact]
+    public async Task ContentPastTheCeiling_IsReportedAsNotInspectable()
+    {
+        await using var daemon = await FakeDaemon.StartAsync("stream: OK", TestToken);
+
+        var outcome = await ClamAvScanner.ScanAsync(
+            IPAddress.Loopback.ToString(),
+            daemon.Port,
+            new MemoryStream(new byte[200_000]),
+            100_000,
+            TestToken);
+
+        outcome.ShouldBe(FileScanOutcome.NotInspectable);
+    }
+
+    [Fact]
+    public async Task ContentExactlyAtTheCeiling_IsScanned()
+    {
+        await using var daemon = await FakeDaemon.StartAsync("stream: OK", TestToken);
+
+        var outcome = await ClamAvScanner.ScanAsync(
+            IPAddress.Loopback.ToString(),
+            daemon.Port,
+            new MemoryStream(new byte[100_000]),
+            100_000,
+            TestToken);
+
+        outcome.ShouldBe(FileScanOutcome.Clean);
+    }
+
+    private const long _noLimit = long.MaxValue;
+
+    private static Task<FileScanOutcome> ScanAsync(FakeDaemon daemon, byte[] rest) =>
         ClamAvScanner.ScanAsync(
             IPAddress.Loopback.ToString(),
             daemon.Port,
-            _head,
-            new MemoryStream(rest),
+            new MemoryStream([.. _head, .. rest]),
+            _noLimit,
             TestToken);
 
     /// <summary>

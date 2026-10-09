@@ -18,6 +18,7 @@ public sealed class StoredFileErrorsTests
         StoredFileErrors.DepositMissing(Guid.CreateVersion7()).Code.ShouldBe("storedFile.depositMissing");
         StoredFileErrors.FileNotAvailable(Guid.CreateVersion7()).Code.ShouldBe("storedFile.notAvailable");
         StoredFileErrors.QuotaExceeded("full").Code.ShouldBe("storedFile.quotaExceeded");
+        StoredFileErrors.DirectUploadUnavailable().Code.ShouldBe("storedFile.directUploadUnavailable");
     }
 
     [Fact]
@@ -34,4 +35,11 @@ public sealed class StoredFileErrorsTests
         StoredFileErrors.DepositMissing(Guid.CreateVersion7()).Type.ShouldBe(ErrorType.Conflict);
         StoredFileErrors.FileNotAvailable(Guid.CreateVersion7()).Type.ShouldBe(ErrorType.Conflict);
     }
+
+    /// <summary>
+    /// The deployment's choice of store, not a malformed request: no change to the body helps.
+    /// </summary>
+    [Fact]
+    public void ADirectUploadAgainstAStoreThatCannotSign_IsAConflict() =>
+        StoredFileErrors.DirectUploadUnavailable().Type.ShouldBe(ErrorType.Conflict);
 }

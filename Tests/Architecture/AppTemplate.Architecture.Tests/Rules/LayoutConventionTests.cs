@@ -66,7 +66,7 @@ public sealed class LayoutConventionTests
             ["Configurations", "Directories", "Factories", "Issuers", "Logs", "Models", "Options", "Providers",
              "Seeding", "Services", "Tables", "Templates", "Verifiers"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
-            ["Inspectors", "Inventories", "Options", "Scanners", "Stores"],
+            ["Inventories", "Options", "Scanners", "Stores", "Transfers"],
 
         // Null, not empty: this project has no Features/ and may not grow one. What is here
         // is what any host needs whatever its transport, so a feature folder appearing would

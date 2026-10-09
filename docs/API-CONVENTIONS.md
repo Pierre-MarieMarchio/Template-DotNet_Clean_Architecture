@@ -82,6 +82,7 @@ of the contract.
 | `storedFile.notAvailable` / `storedFile.quarantined` | 409 — the content has no verdict yet, or was examined and refused. The second never becomes available |
 | `storedFile.depositMissing` | 409 — `confirm` found nothing deposited against the registration |
 | `storedFile.quotaExceeded` | 409 — the caller's own pending, file-count or byte allowance |
+| `storedFile.directUploadUnavailable` | 409 — registration for a direct upload against a store that cannot sign URLs (the file system store) |
 | `domain.invariantViolated` | 409 via `DomainGuard`; 400 if a use case's own catch is missing and `DomainException` reaches `GlobalExceptionHandler` |
 
 **The request itself**

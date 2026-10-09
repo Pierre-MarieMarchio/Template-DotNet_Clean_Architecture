@@ -377,7 +377,7 @@ storage — one DbContext over the schemas it owns:
 | `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, `IUnitOfWork`, `ILeaderLease`, the aggregate repositories and read-side ports, the idempotency store | `AppDbContext` → `todo`, `reminders`, `files`, `platform` |
 | `AppTemplate.Infrastructure.Auth` | the authentication ports, ASP.NET Identity, JWT bearer, refresh-token rotation, `IRefreshTokenTable`, `IIdentitySeeder` | `AuthDbContext` → `identity` |
 | `AppTemplate.Infrastructure.Email` | `IEmailSender`, `IReminderNotifier`, email options | — |
-| `AppTemplate.Infrastructure.Storage` | `IFileContentStore`, `IFileContentInventory`, storage options | one S3-compatible bucket |
+| `AppTemplate.Infrastructure.Storage` | `IFileContentStore`, `IFileDirectTransfer`, `IFileContentInventory`, `IFileContentScanner`, the `Files:Storage` and `Files:Scanning` options | an S3-compatible bucket or a local directory, chosen by `Files:Storage:Provider` |
 | `AppTemplate.Infrastructure.InMemory` | in-memory port implementations for tests and demos | — |
 
 **`AppTemplate.Infrastructure.Core` is not in that table, because it is not a capability.** It is

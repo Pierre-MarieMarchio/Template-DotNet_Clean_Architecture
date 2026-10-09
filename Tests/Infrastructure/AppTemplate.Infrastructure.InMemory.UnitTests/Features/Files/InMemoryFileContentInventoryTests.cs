@@ -5,7 +5,7 @@ using Xunit;
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Features.Files;
 
 /// <summary>
-/// The listing the orphan sweep walks. It pages, and it has to: the sweep loops until the token is
+/// The listing the orphan sweep walks. It pages, and it has to: the sweep loops until the cursor is
 /// null and deletes what no row names, so a double that answered every listing in one page would
 /// leave the loop — the part that can spin for ever or skip a page — exercised by nothing at all.
 /// </summary>
@@ -108,6 +108,23 @@ public sealed class InMemoryFileContentInventoryTests
             .ListKeysAsync("t0/", null, 10, TestContext.Current.CancellationToken);
 
         page.Items.ShouldBe(["t0/202601/b"]);
+    }
+
+    /// <summary>
+    /// A walk resumes from the last key it saw, whatever produced that key — a previous page, or a
+    /// checkpoint saved before a restart.
+    /// </summary>
+    [Fact]
+    public async Task ListKeysAsync_ResumesStrictlyAfterTheKeyItIsGiven()
+    {
+        using var provider = FileContentHost.Compose();
+        using var scope = provider.CreateScope();
+        Deposit(provider, "t0/202601/a", "t0/202601/b", "t0/202601/c");
+
+        var page = await FileContentHost.InventoryIn(scope)
+            .ListKeysAsync("t0/", "t0/202601/a", 10, TestContext.Current.CancellationToken);
+
+        page.Items.ShouldBe(["t0/202601/b", "t0/202601/c"]);
     }
 
     private static void Deposit(IServiceProvider provider, params string[] objectKeys)

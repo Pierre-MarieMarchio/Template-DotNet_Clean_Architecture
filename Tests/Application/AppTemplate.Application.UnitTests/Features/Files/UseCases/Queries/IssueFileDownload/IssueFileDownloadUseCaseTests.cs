@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 using AppTemplate.Application.UnitTests.TestDoubles;
@@ -27,16 +28,20 @@ public sealed class IssueFileDownloadUseCaseTests
         StubDateTimeProvider.DefaultInstant.AddMinutes(5));
 
     private readonly IStoredFileRepository _repository = Substitute.For<IStoredFileRepository>();
+    private readonly IFileDirectTransfer _transfer = Substitute.For<IFileDirectTransfer>();
     private readonly IFileContentStore _content = Substitute.For<IFileContentStore>();
 
-    public IssueFileDownloadUseCaseTests() =>
-        _content.CreateDownloadGrantAsync(
+    public IssueFileDownloadUseCaseTests()
+    {
+        _transfer.IsSupported.Returns(true);
+        _transfer.CreateDownloadGrantAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<TimeSpan>(),
                 Arg.Any<CancellationToken>())
             .Returns(_grant);
+    }
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -180,7 +185,62 @@ public sealed class IssueFileDownloadUseCaseTests
         var result = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(storedFile.Id), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBeSameAs(_grant);
+        result.Value.Redirect.ShouldBeSameAs(_grant);
+        result.Value.Content.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// A store that cannot sign hands the opened content back instead, with what the response needs
+    /// to offer it safely: the user's label as the name, the declared type, the stored size.
+    /// </summary>
+    [Fact]
+    public async Task AStoreThatCannotSign_YieldsTheContentItself()
+    {
+        var storedFile = GivenTheCallerOwnsAnAvailableFile();
+        _transfer.IsSupported.Returns(false);
+        using var bytes = new MemoryStream([1, 2, 3]);
+        _content.OpenReadAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>()).Returns(bytes);
+
+        var result = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(storedFile.Id), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Redirect.ShouldBeNull();
+        result.Value.Content.ShouldBeSameAs(bytes);
+        result.Value.FileName.ShouldBe(storedFile.Name.Value);
+        result.Value.MediaType.ShouldBe(storedFile.DeclaredMediaType.Value);
+        result.Value.SizeInBytes.ShouldBe(storedFile.Size.Bytes);
+        await NoGrantWasMinted();
+    }
+
+    /// <summary>
+    /// Streaming changes how the bytes travel, not who may have them: the ownership and state gates
+    /// run first, and a refused caller opens nothing.
+    /// </summary>
+    [Fact]
+    public async Task AStoreThatCannotSign_OpensNothingForSomebodyElsesFile()
+    {
+        var foreign = AStoredFile.AvailableOwnedBySomebodyElseThan(_callerId);
+        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
+        _transfer.IsSupported.Returns(false);
+
+        var result = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(foreign.Id), TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+        await _content.DidNotReceive().OpenReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// An available file with nothing under its key is a store fault, not an answer the caller can act on.
+    /// </summary>
+    [Fact]
+    public async Task AnAvailableFileWithNoBytes_IsAFault()
+    {
+        var storedFile = GivenTheCallerOwnsAnAvailableFile();
+        _transfer.IsSupported.Returns(false);
+        _content.OpenReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((Stream?)null);
+
+        await Should.ThrowAsync<InvalidOperationException>(
+            () => UseCase().ExecuteAsync(new IssueFileDownloadQuery(storedFile.Id), TestToken));
     }
 
     /// <summary>
@@ -195,7 +255,7 @@ public sealed class IssueFileDownloadUseCaseTests
 
         await UseCase().ExecuteAsync(new IssueFileDownloadQuery(storedFile.Id), TestToken);
 
-        await _content.Received(1).CreateDownloadGrantAsync(
+        await _transfer.Received(1).CreateDownloadGrantAsync(
             storedFile.ObjectKey.Value,
             storedFile.Name.Value,
             storedFile.DeclaredMediaType.Value,
@@ -215,7 +275,7 @@ public sealed class IssueFileDownloadUseCaseTests
 
         await UseCase().ExecuteAsync(new IssueFileDownloadQuery(storedFile.Id), TestToken);
 
-        await _content.Received(1).CreateDownloadGrantAsync(
+        await _transfer.Received(1).CreateDownloadGrantAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -237,7 +297,7 @@ public sealed class IssueFileDownloadUseCaseTests
         await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
 
     private async Task NoGrantWasMinted() =>
-        await _content.DidNotReceive().CreateDownloadGrantAsync(
+        await _transfer.DidNotReceive().CreateDownloadGrantAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -256,6 +316,7 @@ public sealed class IssueFileDownloadUseCaseTests
 
     private IssueFileDownloadUseCase UseCaseFor(ICurrentUser currentUser) => new(
         new StoredFileService(_repository, currentUser),
+        _transfer,
         _content,
         new IssueFileDownloadQueryValidator());
 }

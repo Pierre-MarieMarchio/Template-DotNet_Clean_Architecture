@@ -20,8 +20,21 @@ public sealed class RequestLanguageExtensionsTests
     [Theory]
     [InlineData("fr", "fr")]
     [InlineData("fr-CA", "fr-CA")]
-    // Quality values are parsed off and the first tag wins: a mail is written in one language.
-    [InlineData("fr;q=0.9,en;q=1.0", "fr")]
+    // The highest weight wins wherever it sits; a missing q is 1.
+    [InlineData("fr;q=0.9,en;q=1.0", "en")]
+    [InlineData("fr;q=0.5,en", "en")]
+    [InlineData("fr;q=0.9,de;q=0.3,en-GB;q=0.95", "en-GB")]
+    // Equal weights keep the order the caller wrote.
+    [InlineData("en;q=0.8,fr;q=0.8", "en")]
+    [InlineData("fr,en", "fr")]
+    // q=0 is "not acceptable", so that tag is never chosen.
+    [InlineData("fr;q=0,en;q=0.1", "en")]
+    [InlineData("fr;q=0", null)]
+    // An entry with an invalid q, or a malformed tag, is skipped and the rest still counts.
+    [InlineData("fr;q=abc,en;q=0.2", "en")]
+    [InlineData("fr;q=1.5,en;q=0.2", "en")]
+    [InlineData("fr_CA;q=1,en;q=0.2", "en")]
+    [InlineData("not a tag,en;q=0.2", "en")]
     [InlineData("  fr  , en", "fr")]
     // A wildcard says "anything", which is not a language.
     [InlineData("*", null)]

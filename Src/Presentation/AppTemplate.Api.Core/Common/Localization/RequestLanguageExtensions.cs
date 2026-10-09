@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Core.Common.Localization;
+﻿using System.Globalization;
+using AppTemplate.Application.Core.Common.Localization;
 using AppTemplate.Presentation.Core;
 using AppTemplate.Presentation.Core.Common.Localization;
 using Microsoft.AspNetCore.Builder;
@@ -58,10 +59,16 @@ internal static class RequestLanguageExtensions
     }
 
     /// <summary>
-    /// The first well-formed tag the caller lists, in the order they listed it. Quality values are
-    /// not honoured: a mail is written in one language, so the first tag is the answer, and ordering
-    /// by <c>q</c> would only change which of several a caller gets when they asked for the first.
+    /// The well-formed tag the caller weighs highest (RFC 9110 section 12.5.4): a missing <c>q</c> is
+    /// 1, <c>q=0</c> means "not acceptable" and excludes the tag, and equal weights keep the order the
+    /// caller wrote them in. An entry with a malformed tag or an invalid <c>q</c> is skipped whole. A
+    /// mail is written in one language, so only the winner is kept.
     /// </summary>
+    /// <remarks>
+    /// Parsed by hand rather than with <c>StringWithQualityHeaderValue</c>: that parser resynchronises
+    /// inside a bad entry and hands back fragments of it (<c>"not a tag"</c> yields <c>"tag"</c>),
+    /// which would turn a malformed tag into a language.
+    /// </remarks>
     private static string? Preferred(string? acceptLanguage)
     {
         if (string.IsNullOrWhiteSpace(acceptLanguage) || acceptLanguage.Length > _maximumHeaderLength)
@@ -69,16 +76,52 @@ internal static class RequestLanguageExtensions
             return null;
         }
 
+        string? best = null;
+        double bestWeight = 0;
+
         foreach (string entry in acceptLanguage.Split(','))
         {
-            string tag = entry.Split(';')[0].Trim();
+            string[] parts = entry.Split(';');
+            string tag = parts[0].Trim();
 
-            if (CurrentLanguage.IsWellFormed(tag))
+            if (CurrentLanguage.IsWellFormed(tag)
+                && TryReadWeight(parts.AsSpan(1), out double weight)
+                && weight > bestWeight)
             {
-                return tag;
+                // Strictly greater: on a tie the earlier entry stays.
+                best = tag;
+                bestWeight = weight;
             }
         }
 
-        return null;
+        return best;
+    }
+
+    /// <summary>
+    /// 1 when no <c>q</c> parameter is given; otherwise the value of <c>q</c>, which must be a number
+    /// from 0 to 1. Other parameters are ignored.
+    /// </summary>
+    private static bool TryReadWeight(ReadOnlySpan<string> parameters, out double weight)
+    {
+        weight = 1;
+
+        foreach (string parameter in parameters)
+        {
+            int equals = parameter.IndexOf('=', StringComparison.Ordinal);
+
+            if (equals < 0 || !parameter.AsSpan(0, equals).Trim().Equals("q", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            return double.TryParse(
+                    parameter.AsSpan(equals + 1).Trim(),
+                    NumberStyles.AllowDecimalPoint,
+                    CultureInfo.InvariantCulture,
+                    out weight)
+                && weight is >= 0 and <= 1;
+        }
+
+        return true;
     }
 }

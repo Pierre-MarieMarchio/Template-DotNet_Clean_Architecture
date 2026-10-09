@@ -63,10 +63,20 @@ jobs:
       # question. Kept a round number below the real total, matching ci.yml.
       - name: Test
         run: |
+          # A round number below the real total of the smallest suite this project can be
+          # generated with, raised by what it was generated with. Later lines win,
+          # so the floor is the largest one whose feature is present.
+          minimum_tests=1500
+          #if (files)
+          minimum_tests=2500
+          #endif
+          #if (todoLists)
+          minimum_tests=3000
+          #endif
           dotnet test "$SOLUTION" \
             --configuration "$CONFIGURATION" \
             --no-build \
-            --minimum-expected-tests 3000
+            --minimum-expected-tests "$minimum_tests"
 
       - name: Audit dependencies
         run: |

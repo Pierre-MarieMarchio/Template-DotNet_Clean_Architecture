@@ -39,7 +39,9 @@ public sealed class EmailTemplateCoverageTests
     private static readonly string[] _templateFolders =
     [
         "Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates",
+        //#if (reminders)
         "Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders",
+        //#endif
     ];
 
     private static readonly Regex _templateName = new(
@@ -66,10 +68,12 @@ public sealed class EmailTemplateCoverageTests
                 "EmailChangeEmailTemplate",
                 "PasswordResetEmailTemplate",
                 "RegisterEmailTemplate",
+                //#if (reminders)
                 "ReminderEmailTemplate",
+                //#endif
             ],
             customMessage:
-            "These are the four mails this template sends. A mail that stopped being found here is "
+            "These are the mails this template sends. A mail that stopped being found here is "
             + "one no rule below is checking any more.");
     }
 

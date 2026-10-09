@@ -7,6 +7,13 @@ domain model at all, and, across the first three, domain
 events, optimistic concurrency over HTTP, a paginated collection endpoint and background jobs calling
 the same use cases as the controllers. A derived project deletes what it has read and keeps what it needs.
 
+**Which of them a project receives is chosen when it is generated.** `dotnet new cleanarch-webapi`
+takes `--examples all|notes|none`, `all` by default: `TodoLists`, `Reminders` and `Notes`, `Notes`
+alone, or none of the three, and `--files false` leaves `Files` out
+([`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md#generation-options)). A project that knows it wants
+none of them says so there. This document is for the other case: a project generated with an example
+it now wants gone.
+
 `Files` is the one where "delete it" is not the only sensible answer. Structurally it sits at
 exactly the same rank as the other two — its own aggregate, its own use cases, its own controller,
 its own background job, its own migration — so everything below gives it a column. But unlike the other
@@ -25,6 +32,7 @@ removing it involves, and `--apply` deletes an untouched generated skeleton that
 about the shipped examples: they have none, are composed, and are removed with the procedure below, which is
 also what follows once a generated feature has been edited or registered.
 
+<!--#if (todoLists)-->
 **Read first, in this order**
 
 - [What this document promises](#what-this-document-promises) — which removals were actually carried
@@ -105,6 +113,7 @@ whether or not you wanted to keep it.
 | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
 | `Src/Presentation/AppTemplate.Api/Features/TodoLists/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
 | `Src/Presentation/AppTemplate.Api/Features/Files/Mapping/StoredFileResponseMapping.cs` | `TodoListResponseMapping` | `TodoLists` |
+
 <!--#else
 **Two `<see cref>` doc comments cross features, and a cref is code here.**
 `GenerateDocumentationFile` plus `TreatWarningsAsErrors` make a cref that no longer resolves a
@@ -724,11 +733,28 @@ Either keep `TodoLists`, or accept that removing it means removing `Reminders` t
 a reminder is scheduled against, by supplying that feature's own `ITodoItemQueries` equivalent. That is no longer removing an example;
 it is redesigning one.
 
+<!--#endif-->
+<!--#if (todoLists)-->
+<!--#else
+## What this project holds
+
+This project was generated without `TodoLists` and `Reminders`, so the procedure this document
+carries for those two, and the dependency between them, does not apply here.
+[Removing authentication](#removing-authentication) below does.
+
+**For `Notes` or `Files`, if this project has either, the exact list is a difference you can
+generate.** Generate a second project with the same name and the same options except the one that
+leaves the example out — `--examples none` for `Notes`, `--files false` for `Files` — and compare the
+two trees. Every file absent from the second goes, and every file that differs shows the edit, the
+business migration and its snapshot included. That is the list the template's own conditions encode,
+so it cannot drift from the tree. Then run the [verification](#verification).
+
+#endif-->
 ## Removing authentication
 
 Authentication is not an example feature — it is the capability a derived project is most likely to
 keep and the second most likely to replace wholesale with its own identity provider. It is also the
-one removal that is **not** symmetrical with the three above, so it gets its own section.
+one removal that is **not** symmetrical with the example ones, so it gets its own section.
 
 Both halves are asserted rather than claimed.
 `LayerDependencyTests.TheApplicationLayer_KnowsNothingOfAuthentication` reads the assembly manifests
@@ -747,12 +773,14 @@ under `Jobs/`, and seven controllers — `RegistrationController`, `SessionsCont
 accounts still owes is an authentication scheme and the `Administrator` policy the maintenance routes
 use, from its own identity provider.
 
-**Then three things answer back, and none of them is in either of those two projects.**
+**Then a few things answer back, and none of them is in either of those two projects.**
 
+<!--#if (reminders)-->
 - **The reminder's recipient needs another source.** `AccountReminderRecipientDirectory`, under
   `Src/Presentation/AppTemplate.Api/Features/Reminders/Directories/`, reads the owner's name and
   address from the local accounts. Replace it with an `IReminderRecipientDirectory` over your
   identity provider, or drop `Reminders` with authentication.
+<!--#endif-->
 - **The business context does not know authentication exists.**
   `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs`
   derives from `DbContext` and maps the business tables and `IdempotencyKeys`.
@@ -767,8 +795,14 @@ use, from its own identity provider.
   table that belongs to `AppTemplate.Application.Core`'s own mechanism, which every derived project
   keeps — was never in the same file.
 
+<!--#if (reminders)-->
 **What is left to answer for is one adapter**, the reminder recipient directory above: a project, a
 line in the composition, and that one host-side adapter.
+<!--#else
+**Nothing else is left to answer for**: no feature this project was generated with reads the local
+accounts, so removing authentication is the projects, their composition line and an authentication
+scheme of your own.
+#endif-->
 
 ## Verification
 

@@ -321,12 +321,20 @@ curl -s -X POST http://localhost:8080/api/v1/auth/register \
 # the confirmation mail in mailpit now reads "Confirmez votre adresse e-mail"
 ```
 
+<!--#if (reminders)-->
 **Adding a language is adding files.** Drop `<Mail>EmailTemplate.<tag>.html` beside the ones
 in `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates/` and
 `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/`, and that language
 is available — there is no list to update, because a list could name a language no template
 backs. `EmailTemplateCoverageTests` refuses a language added to one folder and not the other,
 and refuses two languages of one mail sharing a subject.
+<!--#else
+**Adding a language is adding files.** Drop `<Mail>EmailTemplate.<tag>.html` beside the ones
+in `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates/`, and that language
+is available — there is no list to update, because a list could name a language no template
+backs. `EmailTemplateCoverageTests` refuses a language added to one mail folder and not to every
+other, and refuses two languages of one mail sharing a subject.
+#endif-->
 
 **Two things to know before changing this.** The repository builds with
 `InvariantGlobalization=true`, so there is no `CultureInfo` to carry a language in and

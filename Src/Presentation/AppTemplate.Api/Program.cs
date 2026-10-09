@@ -3,10 +3,16 @@ using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Composition;
 using AppTemplate.Api.Features.BackgroundJobs.Jobs;
+//#if (reminders)
 using AppTemplate.Api.Features.Reminders.Directories;
+//#endif
+//#if (anyFeature)
 using AppTemplate.Application;
+//#endif
 using AppTemplate.Application.Core;
+//#if (reminders)
 using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
+//#endif
 using AppTemplate.Infrastructure.Core;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.Persistence;
@@ -30,15 +36,24 @@ builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 // Before the modules, so that any HttpClient they register is built on the configured defaults.
 builder.Services.AddOutboundHttp();
 
+//#if (todoLists)
 builder.Services.AddTodoLists();
+//#endif
+//#if (reminders)
 builder.Services.AddReminders();
+//#endif
 //#if (files)
 builder.Services.AddFiles(builder.Configuration);
 //#endif
+//#if (notes)
 builder.Services.AddNotes();
+//#endif
+//#if (reminders)
+
 // Who a due reminder rings, read from the local accounts. Neither feature names the other, so the
 // host is where they meet.
 builder.Services.AddScoped<IReminderRecipientDirectory, AccountReminderRecipientDirectory>();
+//#endif
 
 // Not covered by the calls above; the maintenance endpoint and the maintenance job both resolve it.
 builder.Services.AddPurgeExpiredIdempotencyKeys();

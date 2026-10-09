@@ -121,12 +121,14 @@ services:
       MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: ${MAINTENANCE_WORKER_PURGE_IDEMPOTENCY_KEYS:-true}
       MaintenanceWorker__PurgeExpiredRefreshTokensEnabled: ${MAINTENANCE_WORKER_PURGE_REFRESH_TOKENS:-true}
 
+      #if (reminders)
       # --- ReminderWorker ------------------------------------------------------
       # The second job, on its own timer. Enabled is the off switch for a stack that wants the
       # maintenance purges running without any reminder mail leaving the box — the job stops, the
       # rest of the process keeps going. See docs/CONFIGURATION.md.
       ReminderWorker__Interval: ${REMINDER_WORKER_INTERVAL:-00:01:00}
       ReminderWorker__Enabled: ${REMINDER_WORKER_ENABLED:-true}
+      #endif
 
       #if (files)
       # --- FileWorker ----------------------------------------------------------

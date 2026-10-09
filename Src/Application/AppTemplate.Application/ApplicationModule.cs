@@ -1,23 +1,37 @@
-﻿using AppTemplate.Application.Core;
+﻿//#if (anyFeature)
+using AppTemplate.Application.Core;
+//#endif
 //#if (files)
 using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Services;
 //#endif
+//#if (notes)
 using AppTemplate.Application.Features.Notes.Services;
+//#endif
+//#if (reminders)
 using AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.Reminders.Services;
+//#endif
+//#if (todoLists)
 using AppTemplate.Application.Features.TodoLists.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.TodoLists.Services;
+//#endif
 //#if (files)
 using AppTemplate.Domain.Features.Files.Events;
 //#endif
+//#if (todoLists)
 using AppTemplate.Domain.Features.TodoLists.Events;
+//#endif
+//#if (anyFeature)
 using FluentValidation;
+//#endif
 //#if (files)
 using Microsoft.Extensions.Configuration;
 //#endif
+//#if (anyFeature)
 using Microsoft.Extensions.DependencyInjection;
+//#endif
 //#if (files)
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -40,12 +54,19 @@ namespace AppTemplate.Application;
 /// </summary>
 public static class ApplicationModule
 {
+    //#if (todoLists)
     private const string _todoLists = "TodoLists";
+    //#endif
+    //#if (reminders)
     private const string _reminders = "Reminders";
+    //#endif
     //#if (files)
     private const string _files = "Files";
     //#endif
+    //#if (notes)
     private const string _notes = "Notes";
+    //#endif
+    //#if (todoLists)
 
     /// <summary>
     /// Registers the to-do list feature: its use cases, its validators, and the access service its
@@ -64,6 +85,8 @@ public static class ApplicationModule
 
         return services;
     }
+    //#endif
+    //#if (reminders)
 
     /// <summary>
     /// Registers the reminder feature.
@@ -91,8 +114,9 @@ public static class ApplicationModule
 
         return services;
     }
-
+    //#endif
     //#if (files)
+
     /// <summary>
     /// Registers the stored-file feature and binds <c>Files</c> (its categories and the API upload
     /// ceiling), validated at start-up.
@@ -122,8 +146,9 @@ public static class ApplicationModule
 
         return services;
     }
-
     //#endif
+    //#if (notes)
+
     /// <summary>
     /// Registers the notes feature: its service and its validator. It has no use cases and answers no
     /// domain event, and it depends on none of the other features.
@@ -139,6 +164,8 @@ public static class ApplicationModule
 
         return services;
     }
+    //#endif
+    //#if (anyFeature)
 
     /// <summary>
     /// The use cases and validators one vertical declares, discovered by the folder they sit in.
@@ -168,4 +195,5 @@ public static class ApplicationModule
         type.Namespace?.StartsWith(
             $"{typeof(ApplicationModule).Namespace}.Features.{vertical}.",
             StringComparison.Ordinal) == true;
+    //#endif
 }

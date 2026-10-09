@@ -141,7 +141,7 @@ public sealed class ObservabilityRegistrationTests
         }
 
         checkedInstruments.ShouldBeGreaterThanOrEqualTo(
-            4,
+            2,
             "Far fewer instruments were found across the hosts than this template declares, so the " +
             "walk is not reading the tree it is meant to describe and every one of them would read " +
             "as registered.");

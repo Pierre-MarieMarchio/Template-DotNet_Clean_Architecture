@@ -110,6 +110,27 @@ public sealed class PortConventionTests
     /// on the far side of it. <c>IEmailSender</c> was exactly that for as long as the only thing that
     /// sent mail lived in an infrastructure module.
     /// </summary>
+    /// <summary>
+    /// Mechanisms the template ships for a feature to consume, listed only in a project generated
+    /// without the examples that consume them: there the first consumer has yet to be written, and
+    /// the port is kept rather than deleted so that it is there when it is.
+    /// </summary>
+    private static readonly string[] _awaitingTheirFirstConsumer =
+    [
+        /*#if (tagging)*/
+        /*#else
+        "ICacheStore",
+        #endif*/
+        /*#if (reminders || files)*/
+        /*#else
+        "ILeaderLease",
+        #endif*/
+        /*#if (anyFeature)*/
+        /*#else
+        "IUnitOfWork",
+        #endif*/
+    ];
+
     [Fact]
     public void EveryApplicationPort_HasAConsumerInTheApplicationLayer()
     {
@@ -126,6 +147,7 @@ public sealed class PortConventionTests
 
         Ports
             .Where(port => !consumed.Contains(port))
+            .Where(port => !_awaitingTheirFirstConsumer.Contains(port.Name, StringComparer.Ordinal))
             .Select(port => port.FullName ?? port.Name)
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty(

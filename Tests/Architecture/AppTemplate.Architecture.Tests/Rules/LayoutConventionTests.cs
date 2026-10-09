@@ -104,6 +104,28 @@ public sealed class LayoutConventionTests
     };
 
     /// <summary>
+    /// The projects a feature is added to whose <c>Features/</c> a project generated without one does
+    /// not have yet. Listed only in such a project: anywhere else a missing <c>Features/</c> is the
+    /// stale vocabulary entry the rule reports.
+    /// </summary>
+    private static readonly string[] _featuresStillToCome =
+    [
+        /*#if (aggregates)*/
+        /*#else
+        "Src/Domain/AppTemplate.Domain",
+        #endif*/
+        /*#if (anyFeature)*/
+        /*#else
+        "Src/Application/AppTemplate.Application",
+        "Src/Infrastructure/AppTemplate.Infrastructure.Persistence",
+        #endif*/
+        /*#if (reminders)*/
+        /*#else
+        "Src/Infrastructure/AppTemplate.Infrastructure.Email",
+        #endif*/
+    ];
+
+    /// <summary>
     /// The folders a project's <c>Common/</c> may hold, per project. Closed for the same reason as
     /// the feature vocabulary above: <c>Common/</c> is where a layout drifts fastest, because a
     /// folder with no feature to belong to accepts any name — a dozen top-level folders with vague
@@ -121,12 +143,16 @@ public sealed class LayoutConventionTests
         ["Src/Domain/AppTemplate.Domain.Core"] =
             ["Abstractions", "Events", "Exceptions", "Primitives"],
 
+        /*#if (tagging)*/
         // The business half of this layer's Common/, and the word names a subject rather than a
         // nature: what a to-do item and a stored file share is that they are tagged, and that they
         // are tagged by the same rule. It could not sit one project inwards — TagSet names Tag, and
         // a Core project may name no business type — which is the test that decides between the two
         // kinds of Common/ rather than a preference about where it reads better.
         ["Src/Domain/AppTemplate.Domain"] = ["Tagging"],
+        /*#else
+        ["Src/Domain/AppTemplate.Domain"] = null,
+        #endif*/
 
         // No "Abstractions": every interface here is one, so the word sorted by nothing. What the
         // layer declares for something else to implement is a Ports/, at both scopes — the same word
@@ -136,12 +162,16 @@ public sealed class LayoutConventionTests
             ["Collections", "Concurrency", "Events", "Idempotency", "Localization", "Ownership",
              "Policies", "Ports", "Results", "UseCases", "Validation"],
 
+        /*#if (tagging)*/
         // The business half of this layer's Common/, and it pairs with the domain's: what several
         // features share as business here is the input validation over the domain's tag rules. It
         // could not sit one project inwards either — TagValidation names Tag, and a Core project
         // may name no business type — which is again the test that decides between the two kinds
         // rather than a preference.
         ["Src/Application/AppTemplate.Application"] = ["Tagging"],
+        /*#else
+        ["Src/Application/AppTemplate.Application"] = null,
+        #endif*/
 
         // One feature, so nothing is shared *between* features here. A Common/ would only mean
         // this project had grown a second subject, which is the thing to argue about rather than
@@ -246,6 +276,12 @@ public sealed class LayoutConventionTests
 
         foreach ((string project, string[]? allowed) in _vocabulary)
         {
+            if (_featuresStillToCome.Contains(project, StringComparer.Ordinal)
+                && !Directory.Exists(Path.Combine(ProjectReferenceGraph.RepositoryRoot, project, "Features")))
+            {
+                continue;
+            }
+
             if (!ShouldWalk(project, "Features", allowed, offenders))
             {
                 continue;
@@ -260,10 +296,13 @@ public sealed class LayoutConventionTests
                 .Select(folder => $"{project}: '{Path.GetRelativePath(features, folder)}' is not one of " +
                     $"[{string.Join(", ", allowed!)}]"));
 
+            //#if (todoLists && notes)
             // The other direction: a word no feature is filed under any more. Not every feature has
             // every word — one having no Consumers/ is normal — so the claim is that *some* feature
             // does. A word none does is a concept the vocabulary still offers and the tree stopped
-            // having, which is how a list of words quietly stops being an index.
+            // having, which is how a list of words quietly stops being an index. Checked only where
+            // every example is present: a project generated with fewer starts with words no feature
+            // uses yet, and the scaffolded features still need them.
             var used = Directory
                 .EnumerateDirectories(features)
                 .SelectMany(feature => Directory.EnumerateDirectories(feature))
@@ -274,6 +313,7 @@ public sealed class LayoutConventionTests
                 .Where(word => !used.Contains(word))
                 .Select(word => $"{project}: '{word}' is in this layer's vocabulary and no feature " +
                     "is filed under it. Drop the word, or file something under it."));
+            //#endif
 
             // The same second pass its sibling above makes over Common/'s loose files, and it has to
             // be conditional where that one does not: a project whose list is empty says by saying so
@@ -486,7 +526,7 @@ public sealed class LayoutConventionTests
         // the count is printed with the offenders below for the same reason: a rule that says how
         // many files it read is one whose silence can be checked.
         examined.ShouldBeGreaterThanOrEqualTo(
-            600,
+            400,
             "Far fewer source files were found than this template holds, so the walk is not reading " +
             "the tree it is meant to describe and every file in it would read as well named.");
 
@@ -515,7 +555,7 @@ public sealed class LayoutConventionTests
         // rule that leans on a neighbour to be non-vacuous is one that stops being a guarantee the
         // day the neighbour moves.
         walked.Count.ShouldBeGreaterThanOrEqualTo(
-            200,
+            180,
             "Far fewer folders were found than this template holds, so the walk is not reading the " +
             "tree it is meant to describe and every folder in it would read as non-empty.");
 

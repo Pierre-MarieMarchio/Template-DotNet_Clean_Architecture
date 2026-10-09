@@ -209,6 +209,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 });
 
             //#endif
+            //#if (notes)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Notes.Models.NoteRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -250,6 +251,8 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("Notes", "notes");
                 });
 
+            //#endif
+            //#if (reminders)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Reminders.Models.ReminderRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -308,6 +311,8 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("Reminders", "reminders");
                 });
 
+            //#endif
+            //#if (todoLists)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -394,6 +399,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("TodoLists", "todo");
                 });
 
+            //#endif
             //#if (files)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileTagRecord", b =>
                 {
@@ -405,6 +411,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 });
 
             //#endif
+            //#if (todoLists)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
                 {
                     b.HasOne("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoListRecord", null)
@@ -423,6 +430,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            //#endif
             //#if (files)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileRecord", b =>
                 {
@@ -430,6 +438,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 });
 
             //#endif
+            //#if (todoLists)
             modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
                 {
                     b.Navigation("Tags");
@@ -439,6 +448,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("Items");
                 });
+            //#endif
 #pragma warning restore 612, 618
         }
     }

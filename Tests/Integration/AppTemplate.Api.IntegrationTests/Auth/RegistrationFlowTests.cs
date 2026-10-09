@@ -80,7 +80,7 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
 
         // The access token is a working credential, which is the only thing that makes the whole
         // flow worth anything.
-        using var protectedRequest = new HttpRequestMessage(HttpMethod.Get, TodoListsRoute);
+        using var protectedRequest = new HttpRequestMessage(HttpMethod.Get, ProtectedRoute);
         protectedRequest.Headers.Authorization =
             new AuthenticationHeaderValue("Bearer", authenticated.Tokens.AccessToken);
 

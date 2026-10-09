@@ -66,7 +66,17 @@ public sealed class LayerDependencyTests
     {
         foreach (var domain in ArchitectureAssemblies.DomainLayer)
         {
+            /*#if (tagging)*/
             RuleAssertions.RequireTypes(domain);
+            /*#else
+            // Generated with no business type, the domain project is empty until the first aggregate
+            // arrives, and the rule reads it as it fills. Every other project of the layer still has
+            // to hold types.
+            if (domain != ArchitectureAssemblies.Domain)
+            {
+                RuleAssertions.RequireTypes(domain);
+            }
+            #endif*/
 
             Types.InAssembly(domain)
                 .ShouldNot()
@@ -116,6 +126,7 @@ public sealed class LayerDependencyTests
     [Fact]
     public void TheManifests_ShowTheDependencyPointingInwardAndNoFurther()
     {
+        //#if (tagging)
         TypeFacts.ReferencesAssembly(ArchitectureAssemblies.Application, ArchitectureAssemblies.DomainNamespace)
             .ShouldBeTrue(
                 "AppTemplate.Application does not name AppTemplate.Domain in its manifest, so it no longer uses the " +
@@ -126,6 +137,7 @@ public sealed class LayerDependencyTests
                 "AppTemplate.Domain does not name AppTemplate.Domain.Core in its manifest, so its " +
                 "aggregates are no longer built from the shared primitives and the split between " +
                 "the two has stopped meaning anything.");
+        //#endif
 
         TypeFacts.ReferencesAssembly(ArchitectureAssemblies.DomainCore, ArchitectureAssemblies.DomainNamespace)
             .ShouldBeFalse(
@@ -149,6 +161,7 @@ public sealed class LayerDependencyTests
             }
         }
 
+        //#if (anyFeature)
         TypeFacts.ReferencesAssembly(
                 ArchitectureAssemblies.Application,
                 ArchitectureAssemblies.ApplicationCoreNamespace)
@@ -157,6 +170,7 @@ public sealed class LayerDependencyTests
                 "manifest, so its use cases no longer answer with the shared Result or carry the " +
                 "shared paging contracts, and the split between the two has stopped meaning " +
                 "anything.");
+        //#endif
 
         TypeFacts.ReferencesAssembly(
                 ArchitectureAssemblies.ApplicationCore,

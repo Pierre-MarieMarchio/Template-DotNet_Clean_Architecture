@@ -198,6 +198,7 @@ public sealed class ModuleDependencyTests
     /// test would say so.
     /// </para>
     /// </summary>
+    //#if (anyFeature)
     [Fact]
     public void TheContext_IsTheOneThingInCommonThatNamesAFeature()
     {
@@ -239,9 +240,10 @@ public sealed class ModuleDependencyTests
             .HaveDependencyOnAny(_forbiddenInPersistenceCommon)
             .GetResult()
             .ShouldDetectAViolation(
-                "The to-do list feature's mapper and configurations name the domain aggregate and each "
-                + "other by design, so applying the mechanism rule's forbidden list to them must fail.");
+                "A feature's persistence types name its application ports and each other by design, so "
+                + "applying the mechanism rule's forbidden list to them must fail.");
     }
+    //#endif
 
     /// <summary>
     /// The assembly list the rules above address, against the modules that actually exist on disk.

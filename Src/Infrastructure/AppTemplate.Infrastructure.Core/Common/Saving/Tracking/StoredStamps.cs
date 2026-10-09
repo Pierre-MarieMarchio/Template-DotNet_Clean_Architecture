@@ -24,8 +24,8 @@ public static class StoredStamps
     /// — unlike the audit stamps, it is not part of <see cref="IAuditable"/> — so it is passed separately
     /// rather than read off <paramref name="record"/> a second way.</param>
     /// <param name="recordId">The row's id, named in the exception a malformed pairing raises.</param>
-    /// <param name="aggregateName">The word naming the aggregate in that same exception — "To-do list",
-    /// "Reminder" — so the message reads like the rest of the mapper it came from.</param>
+    /// <param name="aggregateName">The word naming the aggregate in that same exception — "Stored file",
+    /// for instance — so the message reads like the rest of the mapper it came from.</param>
     public static void ApplyTo<TAggregate>(
         TAggregate aggregate,
         IAuditable record,

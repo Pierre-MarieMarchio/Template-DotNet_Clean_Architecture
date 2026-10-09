@@ -1,8 +1,12 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
+//#if (reminders)
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
+//#endif
 using AppTemplate.Infrastructure.Email.Common.Http;
 using AppTemplate.Infrastructure.Email.Common.Smtp;
+//#if (reminders)
 using AppTemplate.Infrastructure.Email.Features.Reminders;
+//#endif
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -49,8 +53,10 @@ public static class EmailModule
         services.AddSingleton<IValidateOptions<EmailOptions>, EmailOptionsValidator>();
 
         AddTransport(services, configuration);
+        //#if (reminders)
 
         services.AddScoped<IReminderNotifier, EmailReminderNotifier>();
+        //#endif
 
         return services;
     }

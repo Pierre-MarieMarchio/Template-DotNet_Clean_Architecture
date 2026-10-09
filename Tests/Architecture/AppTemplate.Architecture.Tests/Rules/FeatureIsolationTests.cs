@@ -66,10 +66,12 @@ public sealed class FeatureIsolationTests
         var application = FeaturesIn(ArchitectureAssemblies.Application, _applicationFeatures);
         var persistence = FeaturesIn(ArchitectureAssemblies.Persistence, _persistenceFeatures);
 
+        //#if (aggregates)
         domain.Count.ShouldBeGreaterThanOrEqualTo(
-            2,
+            1,
             "Fewer features were found in the domain project than this template holds, so the rules "
             + "in this class would be read over a population that is not the real one.");
+        //#endif
 
         application
             .Except(persistence, StringComparer.Ordinal)
@@ -148,7 +150,18 @@ public sealed class FeatureIsolationTests
     [Fact]
     public void TheRule_IsSensitive_AndDetectsAFeatureReachingIntoItsOwnNamespaces()
     {
+        /*#if (anyFeature)*/
         string feature = FeaturesIn(ArchitectureAssemblies.Persistence, _persistenceFeatures).First();
+        /*#else
+        string? feature = FeaturesIn(ArchitectureAssemblies.Persistence, _persistenceFeatures).FirstOrDefault();
+
+        if (feature is null)
+        {
+            // Generated with no feature, there is nothing to prove the rule against until the first
+            // one is added.
+            return;
+        }
+        #endif*/
         string[] own = NamespacesOf(ArchitectureAssemblies.Persistence, $"{_persistenceFeatures}.{feature}")
             .ToArray();
 
@@ -178,11 +191,13 @@ public sealed class FeatureIsolationTests
 
         var features = FeaturesIn(assembly, featuresNamespace);
 
+        //#if (todoLists || (files && notes))
         features.Count.ShouldBeGreaterThanOrEqualTo(
-            3,
-            $"Fewer than three features were found under '{featuresNamespace}', so the rule would "
+            2,
+            $"Fewer than two features were found under '{featuresNamespace}', so the rule would "
             + "pass over a population that is not the real one.");
 
+        //#endif
         List<string> offenders = [];
 
         foreach (string subject in features)
@@ -197,8 +212,10 @@ public sealed class FeatureIsolationTests
                 .Where(other => !string.Equals(other, subject, StringComparison.Ordinal))
                 .SelectMany(ForeignInternals)];
 
+            //#if (todoLists || (files && notes))
             forbidden.ShouldNotBeEmpty($"No forbidden namespaces were computed for '{subject}'.");
 
+            //#endif
             var result = subjects
                 .ShouldNot()
                 .HaveDependencyOnAny(forbidden)

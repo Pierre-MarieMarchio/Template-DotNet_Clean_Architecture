@@ -61,7 +61,7 @@ be filled from user secrets or environment variables.
 > | `Files:Storage:S3` | `AddStorageModule`, when `Files:Storage:Provider` is `S3` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
 > | `Files:Storage`, `Files:Storage:FileSystem`, `Files:Scanning` | `AddStorageModule` (the `FileSystem` section only for that provider) | `AppTemplate.Infrastructure.Storage/Features/Files/Options/` |
 > | `BackgroundJobs` | `AddBackgroundJobs`, called from `AppTemplate.Api`'s `Program.cs` | `AppTemplate.Api/Common/Jobs/` |
-> | `MaintenanceWorker`, `ReminderWorker`, `FileWorker` | `AddBackgroundJobs`, and only when `BackgroundJobs:Enabled` is true | `AppTemplate.Api/Features/<Feature>/Jobs/` |
+> | `MaintenanceWorker`, and each feature's own `…Worker` section | `AddBackgroundJobs`, and only when `BackgroundJobs:Enabled` is true | `AppTemplate.Api/Features/<Feature>/Jobs/` |
 > | `OpenTelemetry` | `AddObservability`, through the API's `AddApiObservability` | `AppTemplate.Presentation.Core/Common/Observability/` |
 > | `Localization` | `AddLocalizationOptions`, through the API's `AddRequestLanguage` | `AppTemplate.Presentation.Core/Common/Localization/` |
 > | Everything else | `AppTemplate.Api`'s own `Program.cs`, through `AddHttpPipeline` | beside the middleware that reads it, under `AppTemplate.Api/Common/` |
@@ -114,6 +114,7 @@ jobs' hosting adapters and their one composition call move into it, and the API 
 (`AddNoCallerIdentity()` and an `IAuditActor` that answers nobody, both of which already exist) and
 its own telemetry. Use cases, contracts and storage guarantees do not move.
 
+<!--#if (reminders)-->
 **What the jobs need from the other modules.** The reminder pass reaches its owner through
 `IReminderRecipientDirectory`, which Reminders owns and the host supplies — over the local accounts in
 this template — and mails them through `IReminderNotifier`, whose only adapter lives in
@@ -123,6 +124,13 @@ holds that. A process that composes the identity module — the API does, for th
 validates the `Jwt`, `RefreshToken`, `EmailConfirmation`, `PasswordReset` and `EmailChange` sections
 as a whole, since composing that module composes ASP.NET Identity and bearer validation with no
 narrower call.
+<!--#else
+**What the jobs need from the other modules.** No job needs an authentication port of its own:
+`TheBackgroundOnlyContainer_BuildsWithoutAuthentication` holds that. A process that composes the
+identity module — the API does, for the account routes — validates the `Jwt`, `RefreshToken`,
+`EmailConfirmation`, `PasswordReset` and `EmailChange` sections as a whole, since composing that
+module composes ASP.NET Identity and bearer validation with no narrower call.
+#endif-->
 
 **The refresh-token purge belongs to authentication.** It is not listed in the background
 composition: `AddAuthFeature` (`Src/Presentation/AppTemplate.Api/Features/Auth/Composition/AuthComposition.cs`)
@@ -172,6 +180,7 @@ they are **not** the values in `appsettings.Development.json`, which override th
 **Find your section.** The two entries at the end are the ones to read even when no key sends you
 there: what is deliberately not configurable, and how a key becomes an environment variable.
 
+<!--#if (reminders)-->
 | | Sections |
 |---|---|
 | Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Files`](#files) · [`Files:Storage`](#filesstorage) · [`Files:Storage:S3`](#filesstorages3) · [`Files:Storage:FileSystem`](#filesstoragefilesystem) · [`Files:Scanning`](#filesscanning) |
@@ -182,6 +191,19 @@ there: what is deliberately not configurable, and how a key becomes an environme
 | Lifecycle and observability | [`Shutdown`](#shutdown) · [`OpenTelemetry`](#opentelemetry) · [standard ASP.NET Core keys](#standard-aspnet-core-keys) |
 | Background jobs | [`BackgroundJobs`](#backgroundjobs) · [`FileWorker`](#fileworker) · [`MaintenanceWorker`](#maintenanceworker) · [`ReminderWorker`](#reminderworker) |
 | Read these anyway | [not configurable, and why](#not-configurable--and-why-that-is-worth-knowing) · [outbound HTTP](#outbound-http--deliberately-not-configurable) · [environment-variable mapping](#environment-variable-mapping) |
+
+<!--#else
+| | Sections |
+|---|---|
+| Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Files`](#files) · [`Files:Storage`](#filesstorage) · [`Files:Storage:S3`](#filesstorages3) · [`Files:Storage:FileSystem`](#filesstoragefilesystem) · [`Files:Scanning`](#filesscanning) |
+| Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
+| Mail | [`Email:Transport`](#emailtransport--smtp-or-an-http-api) · [`Email`](#email) · [`Postmark`](#postmark) · [`EmailConfirmation`](#emailconfirmation) · [`PasswordReset`](#passwordreset) · [`EmailChange`](#emailchange) · [`Localization`](#localization) |
+| The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [`RateLimiting`](#ratelimiting) |
+| Correctness mechanisms | [`Concurrency`](#concurrency) · [`Idempotency`](#idempotency) · [`IdempotencyPurge`](#idempotencypurge) |
+| Lifecycle and observability | [`Shutdown`](#shutdown) · [`OpenTelemetry`](#opentelemetry) · [standard ASP.NET Core keys](#standard-aspnet-core-keys) |
+| Background jobs | [`BackgroundJobs`](#backgroundjobs) · [`FileWorker`](#fileworker) · [`MaintenanceWorker`](#maintenanceworker) |
+| Read these anyway | [not configurable, and why](#not-configurable--and-why-that-is-worth-knowing) · [outbound HTTP](#outbound-http--deliberately-not-configurable) · [environment-variable mapping](#environment-variable-mapping) |
+#endif-->
 
 ### `ConnectionStrings`
 
@@ -1169,6 +1191,7 @@ the authentication feature's composition binds to that section, so a project wit
 with the purge. Off, rotated and expired grants accumulate: nothing else removes them, and the
 maintenance job says so at warning level on every skipped iteration.
 
+<!--#if (reminders)-->
 ### `ReminderWorker`
 
 | Key | Type | Default | Notes |
@@ -1187,6 +1210,7 @@ stays at-least-once.
   does not boot.
 - `docker-compose.yml` sets these keys explicitly for local development.
 
+<!--#endif-->
 ### Not configurable — and why that is worth knowing
 
 | Behaviour | Value | Where |

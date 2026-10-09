@@ -38,7 +38,7 @@ public sealed class AuthenticationProblemDetailsTests(ApiFixture fixture) : Inte
     {
         var client = CreateClient();
 
-        using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        using var response = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
@@ -56,7 +56,7 @@ public sealed class AuthenticationProblemDetailsTests(ApiFixture fixture) : Inte
     {
         var client = CreateClient();
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, TodoListsRoute);
+        using var request = new HttpRequestMessage(HttpMethod.Get, ProtectedRoute);
         request.Headers.TryAddWithoutValidation("Authorization", "Bearer not-a-token");
 
         using var response = await client.SendAsync(request, TestToken);
@@ -84,7 +84,7 @@ public sealed class AuthenticationProblemDetailsTests(ApiFixture fixture) : Inte
     {
         var client = CreateClient();
 
-        using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        using var response = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
 
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestToken));
 

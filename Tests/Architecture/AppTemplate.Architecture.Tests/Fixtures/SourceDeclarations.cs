@@ -211,11 +211,13 @@ internal static class SourceDeclarations
                 "folder of any application project.");
         }
 
+        //#if (aggregates)
         if (DomainRepositoryFullNames.Count == 0)
         {
             complaints.Add(
                 "No repository contract was found in a Repositories folder of any domain project.");
         }
+        //#endif
 
         return complaints;
     }

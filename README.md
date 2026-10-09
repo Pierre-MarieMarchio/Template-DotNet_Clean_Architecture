@@ -102,6 +102,7 @@ dotnet new cleanarch-webapi -n Acme.OrderManagement
 cd Acme.OrderManagement && dotnet run Tools/Tasks.cs bootstrap
 ```
 
+`--examples none|notes|all` (default `all`) chooses which example features the project starts with;
 `--files false`, `--ci false` and `--sonar false` leave out the Files feature with its storage, the
 GitHub workflows, and the Sonar analysis. That last command is not optional, and
 [`docs/USING-THE-TEMPLATE.md`](docs/USING-THE-TEMPLATE.md) says why, along with the generation

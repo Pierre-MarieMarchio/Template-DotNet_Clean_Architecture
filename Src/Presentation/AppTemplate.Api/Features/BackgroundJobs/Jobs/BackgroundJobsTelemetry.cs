@@ -2,8 +2,10 @@
 using AppTemplate.Api.Features.Files.Jobs;
 //#endif
 using AppTemplate.Api.Features.Maintenance.Jobs;
+//#if (reminders)
 using AppTemplate.Api.Features.Reminders.Jobs;
 using AppTemplate.Infrastructure.Persistence;
+//#endif
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -29,19 +31,25 @@ internal static class BackgroundJobsTelemetry
             //#if (files)
             .AddSource(FileInstruments.Name)
             //#endif
-            .AddSource(MaintenanceInstruments.Name)
-            .AddSource(ReminderInstruments.Name));
+            //#if (reminders)
+            .AddSource(ReminderInstruments.Name)
+            //#endif
+            .AddSource(MaintenanceInstruments.Name));
 
-        // The iteration and volume counters, plus the reminder diagnostics' missed-cancellation
-        // counter, which only a firing pass can record. A meter declared and not named here is
-        // measured and thrown away.
+        // The iteration and volume counters. A meter declared and not named here is measured and
+        // thrown away.
         services.ConfigureOpenTelemetryMeterProvider((_, metrics) => metrics
             //#if (files)
             .AddMeter(FileInstruments.Name)
             //#endif
-            .AddMeter(MaintenanceInstruments.Name)
+            //#if (reminders)
             .AddMeter(ReminderInstruments.Name)
-            .AddMeter(PersistenceModule.RemindersMeterName));
+
+            // The reminder diagnostics' missed-cancellation counter, which only a firing pass can
+            // record.
+            .AddMeter(PersistenceModule.RemindersMeterName)
+            //#endif
+            .AddMeter(MaintenanceInstruments.Name));
 
         return services;
     }

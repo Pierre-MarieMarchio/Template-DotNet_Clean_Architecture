@@ -13,15 +13,20 @@ using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 //#endif
+//#if (notes)
 using AppTemplate.Application.Features.Notes.Dtos;
 using AppTemplate.Application.Features.Notes.Ports.NoteQueries;
 using AppTemplate.Application.Features.Notes.Ports.NoteStore;
 using AppTemplate.Application.Features.Notes.Services;
+//#endif
+//#if (reminders)
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
+//#endif
+//#if (todoLists)
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemTagQueries;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
@@ -40,11 +45,16 @@ using AppTemplate.Application.Features.TodoLists.UseCases.Commands.UpdateTodoIte
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItem;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItems;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoList;
+//#endif
 //#if (files)
 using AppTemplate.Domain.Features.Files.Repositories;
 //#endif
+//#if (reminders)
 using AppTemplate.Domain.Features.Reminders.Repositories;
+//#endif
+//#if (todoLists)
 using AppTemplate.Domain.Features.TodoLists.Repositories;
+//#endif
 using FluentValidation;
 //#if (files)
 using Microsoft.Extensions.Configuration;
@@ -63,8 +73,15 @@ namespace AppTemplate.Application.UnitTests;
 
 public sealed class ApplicationModuleTests
 {
-    // Sixteen to-do list operations and five reminder ones.
-    private const int _knownUseCaseCount = 16 + 5
+    private const int _knownUseCaseCount = 0
+        //#if (todoLists)
+        // Sixteen to-do list operations.
+        + 16
+        //#endif
+        //#if (reminders)
+        // Five reminder operations.
+        + 5
+        //#endif
         //#if (files)
         // Twelve for files, of which three (the abandonment purge, the orphan reclamation and the
         // deposit inspection) are reached only from background jobs.
@@ -75,15 +92,21 @@ public sealed class ApplicationModuleTests
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
 
-    /// <summary>The four calls a host composes, one per vertical.</summary>
+    /// <summary>The calls a host composes, one per vertical.</summary>
     public static TheoryData<string> FeatureCalls =>
     [
+        //#if (todoLists)
         nameof(ApplicationModule.AddTodoLists),
+        //#endif
+        //#if (reminders)
         nameof(ApplicationModule.AddReminders),
+        //#endif
         //#if (files)
         nameof(ApplicationModule.AddFiles),
         //#endif
+        //#if (notes)
         nameof(ApplicationModule.AddNotes),
+        //#endif
     ];
 
     [Fact]
@@ -92,6 +115,7 @@ public sealed class ApplicationModuleTests
             _knownUseCaseCount,
             "A use case was added or removed without this count following it. Discovery is what puts " +
             "it in the container, so the count is the only place the number is stated at all.");
+    //#if (todoLists || files)
 
     /// <summary>
     /// Each use case resolves through its own interface and nothing else: a container that binds the
@@ -127,12 +151,14 @@ public sealed class ApplicationModuleTests
 
         services.ShouldNotContain(descriptor => descriptor.ServiceType == implementation);
     }
+    //#endif
 
     /// <summary>
     /// The validators are discovered, not listed, so a command whose validator was never
     /// written would fail to resolve here rather than silently skip validation.
     /// </summary>
     [Theory]
+    //#if (todoLists)
     [InlineData(typeof(IValidator<CreateTodoListCommand>))]
     [InlineData(typeof(IValidator<RenameTodoListCommand>))]
     [InlineData(typeof(IValidator<AddTodoItemCommand>))]
@@ -147,11 +173,16 @@ public sealed class ApplicationModuleTests
     [InlineData(typeof(IValidator<GetTodoListQuery>))]
     [InlineData(typeof(IValidator<GetTodoItemQuery>))]
     [InlineData(typeof(IValidator<GetTodoItemsQuery>))]
+    //#endif
+    //#if (reminders)
     [InlineData(typeof(IValidator<ScheduleReminderCommand>))]
+    //#endif
     //#if (files)
     [InlineData(typeof(IValidator<RegisterFileCommand>))]
     //#endif
+    //#if (notes)
     [InlineData(typeof(IValidator<NoteContentDto>))]
+    //#endif
     public void EveryValidator_IsDiscovered(Type validatorType)
     {
         using var provider = BuildProvider();
@@ -165,18 +196,25 @@ public sealed class ApplicationModuleTests
     /// leave "last one wins" deciding which instance a use case received.
     /// </summary>
     [Theory]
+    //#if (todoLists)
     [InlineData(typeof(IValidator<CreateTodoListCommand>))]
+    //#endif
+    //#if (reminders)
     [InlineData(typeof(IValidator<ScheduleReminderCommand>))]
+    //#endif
     //#if (files)
     [InlineData(typeof(IValidator<RegisterFileCommand>))]
     //#endif
+    //#if (notes)
     [InlineData(typeof(IValidator<NoteContentDto>))]
+    //#endif
     public void EachValidator_IsRegisteredExactlyOnce(Type validatorType)
     {
         var services = ComposeEveryFeature();
 
         services.Count(descriptor => descriptor.ServiceType == validatorType).ShouldBe(1);
     }
+    //#if (todoLists)
 
     /// <summary>
     /// Not a use case, so the marker-based discovery never reaches it: it has to be bound by hand,
@@ -191,6 +229,8 @@ public sealed class ApplicationModuleTests
         services.Single(descriptor => descriptor.ServiceType == typeof(ITodoListService))
             .Lifetime.ShouldBe(ServiceLifetime.Scoped);
     }
+    //#endif
+    //#if (notes)
 
     /// <summary>
     /// The notes feature has no use case for the marker-based discovery to find, so its service is
@@ -205,6 +245,8 @@ public sealed class ApplicationModuleTests
         services.Single(descriptor => descriptor.ServiceType == typeof(INoteService))
             .Lifetime.ShouldBe(ServiceLifetime.Scoped);
     }
+    //#endif
+    //#if (todoLists)
 
     /// <summary>
     /// One call registers one vertical and leaves the others out of the container, which is what
@@ -217,11 +259,14 @@ public sealed class ApplicationModuleTests
         services.AddTodoLists();
 
         services.ShouldContain(descriptor => descriptor.ServiceType == typeof(ICreateTodoListUseCase));
+        //#if (reminders)
         services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IScheduleReminderUseCase));
+        //#endif
         //#if (files)
         services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IRegisterFileUseCase));
         //#endif
     }
+    //#endif
 
     [Theory]
     [MemberData(nameof(FeatureCalls))]
@@ -302,19 +347,25 @@ public sealed class ApplicationModuleTests
     }
 
     /// <summary>
-    /// The four verticals together, which is what the assembly-wide assertions need: they speak of
+    /// Every vertical together, which is what the assembly-wide assertions need: they speak of
     /// every use case the layer declares, so every feature declaring one has to be composed.
     /// </summary>
     private static ServiceCollection ComposeEveryFeature()
     {
         var services = new ServiceCollection();
 
+        //#if (todoLists)
         services.AddTodoLists();
+        //#endif
+        //#if (reminders)
         services.AddReminders();
+        //#endif
         //#if (files)
         services.AddFiles(FilesConfiguration());
         //#endif
+        //#if (notes)
         services.AddNotes();
+        //#endif
 
         return services;
     }
@@ -340,17 +391,23 @@ public sealed class ApplicationModuleTests
     {
         var services = ComposeEveryFeature();
 
+        //#if (todoLists)
         services.AddScoped(_ => Substitute.For<ITodoListRepository>());
         services.AddScoped(_ => Substitute.For<ITodoListQueries>());
         services.AddScoped(_ => Substitute.For<ITodoItemQueries>());
         services.AddScoped(_ => Substitute.For<ITodoItemTagQueries>());
+        //#endif
+        //#if (reminders)
         services.AddScoped(_ => Substitute.For<IReminderRepository>());
         services.AddScoped(_ => Substitute.For<IReminderNotifier>());
         services.AddScoped(_ => Substitute.For<IReminderRecipientDirectory>());
         services.AddScoped(_ => Substitute.For<IReminderQueries>());
         services.AddScoped(_ => Substitute.For<IReminderDiagnostics>());
+        //#endif
+        //#if (notes)
         services.AddScoped(_ => Substitute.For<INoteQueries>());
         services.AddScoped(_ => Substitute.For<INoteStore>());
+        //#endif
         services.AddScoped(_ => Substitute.For<IUnitOfWork>());
         services.AddScoped(_ => Substitute.For<ILeaderLease>());
         //#if (files)

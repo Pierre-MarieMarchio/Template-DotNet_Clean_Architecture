@@ -42,7 +42,7 @@ public sealed class StorageShapeTests
             .ToList();
 
         records.Count.ShouldBeGreaterThanOrEqualTo(
-            5,
+            1,
             "Almost no persistence record was found, so this rule is checking an empty set and " +
             "passing for the wrong reason.");
 
@@ -68,7 +68,7 @@ public sealed class StorageShapeTests
     public void NoApplicationPort_ExposesAQueryable()
     {
         ApplicationPorts.All.Count.ShouldBeGreaterThanOrEqualTo(
-            20,
+            15,
             "Almost no port was discovered, so this rule is checking an empty set.");
 
         var offenders = ApplicationPorts.All

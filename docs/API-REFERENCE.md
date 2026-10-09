@@ -9,6 +9,7 @@ repeats it.
 document is served at `/openapi/v1.json` in development with [Scalar](https://scalar.com) over it
 at `/scalar/v1`.
 
+<!--#if (todoLists)-->
 - [Authentication](#authentication--apiv1auth)
 - [To-do lists](#to-do-lists--apiv1todo-lists)
 - [Reminders](#reminders--apiv1reminders-and-apiv1reminders)
@@ -16,6 +17,22 @@ at `/scalar/v1`.
 - [Notes](#notes--apiv1notes)
 - [Account administration](#account-administration--apiv1authaccounts)
 - [Maintenance](#maintenance--apiv1maintenance)
+<!--#endif-->
+<!--#if (todoLists || !notes)-->
+<!--#else
+- [Authentication](#authentication--apiv1auth)
+- [Files](#files--apiv1files)
+- [Notes](#notes--apiv1notes)
+- [Account administration](#account-administration--apiv1authaccounts)
+- [Maintenance](#maintenance--apiv1maintenance)
+#endif-->
+<!--#if (todoLists || notes)-->
+<!--#else
+- [Authentication](#authentication--apiv1auth)
+- [Files](#files--apiv1files)
+- [Account administration](#account-administration--apiv1authaccounts)
+- [Maintenance](#maintenance--apiv1maintenance)
+#endif-->
 
 ## Authentication — `api/v1/auth/*`
 
@@ -54,6 +71,7 @@ revoked is treated as theft: the **entire token family for that user is revoked*
 the request fails. Verified: replaying a consumed token returns 401, and the
 token it had been rotated into stops working too.
 
+<!--#if (todoLists)-->
 ## To-do lists — `api/v1/todo-lists/*`
 
 Authentication required (no opt-out). One controller for one aggregate root; items
@@ -94,6 +112,7 @@ go through the item, rescheduling and cancelling go through the reminder's own i
 | POST | `/api/v1/todo-lists/{todoListId}/items/{todoItemId}/reminders` | 201 + `Location` — points at the collection above; there is no single-reminder `GET` |
 | PUT | `/api/v1/reminders/{reminderId}` | 200 — reschedule |
 | DELETE | `/api/v1/reminders/{reminderId}` | 204 — cancel |
+<!--#endif-->
 
 ## Files — `api/v1/files/*`
 
@@ -232,6 +251,7 @@ confirmation and its deletion stay the owner's, and a non-owner asking for the c
 file that is not available yet gets the same `404`. A file whose category was removed from
 configuration is treated as `Private`.
 
+<!--#if (notes)-->
 ## Notes — `api/v1/notes/*`
 
 Authentication required (no opt-out). A note is the feature with no domain model: five routes over
@@ -261,6 +281,7 @@ unchanged.
 | `POST` | One save of one row | None: there is no note yet to have a version | Safe with an `Idempotency-Key`, which replays the first response; without one, a repeat creates a second note |
 | `PUT` | One `UPDATE` conditioned on the `xmin` it loaded | `If-Match` stale: `412` `precondition.failed`. A writer that loses the race at the write: `409` `concurrency.conflict`. No `If-Match`: accepted, last write wins, unless `Concurrency:IfMatch` is `Required` (`428`) | The same `If-Match` sent again meets a version that has moved and is refused, so the change applies once |
 | `DELETE` | One `DELETE` conditioned on the `xmin` it loaded | As `PUT` | The note is gone, so a repeat is `404` (`412` with `If-Match: *`) |
+<!--#endif-->
 
 ## Account administration — `api/v1/auth/accounts/*`
 

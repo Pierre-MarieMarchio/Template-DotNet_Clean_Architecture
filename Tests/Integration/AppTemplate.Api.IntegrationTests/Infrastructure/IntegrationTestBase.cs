@@ -4,13 +4,17 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
+//#if (todoLists)
 using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
+//#endif
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
+//#if (todoLists)
 using Microsoft.Extensions.DependencyInjection;
+//#endif
 using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
@@ -51,8 +55,20 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     /// <summary>Satisfies every rule in the <c>Identity</c> policy the test host configures.</summary>
     protected const string ValidPassword = "Integration!Test1";
 
+    //#if (todoLists)
     protected const string TodoListsRoute = "/api/v1/todo-lists";
+    //#endif
     protected const string AuthRoute = "/api/v1/auth";
+
+    /// <summary>
+    /// A route that answers 200 to any signed-in caller and 401 to anyone else, for the tests whose
+    /// subject is the pipeline around an endpoint rather than the endpoint itself.
+    /// </summary>
+    /*#if (todoLists)*/
+    protected const string ProtectedRoute = TodoListsRoute;
+    /*#else
+    protected const string ProtectedRoute = AuthRoute + "/me";
+    #endif*/
 
     private static int _clientAddressCounter;
 
@@ -76,7 +92,9 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         Emails.Clear();
         Fixture.Logs.Clear();
+        //#if (todoLists)
         Fixture.DomainEvents.Clear();
+        //#endif
 
         // Truncated to whole milliseconds so an assertion against a PostgreSQL timestamptz — which
         // keeps microseconds, not the .NET tick — can compare for exact equality.
@@ -306,6 +324,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
     #endregion
 
+    //#if (todoLists)
     #region Todo lists
 
     protected static async Task<Guid> CreateTodoListAsync(HttpClient client, string name)
@@ -434,4 +453,5 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     }
 
     #endregion
+    //#endif
 }

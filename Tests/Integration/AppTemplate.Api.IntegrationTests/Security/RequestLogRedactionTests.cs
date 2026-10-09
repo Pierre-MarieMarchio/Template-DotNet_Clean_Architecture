@@ -26,7 +26,7 @@ public sealed class RequestLogRedactionTests(ApiFixture fixture) : IntegrationTe
         var (client, user, session) = await SignInAsync();
 
         // An authenticated request, so an Authorization header is on the wire.
-        using var listed = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        using var listed = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
         listed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // A refresh, so a refresh token travels in a JSON body.
@@ -73,7 +73,7 @@ public sealed class RequestLogRedactionTests(ApiFixture fixture) : IntegrationTe
     {
         var (client, _, _) = await SignInAsync();
 
-        using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        using var response = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var written = Fixture.Logs.Snapshot();
@@ -95,7 +95,7 @@ public sealed class RequestLogRedactionTests(ApiFixture fixture) : IntegrationTe
     {
         var client = CreateClient();
 
-        using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        using var response = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
 
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestToken));

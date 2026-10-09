@@ -24,11 +24,20 @@ public sealed class DomainModelTests
     /// Entities that must be present. If the model is refactored these change, but the set must
     /// never become empty — a reflection rule over nothing passes.
     /// </summary>
-    private static readonly string[] _expectedEntities = ["TodoList", "TodoItem"];
+    private static readonly string[] _expectedEntities =
+    [
+        //#if (todoLists)
+        "TodoList",
+        "TodoItem",
+        //#endif
+        //#if (files)
+        "StoredFile",
+        //#endif
+    ];
 
     /// <summary>
     /// Written with reflection because NetArchTest's <c>ImplementInterface</c> only sees interfaces a
-    /// type declares itself. <c>TodoList</c> reaches <see cref="IAggregateRoot"/> through
+    /// type declares itself. An aggregate reaches <see cref="IAggregateRoot"/> through
     /// <c>AggregateRoot&lt;TId&gt;</c>, so the rule engine matches nothing — and a rule that matches
     /// nothing passes, which is precisely the failure mode this project is built to avoid.
     /// </summary>
@@ -41,10 +50,12 @@ public sealed class DomainModelTests
             .Where(typeof(IAggregateRoot).IsAssignableFrom)
             .ToList();
 
+        //#if (aggregates)
         roots.ShouldNotBeEmpty(
             "No concrete IAggregateRoot was found in AppTemplate.Domain. Either the marker is gone or this " +
             "discovery has stopped working; either way the rule below would pass for nothing.");
 
+        //#endif
         roots.Where(type => !type.IsSealed)
             .Select(type => type.FullName ?? type.Name)
             .ShouldBeEmpty(
@@ -138,10 +149,12 @@ public sealed class DomainModelTests
             .Where(TypeFacts.IsRecord)
             .ToList();
 
+        //#if (aggregates)
         records.ShouldNotBeEmpty(
             "No record types were found in AppTemplate.Domain. Value objects and domain events are modelled " +
             "as records; if that has changed, this rule needs rewriting rather than deleting.");
 
+        //#endif
         var offenders = new List<string>();
 
         foreach (var record in records)
@@ -169,12 +182,14 @@ public sealed class DomainModelTests
     {
         var events = Types.InAssembly(ArchitectureAssemblies.Domain)
             .That()
-            .ResideInNamespaceStartingWith("AppTemplate.Domain.Features.TodoLists.Events")
+            .ResideInNamespaceMatching(@"^AppTemplate\.Domain\.Features\.[A-Za-z]+\.Events$")
             .And()
             .AreClasses();
 
+        //#if (aggregates)
         RuleAssertions.RequireTypes(events, "a type in a AppTemplate.Domain '...Events' namespace");
 
+        //#endif
         events.Should()
             .BeSealed()
             .And()
@@ -223,8 +238,10 @@ public sealed class DomainModelTests
             .Where(type => TypeFacts.DerivesFromOpenGeneric(type, typeof(Entity<>)))
             .ToList();
 
+        //#if (aggregates)
         entities.ShouldNotBeEmpty("No Entity<TId> descendants were found in AppTemplate.Domain.");
 
+        //#endif
         foreach (string expected in _expectedEntities)
         {
             entities.Select(entity => entity.Name)

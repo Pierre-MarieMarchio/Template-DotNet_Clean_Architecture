@@ -38,6 +38,7 @@ return Tasks.Run(args);
 /// <code>
 /// dotnet run Tools/Tasks.cs test
 /// dotnet run Tools/Tasks.cs test --no-integration
+/// dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
 /// dotnet run Tools/Tasks.cs migration-add AddTodoItemPriority
 /// dotnet run Tools/Tasks.cs -- build --configuration Release
 /// </code>
@@ -91,6 +92,10 @@ internal static class Tasks
 
         // Only 'new-feature' takes two: the folder in the plural and the type in the singular.
         string? second = null;
+
+        // The options of 'new-feature', forwarded as they were typed. NewFeature.cs is what knows their
+        // meaning and refuses a bad value, so this file does not copy its rules.
+        List<string> featureOptions = [];
         bool noIntegration = false;
         string configuration = "Debug";
 
@@ -116,11 +121,27 @@ internal static class Tasks
             {
                 configuration = argument["--configuration=".Length..];
             }
+            else if (FeatureOptionNames.Any(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)))
+            {
+                featureOptions.Add(argument);
+
+                // The two-argument spelling carries its value in the next argument.
+                if (!argument.Contains('=', StringComparison.Ordinal))
+                {
+                    if (i + 1 >= arguments.Length)
+                    {
+                        throw new InvalidOperationException($"'{argument}' needs a value.");
+                    }
+
+                    featureOptions.Add(arguments[++i]);
+                }
+            }
             else if (argument.StartsWith('-'))
             {
                 throw new InvalidOperationException(
                     $"'{argument}' is not an option of this file. The options are --no-integration and "
-                    + "--configuration <Debug|Release>, the second after a -- separator.");
+                    + "--configuration <Debug|Release>, the second after a -- separator, and for new-feature "
+                    + $"{string.Join(", ", FeatureOptionNames)}.");
             }
             else if (task is null)
             {
@@ -145,6 +166,12 @@ internal static class Tasks
             throw new InvalidOperationException(
                 $"'{configuration}' does not belong to the set of configurations: Debug, Release. "
                 + "Supply one of those and then try the command again.");
+        }
+
+        if (featureOptions.Count > 0 && task != "new-feature")
+        {
+            throw new InvalidOperationException(
+                $"'{featureOptions[0]}' is an option of the new-feature task, not of '{task ?? "(no task)"}'.");
         }
 
         if (task is null)
@@ -207,12 +234,17 @@ internal static class Tasks
                 break;
 
             case "new-feature":
-                // Two names, not one: the folder is the plural and the type is the singular.
+                // Two names, not one: the folder is the plural and the type is the singular. The
+                // options follow them untouched: --access is required and NewFeature.cs says so itself.
                 Step(
-                    "dotnet", "run", Path.Combine(repoRoot, "Tools", "NewFeature.cs"),
-                    RequiredName(task, name),
-                    RequiredSecond(task, second),
-                    repoRoot);
+                    "dotnet",
+                    [
+                        "run", Path.Combine(repoRoot, "Tools", "NewFeature.cs"),
+                        RequiredSecond(task, name),
+                        RequiredSecond(task, second),
+                        "--root", repoRoot,
+                        .. featureOptions,
+                    ]);
                 break;
 
             case "migration-add":
@@ -511,6 +543,9 @@ internal static class Tasks
 
     private static string Gate(string repoRoot, string fileName) => Path.Combine(repoRoot, "Tools", fileName);
 
+    /// <summary>The options <c>NewFeature.cs</c> takes besides the two names and <c>--root</c>.</summary>
+    private static readonly string[] FeatureOptionNames = ["--access", "--operations", "--model", "--concurrency"];
+
     private static string TaskList() => "  " + string.Join(", ", KnownTasks);
 
     private static string RequiredSecond(string task, string? second)
@@ -518,7 +553,7 @@ internal static class Tasks
         if (string.IsNullOrWhiteSpace(second))
         {
             throw new InvalidOperationException(
-                $"The '{task}' task needs two names, e.g. dotnet run Tools/Tasks.cs {task} Widgets Widget");
+                $"The '{task}' task needs two names and --access, e.g. dotnet run Tools/Tasks.cs {task} Widgets Widget --access shared");
         }
 
         return second;

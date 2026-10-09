@@ -31,22 +31,6 @@ public sealed class RequestTimeoutsOptions
     /// </para>
     /// </summary>
     public TimeSpan Default { get; set; } = TimeSpan.FromMinutes(5);
-
-    /// <summary>
-    /// 10 minutes by default, reachable only through the
-    /// <see cref="HostLifecycleExtensions.LongRequestTimeoutPolicy"/> named policy, for a future endpoint
-    /// whose normal work — not a stream — legitimately runs longer than <see cref="Default"/> (a
-    /// bulk import, say). It is still an ordinary request/response, so a timeout here can still
-    /// answer a <c>ProblemDetails</c>.
-    /// <para>
-    /// A streaming endpoint (SSE, an <c>IAsyncEnumerable</c> response) must reach for
-    /// <c>[DisableRequestTimeout]</c> instead of this policy, never a larger number here: once the
-    /// first byte is flushed there is no channel left to report a timeout on, so a "very large"
-    /// value is not a safer choice, just a later one — it is still reached eventually, at the
-    /// worst possible moment, and produces a silent cutoff instead of a clean error either way.
-    /// </para>
-    /// </summary>
-    public TimeSpan Extended { get; set; } = TimeSpan.FromMinutes(10);
 }
 
 internal sealed class RequestTimeoutsOptionsValidator : IValidateOptions<RequestTimeoutsOptions>
@@ -58,30 +42,13 @@ internal sealed class RequestTimeoutsOptionsValidator : IValidateOptions<Request
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        var failures = new List<string>();
-
         if (options.Default < _minTimeout || options.Default > _maxTimeout)
         {
-            failures.Add(
+            return ValidateOptionsResult.Fail(
                 $"'{RequestTimeoutsOptions.SectionName}:{nameof(RequestTimeoutsOptions.Default)}' " +
                 $"must be between {_minTimeout} and {_maxTimeout}.");
         }
 
-        if (options.Extended < _minTimeout || options.Extended > _maxTimeout)
-        {
-            failures.Add(
-                $"'{RequestTimeoutsOptions.SectionName}:{nameof(RequestTimeoutsOptions.Extended)}' " +
-                $"must be between {_minTimeout} and {_maxTimeout}.");
-        }
-
-        if (options.Extended <= options.Default)
-        {
-            failures.Add(
-                $"'{RequestTimeoutsOptions.SectionName}:{nameof(RequestTimeoutsOptions.Extended)}' must be " +
-                $"greater than '{RequestTimeoutsOptions.SectionName}:{nameof(RequestTimeoutsOptions.Default)}', " +
-                "or a long-running endpoint would get no more room than every other one.");
-        }
-
-        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+        return ValidateOptionsResult.Success;
     }
 }

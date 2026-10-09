@@ -27,28 +27,25 @@ public sealed class HostLifecycleExtensionsTests
     }
 
     [Fact]
-    public void AddApiLifecycle_ConfiguresTheDefaultAndExtendedRequestTimeoutPolicies()
+    public void AddApiLifecycle_ConfiguresTheDefaultRequestTimeoutPolicy()
     {
-        var provider = BuildProvider(requestTimeoutDefault: "00:02:00", requestTimeoutExtended: "00:07:00");
+        var provider = BuildProvider(requestTimeoutDefault: "00:02:00");
 
         var requestTimeouts = provider.GetRequiredService<IOptions<RequestTimeoutOptions>>().Value;
 
         requestTimeouts.DefaultPolicy.ShouldNotBeNull();
         requestTimeouts.DefaultPolicy!.Timeout.ShouldBe(TimeSpan.FromMinutes(2));
-        requestTimeouts.Policies[HostLifecycleExtensions.LongRequestTimeoutPolicy].Timeout.ShouldBe(TimeSpan.FromMinutes(7));
     }
 
     private static ServiceProvider BuildProvider(
         string shutdownTimeout = "00:00:30",
-        string requestTimeoutDefault = "00:05:00",
-        string requestTimeoutExtended = "00:10:00")
+        string requestTimeoutDefault = "00:05:00")
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Shutdown:Timeout"] = shutdownTimeout,
                 ["RequestTimeouts:Default"] = requestTimeoutDefault,
-                ["RequestTimeouts:Extended"] = requestTimeoutExtended,
             })
             .Build();
 

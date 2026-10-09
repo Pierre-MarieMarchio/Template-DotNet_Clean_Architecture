@@ -155,7 +155,7 @@ is [`CONFIGURATION.md`](CONFIGURATION.md#secrets-use-dotnet-user-secrets).
 ### What a wrong setting does
 
 Configuration is layered `appsettings.json` → `appsettings.Development.json` → user secrets →
-environment variables, and every section but `Cors` binds to an options class whose validator runs
+environment variables, and every section binds to an options class whose validator runs
 with `.ValidateOnStart()`. **A missing or out-of-range value fails the host at startup, in one
 pass, with a message naming the exact key** — not on the first request that needed it. Blanking
 `EmailConfirmation:ConfirmEmailUrl` and shortening `Jwt:Key` produces

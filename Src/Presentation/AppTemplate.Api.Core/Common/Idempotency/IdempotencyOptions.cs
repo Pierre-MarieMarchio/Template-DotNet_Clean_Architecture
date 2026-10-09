@@ -36,14 +36,14 @@ public sealed class IdempotencyOptions
     /// double write this whole mechanism exists to prevent.
     /// </para>
     /// <para>
-    /// 15 minutes: half again the 10-minute ceiling of
-    /// <see cref="AppTemplate.Api.Core.Common.Hosting.RequestTimeoutsOptions.Extended"/> — the longest an
-    /// ordinary (non-streaming) request is ever allowed to run before the platform cuts it off itself,
+    /// 15 minutes: three times the 5-minute
+    /// <see cref="AppTemplate.Api.Core.Common.Hosting.RequestTimeoutsOptions.Default"/> — the longest an
+    /// ordinary (non-streaming) request is allowed to run before the platform cuts it off itself,
     /// at which point the filter's own <c>catch</c> releases the claim promptly. The margin is headroom
     /// for clock drift between instances and for the little work still left once the action returns
-    /// (writing the response, then <c>CompleteAsync</c>'s own round trip), not a second worst case
-    /// stacked on the first. A value below that 10-minute ceiling would turn a slow-but-legitimate
-    /// write into a lease expiring while it is still in flight.
+    /// (writing the response, then <c>CompleteAsync</c>'s own round trip). A value below that
+    /// 5-minute ceiling would turn a slow-but-legitimate write into a lease expiring while it is
+    /// still in flight.
     /// </para>
     /// </summary>
     public TimeSpan ClaimLease { get; set; } = TimeSpan.FromMinutes(15);

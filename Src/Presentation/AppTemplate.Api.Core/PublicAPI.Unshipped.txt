@@ -1,1 +1,7 @@
 #nullable enable
+AppTemplate.Api.Core.Common.Security.CorsOptions
+AppTemplate.Api.Core.Common.Security.CorsOptions.AllowedOrigins.get -> System.Collections.Generic.IList<string!>!
+AppTemplate.Api.Core.Common.Security.CorsOptions.CorsOptions() -> void
+const AppTemplate.Api.Core.Common.Security.CorsOptions.SectionName = "Cors" -> string!
+*REMOVED*AppTemplate.Api.Core.Common.Hosting.RequestTimeoutsOptions.Extended.get -> System.TimeSpan
+*REMOVED*AppTemplate.Api.Core.Common.Hosting.RequestTimeoutsOptions.Extended.set -> void

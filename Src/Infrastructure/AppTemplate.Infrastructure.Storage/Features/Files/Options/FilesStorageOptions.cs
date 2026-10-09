@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using AppTemplate.Application.Features.Files.Options;
+using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Options;
 
@@ -38,5 +39,36 @@ internal sealed class FilesStorageOptionsValidator : IValidateOptions<FilesStora
             : ValidateOptionsResult.Fail(
                 $"'{FilesStorageOptions.SectionName}:Provider' must be '{FilesStorageOptions.S3Provider}' or " +
                 $"'{FilesStorageOptions.FileSystemProvider}'.");
+    }
+}
+
+/// <summary>
+/// Refuses a category that can only be uploaded directly when the chosen store cannot sign URLs:
+/// nothing could ever be uploaded into it.
+/// </summary>
+internal sealed class FilesCategoriesStorageValidator(IOptions<FilesStorageOptions> storage)
+    : IValidateOptions<FilesOptions>
+{
+    public ValidateOptionsResult Validate(string? name, FilesOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (!storage.Value.UsesFileSystem)
+        {
+            return ValidateOptionsResult.Success;
+        }
+
+        var failures = options.Categories
+            .Where(category => category.Value is { } settings
+                && settings.UploadModes.Count > 0
+                && settings.UploadModes.All(mode =>
+                    string.Equals(mode, FileCategoryOptions.DirectUploadMode, StringComparison.OrdinalIgnoreCase)))
+            .Select(category =>
+                $"'{FilesOptions.SectionName}:Categories:{category.Key}:UploadModes' allows only " +
+                $"'{FileCategoryOptions.DirectUploadMode}', which the '{FilesStorageOptions.FileSystemProvider}' " +
+                $"store cannot sign. Add '{FileCategoryOptions.ApiUploadMode}'.")
+            .ToList();
+
+        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 }

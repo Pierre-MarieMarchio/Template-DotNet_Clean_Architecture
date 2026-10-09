@@ -237,6 +237,7 @@ public sealed class StoredFileSortMapTests
     private static StoredFileDto ADto(string name = "any.bin", DateTimeOffset registeredAt = default) =>
         new(
             Guid.CreateVersion7(),
+            "document",
             name,
             "application/octet-stream",
             SizeInBytes: 1,

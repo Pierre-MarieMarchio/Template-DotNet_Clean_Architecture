@@ -48,7 +48,7 @@ AppTemplate.Application.Core    Common/{Collections,Concurrency,Events,Idempoten
 AppTemplate.Application         Common/{Tagging}
                                 Features/<F>/{UseCases/{Commands,Queries}/<Operation>,
                                               Ports/<Port>,Consumers,Services,Policies,
-                                              Extensions,Mapping,Dtos,Errors,Validators}
+                                              Options,Extensions,Mapping,Dtos,Errors,Validators}
 AppTemplate.Application.Auth    Features/Auth/{Errors,Policies,Ports/<Port>,
                                                UseCases/{Commands,Queries}/<Operation>}
                                 no Common/: one feature, so nothing is shared between features
@@ -250,7 +250,7 @@ Reserved for exactly one thing: the dependency-injection registration classes â€
 partition.
 
 **Composition is opt-in per feature, and there is deliberately no call that adds all of them.**
-`ApplicationModule` exposes `AddTodoLists()`, `AddReminders()`, `AddFiles()` and `AddNotes()`;
+`ApplicationModule` exposes `AddTodoLists()`, `AddReminders()`, `AddFiles(configuration)` and `AddNotes()`;
 `ApplicationAuthModule` exposes `AddAuthApplication()`; `ApplicationCoreModule` exposes
 `AddPurgeExpiredIdempotencyKeys()` and the registration helpers the layer above composes with, but
 no umbrella `AddApplicationCore()` â€” ports, results and markers are not things a container

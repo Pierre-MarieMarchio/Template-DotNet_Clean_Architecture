@@ -30,7 +30,7 @@ builder.Services.AddOutboundHttp();
 
 builder.Services.AddTodoLists();
 builder.Services.AddReminders();
-builder.Services.AddFiles();
+builder.Services.AddFiles(builder.Configuration);
 builder.Services.AddNotes();
 // Who a due reminder rings, read from the local accounts. Neither feature names the other, so the
 // host is where they meet.

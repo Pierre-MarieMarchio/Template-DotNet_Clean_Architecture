@@ -8,6 +8,7 @@ using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -230,18 +231,92 @@ public sealed class IssueFileDownloadUseCaseTests
     }
 
     /// <summary>
-    /// An available file with nothing under its key is a store fault, not an answer the caller can act on.
+    /// An available file with nothing under its key is a store fault the caller cannot act on: it is
+    /// answered as not available, not as a server error.
     /// </summary>
     [Fact]
-    public async Task AnAvailableFileWithNoBytes_IsAFault()
+    public async Task AnAvailableFileWithNoBytes_IsAnsweredAsNotAvailable()
     {
         var storedFile = GivenTheCallerOwnsAnAvailableFile();
         _transfer.IsSupported.Returns(false);
         _content.OpenReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((Stream?)null);
 
-        await Should.ThrowAsync<InvalidOperationException>(
-            () => UseCase().ExecuteAsync(new IssueFileDownloadQuery(storedFile.Id), TestToken));
+        var result = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(storedFile.Id), TestToken);
+
+        result.Error!.Code.ShouldBe("storedFile.notAvailable");
+        result.Error.Type.ShouldBe(ErrorType.Conflict);
     }
+
+    #region Visibility
+
+    /// <summary>
+    /// <c>Authenticated</c> visibility: any signed-in user downloads an available file of that
+    /// category by its id.
+    /// </summary>
+    [Fact]
+    public async Task AnotherUsersAvailableFileInAnAuthenticatedCategory_YieldsAGrant()
+    {
+        var shared = AStoredFile.AvailableOwnedBy(AnotherUser(), category: FilesSettings.Image);
+        _repository.GetAsync(shared.Id, Arg.Any<CancellationToken>()).Returns(shared);
+
+        var result = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(shared.Id), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Redirect.ShouldBeSameAs(_grant);
+    }
+
+    /// <summary>
+    /// Only an available file is shared: anything else is answered as absent, so a non-owner learns
+    /// neither that it exists nor what state it is in.
+    /// </summary>
+    [Fact]
+    public async Task AnotherUsersUnavailableFileInAnAuthenticatedCategory_IsNotFound()
+    {
+        var waiting = AStoredFile.DepositedOwnedBy(AnotherUser(), category: FilesSettings.Image);
+        _repository.GetAsync(waiting.Id, Arg.Any<CancellationToken>()).Returns(waiting);
+
+        var result = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(waiting.Id), TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+        await NoGrantWasMinted();
+    }
+
+    [Fact]
+    public async Task AnotherUsersFileInAPrivateCategory_IsNotFound()
+    {
+        var foreign = AStoredFile.AvailableOwnedBy(AnotherUser(), category: FilesSettings.Document);
+        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
+
+        var result = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(foreign.Id), TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+        await NoGrantWasMinted();
+    }
+
+    /// <summary>A category removed from configuration after registration is read as private.</summary>
+    [Fact]
+    public async Task AnotherUsersFileInACategoryNoLongerConfigured_IsNotFound()
+    {
+        var orphaned = AStoredFile.AvailableOwnedBy(AnotherUser(), category: "retired");
+        _repository.GetAsync(orphaned.Id, Arg.Any<CancellationToken>()).Returns(orphaned);
+
+        var result = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(orphaned.Id), TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+    }
+
+    [Fact]
+    public async Task TheOwnersFileInACategoryNoLongerConfigured_IsStillServed()
+    {
+        var storedFile = AStoredFile.AvailableOwnedBy(_callerId, category: "retired");
+        _repository.GetAsync(storedFile.Id, Arg.Any<CancellationToken>()).Returns(storedFile);
+
+        var result = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(storedFile.Id), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
 
     /// <summary>
     /// The grant names the key the aggregate holds, and offers the label the user chose as the
@@ -314,9 +389,12 @@ public sealed class IssueFileDownloadUseCaseTests
 
     private IssueFileDownloadUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
+    private static UserId AnotherUser() => UserId.Create(Guid.CreateVersion7());
+
     private IssueFileDownloadUseCase UseCaseFor(ICurrentUser currentUser) => new(
-        new StoredFileService(_repository, currentUser),
+        new StoredFileService(_repository, currentUser, FilesSettings.Default().AsOptions()),
         _transfer,
         _content,
-        new IssueFileDownloadQueryValidator());
+        new IssueFileDownloadQueryValidator(),
+        NullLogger<IssueFileDownloadUseCase>.Instance);
 }

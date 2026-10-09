@@ -11,6 +11,7 @@ namespace AppTemplate.Application.Features.Files.Dtos;
 /// and no URL: reading the bytes is a separate, deliberate act that mints a short-lived grant.
 /// </para>
 /// </summary>
+/// <param name="Category">The configured category the file was registered under.</param>
 /// <param name="DeclaredMediaType">
 /// What the client said the file is. On a <see cref="StoredFileState.Available"/> file it is a claim
 /// the content was checked against and did not contradict; on any other it is an unchecked claim.
@@ -30,6 +31,7 @@ namespace AppTemplate.Application.Features.Files.Dtos;
 /// <see cref="StoredFileState.Quarantined"/> means "never".</param>
 public sealed record StoredFileDto(
     Guid Id,
+    string Category,
     string Name,
     string DeclaredMediaType,
     long SizeInBytes,

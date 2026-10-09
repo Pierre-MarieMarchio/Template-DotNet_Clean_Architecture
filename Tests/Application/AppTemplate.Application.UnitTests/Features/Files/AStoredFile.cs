@@ -27,6 +27,9 @@ internal static class AStoredFile
 
     internal const string MediaType = "image/png";
 
+    /// <summary>A private category of <see cref="FilesSettings"/>, so nobody but the owner reads these files.</summary>
+    internal const string Category = FilesSettings.Document;
+
     /// <summary>A registration exactly as <see cref="StoredFile.Register"/> makes one: pending, with
     /// a key reserved and nothing deposited.</summary>
     internal static StoredFile PendingOwnedBy(
@@ -34,9 +37,11 @@ internal static class AStoredFile
         DateTimeOffset? registeredAt = null,
         string name = "holiday.png",
         long sizeInBytes = SizeInBytes,
-        string checksum = Checksum) =>
+        string checksum = Checksum,
+        string category = Category) =>
         StoredFile.Register(
             ownerId,
+            FileCategory.Create(category),
             StoredFileName.Create(name),
             DeclaredMediaType.Create(MediaType),
             FileSize.Create(sizeInBytes),
@@ -54,11 +59,13 @@ internal static class AStoredFile
     internal static StoredFile AvailableOwnedBy(
         UserId ownerId,
         long sizeInBytes = SizeInBytes,
-        string checksum = Checksum) =>
+        string checksum = Checksum,
+        string category = Category) =>
         StoredFile.Rehydrate(new StoredFileSnapshot
         {
             Id = Guid.CreateVersion7(),
             OwnerId = ownerId,
+            Category = FileCategory.Create(category),
             ObjectKey = ObjectKey.New(StubDateTimeProvider.DefaultInstant),
             Name = StoredFileName.Create("holiday.png"),
             DeclaredMediaType = DeclaredMediaType.Create(MediaType),
@@ -80,10 +87,12 @@ internal static class AStoredFile
     internal static StoredFile DepositedOwnedBy(
         UserId ownerId,
         DateTimeOffset? registeredAt = null,
-        string mediaType = MediaType)
+        string mediaType = MediaType,
+        string category = Category)
     {
         var storedFile = StoredFile.Register(
             ownerId,
+            FileCategory.Create(category),
             StoredFileName.Create("holiday.png"),
             DeclaredMediaType.Create(mediaType),
             FileSize.Create(SizeInBytes),
@@ -104,6 +113,7 @@ internal static class AStoredFile
         {
             Id = Guid.CreateVersion7(),
             OwnerId = ownerId,
+            Category = FileCategory.Create(Category),
             ObjectKey = ObjectKey.New(StubDateTimeProvider.DefaultInstant),
             Name = StoredFileName.Create("holiday.png"),
             DeclaredMediaType = DeclaredMediaType.Create(MediaType),

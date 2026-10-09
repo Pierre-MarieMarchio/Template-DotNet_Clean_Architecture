@@ -425,6 +425,7 @@ public sealed class FilesControllerTests
         await AController().Register(ARequest(), TestContext.Current.CancellationToken);
 
         captured.ShouldNotBeNull();
+        captured.Category.ShouldBe("document");
         captured.Name.ShouldBe("quarterly-report.pdf");
         captured.MediaType.ShouldBe("application/pdf");
         captured.SizeInBytes.ShouldBe(1024L);
@@ -469,7 +470,7 @@ public sealed class FilesControllerTests
     #region Fixture
 
     private static RegisterFileRequest ARequest() =>
-        new("quarterly-report.pdf", "application/pdf", 1024, new string('a', 64));
+        new("document", "quarterly-report.pdf", "application/pdf", 1024, new string('a', 64));
 
     private static IssuedUploadGrant AGrant() =>
         new(
@@ -481,6 +482,7 @@ public sealed class FilesControllerTests
     private static StoredFileDto AFile(StoredFileState state) =>
         new(
             Guid.CreateVersion7(),
+            "document",
             "quarterly-report.pdf",
             "application/pdf",
             SizeInBytes: 1024,

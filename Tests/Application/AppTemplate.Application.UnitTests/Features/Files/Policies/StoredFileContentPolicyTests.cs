@@ -227,7 +227,8 @@ public sealed class StoredFileContentPolicyTests
         StoredFileContentPolicy.Decide(
                 DeclaredMediaType.Create("image/png"),
                 FileScanOutcome.Infected("Eicar-Test-Signature"),
-                _png)
+                _png,
+                verifySignature: true)
             .ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
@@ -241,7 +242,8 @@ public sealed class StoredFileContentPolicyTests
         StoredFileContentPolicy.Decide(
                 DeclaredMediaType.Create("image/png"),
                 FileScanOutcome.NotInspectable,
-                _png)
+                _png,
+                verifySignature: true)
             .ShouldBe(ContentDecision.Quarantine);
 
     /// <summary>
@@ -255,7 +257,8 @@ public sealed class StoredFileContentPolicyTests
         StoredFileContentPolicy.Decide(
                 DeclaredMediaType.Create("image/png"),
                 FileScanOutcome.Unavailable,
-                ReadOnlySpan<byte>.Empty)
+                ReadOnlySpan<byte>.Empty,
+                verifySignature: true)
             .ShouldBe(ContentDecision.Retry);
 
     /// <summary>
@@ -269,28 +272,67 @@ public sealed class StoredFileContentPolicyTests
         StoredFileContentPolicy.Decide(
                 DeclaredMediaType.Create("image/png"),
                 FileScanOutcome.Unavailable,
-                ReadOnlySpan<byte>.Empty)
+                ReadOnlySpan<byte>.Empty,
+                verifySignature: true)
             .ShouldNotBe(ContentDecision.Quarantine);
+
+    #endregion
+
+    #region Per-category switches
+
+    /// <summary>A category that does not verify signatures accepts content that names another type.</summary>
+    [Fact]
+    public void WithoutSignatureVerification_AMismatchedHeadIsReleased() =>
+        Decide("image/png", _jpeg, verifySignature: false).ShouldBe(ContentDecision.Release);
+
+    [Fact]
+    public void WithoutSignatureVerification_AHeadThatNamesNothingIsReleased() =>
+        Decide("image/png", _csv, verifySignature: false).ShouldBe(ContentDecision.Release);
+
+    /// <summary>
+    /// Markup is refused in every category: the download path serves bytes as they are, and nothing
+    /// here makes a script container safe.
+    /// </summary>
+    [Fact]
+    public void WithoutSignatureVerification_MarkupIsStillQuarantined() =>
+        Decide("image/svg+xml", _svg, verifySignature: false).ShouldBe(ContentDecision.Quarantine);
+
+    /// <summary>A category that is not scanned has no verdict, and the head alone decides.</summary>
+    [Fact]
+    public void WithoutAScan_TheHeadAloneDecides()
+    {
+        StoredFileContentPolicy.Decide(DeclaredMediaType.Create("image/png"), null, _png, verifySignature: true)
+            .ShouldBe(ContentDecision.Release);
+        StoredFileContentPolicy.Decide(DeclaredMediaType.Create("image/png"), null, _svg, verifySignature: true)
+            .ShouldBe(ContentDecision.Quarantine);
+    }
+
+    [Fact]
+    public void WithoutSignatureVerification_AnInfectedFileIsStillQuarantined() =>
+        Decide("image/png", _png, verifySignature: false, scan: FileScanOutcome.Infected("Eicar-Test-Signature"))
+            .ShouldBe(ContentDecision.Quarantine);
 
     #endregion
 
     #region Arguments
 
     [Fact]
-    public void ANullArgument_IsRejected()
-    {
-        Should.Throw<ArgumentNullException>(() => StoredFileContentPolicy.Decide(null!, FileScanOutcome.Clean, _png));
+    public void ANullDeclaredType_IsRejected() =>
         Should.Throw<ArgumentNullException>(
-            () => StoredFileContentPolicy.Decide(DeclaredMediaType.Create("image/png"), null!, _png));
-    }
+            () => StoredFileContentPolicy.Decide(null!, FileScanOutcome.Clean, _png, verifySignature: true));
 
     #endregion
 
-    private static ContentDecision Decide(string declaredMediaType, ReadOnlyMemory<byte> head) =>
+    private static ContentDecision Decide(
+        string declaredMediaType,
+        ReadOnlyMemory<byte> head,
+        bool verifySignature = true,
+        FileScanOutcome? scan = null) =>
         StoredFileContentPolicy.Decide(
             DeclaredMediaType.Create(declaredMediaType),
-            FileScanOutcome.Clean,
-            head.Span);
+            scan ?? FileScanOutcome.Clean,
+            head.Span,
+            verifySignature);
 
     private static byte[] HeadFor(string mediaType) => mediaType switch
     {

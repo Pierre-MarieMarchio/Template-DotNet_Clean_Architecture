@@ -26,4 +26,14 @@ public interface IStoredFileService
         Guid storedFileId,
         VersionPrecondition? precondition,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads a file whose content the caller may read: their own file in any state, or somebody
+    /// else's <see cref="Domain.Features.Files.ValueObjects.StoredFileState.Available"/> file whose
+    /// category is readable by any signed-in user. A file in a category no longer configured is
+    /// treated as private.
+    /// </summary>
+    /// <returns>The aggregate, or <see cref="StoredFileErrors.FileNotFound"/> for anything else, so a
+    /// non-owner learns nothing about a file they cannot read.</returns>
+    Task<Result<StoredFile>> LoadReadableAsync(Guid storedFileId, CancellationToken cancellationToken = default);
 }

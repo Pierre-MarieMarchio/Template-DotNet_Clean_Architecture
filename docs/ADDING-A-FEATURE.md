@@ -269,7 +269,7 @@ lives in `Ports/TodoListQueries/`, not inside any one query's own folder. The ot
 project inwards.
 
 **A feature is registered by its own `AddX()` in `ApplicationModule`, which a host calls or does
-not.** `AddTodoLists()`, `AddReminders()` and `AddFiles()` are the three that exist, and there is
+not.** `AddTodoLists()`, `AddReminders()`, `AddFiles(configuration)` and `AddNotes()` are the four that exist, and there is
 deliberately no call that adds all of them: that is what makes a feature removable — delete its
 folder and its one line in each host, and nothing else claims to have registered it. So a new
 feature means a new `AddX()` here and a line in each `Program.cs` that offers it. Inside the method
@@ -634,6 +634,15 @@ deletion event is a fast path on top of it, never the guarantee.
 `InspectDepositedFilesUseCase` checks the declared media type against the bytes and
 scans the content before a file becomes readable, in a background job rather than in the
 request. See `SECURITY.md` for which threats that answers and which it does not.
+
+**What a file may be is configuration, not code.** Each file is registered under a category
+declared in `Files:Categories` — media types, maximum size, scan and signature switches,
+visibility, upload modes and a quota per owner — and keeps it for life (see
+[`CONFIGURATION.md`](CONFIGURATION.md#files)). A business feature that needs a file — an avatar, an
+invoice attachment — stores the file's id as a plain `Guid` and has it registered under a category of
+its own. It reaches `Files` only through that feature's application ports or its domain events,
+never through `StoredFileRecord` or the `files` schema — "Features meet through ports and events"
+in [`ARCHITECTURE.md`](ARCHITECTURE.md) holds for `Files` like for any other feature.
 
 The cost is a state machine, which a single-store feature does not need: `Pending →
 Deposited → Available`, plus `Quarantined`. Its invariants are in the constructor,

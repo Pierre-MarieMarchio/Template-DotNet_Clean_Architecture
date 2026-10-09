@@ -21,6 +21,17 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **File categories declared in configuration.** `Files:Categories` names each category a file may
+  be registered under — allowed media types, maximum size, `Scan`, `VerifySignature`, `Visibility`
+  (`Private` or `Authenticated`), `UploadModes` (`Direct`, `Api`) and a `Quota` — validated at
+  start-up together with `Files:ApiUploadMaxBytes`. `POST /api/v1/files` requires `category`;
+  every file representation carries it; the quota is counted per owner and per category; the
+  inspection scans and checks signatures as the category says (markup is refused in every
+  category); and an `Authenticated` category lets any signed-in user download an available file
+  of it. `appsettings.json` ships `document` and `image`. **Breaking** for an existing client: a
+  registration without `category` is `400`. The business `InitialCreate` gains the `Category`
+  column and its index.
+
 - **A local file system store for the Files feature.** `Files:Storage:Provider` chooses `S3` (the
   default) or `FileSystem`; the latter keeps each object at `RootPath/<object key>`, writes through a
   temporary file published only when its size and SHA-256 match, and refuses a key that resolves

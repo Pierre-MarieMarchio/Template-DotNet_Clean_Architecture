@@ -319,7 +319,7 @@ whatever is left. Leave the clock and email-sender substitutions alone.
 
 **`Src/Presentation/AppTemplate.Api/Program.cs`**
 Remove the feature's one composition line — `AddTodoLists()` **(T)**, `AddReminders()` **(R)**,
-`AddFiles()` **(F)** — and, with `Files`, `AddStorageModule(builder.Configuration)` and its `using
+`AddFiles(builder.Configuration)` **(F)** — and, with `Files`, `AddStorageModule(builder.Configuration)` and its `using
 AppTemplate.Infrastructure.Storage;`. The persistence side needs no line here: it cascades through
 `AddPersistenceModule`. **Do not remove `AddEmailModule` or `AddAuthModule` with `Reminders`.**
 `AddAuthApplication()` registers every use case `AppTemplate.Application.Auth` declares, and

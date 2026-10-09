@@ -5,6 +5,8 @@
 /// One shape for the list, the single read and the body of a confirmation — the aggregate is flat,
 /// so a summary would differ from a detail only by fields somebody guessed a list would not want.
 /// </summary>
+/// <param name="Category">The category the file was registered under, as configured in
+/// <c>Files:Categories</c>.</param>
 /// <param name="DeclaredMediaType">
 /// What the client said the file is, never confirmed against the bytes by anything here. The name
 /// says so, so a consumer that decides from it knows it is deciding from a claim.
@@ -21,6 +23,7 @@
 /// is.</param>
 public sealed record StoredFileResponse(
     Guid Id,
+    string Category,
     string Name,
     string DeclaredMediaType,
     long SizeInBytes,

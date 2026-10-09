@@ -57,6 +57,14 @@ public static class StoredFileErrors
         "This deployment's file storage does not accept direct uploads; upload the file through the API instead.");
 
     /// <summary>
+    /// Registration for a direct upload was asked in a category configured for API uploads only. The
+    /// same code as <see cref="DirectUploadUnavailable"/>: the caller's answer is the same.
+    /// </summary>
+    public static Error DirectUploadNotAllowed(string category) => Error.Conflict(
+        "storedFile.directUploadUnavailable",
+        $"Category '{category}' does not accept direct uploads; upload the file through the API instead.");
+
+    /// <summary>
     /// <paramref name="message"/> describes the caller's own allowance and never the store's
     /// capacity or anyone else's usage, so it is safe to return verbatim.
     /// </summary>

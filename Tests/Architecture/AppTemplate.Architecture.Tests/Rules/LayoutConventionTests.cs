@@ -27,8 +27,8 @@ public sealed class LayoutConventionTests
     private static readonly Dictionary<string, string[]?> _vocabulary = new(StringComparer.Ordinal)
     {
         ["Src/Application/AppTemplate.Application"] =
-            ["Consumers", "Dtos", "Errors", "Extensions", "Mapping", "Policies", "Ports", "Services", "UseCases",
-             "Validators"],
+            ["Consumers", "Dtos", "Errors", "Extensions", "Mapping", "Options", "Policies", "Ports", "Services",
+             "UseCases", "Validators"],
 
         // One vertical, holding one operation. A mechanism project earns a Features/ folder only for
         // work that is genuinely a use case rather than a mechanism — here, purging what the

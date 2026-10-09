@@ -22,6 +22,7 @@ internal static class StoredFileResponseMapping
 
         return new StoredFileResponse(
             file.Id,
+            file.Category,
             file.Name,
             file.DeclaredMediaType,
             file.SizeInBytes,

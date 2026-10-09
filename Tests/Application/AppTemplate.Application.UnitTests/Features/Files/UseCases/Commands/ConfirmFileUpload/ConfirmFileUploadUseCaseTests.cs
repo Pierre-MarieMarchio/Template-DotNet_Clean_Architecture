@@ -269,7 +269,7 @@ public sealed class ConfirmFileUploadUseCaseTests
     private ConfirmFileUploadUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
     private ConfirmFileUploadUseCase UseCaseFor(ICurrentUser currentUser) => new(
-        new StoredFileService(_repository, currentUser),
+        new StoredFileService(_repository, currentUser, FilesSettings.Default().AsOptions()),
         _content,
         _unitOfWork,
         new ConfirmFileUploadCommandValidator());

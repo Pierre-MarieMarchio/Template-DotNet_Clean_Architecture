@@ -6,8 +6,9 @@ namespace AppTemplate.Application.Features.Files.Policies;
 /// <summary>
 /// What a file's leading bytes and its scan mean for the file: release, refuse, or ask again.
 /// <para>
-/// The type check needs nothing configured and always runs; the malware verdict is a capability a
-/// deployment adds. With no scanner, an SVG dressed as a PNG is still refused.
+/// Markup that can carry a script is refused in every category: nothing on the download path makes
+/// it safe. Whether the head must agree with the declared type, and whether the content is scanned,
+/// are the category's choices.
 /// </para>
 /// </summary>
 public static class StoredFileContentPolicy
@@ -24,30 +25,30 @@ public static class StoredFileContentPolicy
     /// </summary>
     /// <param name="declared">What the client said the file is, already normalised, so the
     /// comparison below is ordinal.</param>
+    /// <param name="scan">The scanner's verdict, or <c>null</c> when the category is not scanned.</param>
     /// <param name="head">At most <see cref="MaxHeadBytes"/> leading bytes of the content.</param>
-    public static ContentDecision Decide(DeclaredMediaType declared, FileScanOutcome scan, ReadOnlySpan<byte> head)
+    /// <param name="verifySignature">Whether the head must agree with <paramref name="declared"/>.</param>
+    public static ContentDecision Decide(
+        DeclaredMediaType declared,
+        FileScanOutcome? scan,
+        ReadOnlySpan<byte> head,
+        bool verifySignature)
     {
         ArgumentNullException.ThrowIfNull(declared);
-        ArgumentNullException.ThrowIfNull(scan);
 
         // Before anything else, so an outage is never read as a pass.
-        if (scan.Status == FileScanStatus.Unavailable)
+        if (scan?.Status == FileScanStatus.Unavailable)
         {
             return ContentDecision.Retry;
         }
 
         // NotInspectable is permanent: retrying would park the file for ever, and releasing it would
         // make "upload something larger than the scanner accepts" the way to skip the scan.
-        if (scan.Status is FileScanStatus.Infected or FileScanStatus.NotInspectable)
+        if (scan?.Status is FileScanStatus.Infected or FileScanStatus.NotInspectable)
         {
             return ContentDecision.Quarantine;
         }
 
-        return DecideFromContent(declared, head);
-    }
-
-    private static ContentDecision DecideFromContent(DeclaredMediaType declared, ReadOnlySpan<byte> head)
-    {
         // Script containers first, whatever was declared: nothing here sanitises an SVG (SECURITY.md).
         // Two checks, because markup can be pushed past the prefix but not away from the start.
         if (MediaTypeSignatures.IsScriptContainer(head) || MediaTypeSignatures.BeginsAsMarkup(head))
@@ -55,6 +56,11 @@ public static class StoredFileContentPolicy
             return ContentDecision.Quarantine;
         }
 
+        return verifySignature ? DecideFromSignature(declared, head) : ContentDecision.Release;
+    }
+
+    private static ContentDecision DecideFromSignature(DeclaredMediaType declared, ReadOnlySpan<byte> head)
+    {
         // The content named itself: exact match, so 'image/jpg' for a JPEG is refused, not guessed at.
         if (MediaTypeSignatures.DetectedMediaTypeOf(head) is { } detected)
         {

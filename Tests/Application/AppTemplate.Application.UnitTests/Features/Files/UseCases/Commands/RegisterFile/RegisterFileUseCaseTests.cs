@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Files.Policies;
+using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
@@ -29,10 +29,11 @@ public sealed class RegisterFileUseCaseTests
     private readonly IStoredFileQueries _queries = Substitute.For<IStoredFileQueries>();
     private readonly IFileDirectTransfer _transfer = Substitute.For<IFileDirectTransfer>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly FilesOptions _files = FilesSettings.Default();
 
     public RegisterFileUseCaseTests()
     {
-        _queries.GetUsageForOwnerAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
+        _queries.GetUsageForOwnerAsync(Arg.Any<UserId>(), Arg.Any<FileCategory>(), Arg.Any<CancellationToken>())
             .Returns(new OwnerStorageUsage(0, 0, 0, 0));
 
         _transfer.IsSupported.Returns(true);
@@ -112,13 +113,109 @@ public sealed class RegisterFileUseCaseTests
 
     #endregion
 
+    #region The category's rules
+
+    [Fact]
+    public async Task AnUnknownCategory_IsAValidationFailureAndWritesNothing()
+    {
+        var result = await UseCase().ExecuteAsync(ACommand() with { Category = "videos" }, TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+        _repository.DidNotReceive().Add(Arg.Any<StoredFile>());
+    }
+
+    [Fact]
+    public async Task AMediaTypeTheCategoryRefuses_IsAValidationFailure()
+    {
+        var result = await UseCase().ExecuteAsync(
+            ACommand() with { Category = FilesSettings.Document },
+            TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+    }
+
+    [Fact]
+    public async Task ASizeAboveTheCategoryMaximum_IsAValidationFailure()
+    {
+        var result = await UseCase().ExecuteAsync(
+            ACommand() with { SizeInBytes = _files.Categories[FilesSettings.Image].MaxSizeInBytes + 1 },
+            TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+    }
+
+    /// <summary>
+    /// A category uploaded through the API only refuses a direct registration with the code a store
+    /// that cannot sign answers: the client's next step is the same.
+    /// </summary>
+    [Fact]
+    public async Task ACategoryWithoutDirectUploads_RefusesRegistrationAndWritesNothing()
+    {
+        _files.Categories[FilesSettings.Image].UploadModes.Remove(FileCategoryOptions.DirectUploadMode);
+
+        var result = await UseCase().ExecuteAsync(ACommand(), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Conflict);
+        result.Error.Code.ShouldBe("storedFile.directUploadUnavailable");
+        _repository.DidNotReceive().Add(Arg.Any<StoredFile>());
+        await _queries.DidNotReceive().GetUsageForOwnerAsync(
+            Arg.Any<UserId>(),
+            Arg.Any<FileCategory>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ARegisteredFile_KeepsTheCategoryItWasRegisteredUnder()
+    {
+        StoredFile? staged = null;
+        _repository.When(repository => repository.Add(Arg.Any<StoredFile>()))
+            .Do(call => staged = call.Arg<StoredFile>());
+
+        await UseCase().ExecuteAsync(ACommand(), TestToken);
+
+        staged.ShouldNotBeNull();
+        staged.Category.ShouldBe(FileCategory.Create(FilesSettings.Image));
+    }
+
+    #endregion
+
     #region Quota
+
+    /// <summary>The bounds are the category's own, not a global number.</summary>
+    [Fact]
+    public async Task TheCategorysOwnPendingLimit_Binds()
+    {
+        _files.Categories[FilesSettings.Image].Quota.MaxPendingUploads = 2;
+        _queries.GetUsageForOwnerAsync(_callerId, Arg.Any<FileCategory>(), Arg.Any<CancellationToken>())
+            .Returns(new OwnerStorageUsage(0, 0, 2, 0));
+
+        var result = await UseCase().ExecuteAsync(ACommand(), TestToken);
+
+        result.Error!.Code.ShouldBe("storedFile.quotaExceeded");
+    }
+
+    /// <summary>A full category does not stop a registration in another one.</summary>
+    [Fact]
+    public async Task AFullCategory_LeavesAnotherCategoryOpen()
+    {
+        var full = new OwnerStorageUsage(0, 0, _files.Categories[FilesSettings.Document].Quota.MaxPendingUploads, 0);
+        _queries.GetUsageForOwnerAsync(_callerId, FileCategory.Create(FilesSettings.Document), Arg.Any<CancellationToken>())
+            .Returns(full);
+
+        var result = await UseCase().ExecuteAsync(ACommand(), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
 
     [Fact]
     public async Task AnOwnerAtTheirPendingLimit_IsRefused()
     {
-        _queries.GetUsageForOwnerAsync(_callerId, Arg.Any<CancellationToken>())
-            .Returns(new OwnerStorageUsage(0, 0, StoredFileQuotaPolicy.MaxPendingRegistrations, 0));
+        _queries.GetUsageForOwnerAsync(_callerId, Arg.Any<FileCategory>(), Arg.Any<CancellationToken>())
+            .Returns(new OwnerStorageUsage(0, 0, _files.Categories[FilesSettings.Image].Quota.MaxPendingUploads, 0));
 
         var result = await UseCase().ExecuteAsync(ACommand(), TestToken);
 
@@ -133,8 +230,8 @@ public sealed class RegisterFileUseCaseTests
     [Fact]
     public async Task AnOwnerOverQuota_GetsNoUploadGrant()
     {
-        _queries.GetUsageForOwnerAsync(_callerId, Arg.Any<CancellationToken>())
-            .Returns(new OwnerStorageUsage(0, 0, StoredFileQuotaPolicy.MaxPendingRegistrations, 0));
+        _queries.GetUsageForOwnerAsync(_callerId, Arg.Any<FileCategory>(), Arg.Any<CancellationToken>())
+            .Returns(new OwnerStorageUsage(0, 0, _files.Categories[FilesSettings.Image].Quota.MaxPendingUploads, 0));
 
         await UseCase().ExecuteAsync(ACommand(), TestToken);
 
@@ -149,20 +246,23 @@ public sealed class RegisterFileUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>The usage is read for the caller, not for whoever the command might have named.</summary>
+    /// <summary>
+    /// The usage is read for the caller, not for whoever the command might have named, and for the
+    /// category being registered into.
+    /// </summary>
     [Fact]
-    public async Task TheQuota_IsMeasuredAgainstTheCaller()
+    public async Task TheQuota_IsMeasuredAgainstTheCallerInTheNamedCategory()
     {
         await UseCase().ExecuteAsync(ACommand(), TestToken);
 
-        await _queries.Received(1).GetUsageForOwnerAsync(_callerId, Arg.Any<CancellationToken>());
+        await _queries.Received(1).GetUsageForOwnerAsync(_callerId, FileCategory.Create(FilesSettings.Image), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task AFileThatWouldOverflowTheByteAllowance_IsRefused()
     {
-        _queries.GetUsageForOwnerAsync(_callerId, Arg.Any<CancellationToken>())
-            .Returns(new OwnerStorageUsage(1, StoredFileQuotaPolicy.MaxBytes, 0, 0));
+        _queries.GetUsageForOwnerAsync(_callerId, Arg.Any<FileCategory>(), Arg.Any<CancellationToken>())
+            .Returns(new OwnerStorageUsage(1, _files.Categories[FilesSettings.Image].Quota.MaxBytes, 0, 0));
 
         var result = await UseCase().ExecuteAsync(ACommand(), TestToken);
 
@@ -358,7 +458,7 @@ public sealed class RegisterFileUseCaseTests
     #endregion
 
     private static RegisterFileCommand ACommand() =>
-        new("holiday.png", AStoredFile.MediaType, AStoredFile.SizeInBytes, AStoredFile.Checksum);
+        new(FilesSettings.Image, "holiday.png", AStoredFile.MediaType, AStoredFile.SizeInBytes, AStoredFile.Checksum);
 
     private RegisterFileUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
@@ -369,5 +469,6 @@ public sealed class RegisterFileUseCaseTests
         _unitOfWork,
         currentUser,
         new StubDateTimeProvider(),
-        new RegisterFileCommandValidator());
+        _files.AsOptions(),
+        new RegisterFileCommandValidator(_files.AsOptions()));
 }

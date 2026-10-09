@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Core;
 using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
+using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.Features.Notes.Services;
 using AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted;
@@ -9,7 +10,10 @@ using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Domain.Features.Files.Events;
 using AppTemplate.Domain.Features.TodoLists.Events;
 using FluentValidation;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application;
 
@@ -22,9 +26,8 @@ namespace AppTemplate.Application;
 /// every host's graph, which under <c>ValidateOnBuild</c> makes each of them mandatory everywhere.
 /// </para>
 /// <para>
-/// None of these takes an <c>IConfiguration</c>, deliberately: nothing in this layer reads
-/// settings, and accepting configuration invites the infrastructure knowledge the layer exists to
-/// avoid.
+/// Only <see cref="AddFiles"/> takes an <c>IConfiguration</c>: its categories are application policy
+/// a deployment declares. The other features read no settings.
 /// </para>
 /// </summary>
 public static class ApplicationModule
@@ -79,12 +82,22 @@ public static class ApplicationModule
         return services;
     }
 
-    /// <summary>Registers the stored-file feature.</summary>
+    /// <summary>
+    /// Registers the stored-file feature and binds <c>Files</c> (its categories and the API upload
+    /// ceiling), validated at start-up.
+    /// </summary>
     /// <param name="services">The container being built.</param>
+    /// <param name="configuration">Supplies the <c>Files</c> section.</param>
     /// <returns>The same collection, for chaining.</returns>
-    public static IServiceCollection AddFiles(this IServiceCollection services)
+    public static IServiceCollection AddFiles(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        services.AddOptions<FilesOptions>()
+            .Bind(configuration.GetSection(FilesOptions.SectionName))
+            .ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<FilesOptions>, FilesOptionsValidator>());
 
         services.AddFeature(_files);
         services.AddScoped<IStoredFileService, StoredFileService>();

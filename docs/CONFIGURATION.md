@@ -57,6 +57,7 @@ be filled from user secrets or environment variables.
 > | `Database` | `AddPersistenceModule` **and** `AddAuthModule` | `AppTemplate.Infrastructure.Core/Common/Options/` |
 > | `IdempotencyPurge` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Idempotency/` |
 > | `Email`, `Postmark` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Common/Smtp/` and `Common/Http/` |
+> | `Files` (its categories and `ApiUploadMaxBytes`) | `AddFiles`, the application's Files entry point; `AddStorageModule` adds the checks against scanning and the provider | `AppTemplate.Application/Features/Files/Options/` |
 > | `Files:Storage:S3` | `AddStorageModule`, when `Files:Storage:Provider` is `S3` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
 > | `Files:Storage`, `Files:Storage:FileSystem`, `Files:Scanning` | `AddStorageModule` (the `FileSystem` section only for that provider) | `AppTemplate.Infrastructure.Storage/Features/Files/Options/` |
 > | `BackgroundJobs` | `AddBackgroundJobs`, called from `AppTemplate.Api`'s `Program.cs` | `AppTemplate.Api/Common/Jobs/` |
@@ -173,7 +174,7 @@ there: what is deliberately not configurable, and how a key becomes an environme
 
 | | Sections |
 |---|---|
-| Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Files:Storage`](#filesstorage) · [`Files:Storage:S3`](#filesstorages3) · [`Files:Storage:FileSystem`](#filesstoragefilesystem) · [`Files:Scanning`](#filesscanning) |
+| Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Files`](#files) · [`Files:Storage`](#filesstorage) · [`Files:Storage:S3`](#filesstorages3) · [`Files:Storage:FileSystem`](#filesstoragefilesystem) · [`Files:Scanning`](#filesscanning) |
 | Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
 | Mail | [`Email:Transport`](#emailtransport--smtp-or-an-http-api) · [`Email`](#email) · [`Postmark`](#postmark) · [`EmailConfirmation`](#emailconfirmation) · [`PasswordReset`](#passwordreset) · [`EmailChange`](#emailchange) · [`Localization`](#localization) |
 | The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [`RateLimiting`](#ratelimiting) |
@@ -397,6 +398,42 @@ on two instances the reclamation does pay for a second full walk each cycle, whi
 [`BackgroundJobs:Enabled`](#backgroundjobs) is set to `false` on all but one instance; the day that
 stops being worth doing, the lease belongs in the use case, not in the loop.
 
+### `Files`
+
+The Files feature's application policy: the categories a file is registered under, and the ceiling
+of an upload carried by the API. Bound by `AddFiles` and validated at start-up.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `ApiUploadMaxBytes` | long | `10485760` (10 MiB) | Largest body of an upload sent through the API. Range 1 KiB–30 MiB, under the host's own request ceiling. |
+| `Categories:<name>:AllowedMediaTypes` | string[] | — | **At least one.** Exact `type/subtype`, compared ignoring case; no wildcard, no parameters. |
+| `Categories:<name>:MaxSizeInBytes` | long | — | **Required.** 1 byte to 5 GiB. |
+| `Categories:<name>:Scan` | bool | `false` | Send the content to the malware scanner. Refused at start-up while `Files:Scanning:Enabled` is false. |
+| `Categories:<name>:VerifySignature` | bool | `true` | The leading bytes must agree with the declared type. Markup that can carry a script is refused either way. |
+| `Categories:<name>:Visibility` | string | `Private` | `Private`: only the owner downloads. `Authenticated`: any signed-in user downloads an *available* file by its id. |
+| `Categories:<name>:UploadModes` | string[] | — | **At least one** of `Direct` (signed URL to the store) and `Api`. A category that allows only `Direct` is refused with the `FileSystem` provider. |
+| `Categories:<name>:Quota:Mode` | string | `Indicative` | `Indicative` or `Strict`. Today both behave as `Indicative`. |
+| `Categories:<name>:Quota:MaxFiles` | int | `1000` | Files one owner may keep in this category, in any state. |
+| `Categories:<name>:Quota:MaxBytes` | long | `10737418240` (10 GiB) | Bytes one owner may hold in this category, pending ones counted at their declared size. |
+| `Categories:<name>:Quota:MaxPendingUploads` | int | `20` | Registrations one owner may have waiting for their bytes in this category. |
+
+**A category name is a lower-case slug** (`a-z`, `0-9`, `-`, 1–64 characters), and a file keeps
+the one it was registered under. At least one category must be declared. The shipped
+`appsettings.json` declares `document` (PDF, CSV, plain text, 50 MiB, private) and `image` (PNG,
+JPEG, WebP, 10 MiB, readable by any signed-in user), both unscanned because scanning is off by
+default.
+
+**Quotas are per owner and per category.** `Indicative` reads usage then writes the row, with no
+lock: concurrent registrations of one owner in one category can overshoot by at most one file (and
+its bytes) per extra concurrent request.
+
+**Removing a category does not orphan its files.** They stay readable by their owner, are treated
+as `Private`, and a file still waiting for inspection is inspected strictly (scanned when scanning is
+enabled, signature verified). No new file can be registered under it.
+
+**To scan a category**, enable [`Files:Scanning`](#filesscanning) first, then set its `Scan` to
+`true`; the order matters only because start-up refuses the second without the first.
+
 ### `Files:Storage`
 
 Which store holds the Files feature's bytes. One choice, read at start-up; the chosen provider's own
@@ -410,6 +447,7 @@ section below is the only one bound and validated.
 store and is redirected to it to download, and no file byte passes through the API. `FileSystem`
 cannot sign: registering a direct upload answers `409` `storedFile.directUploadUnavailable`, and
 `GET /files/{id}/content` streams the bytes from the API (`200`) instead of redirecting (`302`).
+With `FileSystem`, start-up refuses a category whose only upload mode is `Direct`.
 
 ### `Files:Storage:FileSystem`
 
@@ -480,7 +518,8 @@ the next pass.
 ### `Files:Scanning`
 
 Whether deposited files are scanned for malware by a `clamd` daemon. Entirely optional: disabled,
-the process starts normally and the type check on a file's leading bytes still runs.
+the process starts normally and the type check on a file's leading bytes still runs in every
+category that verifies signatures. Which files are scanned is each category's `Scan`.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|

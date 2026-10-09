@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
@@ -39,9 +40,11 @@ using AppTemplate.Domain.Features.Files.Repositories;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using FluentValidation;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -206,23 +209,65 @@ public sealed class ApplicationModuleTests
         Should.Throw<ArgumentNullException>(() => Invoke(call, null!));
 
     /// <summary>
-    /// Nothing in this layer reads settings, so no feature call takes an <c>IConfiguration</c> —
-    /// asking for configuration it does not use would invite the infrastructure knowledge the layer
-    /// exists to avoid.
+    /// Only the Files feature reads settings — its categories are application policy a deployment
+    /// declares — so it alone takes an <c>IConfiguration</c>, and no other feature call may.
     /// </summary>
     [Theory]
     [MemberData(nameof(FeatureCalls))]
-    public void EveryFeatureCall_AsksForNothingButTheServiceCollection(string call) =>
-        MethodNamed(call).GetParameters().Length.ShouldBe(1);
+    public void OnlyTheFilesCall_AsksForConfiguration(string call) =>
+        MethodNamed(call).GetParameters().Select(parameter => parameter.ParameterType).ShouldBe(
+            call == nameof(ApplicationModule.AddFiles)
+                ? [typeof(IServiceCollection), typeof(IConfiguration)]
+                : [typeof(IServiceCollection)]);
+
+    [Fact]
+    public void TheFilesCall_Rejects_ANullConfiguration() =>
+        Should.Throw<ArgumentNullException>(() => new ServiceCollection().AddFiles(null!));
+
+    /// <summary>
+    /// The Files section is validated when the host starts, so a deployment with no category, or a
+    /// malformed one, does not boot.
+    /// </summary>
+    [Fact]
+    public void TheFilesSection_IsValidatedAtStart()
+    {
+        var services = new ServiceCollection();
+        services.AddFiles(new ConfigurationBuilder().Build());
+
+        using var provider = services.BuildServiceProvider();
+
+        Should.Throw<OptionsValidationException>(
+            () => provider.GetRequiredService<IStartupValidator>().Validate());
+    }
+
+    [Fact]
+    public void TheFilesSection_BindsItsCategories()
+    {
+        var services = new ServiceCollection();
+        services.AddFiles(FilesConfiguration());
+
+        using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<IStartupValidator>().Validate();
+
+        var category = provider.GetRequiredService<IOptions<FilesOptions>>().Value.Categories["document"];
+        category.AllowedMediaTypes.ShouldBe(["application/pdf"]);
+        category.MaxSizeInBytes.ShouldBe(1_048_576);
+        category.UploadModes.ShouldBe(["Direct"]);
+        category.Quota.MaxFiles.ShouldBe(1_000);
+    }
 
     private static MethodInfo MethodNamed(string call) =>
         typeof(ApplicationModule).GetMethod(call)!;
 
     private static void Invoke(string call, IServiceCollection services)
     {
+        object?[] arguments = call == nameof(ApplicationModule.AddFiles)
+            ? [services, FilesConfiguration()]
+            : [services];
+
         try
         {
-            MethodNamed(call).Invoke(null, [services]);
+            MethodNamed(call).Invoke(null, arguments);
         }
         catch (TargetInvocationException exception)
         {
@@ -240,11 +285,22 @@ public sealed class ApplicationModuleTests
 
         services.AddTodoLists();
         services.AddReminders();
-        services.AddFiles();
+        services.AddFiles(FilesConfiguration());
         services.AddNotes();
 
         return services;
     }
+
+    /// <summary>The smallest valid <c>Files</c> section: one category.</summary>
+    private static IConfiguration FilesConfiguration() =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Files:Categories:document:AllowedMediaTypes:0"] = "application/pdf",
+                ["Files:Categories:document:MaxSizeInBytes"] = "1048576",
+                ["Files:Categories:document:UploadModes:0"] = "Direct",
+            })
+            .Build();
 
     /// <summary>
     /// Scope validation plus eager building means a missing dependency fails here rather than at

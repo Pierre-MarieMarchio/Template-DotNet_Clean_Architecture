@@ -6,6 +6,8 @@ namespace AppTemplate.Api.Features.Files.Contracts.Requests;
 /// What the client says about a file it is about to deposit. Metadata only — the bytes never travel
 /// through this API, so this body is a few hundred characters whatever the file weighs.
 /// </summary>
+/// <param name="Category">One of the categories configured in <c>Files:Categories</c>; it decides
+/// the media types, size, upload modes and quota that apply.</param>
 /// <param name="Name">A label to show, and the name a download is offered under. It addresses
 /// nothing: the object key is minted by the domain and never leaves it.</param>
 /// <param name="DeclaredMediaType">
@@ -24,6 +26,7 @@ namespace AppTemplate.Api.Features.Files.Contracts.Requests;
 /// a digest supplied after the upload would be the client agreeing with itself.
 /// </param>
 public sealed record RegisterFileRequest(
+    string Category,
     string Name,
     string DeclaredMediaType,
     [property: JsonRequired] long SizeInBytes,

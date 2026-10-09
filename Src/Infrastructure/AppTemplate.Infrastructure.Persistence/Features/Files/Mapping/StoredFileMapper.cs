@@ -29,6 +29,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         {
             Id = record.Id,
             OwnerId = UserId.Create(record.OwnerId),
+            Category = FileCategory.Create(record.Category),
             ObjectKey = ObjectKey.Create(record.ObjectKey),
             Name = StoredFileName.Create(record.Name),
             DeclaredMediaType = DeclaredMediaType.Create(record.DeclaredMediaType),
@@ -53,6 +54,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         {
             Id = aggregate.Id,
             OwnerId = aggregate.OwnerId.Value,
+            Category = aggregate.Category.Value,
 
             // Verbatim, never normalised: the store resolves keys literally, and a key this row does
             // not match is one the orphan sweep treats as belonging to nobody.
@@ -111,6 +113,7 @@ internal sealed class StoredFileMapper : IStoredFileMapper
 
         // Assigned, not replaced: EF writes a column only if the value differs from the one it read.
         record.OwnerId = aggregate.OwnerId.Value;
+        record.Category = aggregate.Category.Value;
 
         // Written on every flush although no operation moves it, so the column is asserted rather
         // than assumed.

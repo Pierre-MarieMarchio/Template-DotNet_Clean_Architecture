@@ -57,6 +57,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
             .Select(file => new Versioned<StoredFileDto>(
                 new StoredFileDto(
                     file.Id,
+                    file.Category,
                     file.Name,
                     file.DeclaredMediaType,
                     file.SizeInBytes,
@@ -71,11 +72,14 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
 
     public async Task<OwnerStorageUsage> GetUsageForOwnerAsync(
         UserId ownerId,
+        FileCategory category,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(category);
+
         var totals = await context.StoredFiles
             .AsNoTracking()
-            .Where(file => file.OwnerId == ownerId.Value)
+            .Where(file => file.OwnerId == ownerId.Value && file.Category == category.Value)
             .GroupBy(file => file.State)
             .Select(group => new
             {
@@ -201,6 +205,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
     private static readonly Expression<Func<StoredFileRecord, StoredFileDto>> _toDto =
         file => new StoredFileDto(
             file.Id,
+            file.Category,
             file.Name,
             file.DeclaredMediaType,
             file.SizeInBytes,

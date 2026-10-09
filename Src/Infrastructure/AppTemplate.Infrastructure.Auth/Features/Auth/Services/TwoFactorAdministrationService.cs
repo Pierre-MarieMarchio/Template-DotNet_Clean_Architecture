@@ -25,21 +25,10 @@ internal sealed class TwoFactorAdministrationService(
             return TwoFactorAdministrativeDisableStatus.NoSuchAccount;
         }
 
-        // No password to check here — see ITwoFactorAdministrationService. Rotates the security stamp as a
-        // side effect, unconditionally, whether the account had its second factor armed or not — see
-        // DisableAccountTwoFactorUseCase for what that invalidates.
-        var disabled = await userManager.SetTwoFactorEnabledAsync(user, false);
-
-        if (!disabled.Succeeded)
-        {
-            return TwoFactorAdministrativeDisableStatus.Rejected;
-        }
-
-        // Invalidates the secret too, so a later re-enrollment starts from a fresh one instead of the
-        // same key every authenticator app already on file for this account still knows — see
-        // TwoFactorEnrollmentService.DisableAsync for the same reasoning.
-        await userManager.ResetAuthenticatorKeyAsync(user);
-
-        return TwoFactorAdministrativeDisableStatus.Disabled;
+        // No password to check here — see ITwoFactorAdministrationService. See
+        // DisableAccountTwoFactorUseCase for what the stamp rotation invalidates.
+        return await TwoFactorEnrollmentService.TurnOffAsync(userManager, user)
+            ? TwoFactorAdministrativeDisableStatus.Disabled
+            : TwoFactorAdministrativeDisableStatus.Rejected;
     }
 }

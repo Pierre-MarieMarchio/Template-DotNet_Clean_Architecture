@@ -59,7 +59,7 @@ of the contract.
 
 | `code` | Status |
 |---|---|
-| `auth.required` | 401 — no token, an expired one, or a route that matched nothing |
+| `auth.required` | 401 — no token, an expired one, a route that matched nothing, or a token whose account has since been deleted (`me`, `two-factor/setup`, `two-factor/confirm`) |
 | `auth.forbidden` | 403 — authenticated, but the endpoint's policy is not satisfied, or the action refuses to target the caller's own account |
 | `auth.login.invalidCredentials` | 401 — one answer for unknown address, wrong password, unconfirmed email and lockout alike |
 | `auth.login.invalidTwoFactorChallenge` | 401 — the challenge token is unknown, spent or expired |
@@ -71,6 +71,7 @@ of the contract.
 | `auth.account.notFound` | 404 — an administration action naming an account that does not exist |
 | `auth.account.cannotDeleteSelf` / `auth.lockout.cannotTargetSelf` / `auth.roles.cannotTargetSelf` / `auth.twoFactor.cannotTargetSelf` | 403 — an administrator may not aim these at their own account |
 | `auth.account.deletionRejected` / `auth.lockout.rejected` / `auth.twoFactor.administrativeDisableRejected` | 409 — the store refused the change |
+| `auth.twoFactor.enableRejected` / `auth.twoFactor.disableRejected` | 400 — the password (and code) matched, but the store refused the change; the second factor is as it was |
 
 **Resources**
 

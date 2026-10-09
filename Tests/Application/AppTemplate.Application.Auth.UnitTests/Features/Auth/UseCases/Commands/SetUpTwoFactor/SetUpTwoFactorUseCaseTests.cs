@@ -58,6 +58,18 @@ public sealed class SetUpTwoFactorUseCaseTests
         result.Error!.Code.ShouldBe("auth.twoFactor.alreadyEnabled");
     }
 
+    /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
+    [Fact]
+    public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticated()
+    {
+        _enrollment.BeginAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.NoSuchAccount);
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("auth.required");
+    }
+
     [Fact]
     public async Task TheCancellationToken_ReachesTheEnrollmentPort()
     {

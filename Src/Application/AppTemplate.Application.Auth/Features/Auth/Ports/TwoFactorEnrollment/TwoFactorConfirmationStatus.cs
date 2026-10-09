@@ -14,4 +14,16 @@ public enum TwoFactorConfirmationStatus
 
     /// <summary>The supplied current password did not match the one on file.</summary>
     IncorrectPassword,
+
+    /// <summary>
+    /// The caller's token names an account that no longer exists: it was deleted after the token
+    /// was issued.
+    /// </summary>
+    NoSuchAccount,
+
+    /// <summary>
+    /// Password and code both matched, but the store refused to arm the second factor, so it stays
+    /// off. Describes the store's state, never anything the caller submitted.
+    /// </summary>
+    Rejected,
 }

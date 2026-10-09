@@ -8,4 +8,10 @@ public enum TwoFactorDisableStatus
 
     /// <summary>The supplied current password did not match the one on file.</summary>
     IncorrectPassword,
+
+    /// <summary>
+    /// The password matched, but the store refused the change, so the second factor is still on.
+    /// Describes the store's state, never anything the caller submitted.
+    /// </summary>
+    Rejected,
 }

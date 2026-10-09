@@ -24,8 +24,12 @@ internal sealed class TwoFactorEnrollmentService(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var user = await directory.FindByIdAsync(userId, cancellationToken)
-            ?? throw new InvalidOperationException($"No account with id '{userId}' exists.");
+        var user = await directory.FindByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return TwoFactorSetupOutcome.NoSuchAccount;
+        }
 
         if (await userManager.GetTwoFactorEnabledAsync(user))
         {
@@ -54,8 +58,12 @@ internal sealed class TwoFactorEnrollmentService(
         ArgumentNullException.ThrowIfNull(code);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var user = await directory.FindByIdAsync(userId, cancellationToken)
-            ?? throw new InvalidOperationException($"No account with id '{userId}' exists.");
+        var user = await directory.FindByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return TwoFactorConfirmationOutcome.NoSuchAccount;
+        }
 
         // Not CheckPasswordAsync: a rehash-needed result rotates the security stamp, which would
         // cost the caller every session it holds on a password that was correct. VerifyHashedPassword
@@ -83,7 +91,7 @@ internal sealed class TwoFactorEnrollmentService(
         if (!enabled.Succeeded)
         {
             // Fails only on a store-level conflict, never on anything the caller submitted.
-            return TwoFactorConfirmationOutcome.InvalidCode;
+            return TwoFactorConfirmationOutcome.Rejected;
         }
 
         var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(
@@ -113,14 +121,32 @@ internal sealed class TwoFactorEnrollmentService(
             return TwoFactorDisableOutcome.IncorrectPassword;
         }
 
-        // Rotates the security stamp.
-        await userManager.SetTwoFactorEnabledAsync(user, false);
+        return await TurnOffAsync(userManager, user)
+            ? TwoFactorDisableOutcome.Disabled
+            : TwoFactorDisableOutcome.Rejected;
+    }
+
+    /// <summary>
+    /// Turns the second factor off and discards its secret: the one sequence both this service and
+    /// <see cref="TwoFactorAdministrationService"/> run once their own proof is settled. On success the
+    /// security stamp has rotated, whether the factor was armed or not.
+    /// </summary>
+    /// <returns><c>false</c> when the store refused to turn the factor off, which leaves it on.</returns>
+    internal static async Task<bool> TurnOffAsync(UserManager<AppUser> userManager, AppUser user)
+    {
+        var disabled = await userManager.SetTwoFactorEnabledAsync(user, false);
+
+        if (!disabled.Succeeded)
+        {
+            return false;
+        }
 
         // Invalidates the secret, so a later re-enrollment does not reuse the key every authenticator
-        // app on file already knows.
+        // app on file already knows. Its refusal is not reported: the factor is already off, and the
+        // caller must still revoke the sessions that change outdates.
         await userManager.ResetAuthenticatorKeyAsync(user);
 
-        return TwoFactorDisableOutcome.Disabled;
+        return true;
     }
 
     /// <summary>

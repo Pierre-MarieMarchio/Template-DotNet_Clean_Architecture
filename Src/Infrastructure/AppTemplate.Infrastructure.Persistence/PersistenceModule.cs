@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 using AppTemplate.Application.Features.Notes.Ports.NoteQueries;
@@ -21,6 +22,7 @@ using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Locks;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Repositories;
@@ -40,6 +42,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
 
@@ -82,7 +85,7 @@ public static class PersistenceModule
         AddSharedServices(services);
         AddTodoListsFeature(services);
         AddRemindersFeature(services);
-        AddFilesFeature(services);
+        AddFilesFeature(services, connectionString);
         AddNotesFeature(services);
         AddIdempotencyFeature(services, configuration);
         AddContext(services, connectionString);
@@ -152,8 +155,12 @@ public static class PersistenceModule
         services.TryAddScoped<ITodoItemTagQueries, TodoItemTagQueries>();
     }
 
-    private static void AddFilesFeature(IServiceCollection services)
+    private static void AddFilesFeature(IServiceCollection services, string connectionString)
     {
+        services.TryAddSingleton<IOwnerQuotaLock>(provider => new PostgresOwnerQuotaLock(
+            connectionString,
+            provider.GetRequiredService<ILogger<PostgresOwnerQuotaLock>>()));
+
         services.TryAddSingleton<IStoredFileMapper, StoredFileMapper>();
 
         AddScopedTracker<StoredFileTracker, IStoredFileTracker>(services);

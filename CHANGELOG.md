@@ -446,6 +446,15 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 - **Confirming two-factor enrollment again on an armed account is refused.** It used to replace the
   recovery codes and then write the switch-on again; a refused write left codes nobody had been
   shown. `POST /auth/two-factor/confirm` now answers 409 `auth.twoFactor.alreadyEnabled`.
+- **A strict file quota holds under concurrent registrations.** `POST /api/v1/files` read the
+  owner's usage and then inserted the row with no lock, so parallel registrations of one owner in
+  one category could all pass the check and exceed the quota. In a category whose
+  `Files:Categories:<name>:Quota:Mode` is `Strict` — now the default, and the mode of both shipped
+  categories — the usage read, the insert and the commit run under a PostgreSQL advisory lock on
+  (owner, category), held on a dedicated connection until the commit; a wait over 10 seconds answers
+  `409` `storedFile.quotaBusy`. `Indicative` keeps the unlocked check, whose overshoot is at most
+  N − 1 files for a burst of N. `AddInMemoryOwnerQuotaLock` substitutes an in-process lock for a host
+  without PostgreSQL.
 
 - **A save flushes and publishes only the work staged on the context being saved.** The flush and
   dispatch interceptors acted on every aggregate tracker in the request, whichever context was being

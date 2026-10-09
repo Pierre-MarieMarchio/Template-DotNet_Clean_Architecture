@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,7 +9,8 @@ using Xunit;
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// A real PostgreSQL, and as many independent hosts composed against it as a test asks for.
+/// A real PostgreSQL, and as many independent hosts composed against it as a test asks for, each
+/// resolving its leader lease or its owner's quota lock.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -47,7 +49,12 @@ public sealed class LeaseFixture : IAsyncLifetime
     /// Not synchronised, and it does not need to be: xUnit runs the methods of one class one after
     /// another, and every call here happens on the test's own thread before anything races.
     /// </remarks>
-    public ILeaderLease CreateLease()
+    public ILeaderLease CreateLease() => CreateHost().GetRequiredService<ILeaderLease>();
+
+    /// <summary>One more host's worth of composition, and the owner's quota lock it would resolve.</summary>
+    public IOwnerQuotaLock CreateQuotaLock() => CreateHost().GetRequiredService<IOwnerQuotaLock>();
+
+    private ServiceProvider CreateHost()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
@@ -58,11 +65,9 @@ public sealed class LeaseFixture : IAsyncLifetime
 
         var services = new ServiceCollection();
 
-        // Logging, because the adapter takes an ILogger. Configuration, because it takes an
-        // IConfiguration *from the container* — the only registration in the persistence module that
-        // does, every other one being handed what it needs by AddPersistenceModule itself. A real
-        // host registers it, so a fixture that did not would be testing a composition no host has;
-        // without it, resolving the lease throws.
+        // Logging, because the adapters take an ILogger. Configuration, because the lease takes an
+        // IConfiguration *from the container*, as in a real host; without it, resolving the lease
+        // throws.
         services.AddLogging();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddPersistenceModule(configuration);
@@ -70,7 +75,7 @@ public sealed class LeaseFixture : IAsyncLifetime
         var host = services.BuildServiceProvider();
         _hosts.Add(host);
 
-        return host.GetRequiredService<ILeaderLease>();
+        return host;
     }
 
     public async ValueTask DisposeAsync()

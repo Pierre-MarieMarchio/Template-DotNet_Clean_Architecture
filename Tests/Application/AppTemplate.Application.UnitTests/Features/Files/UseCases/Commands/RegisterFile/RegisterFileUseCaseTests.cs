@@ -3,6 +3,7 @@ using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
+using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
@@ -29,6 +30,7 @@ public sealed class RegisterFileUseCaseTests
     private readonly IStoredFileQueries _queries = Substitute.For<IStoredFileQueries>();
     private readonly IFileDirectTransfer _transfer = Substitute.For<IFileDirectTransfer>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly RecordingOwnerQuotaLock _quotaLock = new();
     private readonly FilesOptions _files = FilesSettings.Default();
 
     public RegisterFileUseCaseTests()
@@ -404,6 +406,35 @@ public sealed class RegisterFileUseCaseTests
     }
 
     /// <summary>
+    /// Minting a grant may call the store, so it happens after the quota lock is released and never
+    /// prolongs another registration's wait.
+    /// </summary>
+    [Fact]
+    public async Task TheGrant_IsMintedOutsideTheQuotaLock()
+    {
+        bool heldWhileGranting = true;
+
+        _transfer.CreateUploadGrantAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<TimeSpan>(),
+                Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                heldWhileGranting = _quotaLock.IsHeld;
+
+                return _grant;
+            });
+
+        await UseCase().ExecuteAsync(ACommand(), TestToken);
+
+        _quotaLock.Calls.ShouldBe(1);
+        heldWhileGranting.ShouldBeFalse();
+    }
+
+    /// <summary>
     /// The grant is minted for the key the aggregate reserved, never for one recomputed from the
     /// file's id — see <c>ObjectKey</c>, where that is the load-bearing decision of the feature.
     /// </summary>
@@ -463,12 +494,15 @@ public sealed class RegisterFileUseCaseTests
     private RegisterFileUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
     private RegisterFileUseCase UseCaseFor(ICurrentUser currentUser) => new(
-        _repository,
-        _queries,
+        new StoredFileRegistrationService(
+            _repository,
+            _queries,
+            _quotaLock,
+            _unitOfWork,
+            new StubDateTimeProvider(),
+            _files.AsOptions()),
         _transfer,
-        _unitOfWork,
         currentUser,
-        new StubDateTimeProvider(),
         _files.AsOptions(),
         new RegisterFileCommandValidator(_files.AsOptions()));
 }

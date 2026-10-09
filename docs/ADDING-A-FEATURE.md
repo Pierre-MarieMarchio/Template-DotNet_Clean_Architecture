@@ -47,20 +47,97 @@ through that feature's ports and events).
 The question is also the way out. A simple feature that acquires a rule moves to the rich shape by
 the path in [section 8](#8-from-simple-to-rich--the-promotion-path), which is the only bridge between
 them. Sections 1 to 6 below build the rich shape with `TodoLists`; [section 7](#7-the-simple-shape--the-notes-example)
-builds the simple one with `Notes`. **The scaffolder below writes the rich shape only**; for a
-simple feature, copy `Notes`.
+builds the simple one with `Notes`. **The generator below writes either**: `--model record` is the
+simple shape and `--model aggregate` is the rich one.
 
-**There is a scaffolder, and it writes the shape so this document can be about the thinking.**
+## The generator
+
+**There is a generator, and it writes the shape so this document can be about the thinking.** It has
+four choices, which are the four things a feature actually varies by, and nothing else is a switch:
 
 ```bash
-dotnet run Tools/Tasks.cs new-feature Widgets Widget
+dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner|shared \
+    [--operations get,list,create,update,delete] \
+    [--model record|aggregate] \
+    [--concurrency none|etag]
 ```
 
-Twenty-six files across the four layers: folders, namespaces, base types, the members each layer's
-conventions require, and nothing else — no property the domain has not been asked for, no rule
-nobody stated. **It creates files and edits none**, because registration is opt-in per feature
-precisely so that a feature nobody composes is visibly registered nowhere; it prints the five edits
-instead. Read the sections below for what to put in what it wrote.
+`<Features>` is the folder in the plural and `<Feature>` the type in the singular: the two names the
+walkthrough below calls `<Feature>` and `<Aggregate>`. Options follow the two names untouched from the launcher to `Tools/NewFeature.cs`, which
+is what reads them; `dotnet run Tools/NewFeature.cs <Features> <Feature> ...` is the same command.
+
+| Choice | Default | Meaning |
+|---|---|---|
+| `--access` | **none: required** | `owner` scopes every operation to the caller's id, read from `ICurrentUser` and never from a body, so another caller's record is answered exactly like a missing one. `shared` has no owner column and no filter: every authenticated caller reaches the same records. Neither is anonymous access, because the API still denies by default and the service still refuses a caller it cannot identify. |
+| `--operations` | all five | Any subset of `get`, `list`, `create`, `update`, `delete`. An operation left out produces no file, method, route or registration. Each read stages and commits nothing. |
+| `--model` | `record` | `record` is the simple shape: one service, a write port (`I<Feature>Store`) and a read port (`I<Feature>Queries`), and the EF record is the only model. `aggregate` is the rich shape: a domain aggregate with its repository port, one use case per operation, a queries port, and a record, mapper and tracker. The question in [Choose the shape first](#choose-the-shape-first) decides, and nothing else does. |
+| `--concurrency` | `none` | `none`: an update replaces what is stored whatever its state, so **of two concurrent writers the last one wins**; the API publishes no `ETag` and reads no `If-Match`, and says so in its comments. `etag`: a persisted version (PostgreSQL's `xmin`), an `ETag` on reads, `If-Match` on writes, and a stale write refused at the database. |
+
+A port is capped at four operations by an architecture rule, which is why a `record` feature has a store and
+a queries port and not one of each kind of operation in a single port. A port whose operations are all
+left out is not written: with only `get` and `list` there is no store, and with only `delete` there is
+no queries port.
+
+**The combinations that are refused**, each before anything is written and each with the change that
+fixes it:
+
+- `create` without `get`: the `201` carries a `Location`, and the route it names is the one of `get`.
+- `--concurrency etag` with `update` or `delete` but no `get`: nobody could read the version to send it back.
+- `--model record --concurrency etag` with neither `update` nor `delete`: a version nothing checks.
+- `--model aggregate` without `--concurrency etag`. An aggregate is loaded whole and written whole,
+  so a write that overwrites a newer one can break a rule each write kept alone, and the tracker that
+  writes it refuses to work without a version. If last-write-wins is what the feature wants, it has
+  no state to protect and `--model record` is the shape.
+- `--model aggregate` with no `create`, `update` or `delete`: a feature that only reads has nothing to protect.
+
+**The command that corresponds to `Notes`** is the one that chooses what `Notes` chose:
+
+```bash
+dotnet run Tools/Tasks.cs new-feature Notes Note --access owner --concurrency etag
+```
+
+The record shape and all five operations come from the defaults. **An optionless command is not
+`Notes`**: `new-feature Widgets Widget --access shared` writes a shared, unversioned, last-write-wins
+feature, and `--access` has no default precisely so that this is never an accident. What is written
+for the `Notes` command is the code of `Notes` apart from its data: the example's `Title` and `Body`
+are `Name` and `Description` here, with limits of 200 and 2000 characters, and the example keeps tests
+the generator does not write (the collection policy, the sort map, the controller and the PostgreSQL
+integration tests).
+
+**What it writes**, for the shape and operations chosen:
+
+- Application: the DTOs, the errors, the input and collection policies where they are used, the
+  validator, the ports, and either the service (`record`) or the use cases with their commands and
+  queries (`aggregate`).
+- Domain, for `aggregate` only: the aggregate and its repository port. It holds a name and a
+  description with the length rules of a new write, and nothing that the feature has not been asked
+  for: the rules it protects are yours to write.
+- Persistence: the record, its EF configuration, and the store, the queries and the sort map (`record`),
+  or the mapper, the tracker and the repository (`aggregate`).
+- Api: the controller, the request and response contracts, and the mapping.
+- Tests whose assertions hold for any feature of the shape, and none that would pass for any code: the
+  errors, the validator, the EF mapping and the response mapping for both models; for `record` the
+  service (anonymous callers refused and nothing read or written for them, an absent record not found,
+  invalid content staging nothing); for `aggregate` the aggregate's rules and the mapper's round trip.
+
+**It creates files and edits none**, because registration is opt-in per feature precisely so that a
+feature nobody composes is visibly registered nowhere. It prints the edits instead — the three in
+`AppDbContext`, the `Add<Features>()` of `ApplicationModule` and of `PersistenceModule`, the call in
+`Program.cs`, and the two test classes that list every feature — and then the migration step. It
+does not run EF: while the project is unreleased the repository keeps one `InitialCreate` per
+context, so the step is to regenerate it, and after a release it is a named migration.
+
+**Before writing anything** it checks every name and option, refuses a combination that would not hold
+together, and refuses to write if the feature folder, the manifest or any file it would create
+already exists. It never overwrites a file and, if a write fails half way, removes what it had
+created. It reads the product prefix off the tree, so it works after the template has been renamed.
+
+**The creation manifest** is `.feature-manifest/<Features>.json`, a tracked file of the project beside
+the code it describes: the options, and every created file with the SHA-256 of what was written. A
+later command that removes a feature can tell what the generator made from what has been edited
+since. Nothing in the template ships one, so nothing excludes the folder from the template.
+
+The sections below describe what to put in what it wrote.
 
 **Which shape**
 
@@ -697,16 +774,15 @@ exists because a rule that discovers everything automatically also accepts every
 automatically. What follows is the set a feature actually reaches, so you meet them as a list rather
 than one red test at a time.
 
-**Measured rather than listed.** Scaffolding a whole vertical with
-`dotnet run Tools/Tasks.cs new-feature Widgets Widget` and wiring only the context leaves **four**
-of the 131 rules red, and all four are composition: the use cases, the ports and the configuration
-are declared and nothing registers them. The layout and vocabulary rules stay green, because a
-feature that uses the shape's own words is what they are checking for. So the table below is what
+**Measured rather than listed.** A generated feature composes with the six edits the generator
+prints, and the layout and vocabulary rules stay green for it, because a feature that uses the shape's
+own words is what they are checking for. Every combination of operations under each shape was built
+that way with warnings as errors and run against the architecture rules. So the table below is what
 fires **when you do the thing in the left column**, not a list of chores a feature owes.
 
 | What you added | What has to say so |
 |---|---|
-| A registration a host must resolve | `Composition/ContainerCompositionTests.cs` and the five compositions in `Composition/HostComposition.cs`. These are the four that fire for any new vertical, and they are the wiring, not a list |
+| A registration a host must resolve | `Composition/ContainerCompositionTests.cs` and the five compositions in `Composition/HostComposition.cs`. These are the wiring, not a list. `ApplicationModuleTests` in the application unit tests names the calls, composes every feature, gives a double to each port, and for the rich shape counts the use cases in `_knownUseCaseCount` |
 | An `IEntityTypeConfiguration` | `AppDbContext.OnModelCreating`, checked in both directions by `Rules/PersistenceModelTests.cs`. A configuration nobody applies is inert and produces an *empty* migration, so the failure would otherwise arrive at the first query |
 | A **new word** for a folder under `Common/` or `Features/<F>/` | the two vocabularies in `Rules/LayoutConventionTests.cs`, checked in both directions — a word without its folder fails as loudly as a folder without its word. A feature using the existing words adds nothing here |
 | A domain event | a consumer, **or** its name in `_deliberatelyUnconsumed` in `Rules/DomainEventTests.cs` with the reason. Publishing a fact nothing wants yet is good design; leaving a reader unable to tell that from a forgotten consumer is not |
@@ -825,7 +901,7 @@ the folders this shape needs and the other does not, so they sit in both closed 
 `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`. The rule that
 every feature has a domain folder became
 `FeatureIsolationTests.AFeatureWithoutADomainFolder_IsAServiceOverAStore`: the exemption exists only
-for a service over a store port that declares no use cases.
+for a service over its storage ports, a store to write and queries to read, that declares no use cases.
 
 **What each write guarantees.**
 

@@ -175,8 +175,8 @@ Each of these has been paid for at least once in this repository.
   future, refused as `IDX10222` — not an expired one. It has no effect on lockout end dates or on
   confirmation and reset token lifetimes either.
 - **The rate limiter's window advances on wall-clock time** and exposes no injectable clock;
-  `AutoReplenishment = false` does not change that. The window itself is replaceable
-  (`RateLimiterWindow`) so a test host can widen it.
+  `AutoReplenishment = false` does not change that. The window itself is configurable
+  (`RateLimiting:Window`) so a test host can widen it.
 - **Never name a folder after the type it contains.** A namespace and a type sharing a name make
   name resolution ambiguous for consumers (CS0118), because lookup walks the enclosing namespaces.
 - **An `Options/` folder shadows `Microsoft.Extensions.Options.Options`** for every file under the

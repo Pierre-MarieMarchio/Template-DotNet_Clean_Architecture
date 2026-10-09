@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResetPassword;
+﻿using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResetPassword;
 using Shouldly;
 using Xunit;
 
@@ -26,15 +25,10 @@ public sealed class ResetPasswordCommandValidatorTests
     public void ABlankToken_IsRejected(string token) =>
         ShouldFailOn(new ResetPasswordCommand("someone@example.com", token, "correct horse battery"), "Token");
 
-    /// <summary>The same floor every new password is held to — see <c>RegisterCommandValidatorTests</c>.</summary>
+    /// <summary>The length policy is the store's — see <c>RegisterCommandValidatorTests</c>.</summary>
     [Fact]
-    public void ANewPasswordBelowTheFloor_IsRejected() =>
-        ShouldFailOn(
-            new ResetPasswordCommand(
-                "someone@example.com",
-                "a-token",
-                new string('a', PasswordPolicy.AbsoluteMinimumPasswordLength - 1)),
-            "NewPassword");
+    public void AShortNewPassword_IsLeftToTheStore() =>
+        _validator.Validate(new ResetPasswordCommand("someone@example.com", "a-token", "a")).IsValid.ShouldBeTrue();
 
     [Fact]
     public void EveryBrokenField_IsReportedAtOnce()

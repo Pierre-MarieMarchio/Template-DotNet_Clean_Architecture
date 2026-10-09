@@ -26,13 +26,4 @@
     <ProjectReference Include="..\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
   </ItemGroup>
 
-  <!-- PasswordPolicy is internal on purpose: it is the one decision this feature owns outright, and
-       a caller that could read it would be reimplementing the check instead of asking for it.
-       Granted to exactly one assembly — this project's own mirror. -->
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>AppTemplate.Application.Auth.UnitTests</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
-
 </Project>

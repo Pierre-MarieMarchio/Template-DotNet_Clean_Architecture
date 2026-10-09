@@ -544,6 +544,12 @@ opposite. 1000 is a starting point, not a measured optimum for your ingestion ra
 Password, lockout and sign-in policy. Every member has a safe default, so a
 partly-filled section neither tightens nor loosens anything unexpectedly.
 
+**This section is the only password policy.** ASP.NET Identity applies it to every new
+password, at registration, password change and password reset, and its refusals come back on
+the password field as `request.validationFailed`. The request validators check nothing more
+than presence and a ceiling of 256 characters, which bounds the hashing work one request can
+cause; `PasswordRequiredLength` may not exceed that ceiling.
+
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `PasswordRequiredLength` | int | `12` | **Hard floor of 8** — lower values are rejected, and the value is also clamped before reaching ASP.NET Identity. Max 256. |

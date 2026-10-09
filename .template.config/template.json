@@ -128,6 +128,10 @@
       "type": "computed",
       "value": "(todoLists || reminders || notes || files)"
     },
+    "canAddFeature": {
+      "type": "computed",
+      "value": "(localAuth || externalAuth)"
+    },
     "signedInRoute": {
       "type": "computed",
       "value": "(localAuth || (externalAuth && anyFeature))"

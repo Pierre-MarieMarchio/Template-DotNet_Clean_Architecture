@@ -517,6 +517,14 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Fixed
 
+- **A project without a feature can compose the first one the generator writes.** `new-feature`
+  tells the user to call `services.AddFeature(...)` in `ApplicationModule`, and to register the
+  adapters of a model-mapped feature through `AddScopedTracker` in `PersistenceModule`. Both private
+  helpers were generated only with an example or Files, so in a project with neither the printed
+  edits did not compile. They are now generated with any authentication but `none`, where the
+  generator runs at all. The printed steps also name the `using` a file may lack and say when
+  `ApplicationModuleTests.cs` does not exist. `SqliteSavingHost.cs` no longer carries an unused
+  `using` that failed the build of an `--auth external --examples none --files false` project.
 - **Every named route has a name of its own.** `NotesController` and `TodoListsController` both named
   their read route `GetById`, and route names are global: MVC refuses two attribute routes with one
   name and different templates, so the API failed when it built its endpoints. They are now

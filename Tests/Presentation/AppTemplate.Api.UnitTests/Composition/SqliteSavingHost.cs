@@ -3,7 +3,9 @@ using System.Security.Claims;
 using System.Text.RegularExpressions;
 using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Api.Common.Security;
+//#if (todoLists || notes)
 using AppTemplate.Application;
+//#endif
 //#if (todoLists)
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Events;

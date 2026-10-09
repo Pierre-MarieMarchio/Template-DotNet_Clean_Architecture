@@ -1,4 +1,4 @@
-﻿//#if (anyFeature)
+﻿//#if (canAddFeature)
 using AppTemplate.Application.Core;
 //#endif
 //#if (externalAuth)
@@ -26,13 +26,13 @@ using AppTemplate.Domain.Features.Files.Events;
 //#if (todoLists)
 using AppTemplate.Domain.Features.TodoLists.Events;
 //#endif
-//#if (anyFeature)
+//#if (canAddFeature)
 using FluentValidation;
 //#endif
 //#if (files)
 using Microsoft.Extensions.Configuration;
 //#endif
-//#if (anyFeature || externalAuth)
+//#if (canAddFeature)
 using Microsoft.Extensions.DependencyInjection;
 //#endif
 //#if (files)
@@ -186,7 +186,7 @@ public static class ApplicationModule
         return services;
     }
     //#endif
-    //#if (anyFeature)
+    //#if (canAddFeature)
 
     /// <summary>
     /// The use cases and validators one vertical declares, discovered by the folder they sit in.

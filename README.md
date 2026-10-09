@@ -27,6 +27,9 @@ subject, and that page says which one answers the question you actually have.
   `code` and a `traceId`
 - **EF Core maps persistence models, not domain entities.** A mapper converts, and a
   reflection-driven fidelity test fails when a property does not survive the round trip
+- **A feature generator** — `dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner|shared`
+  writes either feature shape for the operations you choose, with or without `ETag` versioning, and
+  works under whatever name the template was generated with
 - **Conditional requests** (`ETag`/`If-Match`), **idempotent creates** (`Idempotency-Key`), and a
   closed collection contract with offset *and* keyset paging
 - **One process, jobs included** — the API serves HTTP and runs the periodic jobs that call the same

@@ -73,6 +73,15 @@ are set. [`BUILD-AND-CI.md`](BUILD-AND-CI.md) covers both.
 to file a public issue, which is right for a template and wrong for your production system; and
 `README.md` describes this template rather than your product.
 
+## Adding features to the generated project
+
+The feature generator works under the new name, because it reads the product prefix from the tree
+rather than assuming `AppTemplate`: in a project generated as `Acme.OrderManagement`,
+`dotnet run Tools/Tasks.cs new-feature Orders Order --access owner` writes
+`Acme.OrderManagement.*` namespaces. [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md#the-generator)
+describes its choices. It writes a manifest of what it created, with a hash of each file, in a
+`.feature-manifest` folder of the generated project; the template itself ships none.
+
 ## The generation flow is a CI gate
 
 `.github/workflows/ci.yml`'s `template` job runs this exact install → generate → build → test

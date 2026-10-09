@@ -59,6 +59,8 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     State = table.Column<int>(type: "integer", nullable: false),
                     ClaimedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     NotifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    FailedAttempts = table.Column<int>(type: "integer", nullable: false),
+                    NextAttemptAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<Guid>(type: "uuid", nullable: true),

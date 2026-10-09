@@ -156,6 +156,21 @@ public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBas
     }
 
     /// <summary>
+    /// Leaves a reminder as a failed notification would: one attempt down, and the next not allowed
+    /// before <paramref name="nextAttemptAt"/>. The in-memory notifier never fails, so the state a
+    /// failure leaves behind has to be written the same direct way the due date is.
+    /// </summary>
+    protected async Task PutInBackoffAsync(Guid reminderId, DateTimeOffset nextAttemptAt)
+    {
+        await using var scope = Fixture.Factory.Services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"""UPDATE reminders."Reminders" SET "FailedAttempts" = 1, "NextAttemptAt" = {nextAttemptAt} WHERE "Id" = {reminderId}""",
+            TestToken);
+    }
+
+    /// <summary>
     /// Completes a to-do item by writing the column directly, the way a completion that never went
     /// through the use case would leave it: <c>CompletedAt</c> set, but no
     /// <c>TodoItemCompletedDomainEvent</c> ever raised, and therefore

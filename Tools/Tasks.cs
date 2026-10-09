@@ -39,6 +39,8 @@ return Tasks.Run(args);
 /// dotnet run Tools/Tasks.cs test
 /// dotnet run Tools/Tasks.cs test --no-integration
 /// dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
+/// dotnet run Tools/Tasks.cs remove-feature Widgets
+/// dotnet run Tools/Tasks.cs remove-feature Widgets --apply
 /// dotnet run Tools/Tasks.cs migration-add AddTodoItemPriority
 /// dotnet run Tools/Tasks.cs -- build --configuration Release
 /// </code>
@@ -56,6 +58,7 @@ internal static class Tasks
         "format",
         "format-fix",
         "new-feature",
+        "remove-feature",
         "migration-add",
         "database-update",
         "migration-bundle",
@@ -97,6 +100,7 @@ internal static class Tasks
         // meaning and refuses a bad value, so this file does not copy its rules.
         List<string> featureOptions = [];
         bool noIntegration = false;
+        bool apply = false;
         string configuration = "Debug";
 
         for (int i = 0; i < arguments.Length; i++)
@@ -107,6 +111,11 @@ internal static class Tasks
             {
                 // Skip the Testcontainers suite, which needs a running Docker daemon.
                 noIntegration = true;
+            }
+            else if (argument is "--apply")
+            {
+                // The one option of 'remove-feature': without it the task only reports.
+                apply = true;
             }
             else if (argument is "--configuration")
             {
@@ -172,6 +181,11 @@ internal static class Tasks
         {
             throw new InvalidOperationException(
                 $"'{featureOptions[0]}' is an option of the new-feature task, not of '{task ?? "(no task)"}'.");
+        }
+
+        if (apply && task != "remove-feature")
+        {
+            throw new InvalidOperationException($"'--apply' is an option of the remove-feature task, not of '{task ?? "(no task)"}'.");
         }
 
         if (task is null)
@@ -244,6 +258,20 @@ internal static class Tasks
                         RequiredSecond(task, second),
                         "--root", repoRoot,
                         .. featureOptions,
+                    ]);
+                break;
+
+            case "remove-feature":
+                // Without --apply this only reports. With it, an untouched generated skeleton is deleted
+                // and anything else is refused, whole: RemoveFeature.cs says why.
+                List<string> applyOption = apply ? ["--apply"] : [];
+                Step(
+                    "dotnet",
+                    [
+                        "run", Path.Combine(repoRoot, "Tools", "RemoveFeature.cs"),
+                        RequiredName(task, name),
+                        "--root", repoRoot,
+                        .. applyOption,
                     ]);
                 break;
 
@@ -374,6 +402,7 @@ internal static class Tasks
         // The scaffolder is not a gate over the tree, but its self-test is what keeps its templates
         // from drifting away from the shapes the rules below check.
         Step("dotnet", "run", Gate(repoRoot, "NewFeature.cs"), "--self-test");
+        Step("dotnet", "run", Gate(repoRoot, "RemoveFeature.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "CheckDocPaths.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "CheckDocPaths.cs"), repoRoot);
         Step("dotnet", "run", Gate(repoRoot, "CheckWorkflows.cs"), "--self-test");

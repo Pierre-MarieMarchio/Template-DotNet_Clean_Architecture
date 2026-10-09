@@ -1,8 +1,10 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
+using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using Microsoft.Extensions.Logging;
 
@@ -22,9 +24,27 @@ namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueRe
 /// on its own would be indistinguishable from a pass that had nothing due.
 /// </para>
 /// <para>
-/// <b>Delivery is at-least-once.</b> A crash between <see cref="IReminderNotifier.NotifyAsync"/>
-/// succeeding and this use case's own commit lands the reminder back in the next pass's batch,
-/// still <c>Pending</c>, and it fires again. The lease narrows that window; it does not remove it.
+/// <b>Delivery is at-least-once, and what a failure costs is one reminder.</b> Each reminder is
+/// notified and then committed on its own, so a commit that fails loses that reminder's outcome and
+/// nothing else: the ones before it are already <c>Fired</c> and are never sent again. A crash
+/// between <see cref="IReminderNotifier.NotifyAsync"/> succeeding and that reminder's commit leaves
+/// it <c>Pending</c>, and the next pass sends it again. The lease narrows the window in which two
+/// hosts could both do this; it is not a fencing token, so leadership can lapse mid-pass without
+/// this code being told, and a second host may then fire what this one is firing.
+/// </para>
+/// <para>
+/// <b>A conflict ends the pass.</b> A reminder changed by somebody else — cancelled, say, while its
+/// notification was in flight — makes its commit fail, and the failed write stays staged in this
+/// scope, so every later save would meet the same conflict. The pass therefore stops there and the
+/// reminders after it wait for the next one, which reads the conflicting reminder afresh: a cancelled
+/// one is no longer due. A notification already sent for it stays sent, as the race allows.
+/// </para>
+/// <para>
+/// <b>A failed notification is retried, never abandoned, and never at the cost of the others.</b>
+/// It is recorded on the reminder, which waits a minute before its next attempt and doubles the wait
+/// up to an hour. Reminders come back in the order they became eligible, so one that keeps failing
+/// queues behind those that have waited longer instead of filling every batch. It is retried for as
+/// long as its item is outstanding; there is no state in which it is given up on.
 /// </para>
 /// <para>
 /// <b>Completion is re-checked here, not trusted from the event that should have cancelled the
@@ -114,63 +134,119 @@ public sealed class FireDueRemindersUseCase(
 
         foreach (var reminder in due)
         {
-            bool targetExists = completionStates.TryGetValue(reminder.TodoItemId, out bool isCompleted);
+            var outcome = await FireAsync(reminder, completionStates, now, cancellationToken);
 
-            if (targetExists && isCompleted)
+            if (outcome == Outcome.Notified)
             {
-                // GetDueAsync returns only Pending reminders, so an item already complete here is a
-                // cancellation that never arrived: the completion event did not reach its consumer.
-                diagnostics.RecordMissedCancellation();
-                reminder.Cancel();
-
-                continue;
-            }
-
-            if (!targetExists)
-            {
-                // The item was removed, or its list deleted; neither raises an event, so nothing was
-                // missed.
-                reminder.Cancel();
-
-                continue;
-            }
-
-            if (!reminder.TryClaim(now, _staleClaimAfter))
-            {
-                continue;
-            }
-
-            try
-            {
-                await notifier.NotifyAsync(
-                    new ReminderNotification(reminder.OwnerId, reminder.TodoItemId, reminder.DueAt),
-                    cancellationToken);
-
-                reminder.MarkNotified(now);
                 notified++;
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            else if (outcome == Outcome.Conflicted)
             {
-                // A cancelled run is not a failed notification.
-                throw;
-            }
-            catch (Exception exception)
-            {
-                // Released rather than left to expire, so the next pass retries it immediately. The
-                // rest of the batch still runs.
-                reminder.ReleaseClaim();
-
-                logger.LogWarning(
-                    exception,
-                    "Notifying reminder {ReminderId} for owner {OwnerId} failed; the claim was " +
-                    "released for the next pass to retry.",
-                    reminder.Id,
-                    reminder.OwnerId);
+                break;
             }
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
         return notified;
+    }
+
+    /// <summary>One reminder, from the decision to its commit.</summary>
+    private async Task<Outcome> FireAsync(
+        Reminder reminder,
+        IReadOnlyDictionary<Guid, bool> completionStates,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        bool targetExists = completionStates.TryGetValue(reminder.TodoItemId, out bool isCompleted);
+
+        if (!targetExists || isCompleted)
+        {
+            // An absent item was removed, or its list deleted; neither raises an event, so nothing
+            // was missed. A completed one is a cancellation that never arrived: GetDueAsync returns
+            // only Pending reminders, so the completion event did not reach its consumer.
+            reminder.Cancel();
+
+            if (!await TryCommitAsync(reminder, cancellationToken))
+            {
+                return Outcome.Conflicted;
+            }
+
+            if (targetExists)
+            {
+                diagnostics.RecordMissedCancellation();
+            }
+
+            return Outcome.Settled;
+        }
+
+        if (!reminder.TryClaim(now, _staleClaimAfter))
+        {
+            return Outcome.Settled;
+        }
+
+        try
+        {
+            await notifier.NotifyAsync(
+                new ReminderNotification(reminder.OwnerId, reminder.TodoItemId, reminder.DueAt),
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // A cancelled run is not a failed notification.
+            throw;
+        }
+        catch (Exception exception)
+        {
+            reminder.ReleaseClaim();
+            reminder.RecordFailure(now);
+
+            logger.LogWarning(
+                exception,
+                "Notifying reminder {ReminderId} for owner {OwnerId} failed (attempt {FailedAttempts}); " +
+                "it will not be tried again before {NextAttemptAt}.",
+                reminder.Id,
+                reminder.OwnerId,
+                reminder.FailedAttempts,
+                reminder.NextAttemptAt);
+
+            return await TryCommitAsync(reminder, cancellationToken) ? Outcome.Settled : Outcome.Conflicted;
+        }
+
+        reminder.MarkNotified(now);
+
+        return await TryCommitAsync(reminder, cancellationToken) ? Outcome.Notified : Outcome.Conflicted;
+    }
+
+    /// <returns><c>false</c> when somebody else changed the reminder first, in which case nothing
+    /// was written and the failed write is still staged in this scope.</returns>
+    private async Task<bool> TryCommitAsync(Reminder reminder, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return true;
+        }
+        catch (ConcurrencyConflictException exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Reminder {ReminderId} was changed by somebody else while it was being fired; this pass " +
+                "ends here and the next one reads it afresh.",
+                reminder.Id);
+
+            return false;
+        }
+    }
+
+    private enum Outcome
+    {
+        /// <summary>Handled and committed, without a notification going out: cancelled, failed or left alone.</summary>
+        Settled,
+
+        /// <summary>Notified and committed.</summary>
+        Notified,
+
+        /// <summary>Its commit lost a race, so the pass has to stop.</summary>
+        Conflicted,
     }
 }

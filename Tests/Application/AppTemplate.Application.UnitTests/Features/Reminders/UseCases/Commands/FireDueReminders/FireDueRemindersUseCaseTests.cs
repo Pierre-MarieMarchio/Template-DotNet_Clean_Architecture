@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
@@ -135,7 +136,7 @@ public sealed class FireDueRemindersUseCaseTests
         reminder.State.ShouldBe(ReminderState.Pending);
         reminder.ClaimedAt.ShouldBe(_now);
         await _notifier.DidNotReceive().NotifyAsync(Arg.Any<ReminderNotification>(), Arg.Any<CancellationToken>());
-        await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -152,7 +153,7 @@ public sealed class FireDueRemindersUseCaseTests
     }
 
     [Fact]
-    public async Task ANotifierFailure_ReleasesTheClaimAndDoesNotFailTheRestOfTheBatch()
+    public async Task ANotifierFailure_IsRecordedAndDoesNotFailTheRestOfTheBatch()
     {
         var failing = ADueReminder();
         var succeeding = ADueReminder();
@@ -168,12 +169,17 @@ public sealed class FireDueRemindersUseCaseTests
         result.Value.ShouldBe(1);
         failing.State.ShouldBe(ReminderState.Pending);
         failing.ClaimedAt.ShouldBeNull();
+        failing.FailedAttempts.ShouldBe(1);
+        failing.NextAttemptAt.ShouldBe(_now + Reminder.RetryDelayAfter(1));
         succeeding.State.ShouldBe(ReminderState.Fired);
-        await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
 
+    /// <summary>
+    /// One commit per reminder is what bounds a failed commit to the reminder it belongs to: the
+    /// failure of a notification is saved too, so the retry wait it starts is not lost.
+    /// </summary>
     [Fact]
-    public async Task TheWholeBatch_IsCommittedExactlyOnce()
+    public async Task EveryReminderOfTheBatch_IsCommittedOnItsOwn()
     {
         var reminders = Enumerable.Range(0, 5).Select(_ => ADueReminder()).ToArray();
         GivenDueReminders(reminders);
@@ -181,7 +187,62 @@ public sealed class FireDueRemindersUseCaseTests
 
         await UseCase().ExecuteAsync(TestToken);
 
-        await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
+        await _unitOfWork.Received(5).SaveChangesAsync(TestToken);
+    }
+
+    [Fact]
+    public async Task ACancelledReminder_IsCommittedOnItsOwnToo()
+    {
+        var completed = ADueReminder();
+        var outstanding = ADueReminder();
+        GivenDueReminders(completed, outstanding);
+        GivenCompletionStates((completed.TodoItemId, true), (outstanding.TodoItemId, false));
+
+        await UseCase().ExecuteAsync(TestToken);
+
+        await _unitOfWork.Received(2).SaveChangesAsync(TestToken);
+    }
+
+    /// <summary>
+    /// The missed-cancellation count is the number of completion events that never arrived, so it
+    /// must not be incremented for a cancellation that did not commit and will be found again.
+    /// </summary>
+    [Fact]
+    public async Task ACancellationThatLosesItsRace_IsNotCountedAsAMissedEvent()
+    {
+        var reminder = ADueReminder();
+        GivenDueReminders(reminder);
+        GivenCompletionStates((reminder.TodoItemId, true));
+        _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ConcurrencyConflictException("moved"));
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        _diagnostics.DidNotReceive().RecordMissedCancellation();
+    }
+
+    /// <summary>
+    /// A failed write stays staged in the scope, so carrying on would only meet the same conflict
+    /// again at every later save. The pass ends instead, and the rest wait for the next one.
+    /// </summary>
+    [Fact]
+    public async Task AConflict_EndsThePassWithoutTouchingTheReminderAfterIt()
+    {
+        var raced = ADueReminder();
+        var after = ADueReminder();
+        GivenDueReminders(raced, after);
+        GivenCompletionStates((raced.TodoItemId, false), (after.TodoItemId, false));
+        _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ConcurrencyConflictException("moved"));
+
+        var result = await UseCase().ExecuteAsync(TestToken);
+
+        result.Value.ShouldBe(0, "a notification whose commit lost is not counted as delivered");
+        await _notifier.DidNotReceive().NotifyAsync(
+            new ReminderNotification(after.OwnerId, after.TodoItemId, after.DueAt),
+            Arg.Any<CancellationToken>());
+        after.State.ShouldBe(ReminderState.Pending);
     }
 
     [Fact]

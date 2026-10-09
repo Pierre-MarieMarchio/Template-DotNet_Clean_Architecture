@@ -23,6 +23,7 @@ internal sealed class ReminderRecordConfiguration : IEntityTypeConfiguration<Rem
         builder.Property(reminder => reminder.TodoItemId).IsRequired();
         builder.Property(reminder => reminder.DueAt).IsRequired();
         builder.Property(reminder => reminder.State).IsRequired();
+        builder.Property(reminder => reminder.FailedAttempts).IsRequired();
 
         // "State = Pending AND DueAt <= now", ordered by DueAt: State leads as the equality filter,
         // DueAt trails as both the range predicate and the sort key.

@@ -75,6 +75,33 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
     }
 
     /// <summary>
+    /// What the retry state is for, proved against the real due query: a reminder whose last attempt
+    /// failed stays out of the batch until its wait is over, and is fired by the first pass after it.
+    /// </summary>
+    [Fact]
+    public async Task AReminderWaitingOutAFailedAttempt_IsNotFiredBeforeItsRetryTime()
+    {
+        Notifications.Clear();
+
+        var (client, _, _) = await SignInAsync();
+        var listId = await CreateTodoListAsync(client, "Chores");
+        var itemId = await AddTodoItemAsync(client, listId, "Water the plants");
+
+        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.UtcNow.AddMinutes(5));
+        await BackdateReminderAsync(reminder.Id, Clock.UtcNow.AddMinutes(-30));
+        await PutInBackoffAsync(reminder.Id, Clock.UtcNow.AddMinutes(10));
+
+        (await FireDueRemindersAsync()).ShouldBe(0, "its retry time is still ahead");
+        Notifications.Snapshot().ShouldBeEmpty();
+        (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("pending");
+
+        await PutInBackoffAsync(reminder.Id, Clock.UtcNow.AddMinutes(-1));
+
+        (await FireDueRemindersAsync()).ShouldBe(1, "its retry time has passed");
+        (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("fired");
+    }
+
+    /// <summary>
     /// The fast path working as intended: a completion that goes through the ordinary endpoint
     /// retires its reminder through <c>CancelRemindersOnTodoItemCompletedConsumer</c> before the
     /// reminder is ever due, and firing later finds nothing pending to notify.

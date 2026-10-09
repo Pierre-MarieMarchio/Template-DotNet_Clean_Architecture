@@ -568,6 +568,20 @@ its own, the hosting adapters and their one composition call move into it, the A
 telemetry. Use cases, contracts and storage guarantees stay where they are: that is a deployment and
 presentation change, not a migration of the business model.
 
+**What the reminder pass guarantees.** Delivery is **at-least-once**, and what a failure costs is
+one reminder. `FireDueRemindersUseCase` notifies a reminder and then commits it, one at a time, so a
+commit that fails loses that reminder's outcome and no other: those before it are already `Fired` and
+are never sent again, and only a crash between a successful send and its own commit sends one twice.
+`ILeaderLease` keeps two hosts from doing that to the same batch, and it is not a fencing token —
+leadership can lapse mid-pass without the pass being told. A reminder changed by somebody else while
+it is being fired (cancelled, say) loses its commit, and the pass ends there: the failed write stays
+staged in the scope, so carrying on would meet the same conflict at every later save, and the next
+pass reads the reminder afresh. A failed notification is recorded on the reminder (`FailedAttempts`,
+`NextAttemptAt`) and retried after a wait that starts at a minute and doubles to an hour; reminders
+are taken in the order they became eligible, so one that always fails queues behind those that have
+waited longer and cannot fill every batch. It is retried for as long as its item is outstanding —
+there is no state in which it is abandoned, so an undeliverable one costs an attempt an hour.
+
 A future rich client is not exempt from the cost of a calling context either: it would still have to
 write a real `ICurrentUser` naming an actual caller, which is a port implementation, not just module
 composition.

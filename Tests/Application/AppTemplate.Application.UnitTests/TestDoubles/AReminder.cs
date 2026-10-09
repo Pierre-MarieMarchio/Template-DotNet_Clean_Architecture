@@ -63,6 +63,8 @@ internal static class AReminder
         ReminderState state = ReminderState.Pending,
         DateTimeOffset? claimedAt = null,
         DateTimeOffset? notifiedAt = null,
+        int failedAttempts = 0,
+        DateTimeOffset? nextAttemptAt = null,
         Guid? id = null,
         Guid? todoListId = null,
         Guid? todoItemId = null) =>
@@ -76,5 +78,7 @@ internal static class AReminder
             State = state,
             ClaimedAt = claimedAt,
             NotifiedAt = notifiedAt,
+            FailedAttempts = failedAttempts,
+            NextAttemptAt = nextAttemptAt,
         });
 }

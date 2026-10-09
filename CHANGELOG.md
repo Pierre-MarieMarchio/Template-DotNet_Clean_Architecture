@@ -403,6 +403,17 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   audited, and it has no aggregate and no event. Both cases are reproduced against real contexts and
   real commits in `Tests/Presentation/AppTemplate.Api.UnitTests/Composition/`.
 
+- **A failed reminder commit no longer resends the whole batch, and a reminder that always fails no
+  longer starves the ones behind it.** The reminder pass sent up to 200 notifications and then
+  committed once, so one conflict — a reminder cancelled while its mail was in flight — rolled back
+  all of them and the next pass mailed every one again. Each reminder is now committed on its own,
+  and a conflict ends the pass instead of failing it. Separately, a failing notification left no
+  trace, so a backlog of 200 reminders that could never be delivered stayed first in due order and
+  every pass spent itself on them; the failure is now recorded (`FailedAttempts`, `NextAttemptAt`),
+  retried after a wait of one minute doubling to one hour, and reminders are taken in the order they
+  became eligible. Delivery stays at-least-once. The initial migration now carries the two
+  columns (`FailedAttempts`, `NextAttemptAt`) on `Reminders`; a database that already applied the
+  previous `InitialCreate` has to be recreated, since the template is unreleased.
 - **Generating from a working clone no longer copies its build output into the new project.** The
   generator's exclude list named `bin/` and `obj/` but not the two directories a test run leaves at
   the root, so a project generated from a clone where the suite had been run arrived with 11 MB of

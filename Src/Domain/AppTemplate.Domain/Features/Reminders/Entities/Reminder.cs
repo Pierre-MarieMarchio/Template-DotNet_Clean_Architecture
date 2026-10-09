@@ -18,6 +18,16 @@ namespace AppTemplate.Domain.Features.Reminders.Entities;
 /// </summary>
 public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
+    /// <summary>The wait after the first failed attempt; each further failure doubles it.</summary>
+    private static readonly TimeSpan _firstRetryDelay = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// The longest wait between two attempts. Reached at the seventh failure, and the reason a
+    /// reminder is retried for ever rather than abandoned: nothing here says a failure is permanent,
+    /// and a reminder that is retried still rings once the cause is fixed.
+    /// </summary>
+    private static readonly TimeSpan _longestRetryDelay = TimeSpan.FromHours(1);
+
     /// <summary>
     /// The one place the identity invariants are stated. Both factories reach the aggregate through
     /// here, so scheduling and loading cannot disagree about what a reminder must carry — a rule
@@ -84,6 +94,19 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// <summary>When the notification actually went out.</summary>
     public DateTimeOffset? NotifiedAt { get; private set; }
 
+    /// <summary>
+    /// How many times notifying this reminder has failed since it was scheduled or last moved. It
+    /// is what lengthens the wait between attempts, so a reminder that can never be delivered costs
+    /// one attempt an hour rather than one a minute.
+    /// </summary>
+    public int FailedAttempts { get; private set; }
+
+    /// <summary>
+    /// The earliest instant the next attempt may be made after a failed one, or <c>null</c> when no
+    /// attempt has failed. Only a pending reminder is ever read against it.
+    /// </summary>
+    public DateTimeOffset? NextAttemptAt { get; private set; }
+
     /// <param name="now">Injected rather than read from the clock, so the aggregate has no ambient
     /// dependency and its behaviour is reproducible in a test.</param>
     public static Reminder Schedule(
@@ -139,11 +162,23 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
             throw new DomainException("Only a fired reminder can record a notification instant.");
         }
 
+        if (stored.FailedAttempts < 0)
+        {
+            throw new DomainException("A reminder cannot have a negative number of failed attempts.");
+        }
+
+        if (stored.NextAttemptAt is not null && stored.FailedAttempts == 0)
+        {
+            throw new DomainException("A reminder that has never failed cannot be waiting for a retry.");
+        }
+
         return new Reminder(stored.Id, stored.OwnerId, stored.TodoListId, stored.TodoItemId, stored.DueAt)
         {
             State = stored.State,
             ClaimedAt = stored.ClaimedAt,
             NotifiedAt = stored.NotifiedAt,
+            FailedAttempts = stored.FailedAttempts,
+            NextAttemptAt = stored.NextAttemptAt,
         };
     }
 
@@ -194,6 +229,37 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
     }
 
     /// <summary>
+    /// Records that an attempt to notify failed, and pushes the next one out. The wait doubles with
+    /// each failure up to a ceiling, and it is measured from now rather than from the due date, so
+    /// a reminder that has been failing for a day is not owed an immediate retry.
+    /// </summary>
+    public void RecordFailure(DateTimeOffset now)
+    {
+        if (State != ReminderState.Pending)
+        {
+            throw new DomainException("Only a pending reminder can record a failed attempt.");
+        }
+
+        FailedAttempts++;
+        NextAttemptAt = now + RetryDelayAfter(FailedAttempts);
+    }
+
+    /// <summary>The wait before the next attempt, once <paramref name="failedAttempts"/> have failed.</summary>
+    public static TimeSpan RetryDelayAfter(int failedAttempts)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(failedAttempts, 1);
+
+        var delay = _firstRetryDelay;
+
+        for (int failure = 1; failure < failedAttempts && delay < _longestRetryDelay; failure++)
+        {
+            delay += delay;
+        }
+
+        return delay < _longestRetryDelay ? delay : _longestRetryDelay;
+    }
+
+    /// <summary>
     /// Gives up a claim without firing, so the next pass can pick the reminder up immediately
     /// rather than waiting out the staleness window.
     /// </summary>
@@ -236,5 +302,10 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
 
         DueAt = dueAt;
         ClaimedAt = null;
+
+        // A new instant is a new reminder as far as delivery goes: the failures counted so far were
+        // against a moment that no longer applies.
+        FailedAttempts = 0;
+        NextAttemptAt = null;
     }
 }

@@ -34,8 +34,8 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.InspectDeposi
 /// the first one moved every file it decided about out of the set.
 /// </para>
 /// <para>
-/// <b>Runs from <c>AppTemplate.Worker</c>, so it must not read <see cref="ICurrentUser"/>:</b> that
-/// host's implementation throws rather than invent an anonymous caller, and the files examined here
+/// <b>Runs from a background job, so it must not read <see cref="ICurrentUser"/>:</b> a background
+/// scope's implementation throws rather than invent an anonymous caller, and the files examined here
 /// belong to every owner and to none of them.
 /// </para>
 /// <para>

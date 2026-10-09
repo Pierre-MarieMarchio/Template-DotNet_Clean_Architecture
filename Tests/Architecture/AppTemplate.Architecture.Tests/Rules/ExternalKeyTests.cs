@@ -33,7 +33,6 @@ public sealed class ExternalKeyTests
         ["ProblemTypeOptions"] = "ProblemTypes",
         ["SecurityHeaderOptions"] = "SecurityHeaders",
         ["TelemetryOptions"] = "OpenTelemetry",
-        ["WorkerTelemetryOptions"] = "OpenTelemetry",
     };
 
     private static readonly Regex _sectionName = new(

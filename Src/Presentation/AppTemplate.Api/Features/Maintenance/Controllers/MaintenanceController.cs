@@ -13,7 +13,7 @@ namespace AppTemplate.Api.Features.Maintenance.Controllers;
 /// Administrative operations with no user-facing counterpart.
 /// </summary>
 /// <remarks>
-/// Both purges here are also run by the worker's maintenance loop. This endpoint is what a
+/// Both purges here are also run by the API's maintenance job. This endpoint is what a
 /// scheduler outside the process calls, such as a cloud scheduler.
 /// </remarks>
 [Route("api/v{version:apiVersion}/maintenance")]

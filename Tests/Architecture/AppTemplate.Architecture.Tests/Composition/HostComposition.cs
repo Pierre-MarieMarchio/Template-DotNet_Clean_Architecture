@@ -159,22 +159,22 @@ internal static class HostComposition
     }
 
     /// <summary>
-    /// The worker's composition: the same five modules, and deliberately <em>without</em>
-    /// <c>AddHttpContextAccessor</c>, because that is the one difference between the two hosts that
-    /// can break a graph. A module gaining a dependency on <c>IHttpContextAccessor</c> leaves the
-    /// API's container green and stops the worker at start-up, and this composition is the only
-    /// thing in the rule set that notices.
+    /// The composition a process that only runs background work would make: the same five modules,
+    /// and deliberately <em>without</em> <c>AddHttpContextAccessor</c>. The API hosts the jobs today,
+    /// so no such process exists yet, but the plan for one is that it makes the same composition
+    /// call over the same modules — and a module gaining a dependency on <c>IHttpContextAccessor</c>
+    /// would leave the API's container green and stop that process at start-up. This composition is
+    /// the only thing in the rule set that notices.
     /// <para>
-    /// The worker registers <c>BackgroundCurrentUser</c> for <see cref="ICurrentUser"/>, a class
-    /// that throws rather than invent a principal, and <c>BackgroundAuditActor</c> for
-    /// <see cref="IAuditActor"/>, which answers <c>null</c>. The stand-ins below have those same two
-    /// behaviours, deliberately: a benign <see cref="ICurrentUser"/> here is what let a host that
-    /// could commit nothing pass every rule in this project. Nothing here references
-    /// <c>AppTemplate.Worker</c> — its own hosted services, options and telemetry stay outside this
-    /// check, and <c>AppTemplate.Worker.UnitTests</c> covers them.
+    /// Such a process supplies <c>NoCallerCurrentUser</c> for <see cref="ICurrentUser"/>, a class
+    /// that throws rather than invent a principal, and an <see cref="IAuditActor"/> that answers
+    /// <c>null</c>. The stand-ins below have those same two behaviours, deliberately: a benign
+    /// <see cref="ICurrentUser"/> here is what let a host that could commit nothing pass every rule
+    /// in this project. The API's own hosted services, options and telemetry stay outside this
+    /// check, and <c>AppTemplate.Api.UnitTests</c> covers them.
     /// </para>
     /// </summary>
-    internal static ServiceCollection ComposeWorker(IConfiguration configuration)
+    internal static ServiceCollection ComposeBackgroundOnly(IConfiguration configuration)
     {
         var services = new ServiceCollection();
 
@@ -191,7 +191,7 @@ internal static class HostComposition
         services.AddEmailModule(configuration);
         services.AddStorageModule(configuration);
 
-        AddWorkerSuppliedAdapters(services);
+        AddBackgroundOnlyAdapters(services);
 
         return services;
     }
@@ -213,14 +213,14 @@ internal static class HostComposition
     }
 
     /// <summary>
-    /// The worker's composition with the identity module left out, which is the question every
-    /// comment about this host's configuration surface answers wrongly. The written reason is
+    /// The background-only composition with the identity module left out, which is the question every
+    /// comment about the jobs' configuration surface answers wrongly. The obvious reason is
     /// <c>IRefreshTokenMaintenanceService</c>'s adapter; the operative one is that
-    /// <c>EmailReminderNotifier</c> — the adapter behind the worker's <em>own</em> reminder loop —
-    /// needs <see cref="IUserProfilesService"/> to find the address it notifies. Moving the
-    /// maintenance adapter to another module would not free this host of anything.
+    /// <c>EmailReminderNotifier</c> — the adapter behind the reminder job — needs
+    /// <see cref="IUserProfilesService"/> to find the address it notifies. Moving the maintenance
+    /// adapter to another module would not free that composition of anything.
     /// </summary>
-    internal static ServiceCollection ComposeWorkerWithoutTheAuthModule(IConfiguration configuration)
+    internal static ServiceCollection ComposeBackgroundOnlyWithoutTheAuthModule(IConfiguration configuration)
     {
         var services = new ServiceCollection();
 
@@ -236,7 +236,7 @@ internal static class HostComposition
         services.AddEmailModule(configuration);
         services.AddStorageModule(configuration);
 
-        AddWorkerSuppliedAdapters(services);
+        AddBackgroundOnlyAdapters(services);
 
         return services;
     }
@@ -321,11 +321,11 @@ internal static class HostComposition
     }
 
     /// <summary>
-    /// The adapters <c>AppTemplate.Worker</c> owns, with the behaviour that host gives them: an
-    /// <see cref="ICurrentUser"/> that refuses to answer and an <see cref="IAuditActor"/> that
-    /// answers nobody.
+    /// The adapters a background-only process owns, with the behaviour the API gives a background
+    /// scope: an <see cref="ICurrentUser"/> that refuses to answer and an <see cref="IAuditActor"/>
+    /// that answers nobody.
     /// </summary>
-    private static void AddWorkerSuppliedAdapters(IServiceCollection services)
+    private static void AddBackgroundOnlyAdapters(IServiceCollection services)
     {
         services.AddScoped<ICurrentUser, ArchitectureTestBackgroundCurrentUser>();
         services.AddScoped<IAuditActor, ArchitectureTestBackgroundAuditActor>();
@@ -349,18 +349,18 @@ internal sealed class ArchitectureTestAuditActor : IAuditActor
 }
 
 /// <summary>
-/// Stands in for <c>AppTemplate.Worker.Common.Security.BackgroundCurrentUser</c>, throw included.
-/// The container tests resolve it and never read the getter; a stand-in that answered a user id is
-/// what hid the composition mistake this one exists to expose.
+/// Stands in for <c>NoCallerCurrentUser</c>, throw included. The container tests resolve it and
+/// never read the getter; a stand-in that answered a user id is what hid the composition mistake
+/// this one exists to expose.
 /// </summary>
 internal sealed class ArchitectureTestBackgroundCurrentUser : ICurrentUser
 {
     public UserId? UserId => throw new NotSupportedException(
-        "The worker has no current user. A use case that reads ICurrentUser.UserId cannot run " +
-        "unmodified from that host.");
+        "A background scope has no current user. A use case that reads ICurrentUser.UserId cannot " +
+        "run unmodified from there.");
 }
 
-/// <summary>Stands in for <c>AppTemplate.Worker.Common.Security.BackgroundAuditActor</c>.</summary>
+/// <summary>Stands in for <c>AppTemplate.Api.Common.Security.BackgroundAuditActor</c>.</summary>
 internal sealed class ArchitectureTestBackgroundAuditActor : IAuditActor
 {
     public Guid? UserId => null;

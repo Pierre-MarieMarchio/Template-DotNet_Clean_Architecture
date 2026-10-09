@@ -6,7 +6,7 @@
 /// test asks this for the last notification to an owner.
 /// <para>
 /// A singleton for the life of the host, and internally locked, because an integration test or a
-/// running worker delivers from several notifications at once.
+/// running job delivers from several notifications at once.
 /// </para>
 /// </summary>
 public sealed class RecordedReminderNotifications

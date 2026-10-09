@@ -30,7 +30,7 @@ namespace AppTemplate.Api.IntegrationTests.Reminders;
 /// </para>
 /// <para>
 /// <b>Firing is driven directly, not through HTTP.</b> <see cref="IFireDueRemindersUseCase"/> has no
-/// route: it runs from <c>AppTemplate.Worker</c> on a timer, never from a request. Resolving it from
+/// route: it runs from the API's reminder job on a timer, never from a request. Resolving it from
 /// the API host's own container and running it from a scope of the test's own is the same shape used
 /// elsewhere in this suite for <c>IUnitOfWork</c> — the exact production type, composed the way a
 /// real pass would compose it, just invoked once on demand instead of on a timer.
@@ -174,8 +174,8 @@ public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBas
 
     /// <summary>
     /// Runs one pass of <see cref="IFireDueRemindersUseCase"/>, resolved from a scope of its own —
-    /// never from the scope an HTTP request is using — the same way <c>AppTemplate.Worker</c>'s
-    /// background service does.
+    /// never from the scope an HTTP request is using — the same way the API's reminder
+    /// job does.
     /// </summary>
     protected async Task<int> FireDueRemindersAsync()
     {

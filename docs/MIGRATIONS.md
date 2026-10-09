@@ -127,8 +127,8 @@ but both run authentication first, as the Development bootstrap does.
 
 **The deployment step remains yours.** The release workflow uploads the two bundles as plain
 artifacts. Run both successfully with a migration-time database principal before starting a version
-of the API or Worker that expects the new schema. Neither serving process applies migrations outside
-Development.
+of the API that expects the new schema. The API, whether or not it runs the jobs, applies no
+migration outside Development, and starting the jobs grants it no schema-changing privilege.
 
 `SECURITY.md` states what a deployment owes here beyond the mechanics.
 

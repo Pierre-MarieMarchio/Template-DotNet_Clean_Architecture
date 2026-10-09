@@ -8,7 +8,7 @@
 /// <para>
 /// The distinction is what a host with no request depends on. <c>ICurrentUser</c> answers "who is
 /// calling", which such a host cannot answer and must not invent. This one answers "whom do we
-/// record", which it can: nobody. Collapsing the two made every commit from <c>AppTemplate.Worker</c>
+/// record", which it can: nobody. Collapsing the two made every commit from a background job
 /// throw at the stamp, so no deposited file was ever inspected and no due reminder was ever marked
 /// as sent.
 /// </para>

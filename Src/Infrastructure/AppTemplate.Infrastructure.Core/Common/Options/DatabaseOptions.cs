@@ -26,7 +26,7 @@ public sealed class DatabaseOptions
 
     /// <summary>
     /// Passed through as Npgsql's <c>Maximum Pool Size</c>. Deliberately well under the driver's own
-    /// default of 100, so that running several replicas of this process (API and/or worker) against
+    /// default of 100, so that running several replicas of this process (every API instance, with or without the jobs) against
     /// one PostgreSQL server does not, by itself, approach <c>max_connections</c>.
     /// </summary>
     public int MaxPoolSize { get; set; } = 20;

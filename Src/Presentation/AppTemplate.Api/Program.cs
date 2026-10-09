@@ -1,6 +1,8 @@
 ﻿using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.Security;
+using AppTemplate.Api.Features.Auth.Jobs;
+using AppTemplate.Api.Features.BackgroundJobs.Jobs;
 using AppTemplate.Application;
 using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core;
@@ -32,8 +34,7 @@ builder.Services.AddReminders();
 builder.Services.AddFiles();
 builder.Services.AddAuthApplication();
 
-// Not covered by the calls above; the maintenance endpoint and the worker's maintenance loop both
-// resolve it.
+// Not covered by the calls above; the maintenance endpoint and the maintenance job both resolve it.
 builder.Services.AddPurgeExpiredIdempotencyKeys();
 
 // In process. Registering an IDistributedCache beside this one adds a shared second level.
@@ -43,16 +44,21 @@ builder.Services.AddAuthModule(builder.Configuration);
 builder.Services.AddEmailModule(builder.Configuration);
 builder.Services.AddStorageModule(builder.Configuration);
 
-// Mandatory: no module supplies a default, so omitting it fails at composition rather than
-// stamping null over every audited row.
-builder.Services.AddScoped<AppTemplate.Infrastructure.Core.Common.Saving.Auditing.IAuditActor, CurrentUserAuditActor>();
-
 builder.Services.AddControllers();
 
 // AddHttpPipeline leaves out telemetry and the authorisation policies: the first needs this assembly's
 // name and this host's database instrumentation, the second a role name from the auth module.
 builder.Services.AddHttpPipeline(builder.Configuration);
 builder.Services.AddApiObservability(builder.Configuration);
+
+// The periodic jobs, started by this process unless BackgroundJobs:Enabled is false. One call, so a
+// separate runner can make the same one. The caller and audit identity that tells a job's scope from
+// a request's is registered with the HTTP pipeline above.
+builder.Services.AddBackgroundJobs(builder.Configuration);
+
+// Authentication's purge joins the maintenance timer from its own side, after the call above so it
+// runs after the idempotency purge as before. A project without authentication deletes this line.
+builder.Services.AddAuthMaintenanceJobs(builder.Configuration);
 
 // Versioning first: it is what partitions actions into the version groups the loop below reads.
 builder.Services.AddUrlSegmentApiVersioning();

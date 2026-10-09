@@ -198,7 +198,9 @@ The build context is the **repository root**, not the project directory — `Dir
 > `AppTemplate.Api` means adding it here too**, or restore inside the image fails on a missing
 > `.csproj` even though the local build is fine. The Docker job in CI is what catches that.
 
-`AppTemplate.Worker` has a Dockerfile of its own, and the release workflow builds both.
+The API is the only application image, and the release workflow builds that one: it serves HTTP and
+runs the periodic jobs. A separate runner process, if one is ever extracted, would get a Dockerfile of
+its own and an entry in the workflow's image matrix.
 
 ## Static analysis, and where its verdict lives
 

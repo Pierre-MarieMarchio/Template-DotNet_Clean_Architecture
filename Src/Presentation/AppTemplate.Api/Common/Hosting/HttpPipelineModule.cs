@@ -39,7 +39,7 @@ public static class HttpPipelineModule
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddApiCurrentUser();
+        services.AddApiCallerIdentity();
 
         // Model binding must answer the same ProblemDetails shape as an application validation
         // failure, so these two are registered together and before anything can bind a request.

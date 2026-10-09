@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Application.Core;
 using AppTemplate.Domain.Features.TodoLists.Events;
@@ -185,6 +186,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             [$"{EmailChangeOptions.SectionName}__Subject"] = "Confirm your new email address",
 
             [$"{IdentitySeedOptions.SectionName}__Enabled"] = "false",
+
+            // The suite drives the jobs' use cases itself, one pass on demand, so a timer running
+            // them in the background would race the assertions. The role switch is the supported
+            // way to say so, and is what keeps every other job setting unrequired here.
+            [$"{BackgroundJobsOptions.SectionName}__Enabled"] = "false",
 
             // Same reasoning as the email section above: InMemoryModule replaces the content store,
             // and ValidateOnStart still runs against whatever this section holds. A bucket name is

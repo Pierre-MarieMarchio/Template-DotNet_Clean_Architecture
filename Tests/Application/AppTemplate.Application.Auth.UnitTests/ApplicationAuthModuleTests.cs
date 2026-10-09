@@ -53,7 +53,7 @@ public sealed class ApplicationAuthModuleTests
 {
     /// <summary>
     /// Twenty-three account and sign-in operations, one for signing in through an external identity
-    /// provider, and one administrative purge reached only from the worker.
+    /// provider, and one administrative purge reached only from a background job.
     /// </summary>
     private const int _knownUseCaseCount = 25;
 

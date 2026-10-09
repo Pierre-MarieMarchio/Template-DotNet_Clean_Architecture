@@ -49,8 +49,10 @@ public sealed class LayoutConventionTests
         ["Src/Domain/AppTemplate.Domain.Core"] = null,
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
             ["Configurations", "Mapping", "Models", "Observability", "Queries", "Repositories", "Tracking"],
+        // Jobs/ holds what a feature runs on a timer: the hosted service, its options and its
+        // instruments, side by side — the nature word for them, as Controllers/ is for the HTTP half.
         ["Src/Presentation/AppTemplate.Api"] =
-            ["Contracts", "Controllers", "Mapping"],
+            ["Contracts", "Controllers", "Jobs", "Mapping"],
 
         // Every word here is the plural of a nature word the file names already carry — the rule the
         // rest of the repository follows, where a …Repository is in Repositories/ and a …Tracker in
@@ -61,12 +63,6 @@ public sealed class LayoutConventionTests
              "Seeding", "Services", "Tables", "Templates", "Verifiers"],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Inspectors", "Inventories", "Options", "Scanners", "Stores"],
-
-        // Empty on purpose, and checked rather than skipped. AppTemplate.Worker's features hold a
-        // BackgroundService, its options and its metrics side by side, with no subfolder — so the
-        // correct vocabulary today is "none", and the first subfolder anyone adds fails this test
-        // instead of quietly inventing a word the other hosts do not use.
-        ["Src/Presentation/AppTemplate.Worker"] = [],
 
         // Null, not empty: this project has no Features/ and may not grow one. What is here
         // is what any host needs whatever its transport, so a feature folder appearing would
@@ -154,9 +150,7 @@ public sealed class LayoutConventionTests
         // a word on this list is a mechanism, never a subject.
         ["Src/Presentation/AppTemplate.Api"] =
             ["Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
-             "Idempotency", "Localization", "Observability", "OpenApi", "Security"],
-        ["Src/Presentation/AppTemplate.Worker"] =
-            ["Observability", "Security"],
+             "Idempotency", "Jobs", "Localization", "Observability", "OpenApi", "Security"],
 
         // The five subjects a host needs whatever its transport: recurring work, the language a
         // flow is written in, telemetry, an outbound budget, and the identity of a process with no
@@ -262,7 +256,7 @@ public sealed class LayoutConventionTests
             // The same second pass its sibling above makes over Common/'s loose files, and it has to
             // be conditional where that one does not: a project whose list is empty says by saying so
             // that its features hold their files side by side, which is the documented shape for the
-            // worker and for the two smallest infrastructure modules. Running the pass there would
+            // two smallest infrastructure modules. Running the pass there would
             // fail twenty-one correct files. Where a word does exist, a file lying beside the folders
             // rather than in one is filed under nothing.
             if (allowed!.Length == 0)
@@ -308,7 +302,7 @@ public sealed class LayoutConventionTests
             .ToHashSet(StringComparer.Ordinal);
 
         onDisk.Count.ShouldBeGreaterThanOrEqualTo(
-            14,
+            13,
             "Far fewer projects were found under Src than this template holds, so the project walk " +
             "is not reading the tree it is meant to describe and every project in it would read as " +
             "listed.");

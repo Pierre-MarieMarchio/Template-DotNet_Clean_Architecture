@@ -16,9 +16,9 @@ namespace AppTemplate.Infrastructure.Storage.UnitTests.Common.Options;
 /// nothing anywhere else would report, because the upload works.
 /// </para>
 /// </summary>
-public sealed class StorageOptionsValidatorTests
+public sealed class FilesStorageS3OptionsValidatorTests
 {
-    private readonly StorageOptionsValidator _validator = new();
+    private readonly FilesStorageS3OptionsValidator _validator = new();
 
     [Fact]
     public void ADeployedConfiguration_IsAccepted() => Validate(StorageFixture.Options()).Succeeded.ShouldBeTrue();
@@ -132,7 +132,7 @@ public sealed class StorageOptionsValidatorTests
         });
 
         failures.ShouldContain(failure => failure.Contains("clear text"));
-        failures.ShouldContain(failure => failure.Contains($"'{StorageOptions.SectionName}:PublicEndpoint'"));
+        failures.ShouldContain(failure => failure.Contains($"'{FilesStorageS3Options.SectionName}:PublicEndpoint'"));
     }
 
     /// <summary>
@@ -189,7 +189,7 @@ public sealed class StorageOptionsValidatorTests
     public void TheClearTextFailure_NamesTheKeyThatCarriesTheEndpointItIsAbout()
     {
         Failures(storage => storage.Endpoint = "http://minio:9000")
-            .ShouldContain(failure => failure.Contains($"'{StorageOptions.SectionName}:Endpoint' is an http URL"));
+            .ShouldContain(failure => failure.Contains($"'{FilesStorageS3Options.SectionName}:Endpoint' is an http URL"));
 
         Failures(storage =>
             {
@@ -197,11 +197,11 @@ public sealed class StorageOptionsValidatorTests
                 storage.PublicEndpoint = "http://files.example";
             })
             .ShouldContain(failure =>
-                failure.Contains($"'{StorageOptions.SectionName}:PublicEndpoint' is an http URL"));
+                failure.Contains($"'{FilesStorageS3Options.SectionName}:PublicEndpoint' is an http URL"));
     }
 
     /// <summary>
-    /// A configuration written before <c>Storage:PublicEndpoint</c> existed gets the same verdict it
+    /// A configuration written before <c>Files:Storage:S3:PublicEndpoint</c> existed gets the same verdict it
     /// always got, because the endpoint the rule looks at defaults to the one such a configuration
     /// states. That is the compatibility promise, and it is a rule rather than a coincidence.
     /// </summary>
@@ -261,7 +261,7 @@ public sealed class StorageOptionsValidatorTests
     [Fact]
     public void AGrantCeilingLongerThanASignatureCanCarry_IsRefused()
     {
-        Failures(storage => storage.MaxGrantLifetime = StorageOptions.MaxSignableLifetime + TimeSpan.FromSeconds(1))
+        Failures(storage => storage.MaxGrantLifetime = FilesStorageS3Options.MaxSignableLifetime + TimeSpan.FromSeconds(1))
             .ShouldContain(failure => failure.Contains("MaxGrantLifetime"));
     }
 
@@ -274,10 +274,10 @@ public sealed class StorageOptionsValidatorTests
             storage.Region = string.Empty;
         });
 
-        Validate(options).Failures.ShouldNotBeNull().ShouldAllBe(failure => failure.Contains($"'{StorageOptions.SectionName}:"));
+        Validate(options).Failures.ShouldNotBeNull().ShouldAllBe(failure => failure.Contains($"'{FilesStorageS3Options.SectionName}:"));
     }
 
-    private IEnumerable<string> Failures(Action<StorageOptions> adjust)
+    private IEnumerable<string> Failures(Action<FilesStorageS3Options> adjust)
     {
         var result = Validate(StorageFixture.Options(adjust));
 
@@ -286,6 +286,6 @@ public sealed class StorageOptionsValidatorTests
         return result.Failures ?? [];
     }
 
-    private ValidateOptionsResult Validate(StorageOptions options) =>
+    private ValidateOptionsResult Validate(FilesStorageS3Options options) =>
         _validator.Validate(name: null, options);
 }

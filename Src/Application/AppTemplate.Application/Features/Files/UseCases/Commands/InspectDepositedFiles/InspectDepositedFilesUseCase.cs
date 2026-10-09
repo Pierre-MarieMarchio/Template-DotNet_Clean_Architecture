@@ -1,7 +1,8 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Policies;
-using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
+using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
+using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using Microsoft.Extensions.Logging;
@@ -9,54 +10,26 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
 
 /// <summary>
-/// Looks at the content of files whose deposit is confirmed, and either releases them for serving or
-/// refuses them. This is the step that turns the declared media type from a claim into a claim that
-/// survived a check, and it is the only thing in this feature that ever reads a byte of a file.
+/// Reads the content of files whose deposit is confirmed and either releases them or quarantines
+/// them: the head decides what the file is, the scanner whether it carries malware, and
+/// <see cref="StoredFileContentPolicy"/> what that means.
 /// <para>
-/// <b>It is a pass rather than a step in the confirmation request, and the reason is the size of a
-/// file.</b> Examining content means reading all of it: up to <c>FileSize.MaxBytes</c> out of the
-/// object store and, where a scanner is configured, through it. Inside
-/// <c>ConfirmFileUploadUseCase</c> that would put minutes of transfer and unbounded scanner time
-/// inside an HTTP request whose body is a few hundred bytes of metadata. See <c>SECURITY.md</c>.
-/// </para>
-/// <para>
-/// <b>Nothing makes it prompt, and nothing may.</b> The fast path its siblings have would be a
-/// consumer of a confirmation event — and consumers here are dispatched in-process after commit,
-/// which is inside the very request the pass exists to keep this work out of. So the interval is
-/// the whole of the latency a user waits, and it is set short for that reason rather than tuned
-/// against a cost.
-/// </para>
-/// <para>
-/// <b>It re-derives its own precondition</b>, which is what the missing outbox requires of anything
-/// in this repository: the question it asks is "which files have a confirmed deposit and no
-/// verdict?", and the answer comes from the rows rather than from any message having arrived. A pass
-/// that never ran leaves files waiting; a pass that ran twice finds nothing the second time, because
-/// the first one moved every file it decided about out of the set.
-/// </para>
-/// <para>
-/// <b>Runs from a background job, so it must not read <see cref="ICurrentUser"/>:</b> a background
-/// scope's implementation throws rather than invent an anonymous caller, and the files examined here
-/// belong to every owner and to none of them.
-/// </para>
-/// <para>
-/// <b>No leader lease</b>, on the same reasoning the two sweeps beside it give. Two hosts running
-/// this at once inspect the same file twice and reach the same verdict — the bytes under a key never
-/// change — and the second write loses on <c>xmin</c>, leaving one transition. The cost of the
-/// duplication is a second read of the object; the cost of the lease would be that a single host
-/// losing leadership stops every upload in the system from becoming readable.
+/// A periodic pass rather than a step of confirmation, because reading a whole file does not belong
+/// inside an HTTP request. It re-derives its work from the rows, so a pass that never ran leaves
+/// files waiting and a pass that ran twice finds nothing the second time. It runs from a background
+/// job and must not read <see cref="ICurrentUser"/>.
 /// </para>
 /// </summary>
 public sealed class InspectDepositedFilesUseCase(
     IStoredFileRepository repository,
-    IFileContentInspector inspector,
+    IFileContentStore content,
+    IFileContentScanner scanner,
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider,
     ILogger<InspectDepositedFilesUseCase> logger) : IInspectDepositedFilesUseCase
 {
     /// <summary>
-    /// How many files one pass will examine. Much smaller than the abandonment purge's batch,
-    /// because a row there is deleted and a file here is read end to end: two hundred five-gigabyte
-    /// objects in one pass would be a terabyte of transfer before anything committed.
+    /// Files per pass. Small, because each one is read end to end.
     /// </summary>
     private const int _batchSize = 20;
 
@@ -70,8 +43,7 @@ public sealed class InspectDepositedFilesUseCase(
 
         foreach (var storedFile in candidates)
         {
-            var inspection = await inspector.InspectAsync(storedFile.ObjectKey.Value, cancellationToken);
-            var verdict = StoredFileContentPolicy.Decide(storedFile.DeclaredMediaType, inspection);
+            (var verdict, var scan) = await InspectAsync(storedFile, cancellationToken);
 
             if (verdict == ContentDecision.Retry)
             {
@@ -79,32 +51,71 @@ public sealed class InspectDepositedFilesUseCase(
                 continue;
             }
 
-            Apply(verdict, storedFile, inspection, now);
+            Apply(verdict, storedFile, scan, now);
             decided++;
         }
 
-        if (decided == 0)
+        if (decided > 0)
         {
-            // Nothing staged, so nothing to commit.
-            ReportDeferrals(deferred);
-
-            return decided;
+            // One commit for the batch: each transition is independent, so a failure loses a pass's
+            // decisions and the next pass reaches the same verdicts.
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
-
-        // One commit for the batch: each transition is independent, so a failure loses a pass's
-        // decisions and the next pass reaches the same verdicts.
-        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         ReportDeferrals(deferred);
 
         return decided;
     }
 
-    private void Apply(
-        ContentDecision verdict,
+    /// <summary>
+    /// Opens the content once: the head is read off the front, then the whole content — head
+    /// included — is streamed to the scanner. A store that cannot be read is no verdict, never a
+    /// refusal: quarantining over a store fault would destroy a file over somebody else's outage.
+    /// </summary>
+    private async Task<(ContentDecision Verdict, FileScanOutcome Scan)> InspectAsync(
         StoredFile storedFile,
-        ContentInspectionOutcome inspection,
-        DateTimeOffset now)
+        CancellationToken cancellationToken)
+    {
+        string objectKey = storedFile.ObjectKey.Value;
+
+        try
+        {
+            await using var stream = await content.OpenReadAsync(objectKey, cancellationToken);
+
+            if (stream is null)
+            {
+                logger.LogWarning(
+                    "Nothing is stored under '{ObjectKey}', although a file's deposit was confirmed " +
+                    "against it. It stays unavailable; the next pass will try again.",
+                    objectKey);
+
+                return (ContentDecision.Retry, FileScanOutcome.Unavailable);
+            }
+
+            byte[] head = new byte[StoredFileContentPolicy.MaxHeadBytes];
+
+            // ReadAtLeastAsync: a single read of a network stream returns whatever has arrived.
+            int read = await stream.ReadAtLeastAsync(head, head.Length, throwOnEndOfStream: false, cancellationToken);
+
+            await using var whole = new ReplayedHeadStream(head.AsMemory(0, read), stream);
+            var scan = await scanner.ScanAsync(objectKey, whole, cancellationToken);
+
+            return (StoredFileContentPolicy.Decide(storedFile.DeclaredMediaType, scan, head.AsSpan(0, read)), scan);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException
+            || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(
+                exception,
+                "The content under '{ObjectKey}' could not be read for inspection; the next pass " +
+                "will try again.",
+                objectKey);
+
+            return (ContentDecision.Retry, FileScanOutcome.Unavailable);
+        }
+    }
+
+    private void Apply(ContentDecision verdict, StoredFile storedFile, FileScanOutcome scan, DateTimeOffset now)
     {
         if (verdict == ContentDecision.Release)
         {
@@ -115,23 +126,19 @@ public sealed class InspectDepositedFilesUseCase(
 
         storedFile.Quarantine(now);
 
-        // The only record of why a file was refused, and a log line rather than a column or a
-        // response: it names a third party's signature, which must not reach the uploader. Error
-        // level because it is either an attack or a user who is not being told why.
+        // The only record of why, and a log line rather than a response: the signature is a third
+        // party's string that must not reach the uploader.
         logger.LogError(
-            "Stored file {StoredFileId} was quarantined. Declared {DeclaredMediaType}, inspection " +
-            "{InspectionStatus}, signature {MalwareSignature}.",
+            "Stored file {StoredFileId} was quarantined. Declared {DeclaredMediaType}, scan " +
+            "{ScanStatus}, signature {MalwareSignature}.",
             storedFile.Id,
             storedFile.DeclaredMediaType.Value,
-            inspection.Status,
-            inspection.MalwareSignature ?? "none");
+            scan.Status,
+            scan.MalwareSignature ?? "none");
     }
 
     /// <summary>
-    /// Says out loud that files were left undecided. Without it a scanner that has been unreachable
-    /// for a day looks exactly like a system with nothing to inspect: both report zero, and the only
-    /// visible symptom is uploads that never become readable, reported by users rather than by the
-    /// host.
+    /// Without it, a scanner unreachable for a day looks exactly like a system with nothing to inspect.
     /// </summary>
     private void ReportDeferrals(int deferred)
     {

@@ -59,11 +59,67 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
     }
 
     /// <summary>
+    /// A write through the store carries the digest, so the store records it and the object can be
+    /// described and read back exactly as written.
+    /// </summary>
+    [Fact]
+    public async Task AWriteThroughTheStore_IsDescribedAndReadBack()
+    {
+        string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("written"));
+        string checksum = Convert.ToHexStringLower(SHA256.HashData(_payload));
+
+        var outcome = await fixture.Content.WriteAsync(
+            objectKey,
+            new MemoryStream(_payload),
+            _mediaType,
+            _payload.Length,
+            checksum,
+            TestToken);
+
+        outcome.ShouldBe(ContentWriteOutcome.Written);
+        (await fixture.Content.DescribeAsync(objectKey, TestToken))
+            .ShouldBe(new StoredObjectDescription(_payload.Length, checksum));
+
+        await using var read = await fixture.Content.OpenReadAsync(objectKey, TestToken);
+        read.ShouldNotBeNull();
+        using var copy = new MemoryStream();
+        await read.CopyToAsync(copy, TestToken);
+        copy.ToArray().ShouldBe(_payload);
+    }
+
+    /// <summary>
+    /// Bytes whose digest is not the declared one are refused by the store itself, and nothing is
+    /// left under the key.
+    /// </summary>
+    [Fact]
+    public async Task AWriteWhoseDigestDisagrees_IsRefusedAndLeavesNothing()
+    {
+        string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("mismatch"));
+
+        var outcome = await fixture.Content.WriteAsync(
+            objectKey,
+            new NonSeekableStream(_payload),
+            _mediaType,
+            _payload.Length,
+            Convert.ToHexStringLower(SHA256.HashData([1, 2, 3])),
+            TestToken);
+
+        outcome.ShouldBe(ContentWriteOutcome.ContentMismatch);
+        (await fixture.Content.DescribeAsync(objectKey, TestToken)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task OpeningAKeyThatHoldsNothing_AnswersNull() =>
+        (await fixture.Content.OpenReadAsync(
+            ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("absent")),
+            TestToken)).ShouldBeNull();
+
+    /// <summary>
     /// The grant binds the digest, so it authorises one body and not merely one of the right length.
     /// </summary>
     /// <remarks>
     /// <b>This is what stops content being swapped after inspection.</b> An upload grant lives
-    /// <c>Storage:MaxGrantLifetime</c> — thirty minutes by default — while the inspection pass runs
+    /// <c>Files:Storage:S3:MaxGrantLifetime</c> — thirty minutes by default — while the inspection pass runs
     /// every minute, so for most of a grant's life the file it belongs to has already been examined
     /// and released. Measured before the digest was bound: a second deposit of different bytes of the
     /// same length answered <c>200</c>, and the file went on being served as inspected content.
@@ -73,7 +129,7 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
     {
         string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("swap"));
 
-        var grant = await fixture.Content.CreateUploadGrantAsync(
+        var grant = await fixture.Transfer.CreateUploadGrantAsync(
             objectKey,
             _mediaType,
             _payload.Length,
@@ -174,7 +230,7 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
 
         // And not merely invisible to the description: a grant already minted for it must stop
         // resolving too, or a download URL handed out before the deletion would outlive it.
-        var grant = await fixture.Content.CreateDownloadGrantAsync(
+        var grant = await fixture.Transfer.CreateDownloadGrantAsync(
             objectKey,
             "gone.bin",
             _mediaType,
@@ -205,7 +261,7 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
 
     private async Task DepositAsync(string objectKey)
     {
-        var grant = await fixture.Content.CreateUploadGrantAsync(
+        var grant = await fixture.Transfer.CreateUploadGrantAsync(
             objectKey,
             _mediaType,
             _payload.Length,
@@ -218,5 +274,11 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
         deposit.IsSuccessStatusCode.ShouldBeTrue(
             $"this deposit is a precondition rather than the assertion; the store answered " +
             $"{(int)deposit.StatusCode}.");
+    }
+
+    /// <summary>A body whose length the adapter cannot check up front, as a request body is.</summary>
+    private sealed class NonSeekableStream(byte[] bytes) : MemoryStream(bytes)
+    {
+        public override bool CanSeek => false;
     }
 }

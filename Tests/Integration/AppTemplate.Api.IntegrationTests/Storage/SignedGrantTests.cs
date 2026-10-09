@@ -63,7 +63,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
     {
         string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("accepted"));
 
-        var grant = await fixture.Content.CreateUploadGrantAsync(
+        var grant = await fixture.Transfer.CreateUploadGrantAsync(
             objectKey,
             _mediaType,
             _payload.Length,
@@ -87,7 +87,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 
         await DepositAsync(objectKey);
 
-        var grant = await fixture.Content.CreateDownloadGrantAsync(
+        var grant = await fixture.Transfer.CreateDownloadGrantAsync(
             objectKey,
             "quarterly report.txt",
             "text/plain",
@@ -124,7 +124,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 
         await DepositAsync(objectKey);
 
-        var grant = await fixture.Content.CreateDownloadGrantAsync(
+        var grant = await fixture.Transfer.CreateDownloadGrantAsync(
             objectKey,
             "rapport été.txt",
             "text/plain",
@@ -157,7 +157,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
     {
         string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("wrong-length"));
 
-        var grant = await fixture.Content.CreateUploadGrantAsync(
+        var grant = await fixture.Transfer.CreateUploadGrantAsync(
             objectKey,
             _mediaType,
             _payload.Length,
@@ -187,7 +187,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
     {
         string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("missing-header"));
 
-        var grant = await fixture.Content.CreateUploadGrantAsync(
+        var grant = await fixture.Transfer.CreateUploadGrantAsync(
             objectKey,
             _mediaType,
             _payload.Length,
@@ -234,7 +234,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 
         await DepositAsync(objectKey);
 
-        var grant = await fixture.Content.CreateDownloadGrantAsync(
+        var grant = await fixture.Transfer.CreateDownloadGrantAsync(
             objectKey,
             "anything.txt",
             "text/plain",
@@ -285,7 +285,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 
         await DepositAsync(objectKey);
 
-        var control = await fixture.Content.CreateDownloadGrantAsync(
+        var control = await fixture.Transfer.CreateDownloadGrantAsync(
             objectKey,
             "anything.txt",
             "text/plain",
@@ -300,7 +300,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
                 + "refusal the assertion below waits for would be evidence of nothing.");
         }
 
-        var grant = await fixture.Content.CreateDownloadGrantAsync(
+        var grant = await fixture.Transfer.CreateDownloadGrantAsync(
             objectKey,
             "anything.txt",
             "text/plain",
@@ -339,7 +339,7 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 
     private async Task DepositAsync(string objectKey)
     {
-        var grant = await fixture.Content.CreateUploadGrantAsync(
+        var grant = await fixture.Transfer.CreateUploadGrantAsync(
             objectKey,
             _mediaType,
             _payload.Length,

@@ -189,13 +189,22 @@ A file upload is the most dangerous surface an API can grow, so what is decided 
 written out rather than left to be inferred. Everything below is shipped behaviour except where it
 says otherwise.
 
-- **The API never carries a byte, in either direction.** Registering a file returns a *signed upload
-  grant* and the client writes to the object store directly; reading returns a *signed download
-  grant* and the controller answers `302`. This is not an optimisation. `RequestLimits:MaxRequestBodyBytes`
-  is 65 536 with a validated ceiling of 30 MiB, and `IdempotencyFilter` buffers and SHA-256s the
-  entire body of every `POST` — routing 200 MiB through either would be untenable.
+- **No upload passes through the API.** Registering a file returns a *signed upload grant* and the
+  client writes to the object store directly. This is not an optimisation.
+  `RequestLimits:MaxRequestBodyBytes` is 65 536 with a validated ceiling of 30 MiB, and
+  `IdempotencyFilter` buffers and SHA-256s the entire body of every `POST` — routing 200 MiB through
+  either would be untenable. A store that cannot sign (`Files:Storage:Provider` = `FileSystem`)
+  refuses direct-upload registration with `409` `storedFile.directUploadUnavailable` rather than
+  accepting bytes it has no safe way to receive.
+- **Downloads are redirected when the store can sign, and streamed when it cannot.** With S3, reading
+  returns a *signed download grant* and the controller answers `302`; no byte passes through the API.
+  With the `FileSystem` provider the API carries the bytes itself: `200`, after the same ownership
+  and state checks, as an attachment under the file's name, with the declared media type,
+  `X-Content-Type-Options: nosniff` and `Cache-Control: no-store`. The file system store maps an
+  object key to a path under its root and refuses any key that would resolve outside it; a
+  client-supplied name never reaches the disk.
 - **A signed URL is a bearer right.** Anyone holding it can read the object for as long as it lives,
-  so `Storage:MaxGrantLifetime` bounds it and the decision about *who* may have one belongs to the
+  so `Files:Storage:S3:MaxGrantLifetime` bounds it and the decision about *who* may have one belongs to the
   use case, which compares `OwnerId` against `ICurrentUser` before issuing anything. That is the
   IDOR defence, and it is in the application layer where the other two features put it, not in the
   URL.
@@ -210,7 +219,7 @@ says otherwise.
   client sends can steer where bytes land. The name never reaches a filesystem at all.
 - **The declared media type is a claim, and it is now checked against the bytes.** A deposited file
   is inspected before it becomes readable: the leading bytes are matched against the declared type,
-  and the content is scanned. A file whose real type disagrees with its declaration is
+  and, when `Files:Scanning:Enabled` is true, the content is scanned. A file whose real type disagrees with its declaration is
   **quarantined**, not served. **Markup is refused outright, whatever it was declared as** — an SVG
   is a script container, and there is no version of "serve it inline" that is safe. Two checks in
   `Src/Application/AppTemplate.Application/Features/Files/Policies/MediaTypeSignatures.cs` do
@@ -227,7 +236,7 @@ says otherwise.
 - **An upload grant authorises one body, not one length.** The SHA-256 the client declared at
   registration is bound into the signature, so the store refuses content whose digest disagrees. That
   is what stops the grant being replayed to swap content *after* the file has been inspected and
-  released — a grant lives `Storage:MaxGrantLifetime` (thirty minutes) while inspection runs every
+  released — a grant lives `Files:Storage:S3:MaxGrantLifetime` (thirty minutes) while inspection runs every
   minute, so for most of its life the file it belongs to has already been examined. Measured before
   the digest was bound: a second deposit of different bytes of the same length answered `200`.
 - **Inspection happens in a background job, not in the request.** Scanning 200 MiB inside an HTTP request
@@ -255,8 +264,8 @@ says otherwise.
   the store — a registration mints a signed upload grant, so an unbounded one is a free way to fill
   someone else's bucket. Pending registrations and available bytes are budgeted separately, because
   an unconfirmed registration costs a reserved key and nothing more.
-- **Long-lived storage credentials are avoided by default.** `Storage:AccessKeyId` and
-  `Storage:SecretAccessKey` are empty in every tracked file, and empty is the intended production
+- **Long-lived storage credentials are avoided by default.** `Files:Storage:S3:AccessKeyId` and
+  `Files:Storage:S3:SecretAccessKey` are empty in every tracked file, and empty is the intended production
   shape: the SDK's own chain resolves an instance role, and nothing holds a key pair. The validator
   refuses exactly one of the two, since half a pair means signing anonymously.
 

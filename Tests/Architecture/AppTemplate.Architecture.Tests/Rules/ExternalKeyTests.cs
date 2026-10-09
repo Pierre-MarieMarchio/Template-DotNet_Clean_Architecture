@@ -47,7 +47,8 @@ public sealed class ExternalKeyTests
 
     /// <summary>
     /// An options class named <c>XOptions</c> binds the section named <c>X</c>, unless it is one of
-    /// the six that say otherwise above.
+    /// the six that say otherwise above. A nested section is its segments run together:
+    /// <c>FilesStorageS3Options</c> binds <c>Files:Storage:S3</c>.
     /// </summary>
     [Fact]
     public void EverySectionName_IsItsOptionsTypeName()
@@ -60,7 +61,7 @@ public sealed class ExternalKeyTests
             "the wrong tree and passing for the wrong reason.");
 
         var offenders = declared
-            .Where(entry => Expected(entry.Key) != entry.Value)
+            .Where(entry => Expected(entry.Key) != entry.Value.Replace(":", "", StringComparison.Ordinal))
             .Select(entry => $"{entry.Key}.SectionName is \"{entry.Value}\", expected " +
                 $"\"{Expected(entry.Key)}\"")
             .Order(StringComparer.Ordinal)

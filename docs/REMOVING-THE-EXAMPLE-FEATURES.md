@@ -424,12 +424,11 @@ None of this breaks a build, and all of it goes stale silently.
 - **`Src/Presentation/AppTemplate.Api/appsettings.json`** and
   **`Src/Presentation/AppTemplate.Api/appsettings.Development.json`**: the `ReminderWorker` section
   **(R)** and the `FileWorker` section **(F)**.
-- **`Src/Presentation/AppTemplate.Api/appsettings.json`**: the `Storage` and `ContentInspection`
-  sections **(F)**.
+- **`Src/Presentation/AppTemplate.Api/appsettings.json`**: the `Files` section **(F)**.
 - **`docker-compose.yml`** and **`.env.example`**: the `ReminderWorker__*` block and the
   `REMINDER_WORKER_*` variables **(R)**; the `FileWorker__*` block and the `FILE_WORKER_*` variables
   **(F)**.
-- **`docker-compose.yml`** **(F)**: the `Storage__*` environment block, the `minio` and `minio-bucket`
+- **`docker-compose.yml`** **(F)**: the `Files__Storage__S3__*` environment block, the `minio` and `minio-bucket`
   services, and the `minio-data` volume.
 - **`AppTemplate.Api.http`**: the numbered request blocks for the feature you removed. They are the
   file's whole point, so they are worth replacing with your own rather than only deleting.

@@ -2,69 +2,49 @@
 using System.Buffers.Binary;
 using System.Net.Sockets;
 using System.Text;
-using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
+using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Infrastructure.Storage.Common.Budgets;
 
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Scanners;
 
 /// <summary>
-/// One conversation with <c>clamd</c>, in its <c>INSTREAM</c> dialect.
+/// One conversation with <c>clamd</c>, in its <c>INSTREAM</c> dialect. Static: <c>clamd</c> wants a
+/// fresh connection per command, so there is nothing to hold between calls.
 /// <para>
-/// <b>It is a protocol and not a service</b>, which is why it is static and takes everything it needs
-/// as arguments: there is no state to hold between calls, no client to pool — <c>clamd</c> wants a
-/// fresh connection per command — and nothing to substitute, since the thing a test would want to
-/// replace is the whole port above it.
-/// </para>
-/// <para>
-/// <b>Nothing is unpacked here.</b> The stream is copied past the daemon in fixed chunks and this
-/// process never interprets a byte of it, so the decompression bomb <c>SECURITY.md</c> says is not
-/// addressed is not opened here either. <c>clamd</c> does unpack archives, in its own address space,
-/// under its own <c>MaxScanSize</c>, <c>MaxFiles</c> and <c>MaxRecursion</c> — <b>which a deployment
-/// owes itself to set</b>. Those limits are the bound on that hazard, and they are not settable from
-/// here.
+/// Nothing is unpacked here: the stream is copied past the daemon in chunks, uninterpreted.
+/// <c>clamd</c> unpacks archives in its own process under its own <c>MaxScanSize</c>,
+/// <c>MaxFiles</c> and <c>MaxRecursion</c>, which a deployment owes itself to set.
 /// </para>
 /// </summary>
 internal static class ClamAvScanner
 {
-    /// <summary>
-    /// The <c>z</c> prefix asks <c>clamd</c> for the NUL-terminated dialect, which is the one whose
-    /// framing does not depend on newlines appearing nowhere in the payload.
-    /// </summary>
+    /// <summary>The <c>z</c> prefix selects the NUL-terminated dialect, whose framing ignores newlines.</summary>
     private static readonly byte[] _command = Encoding.ASCII.GetBytes("zINSTREAM\0");
 
-    /// <summary>A chunk length of zero, which is how <c>INSTREAM</c> says "that was all of it".</summary>
+    /// <summary>A chunk length of zero: "that was all of it".</summary>
     private static readonly byte[] _terminator = [0, 0, 0, 0];
 
-    /// <summary>
-    /// 64 KiB per chunk. Large enough that the four-byte header is noise, small enough that a
-    /// cancelled scan stops promptly rather than at the end of the current write.
-    /// </summary>
+    /// <summary>Large enough that the header is noise, small enough that cancellation is prompt.</summary>
     private const int _chunkSize = 64 * 1024;
 
-    /// <summary>
-    /// The most of a reply that will be read. A verdict is a few dozen characters; anything past
-    /// this is a daemon that is not answering the protocol, and reading it unbounded would be a way
-    /// to make this process hold memory on somebody else's say-so.
-    /// </summary>
+    /// <summary>A verdict is a few dozen characters; reading more would hold memory on a daemon's say-so.</summary>
     private const int _maxReplyBytes = 512;
 
     /// <summary>
-    /// Streams <paramref name="head"/> followed by <paramref name="rest"/> past the daemon and reads
-    /// its verdict.
+    /// Streams <paramref name="content"/> past the daemon and reads its verdict.
     /// </summary>
-    /// <param name="head">The prefix the caller has already read out of the object. It has to be
-    /// sent too — the scanner needs the whole file, and the bytes are not in the stream any
-    /// more.</param>
-    /// <param name="rest">Everything after the prefix, read once, forwards, and never buffered.</param>
-    /// <returns>A status and, when something was found, its name. It never throws to report a
-    /// verdict: an unreachable or misbehaving daemon is
-    /// <see cref="ContentInspectionStatus.Unavailable"/>, which the policy above reads as "ask
-    /// again" rather than as either answer.</returns>
-    internal static async Task<(ContentInspectionStatus Status, string? Signature)> ScanAsync(
+    /// <param name="maxBytes">
+    /// Past this many bytes the transfer stops and the content is reported
+    /// <see cref="FileScanStatus.NotInspectable"/>, rather than as a pipe the daemon breaks midway.
+    /// </param>
+    /// <returns>Never throws for an unreachable or misbehaving daemon: that is
+    /// <see cref="FileScanStatus.Unavailable"/>. Cancellation of <paramref name="cancellationToken"/>
+    /// propagates.</returns>
+    internal static async Task<FileScanOutcome> ScanAsync(
         string host,
         int port,
-        ReadOnlyMemory<byte> head,
-        Stream rest,
+        Stream content,
+        long maxBytes,
         CancellationToken cancellationToken)
     {
         using var client = new TcpClient();
@@ -77,38 +57,23 @@ internal static class ClamAvScanner
 
             await socket.WriteAsync(_command, cancellationToken);
 
-            return Interpret(await ExchangeAsync(socket, head, rest, cancellationToken));
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            // The caller's own cancellation: a shutdown is not an unreachable scanner.
-            throw;
-        }
-        catch (OperationCanceledException)
-        {
-            // The budget expired. The file has no verdict, and the next pass will try again.
-            return (ContentInspectionStatus.Unavailable, null);
+            return await ExchangeAsync(socket, content, maxBytes, cancellationToken);
         }
         catch (SocketException)
         {
-            return (ContentInspectionStatus.Unavailable, null);
+            return FileScanOutcome.Unavailable;
         }
         catch (IOException)
         {
-            return (ContentInspectionStatus.Unavailable, null);
+            return FileScanOutcome.Unavailable;
         }
     }
 
     /// <summary>
-    /// Connects under its own attempt timeout, inside the caller's total budget. Connecting is the
-    /// operation that hangs when the host is wrong rather than down, and a name that resolves to
-    /// something silent would otherwise spend the whole budget here and leave none for the transfer.
+    /// Connects under its own attempt timeout: a host that resolves to something silent would
+    /// otherwise spend the whole budget here.
     /// </summary>
-    private static async Task ConnectAsync(
-        TcpClient client,
-        string host,
-        int port,
-        CancellationToken cancellationToken)
+    private static async Task ConnectAsync(TcpClient client, string host, int port, CancellationToken cancellationToken)
     {
         using var attempt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         attempt.CancelAfter(ScannerBudget.AttemptTimeout);
@@ -117,50 +82,81 @@ internal static class ClamAvScanner
     }
 
     /// <summary>
-    /// Sends the object and reads the verdict at the same time.
-    /// <para>
-    /// <c>INSTREAM</c> is full duplex on purpose: <c>clamd</c> stops reading and answers the moment
-    /// it has a detection, without draining the rest of the object, so on a large infected file the
-    /// verdict arrives while the transfer is still in flight and the daemon then closes a connection
-    /// that still holds unread bytes — which TCP signals with a reset. Reading concurrently takes
-    /// the verdict off the socket at the moment it arrives. Reading only after the send finished
-    /// would mean reading a connection already reset, and a reset discards what the receive buffer
-    /// still held: the one case this scanner exists for would report as an outage.
-    /// </para>
-    /// <para>
-    /// Both halves are awaited together so that neither is left unobserved when the other fails.
-    /// </para>
+    /// Sends the content and reads the verdict at the same time. <c>clamd</c> answers as soon as it
+    /// detects something and then resets a connection still holding unread bytes; reading only after
+    /// sending would lose that verdict to the reset.
     /// </summary>
-    private static async Task<string> ExchangeAsync(
+    private static async Task<FileScanOutcome> ExchangeAsync(
         Stream socket,
-        ReadOnlyMemory<byte> head,
-        Stream rest,
+        Stream content,
+        long maxBytes,
         CancellationToken cancellationToken)
     {
-        var reply = ReadReplyAsync(socket, cancellationToken);
-        var transfer = TrySendAsync(socket, head, rest, cancellationToken);
+        using var exchange = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var reply = ReadReplyAsync(socket, exchange.Token);
 
-        await Task.WhenAll(transfer, reply);
+        bool withinLimit;
 
-        return await reply;
+        try
+        {
+            withinLimit = await TrySendAsync(socket, content, maxBytes, cancellationToken);
+        }
+        catch
+        {
+            await AbandonAsync(exchange, reply);
+            throw;
+        }
+
+        if (!withinLimit)
+        {
+            await AbandonAsync(exchange, reply);
+
+            return FileScanOutcome.NotInspectable;
+        }
+
+        return Interpret(await reply);
     }
 
-    private static async Task TrySendAsync(
+    /// <summary>Stops waiting for a verdict and observes the read, so it is never left unobserved.</summary>
+    private static async Task AbandonAsync(CancellationTokenSource exchange, Task<string> reply)
+    {
+        await exchange.CancelAsync();
+
+        try
+        {
+            await reply;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (IOException)
+        {
+        }
+    }
+
+    /// <returns><c>false</c> when the content ran past <paramref name="maxBytes"/>.</returns>
+    private static async Task<bool> TrySendAsync(
         Stream socket,
-        ReadOnlyMemory<byte> head,
-        Stream rest,
+        Stream content,
+        long maxBytes,
         CancellationToken cancellationToken)
     {
         byte[] buffer = ArrayPool<byte>.Shared.Rent(_chunkSize);
 
         try
         {
-            await WriteChunkAsync(socket, head, cancellationToken);
-
+            long sent = 0;
             int read;
 
-            while ((read = await rest.ReadAsync(buffer.AsMemory(0, _chunkSize), cancellationToken)) > 0)
+            while ((read = await content.ReadAsync(buffer.AsMemory(0, _chunkSize), cancellationToken)) > 0)
             {
+                sent += read;
+
+                if (sent > maxBytes)
+                {
+                    return false;
+                }
+
                 await WriteChunkAsync(socket, buffer.AsMemory(0, read), cancellationToken);
             }
 
@@ -169,29 +165,20 @@ internal static class ClamAvScanner
         }
         catch (IOException)
         {
-            // Swallowed: the reply is read either way, and a socket that really is gone fails there,
-            // where it is reported as no verdict.
+            // The daemon may have answered and hung up; the reply is read either way, and a socket
+            // that really is gone fails there.
         }
         finally
         {
             ArrayPool<byte>.Shared.Return(buffer);
         }
+
+        return true;
     }
 
-    /// <summary>
-    /// One <c>INSTREAM</c> chunk: a big-endian length, then the bytes. A zero-length chunk would
-    /// terminate the stream, so an empty read is skipped rather than sent.
-    /// </summary>
-    private static async Task WriteChunkAsync(
-        Stream socket,
-        ReadOnlyMemory<byte> chunk,
-        CancellationToken cancellationToken)
+    /// <summary>One <c>INSTREAM</c> chunk: a big-endian length, then the bytes.</summary>
+    private static async Task WriteChunkAsync(Stream socket, ReadOnlyMemory<byte> chunk, CancellationToken cancellationToken)
     {
-        if (chunk.IsEmpty)
-        {
-            return;
-        }
-
         byte[] length = new byte[4];
         BinaryPrimitives.WriteUInt32BigEndian(length, (uint)chunk.Length);
 
@@ -226,39 +213,30 @@ internal static class ClamAvScanner
     }
 
     /// <summary>
-    /// Turns <c>clamd</c>'s one-line answer into a status.
-    /// <para>
-    /// The three shapes are <c>stream: OK</c>, <c>stream: &lt;name&gt; FOUND</c> and
-    /// <c>&lt;reason&gt; ERROR</c>. Anything else is a daemon this code does not understand, and
-    /// guessing at it would mean guessing in the direction of "clean" — so it is reported as no
-    /// verdict instead.
-    /// </para>
+    /// <c>stream: OK</c>, <c>stream: &lt;name&gt; FOUND</c> or <c>&lt;reason&gt; ERROR</c>. Anything
+    /// else is no verdict: the only direction to guess in would be "clean".
     /// </summary>
-    private static (ContentInspectionStatus Status, string? Signature) Interpret(string reply)
+    private static FileScanOutcome Interpret(string reply)
     {
         if (reply.EndsWith("FOUND", StringComparison.Ordinal))
         {
-            return (ContentInspectionStatus.Infected, SignatureOf(reply));
+            return FileScanOutcome.Infected(SignatureOf(reply));
         }
 
         if (reply.EndsWith("ERROR", StringComparison.Ordinal))
         {
-            // The one error that is an answer rather than a fault: past the daemon's own
-            // StreamMaxLength, which no retry changes. Every other error is retried.
+            // Past the daemon's own StreamMaxLength is an answer no retry changes; any other error is a fault.
             return reply.Contains("size limit", StringComparison.OrdinalIgnoreCase)
-                ? (ContentInspectionStatus.NotInspectable, null)
-                : (ContentInspectionStatus.Unavailable, null);
+                ? FileScanOutcome.NotInspectable
+                : FileScanOutcome.Unavailable;
         }
 
         return reply.EndsWith("OK", StringComparison.Ordinal)
-            ? (ContentInspectionStatus.Clean, null)
-            : (ContentInspectionStatus.Unavailable, null);
+            ? FileScanOutcome.Clean
+            : FileScanOutcome.Unavailable;
     }
 
-    /// <summary>
-    /// The name between <c>stream:</c> and <c>FOUND</c>. Reported only to a log line — it is a
-    /// string from somebody else's signature database and it never reaches a client.
-    /// </summary>
+    /// <summary>The name between <c>stream:</c> and <c>FOUND</c>, for a log line only.</summary>
     private static string SignatureOf(string reply)
     {
         const string prefix = "stream:";

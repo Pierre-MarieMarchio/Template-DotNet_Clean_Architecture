@@ -1,0 +1,77 @@
+﻿using Microsoft.Extensions.Options;
+
+namespace AppTemplate.Infrastructure.Storage.Features.Files.Options;
+
+/// <summary>
+/// Whether deposited files are scanned for malware by a <c>clamd</c> daemon, and how it is reached.
+/// Bound from <c>Files:Scanning</c> and validated at start-up.
+/// <para>
+/// Disabled by default, and that is the shipped state: the type check on a file's leading bytes
+/// still runs, and the missing antivirus verdict is recorded in <c>SECURITY.md</c>.
+/// </para>
+/// </summary>
+public sealed class FilesScanningOptions
+{
+    public const string SectionName = "Files:Scanning";
+
+    /// <summary>The default port <c>clamd</c> listens on.</summary>
+    public const int DefaultPort = 3310;
+
+    /// <summary>Whether files are sent to the scanner. <c>false</c> registers a scanner that finds nothing.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>
+    /// The host running <c>clamd</c>. A host and a port rather than a URL: <c>clamd</c> speaks its own
+    /// line protocol over raw TCP, not HTTP.
+    /// </summary>
+    public string Host { get; set; } = string.Empty;
+
+    public int Port { get; set; } = DefaultPort;
+
+    /// <summary>
+    /// The largest content offered to the scanner; at or below the daemon's own
+    /// <c>StreamMaxLength</c> (25 MiB by default, like this). Larger content is reported as not
+    /// inspectable and refused, so raising <c>FileSize.MaxBytes</c> means raising both.
+    /// </summary>
+    public long MaxScannableBytes { get; set; } = 25L * 1024 * 1024;
+}
+
+/// <summary>
+/// What a scanning configuration may be. Each rule refuses a value whose only other symptom would be
+/// found by a user: no host is every file waiting for ever, a ceiling of zero is every file refused.
+/// </summary>
+internal sealed class FilesScanningOptionsValidator : IValidateOptions<FilesScanningOptions>
+{
+    /// <summary>Below a megabyte, ordinary files would be refused as not inspectable.</summary>
+    private const long _minimumScannableBytes = 1024L * 1024;
+
+    public ValidateOptionsResult Validate(string? name, FilesScanningOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var failures = new List<string>();
+
+        if (options.Enabled && string.IsNullOrWhiteSpace(options.Host))
+        {
+            failures.Add(
+                $"'{FilesScanningOptions.SectionName}:Host' is required when " +
+                $"'{FilesScanningOptions.SectionName}:Enabled' is true.");
+        }
+
+        // Only when scanning: a disabled deployment leaves the port at a default nothing uses.
+        if (options.Enabled && options.Port is < 1 or > 65535)
+        {
+            failures.Add($"'{FilesScanningOptions.SectionName}:Port' must be between 1 and 65535.");
+        }
+
+        if (options.MaxScannableBytes < _minimumScannableBytes)
+        {
+            failures.Add(
+                $"'{FilesScanningOptions.SectionName}:MaxScannableBytes' must be at least " +
+                $"{_minimumScannableBytes} bytes. A ceiling below that refuses ordinary files as " +
+                "not inspectable, which quarantines them.");
+        }
+
+        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+}

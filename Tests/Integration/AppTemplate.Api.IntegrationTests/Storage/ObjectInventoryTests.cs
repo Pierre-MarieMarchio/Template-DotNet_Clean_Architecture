@@ -12,13 +12,13 @@ namespace AppTemplate.Api.IntegrationTests.Storage;
 /// <para>
 /// The orphan sweep reads this and deletes by difference — everything stored under a prefix that no
 /// live row still names. Two failures of the walk are therefore both losses of data or of money: a
-/// page boundary that skips keys leaves content nobody will ever reclaim, and a token that repeats a
+/// page boundary that skips keys leaves content nobody will ever reclaim, and a cursor that repeats a
 /// page makes the sweep re-read the same keys for ever without reaching the end.
 /// </para>
 /// <para>
-/// Neither can be seen without a real store. The continuation token is opaque and the store's own —
-/// the adapter passes it back untouched, deliberately — so any test against a substitute is a test
-/// of the substitute's idea of paging.
+/// Neither can be seen without a real store. The cursor is the last key listed and the store resumes
+/// with <c>StartAfter</c>, so whether the two agree on order is the store's behaviour — any test
+/// against a substitute is a test of the substitute's idea of paging.
 /// </para>
 /// </remarks>
 [Collection(ObjectStoreCollectionDefinition.Name)]
@@ -71,8 +71,8 @@ public sealed class ObjectInventoryTests(ObjectStoreFixture fixture)
             cursor = page.NextCursor;
             pages++;
 
-            // The walk is bounded by something other than the store agreeing to end it. A token the
-            // store echoed unchanged would otherwise spin here for as long as the run lasts, and the
+            // The walk is bounded by something other than the store agreeing to end it. A cursor
+            // that never advanced would otherwise spin here for as long as the run lasts, and the
             // sweep that reads this in production would do the same against real content.
             pages.ShouldBeLessThanOrEqualTo(
                 _objectCount + 1,
@@ -127,7 +127,7 @@ public sealed class ObjectInventoryTests(ObjectStoreFixture fixture)
         page.Items.ShouldBeEmpty();
 
         page.NextCursor.ShouldBeNull(
-            "the token is only meaningful on a truncated page. A cursor here would send the caller " +
+            "a cursor is only meaningful on a truncated page. A cursor here would send the caller " +
             "back for a second helping of nothing, for ever.");
 
         page.HasNextPage.ShouldBeFalse();
@@ -154,7 +154,7 @@ public sealed class ObjectInventoryTests(ObjectStoreFixture fixture)
             // without the assertions depending on any order at all.
             string objectKey = $"{prefix}/{index.ToString("D2", CultureInfo.InvariantCulture)}";
 
-            var grant = await fixture.Content.CreateUploadGrantAsync(
+            var grant = await fixture.Transfer.CreateUploadGrantAsync(
                 objectKey,
                 _mediaType,
                 _payload.Length,

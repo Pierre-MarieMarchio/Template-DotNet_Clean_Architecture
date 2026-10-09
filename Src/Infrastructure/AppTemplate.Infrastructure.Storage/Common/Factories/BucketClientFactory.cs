@@ -34,14 +34,14 @@ internal static class BucketClientFactory
     internal const string SigningClientKey = "AppTemplate.Storage.Signing";
 
     /// <summary>
-    /// The client for the calls this process makes itself — a metadata read, a delete, a listing,
-    /// and the inspector reading an object it is about to scan.
+    /// The client for the calls this process makes itself — a write, a read, a metadata read, a
+    /// delete, a listing.
     /// <para>
-    /// <paramref name="options"/> must already have passed <see cref="StorageOptionsValidator"/>;
+    /// <paramref name="options"/> must already have passed <see cref="FilesStorageS3OptionsValidator"/>;
     /// this reads them rather than checking them again.
     /// </para>
     /// </summary>
-    internal static IAmazonS3 Create(StorageOptions options)
+    internal static IAmazonS3 Create(FilesStorageS3Options options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -49,19 +49,19 @@ internal static class BucketClientFactory
     }
 
     /// <summary>
-    /// The client every signed URL is minted by, built on <see cref="StorageOptions.SigningEndpoint"/>
-    /// — which is <see cref="StorageOptions.PublicEndpoint"/> where a deployment states one and
-    /// <see cref="StorageOptions.Endpoint"/> where it does not, so a configuration that names no
+    /// The client every signed URL is minted by, built on <see cref="FilesStorageS3Options.SigningEndpoint"/>
+    /// — which is <see cref="FilesStorageS3Options.PublicEndpoint"/> where a deployment states one and
+    /// <see cref="FilesStorageS3Options.Endpoint"/> where it does not, so a configuration that names no
     /// public endpoint signs with a client aimed at the same endpoint it calls the store on.
     /// </summary>
-    internal static IAmazonS3 CreateForSigning(StorageOptions options)
+    internal static IAmazonS3 CreateForSigning(FilesStorageS3Options options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         return ClientFor(options, options.SigningEndpoint);
     }
 
-    private static AmazonS3Client ClientFor(StorageOptions options, string endpoint)
+    private static AmazonS3Client ClientFor(FilesStorageS3Options options, string endpoint)
     {
         var configuration = new AmazonS3Config
         {

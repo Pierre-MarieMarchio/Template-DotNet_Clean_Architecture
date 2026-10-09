@@ -109,7 +109,7 @@ public sealed class BucketClientFactoryTests
     }
 
     /// <summary>
-    /// A configuration that never heard of <c>Storage:PublicEndpoint</c> signs for exactly what it
+    /// A configuration that never heard of <c>Files:Storage:S3:PublicEndpoint</c> signs for exactly what it
     /// signed for before the setting existed. This is the whole of the compatibility promise at the
     /// factory: the two clients are then built from the same endpoint.
     /// </summary>

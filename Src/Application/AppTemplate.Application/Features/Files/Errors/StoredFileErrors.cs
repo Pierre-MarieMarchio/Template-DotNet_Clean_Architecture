@@ -49,6 +49,14 @@ public static class StoredFileErrors
         $"The content deposited for file '{storedFileId}' was refused and cannot be downloaded.");
 
     /// <summary>
+    /// Registration for a direct upload was asked of a store that cannot sign URLs. The deployment's
+    /// choice, not the caller's mistake, and no retry changes it: the upload goes through the API.
+    /// </summary>
+    public static Error DirectUploadUnavailable() => Error.Conflict(
+        "storedFile.directUploadUnavailable",
+        "This deployment's file storage does not accept direct uploads; upload the file through the API instead.");
+
+    /// <summary>
     /// <paramref name="message"/> describes the caller's own allowance and never the store's
     /// capacity or anyone else's usage, so it is safe to return verbatim.
     /// </summary>

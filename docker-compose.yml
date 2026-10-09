@@ -174,23 +174,23 @@ services:
       Identity__RequireUniqueEmail: ${IDENTITY_REQUIRE_UNIQUE_EMAIL:-true}
 
 
-      # --- Storage (object store for the Files feature) -----------------------
+      # --- Files storage (S3 provider, the default) ---------------------------
       # The endpoint is the compose service, but the SIGNED URLs this host mints have to be
       # reachable by whoever follows them — a browser on the host, not a container on this
       # network. STORAGE_PUBLIC_ENDPOINT is what a client sees; leave it at localhost:9000 for
       # the stack as shipped. ForcePathStyle is required for MinIO: virtual-host addressing
       # would resolve <bucket>.minio, which nothing here serves.
-      Storage__BucketName: ${STORAGE_BUCKET_NAME:-app-files}
-      Storage__Endpoint: ${STORAGE_ENDPOINT:-http://minio:9000}
+      Files__Storage__S3__BucketName: ${STORAGE_BUCKET_NAME:-app-files}
+      Files__Storage__S3__Endpoint: ${STORAGE_ENDPOINT:-http://minio:9000}
       # The name a client OUTSIDE the Docker network resolves. The API reaches MinIO at
       # minio:9000 here, and a presigned URL covers the host it was signed for — so nothing
       # downstream can rewrite it, and left unset this stack would mint URLs only a container
       # could follow. See docs/CONFIGURATION.md.
-      Storage__PublicEndpoint: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
-      Storage__ForcePathStyle: ${STORAGE_FORCE_PATH_STYLE:-true}
-      Storage__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
-      Storage__AccessKeyId: ${MINIO_ROOT_USER:-minioadmin}
-      Storage__SecretAccessKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      Files__Storage__S3__PublicEndpoint: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
+      Files__Storage__S3__ForcePathStyle: ${STORAGE_FORCE_PATH_STYLE:-true}
+      Files__Storage__S3__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
+      Files__Storage__S3__AccessKeyId: ${MINIO_ROOT_USER:-minioadmin}
+      Files__Storage__S3__SecretAccessKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
       # --- Email (SMTP) ------------------------------------------------------
       Email__Host: ${EMAIL_HOST:-mailpit}
       Email__Port: ${EMAIL_PORT:-1025}
@@ -250,13 +250,13 @@ services:
     networks: [backend]
 
   # The object store the Files feature writes to. In production this is S3 (or R2, or Azure Blob
-  # behind an S3 gateway); here it is MinIO, addressed through Storage__Endpoint. The API never
-  # carries a byte either way: it signs a URL and the client talks to this service directly, which
-  # is exactly why an endpoint the browser can reach has to be published on the host. Loopback all
+  # behind an S3 gateway); here it is MinIO, addressed through Files__Storage__S3__Endpoint. With
+  # this provider the API signs a URL and the client transfers bytes with this service directly,
+  # which is why an endpoint the browser can reach has to be published on the host. Loopback all
   # the same, like every other port here: the browser that follows the signed URL runs on this
-  # machine — Storage__PublicEndpoint says so, it is localhost:9000 — so 127.0.0.1 costs that
-  # browser nothing, and the alternative is MINIO_ROOT_USER's minioadmin/minioadmin default offered
-  # to the local network.
+  # machine — Files__Storage__S3__PublicEndpoint says so, it is localhost:9000 — so 127.0.0.1
+  # costs that browser nothing, and the alternative is MINIO_ROOT_USER's minioadmin/minioadmin
+  # default offered to the local network.
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     command: server /data --console-address ":9001"
@@ -265,7 +265,7 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "127.0.0.1:9000:9000"   # the S3 API — what Storage__Endpoint points at
+      - "127.0.0.1:9000:9000"   # the S3 API — what Files__Storage__S3__Endpoint points at
       - "127.0.0.1:9001:9001"   # the web console, for looking at what landed
     volumes:
       - minio-data:/data

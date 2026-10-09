@@ -2,12 +2,12 @@
 using System.Security.Cryptography;
 using System.Text;
 using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Application.Features.Files.Ports.FileContentInspector;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
 /// <summary>
-/// The bucket <c>InMemoryFileContentStore</c> and <c>InMemoryFileContentInventory</c> stand in for.
+/// The bucket <c>InMemoryFileContentStore</c>, <c>InMemoryFileDirectTransfer</c> and
+/// <c>InMemoryFileContentInventory</c> stand in for.
 /// Public and resolvable for the same reason <c>RecordedEmails</c> is: a double is only useful if a
 /// test can put something in it and read what came out.
 /// <para>
@@ -65,10 +65,8 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
             Convert.ToHexStringLower(SHA256.HashData(content)),
             dateTimeProvider.UtcNow,
 
-            // Copied rather than aliased: the caller still owns its array, and a test that reused
-            // one buffer for two deposits would otherwise find both objects holding the second
-            // file's bytes.
-            content.AsSpan(0, Math.Min(content.Length, ContentInspectionOutcome.MaxHeadBytes)).ToArray());
+            // Copied rather than aliased: the caller still owns its array.
+            content.ToArray());
 
         lock (_gate)
         {

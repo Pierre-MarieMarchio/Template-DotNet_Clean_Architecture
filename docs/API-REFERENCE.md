@@ -97,16 +97,19 @@ go through the item, rescheduling and cancelling go through the reminder's own i
 
 ## Files — `api/v1/files/*`
 
-Authentication required (no opt-out). **No byte of any file passes through this API, in
-either direction** — that is the one thing to understand before calling anything here.
-The API signs URLs and the client talks to the object store directly, so depositing a
-file is two requests and reading one back is a redirect.
+Authentication required (no opt-out). **With the S3 store (the default), no byte of any file
+passes through this API, in either direction** — that is the one thing to understand before
+calling anything here. The API signs URLs and the client talks to the object store directly, so
+depositing a file is two requests and reading one back is a redirect. With the local file system
+store (`Files:Storage:Provider` = `FileSystem`) nothing can be signed: registering for a direct
+upload answers `409` `storedFile.directUploadUnavailable`, and reading answers `200` with the
+bytes.
 
 | Method | Route | Success |
 |---|---|---|
 | GET | `/api/v1/files?page=1&pageSize=20&sort=registeredAt:desc` | 200 — paged summaries of the caller's own files |
 | GET, HEAD | `/api/v1/files/{fileId}` | 200 — the file's metadata, and the `ETag` the two writes below are conditioned on; 304 to a matching `If-None-Match` |
-| GET | `/api/v1/files/{fileId}/content` | **302** + `Location` — a short-lived signed URL, and no body |
+| GET | `/api/v1/files/{fileId}/content` | **302** + `Location` — a short-lived signed URL, and no body; or, with the file system store, **200** and the bytes as an attachment |
 | POST | `/api/v1/files` | 201 + `Location` — reserves a place and returns the upload grant |
 | POST | `/api/v1/files/{fileId}/confirm` | 200 — the file's metadata, with its new version |
 | PUT | `/api/v1/files/{fileId}/tags` | 200 — replaces the whole tag set, conditioned on the `ETag` above, by the same domain rules a to-do item's tags obey |
@@ -153,7 +156,8 @@ that was examined and refused is `409` `storedFile.quarantined`.
 URL, so an `<img>`, a download manager or `curl -L` follows it with no client code. That
 `Location` is a bearer credential — whoever holds it reads the file, with no identity
 attached — so the response is `Cache-Control: no-store` and the URL must not be logged,
-stored or shared. `POST /api/v1/files` carries a signed *write* URL and is `no-store` for
+stored or shared. With the file system store the same request answers `200` with the bytes,
+`Content-Disposition: attachment`, the declared media type and `X-Content-Type-Options: nosniff`. `POST /api/v1/files` carries a signed *write* URL and is `no-store` for
 the same reason.
 
 **Registration is the endpoint `Idempotency-Key` exists for.** It is unaddressed creation:
@@ -169,7 +173,8 @@ sweep, so a client resuming after a long upload gets `412` rather than a `404` i
 read as "wrong id". Registration takes no precondition — there is no resource yet to have
 a version.
 
-**What refuses a registration.** `409` `storedFile.quotaExceeded` covers the three bounds
+**What refuses a registration.** `409` `storedFile.directUploadUnavailable` when the store
+cannot sign (the file system store). `409` `storedFile.quotaExceeded` covers the three bounds
 one owner has: 20 uploads outstanding at once, 1 000 files, and 10 GiB of committed bytes
 (a single file may not exceed 5 GiB). `409` also carries a value the domain refuses that
 this layer cannot restate — a reserved device name, a wildcard media type, a checksum of

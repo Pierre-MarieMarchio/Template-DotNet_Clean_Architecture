@@ -38,7 +38,7 @@ internal static class ScannerBudget
     /// actually bounds the call, and it is imposed by cancelling rather than observed afterwards.
     /// <para>
     /// It is also the real limit on how large a file this template can scan, and it binds against
-    /// <c>ContentInspectionOptions.MaxScannableBytes</c>: 25 MiB in thirty seconds is under a
+    /// <c>FilesScanningOptions.MaxScannableBytes</c>: 25 MiB in thirty seconds is under a
     /// megabyte a second, which any daemon on the same network clears comfortably. Raising the size
     /// ceiling without raising this turns a large scan into a cancelled one, which is reported as no
     /// verdict and retried for ever.

@@ -21,6 +21,13 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **A local file system store for the Files feature.** `Files:Storage:Provider` chooses `S3` (the
+  default) or `FileSystem`; the latter keeps each object at `RootPath/<object key>`, writes through a
+  temporary file published only when its size and SHA-256 match, and refuses a key that resolves
+  outside the root. It cannot sign URLs, so registering for a direct upload answers `409`
+  `storedFile.directUploadUnavailable` and `GET /api/v1/files/{id}/content` streams the bytes
+  (`200`, attachment, `nosniff`, `no-store`) instead of redirecting.
+
 - **A feature with no domain model: `Notes`, and the question that chooses its shape.**
   `api/v1/notes` is a caller's private notes — list, read, create, replace, delete — and it is built
   as a service over storage rather than as an aggregate: `INoteService` with one method per
@@ -629,6 +636,17 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   the policy's own messages.
 - **`AccountLockedOut` is decided by the login use case**, no longer by the account adapter. It is
   recorded on every sign-in that meets the lockout, as before; its documentation said otherwise.
+- **The Files storage and scanning configuration moved under one `Files` section.** `Storage:*`
+  is now `Files:Storage:S3:*` with the same keys, validated only when that provider is chosen;
+  `ContentInspection` is now `Files:Scanning` with `Enabled`, `Host`, `Port` and
+  `MaxScannableBytes` (`Enabled: true` requires `Host`). **Migration for a derived project:** rename
+  the sections in configuration files and environment variables (`Storage__BucketName` becomes
+  `Files__Storage__S3__BucketName`), and set `Files:Scanning:Enabled` where `ScannerHost` was set.
+- **The Files content ports were reshaped.** `IFileContentStore` writes, reads, describes and
+  deletes; signing moved to `IFileDirectTransfer`, which a store may not support;
+  `IFileContentInspector` gave way to `IFileContentScanner`, with the head read and the type check
+  now in the inspection use case; `IFileContentInventory.ListKeysAsync` resumes after a key
+  (`startAfter`) instead of an opaque continuation token.
 
 - **The API runs the periodic jobs; `AppTemplate.Worker` is gone.** The maintenance purges, the
   reminder pass and the three file passes start from `AppTemplate.Api` through one call,

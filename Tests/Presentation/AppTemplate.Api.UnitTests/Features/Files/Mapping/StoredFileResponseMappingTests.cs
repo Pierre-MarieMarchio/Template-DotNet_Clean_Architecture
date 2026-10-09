@@ -4,7 +4,7 @@ using AppTemplate.Api.Features.Files.Mapping;
 using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Dtos;
-using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using Microsoft.AspNetCore.Mvc;

@@ -22,9 +22,9 @@ internal static class StorageFixture
     /// <summary>A key under the scheme <c>ObjectKey</c> mints, so the tests read like real calls.</summary>
     internal const string ObjectKey = "t0/202608/9f2c1d7a4b6e8f0132547698badcfe10";
 
-    internal static StorageOptions Options(Action<StorageOptions>? adjust = null)
+    internal static FilesStorageS3Options Options(Action<FilesStorageS3Options>? adjust = null)
     {
-        var options = new StorageOptions
+        var options = new FilesStorageS3Options
         {
             BucketName = Bucket,
             Region = Region,
@@ -37,18 +37,18 @@ internal static class StorageFixture
         return options;
     }
 
-    internal static IOptions<StorageOptions> Wrap(StorageOptions options) =>
+    internal static IOptions<FilesStorageS3Options> Wrap(FilesStorageS3Options options) =>
         Microsoft.Extensions.Options.Options.Create(options);
 
     /// <summary>
     /// The client this process would call the store with — the one the adapters use for a metadata
     /// read, a delete and a listing.
     /// </summary>
-    internal static IAmazonS3 Client(StorageOptions options) => BucketClientFactory.Create(options);
+    internal static IAmazonS3 Client(FilesStorageS3Options options) => BucketClientFactory.Create(options);
 
     /// <summary>
     /// The real client every grant is minted by, built on the endpoint URLs are signed for. It signs
     /// locally and opens nothing.
     /// </summary>
-    internal static IAmazonS3 Signer(StorageOptions options) => BucketClientFactory.CreateForSigning(options);
+    internal static IAmazonS3 Signer(FilesStorageS3Options options) => BucketClientFactory.CreateForSigning(options);
 }

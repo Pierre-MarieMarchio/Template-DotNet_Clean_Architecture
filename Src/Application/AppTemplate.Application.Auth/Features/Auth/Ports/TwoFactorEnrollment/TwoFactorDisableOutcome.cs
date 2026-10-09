@@ -8,4 +8,7 @@ public sealed record TwoFactorDisableOutcome(TwoFactorDisableStatus Status)
 
     /// <summary>The password did not match, so the second factor is untouched.</summary>
     public static TwoFactorDisableOutcome IncorrectPassword { get; } = new(TwoFactorDisableStatus.IncorrectPassword);
+
+    /// <summary>The store refused the change, so the second factor is still on.</summary>
+    public static TwoFactorDisableOutcome Rejected { get; } = new(TwoFactorDisableStatus.Rejected);
 }

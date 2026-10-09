@@ -99,6 +99,46 @@ public sealed class TwoFactorEnrollmentServiceTests
         _authenticatorKey.ShouldBeNull();
     }
 
+    /// <summary>A token that outlived its account is a status, not a 500.</summary>
+    [Fact]
+    public async Task BeginAsync_AnAccountThatNoLongerExists_ReportsNoSuchAccount()
+    {
+        _directory.FindByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns((AppUser?)null);
+
+        var started = await CreateEnrollment().BeginAsync(_userId, TestToken);
+
+        started.Status.ShouldBe(TwoFactorSetupStatus.NoSuchAccount);
+        started.SharedKey.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ConfirmAsync_AnAccountThatNoLongerExists_ReportsNoSuchAccount()
+    {
+        _directory.FindByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns((AppUser?)null);
+
+        var confirmation = await CreateEnrollment().ConfirmAsync(_userId, "correct horse battery", "123456", TestToken);
+
+        confirmation.Status.ShouldBe(TwoFactorConfirmationStatus.NoSuchAccount);
+        confirmation.RecoveryCodes.ShouldBeNull();
+    }
+
+    /// <summary>The code was right, so the refusal is the store's, and reporting it as a wrong code would mislead the caller.</summary>
+    [Fact]
+    public async Task ConfirmAsync_WhenTheStoreRefusesToArmTheFactor_ReportsRejectedAndMintsNoRecoveryCodes()
+    {
+        GivenTheAccountExists();
+        string sharedKey = await GivenAPendingKeyAsync();
+        _passwordHasher.NextVerification = PasswordVerificationResult.Success;
+        GivenTheStoreRefusesUpdates();
+
+        var confirmation = await CreateEnrollment().ConfirmAsync(
+            _userId, "correct horse battery", AuthenticatorCodes.CurrentCodeFor(sharedKey), TestToken);
+
+        confirmation.Status.ShouldBe(TwoFactorConfirmationStatus.Rejected);
+        confirmation.RecoveryCodes.ShouldBeNull();
+        _recoveryCodes.ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task ConfirmAsync_ARightPasswordAndCode_EnablesTwoFactor()
     {
@@ -235,13 +275,32 @@ public sealed class TwoFactorEnrollmentServiceTests
     public async Task DisableAsync_ARightPassword_InvalidatesThePreviousSharedKey()
     {
         var user = GivenTheAccountExists();
-        user.TwoFactorEnabled = true;
         string oldKey = await GivenAPendingKeyAsync();
+        user.TwoFactorEnabled = true;
         _passwordHasher.NextVerification = PasswordVerificationResult.Success;
 
         await CreateEnrollment().DisableAsync(_userId, "correct horse battery", TestToken);
 
         _authenticatorKey.ShouldNotBe(oldKey);
+    }
+
+    /// <summary>
+    /// A refusal is reported, so the use case neither records the factor as off nor revokes sessions
+    /// for a change that did not happen — and the secret every authenticator app knows is kept.
+    /// </summary>
+    [Fact]
+    public async Task DisableAsync_WhenTheStoreRefuses_ReportsRejectedAndKeepsTheSharedKey()
+    {
+        var user = GivenTheAccountExists();
+        string key = await GivenAPendingKeyAsync();
+        user.TwoFactorEnabled = true;
+        _passwordHasher.NextVerification = PasswordVerificationResult.Success;
+        GivenTheStoreRefusesUpdates();
+
+        var disabled = await CreateEnrollment().DisableAsync(_userId, "correct horse battery", TestToken);
+
+        disabled.Status.ShouldBe(TwoFactorDisableStatus.Rejected);
+        _authenticatorKey.ShouldBe(key);
     }
 
     [Fact]
@@ -267,6 +326,10 @@ public sealed class TwoFactorEnrollmentServiceTests
 
         disabled.Status.ShouldBe(TwoFactorDisableStatus.IncorrectPassword);
     }
+
+    private void GivenTheStoreRefusesUpdates() =>
+        _store.UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>())
+            .Returns(IdentityResult.Failed(new IdentityErrorDescriber().ConcurrencyFailure()));
 
     private async Task<string> GivenAPendingKeyAsync()
     {

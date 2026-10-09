@@ -39,6 +39,12 @@ public sealed class SetUpTwoFactorUseCase(
             return Result.Failure<SetUpTwoFactorOutcome>(AuthErrors.TwoFactorAlreadyEnabled);
         }
 
+        // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
+        if (started.Status is TwoFactorSetupStatus.NoSuchAccount)
+        {
+            return Result.Failure<SetUpTwoFactorOutcome>(CommonErrors.NotAuthenticated);
+        }
+
         return Result.Success(new SetUpTwoFactorOutcome(started.SharedKey!, started.AuthenticatorUri!));
     }
 }

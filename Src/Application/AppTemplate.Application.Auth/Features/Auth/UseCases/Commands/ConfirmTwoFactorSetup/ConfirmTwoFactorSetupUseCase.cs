@@ -46,14 +46,9 @@ public sealed class ConfirmTwoFactorSetupUseCase(
         var confirmation = await enrollment.ConfirmAsync(
             userId.Value.Value, request.CurrentPassword, request.Code, cancellationToken);
 
-        if (confirmation.Status is TwoFactorConfirmationStatus.IncorrectPassword)
+        if (confirmation.Status is not TwoFactorConfirmationStatus.Confirmed)
         {
-            return Result.Failure<ConfirmTwoFactorSetupOutcome>(AuthErrors.IncorrectCurrentPassword);
-        }
-
-        if (confirmation.Status is TwoFactorConfirmationStatus.InvalidCode)
-        {
-            return Result.Failure<ConfirmTwoFactorSetupOutcome>(AuthErrors.InvalidTwoFactorCode);
+            return Result.Failure<ConfirmTwoFactorSetupOutcome>(ToError(confirmation.Status));
         }
 
         securityEventLog.Record(SecurityEvent.TwoFactorEnabled(userId.Value.Value));
@@ -64,4 +59,14 @@ public sealed class ConfirmTwoFactorSetupUseCase(
 
         return Result.Success(new ConfirmTwoFactorSetupOutcome(confirmation.RecoveryCodes!));
     }
+
+    private static Error ToError(TwoFactorConfirmationStatus status) => status switch
+    {
+        TwoFactorConfirmationStatus.IncorrectPassword => AuthErrors.IncorrectCurrentPassword,
+        TwoFactorConfirmationStatus.InvalidCode => AuthErrors.InvalidTwoFactorCode,
+
+        // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
+        TwoFactorConfirmationStatus.NoSuchAccount => CommonErrors.NotAuthenticated,
+        _ => AuthErrors.TwoFactorEnableRejected,
+    };
 }

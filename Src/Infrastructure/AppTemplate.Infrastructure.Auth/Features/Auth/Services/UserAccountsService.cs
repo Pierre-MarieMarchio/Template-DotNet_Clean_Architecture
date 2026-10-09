@@ -1,5 +1,4 @@
 ﻿using System.Security.Cryptography;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.UserAccounts;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
@@ -17,8 +16,7 @@ internal sealed class UserAccountsService(
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
     IAppUserDirectory directory,
-    IDateTimeProvider dateTimeProvider,
-    ISecurityEventLog securityEventLog) : IUserAccountsService
+    IDateTimeProvider dateTimeProvider) : IUserAccountsService
 {
     private static string? _absentUserPasswordHash;
 
@@ -133,13 +131,6 @@ internal sealed class UserAccountsService(
         if (outcome is CredentialCheckStatus.LockedOut or CredentialCheckStatus.EmailNotConfirmed)
         {
             userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash ?? AbsentUserPasswordHash, password);
-        }
-
-        // The threshold is Identity's own state machine, and nothing outside this adapter sees it
-        // cross.
-        if (outcome is CredentialCheckStatus.LockedOut)
-        {
-            securityEventLog.Record(SecurityEvent.AccountLockedOut(user.Id));
         }
 
         return CredentialCheckOutcome.Refused(outcome, identity);

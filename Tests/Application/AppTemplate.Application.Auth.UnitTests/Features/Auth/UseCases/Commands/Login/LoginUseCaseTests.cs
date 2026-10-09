@@ -125,6 +125,37 @@ public sealed class LoginUseCaseTests
             .Record(SecurityEvent.AuthenticationFailed(null, CredentialCheckStatus.IncorrectPassword));
     }
 
+    /// <summary>The lockout is recorded by this use case, before the refusal it explains.</summary>
+    [Fact]
+    public async Task ALockedOutAccount_IsRecordedAsALockoutAndAnAuthenticationFailure()
+    {
+        var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", TwoFactorEnabled: false);
+        _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(CredentialCheckOutcome.Refused(CredentialCheckStatus.LockedOut, account));
+
+        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        _securityEventLog.ReceivedCalls().Select(call => call.GetArguments()[0]).ShouldBe(
+        [
+            SecurityEvent.AccountLockedOut(account.UserId),
+            SecurityEvent.AuthenticationFailed(account.UserId, CredentialCheckStatus.LockedOut),
+        ]);
+    }
+
+    [Theory]
+    [InlineData(CredentialCheckStatus.IncorrectPassword)]
+    [InlineData(CredentialCheckStatus.EmailNotConfirmed)]
+    public async Task ARefusalThatIsNotALockout_RecordsNoLockout(CredentialCheckStatus outcome)
+    {
+        var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", TwoFactorEnabled: false);
+        _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(CredentialCheckOutcome.Refused(outcome, account));
+
+        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        _securityEventLog.DidNotReceive().Record(SecurityEvent.AccountLockedOut(account.UserId));
+    }
+
     /// <summary>
     /// The theory above compares each refusal against a literal. This compares them against each
     /// other, so a change that moved all of them to the same *new* error would still be caught by one

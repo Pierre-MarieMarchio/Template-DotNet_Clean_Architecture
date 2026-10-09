@@ -46,6 +46,13 @@ public sealed class LoginUseCase(
         // address and a lockout are exactly what a probe is trying to tell apart.
         if (credential is not { Status: CredentialCheckStatus.Verified, Account: { } account })
         {
+            // Identity reports a lockout on the attempt that crosses the threshold and on every
+            // attempt while it lasts; each is recorded.
+            if (credential is { Status: CredentialCheckStatus.LockedOut, Account: { } lockedOut })
+            {
+                securityEventLog.Record(SecurityEvent.AccountLockedOut(lockedOut.UserId));
+            }
+
             securityEventLog.Record(SecurityEvent.AuthenticationFailed(credential.Account?.UserId, credential.Status));
 
             return Result.Failure<LoginOutcome>(AuthErrors.InvalidCredentials);

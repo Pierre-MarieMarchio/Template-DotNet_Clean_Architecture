@@ -12,7 +12,7 @@ public enum SecurityEventKind
     /// </summary>
     AuthenticationFailed,
 
-    /// <summary>The failed-attempt threshold was crossed and the account is now locked out.</summary>
+    /// <summary>A sign-in met the automatic lockout, the attempt that started it included.</summary>
     AccountLockedOut,
 
     /// <summary>An account was created.</summary>

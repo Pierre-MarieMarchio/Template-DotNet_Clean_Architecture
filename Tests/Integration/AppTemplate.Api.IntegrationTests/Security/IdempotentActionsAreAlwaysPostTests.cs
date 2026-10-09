@@ -3,6 +3,7 @@ using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Features.Auth.Controllers;
 using AppTemplate.Api.Features.Files.Controllers;
 using AppTemplate.Api.Features.Maintenance.Controllers;
+using AppTemplate.Api.Features.Notes.Controllers;
 using AppTemplate.Api.Features.Reminders.Controllers;
 using AppTemplate.Api.Features.TodoLists.Controllers;
 using Microsoft.AspNetCore.Mvc;
@@ -35,6 +36,7 @@ public sealed class IdempotentActionsAreAlwaysPostTests
         typeof(FilesController),
         typeof(FileTagsController),
         typeof(MaintenanceController),
+        typeof(NotesController),
         typeof(PasswordRecoveryController),
         typeof(RefreshTokenMaintenanceController),
         typeof(RegistrationController),
@@ -60,11 +62,11 @@ public sealed class IdempotentActionsAreAlwaysPostTests
             "rule is guarding nothing. Either the attribute was renamed, or the controller list above " +
             "has gone stale.");
 
-        // Today: TodoListsController.Create, TodoListsController.AddItem,
+        // Today: NotesController.Create, TodoListsController.Create, TodoListsController.AddItem,
         // RemindersController.Schedule and FilesController's registration — the one file action a
         // replay would otherwise duplicate, since it is the only one that names no existing file.
         idempotentActions.Count.ShouldBe(
-            4,
+            5,
             "A different number of [Idempotent] actions was found than this template is known to " +
             "declare. Update this rule's expectation alongside whichever action was added or removed.");
 

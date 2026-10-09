@@ -67,12 +67,12 @@ public sealed class NotesControllerTests
     #region A single note publishes its version
 
     [Fact]
-    public async Task GetById_PublishesTheVersionAsAStrongEntityTag()
+    public async Task GetNote_PublishesTheVersionAsAStrongEntityTag()
     {
         var httpContext = AContext();
         GivenTheServiceReads(version: 1234u);
 
-        var action = await AController(httpContext).GetById(Guid.CreateVersion7(), Token);
+        var action = await AController(httpContext).GetNote(Guid.CreateVersion7(), Token);
 
         action.Result.ShouldBeOfType<OkObjectResult>().Value.ShouldBeOfType<NoteResponse>();
 
@@ -84,27 +84,27 @@ public sealed class NotesControllerTests
     }
 
     [Fact]
-    public async Task GetById_Answers304_WhenTheCallerAlreadyNamesThatVersion()
+    public async Task GetNote_Answers304_WhenTheCallerAlreadyNamesThatVersion()
     {
         string published = await APublishedEntityTagAsync(1234u);
         var httpContext = AContext();
         httpContext.Request.Headers.IfNoneMatch = published;
         GivenTheServiceReads(version: 1234u);
 
-        var action = await AController(httpContext).GetById(Guid.CreateVersion7(), Token);
+        var action = await AController(httpContext).GetNote(Guid.CreateVersion7(), Token);
 
         StatusOf(action.Result!).ShouldBe(StatusCodes.Status304NotModified);
         httpContext.Response.Headers.ETag.ToString().ShouldBe(published);
     }
 
     [Fact]
-    public async Task GetById_Answers404_ForAMissingNote()
+    public async Task GetNote_Answers404_ForAMissingNote()
     {
         var noteId = Guid.CreateVersion7();
         _notes.GetAsync(noteId, Arg.Any<CancellationToken>())
             .Returns(Result.Failure<Versioned<NoteDto>>(NoteErrors.NoteNotFound(noteId)));
 
-        var action = await AController().GetById(noteId, Token);
+        var action = await AController().GetNote(noteId, Token);
 
         StatusOf(action.Result!).ShouldBe(StatusCodes.Status404NotFound);
     }
@@ -128,7 +128,7 @@ public sealed class NotesControllerTests
         var created = action.Result.ShouldBeOfType<CreatedAtRouteResult>();
 
         created.StatusCode.ShouldBe(StatusCodes.Status201Created);
-        created.RouteName.ShouldBe(nameof(NotesController.GetById));
+        created.RouteName.ShouldBe(nameof(NotesController.GetNote));
         created.RouteValues!["noteId"].ShouldBe(note.Id);
         created.DeclaredType.ShouldBe(typeof(NoteResponse));
         httpContext.Response.Headers.ETag.ToString().ShouldNotBeNullOrEmpty();
@@ -337,7 +337,7 @@ public sealed class NotesControllerTests
             .Returns(new Versioned<NoteDto>(ANote(), version));
 
         await new NotesController(reader) { ControllerContext = new ControllerContext { HttpContext = httpContext } }
-            .GetById(Guid.CreateVersion7(), Token);
+            .GetNote(Guid.CreateVersion7(), Token);
 
         return httpContext.Response.Headers.ETag.ToString();
     }

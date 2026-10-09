@@ -458,6 +458,12 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Fixed
 
+- **Every named route has a name of its own.** `NotesController` and `TodoListsController` both named
+  their read route `GetById`, and route names are global: MVC refuses two attribute routes with one
+  name and different templates, so the API failed when it built its endpoints. They are now
+  `GetNote` and `GetTodoList`, `NewFeature.cs` generates `Get<Feature>` instead of `GetById`, and
+  `ControllerContractTests` fails on any name shared by two actions. URLs and responses are
+  unchanged.
 - **Confirming two-factor enrollment again on an armed account is refused.** It used to replace the
   recovery codes and then write the switch-on again; a refused write left codes nobody had been
   shown. `POST /auth/two-factor/confirm` now answers 409 `auth.twoFactor.alreadyEnabled`.

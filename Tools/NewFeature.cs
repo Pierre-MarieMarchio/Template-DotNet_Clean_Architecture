@@ -4315,14 +4315,14 @@ internal static class Templates
         %else%
             /// <summary>Gets one %L%.</summary>
         %end%
-            [HttpGet("{%L%Id:guid}", Name = nameof(GetById))]
+            [HttpGet("{%L%Id:guid}", Name = nameof(Get%A%))]
             [HttpHead("{%L%Id:guid}")]
             [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(%A%Response))]
         %if etag%
             [ProducesResponseType(StatusCodes.Status304NotModified)]
         %end%
             [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
-            public async Task<ActionResult<%A%Response>> GetById(Guid %L%Id, CancellationToken cancellationToken) =>
+            public async Task<ActionResult<%A%Response>> Get%A%(Guid %L%Id, CancellationToken cancellationToken) =>
                 OkOrProblem(%A%ResponseMapping.To%A%Response(await %CallGet%));
 
         %end%
@@ -4352,7 +4352,7 @@ internal static class Templates
                 var result = %A%ResponseMapping.To%A%Response(outcome);
 
         %if etag%
-                return CreatedOrProblem(result, nameof(GetById), created => new { %L%Id = created.Id });
+                return CreatedOrProblem(result, nameof(Get%A%), created => new { %L%Id = created.Id });
         %else%
                 // Location has to name what was created, and the overload that takes route values as a
                 // function needs a versioned result. Reading Value on a failure throws.
@@ -4361,7 +4361,7 @@ internal static class Templates
                     return result.Error!.ToActionResult(HttpContext);
                 }
 
-                return CreatedOrProblem(result, nameof(GetById), new { %L%Id = result.Value.Id });
+                return CreatedOrProblem(result, nameof(Get%A%), new { %L%Id = result.Value.Id });
         %end%
             }
 

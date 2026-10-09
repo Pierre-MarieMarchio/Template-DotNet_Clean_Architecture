@@ -82,6 +82,9 @@ public sealed class TestDatabase(IServiceProvider rootServices)
             //#if (notes)
             AppDbContext.NotesSchema,
             //#endif
+            //#if (externalAuth)
+            AppDbContext.ExternalIdentitySchema,
+            //#endif
             AppDbContext.PlatformSchema,
         ];
 

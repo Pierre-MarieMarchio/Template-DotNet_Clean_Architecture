@@ -10,11 +10,6 @@
       "longName": "auth-none-needs-files-false",
       "shortName": "",
       "isHidden": true
-    },
-    "authExternalIsNotAvailableYet": {
-      "longName": "auth-external-is-not-available-yet",
-      "shortName": "",
-      "isHidden": true
     }
   }
 }

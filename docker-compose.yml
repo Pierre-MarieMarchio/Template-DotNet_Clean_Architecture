@@ -188,6 +188,17 @@ services:
       Identity__RequireConfirmedEmail: ${IDENTITY_REQUIRE_CONFIRMED_EMAIL:-true}
       Identity__RequireUniqueEmail: ${IDENTITY_REQUIRE_UNIQUE_EMAIL:-true}
       #endif
+      #if (externalAuth)
+      # --- Authentication:External ---------------------------------------------
+      # The provider whose access tokens this API accepts. Authority and Audience are required, and
+      # an empty one stops the api service at startup with the key it lacks. See docs/CONFIGURATION.md.
+      Authentication__External__Authority: ${EXTERNAL_AUTH_AUTHORITY:-}
+      Authentication__External__Audience: ${EXTERNAL_AUTH_AUDIENCE:-}
+      Authentication__External__RequireHttpsMetadata: ${EXTERNAL_AUTH_REQUIRE_HTTPS_METADATA:-true}
+      Authentication__External__Roles__Source: ${EXTERNAL_AUTH_ROLES_SOURCE:-Local}
+      Authentication__External__Roles__ClaimPath: ${EXTERNAL_AUTH_ROLES_CLAIM_PATH:-}
+      Authentication__External__Roles__AdministratorRole: ${EXTERNAL_AUTH_ADMINISTRATOR_ROLE:-Admin}
+      #endif
 
 
       #if (files)

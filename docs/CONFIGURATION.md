@@ -114,7 +114,7 @@ jobs' hosting adapters and their one composition call move into it, and the API 
 (`AddNoCallerIdentity()` and an `IAuditActor` that answers nobody, both of which already exist) and
 its own telemetry. Use cases, contracts and storage guarantees do not move.
 
-<!--#if (reminders)-->
+<!--#if (reminders && localAuth)-->
 **What the jobs need from the other modules.** The reminder pass reaches its owner through
 `IReminderRecipientDirectory`, which Reminders owns and the host supplies — over the local accounts in
 this template — and mails them through `IReminderNotifier`, whose only adapter lives in
@@ -124,7 +124,15 @@ holds that. A process that composes the identity module — the API does, for th
 validates the `Jwt`, `RefreshToken`, `EmailConfirmation`, `PasswordReset` and `EmailChange` sections
 as a whole, since composing that module composes ASP.NET Identity and bearer validation with no
 narrower call.
-<!--#else
+<!--#elseif (reminders)
+**What the jobs need from the other modules.** The reminder pass reaches its owner through
+`IReminderRecipientDirectory`, which Reminders owns and the host supplies — here from the address the
+identity provider last sent, kept on the caller's mapping, since a pass has no token to read it from —
+and mails them through `IReminderNotifier`, whose only adapter lives in
+`AppTemplate.Infrastructure.Email`, which cannot be composed without validating `Email` at startup.
+The API validates `Authentication:External` at startup, because it composes bearer validation with
+the mapping.
+#else
 **What the jobs need from the other modules.** No job needs an authentication port of its own:
 `TheBackgroundOnlyContainer_BuildsWithoutAuthentication` holds that. A process that composes the
 identity module — the API does, for the account routes — validates the `Jwt`, `RefreshToken`,
@@ -396,6 +404,7 @@ behaviour — they all speak OIDC — so adding Okta or Keycloak is a configurat
 class. Apple's one real quirk (the address arrives only at the first authorisation) is handled where
 it belongs, in the use case, because it is about linking rather than about verification.
 
+<!--#if (externalAuth)-->
 ### `Authentication:External`
 
 The external OpenID Connect provider (Keycloak, Entra ID, Auth0…) whose access tokens authenticate
@@ -422,6 +431,7 @@ owners across a change of provider, and why a token that cannot be mapped is ref
 
 **`Local` roles have no API.** Assignments are rows of `(UserId, Role)` written by SQL or a seed.
 
+<!--#endif-->
 ### `FileWorker`
 
 The Files feature's two sweeps and its inspection pass. Bound by `AddBackgroundJobs`, and only when

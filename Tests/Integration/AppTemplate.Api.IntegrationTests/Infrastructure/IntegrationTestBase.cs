@@ -6,15 +6,30 @@ using System.Net.Http.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 //#endif
+/*#if (externalAuth && todoLists)
+using System.Net;
+#endif*/
+/*#if (externalAuth)
+using System.Net.Http.Headers;
+#endif*/
+/*#if (externalAuth && todoLists)
+using System.Net.Http.Json;
+#endif*/
 //#if (todoLists)
 using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
+//#endif
+/*#if (externalAuth)
+using AppTemplate.Application.Features.ExternalIdentity.Dtos;
+using AppTemplate.Application.Features.ExternalIdentity.Services;
+#endif*/
+//#if (todoLists)
 using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 //#endif
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
-//#if (todoLists)
+//#if (todoLists || externalAuth)
 using Microsoft.Extensions.DependencyInjection;
 //#endif
 using Xunit;
@@ -32,6 +47,18 @@ public sealed record TestUser(string UserName, string Email, string Password);
 /// <param name="UserId">Read from <c>GET /auth/me</c>, the only endpoint that publishes a profile.</param>
 public sealed record TestSession(Guid UserId, TokenResponse Tokens);
 //#endif
+/*#if (externalAuth)
+
+/// <summary>A caller as the external provider names it: its subject, and the address its tokens carry.</summary>
+public sealed record TestUser(string Subject, string Email);
+
+/// <param name="UserId">The internal owner the API maps <see cref="TestUser.Subject"/> to.</param>
+/// <param name="Tokens">What the provider issued, in the shape a signed-in test reads it from.</param>
+public sealed record TestSession(Guid UserId, ProviderTokens Tokens);
+
+/// <param name="AccessToken">Signed by <see cref="ExternalProvider"/>, so the API accepts it.</param>
+public sealed record ProviderTokens(string AccessToken);
+#endif*/
 
 /// <summary>
 /// What every test class shares: the fixture, a clean database, a clean mailbox, a clock parked at a
@@ -39,7 +66,7 @@ public sealed record TestSession(Guid UserId, TokenResponse Tokens);
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>State reset.</b> Before each test every table in the six module schemas is truncated, the
+/// <b>State reset.</b> Before each test every table in the module schemas is truncated, the
 /// recorded mailbox and captured log are emptied, and the clock is placed at a fixed instant. The
 /// host itself is not recycled — rebuilding it per test would cost more than the whole suite.
 /// </para>
@@ -66,6 +93,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     //#endif
     //#if (localAuth)
     protected const string AuthRoute = "/api/v1/auth";
+    //#endif
+    //#if (signedInRoute)
 
     /// <summary>
     /// A route that answers 200 to any signed-in caller and 401 to anyone else, for the tests whose
@@ -73,8 +102,12 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     /// </summary>
     /*#if (todoLists)*/
     protected const string ProtectedRoute = TodoListsRoute;
-    /*#else
+    /*#elseif (localAuth)
     protected const string ProtectedRoute = AuthRoute + "/me";
+    #elseif (notes)
+    protected const string ProtectedRoute = "/api/v1/notes";
+    #else
+    protected const string ProtectedRoute = "/api/v1/files";
     #endif*/
     //#endif
 
@@ -334,6 +367,39 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     #endregion
 
     //#endif
+    /*#if (externalAuth)
+    #region Callers
+
+    /// <summary>
+    /// A client carrying a token <see cref="ExternalProvider"/> signed for a subject of its own, the
+    /// caller that subject is, and the internal owner the API maps it to. The mapping is made here
+    /// through the API's own service, exactly as the first authenticated request would make it, since
+    /// no endpoint publishes the owner id.
+    /// </summary>
+    /// <param name="label">Readable in the subject and the address, for a test that signs in several callers.</param>
+    /// <param name="roles">The roles the token carries at the path the test host reads them from.</param>
+    protected async Task<(HttpClient Client, TestUser User, TestSession Session)> SignInAsync(
+        string? label = null,
+        params string[] roles)
+    {
+        string subject = $"{label ?? "caller"}-{Guid.NewGuid():N}";
+        var user = new TestUser(subject, $"{subject}@integration.test");
+
+        await using var scope = Fixture.Factory.Services.CreateAsyncScope();
+        var owner = await scope.ServiceProvider.GetRequiredService<IExternalIdentityService>().ResolveAsync(
+            new ExternalCallerDto(ExternalProvider.Issuer, subject, user.Email, label),
+            TestToken);
+
+        string token = ExternalProvider.Token(subject, user.Email, roles);
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        return (client, user, new TestSession(owner.Value, new ProviderTokens(token)));
+    }
+
+    #endregion
+
+    #endif*/
     //#if (todoLists)
     #region Todo lists
 

@@ -1,4 +1,4 @@
-﻿//#if (anyFeature)
+﻿//#if (anyFeature || externalAuth)
 using AppTemplate.Application;
 //#endif
 //#if (localAuth)
@@ -250,10 +250,11 @@ internal static class HostComposition
         return services;
     }
 
+    //#if (externalAuth)
     /// <summary>
     /// Where the external-identity mapping's ports live. They are composed by the API's
     /// external-authentication entry point, which a host calls instead of the local accounts' one,
-    /// so the local-accounts compositions above leave them out and the two below add them.
+    /// so the compositions above leave them out and the two below add them.
     /// </summary>
     internal const string ExternalIdentityNamespace = "AppTemplate.Application.Features.ExternalIdentity";
 
@@ -279,6 +280,7 @@ internal static class HostComposition
         return services;
     }
 
+    //#endif
     /// <summary>
     /// The composition a test host uses: the API's modules, then the doubles that replace the clock
     /// and the mail relay. Composed here too, because <c>AppTemplate.Infrastructure.InMemory</c> is a product
@@ -493,8 +495,8 @@ internal sealed class ArchitectureTestBackgroundCurrentUser : ICurrentUser
 
 //#if (reminders)
 /// <summary>
-/// Stands in for <c>AccountReminderRecipientDirectory</c>, which the API composes from the local
-/// accounts and which is internal to it.
+/// Stands in for the recipient directory the API composes from whoever holds its accounts, which is
+/// internal to it.
 /// </summary>
 internal sealed class ArchitectureTestReminderRecipientDirectory : IReminderRecipientDirectory
 {

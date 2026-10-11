@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Features.Reminders.Entities;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.Reminders.Entities;
 
 namespace AppTemplate.Domain.Features.Reminders.Repositories;
 
@@ -39,6 +40,15 @@ public interface IReminderRepository
     Task<IReadOnlyList<Reminder>> GetDueAsync(
         DateTimeOffset asOf,
         int batchSize,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Every reminder one owner holds, whatever its state and whichever item it is about, loaded as
+    /// aggregates for the same reason a single load is. The account-deleted policy removes through
+    /// the aggregate, not around it.
+    /// </summary>
+    Task<IReadOnlyList<Reminder>> GetForOwnerAsync(
+        UserId ownerId,
         CancellationToken cancellationToken);
 
     void Add(Reminder reminder);

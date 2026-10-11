@@ -1,4 +1,4 @@
-﻿# Decisions already made, and the shape they impose
+# Decisions already made, and the shape they impose
 
 These are the choices a reasonable person could have made differently. They are written here, and
 where a test can hold one it does — a rule nothing verifies is re-derived and lost inside six
@@ -36,6 +36,22 @@ when it runs, so running twice is the same as running once, and never running le
 consistent but stale. A counter makes the divergence observable
 (`apptemplate.reminders.missed_cancellations`, watched per [`SECURITY.md`](../SECURITY.md)). **Any consumer you add
 has to have that shape**, or the missing outbox stops being a cost and becomes a bug.
+
+**Deleting an account deletes the id's data, and each feature decides what that means for its own
+rows.** The account row and the feature rows live in two contexts with no shared transaction, so
+Auth never reaches across: it publishes the fact `UserAccountDeleted(UserId, OccurredAt)` —
+declared in `AppTemplate.Application.Core`, where every feature can consume it without naming the
+module that deleted the account — in process, after the deletion has committed, with no outbox
+across the two contexts. Every feature that owns user data declares its policy (delete, or
+anonymise) in a consumer of that fact which re-derives its precondition through
+`IUserAccountDirectory` — the account must be gone — and is idempotent, exactly the shape the
+decision above demands. A leased periodic sweep over the maintenance timer is the guarantee: it
+asks each feature for the owner ids that still have data and applies the same policy, so a fact
+that never reached a consumer costs an interval, not the data's fate. The examples and Files all
+delete. The self-service route demands re-authentication (the password when one is set, a two-factor
+code when the factor is armed, an access token under five minutes old otherwise); in the
+external-authenticated template the trigger is an administrative call on the mapping, and a
+provider-side deletion signal is that call's to wire — the template ships no endpoint for it.
 
 **The refusal of an outbox was re-examined against a feature that could have overturned it, and it
 holds.** The `Files` feature looked like the counter-example: a thumbnail that is never generated

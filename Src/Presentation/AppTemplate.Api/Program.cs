@@ -70,6 +70,13 @@ builder.Services.AddScoped<IReminderRecipientDirectory, ExternalIdentityReminder
 
 // Not covered by the calls above; the maintenance endpoint and the maintenance job both resolve it.
 builder.Services.AddPurgeExpiredIdempotencyKeys();
+//#if (anyFeature)
+
+// The sweep that guarantees the data of deleted accounts goes, whether or not the fact reached the
+// feature holding it. Registered beside the purge its pass joins, and composed only with features:
+// with none, there is no data an account's deletion could orphan.
+builder.Services.AddDeletedAccountSweep();
+//#endif
 
 // In process. Registering an IDistributedCache beside this one adds a shared second level.
 builder.Services.AddCacheStore();

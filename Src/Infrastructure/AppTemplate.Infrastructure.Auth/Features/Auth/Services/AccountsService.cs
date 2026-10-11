@@ -201,7 +201,28 @@ internal sealed class AccountsService(
             user.EmailConfirmed,
             [.. roles],
             user.CreatedAt,
-            user.TwoFactorEnabled);
+            user.TwoFactorEnabled,
+            user.PasswordHash is not null);
+    }
+
+    public async Task<AccountDeletionOutcome> DeleteAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await directory.FindByIdAsync(userId, cancellationToken);
+
+        // The caller already authenticated as this id, so there is no address to protect from
+        // enumeration here: an absent account only means it was deleted after the token was issued.
+        if (user is null)
+        {
+            return AccountDeletionOutcome.NoSuchAccount;
+        }
+
+        var result = await userManager.DeleteAsync(user);
+
+        return result.Succeeded ? AccountDeletionOutcome.Deleted : AccountDeletionOutcome.Rejected;
     }
 
     private static string? JoinOrNull(IEnumerable<string> descriptions) =>

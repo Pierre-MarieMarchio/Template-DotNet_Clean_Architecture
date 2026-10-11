@@ -1,7 +1,11 @@
 ﻿using AppTemplate.Api.Common.Security;
+//#if (anyFeature)
+using AppTemplate.Api.Features.ExternalIdentity.Directories;
+//#endif
 using AppTemplate.Api.Features.ExternalIdentity.Mapping;
 using AppTemplate.Api.Features.ExternalIdentity.Options;
 using AppTemplate.Application;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -33,6 +37,14 @@ internal static class ExternalAuthenticationComposition
 
         services.AddExternalIdentity();
         services.AddExternalIdentityPersistence(configuration);
+
+        // Whether an id still names an account, read from the mapping: the contract the features
+        // reacting to a deleted account re-derive through, with the local-accounts template's
+        // counterpart in <c>AuthComposition</c>. Composed with the accounts, so a feature that owns
+        // user data can never resolve nothing.
+        //#if (anyFeature)
+        services.AddScoped<IUserAccountDirectory, ExternalIdentityUserAccountDirectory>();
+        //#endif
 
         services.AddOptions<AuthenticationExternalOptions>()
             .Bind(configuration.GetSection(AuthenticationExternalOptions.SectionName))

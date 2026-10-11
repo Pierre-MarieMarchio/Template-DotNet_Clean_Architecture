@@ -423,6 +423,7 @@ public sealed class ApplicationModuleTests
         //#endif
         services.AddScoped(_ => Substitute.For<ICurrentUser>());
         services.AddScoped(_ => Substitute.For<IDateTimeProvider>());
+        services.AddScoped(_ => Substitute.For<IUserAccountDirectory>());
         services.AddScoped(_ => Substitute.For<IIdempotencyStore>());
         services.AddScoped(_ => Substitute.For<ICacheStore>());
 

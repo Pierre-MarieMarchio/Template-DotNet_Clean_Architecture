@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Features.Files.Entities;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using AppTemplate.Domain.Features.Files.ValueObjects;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
@@ -77,6 +78,22 @@ internal sealed class StoredFileRepository(
 
         // Tracked, so a mutation after Add is mapped onto this row before the save.
         tracker.Track(storedFile, record);
+    }
+
+    public async Task<IReadOnlyList<StoredFile>> GetForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+        // Tags included on every path, as on any other load, so the removal flushes a file that
+        // looks tagged the way it is rather than re-inserting what it cannot see.
+        var records = await context.StoredFiles
+            .Include(file => file.Tags)
+            .Where(file => file.OwnerId == ownerId.Value)
+            .ToListAsync(cancellationToken);
+
+        return records.Select(LoadOrTrack).ToList();
     }
 
     public void Remove(StoredFile storedFile)

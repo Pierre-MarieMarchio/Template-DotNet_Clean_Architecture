@@ -47,4 +47,11 @@ public interface IStoredFileQueries
     Task<IReadOnlyList<string>> GetLiveObjectKeysAsync(
         IReadOnlyList<string> candidateObjectKeys,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every owner id that still holds a file, regardless of that account's fate: the
+    /// deleted-account sweep asks, then decides the fate itself through the account directory.
+    /// Distinct, unordered.
+    /// </summary>
+    Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(CancellationToken cancellationToken = default);
 }

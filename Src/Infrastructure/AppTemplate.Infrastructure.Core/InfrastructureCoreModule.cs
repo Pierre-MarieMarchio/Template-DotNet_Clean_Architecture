@@ -74,6 +74,7 @@ public static class InfrastructureCoreModule
         services.TryAddScoped<AuditingSaveChangesInterceptor>();
         services.TryAddScoped<DomainEventDispatchSaveChangesInterceptor>();
         services.TryAddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+        services.TryAddScoped<IDomainEventPublisher, DomainEventPublisher>();
 
         return services;
     }

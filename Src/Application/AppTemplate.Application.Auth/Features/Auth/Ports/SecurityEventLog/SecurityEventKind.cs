@@ -49,8 +49,16 @@ public enum SecurityEventKind
     /// <summary>A role was taken away; which one is on <see cref="SecurityEvent.Role"/>.</summary>
     RoleRevoked,
 
-    /// <summary>An account was removed from the store.</summary>
+    /// <summary>An account was removed from the store by an administrator.</summary>
     AccountDeleted,
+
+    /// <summary>
+    /// An account was removed from the store by its own holder, having proven its credentials again
+    /// — the same ending as <see cref="AccountDeleted"/> reached by a different hand, which is why
+    /// the two are separate facts: one belongs in an audit of what administrators did, the other in
+    /// an audit of what accounts did to themselves.
+    /// </summary>
+    AccountSelfDeleted,
 
     /// <summary>
     /// Two-factor sign-in was armed: a first code was verified and the account now requires one at

@@ -36,4 +36,21 @@ internal sealed class ReminderQueries(AppDbContext context) : IReminderQueries
                 reminder.NotifiedAt))
             .ToListAsync(cancellationToken);
     }
+
+    /// <remarks>
+    /// The one query here that crosses owners on purpose: it exists so a housekeeping pass can ask
+    /// which ids still hold data, and returns ids only. The primitive is built client-side, because
+    /// its factory validates and validation is not SQL.
+    /// </remarks>
+    public async Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var ids = await context.Reminders
+            .AsNoTracking()
+            .Select(reminder => reminder.OwnerId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return [.. ids.Select(UserId.Create)];
+    }
 }

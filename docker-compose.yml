@@ -292,7 +292,11 @@ services:
   # costs that browser nothing, and the alternative is MINIO_ROOT_USER's minioadmin/minioadmin
   # default offered to the local network.
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    # MinIO went source-only in October 2025 and left Docker Hub, so this is the community build
+    # of that same release tag, produced from the official source and shipping the same minio and
+    # mc binaries the official image did — which the healthcheck below relies on. Still an exact
+    # release pin, never a floating tag.
+    image: coollabsio/minio:RELEASE.2025-04-22T22-12-26Z
     command: server /data --console-address ":9001"
     restart: unless-stopped
     environment:
@@ -311,9 +315,11 @@ services:
     networks: [backend]
 
   # Creates the bucket once and exits. A throwaway container rather than an entrypoint script:
-  # `mc mb --ignore-existing` is idempotent, so a repeated `compose up` is harmless.
+  # `mc mb --ignore-existing` is idempotent, so a repeated `compose up` is harmless. It runs the
+  # server's own image rather than the retired `minio/mc`: that image bundles the same `mc`
+  # binary, so one pinned release serves both services.
   minio-bucket:
-    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    image: coollabsio/minio:RELEASE.2025-04-22T22-12-26Z
     depends_on:
       minio:
         condition: service_healthy

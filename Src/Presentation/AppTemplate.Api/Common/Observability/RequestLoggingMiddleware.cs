@@ -3,31 +3,17 @@
 namespace AppTemplate.Api.Common.Observability;
 
 /// <summary>One structured entry per request, carrying both identifiers a failure is investigated with.</summary>
-/// <remarks>
-/// <para>
-/// <b>Redaction guarantee.</b> This middleware logs the fixed set of fields named in
-/// <see cref="InvokeAsync"/> and nothing else. It never enumerates
-/// <see cref="HttpRequest.Headers"/>, never touches <see cref="HttpRequest.Cookies"/>, and never
-/// reads <see cref="HttpRequest.Body"/> — so an <c>Authorization</c> header, a session cookie, and
-/// the password and refresh token that the authentication endpoints take in their JSON bodies have no
-/// path to a log sink through here. <see cref="HttpRequest.QueryString"/> is excluded for the same
-/// reason: a caller chooses its contents.
-/// </para>
-/// <para>
-/// <b>Why not <c>UseHttpLogging</c>.</b> It writes a request entry and a response entry (or one
-/// combined entry) whose fields are chosen by flags, and it carries neither identifier as a property
-/// of the entry. Redaction there is an allow-list of headers that one flag can widen; here nothing
-/// is read that could leak.
-/// </para>
-/// <para>
-/// <b>Why two identifiers.</b> <c>TraceIdentifier</c> is the value the API puts in the
-/// <c>traceId</c> member of every ProblemDetails response, so it is what a caller quotes.
-/// <c>TraceId</c> is the W3C trace the exporter sends, so it is what a trace is looked up by. Logging
-/// both in one entry is what turns a caller's <c>traceId</c> into a trace. When OpenTelemetry is
-/// enabled the same <c>TraceIdentifier</c> is also set as a tag on the request span, so the join
-/// works from either end.
-/// </para>
-/// </remarks>
+/// <remarks><b>Redaction guarantee:</b> this middleware logs the fixed set of fields named in
+/// <see cref="InvokeAsync"/> and nothing else — it never enumerates <see cref="HttpRequest.Headers"/>,
+/// touches <see cref="HttpRequest.Cookies"/> or reads <see cref="HttpRequest.Body"/>, so an
+/// <c>Authorization</c> header, a session cookie and the authentication endpoints' JSON bodies have
+/// no path to a log sink through here; <see cref="HttpRequest.QueryString"/> is excluded for the
+/// same reason. <b>Why not <c>UseHttpLogging</c>:</b> its fields are chosen by flags and it carries
+/// neither identifier as a property — redaction there is an allow-list one flag can widen, where
+/// here nothing is read that could leak. <b>Why two identifiers:</b> <c>TraceIdentifier</c> is what
+/// the API puts in the <c>traceId</c> member of every ProblemDetails response, so what a caller
+/// quotes; <c>TraceId</c> is the W3C trace the exporter sends, so what a trace is looked up by —
+/// logging both is what turns a caller's <c>traceId</c> into a trace.</remarks>
 internal sealed class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)

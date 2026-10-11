@@ -2,34 +2,23 @@
 
 namespace AppTemplate.Api.Common.Hosting;
 
-/// <summary>
-/// How long a request may run before it is cut loose.
-/// <para>
-/// Public because it is bound from configuration and its section name is part of the template's
-/// contract with whoever deploys it.
-/// </para>
-/// </summary>
+/// <summary>How long a request may run before it is cut loose. Public because it is bound from
+/// configuration and its section name is part of the template's contract with whoever deploys
+/// it.</summary>
 public sealed class RequestTimeoutsOptions
 {
     /// <summary>The configuration section this type is bound from.</summary>
     public const string SectionName = "RequestTimeouts";
 
-    /// <summary>
-    /// 5 minutes by default, applied to every endpoint that does not name a different policy.
-    /// <para>
-    /// This has to reconcile with the layer underneath: persistence commits with a 30-second
-    /// command timeout and retries a transient failure up to five times
-    /// (<c>EnableRetryOnFailure</c>), so a single database call can legitimately occupy on the
-    /// order of 230 seconds (up to six attempts of 30 seconds, spaced by up to five 10-second
-    /// backoffs) before it gives up on its own. <b>This default must stay longer than that
-    /// ceiling, not shorter.</b> A shorter request timeout would routinely cancel a write that is
-    /// still safely retrying underneath — trading a transient failure the driver would have
-    /// recovered from for a write whose outcome the caller can no longer observe, which is the one
-    /// outcome a caller with no safe way to retry a side effect must never be handed. If the retry
-    /// budget below is ever tightened, shrink this to match; it must never be the one that moves
-    /// first.
-    /// </para>
-    /// </summary>
+    /// <summary>5 minutes by default, applied to every endpoint that does not name a different
+    /// policy.</summary>
+    /// <remarks>This must reconcile with the layer underneath: persistence commits with a
+    /// 30-second command timeout and up to five retries (<c>EnableRetryOnFailure</c>), so a single
+    /// database call can legitimately occupy on the order of 230 seconds. <b>This default must stay
+    /// longer than that ceiling:</b> a shorter request timeout would routinely cancel a write still
+    /// safely retrying underneath, handing the caller a write whose outcome it can no longer
+    /// observe. If the retry budget is ever tightened, shrink this to match; it must never be the
+    /// one that moves first.</remarks>
     public TimeSpan Default { get; set; } = TimeSpan.FromMinutes(5);
 }
 

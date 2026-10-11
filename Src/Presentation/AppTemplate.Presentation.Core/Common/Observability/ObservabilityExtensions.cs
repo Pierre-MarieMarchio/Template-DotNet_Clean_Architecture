@@ -8,39 +8,28 @@ using OpenTelemetry.Trace;
 
 namespace AppTemplate.Presentation.Core.Common.Observability;
 
-/// <summary>
-/// Traces and metrics over OTLP, for any host: the options, the resource, the sampler, the
-/// outbound-HTTP instrumentation and the exporter. What this cannot supply, and takes from the
-/// caller instead, is everything that names the host: a host's own <c>ActivitySource</c> and
-/// <c>Meter</c> names live in its feature folders — a shared extension that listed them would have
-/// to reference the host that references it, a project cycle no visibility change resolves — and
-/// the service name has to be the host's. Which is why <c>host</c> is an assembly rather than a
-/// string: name and version are read from it, so a rename or a version bump cannot leave a stale
-/// literal. No ASP.NET Core instrumentation here, and none is reachable — this project carries no
-/// framework reference, which is what lets a host with no HTTP surface use it; an HTTP host adds
-/// its own through <c>tracing</c> and <c>metrics</c>, which is also where database instrumentation
-/// goes, so <c>AddNpgsql()</c> does not put a PostgreSQL driver behind every presentation host.
-/// </summary>
+/// <summary>Traces and metrics over OTLP, for any host: the options, the resource, the sampler, the
+/// outbound-HTTP instrumentation and the exporter. Everything that names the host is the caller's: a
+/// host's own <c>ActivitySource</c> and <c>Meter</c> names live in its feature folders — a shared
+/// extension listing them would have to reference the host that references it — and <c>host</c> is
+/// an assembly rather than a string so name and version are read from it, not a stale literal. No
+/// ASP.NET Core instrumentation here and none reachable — this project carries no framework
+/// reference, so an HTTP host adds its own through <c>tracing</c> and <c>metrics</c>, which is also
+/// where database instrumentation goes, keeping <c>AddNpgsql()</c> out of every presentation
+/// host.</summary>
 public static class ObservabilityExtensions
 {
-    /// <summary>
-    /// Binds and validates <see cref="TelemetryOptions"/>, and — only when it is enabled —
+    /// <summary>Binds and validates <see cref="TelemetryOptions"/>, and — only when enabled —
     /// registers the tracer and meter providers. Nothing at all is registered when nothing is
-    /// configured: no instrumentation, no exporter, no background flush, so a deployment can run
-    /// with no collector near it rather than an exporter retrying against a socket that will never
-    /// answer.
-    /// </summary>
+    /// configured, so a deployment can run with no collector near it rather than an exporter retrying
+    /// against a socket that will never answer.</summary>
     /// <param name="services">The container being built.</param>
     /// <param name="configuration">Read for the <see cref="TelemetryOptions.SectionName"/> section.</param>
-    /// <param name="host">
-    /// The host's own assembly. Its simple name is the <c>service.name</c> unless
-    /// <see cref="TelemetryOptions.ServiceName"/> overrides it, and its informational version is the
-    /// <c>service.version</c>.
-    /// </param>
-    /// <param name="tracing">
-    /// The host's own spans: one <c>AddSource</c> per <c>ActivitySource</c> it declares, plus any
-    /// instrumentation that would drag a transport or a driver into this project.
-    /// </param>
+    /// <param name="host">The host's own assembly: its simple name is the <c>service.name</c> unless
+    /// <see cref="TelemetryOptions.ServiceName"/> overrides it, and its informational version the
+    /// <c>service.version</c>.</param>
+    /// <param name="tracing">The host's own spans — one <c>AddSource</c> per <c>ActivitySource</c> it
+    /// declares — plus any instrumentation that would drag a transport or driver into this project.</param>
     /// <param name="metrics">The host's own meters, on the same terms.</param>
     /// <returns>The same collection, for chaining.</returns>
     public static IServiceCollection AddObservability(

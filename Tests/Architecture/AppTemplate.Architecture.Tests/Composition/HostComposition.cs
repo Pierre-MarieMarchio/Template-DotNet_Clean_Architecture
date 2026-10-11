@@ -3,6 +3,8 @@ using AppTemplate.Application;
 //#endif
 //#if (localAuth)
 using AppTemplate.Application.Auth;
+using AppTemplate.Application.Auth.Features.Auth.Ports.CurrentSession;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 //#endif
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Ports;
@@ -32,10 +34,10 @@ namespace AppTemplate.Architecture.Tests.Composition;
 /// Builds the container the API builds, from the same module entry points, so that a registration
 /// which compiles but cannot be resolved fails here instead of on the first request.
 /// <para>
-/// Nothing is faked except the two things the host itself supplies rather than a module:
-/// <see cref="ICurrentUser"/>, whose implementation reads an <c>HttpContext</c>, and
-/// <see cref="IHostEnvironment"/>. Both are registered here exactly as <c>Program.cs</c> registers
-/// them, so the graph under test is the production graph.
+/// Nothing is faked except the things the host itself supplies rather than a module:
+/// <see cref="ICurrentUser"/> and the current session, whose implementations read an
+/// <c>HttpContext</c>, and <see cref="IHostEnvironment"/>. Both are registered here exactly as
+/// <c>Program.cs</c> registers them, so the graph under test is the production graph.
 /// </para>
 /// <para>
 /// No database is needed. <c>AddDbContext</c> opens no connection when it is registered, and
@@ -453,13 +455,16 @@ internal static class HostComposition
 
     /// <summary>
     /// The adapters the host owns rather than a module: <c>AppTemplate.Api</c> registers its own
-    /// <c>CurrentUser</c>, which reads the ambient <c>HttpContext</c>.
+    /// <c>CurrentUser</c> and <c>CurrentSession</c>, which read the ambient <c>HttpContext</c>.
     /// </summary>
     private static void AddHostSuppliedAdapters(IServiceCollection services)
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, ArchitectureTestCurrentUser>();
         services.AddScoped<IAuditActor, ArchitectureTestAuditActor>();
+        //#if (localAuth)
+        services.AddScoped<ICurrentSession, ArchitectureTestCurrentSession>();
+        //#endif
         //#if (reminders)
         services.AddScoped<IReminderRecipientDirectory, ArchitectureTestReminderRecipientDirectory>();
         //#endif
@@ -478,6 +483,9 @@ internal static class HostComposition
     {
         services.AddScoped<ICurrentUser, ArchitectureTestBackgroundCurrentUser>();
         services.AddScoped<IAuditActor, ArchitectureTestBackgroundAuditActor>();
+        //#if (localAuth)
+        services.AddScoped<ICurrentSession, ArchitectureTestBackgroundCurrentSession>();
+        //#endif
         //#if (reminders)
         services.AddScoped<IReminderRecipientDirectory, ArchitectureTestReminderRecipientDirectory>();
         //#endif
@@ -495,6 +503,35 @@ internal sealed class ArchitectureTestCurrentUser : ICurrentUser
 
     public UserId? UserId => _userId;
 }
+
+//#if (localAuth)
+/// <summary>
+/// Stands in for <c>AppTemplate.Api.Common.Security.CurrentSession</c>, which needs an HTTP request.
+/// </summary>
+internal sealed class ArchitectureTestCurrentSession : ICurrentSession
+{
+    private static readonly Guid _sessionId = new("22222222-2222-2222-2222-222222222222");
+
+    public Guid? SessionId => _sessionId;
+
+    public SessionClient Client => SessionClient.Unknown;
+}
+
+/// <summary>
+/// Stands in for <c>NoCallerCurrentSession</c>, throw included. A background scope has no request,
+/// so no session either — a use case that reads the session id from there is composed wrong, and a
+/// stand-in that answered one is what hid that.
+/// </summary>
+internal sealed class ArchitectureTestBackgroundCurrentSession : ICurrentSession
+{
+    public Guid? SessionId => throw new NotSupportedException(
+        "A background scope has no current session. A use case that reads ICurrentSession.SessionId " +
+        "cannot run unmodified from there.");
+
+    public SessionClient Client => SessionClient.Unknown;
+}
+
+//#endif
 
 /// <summary>Stands in for <c>AppTemplate.Api.Common.Security.CurrentUserAuditActor</c>.</summary>
 internal sealed class ArchitectureTestAuditActor : IAuditActor

@@ -24,7 +24,7 @@ public sealed class ChangePasswordUseCaseTests
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
-        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+        var result = await UseCaseFor(StubCurrentUser.Anonymous, StubCurrentSession.WithoutSession)
             .ExecuteAsync(new ChangePasswordCommand("old", "correct horse battery"), TestToken);
 
         result.IsFailure.ShouldBeTrue();
@@ -98,21 +98,43 @@ public sealed class ChangePasswordUseCaseTests
     /// itself.
     /// </summary>
     [Fact]
-    public async Task ASuccessfulChange_RevokesEveryRefreshTokenForTheAccount()
+    public async Task ASuccessfulChange_RevokesEverySessionButTheCallersOwn()
     {
         GivenTheOutcomeIs(PasswordChangeOutcome.Changed);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(
+            _callerId,
+            _currentSession.SessionId,
+            Arg.Any<CancellationToken>());
     }
 
     /// <summary>
-    /// Account-wide, the caller's own session included: nothing in the request names the caller's
-    /// refresh-token family, so the use case has no grant it could spare.
+    /// The caller just proved the current password, so its session is the one that need not prove it
+    /// again. A token that names no session — issued before sessions were named in it — spares
+    /// nothing: an unknown session is not one to spare.
     /// </summary>
     [Fact]
-    public async Task ASuccessfulChange_RevokesTheCallersOwnSessionToo()
+    public async Task ASuccessfulChangeFromATokenWithoutASession_RevokesEverySession()
+    {
+        GivenTheOutcomeIs(PasswordChangeOutcome.Changed);
+
+        await UseCaseFor(StubCurrentUser.WithId(_callerId), StubCurrentSession.WithoutSession)
+            .ExecuteAsync(ARequest(), TestToken);
+
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(
+            _callerId,
+            null,
+            Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// One revocation call, naming the spared session: a use case that revoked twice would answer
+    /// the same result while leaving a window between the two calls.
+    /// </summary>
+    [Fact]
+    public async Task ASuccessfulChange_MakesOneRevocationCall()
     {
         GivenTheOutcomeIs(PasswordChangeOutcome.Changed);
 
@@ -139,7 +161,7 @@ public sealed class ChangePasswordUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -149,8 +171,11 @@ public sealed class ChangePasswordUseCaseTests
         _accounts.ChangePasswordAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(change);
 
-    private ChangePasswordUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_accounts, _sessionTokens, _securityEventLog, currentUser, new ChangePasswordCommandValidator());
+    /// <summary>The session the caller changes the password from, fixed so assertions can name it.</summary>
+    private readonly StubCurrentSession _currentSession = StubCurrentSession.InSession(Guid.CreateVersion7());
 
-    private ChangePasswordUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+    private ChangePasswordUseCase UseCaseFor(ICurrentUser currentUser, StubCurrentSession currentSession) =>
+        new(_accounts, _sessionTokens, _securityEventLog, currentUser, currentSession, new ChangePasswordCommandValidator());
+
+    private ChangePasswordUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId), _currentSession);
 }

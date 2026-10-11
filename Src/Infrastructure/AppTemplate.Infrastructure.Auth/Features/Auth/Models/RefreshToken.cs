@@ -21,6 +21,14 @@ internal sealed class RefreshToken
 
     public required Guid UserId { get; set; }
 
+    /// <summary>Which session — which family — this grant belongs to. Every grant rotated from the
+    /// first one of a sign-in carries the same id.</summary>
+    public required Guid FamilyId { get; set; }
+
+    /// <summary>The session this grant belongs to, which owns the chain's lifecycle: revoking the
+    /// family, not any single grant, is what ends the session.</summary>
+    public RefreshTokenFamilyRecord? Family { get; set; }
+
     public required DateTimeOffset CreatedAt { get; set; }
 
     public required DateTimeOffset ExpiresAt { get; set; }

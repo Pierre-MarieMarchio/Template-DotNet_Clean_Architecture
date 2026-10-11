@@ -1,11 +1,13 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Auth.Ports.AccountEmails;
 using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.CurrentSession;
 using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ReAuthentication;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Sessions;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.AddRole;
@@ -26,6 +28,7 @@ using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestEmailC
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestPasswordReset;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResendConfirmationEmail;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResetPassword;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RevokeSession;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.UnlockAccount;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.VerifyTwoFactor;
@@ -44,9 +47,10 @@ public sealed class ApplicationAuthModuleTests
 {
     /// <summary>
     /// Twenty-four account and sign-in operations, one for signing in through an external identity
-    /// provider, and one administrative purge reached only from a background job.
+    /// provider, one administrative purge reached only from a background job, and the two the
+    /// session list gives its owner: reading it and ending one of its entries.
     /// </summary>
-    private const int _knownUseCaseCount = 26;
+    private const int _knownUseCaseCount = 28;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
@@ -121,6 +125,7 @@ public sealed class ApplicationAuthModuleTests
     [InlineData(typeof(IValidator<VerifyTwoFactorCommand>))]
     [InlineData(typeof(IValidator<SignInWithExternalProviderCommand>))]
     [InlineData(typeof(IValidator<DeleteMyAccountCommand>))]
+    [InlineData(typeof(IValidator<RevokeSessionCommand>))]
     public void EveryValidator_IsDiscovered(Type validatorType)
     {
         using var provider = BuildProvider();
@@ -179,6 +184,8 @@ public sealed class ApplicationAuthModuleTests
         services.AddScoped(_ => Substitute.For<IEmailTokensService>());
         services.AddScoped(_ => Substitute.For<IAccountEmailFactory>());
         services.AddScoped(_ => Substitute.For<ISessionTokensService>());
+        services.AddScoped(_ => Substitute.For<ISessionsService>());
+        services.AddScoped(_ => Substitute.For<ICurrentSession>());
         services.AddScoped(_ => Substitute.For<ISecurityEventLog>());
         services.AddScoped(_ => Substitute.For<IAccountAdministrationService>());
         services.AddScoped(_ => Substitute.For<ITwoFactorService>());

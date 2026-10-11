@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.CurrentSession;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
@@ -20,6 +21,7 @@ public sealed class VerifyTwoFactorUseCase(
     IAccountsService accounts,
     ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
+    ICurrentSession currentSession,
     IValidator<VerifyTwoFactorCommand> validator) : IVerifyTwoFactorUseCase
 {
     /// <inheritdoc />
@@ -65,8 +67,15 @@ public sealed class VerifyTwoFactorUseCase(
             securityEventLog.Record(SecurityEvent.RecoveryCodeRedeemed(account.UserId));
         }
 
-        var accessToken = await sessionTokens.IssueAccessTokenAsync(account.UserId, cancellationToken);
-        var refreshToken = await sessionTokens.IssueRefreshTokenAsync(account.UserId, cancellationToken);
+        // The refresh token first: it starts the session the access token names.
+        var refreshToken = await sessionTokens.IssueRefreshTokenAsync(
+            account.UserId,
+            currentSession.Client,
+            cancellationToken);
+        var accessToken = await sessionTokens.IssueAccessTokenAsync(
+            account.UserId,
+            refreshToken.SessionId,
+            cancellationToken);
 
         return Result.Success<LoginOutcome>(new LoginOutcome.Authenticated(
             account.UserId,

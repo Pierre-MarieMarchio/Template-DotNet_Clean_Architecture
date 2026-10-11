@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
 using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.CurrentSession;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Ports;
@@ -13,13 +14,16 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePas
 /// <summary>
 /// Replaces the password, then invalidates every credential issued under the old one through
 /// <c>CredentialInvalidationPolicy</c> — in that order, so nothing is revoked for a change the
-/// store refused.
+/// store refused. The session the change is made from survives it: whoever just proved the current
+/// password is the one session that need not prove it again. A caller whose token names no session
+/// loses every session, its own included.
 /// </summary>
 public sealed class ChangePasswordUseCase(
     IAccountsService accounts,
     ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
+    ICurrentSession currentSession,
     IValidator<ChangePasswordCommand> validator) : IChangePasswordUseCase
 {
     /// <inheritdoc />
@@ -65,7 +69,12 @@ public sealed class ChangePasswordUseCase(
                     change.RejectionMessage ?? "The submitted password does not meet the required policy."));
         }
 
-        await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, userId.Value.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateOtherSessionsAsync(
+            sessionTokens,
+            securityEventLog,
+            userId.Value.Value,
+            currentSession.SessionId,
+            cancellationToken);
 
         return Result.Success();
     }

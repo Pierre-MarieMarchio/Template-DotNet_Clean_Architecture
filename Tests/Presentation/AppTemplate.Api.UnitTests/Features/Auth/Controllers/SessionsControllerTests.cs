@@ -10,8 +10,10 @@ using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Logout;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.LogoutEverywhere;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RefreshAccessToken;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RevokeSession;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.VerifyTwoFactor;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.ListSessions;
 using AppTemplate.Application.Core.Common.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -296,7 +298,9 @@ public sealed class SessionsControllerTests
             _signInWithExternalProvider,
             Substitute.For<IRefreshAccessTokenUseCase>(),
             Substitute.For<ILogoutUseCase>(),
-            Substitute.For<ILogoutEverywhereUseCase>())
+            Substitute.For<ILogoutEverywhereUseCase>(),
+            Substitute.For<IListSessionsUseCase>(),
+            Substitute.For<IRevokeSessionUseCase>())
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext ?? AContext() },
         };

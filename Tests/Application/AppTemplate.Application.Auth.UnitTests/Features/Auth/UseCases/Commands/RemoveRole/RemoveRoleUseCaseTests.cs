@@ -100,7 +100,7 @@ public sealed class RemoveRoleUseCaseTests
 
         await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
-        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_targetId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_targetId, cancellationToken: Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class RemoveRoleUseCaseTests
 
         await UseCase().ExecuteAsync(new RemoveRoleCommand(_targetId, _role), TestToken);
 
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 

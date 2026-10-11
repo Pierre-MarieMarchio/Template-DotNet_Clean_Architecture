@@ -34,7 +34,7 @@ public sealed class LogoutEverywhereUseCaseTests
         var result = await UseCase().ExecuteAsync(TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, cancellationToken: Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public sealed class LogoutEverywhereUseCaseTests
 
         await UseCase().ExecuteAsync(cancellation.Token);
 
-        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, cancellation.Token);
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, cancellationToken: cancellation.Token);
     }
 
     private LogoutEverywhereUseCase UseCaseFor(ICurrentUser currentUser) =>

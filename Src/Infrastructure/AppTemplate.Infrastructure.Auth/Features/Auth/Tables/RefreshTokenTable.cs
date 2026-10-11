@@ -10,7 +10,7 @@ namespace AppTemplate.Infrastructure.Auth.Features.Auth.Tables;
 /// </summary>
 internal sealed class RefreshTokenTable(AuthDbContext context) : IRefreshTokenTable
 {
-    public void Add(Guid userId, string tokenHash, DateTimeOffset createdAt, DateTimeOffset expiresAt)
+    public void Add(Guid userId, Guid familyId, string tokenHash, DateTimeOffset createdAt, DateTimeOffset expiresAt)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tokenHash);
 
@@ -18,6 +18,7 @@ internal sealed class RefreshTokenTable(AuthDbContext context) : IRefreshTokenTa
         {
             TokenHash = tokenHash,
             UserId = userId,
+            FamilyId = familyId,
             CreatedAt = createdAt,
             ExpiresAt = expiresAt,
         });
@@ -29,12 +30,18 @@ internal sealed class RefreshTokenTable(AuthDbContext context) : IRefreshTokenTa
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tokenHash);
 
-        // Projected rather than materialised: the caller needs three values, and handing it a tracked
-        // row would let it write one without going through the rules in this interface.
+        // Projected rather than materialised: the caller needs the grant's state and its session's,
+        // and handing it a tracked row would let it write one without going through the rules in
+        // this interface.
         return await context.RefreshTokens
             .AsNoTracking()
             .Where(token => token.TokenHash == tokenHash)
-            .Select(token => new RefreshTokenGrant(token.UserId, token.ExpiresAt, token.RevokedAt))
+            .Select(token => new RefreshTokenGrant(
+                token.UserId,
+                token.FamilyId,
+                token.ExpiresAt,
+                token.RevokedAt,
+                token.Family!.RevokedAt))
             .FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -64,50 +71,18 @@ internal sealed class RefreshTokenTable(AuthDbContext context) : IRefreshTokenTa
             return false;
         }
 
-        // Read back rather than taken from the caller, so the successor cannot be attached to a user
-        // other than the one the consumed grant belonged to. The row exists: it was just updated.
-        var userId = await context.RefreshTokens
+        // Read back rather than taken from the caller, so the successor cannot be attached to a
+        // user or a session other than the ones the consumed grant belonged to. The row exists: it
+        // was just updated.
+        var grant = await context.RefreshTokens
             .AsNoTracking()
             .Where(token => token.TokenHash == presentedTokenHash)
-            .Select(token => token.UserId)
+            .Select(token => new { token.UserId, token.FamilyId })
             .FirstAsync(cancellationToken);
 
-        Add(userId, replacementTokenHash, now, replacementExpiresAt);
+        Add(grant.UserId, grant.FamilyId, replacementTokenHash, now, replacementExpiresAt);
 
         return true;
-    }
-
-    public async Task RevokeAsync(
-        string tokenHash,
-        DateTimeOffset revokedAt,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(tokenHash))
-        {
-            return;
-        }
-
-        var stored = await context.RefreshTokens
-            .FirstOrDefaultAsync(
-                token => token.TokenHash == tokenHash && token.RevokedAt == null,
-                cancellationToken);
-
-        stored?.RevokedAt = revokedAt;
-    }
-
-    public async Task RevokeAllForUserAsync(
-        Guid userId,
-        DateTimeOffset revokedAt,
-        CancellationToken cancellationToken = default)
-    {
-        // One UPDATE rather than a materialise-then-loop: this runs on the replay path, which an
-        // attacker can trigger repeatedly, and a per-row round trip for every live grant is exactly
-        // the amplification that path should not have.
-        await context.RefreshTokens
-            .Where(token => token.UserId == userId && token.RevokedAt == null)
-            .ExecuteUpdateAsync(
-                setters => setters.SetProperty(token => token.RevokedAt, revokedAt),
-                cancellationToken);
     }
 
     public async Task<int> PurgeExpiredAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default) =>

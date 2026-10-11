@@ -36,13 +36,16 @@ at `/scalar/v1`.
 
 ## Authentication — `api/v1/auth/*`
 
-Ten of the twenty-two actions here are explicitly `[AllowAnonymous]`; the
-other twelve require `[Authorize]` (`logout-all`, `me`, `me/security-events`,
-`change-password`, the three `two-factor/*` actions, `change-email`,
-`confirm-email-change`, `delete-account`, and the two `sessions` actions). Seventeen of
-the twenty-two are rate-limited to **10 requests per minute per client IP**; `logout-all`,
+Twelve of the twenty-eight actions here are explicitly `[AllowAnonymous]`; the
+other sixteen require `[Authorize]` (`logout-all`, `me`, `me/security-events`,
+`change-password`, the three `two-factor/*` actions, the four authenticated
+`passkeys/*` actions, `change-email`, `confirm-email-change`, `delete-account`,
+and the two `sessions` actions). Twenty-one of the twenty-eight are
+rate-limited to **10 requests per minute per client IP**; `logout-all`,
 `me`, `me/security-events` and the two `sessions` actions deliberately
-fall to the global limiter instead, since none is an attempt at a credential.
+fall to the global limiter instead, since none is an attempt at a credential —
+and so do `GET /auth/passkeys` and `DELETE /auth/passkeys/{credentialId}`,
+which present none either.
 
 | Method | Route | Success | Notes |
 |---|---|---|---|
@@ -62,6 +65,12 @@ fall to the global limiter instead, since none is an attempt at a credential.
 | POST | `/api/v1/auth/two-factor/setup` | 200 | Authenticated. Provisions a shared key; arms nothing on its own. **It rotates the security stamp, so the access token that called it stops working** — sign in again before calling `two-factor/confirm`. |
 | POST | `/api/v1/auth/two-factor/confirm` | 200 | Authenticated, and requires the current password: arming a second factor is the irreversible direction, so a stolen session alone must not do it. Confirms enrollment, arms two-factor sign-in, and returns ten recovery codes shown once. Signs out every other session, as `change-password` does. 409 when two-factor sign-in is already on: the codes on file stay the ones shown. |
 | POST | `/api/v1/auth/two-factor/disable` | 204 | Authenticated. Requires the current password. Signs out every other session, as `change-password` does. |
+| POST | `/api/v1/auth/passkeys/register/options` | 200 | Authenticated. The first step of registering a passkey: creation options for `navigator.credentials.create()`, as a JSON string, and the opaque `registrationState` to post back with the credential that results. Arms nothing — nothing is stored until the completing call. |
+| POST | `/api/v1/auth/passkeys/register` | 200 | Authenticated, and **requires re-authentication for the reason `two-factor/confirm` requires it — except that a passkey is a whole way in, not a second step on one**: the current password when the account has one, and for an account holding nothing its holder could present (a provider-linked one) an access token issued less than five minutes ago, answered `403 auth.account.reAuthenticationRequired` when the calling one is older. Body: the JSON-serialised credential, the state, an optional label for the key. 400 `auth.passkey.registrationInvalid` when the ceremony does not verify; the account's sessions are untouched. |
+| GET | `/api/v1/auth/passkeys` | 200 | Authenticated. The passkeys registered on the caller's account, the newest first — `id` (base64url, what the removal route takes), `name`, `createdAt`. |
+| DELETE | `/api/v1/auth/passkeys/{credentialId}` | 204 | Authenticated. Removes one of the caller's passkeys by the id the passkey list names. 404 for a passkey that belongs to somebody else, exactly as for an unknown id; removing one already removed succeeds again. |
+| POST | `/api/v1/auth/passkeys/sign-in/options` | 200 | Anonymous. Request options for `navigator.credentials.get()`, as a JSON string, and the opaque `authenticationState` to post back with the assertion that results. No account is named and none is disclosed: the authenticator names one by offering a discoverable credential. |
+| POST | `/api/v1/auth/passkeys/sign-in` | 200 | Anonymous. Exchanges the assertion for the same response shape as `login` — always the `authenticated` branch, since a user-verified passkey is the whole of a sign-in and the account's armed second factor governs only the ways in that prove less. One sign-in, one session: the response's tokens name the session this sign-in started, as a password's do. One 401 `auth.passkeySignIn.invalid` for every refusal. |
 | DELETE | `/api/v1/auth/sessions/{sessionId}` | 204 | Authenticated. Ends one of the caller's sessions by the id the session list names — its own included, which signs that client out. 404 for a session that belongs to somebody else, exactly as for an unknown id; ending an already-ended session succeeds again. |
 | POST | `/api/v1/auth/change-email` | 204 | Authenticated. Requires the current password; mails a token to the new address. |
 | POST | `/api/v1/auth/confirm-email-change` | 204 | Authenticated. Confirms the pending change from the token mailed to the new address. |

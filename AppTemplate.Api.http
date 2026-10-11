@@ -732,6 +732,79 @@ Content-Type: application/json
 DELETE {{api}}/auth/accounts/{{myUserId}}/two-factor
 Authorization: Bearer {{freshAccessToken}}
 
+###
+# 33t. Passkeys: begin a registration. Returns the WebAuthn creation options as a JSON string, plus
+#      the opaque registrationState to post back in 33u — this API sets no cookie to hold it. A
+#      browser (https://localhost only — WebAuthn needs a secure context) runs:
+#
+#        navigator.credentials.create({ publicKey: JSON.parse(creationOptions) })
+#
+#      and hands back the JSON-serialised result. Options are per-account: credentials this account
+#      already holds are excluded, so the authenticator offers a new one. Nothing is stored yet.
+# @name passkeyRegistrationOptions
+POST {{api}}/auth/passkeys/register/options
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33u. MANUAL STEP. Complete the registration with the credential the browser produced, plus the
+#      current password — a passkey is a whole way in, so a stolen session alone must not be able
+#      to arm one, for the same reason 33o demands the password for arming a second factor. The
+#      label is what the key shows in the list. Sessions are untouched: a new credential changes
+#      what future sign-ins can present, not what the sessions already open are worth.
+@passkeyCredential = paste-the-json-serialised-navigator.credentials.create-result
+# @name passkeyRegistration
+POST {{api}}/auth/passkeys/register
+Authorization: Bearer {{freshAccessToken}}
+Content-Type: application/json
+
+{
+  "credential": "{{passkeyCredential}}",
+  "registrationState": "{{passkeyRegistrationOptions.response.body.$.registrationState}}",
+  "name": "My key",
+  "currentPassword": "{{resetPassword}}"
+}
+
+###
+@passkeyId = {{passkeyRegistration.response.body.$.id}}
+
+###
+# 33v. The passkeys registered on the account, newest first — the ids the removal route takes.
+GET {{api}}/auth/passkeys
+Authorization: Bearer {{freshAccessToken}}
+
+###
+# 33w. Sign in with a passkey. First half: request options for
+#      navigator.credentials.get() — no account is named and none is disclosed, the authenticator
+#      offers a discoverable credential and names the account itself.
+# @name passkeySignInOptions
+POST {{api}}/auth/passkeys/sign-in/options
+
+###
+# 33x. MANUAL STEP. Complete the sign-in with the assertion the browser produced:
+#
+#        navigator.credentials.get({ publicKey: JSON.parse(signInOptions) })
+#
+#      The answer is login's own shape, always the authenticated branch: a user-verified passkey
+#      is the whole of a sign-in, so the armed second factor governs only the ways in that prove
+#      less. One sign-in, one session — the tokens name the session this sign-in started. One 401
+#      for every refusal, so the route tells a guess nothing.
+@passkeyAssertion = paste-the-json-serialised-navigator.credentials.get-result
+# @name passkeySignIn
+POST {{api}}/auth/passkeys/sign-in
+Content-Type: application/json
+
+{
+  "credential": "{{passkeyAssertion}}",
+  "authenticationState": "{{passkeySignInOptions.response.body.$.authenticationState}}"
+}
+
+###
+# 33y. Remove the passkey registered in 33u — the id the list in 33v names. 404 for a passkey that
+#      belongs to somebody else, exactly as for an unknown id; removing one already removed
+#      succeeds again.
+DELETE {{api}}/auth/passkeys/{{passkeyId}}
+Authorization: Bearer {{freshAccessToken}}
+
 #endif
 ###
 # 34. Liveness. No dependency is checked, so an orchestrator does not restart the API because the

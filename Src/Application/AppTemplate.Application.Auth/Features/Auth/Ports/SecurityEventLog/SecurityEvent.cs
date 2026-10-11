@@ -105,4 +105,28 @@ public sealed record SecurityEvent(
     /// </summary>
     public static SecurityEvent TwoFactorDisabledByAdministrator(Guid userId) =>
         new(SecurityEventKind.TwoFactorDisabledByAdministrator, userId);
+
+    /// <summary>
+    /// A passkey was registered on the account, the holder having proven the session was their
+    /// own on the way.
+    /// </summary>
+    public static SecurityEvent PasskeyRegistered(Guid userId) =>
+        new(SecurityEventKind.PasskeyRegistered, userId);
+
+    /// <summary>A passkey the account held was removed by its holder.</summary>
+    public static SecurityEvent PasskeyRemoved(Guid userId) =>
+        new(SecurityEventKind.PasskeyRemoved, userId);
+
+    /// <summary>A sign-in completed on a passkey alone, a session starting with it.</summary>
+    public static SecurityEvent PasskeySignInSucceeded(Guid userId) =>
+        new(SecurityEventKind.PasskeySignInSucceeded, userId);
+
+    /// <summary>
+    /// A passkey sign-in was refused. <paramref name="userId"/> is <c>null</c> when the ceremony
+    /// failed before an account was identified, for the same reason
+    /// <see cref="AuthenticationFailed"/> carries none: what named the account is the one thing
+    /// this log will not hold.
+    /// </summary>
+    public static SecurityEvent PasskeySignInFailed(Guid? userId) =>
+        new(SecurityEventKind.PasskeySignInFailed, userId);
 }

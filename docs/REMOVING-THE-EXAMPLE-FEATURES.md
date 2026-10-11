@@ -511,7 +511,7 @@ feature at all, so even removing all three leaves the process doing real work.
 What the container composes shrinks by exactly the line you delete, and no further. Removing a
 business feature removes that feature's `AddX()` call and nothing else from the graph. What does not
 shrink is authentication: the API calls `AddAuthApplication()`, and `ValidateOnBuild` then requires
-all thirteen ports `AppTemplate.Application.Auth` declares to resolve — not only the ports the jobs
+all fourteen ports `AppTemplate.Application.Auth` declares to resolve — not only the ports the jobs
 reach. That is why `AppTemplate.Infrastructure.Auth` and `AppTemplate.Infrastructure.Email` both stay
 composed after `Reminders` goes: the authentication use cases take its ports and `IEmailSender`, and
 they are registered whether or not anything calls them. Removing `Reminders` also removes the line

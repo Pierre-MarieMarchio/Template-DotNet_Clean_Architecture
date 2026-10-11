@@ -34,6 +34,11 @@ public sealed class HttpSurfaceTests
         "LoginWithExternalProvider",
         "LoginWithTwoFactor",
         "Logout",
+        // The passkey sign-in's two halves: the options call issues a challenge to a caller with
+        // no account to name, and the assertion completes it. Anonymous for exactly the reason
+        // /auth/login is, and one answer for every refusal for the same one.
+        "BeginPasskeySignIn",
+        "CompletePasskeySignIn",
         "Refresh",
         "Register",
         "RequestPasswordReset",

@@ -87,4 +87,31 @@ public enum SecurityEventKind
     /// rather than the account itself proving its password through <see cref="TwoFactorDisabled"/>'s route.
     /// </summary>
     TwoFactorDisabledByAdministrator,
+
+    /// <summary>
+    /// A passkey was registered on the account, after the holder proved the session was their own.
+    /// Worth its own fact beside <see cref="TwoFactorEnabled"/>: a passkey is a complete way in,
+    /// not a second step on one.
+    /// </summary>
+    PasskeyRegistered,
+
+    /// <summary>
+    /// One of the account's passkeys was removed by its holder. The audit pairing of
+    /// <see cref="PasskeyRegistered"/>: the two say between them which credentials were live over
+    /// what period.
+    /// </summary>
+    PasskeyRemoved,
+
+    /// <summary>
+    /// A sign-in completed on a passkey alone. Separate from <see cref="LoginSucceeded"/> so the
+    /// trail says which credential a session started with.
+    /// </summary>
+    PasskeySignInSucceeded,
+
+    /// <summary>
+    /// A passkey sign-in was refused — a ceremony that did not verify, or an account no longer
+    /// allowed to sign in. The user id is <c>null</c> exactly when the ceremony failed before an
+    /// account was identified.
+    /// </summary>
+    PasskeySignInFailed,
 }

@@ -36,11 +36,12 @@ at `/scalar/v1`.
 
 ## Authentication — `api/v1/auth/*`
 
-Ten of the twenty-one actions here are explicitly `[AllowAnonymous]`; the
-other eleven require `[Authorize]` (`logout-all`, `me`, `change-password`, the three
-`two-factor/*` actions, `change-email`, `confirm-email-change`, `delete-account`, and the
-two `sessions` actions). Seventeen of the twenty-one are rate-limited to **10 requests per
-minute per client IP**; `logout-all`, `me` and the two `sessions` actions deliberately
+Ten of the twenty-two actions here are explicitly `[AllowAnonymous]`; the
+other twelve require `[Authorize]` (`logout-all`, `me`, `me/security-events`,
+`change-password`, the three `two-factor/*` actions, `change-email`,
+`confirm-email-change`, `delete-account`, and the two `sessions` actions). Seventeen of
+the twenty-two are rate-limited to **10 requests per minute per client IP**; `logout-all`,
+`me`, `me/security-events` and the two `sessions` actions deliberately
 fall to the global limiter instead, since none is an attempt at a credential.
 
 | Method | Route | Success | Notes |
@@ -56,6 +57,7 @@ fall to the global limiter instead, since none is an attempt at a credential.
 | POST | `/api/v1/auth/logout-all` | 204 | Authenticated. Ends every session the caller holds. |
 | GET | `/api/v1/auth/sessions` | 200 | Authenticated. The caller's live sessions, most recently used first, the one this request is made from carrying `current: true`. |
 | GET, HEAD | `/api/v1/auth/me` | 200 | Authenticated. The caller's own profile; takes no input. |
+| GET | `/api/v1/auth/me/security-events` | 200 | Authenticated. The caller's own security trail, newest first, offset-paged (`page`/`pageSize`, max 100): every recorded sign-in attempt, lockout and credential change on this account, each with the IP address and user agent it came from. Events older than [`SecurityEventLog:RetentionInDays`](CONFIGURATION.md#securityeventlog) are gone — a page, not a history. |
 | POST | `/api/v1/auth/change-password` | 204 | Authenticated. The current password is presented again as proof the session is not a stolen token. **Signs out every other session**: the access token dies with the security stamp and every other session's refresh token is revoked, so the other clients sign in again; the session the change was made from refreshes into the new posture. |
 | POST | `/api/v1/auth/two-factor/setup` | 200 | Authenticated. Provisions a shared key; arms nothing on its own. **It rotates the security stamp, so the access token that called it stops working** — sign in again before calling `two-factor/confirm`. |
 | POST | `/api/v1/auth/two-factor/confirm` | 200 | Authenticated, and requires the current password: arming a second factor is the irreversible direction, so a stolen session alone must not do it. Confirms enrollment, arms two-factor sign-in, and returns ten recovery codes shown once. Signs out every other session, as `change-password` does. 409 when two-factor sign-in is already on: the codes on file stay the ones shown. |
@@ -299,8 +301,9 @@ unchanged.
 `400` `Role 'Administrator' does not exist.` The names live in `IdentityRoles`.
 
 Requires the `Administrator` policy on the whole controller — an authenticated
-non-admin gets `403`. Acting on somebody else's account: every action below refuses
-with `403` when the target id names the caller.
+non-admin gets `403`. Acting on somebody else's account: every write below refuses
+with `403` when the target id names the caller. The trail read is the exception:
+reading one's own events is exactly what `GET /auth/me/security-events` offers.
 
 | Method | Route | Success |
 |---|---|---|
@@ -310,6 +313,7 @@ with `403` when the target id names the caller.
 | DELETE | `/api/v1/auth/accounts/{userId}/roles/{role}` | 204 — revokes a role; 400 if the role does not exist, or if the account does not have it |
 | DELETE | `/api/v1/auth/accounts/{userId}/two-factor` | 204 — disarms the account's second factor and rotates its security stamp; the way back for a lost phone and lost recovery codes |
 | DELETE | `/api/v1/auth/accounts/{userId}` | 204 — deletes the account outright; what the other features hold under the id is removed through the account-deleted fact each consumes, not by this call |
+| GET | `/api/v1/auth/accounts/{userId}/security-events` | 200 — that account's security trail, newest first, offset-paged; **no 404 for an unknown id**: the trail is kept after an account is deleted until retention expires, so the rows an investigation needs are the ones that survive the account, and an id naming nothing answers an empty page |
 
 <!--#if (externalAuth)
 ## External identities — `api/v1/external-identities/*`
@@ -338,10 +342,11 @@ ships no endpoint for that signal.
 |---|---|---|
 | DELETE | `/api/v1/maintenance/idempotency-keys/expired` | 200 — the number of rows removed |
 | DELETE | `/api/v1/maintenance/refresh-tokens/expired` | 200 — the number of rows removed |
+| DELETE | `/api/v1/maintenance/security-events/expired` | 200 — the number of rows removed; "expired" is [`SecurityEventLog:RetentionInDays`](CONFIGURATION.md#securityeventlog), not a parameter |
 
 Requires the `Administrator` policy — an authenticated non-admin gets `403`. Together
-with the six `api/v1/auth/accounts/*` actions above, these are the eight endpoints
-whose authority is more than "authenticated plus ownership"; the two here exist
-because the idempotency store and the refresh-token table each grow until something
-prunes them. Schedule both.
+with the seven `api/v1/auth/accounts/*` actions above, these are the ten endpoints
+whose authority is more than "authenticated plus ownership"; the three here exist
+because the idempotency store, the refresh-token table and the security-event trail
+each grow until something prunes them. Schedule all three.
 

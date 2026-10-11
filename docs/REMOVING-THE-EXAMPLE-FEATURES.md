@@ -503,14 +503,15 @@ None of this breaks a build, and all of it goes stale silently.
 ## Do the background jobs still have a reason to exist?
 
 Yes, and by more than a margin. The API hosts three `BackgroundService`s — maintenance, reminders and
-files — so removing any one example leaves two. `MaintenanceBackgroundService` runs two purges
-(`PurgeExpiredIdempotencyKeys`, `PurgeExpiredRefreshTokens`) on a timer and depends on no example
+files — so removing any one example leaves two. `MaintenanceBackgroundService` runs three purges
+(`PurgeExpiredIdempotencyKeys`, `PurgeExpiredRefreshTokens`, `PurgeExpiredSecurityEvents`) on a
+timer and depends on no example
 feature at all, so even removing all three leaves the process doing real work.
 
 What the container composes shrinks by exactly the line you delete, and no further. Removing a
 business feature removes that feature's `AddX()` call and nothing else from the graph. What does not
 shrink is authentication: the API calls `AddAuthApplication()`, and `ValidateOnBuild` then requires
-all nine ports `AppTemplate.Application.Auth` declares to resolve — not only the ports the jobs
+all ten ports `AppTemplate.Application.Auth` declares to resolve — not only the ports the jobs
 reach. That is why `AppTemplate.Infrastructure.Auth` and `AppTemplate.Infrastructure.Email` both stay
 composed after `Reminders` goes: the authentication use cases take its ports and `IEmailSender`, and
 they are registered whether or not anything calls them. Removing `Reminders` also removes the line
@@ -603,7 +604,7 @@ fails rather than passing over nothing:
 - `DefaultDenyAuthorizationTests` — no controller left that relies on the fallback policy.
   The five authentication controllers -- `RegistrationController`, `SessionsController`,
   `AccountController`, `TwoFactorController` and `PasswordRecoveryController` -- decorate every one of
-  their eighteen actions explicitly, and `MaintenanceController` and `AccountAdministrationController`
+  their nineteen actions explicitly, and `MaintenanceController` and `AccountAdministrationController`
   each declare their own policy at the controller level.
 - `DomainModelTests` — `AppTemplate.Domain` declares no aggregate, no entity, no value object and no
   domain event: `Features/` is all that project holds, and it is empty. The primitives a real

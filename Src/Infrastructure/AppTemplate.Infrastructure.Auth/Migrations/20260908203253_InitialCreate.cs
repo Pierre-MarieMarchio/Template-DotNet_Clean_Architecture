@@ -46,6 +46,24 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "SecurityEvents",
+                schema: "identity",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Kind = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    OccurredAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    IpAddress = table.Column<string>(type: "character varying(45)", maxLength: 45, nullable: true),
+                    UserAgent = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    Detail = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SecurityEvents", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "User",
                 schema: "identity",
                 columns: table => new
@@ -297,6 +315,18 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                 column: "RoleId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_SecurityEvents_OccurredAt",
+                schema: "identity",
+                table: "SecurityEvents",
+                column: "OccurredAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SecurityEvents_UserId_OccurredAt",
+                schema: "identity",
+                table: "SecurityEvents",
+                columns: new[] { "UserId", "OccurredAt" });
+
+            migrationBuilder.CreateIndex(
                 name: "EmailIndex",
                 schema: "identity",
                 table: "User",
@@ -342,6 +372,10 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             migrationBuilder.DropTable(
                 name: "RoleClaims",
+                schema: "identity");
+
+            migrationBuilder.DropTable(
+                name: "SecurityEvents",
                 schema: "identity");
 
             migrationBuilder.DropTable(

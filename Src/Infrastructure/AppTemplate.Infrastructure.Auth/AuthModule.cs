@@ -6,6 +6,7 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ReAuthentication;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventQueries;
 using AppTemplate.Application.Auth.Features.Auth.Ports.Sessions;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
@@ -20,6 +21,7 @@ using AppTemplate.Infrastructure.Auth.Features.Auth.Logs;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Options;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Providers;
+using AppTemplate.Infrastructure.Auth.Features.Auth.Queries;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Services;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Tables;
@@ -132,6 +134,11 @@ public static class AuthModule
         services.AddScoped<IExternalLoginsService, ExternalLoginsService>();
         services.AddScoped<IAccountEmailFactory, AccountEmailFactory>();
         services.AddScoped<ISecurityEventLog, SecurityEventLog>();
+        services.AddScoped<ISecurityEventQueries, SecurityEventQueries>();
+
+        // A default, unlike IAuditActor: an event with no known origin is still worth keeping, so a
+        // host without requests composes as it is. The API replaces it with the current request's.
+        services.TryAddScoped<ISecurityEventOriginProvider, UnknownSecurityEventOriginProvider>();
 
         // Not ports: the account lookup and claim generation the adapters above share, and the
         // access-token signer SessionTokensService delegates to.
@@ -245,6 +252,11 @@ public static class AuthModule
             .Bind(configuration.GetSection(TwoFactorOptions.SectionName))
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<TwoFactorOptions>, TwoFactorOptionsValidator>();
+
+        services.AddOptions<SecurityEventLogOptions>()
+            .Bind(configuration.GetSection(SecurityEventLogOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<SecurityEventLogOptions>, SecurityEventLogOptionsValidator>();
 
         // The one section allowed to be absent: a deployment offering no external sign-in boots with
         // no providers and refuses every attempt.

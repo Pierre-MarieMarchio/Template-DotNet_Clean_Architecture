@@ -4,11 +4,13 @@ using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Directories;
 //#endif
 using AppTemplate.Api.Features.Auth.Jobs;
+using AppTemplate.Api.Features.Auth.Providers;
 using AppTemplate.Api.Features.Auth.Security;
 using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
+using AppTemplate.Infrastructure.Auth.Features.Auth.Providers;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,6 +40,12 @@ internal static class AuthComposition
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.AddAuthApplication();
+
+        // Before AddAuthModule, whose own origin provider is a TryAdd: this host can read the
+        // current request, so the security log records where an event came from, and the module's
+        // null-answer default stays for the hosts that cannot.
+        services.AddScoped<ISecurityEventOriginProvider, HttpContextSecurityEventOriginProvider>();
+
         services.AddAuthModule(configuration);
         services.AddApiCurrentSession();
         services.AddAuthMaintenanceJobs(configuration);

@@ -1,11 +1,16 @@
-﻿using AppTemplate.Api.Common.Controllers;
+﻿using AppTemplate.Api.Common.Contracts;
+using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Security;
+using AppTemplate.Api.Features.Auth.Contracts.Requests;
+using AppTemplate.Api.Features.Auth.Contracts.Responses;
+using AppTemplate.Api.Features.Auth.Mapping;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.AddRole;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteAccount;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DisableAccountTwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.LockAccount;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RemoveRole;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.UnlockAccount;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.GetAccountSecurityEvents;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,7 +18,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 
 /// <summary>
 /// Acting on somebody else's account: locking it out, granting or revoking a role, deleting it
-/// outright. Everything here is restricted to <see cref="AuthorizationPolicies.Administrator"/>, on the class —
+/// outright, and reading the security trail its sign-ins left behind. Everything here is restricted to <see cref="AuthorizationPolicies.Administrator"/>, on the class —
 /// unlike the five controllers answering the <c>auth</c> prefix, nothing on this surface has an
 /// anonymous or self-service
 /// counterpart, so there is no accidental <c>[AllowAnonymous]</c> for a class-level policy to defeat.
@@ -33,7 +38,8 @@ public sealed class AccountAdministrationController(
     IAddRoleUseCase addRole,
     IRemoveRoleUseCase removeRole,
     IDeleteAccountUseCase deleteAccount,
-    IDisableAccountTwoFactorUseCase disableAccountTwoFactor) : ApiControllerBase
+    IDisableAccountTwoFactorUseCase disableAccountTwoFactor,
+    IGetAccountSecurityEventsUseCase getAccountSecurityEvents) : ApiControllerBase
 {
     /// <summary>
     /// Locks the account out indefinitely. Rotates its security stamp, so an access token it already
@@ -111,4 +117,30 @@ public sealed class AccountAdministrationController(
     public async Task<ActionResult> DisableTwoFactor(Guid userId, CancellationToken cancellationToken) =>
         NoContentOrProblem(
             await disableAccountTwoFactor.ExecuteAsync(new DisableAccountTwoFactorCommand(userId), cancellationToken));
+
+    /// <summary>
+    /// The named account's security trail, newest first — the administrator's half of the trail
+    /// every account holder reads on <c>GET /auth/me/security-events</c>.
+    /// </summary>
+    /// <remarks>
+    /// <b>No 404 for an account that does not exist.</b> The trail is retained after an account is
+    /// deleted until retention expires — that retention is half of why the trail exists — so the
+    /// rows an investigation needs are exactly the ones that survive the account, and an id naming
+    /// nothing answers an empty page. See <c>GetAccountSecurityEventsUseCase</c>.
+    /// </remarks>
+    [HttpGet("{userId:guid}/security-events")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<SecurityEventResponse>))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
+    public async Task<ActionResult<PagedResponse<SecurityEventResponse>>> GetSecurityEvents(
+        Guid userId,
+        [FromQuery] GetSecurityEventsRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var query = new GetAccountSecurityEventsQuery(userId, request.Page, request.PageSize);
+
+        return OkOrProblem(
+            AuthResponseMapping.ToSecurityEventPageResponse(await getAccountSecurityEvents.ExecuteAsync(query, cancellationToken)));
+    }
 }

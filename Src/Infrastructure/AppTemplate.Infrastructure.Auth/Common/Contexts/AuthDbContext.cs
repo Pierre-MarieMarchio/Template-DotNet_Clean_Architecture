@@ -51,6 +51,8 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     /// </summary>
     internal DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    internal DbSet<SecurityEventRecord> SecurityEvents => Set<SecurityEventRecord>();
+
     /// <summary>
     /// Sessions: one row per sign-in, holding what its owner lists it by — see
     /// <see cref="Features.Auth.Tables.IRefreshTokenFamilyTable"/> for the boundary the module
@@ -86,5 +88,6 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
         builder.ApplyConfiguration(new RoleClaimConfiguration());
         builder.ApplyConfiguration(new UserTokenConfiguration());
         builder.ApplyConfiguration(new DataProtectionKeyConfiguration());
+        builder.ApplyConfiguration(new SecurityEventConfiguration());
     }
 }

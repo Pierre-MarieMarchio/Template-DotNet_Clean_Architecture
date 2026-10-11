@@ -1,4 +1,6 @@
-﻿using AppTemplate.Api.Features.Auth.Contracts.Responses;
+﻿using AppTemplate.Api.Common.Contracts;
+using AppTemplate.Api.Features.Auth.Contracts.Responses;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventQueries;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RefreshAccessToken;
@@ -105,4 +107,26 @@ internal static class AuthResponseMapping
                 session.UserAgent,
                 session.Current)),
         ]));
+
+    /// <summary>
+    /// One page of the security trail. The item projection is named once and
+    /// <see cref="PagedResponse.From{TSource,TItem}"/> carries the paging metadata, so the seven
+    /// members are not restated per feature.
+    /// </summary>
+    public static Result<PagedResponse<SecurityEventResponse>> ToSecurityEventPageResponse(
+        Result<PagedResult<SecurityEventEntry>> result) =>
+        result.Map(value => PagedResponse.From(value, ToSecurityEventResponse));
+
+    private static SecurityEventResponse ToSecurityEventResponse(SecurityEventEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        return new SecurityEventResponse(
+            entry.Id,
+            entry.Kind.ToString(),
+            entry.OccurredAt,
+            entry.IpAddress,
+            entry.UserAgent,
+            entry.Detail);
+    }
 }

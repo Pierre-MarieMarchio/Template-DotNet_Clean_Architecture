@@ -23,6 +23,7 @@ public sealed class MaintenanceInstrumentsTests
         var idempotency = new FakeIdempotencyPurge(count: 0);
         //#if (localAuth)
         var refreshTokens = new FakeRefreshTokenPurge(count: 0);
+        var securityEvents = new FakeSecurityEventPurge(count: 0);
         //#endif
 
         // Concurrent, not a List, for the reason FileInstrumentsTests already records: the listener
@@ -66,12 +67,12 @@ public sealed class MaintenanceInstrumentsTests
         };
 
         /*#if (localAuth)*/
-        using var service = MaintenanceJobsHarness.Create(idempotency, refreshTokens, options);
+        using var service = MaintenanceJobsHarness.Create(idempotency, refreshTokens, securityEvents, options);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await BackgroundServiceProbe.WaitUntilAsync(
-            () => idempotency.CallCount >= 1 && refreshTokens.CallCount >= 1,
-            "both purges to have run once");
+            () => idempotency.CallCount >= 1 && refreshTokens.CallCount >= 1 && securityEvents.CallCount >= 1,
+            "all three purges to have run once");
         /*#else
         using var service = MaintenanceJobsHarness.Create(idempotency, options);
 
@@ -133,17 +134,24 @@ public sealed class MaintenanceInstrumentsTests
         using var service = MaintenanceJobsHarness.Create(
             idempotency,
             new FakeRefreshTokenPurge(),
+            new FakeSecurityEventPurge(),
             options,
             refreshTokensEnabled: false);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await BackgroundServiceProbe.WaitUntilAsync(
-            () => idempotency.CallCount >= 1,
-            "the enabled purge to have run once");
+            () => idempotency.CallCount >= 1
+                && iterationMeasurements.Any(m =>
+                    m.Task == "expired refresh-token grants" && m.Outcome == "disabled" && m.Value == 1)
+                && iterationMeasurements.Any(m =>
+                    m.Task == "expired security events" && m.Outcome == "disabled" && m.Value == 1),
+            "the enabled purge to have run once and both disabled ones to have recorded an iteration");
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         iterationMeasurements.ShouldContain(m =>
             m.Task == "expired refresh-token grants" && m.Outcome == "disabled" && m.Value == 1);
+        iterationMeasurements.ShouldContain(m =>
+            m.Task == "expired security events" && m.Outcome == "disabled" && m.Value == 1);
         /*#else
         // The one task this project has, switched off: nothing runs, so what the loop records is
         // the only sign it is alive.

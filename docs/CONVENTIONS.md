@@ -18,32 +18,32 @@ implementation. An interface with a single implementation is fine here — that 
 testability choice, not an oversight. Default visibility is `internal sealed`; only ports,
 configuration-bound options classes, and types the host must name are `public`.
 
-**Where a contract lives.** A repository contract goes in `AppTemplate.Domain/Features/<F>/Repositories/`,
-because it speaks only in domain types. Every other port belongs to the application layer, because it speaks
-in DTOs or platform concerns — and which of the layer's three projects declares it follows how many features
-need it. A port one feature reaches for goes in `AppTemplate.Application/Features/<F>/Ports/<Port>/`, or in
-`AppTemplate.Application.Auth/Features/Auth/Ports/<Port>/` when the feature is authentication; a
-cross-cutting one every feature may reach for — the clock, the caller's identity, the commit boundary, the
-mail relay, the leader lease, the idempotency store — goes in `AppTemplate.Application.Core/Common/Ports/`,
-or beside its own subject when it has one, as `IIdempotencyStore` does in `Common/Idempotency/`.
-`AdapterVisibilityTests` enforces this by recognising a repository contract from
-a namespace ending in `.Repositories`.
+**Where a contract lives.** A repository contract goes in `AppTemplate.Domain`, beside the
+aggregate it speaks in, because it speaks only in domain types; every other port belongs to the
+application layer. Which of that layer's projects declares which port — one feature's, several
+features', authentication's — and the naming rules below apply to all of them, are
+[`ARCHITECTURE.md`](ARCHITECTURE.md#ports-are-named-for-business-intent-not-for-technology)'s
+subject. `AdapterVisibilityTests` recognises a repository contract from a namespace ending in
+`.Repositories`, so follow the folder name exactly.
 
-**Use cases.** One class per use case, plus **one named interface per use case** inheriting
+**Use cases.** One class per use case, behind **one named interface** inheriting
 `IUseCase<TRequest,TResponse>` (or `IUseCase<TResponse>`) — the named interface is what constrains the
-signature and what the controller depends on. Registration is automatic, by type identity, over a
-materialised set, and the container **throws at startup** if a use case declares zero or several
-named interfaces. Never write `if (x != null)` without an `else`.
+signature and what the controller depends on, and the container **throws at startup** if a use case
+declares zero or several of them.
+[`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md#2-application--the-use-case-and-its-port) covers the
+registration mechanics. Never write `if (x != null)` without an `else`.
 
-**Failures.** `Result`/`Result<T>` carrying an `Error` with a stable machine-readable `code` for
-expected outcomes. `DomainException` only for a violated invariant. `ConcurrencyConflictException`
-only for a lost update. Everything becomes an RFC 7807 `ProblemDetails` with that `code`, and
-**no exception message ever reaches a client**.
+**Failures.** An expected outcome is a `Result`/`Result<T>` carrying an `Error` with a stable
+machine-readable `code`; only a bug is an exception —
+[`ARCHITECTURE.md`](ARCHITECTURE.md#errors-result-for-expected-failures-exceptions-for-bugs) states
+the full rule, including `DomainException` for a violated invariant and
+`ConcurrencyConflictException` for a lost update. Everything becomes an RFC 7807 `ProblemDetails`
+with that `code`, and **no exception message ever reaches a client**.
 
-**Persistence.** EF maps persistence models (`*Record`), never the domain entities. A mapper, a
-tracker (identity map) and a flush interceptor assign domain state onto tracked rows, and EF computes
-the delta. The concurrency token is PostgreSQL's `xmin` and it round-trips in both directions. Domain
-events are drained from the tracker and published after a successful commit, exactly once. If you are
+**Persistence.** EF maps persistence models (`*Record`), never the domain entities, and the
+concurrency token is PostgreSQL's `xmin`. The mapper, the tracker and the flush pipeline that keep
+that split intact are
+[`ARCHITECTURE.md`](ARCHITECTURE.md#why-a-separate-row-type-at-all)'s subject. If you are
 changing any of that, add tests for the *update* path, not just the insert path: an insert that
 works proves nothing about a delta EF computed from a tracked row.
 

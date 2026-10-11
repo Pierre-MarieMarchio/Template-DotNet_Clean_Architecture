@@ -18,8 +18,14 @@ namespace AppTemplate.Api.Common.Security;
 /// </remarks>
 public static class RateLimitingExtensions
 {
-    /// <summary>Applied to the authentication controller.</summary>
+    //#if (localAuth)
+    /// <summary>
+    /// Applied to the authentication controller, on every action that handles a credential. It
+    /// would be wrong to partition this one by user even if identity were available: it exists to
+    /// slow down credential discovery on endpoints where, by construction, there is no identity yet.
+    /// </summary>
     public const string Authentication = "authentication";
+    //#endif
 
     internal static IServiceCollection AddApiRateLimiting(this IServiceCollection services, IConfiguration configuration)
     {
@@ -47,9 +53,11 @@ public static class RateLimitingExtensions
 
                 // Behind a reverse proxy this needs ForwardedHeaders configured, or every request
                 // appears to come from the proxy and shares one partition either way.
+                //#if (localAuth)
                 options.AddPolicy(
                     Authentication,
                     FixedWindowPerAddress(configured.AuthenticationPermitLimit, configured.Window));
+                //#endif
                 options.GlobalLimiter = PartitionedRateLimiter.Create(
                     FixedWindowPerAddress(configured.GlobalPermitLimit, configured.Window));
             });

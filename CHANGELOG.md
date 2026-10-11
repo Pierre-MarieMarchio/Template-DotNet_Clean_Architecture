@@ -741,6 +741,12 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   (`MaintenanceWorker__Interval` becomes `Jobs__Maintenance__Interval`, `BACKGROUND_JOBS_ENABLED`
   becomes `JOBS_ENABLED`, and so on for every key of the three sections).
 
+- **`RateLimiting:AuthenticationPermitLimit` exists only with local accounts.** The authentication
+  rate-limit policy is carried by the local-accounts controllers, so a project generated with
+  `--auth external` or `--auth none` no longer receives the key, the validator rule, the policy
+  registration or the appsettings row; its unit tests assert the global limit alone. A project with
+  local accounts sees no change.
+
 - **CI generates and verifies every supported option combination.** The template acceptance job is
   a five-leg matrix (the defaults, `--auth none` with its forced options, `--auth external` with `notes`
   and with `all`, and `--auth local` without Files, workflows or Sonar). Each leg checks that the

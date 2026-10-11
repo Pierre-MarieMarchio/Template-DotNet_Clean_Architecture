@@ -67,9 +67,8 @@ the floor.
 `--minimum-expected-tests` is the platform's own answer to a run that is green because it executed
 nothing: it fails the run, with exit code 5, rather than reporting success over zero tests.
 
-`coverage.minimum` holds the floor and the measurements it was set from. Read that file before
-moving the number — the figure depends on the build configuration and on whether Docker was
-present, and two rows measured differently are not comparable.
+`coverage.minimum` holds the floor and the rule it is set from: measured with Docker present and in
+Debug, a few points under the figure, because rows measured differently do not compare.
 
 ## House rules
 

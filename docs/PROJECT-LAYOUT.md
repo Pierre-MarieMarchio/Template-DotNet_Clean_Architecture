@@ -129,7 +129,9 @@ bounds how many one thing carries, and a replacement is total rather than a merg
 states it once and both aggregates own one. **The test that put it there rather than one project
 inwards is mechanical: `TagSet` names `Tag`, and a `.Core` project may name no business type.** Its
 generic shape, a bounded de-duplicating collection, would have been agnostic; what it actually is
-is not.
+is not. The application half holds `TagValidation`, so a caller gets one 400 naming every tag it
+got wrong rather than the first, and `UsedTagsCache`, which is where the key and the lifetime of
+the used-tag read are decided once instead of once per feature.
 
 What is *not* there is as informative. The ownership check every feature performs and the paginated
 read every feature exposes are both duplicated and both agnostic — they name no feature and never
@@ -279,24 +281,14 @@ Reserved for exactly one thing: the dependency-injection registration classes �
 `ApplicationCoreModule`, `ApplicationModule`, `ApplicationAuthModule`, `InfrastructureCoreModule`,
 `PersistenceModule`, `AuthModule`, `EmailModule`, `StorageModule`, `InMemoryModule`,
 `PresentationCoreModule` and `HttpPipelineModule`. That is a composition concept, not a business
-partition.
-
-**Composition is opt-in per feature, and there is deliberately no call that adds all of them.**
-`ApplicationModule` exposes one `AddX()` per feature — `AddTodoLists()`, `AddReminders()`, `AddFiles(configuration)` and `AddNotes()` as the template ships;
-`ApplicationAuthModule` exposes `AddAuthApplication()`; `ApplicationCoreModule` exposes
-`AddPurgeExpiredIdempotencyKeys()` and the registration helpers the layer above composes with, but
-no umbrella `AddApplicationCore()` — ports, results and markers are not things a container
-registers, and a call that registered nothing would read like the seam that makes the project work.
-
-That is what makes a feature removable: deleting its folder and its one line is the whole
-operation, and nothing else claims to have registered it. One entry point scanning a layer's
-assembly would instead put every port every feature declares into every host's graph, which under
-`ValidateOnBuild` makes each of them mandatory everywhere.
+partition, and composition is [`ARCHITECTURE.md`](ARCHITECTURE.md#infrastructure-is-split-per-capability-with-no-per-technology-sub-split)'s
+subject: one `AddX()` per feature, opt-in by the host, and deliberately no call that adds a layer
+whole — which is what makes a feature removable by deleting its folder and its one line.
 
 <!--#if (reminders)-->
-**`AddReminders()` is not independent of `AddTodoLists()`.** Scheduling a reminder reaches into the
-to-do list's read port, which is the only ownership check made before a reminder is created, so a
-host that composes the one without the other resolves nothing. [`ARCHITECTURE.md`](ARCHITECTURE.md)
-names the other couplings that a removal meets, and
+**`AddReminders()` is not independent of `AddTodoLists()`.** A host that composes the one without
+the other resolves nothing: scheduling a reminder reads the to-do list's port, which
+[`ARCHITECTURE.md`](ARCHITECTURE.md#infrastructure-is-split-per-capability-with-no-per-technology-sub-split)
+names among the couplings a removal meets, and
 [`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md) is the procedure.
 <!--#endif-->

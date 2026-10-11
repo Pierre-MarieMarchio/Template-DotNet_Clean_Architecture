@@ -1,8 +1,6 @@
 ﻿namespace AppTemplate.Application.Core.Common.Concurrency;
 
-/// <summary>
-/// The aggregate versions a caller will accept before its change is applied.
-/// </summary>
+/// <summary>The aggregate versions a caller will accept before its change is applied.</summary>
 /// <remarks>
 /// A command carrying one of these has been decided against a particular state of the aggregate,
 /// and must not be applied to any other. The check belongs to the use case rather than to the

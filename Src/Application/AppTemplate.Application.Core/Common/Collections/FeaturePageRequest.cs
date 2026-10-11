@@ -1,9 +1,6 @@
 ﻿namespace AppTemplate.Application.Core.Common.Collections;
 
-/// <summary>
-/// The only collection shape a feature's read port accepts: the paging, the sort order and that
-/// feature's own filter, all three already validated.
-/// </summary>
+/// <summary>The only collection shape a feature's read port accepts: the paging, the sort order and that feature's own filter, all three already validated.</summary>
 /// <remarks>
 /// Unconstructible outside this project — <see cref="CollectionBinding.Bind{TFilter}"/> is the one
 /// thing that can make one, and it can only do so after <c>PageRequest.Create</c>,

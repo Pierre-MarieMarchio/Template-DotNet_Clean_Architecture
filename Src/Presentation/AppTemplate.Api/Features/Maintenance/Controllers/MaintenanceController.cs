@@ -8,9 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.Maintenance.Controllers;
 
-/// <summary>
-/// Administrative operations with no user-facing counterpart.
-/// </summary>
+/// <summary>Administrative operations with no user-facing counterpart.</summary>
 /// <remarks>
 /// The purge here is also run by the API's maintenance job. This endpoint is what a scheduler outside
 /// the process calls, such as a cloud scheduler. Features add their own purges under the same route

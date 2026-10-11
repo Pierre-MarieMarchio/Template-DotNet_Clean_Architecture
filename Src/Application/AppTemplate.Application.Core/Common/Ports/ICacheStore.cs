@@ -1,8 +1,6 @@
 ﻿namespace AppTemplate.Application.Core.Common.Ports;
 
-/// <summary>
-/// Keeps the answer to a read that is expensive to repeat and cheap to be slightly out of date.
-/// </summary>
+/// <summary>Keeps the answer to a read that is expensive to repeat and cheap to be slightly out of date.</summary>
 /// <remarks>
 /// <b>What may be cached, and it is a short list:</b> an answer whose staleness is harmless —
 /// nothing that decides an authorisation, enforces a bound, becomes an <c>ETag</c>, or tells

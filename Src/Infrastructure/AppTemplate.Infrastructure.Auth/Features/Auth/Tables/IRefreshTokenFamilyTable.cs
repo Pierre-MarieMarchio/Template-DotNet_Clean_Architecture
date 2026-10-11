@@ -38,10 +38,8 @@ public interface IRefreshTokenFamilyTable
     /// </summary>
     Task MarkUsedAsync(Guid familyId, string? userAgent, DateTimeOffset now, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Ends one of an account's sessions and revokes its live grants, committing on its own.
-    /// Idempotent: ending a session already ended succeeds and changes nothing.
-    /// </summary>
+    /// <summary>Ends one of an account's sessions and revokes its live grants, committing on its
+    /// own. Idempotent: ending a session already ended succeeds and changes nothing.</summary>
     /// <returns><c>false</c> when the account has no session with that id — which is also the answer
     /// for a session that belongs to somebody else, so the caller is not told which of the two it
     /// was.</returns>

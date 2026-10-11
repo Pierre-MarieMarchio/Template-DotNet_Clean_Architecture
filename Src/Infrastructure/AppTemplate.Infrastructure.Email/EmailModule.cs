@@ -24,9 +24,7 @@ namespace AppTemplate.Infrastructure.Email;
 /// </summary>
 public static class EmailModule
 {
-    /// <summary>
-    /// Registers the configured transport behind <see cref="IEmailSender"/>.
-    /// </summary>
+    /// <summary>Registers the configured transport behind <see cref="IEmailSender"/>.</summary>
     /// <param name="services">The container being composed.</param>
     /// <param name="configuration">Must supply the <c>Email</c> section, and the <c>Postmark</c>
     /// section when <c>Email:Transport</c> names that transport.</param>

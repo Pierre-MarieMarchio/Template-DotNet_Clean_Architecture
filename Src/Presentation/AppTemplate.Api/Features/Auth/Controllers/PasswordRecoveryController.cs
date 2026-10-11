@@ -8,9 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
-/// <summary>
-/// Regaining access to an account whose password is lost, without being signed in to ask.
-/// </summary>
+/// <summary>Regaining access to an account whose password is lost, without being signed in to ask.</summary>
 /// <remarks>
 /// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
 /// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the

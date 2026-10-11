@@ -23,10 +23,7 @@ public interface IEmailTokensService
     /// which would answer "does this address exist and is it confirmed?" for any caller with a junk
     /// token.
     /// </summary>
-    /// <returns>
-    /// <c>true</c> when the address is now confirmed; <c>false</c> for an unknown address and an
-    /// invalid or expired token alike.
-    /// </returns>
+    /// <returns><c>true</c> when the address is now confirmed; <c>false</c> for an unknown address and an invalid or expired token alike.</returns>
     Task<bool> ConfirmEmailAsync(string email, string token, CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -16,10 +16,8 @@ public interface IReAuthenticationService
     /// stamp is rotated: a failed proof must not lock an account its holder is signed into, and a
     /// passed one must not end every session the way a password <em>change</em> does.
     /// </summary>
-    /// <returns>
-    /// Whether the password is the account's. An account that no longer exists answers
-    /// <c>false</c>, like a wrong password: the caller has already established it exists.
-    /// </returns>
+    /// <returns>Whether the password is the account's. An account that no longer exists answers
+    /// <c>false</c>, like a wrong password: the caller has already established it exists.</returns>
     Task<bool> VerifyPasswordAsync(Guid userId, string password, CancellationToken cancellationToken = default);
 
     /// <summary>

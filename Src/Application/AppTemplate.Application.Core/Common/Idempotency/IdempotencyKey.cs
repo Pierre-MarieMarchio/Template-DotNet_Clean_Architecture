@@ -2,10 +2,7 @@
 
 namespace AppTemplate.Application.Core.Common.Idempotency;
 
-/// <summary>
-/// A validated <c>Idempotency-Key</c> header, scoped to the caller and the request it was sent
-/// with.
-/// </summary>
+/// <summary>A validated <c>Idempotency-Key</c> header, scoped to the caller and the request it was sent with.</summary>
 /// <remarks>
 /// <see cref="UserId"/> is what keeps two users from colliding over the same key string, and
 /// <see cref="Fingerprint"/> is what tells a genuine retry apart from a different request that

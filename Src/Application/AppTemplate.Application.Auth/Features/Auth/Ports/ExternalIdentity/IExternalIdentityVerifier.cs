@@ -29,10 +29,7 @@ public interface IExternalIdentityVerifier
     /// audience and key set the token is checked against, so a token minted by one provider cannot be
     /// presented as another's.
     /// </param>
-    /// <returns>
-    /// The verified identity, or <c>null</c> for an unknown provider and a token that fails any check
-    /// alike: the caller answers every refusal the same way.
-    /// </returns>
+    /// <returns>The verified identity, or <c>null</c> for an unknown provider and a token that fails any check alike: the caller answers every refusal the same way.</returns>
     Task<VerifiedExternalIdentity?> VerifyAsync(
         string provider,
         string idToken,

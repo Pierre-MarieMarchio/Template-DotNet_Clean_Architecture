@@ -1,9 +1,6 @@
 ﻿namespace AppTemplate.Application.Core.Common.Results;
 
-/// <summary>
-/// Lifting a projection over a <see cref="Result{TValue}"/>: keep the failure, or apply the
-/// function to the value.
-/// </summary>
+/// <summary>Lifting a projection over a <see cref="Result{TValue}"/>: keep the failure, or apply the function to the value.</summary>
 /// <remarks>
 /// The failure guard cannot be folded into a property subpattern, and the reason is worth stating
 /// once here rather than at every call site: <see cref="Result{TValue}.Value"/> throws on a failure,

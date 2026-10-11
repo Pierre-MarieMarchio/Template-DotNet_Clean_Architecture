@@ -26,9 +26,7 @@ public static class ObservabilityExtensions
     /// </summary>
     private const string _traceIdentifierTagName = "aspnetcore.trace_identifier";
 
-    /// <summary>
-    /// Registers traces and metrics for this host.
-    /// </summary>
+    /// <summary>Registers traces and metrics for this host.</summary>
     /// <param name="services">The container being built.</param>
     /// <param name="configuration">Where the telemetry options are bound from.</param>
     /// <returns>The same collection, for chaining.</returns>

@@ -11,10 +11,7 @@ public sealed record SortOrder
     /// <summary>Never empty: a blank input parses <see cref="ICollectionPolicy.DefaultSort"/> instead.</summary>
     public IReadOnlyList<SortTerm> Terms { get; }
 
-    /// <summary>
-    /// Comma-separated terms, each <c>field</c> or <c>field:asc</c>/<c>field:desc</c> (the direction
-    /// token is case-insensitive; a bare field means ascending).
-    /// </summary>
+    /// <summary>Comma-separated terms, each <c>field</c> or <c>field:asc</c>/<c>field:desc</c> (the direction token is case-insensitive; a bare field means ascending).</summary>
     /// <remarks>
     /// A blank <paramref name="raw"/> parses <paramref name="policy"/>'s own
     /// <see cref="ICollectionPolicy.DefaultSort"/> through this same method body, so a feature's

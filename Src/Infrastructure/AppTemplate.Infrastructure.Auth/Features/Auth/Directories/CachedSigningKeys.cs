@@ -22,10 +22,7 @@ internal sealed class CachedSigningKeys
     internal void Store(string provider, SigningKeySet set) => _sets[provider] = set;
 }
 
-/// <summary>
-/// What is known about one provider's keys, and the two timestamps that answer two different
-/// questions.
-/// </summary>
+/// <summary>What is known about one provider's keys, and the two timestamps that answer two different questions.</summary>
 /// <param name="FetchedAt">
 /// When the provider last <em>answered</em>. This is what the cache lifetime is measured from, so a
 /// provider that goes down does not silently extend the life of the keys it served before it did.

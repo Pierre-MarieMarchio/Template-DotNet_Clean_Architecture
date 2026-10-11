@@ -3,9 +3,7 @@ using Microsoft.Extensions.Caching.Hybrid;
 
 namespace AppTemplate.Infrastructure.Core.Common.Caching;
 
-/// <summary>
-/// <see cref="ICacheStore"/> over <see cref="HybridCache"/>.
-/// </summary>
+/// <summary><see cref="ICacheStore"/> over <see cref="HybridCache"/>.</summary>
 /// <remarks>
 /// <para>
 /// With no distributed cache registered, <see cref="HybridCache"/> is an in-process cache, so each

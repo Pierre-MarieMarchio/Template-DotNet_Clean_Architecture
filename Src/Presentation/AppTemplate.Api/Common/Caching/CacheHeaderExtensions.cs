@@ -1,9 +1,6 @@
 ﻿namespace AppTemplate.Api.Common.Caching;
 
-/// <summary>
-/// States whether a response may be stored at all, so every action carries an explicit caching
-/// contract instead of leaving one implied.
-/// </summary>
+/// <summary>States whether a response may be stored at all, so every action carries an explicit caching contract instead of leaving one implied.</summary>
 /// <remarks>
 /// Caching here is revalidation, not storage: <c>private</c> confines storage to
 /// the end client, never a shared cache, because every read here is scoped to the caller's own rows.

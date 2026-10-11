@@ -11,10 +11,8 @@ namespace AppTemplate.Application.Core.Common.Policies;
 /// the same for every feature, and this interface is the one thing those mechanics ask a feature to
 /// declare.
 /// </summary>
-/// <remarks>
-/// Implementations are plain classes with a parameterless constructor, so an architecture rule can
-/// discover every one of them and check its declarations without a container.
-/// </remarks>
+/// <remarks>Implementations are plain classes with a parameterless constructor, so an architecture
+/// rule can discover every one of them and check its declarations without a container.</remarks>
 public interface ICollectionPolicy
 {
     /// <summary>

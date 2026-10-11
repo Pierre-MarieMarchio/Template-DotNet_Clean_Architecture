@@ -22,9 +22,7 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Features.Files.Controllers;
 
-/// <summary>
-/// The stored file aggregate's HTTP surface.
-/// </summary>
+/// <summary>The stored file aggregate's HTTP surface.</summary>
 /// <remarks>
 /// A file is deposited either directly (<see cref="Register"/>, a signed upload to the store, then
 /// <see cref="Confirm"/>) or through the API (<see cref="Upload"/>, multipart); both leave it

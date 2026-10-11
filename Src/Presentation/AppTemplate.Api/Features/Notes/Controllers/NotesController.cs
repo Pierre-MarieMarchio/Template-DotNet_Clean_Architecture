@@ -10,10 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.Notes.Controllers;
 
-/// <summary>
-/// The caller's own notes: the collection, one note, and the three writes that create, replace and
-/// delete one.
-/// </summary>
+/// <summary>The caller's own notes: the collection, one note, and the three writes that create, replace and delete one.</summary>
 /// <remarks>
 /// A single note publishes its version as a strong <c>ETag</c>, and its update and delete honour
 /// <c>If-Match</c>. The feature has no domain model, so one service answers every route; see

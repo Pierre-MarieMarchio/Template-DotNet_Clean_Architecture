@@ -14,8 +14,7 @@ public interface IOwnerQuotaLock
     /// it and releases it however the work ends. The work must commit before it returns: the next holder reads only
     /// committed rows.
     /// </summary>
-    /// <exception cref="OwnerQuotaLockTimeoutException">The lock was not obtained within the adapter's wait limit;
-    /// the work did not run.</exception>
+    /// <exception cref="OwnerQuotaLockTimeoutException">The lock was not obtained within the adapter's wait limit; the work did not run.</exception>
     Task<T> RunExclusivelyAsync<T>(
         UserId owner,
         FileCategory category,

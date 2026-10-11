@@ -1,9 +1,6 @@
 ﻿namespace AppTemplate.Application.Core.Common.Concurrency;
 
-/// <summary>
-/// A value read out of the store together with the concurrency token the aggregate it came from
-/// held at that moment.
-/// </summary>
+/// <summary>A value read out of the store together with the concurrency token the aggregate it came from held at that moment.</summary>
 /// <remarks>
 /// The token travels beside the value rather than inside it. A caller that needs to publish a
 /// validator has it; a caller that only needs the representation ignores it; and the DTO stays a

@@ -1,9 +1,6 @@
 ﻿namespace AppTemplate.Api.Features.Reminders.Contracts.Responses;
 
-/// <summary>
-/// The wire shape of one reminder, and the body of every write that addresses one: a caller never
-/// has to re-read what it just changed to keep writing.
-/// </summary>
+/// <summary>The wire shape of one reminder, and the body of every write that addresses one: a caller never has to re-read what it just changed to keep writing.</summary>
 /// <param name="TodoListId">Carried alongside <paramref name="TodoItemId"/> so a client can show
 /// which list the reminder belongs to without a second call.</param>
 /// <param name="Status">One of <c>pending</c>, <c>fired</c> or <c>cancelled</c> — a one-way life

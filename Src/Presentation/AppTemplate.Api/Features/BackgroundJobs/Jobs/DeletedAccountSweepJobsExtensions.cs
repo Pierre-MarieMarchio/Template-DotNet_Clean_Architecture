@@ -6,10 +6,7 @@ namespace AppTemplate.Api.Features.BackgroundJobs.Jobs;
 
 internal static class DeletedAccountSweepJobsExtensions
 {
-    /// <summary>
-    /// Contributes the deleted-account data sweep to the maintenance timer: the pass that
-    /// guarantees what the <c>UserAccountDeleted</c> event only makes fast.
-    /// </summary>
+    /// <summary>Contributes the deleted-account data sweep to the maintenance timer: the pass that guarantees what the <c>UserAccountDeleted</c> event only makes fast.</summary>
     /// <remarks>
     /// Not any one feature's purge, which is why it is not registered from a feature's own
     /// composition: every feature that owns user data declares its policy, and this one task

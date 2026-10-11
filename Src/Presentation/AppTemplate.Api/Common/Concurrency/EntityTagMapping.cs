@@ -4,10 +4,7 @@ using Microsoft.Net.Http.Headers;
 
 namespace AppTemplate.Api.Common.Concurrency;
 
-/// <summary>
-/// The <c>ETag</c> a versioned aggregate publishes, and the reverse reading of one a caller sends
-/// back.
-/// </summary>
+/// <summary>The <c>ETag</c> a versioned aggregate publishes, and the reverse reading of one a caller sends back.</summary>
 /// <remarks>
 /// <para>
 /// <b>Strong, not weak.</b> The value behind the tag is the aggregate's exact version, so two

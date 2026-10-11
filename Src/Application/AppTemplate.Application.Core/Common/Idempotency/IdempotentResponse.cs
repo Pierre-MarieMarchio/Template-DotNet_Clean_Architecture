@@ -1,9 +1,6 @@
 ﻿namespace AppTemplate.Application.Core.Common.Idempotency;
 
-/// <summary>
-/// The response a claimed request produced, stored so a retry under the same key can be answered
-/// identically instead of re-running the action.
-/// </summary>
+/// <summary>The response a claimed request produced, stored so a retry under the same key can be answered identically instead of re-running the action.</summary>
 /// <param name="Body">
 /// The JSON of the executed result's value, or <c>null</c> when it was too large to store — in
 /// which case a replay is answered with <see cref="IdempotencyErrors.NotReplayable"/> instead of a

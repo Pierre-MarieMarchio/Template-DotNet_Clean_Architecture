@@ -9,10 +9,8 @@ using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 
-/// <summary>
-/// Claims, completes, releases and purges idempotency keys. Internal, like every adapter here: the
-/// application layer depends only on <see cref="IIdempotencyStore"/>.
-/// </summary>
+/// <summary>Claims, completes, releases and purges idempotency keys. Internal, like every adapter
+/// here: the application layer depends only on <see cref="IIdempotencyStore"/>.</summary>
 /// <remarks>
 /// <b>Why a separate <see cref="IDbContextFactory{TContext}"/> and not the request's shared
 /// <see cref="AppDbContext"/>.</b> <c>IUnitOfWork</c> is documented as the only thing allowed to

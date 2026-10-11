@@ -5,9 +5,7 @@ using AppTemplate.Application.Core.Common.Localization;
 
 namespace AppTemplate.Infrastructure.Core.Common.Templating;
 
-/// <summary>
-/// One mail's embedded templates — one per language — and the body they render.
-/// </summary>
+/// <summary>One mail's embedded templates — one per language — and the body they render.</summary>
 /// <remarks>
 /// <para>
 /// A template is an embedded resource named <c>&lt;baseName&gt;.&lt;culture&gt;.html</c>, and the
@@ -69,10 +67,8 @@ public sealed class EmailTemplate
     /// </summary>
     /// <param name="languageTag">The reader's language, usually <see cref="CurrentLanguage.Current"/>.</param>
     /// <param name="placeholders">Values for the <c>{{Name}}</c> placeholders, HTML-encoded on the way in.</param>
-    /// <exception cref="InvalidOperationException">
-    /// No template is embedded for the fallback culture, so a reader whose language is unavailable
-    /// has nothing to receive.
-    /// </exception>
+    /// <exception cref="InvalidOperationException">No template is embedded for the fallback
+    /// culture, so a reader whose language is unavailable has nothing to receive.</exception>
     public RenderedEmail Render(string languageTag, IReadOnlyDictionary<string, string> placeholders)
     {
         ArgumentNullException.ThrowIfNull(languageTag);

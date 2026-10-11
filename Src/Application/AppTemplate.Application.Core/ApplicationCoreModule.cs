@@ -81,17 +81,12 @@ public static class ApplicationCoreModule
         return services.AddUseCases(assembly.GetTypes());
     }
 
-    /// <summary>
-    /// Registers each <see cref="IUseCase"/> implementation under the single named interface it
-    /// declares.
-    /// </summary>
+    /// <summary>Registers each <see cref="IUseCase"/> implementation under the single named interface it declares.</summary>
     /// <param name="services">The container being built.</param>
     /// <param name="candidates">The types to consider. Anything that is not a concrete
     /// <see cref="IUseCase"/> is skipped.</param>
     /// <returns>The same collection, for chaining.</returns>
-    /// <exception cref="InvalidOperationException">
-    /// A use case declares no named interface, or several: there is no one service type to bind.
-    /// </exception>
+    /// <exception cref="InvalidOperationException">A use case declares no named interface, or several: there is no one service type to bind.</exception>
     public static IServiceCollection AddUseCases(this IServiceCollection services, IEnumerable<Type> candidates)
     {
         ArgumentNullException.ThrowIfNull(services);

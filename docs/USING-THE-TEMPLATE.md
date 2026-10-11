@@ -159,7 +159,7 @@ to file a public issue, which is right for a template and wrong for your product
 
 The feature generator works under the new name, because it reads the product prefix from the tree
 rather than assuming `AppTemplate`: in a project generated as `Acme.OrderManagement`,
-`dotnet run Tools/Tasks.cs new-feature Orders Order --access owner` writes
+`dotnet run Tools/Tasks.cs new-feature Orders Order --access owner --deletion delete` writes
 `Acme.OrderManagement.*` namespaces. [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md#the-generator)
 describes its choices. It writes a manifest of what it created, with a hash of each file, in a
 `.feature-manifest` folder of the generated project; the template itself ships none.

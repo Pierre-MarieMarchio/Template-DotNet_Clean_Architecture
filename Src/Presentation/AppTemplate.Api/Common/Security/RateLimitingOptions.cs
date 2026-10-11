@@ -20,11 +20,13 @@ public sealed class RateLimitingOptions
     /// </summary>
     public TimeSpan Window { get; set; } = TimeSpan.FromMinutes(1);
 
+    //#if (localAuth)
     /// <summary>
     /// 10 by default, applied to the authentication controller. Together with account lockout this
     /// is what bounds online password guessing.
     /// </summary>
     public int AuthenticationPermitLimit { get; set; } = 10;
+    //#endif
 
     /// <summary>300 by default, applied to every request before any endpoint is reached.</summary>
     public int GlobalPermitLimit { get; set; } = 300;
@@ -48,12 +50,14 @@ internal sealed class RateLimitingOptionsValidator : IValidateOptions<RateLimiti
                 $"must be between {_minWindow} and {_maxWindow}.");
         }
 
+        //#if (localAuth)
         if (options.AuthenticationPermitLimit < 1)
         {
             failures.Add(
                 $"'{RateLimitingOptions.SectionName}:{nameof(RateLimitingOptions.AuthenticationPermitLimit)}' " +
                 "must be at least 1.");
         }
+        //#endif
 
         if (options.GlobalPermitLimit < 1)
         {

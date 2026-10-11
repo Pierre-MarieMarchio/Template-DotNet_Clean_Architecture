@@ -23,24 +23,24 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// </para>
 /// <para>
 /// The reset strategy is <b>truncate, not transaction-rollback</b>. Each test drives several HTTP
-/// requests, each of which gets its own scope, its own context and — for identity writes — its own
-/// commit, so there is no single ambient transaction a test could roll back. Truncating every table
+/// requests, each of which gets its own scope, its own context and its own commit, so there is no
+/// single ambient transaction a test could roll back. Truncating every table
 /// in the module schemas between tests is the only reset that matches how the system actually
 /// commits, and it also clears rows written by <c>SaveChanges</c> calls the test never saw.
 /// </para>
 /// <para>
-/// Those schemas are the six the two contexts declare between them — <c>identity</c> from the
-/// authentication half, and every feature's schema and <c>platform</c> from the
-/// business half. They are named one by one in <see cref="PrepareAsync"/> rather than discovered, so
-/// a module that adds a schema of its own has to be named there too: until it is, its rows survive
-/// from one test into the next.
+/// Those schemas are what the contexts declare between them — every feature's schema and
+/// <c>platform</c> from the business half, plus <c>identity</c> from the authentication half when
+/// the project carries local accounts. They are named one by one in <see cref="PrepareAsync"/>
+/// rather than discovered, so a module that adds a schema of its own has to be named there too:
+/// until it is, its rows survive from one test into the next.
 /// </para>
 /// </remarks>
 public sealed class TestDatabase(IServiceProvider rootServices)
 {
     /// <summary>
-    /// Excluded from the reset: the host builds its Data Protection key ring once and keeps it in
-    /// memory for as long as it runs. Truncating this table between tests is invisible today because
+    /// Excluded from the reset, where the project carries one: the host builds its Data Protection
+    /// key ring once and keeps it in memory for as long as it runs. Truncating this table between tests is invisible today because
     /// the suite never asks two hosts to read the same protected payload, but it would silently break
     /// the day a multi-instance test does — the second host's ring would no longer agree with the
     /// first's, and that would look like a sharing defect rather than what it actually is: a table
@@ -58,8 +58,9 @@ public sealed class TestDatabase(IServiceProvider rootServices)
     /// the next. Every schema either context declares is named here.
     /// <para>
     /// The migrations history tables are excluded by name rather than by schema. The business half's
-    /// sits in the connection's default schema, outside this list; the authentication half's sits
-    /// inside <c>identity</c> with the tables it records, so the list does reach it. Truncating
+    /// sits in the connection's default schema, outside this list; an authentication context's sits
+    /// inside <c>identity</c> with the tables it records, so the list does reach it where there is
+    /// one. Truncating
     /// either would make the next test run re-apply every migration.
     /// </para>
     /// </summary>
@@ -145,11 +146,11 @@ public sealed class TestDatabase(IServiceProvider rootServices)
 
     /// <summary>
     /// Runs a statement with no result set — for the handful of test fixtures that have to put a row
-    /// in place rather than only look at what is already there. Seeding the <c>Admin</c> role for the
-    /// administration tests is the reason this exists: this test host seeds no identity data at all
-    /// (<c>IdentitySeed:Enabled</c> is <c>false</c> for the whole suite), and the row that names the
-    /// role is otherwise nowhere for a test to put it without naming <c>AppRole</c>, the persistence
-    /// module's internal type, which this project's own convention keeps out of an integration test.
+    /// in place rather than only look at what is already there. Seeding a role row that
+    /// administration tests need is the standing example: this test host seeds no account data of
+    /// its own, and the row is otherwise nowhere for a test to put it without naming the persistence
+    /// module's internal types, which this project's own convention keeps out of an integration
+    /// test.
     /// </summary>
     public async Task ExecuteAsync(string sql, CancellationToken cancellationToken)
     {

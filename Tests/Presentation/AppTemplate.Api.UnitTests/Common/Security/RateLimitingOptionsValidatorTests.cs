@@ -43,12 +43,18 @@ public sealed class RateLimitingOptionsValidatorTests
     [InlineData(-1)]
     public void Validate_Fails_WhenAPermitLimitIsBelowOne(int permits)
     {
+        /*#if (localAuth)*/
         var options = new RateLimitingOptions { AuthenticationPermitLimit = permits, GlobalPermitLimit = permits };
+        /*#else
+        var options = new RateLimitingOptions { GlobalPermitLimit = permits };
+        #endif*/
 
         var result = _validator.Validate(name: null, options);
 
         result.Failed.ShouldBeTrue();
+        //#if (localAuth)
         result.FailureMessage.ShouldContain("RateLimiting:AuthenticationPermitLimit");
+        //#endif
         result.FailureMessage.ShouldContain("RateLimiting:GlobalPermitLimit");
     }
 

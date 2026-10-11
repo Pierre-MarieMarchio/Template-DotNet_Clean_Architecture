@@ -43,7 +43,7 @@ one exists.
 | Domain | `AppTemplate.Domain` | aggregates, value objects, domain events, invariants | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application.Core` | the mechanisms a use case is written *from*: `Result`/`Error`, the `IUseCase` marker, validation, offset and cursor pagination, idempotency, optimistic concurrency, the cross-cutting ports | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application` | the business features' use cases, feature ports, DTOs, validators | `AppTemplate.Domain` + `AppTemplate.Application.Core` |
-| Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind ten ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
+| Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind thirteen ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: what a context saves through — the unit of work, the three interceptors, the aggregate tracker — plus the system clock, multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Auth`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
 | Presentation | `AppTemplate.Presentation.Core` | what any host needs whatever its transport: one outbound HTTP policy, the language a flow is written in, OTLP traces and metrics, the identity of a process with no caller — and no framework reference, deliberately | `AppTemplate.Application.Core` |
@@ -60,7 +60,7 @@ graph RL
     Pers[AppTemplate.Infrastructure.Persistence<br/>the business context, per-feature models,<br/>mapping, trackers, repositories, queries,<br/>the idempotency table, the Postgres lease]
     InfraCore[AppTemplate.Infrastructure.Core<br/>the unit of work, the three save interceptors,<br/>the aggregate tracker, the clock, multilingual mail,<br/>the cache adapter behind ICacheStore]
     App[AppTemplate.Application<br/>the business features: use cases, feature ports, DTOs]
-    Auth[AppTemplate.Application.Auth<br/>sign-in, accounts, tokens, two-factor,<br/>behind ten ports — no domain type]
+    Auth[AppTemplate.Application.Auth<br/>sign-in, accounts, tokens, two-factor,<br/>behind thirteen ports — no domain type]
     AppCore[AppTemplate.Application.Core<br/>Result, IUseCase, validation, pagination,<br/>idempotency, concurrency, cross-cutting ports]
     Dom[AppTemplate.Domain<br/>aggregates, value objects, events]
     DomCore[AppTemplate.Domain.Core<br/>entity, aggregate root, domain event,<br/>audit and concurrency contracts, domain exception]
@@ -173,8 +173,8 @@ Core: authentication and account administration as use cases — sign-in, refres
 password and email lifecycle, two-factor enrolment, external providers, roles and lockouts — under
 `Features/Auth/{Errors,Policies,Ports,UseCases}`. It declares one project reference,
 `AppTemplate.Application.Core`, and it names **no aggregate**: the identity model is not one here,
-it lives behind the ten ports in `Features/Auth/Ports/`. The one domain type it names is
-`UserId`, which arrives through `ICurrentUser` — and every one of its own ten ports takes the
+it lives behind the thirteen ports in `Features/Auth/Ports/`. The one domain type it names is
+`UserId`, which arrives through `ICurrentUser` — and every one of its own thirteen ports takes the
 raw `Guid` inside it instead, because what an account is identified by here is the subject a token
 carries rather than the business's notion of an owner. That is why the unwrap is visible at each of
 those calls. It has a project of its own because it
@@ -559,6 +559,9 @@ cross-context write:
    (`DELETE /api/v1/auth/accounts/{userId}`), and, in the externally-authenticated template, the
    administrative call on the mapping (`DELETE /api/v1/external-identities/{userId}`). A
    provider-side deletion signal is that call's to wire; the template ships no endpoint for it.
+   That last trigger records no security event: the persisted trail is the Auth module's, and the
+   externally-authenticated template has no Auth module to write it — an operator auditing
+   deletions there reads the provider's own logs.
 2. **Each feature decides the fate of its own data** and applies that policy in a consumer of the
    fact, which also implements `IDeletedAccountDataPolicy`: the consumer is the fast path, the
    policy face is what the sweep calls, and both re-derive the precondition through
@@ -955,7 +958,7 @@ change tracker useful without it ever seeing the aggregate.
   error shapes.
 - **Authorisation is default-deny.** `Program.cs` installs an authorization fallback
   policy requiring an authenticated user, so an endpoint is protected unless it opts
-  out. Ten of the nineteen authentication actions and the two health endpoints do —
+  out. Ten of the twenty-two authentication actions and the two health endpoints do —
   and, in Development only, so do the two OpenAPI endpoints. One consequence: because
   the fallback policy also applies when no endpoint matched, an unknown route answers
   401 to an anonymous caller rather than 404.

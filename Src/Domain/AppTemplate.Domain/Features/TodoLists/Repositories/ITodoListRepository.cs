@@ -5,25 +5,22 @@ namespace AppTemplate.Domain.Features.TodoLists.Repositories;
 
 /// <summary>
 /// Deliberately not generic: a repository that fits every entity can only offer CRUD, which is
-/// what an aggregate exists to hide. One method per thing a use case actually needs.
-/// <para>
-/// Nothing here writes: <c>Add</c> and <c>Remove</c> stage, and <c>IUnitOfWork</c> is what commits.
-/// </para>
+/// what an aggregate exists to hide; one method per thing a use case actually needs. Nothing here
+/// writes: <c>Add</c> and <c>Remove</c> stage, and <c>IUnitOfWork</c> is what commits.
 /// </summary>
 public interface ITodoListRepository
 {
     /// <summary>
     /// Must load the list, its items and their tags. Eager-loading the whole aggregate is a
-    /// correctness requirement, not an optimisation: the invariants (unique titles, item cap) can
-    /// only be checked against all the items.
+    /// correctness requirement, not an optimisation: the invariants can only be checked against
+    /// all the items.
     /// </summary>
     /// <returns>The aggregate, or <c>null</c> when no list has that id.</returns>
     Task<TodoList?> GetAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Every list one owner holds, loaded as aggregates for the same reason a single load is: what is
-    /// done with them next — removal, on an account-deleted policy — goes through the aggregate, not
-    /// around it.
+    /// Every list one owner holds, as aggregates: what is done with them next — removal, on an
+    /// account-deleted policy — goes through the aggregate, not around it.
     /// </summary>
     Task<IReadOnlyList<TodoList>> GetForOwnerAsync(
         UserId ownerId,

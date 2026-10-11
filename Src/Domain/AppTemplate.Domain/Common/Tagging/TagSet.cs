@@ -8,16 +8,11 @@ namespace AppTemplate.Domain.Common.Tagging;
 /// rather than a merge.
 /// </summary>
 /// <remarks>
-/// <para>
 /// Owned by an aggregate rather than exposed to callers: every method here is reached through the
-/// aggregate that holds the set, which is what keeps the cap and the aggregate's own invariants
-/// enforced together.
-/// </para>
-/// <para>
-/// The cap and the subject are the aggregate's to choose, because how many tags a thing may carry
-/// is a decision about that thing. The rules are not: they are the same for everything this
-/// application tags, which is why they are written once here.
-/// </para>
+/// aggregate that holds the set, so the cap and the aggregate's own invariants are enforced
+/// together. The cap and the subject are the aggregate's to choose, because how many tags a thing
+/// may carry is a decision about that thing; the rules are the same for everything this application
+/// tags, which is why they are written once here.
 /// </remarks>
 public sealed class TagSet
 {
@@ -26,12 +21,11 @@ public sealed class TagSet
 
     /// <param name="capacity">
     /// The most tags the owning aggregate will carry. A bound is required rather than advisable:
-    /// without one a single request could send an unbounded collection into a per-tag loop that is
-    /// linear in what is already held.
+    /// without one a single request could send an unbounded collection into a per-tag loop.
     /// </param>
     /// <param name="subject">
-    /// How the owning aggregate names itself in a refusal — "to-do item", "stored file". It reaches
-    /// a caller, so it reads as prose rather than as a type name.
+    /// How the owning aggregate names itself in a refusal — "to-do item", "stored file". It
+    /// reaches a caller, so it reads as prose rather than as a type name.
     /// </param>
     public TagSet(int capacity, string subject)
     {
@@ -48,18 +42,15 @@ public sealed class TagSet
     /// <summary>What is held, in the order it was added.</summary>
     public IReadOnlyCollection<Tag> Tags => _tags.AsReadOnly();
 
-    /// <summary>
-    /// Adds a tag, or does nothing if it is already held.
-    /// </summary>
+    /// <summary>Adds a tag, or does nothing if it is already held.</summary>
     /// <param name="tag">The tag to hold.</param>
     /// <exception cref="DomainException">
     /// The set is full and <paramref name="tag"/> is not already in it.
     /// </exception>
     /// <remarks>
-    /// A tag already present is a no-op rather than an error: the caller's intent is already
-    /// satisfied, so failing would force every client to read-then-write to stay correct and would
-    /// make a retried request fail spuriously. The cap is checked only for a tag that is actually
-    /// new, for the same reason — re-sending an existing tag stays a no-op on a full set.
+    /// A tag already present is a no-op rather than an error: failing would force every client to
+    /// read-then-write to stay correct and would make a retried request fail spuriously. The cap is
+    /// checked only for a tag that is actually new, for the same reason.
     /// </remarks>
     public void Add(Tag tag)
     {

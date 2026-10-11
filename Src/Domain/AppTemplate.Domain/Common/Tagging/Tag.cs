@@ -3,14 +3,10 @@
 namespace AppTemplate.Domain.Common.Tagging;
 
 /// <summary>
-/// A free-text label a caller puts on something it owns. Normalised on the way in (trimmed,
-/// lower-cased) so that "Urgent", "urgent " and "URGENT" are one tag, which is what makes the
-/// de-duplication in <see cref="TagSet"/> reliable.
-/// <para>
-/// Shared rather than owned by one feature: a to-do item and a stored file are both tagged, and
-/// they are tagged by the same rule. What is per-aggregate is how many tags it will carry, which
-/// is <see cref="TagSet"/>'s parameter and not this type's business.
-/// </para>
+/// A free-text label a caller puts on something it owns, normalised on the way in (trimmed,
+/// lower-cased) so "Urgent", "urgent " and "URGENT" are one tag — which is what makes the
+/// de-duplication in <see cref="TagSet"/> reliable. Shared rather than owned by one feature;
+/// how many tags a thing carries is <see cref="TagSet"/>'s parameter, not this type's business.
 /// </summary>
 public sealed record Tag
 {

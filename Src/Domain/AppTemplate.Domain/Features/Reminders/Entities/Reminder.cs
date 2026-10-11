@@ -7,14 +7,10 @@ using AppTemplate.Domain.Features.Reminders.ValueObjects;
 namespace AppTemplate.Domain.Features.Reminders.Entities;
 
 /// <summary>
-/// A notification promised for a to-do item at a given instant. An aggregate of one: it holds no
-/// child entities, because nothing about a reminder needs to be consistent with anything else in
-/// the same transaction.
-/// <para>
-/// It names the item it is about rather than living inside <c>TodoList</c>. A reminder is fired by
-/// a background host that reads by due date across every owner, and putting it inside the list
-/// would make each firing load an aggregate — with its items and their tags — to reach one row.
-/// </para>
+/// A notification promised for a to-do item at a given instant; an aggregate of one, since nothing
+/// about it needs to be consistent with anything else in the same transaction. It names the item it
+/// is about rather than living inside <c>TodoList</c>: firing reads by due date across every owner,
+/// and would otherwise load a whole aggregate to reach one row.
 /// </summary>
 public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
@@ -22,16 +18,15 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
     private static readonly TimeSpan _firstRetryDelay = TimeSpan.FromMinutes(1);
 
     /// <summary>
-    /// The longest wait between two attempts. Reached at the seventh failure, and the reason a
-    /// reminder is retried for ever rather than abandoned: nothing here says a failure is permanent,
-    /// and a reminder that is retried still rings once the cause is fixed.
+    /// The longest wait between two attempts. Nothing here says a failure is permanent, so a
+    /// reminder is retried for ever rather than abandoned: one that is retried still rings once
+    /// the cause is fixed.
     /// </summary>
     private static readonly TimeSpan _longestRetryDelay = TimeSpan.FromHours(1);
 
     /// <summary>
-    /// The one place the identity invariants are stated. Both factories reach the aggregate through
-    /// here, so scheduling and loading cannot disagree about what a reminder must carry — a rule
-    /// written twice is a rule that only has to be edited once to start meaning two things.
+    /// The one place the identity invariants are stated; both factories reach the aggregate through
+    /// here, so scheduling and loading cannot disagree about what a reminder must carry.
     /// </summary>
     private Reminder(Guid id, UserId ownerId, Guid todoListId, Guid todoItemId, DateTimeOffset dueAt)
         : base(id)
@@ -61,19 +56,15 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
 
     /// <summary>
     /// Copied from the list rather than reached through it, so firing can authorise and address a
-    /// reminder without loading an aggregate from another feature. Safe because ownership is
-    /// assigned once and never changes.
+    /// reminder without loading another feature's aggregate; safe because ownership never changes.
     /// </summary>
     public UserId OwnerId { get; private set; }
 
     /// <summary>
     /// Carried so that deleting a list can retire its reminders without first reading the items it
-    /// is about to remove.
-    /// <para>
-    /// This is a copy, and it is only correct while an item cannot move between lists — which is
-    /// the case here, <c>TodoItem.TodoListId</c> having no mutator. A feature that moves items
-    /// would have to update this alongside, or it goes quietly stale.
-    /// </para>
+    /// is about to remove. A copy, correct only while an item cannot move between lists — the case
+    /// here, <c>TodoItem.TodoListId</c> having no mutator; a feature that moves items must update
+    /// it too, or it goes quietly stale.
     /// </summary>
     public Guid TodoListId { get; private set; }
 
@@ -87,16 +78,12 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
     public DateTimeOffset? NotifiedAt { get; private set; }
 
     /// <summary>
-    /// How many times notifying this reminder has failed since it was scheduled or last moved. It
-    /// is what lengthens the wait between attempts, so a reminder that can never be delivered costs
-    /// one attempt an hour rather than one a minute.
+    /// How many times notifying this reminder has failed since it was scheduled or last moved; a
+    /// reminder that can never be delivered costs one attempt an hour rather than one a minute.
     /// </summary>
     public int FailedAttempts { get; private set; }
 
-    /// <summary>
-    /// The earliest instant the next attempt may be made after a failed one, or <c>null</c> when no
-    /// attempt has failed. Only a pending reminder is ever read against it.
-    /// </summary>
+    /// <summary>The earliest instant the next attempt may be made after a failed one, or <c>null</c> when none has.</summary>
     public DateTimeOffset? NextAttemptAt { get; private set; }
 
     /// <param name="now">Injected rather than read from the clock, so the aggregate has no ambient
@@ -108,9 +95,8 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
         DateTimeOffset dueAt,
         DateTimeOffset now)
     {
-        // Built first, so the constructor's invariants are what an ill-formed call meets. Being due
-        // in the future is not among them: it is a precondition of scheduling, and the load path
-        // must rebuild a reminder for which it no longer holds.
+        // Built first, so the constructor's invariants are what an ill-formed call meets. Being
+        // due in the future is a precondition of scheduling, which the load path must not re-check.
         var reminder = new Reminder(Guid.CreateVersion7(), ownerId, todoListId, todoItemId, dueAt);
 
         if (dueAt <= now)
@@ -122,22 +108,16 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
     }
 
     /// <summary>
-    /// Rebuilds a reminder that already exists in a store, from the values that were stored. A row
-    /// whose state and instants contradict each other is refused on the way in, rather than
-    /// becoming an aggregate that cannot honour its own rules.
-    /// <para>
-    /// One rule is deliberately <em>not</em> re-checked: that <see cref="DueAt"/> is in the future.
-    /// That is a precondition of scheduling, not a property of the state — it stops being true by
-    /// the mere passing of time, and enforcing it here would refuse to load exactly the rows the
-    /// firing query exists to find.
-    /// </para>
+    /// Rebuilds a reminder from stored values; a row whose state and instants contradict each
+    /// other is refused. That <see cref="DueAt"/> is in the future is deliberately not re-checked:
+    /// a precondition of scheduling, not a property of the state, it stops being true by the mere
+    /// passing of time — and enforcing it here would refuse to load exactly the rows the firing
+    /// query exists to find.
     /// </summary>
     public static Reminder Rehydrate(ReminderSnapshot stored)
     {
         ArgumentNullException.ThrowIfNull(stored);
 
-        // What the constructor at the bottom of this method cannot see: whether the stored values
-        // describing progress agree with each other.
         if (stored.State == ReminderState.Fired && stored.NotifiedAt is null)
         {
             throw new DomainException("A fired reminder must record when it was notified.");
@@ -167,10 +147,7 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
         };
     }
 
-    /// <summary>
-    /// Records that the notification went out, which is the only thing that retires a reminder for
-    /// good.
-    /// </summary>
+    /// <summary>Records that the notification went out, the only thing that retires a reminder for good.</summary>
     public void MarkNotified(DateTimeOffset notifiedAt)
     {
         if (State != ReminderState.Pending)
@@ -185,9 +162,9 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
     }
 
     /// <summary>
-    /// Records that an attempt to notify failed, and pushes the next one out. The wait doubles with
-    /// each failure up to a ceiling, and it is measured from now rather than from the due date, so
-    /// a reminder that has been failing for a day is not owed an immediate retry.
+    /// Records that an attempt to notify failed, and pushes the next one out. The wait doubles
+    /// with each failure up to a ceiling, measured from now rather than the due date, so a
+    /// reminder that has been failing for a day is not owed an immediate retry.
     /// </summary>
     public void RecordFailure(DateTimeOffset now)
     {
@@ -217,8 +194,7 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
 
     /// <summary>
     /// Calls the reminder off. Idempotent by shape — it assigns a state rather than moving one —
-    /// so a redelivered cancellation is a no-op instead of an error, and cancelling something
-    /// already fired is refused rather than silently rewriting history.
+    /// so a redelivered cancellation is a no-op, and cancelling something already fired is refused.
     /// </summary>
     public void Cancel()
     {

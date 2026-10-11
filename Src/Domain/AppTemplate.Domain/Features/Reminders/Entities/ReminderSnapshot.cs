@@ -4,19 +4,12 @@ using AppTemplate.Domain.Features.Reminders.ValueObjects;
 namespace AppTemplate.Domain.Features.Reminders.Entities;
 
 /// <summary>
-/// The stored values <see cref="Reminder.Rehydrate"/> rebuilds a reminder from.
-/// <para>
-/// A parameter object rather than nine parameters, because four of them are a <see cref="Guid"/> or
-/// a <see cref="DateTimeOffset"/> and three of the ids sit next to each other: transposing
-/// <see cref="TodoListId"/> and <see cref="TodoItemId"/> compiles, and produces a reminder attached
-/// to an item that is not the one the row named. Naming every value at the call site is what makes
-/// that mistake impossible rather than unlikely.
-/// </para>
-/// <para>
-/// Every member is <c>required</c>, including the nullable instants: a caller that has no
-/// notification to report says so by writing <c>NotifiedAt = null</c>, which is a decision, where an
-/// omitted argument would have been an oversight.
-/// </para>
+/// The stored values <see cref="Reminder.Rehydrate"/> rebuilds a reminder from. A parameter object
+/// rather than nine parameters, because three of the ids sit next to each other and transposing
+/// <see cref="TodoListId"/> and <see cref="TodoItemId"/> compiles; naming every value makes that
+/// mistake impossible rather than unlikely. Every member is <c>required</c>, including the
+/// nullable instants: a caller that has no notification to report writes <c>NotifiedAt = null</c>,
+/// which is a decision, where an omitted argument would have been an oversight.
 /// </summary>
 public sealed class ReminderSnapshot
 {

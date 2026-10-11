@@ -5,14 +5,11 @@ using AppTemplate.Domain.Features.Files.ValueObjects;
 namespace AppTemplate.Domain.Features.Files.Events;
 
 /// <summary>
-/// Raised when a file's content was examined and refused. It carries no reason, for the same
-/// decision as <see cref="StoredFileState.Quarantined"/>.
-/// <para>
-/// Delivery is at most once with no outbox: the state is already committed and is what every read
-/// consults, so a consumer may notify or alert but is never what makes the file unservable.
-/// <see cref="ObjectKey"/> travels with it, but the row still names the key: the orphan sweep will
-/// not reclaim these bytes, and deleting them destroys the only sample an investigation has.
-/// </para>
+/// Raised when a file's content was examined and refused; it carries no reason, for the same
+/// decision as <see cref="StoredFileState.Quarantined"/>. Delivery is at most once with no outbox,
+/// so a consumer may notify or alert but is never what makes the file unservable. The row still
+/// names the key, so the orphan sweep will not reclaim these bytes — the only sample an
+/// investigation has.
 /// </summary>
 public sealed record StoredFileQuarantinedDomainEvent(
     Guid StoredFileId,

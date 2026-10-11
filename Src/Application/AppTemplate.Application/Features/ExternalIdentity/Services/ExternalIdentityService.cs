@@ -1,5 +1,8 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Events;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.ExternalIdentity.Dtos;
+using AppTemplate.Application.Features.ExternalIdentity.Errors;
 using AppTemplate.Application.Features.ExternalIdentity.Policies;
 using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityQueries;
 using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityStore;
@@ -12,6 +15,7 @@ internal sealed class ExternalIdentityService(
     IExternalIdentityStore store,
     IExternalIdentityQueries queries,
     IRoleAssignmentQueries roleAssignments,
+    IDomainEventPublisher domainEvents,
     IDateTimeProvider dateTimeProvider) : IExternalIdentityService
 {
     /// <summary>
@@ -81,6 +85,26 @@ internal sealed class ExternalIdentityService(
         ArgumentNullException.ThrowIfNull(userId);
 
         return queries.FindProfileAsync(userId, cancellationToken);
+    }
+
+    public async Task<Result> DeleteAsync(UserId userId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(userId);
+
+        int removed = await store.RemoveAsync(userId, cancellationToken);
+
+        if (removed == 0)
+        {
+            return Result.Failure(ExternalIdentityErrors.MappingNotFound);
+        }
+
+        // After the store has committed, in the same request: the fact names what is already true,
+        // and the features holding data under this id hear it from their own consumers.
+        await domainEvents.PublishAsync(
+            new UserAccountDeleted(userId, dateTimeProvider.UtcNow),
+            cancellationToken);
+
+        return Result.Success();
     }
 
     /// <summary>An address too long for the column is dropped: half an address would reach somebody else.</summary>

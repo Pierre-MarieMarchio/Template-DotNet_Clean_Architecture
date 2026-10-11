@@ -1,4 +1,6 @@
-﻿namespace AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityStore;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+
+namespace AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityStore;
 
 /// <summary>
 /// The mapping from a provider's subject to an internal owner. Each write commits on its own, outside
@@ -26,4 +28,14 @@ public interface IExternalIdentityStore
     /// pair, and commits. The owner id is never rewritten.
     /// </summary>
     Task RefreshAsync(ExternalIdentityLink link, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes every mapping <paramref name="userId"/> is known by, and the role assignments held
+    /// for it, and commits — the administrative deletion of an account, whose local half this is.
+    /// Both go in one transaction: an owner whose mappings are gone but whose roles remain is
+    /// neither deleted nor half of anything.
+    /// </summary>
+    /// <returns>How many mappings were removed. Role assignments removed is nobody's answer: no
+    /// mapping naming the owner can be left to resolve against them.</returns>
+    Task<int> RemoveAsync(UserId userId, CancellationToken cancellationToken = default);
 }

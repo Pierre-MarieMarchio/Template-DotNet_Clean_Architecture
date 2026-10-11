@@ -36,14 +36,18 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
     }
 
     /// <summary>
-    /// A password change ends the caller's own session too, not only the others: the refresh token
-    /// it holds is revoked with every other one. No grant records which session it belongs to, so
-    /// there is none to spare.
+    /// A password change made from the caller's own session ends every other session and spares that
+    /// one — the owner's decision when sessions were named: proving the current password is
+    /// possession, not a compromise, so the caller is not signed out by its own change. The spared
+    /// grant keeps refreshing; a second session's grant does not.
     /// </summary>
     [Fact]
-    public async Task ChangePassword_SignsOutTheCallersOwnSessionToo()
+    public async Task ChangePassword_EndsEveryOtherSessionButSparesTheCallersOwn()
     {
         var (client, user, session) = await SignInAsync();
+
+        var otherDevice = CreateClient();
+        var otherTokens = await LoginAsync(otherDevice, user);
 
         using var changed = await client.PostAsJsonAsync(
             $"{AuthRoute}/change-password",
@@ -55,8 +59,14 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
             $"{AuthRoute}/refresh",
             new RefreshAccessTokenRequest(session.Tokens.RefreshToken),
             TestToken);
-        refreshed.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-        (await ApiJson.ReadProblemAsync(refreshed, TestToken)).Code.ShouldBe("auth.refreshToken.invalid");
+        refreshed.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var otherRefreshed = await otherDevice.PostAsJsonAsync(
+            $"{AuthRoute}/refresh",
+            new RefreshAccessTokenRequest(otherTokens.RefreshToken),
+            TestToken);
+        otherRefreshed.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await ApiJson.ReadProblemAsync(otherRefreshed, TestToken)).Code.ShouldBe("auth.refreshToken.invalid");
     }
 
     [Fact]

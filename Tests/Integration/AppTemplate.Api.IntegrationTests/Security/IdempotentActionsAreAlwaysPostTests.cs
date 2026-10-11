@@ -3,6 +3,9 @@ using AppTemplate.Api.Common.Idempotency;
 //#if (localAuth)
 using AppTemplate.Api.Features.Auth.Controllers;
 //#endif
+//#if (externalAuth)
+using AppTemplate.Api.Features.ExternalIdentity.Controllers;
+//#endif
 //#if (files)
 using AppTemplate.Api.Features.Files.Controllers;
 //#endif
@@ -47,6 +50,9 @@ public sealed class IdempotentActionsAreAlwaysPostTests
         typeof(AccountAdministrationController),
         typeof(AccountController),
         //#endif
+        //#if (externalAuth)
+        typeof(ExternalIdentityAdministrationController),
+        //#endif
         //#if (files)
         typeof(FilesController),
         typeof(FileTagsController),
@@ -58,6 +64,7 @@ public sealed class IdempotentActionsAreAlwaysPostTests
         typeof(NotesController),
         //#endif
         //#if (localAuth)
+        typeof(PasskeysController),
         typeof(PasswordRecoveryController),
         typeof(RefreshTokenMaintenanceController),
         typeof(RegistrationController),
@@ -66,6 +73,7 @@ public sealed class IdempotentActionsAreAlwaysPostTests
         typeof(RemindersController),
         //#endif
         //#if (localAuth)
+        typeof(SecurityEventMaintenanceController),
         typeof(SessionsController),
         //#endif
         //#if (todoLists)

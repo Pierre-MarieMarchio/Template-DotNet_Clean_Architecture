@@ -12,6 +12,7 @@ using AppTemplate.Api.Features.Reminders.Jobs;
 using AppTemplate.Api.UnitTests.TestSupport;
 //#if (localAuth)
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredSecurityEvents;
 //#endif
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
@@ -138,6 +139,7 @@ public sealed class BackgroundJobsModuleTests
         var idempotency = Substitute.For<IPurgeExpiredIdempotencyKeysUseCase>();
         //#if (localAuth)
         var refreshTokens = Substitute.For<IPurgeExpiredRefreshTokensUseCase>();
+        var securityEvents = Substitute.For<IPurgeExpiredSecurityEventsUseCase>();
         //#endif
         //#if (reminders)
         var reminders = Substitute.For<IFireDueRemindersUseCase>();
@@ -151,6 +153,7 @@ public sealed class BackgroundJobsModuleTests
         idempotency.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#if (localAuth)
         refreshTokens.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        securityEvents.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#endif
         //#if (reminders)
         reminders.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
@@ -168,6 +171,7 @@ public sealed class BackgroundJobsModuleTests
                 services.AddScoped(_ => idempotency);
                 //#if (localAuth)
                 services.AddScoped(_ => refreshTokens);
+                services.AddScoped(_ => securityEvents);
                 //#endif
                 //#if (reminders)
                 services.AddScoped(_ => reminders);
@@ -186,6 +190,7 @@ public sealed class BackgroundJobsModuleTests
             () => Received(idempotency),
             //#if (localAuth)
             () => Received(refreshTokens),
+            () => Received(securityEvents),
             //#endif
             //#if (reminders)
             () => Received(reminders),

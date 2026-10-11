@@ -86,6 +86,10 @@ public sealed class LayoutConventionTests
                 //#if (externalAuth)
                 "Options",
                 //#endif
+                // Providers/ holds an adapter the host supplies to a module for something only a
+                // request can answer — where an event came from — as Directories/ holds the ones
+                // that join two features.
+                "Providers",
             ],
         //#if (localAuth)
 
@@ -95,7 +99,7 @@ public sealed class LayoutConventionTests
         // …Service is in Services/ and nowhere else, and Services/ holds nothing that is not one.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Auth"] =
             ["Configurations", "Directories", "Factories", "Issuers", "Logs", "Models", "Options", "Providers",
-             "Seeding", "Services", "Tables", "Templates", "Verifiers"],
+             "Queries", "Seeding", "Services", "Tables", "Templates", "Verifiers"],
         //#endif
         //#if (files)
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =

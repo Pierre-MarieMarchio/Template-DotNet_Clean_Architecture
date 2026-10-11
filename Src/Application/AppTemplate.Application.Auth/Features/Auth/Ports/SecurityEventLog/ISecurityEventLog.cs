@@ -4,9 +4,11 @@
 /// The audit trail for authentication itself: who signed in, who failed to, whose account locked,
 /// and every point a credential was revoked or found already spent.
 /// <para>
-/// One operation, not one per event, so this stays one capability: recording an event. What varies
+/// One capability: keeping the trail. Recording is one operation, not one per event — what varies
 /// is the closed set of typed events below, each carrying only the data its own fact carries,
-/// rather than the width of this interface.
+/// rather than the width of this interface. The other operation is the trail's own retention:
+/// events older than the configured period are removed, so the trail is bounded by time rather
+/// than growing for ever.
 /// </para>
 /// <para>
 /// <b>Never given an email address.</b> Several call sites along this vertical — resending a
@@ -28,4 +30,12 @@ public interface ISecurityEventLog
     /// the fact — see above.
     /// </summary>
     void Record(SecurityEvent securityEvent);
+
+    /// <summary>
+    /// Removes every event older than the retention period, counted back from
+    /// <paramref name="asOf"/>, and answers how many were removed. The period is the adapter's
+    /// configuration, not the caller's: a scheduled purge has no business choosing how long evidence
+    /// is kept.
+    /// </summary>
+    Task<int> PurgeExpiredAsync(DateTimeOffset asOf, CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,5 @@
-﻿using AppTemplate.Api.Common.Controllers;
+﻿using AppTemplate.Api.Common.Contracts;
+using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
@@ -8,6 +9,7 @@ using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEmailC
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteMyAccount;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestEmailChange;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.GetCurrentUser;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.GetMySecurityEvents;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -31,7 +33,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// 6749 §5.1 forbids a cache from storing an OAuth-style credential.
 /// </para>
 /// <para>
-/// Five classes under the one <c>auth</c> prefix, and the prefix is the surface: the twenty-one actions
+/// Five classes under the one <c>auth</c> prefix, and the prefix is the surface: the twenty-two actions
 /// are divided between them, and no path depends on which class answers it.
 /// </para>
 /// </remarks>
@@ -39,6 +41,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 [Asp.Versioning.ApiVersion("1.0")]
 public sealed class AccountController(
     IGetCurrentUserUseCase getCurrentUser,
+    IGetMySecurityEventsUseCase getMySecurityEvents,
     IChangePasswordUseCase changePassword,
     IRequestEmailChangeUseCase requestEmailChange,
     IConfirmEmailChangeUseCase confirmEmailChange,
@@ -46,8 +49,9 @@ public sealed class AccountController(
 {
     /// <summary>The authenticated caller's own profile. Takes no input: the identity is the token's.</summary>
     /// <remarks>
-    /// One of two actions here without <see cref="RateLimitingExtensions.Authentication"/> — see
-    /// <see cref="SessionsController.LogoutEverywhere"/> for the other — so it falls to the global
+    /// One of three actions without <see cref="RateLimitingExtensions.Authentication"/> — see
+    /// <see cref="GetMySecurityEvents"/> beside it and
+    /// <see cref="SessionsController.LogoutEverywhere"/> for the third — so it falls to the global
     /// limiter. A profile
     /// read is not an attempt at a credential, and a client that polls this — a session check on
     /// every app start — must not be spending the allowance that exists to slow brute force down. It
@@ -134,6 +138,7 @@ public sealed class AccountController(
     }
 
     /// <summary>
+    /// <summary>
     /// Deletes the caller's own account, and with it every session its tokens name: the answer is
     /// the last one this token can obtain. What the other features hold under the id is removed
     /// through the account-deleted fact they each consume — see <c>DeleteMyAccountUseCase</c>.
@@ -162,5 +167,35 @@ public sealed class AccountController(
         var command = new DeleteMyAccountCommand(request.CurrentPassword, request.TwoFactorCode);
 
         return NoContentOrProblem(await deleteMyAccount.ExecuteAsync(command, cancellationToken));
+    }
+
+    /// <summary>
+    /// The caller's own security trail, newest first: every sign-in attempt on this account, each
+    /// with the address and user agent it came from. A page, not a history: events older than the
+    /// retention period are gone, and the trail survives the account itself until they expire.
+    /// </summary>
+    /// <remarks>
+    /// Without the credential budget — <see cref="GetCurrentUser"/> gives the reason — so it
+    /// falls to the global limiter: reading
+    /// one's own trail is not an attempt at a credential, and an account holder checking recent
+    /// activity must not be spending the allowance that slows brute force down. Whose events these
+    /// are is the caller's identity, never an input, so there is nothing here to point at somebody
+    /// else.
+    /// </remarks>
+    [HttpGet("me/security-events")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<SecurityEventResponse>))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
+    public async Task<ActionResult<PagedResponse<SecurityEventResponse>>> GetMySecurityEvents(
+        [FromQuery] GetSecurityEventsRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var query = new GetMySecurityEventsQuery(request.Page, request.PageSize);
+
+        return OkOrProblem(
+            AuthResponseMapping.ToSecurityEventPageResponse(await getMySecurityEvents.ExecuteAsync(query, cancellationToken)));
     }
 }

@@ -1,5 +1,6 @@
 ﻿//#if (localAuth)
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredSecurityEvents;
 //#endif
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
@@ -84,3 +85,32 @@ internal sealed class HangingUseCase : IPurgeExpiredIdempotencyKeysUseCase
 
     private sealed class UnreachableException : Exception;
 }
+
+//#if (localAuth)
+/// <summary>Counts calls and always succeeds with a fixed count, unless told to throw.</summary>
+internal sealed class FakeSecurityEventPurge : IPurgeExpiredSecurityEventsUseCase
+{
+    private readonly Exception? _failure;
+    private readonly int _count;
+
+    public FakeSecurityEventPurge(Exception? failure = null, int count = 7)
+    {
+        _failure = failure;
+        _count = count;
+    }
+
+    public int CallCount { get; private set; }
+
+    public Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    {
+        CallCount++;
+
+        if (_failure is not null)
+        {
+            return Task.FromException<Result<int>>(_failure);
+        }
+
+        return Task.FromResult(Result.Success(_count));
+    }
+}
+//#endif

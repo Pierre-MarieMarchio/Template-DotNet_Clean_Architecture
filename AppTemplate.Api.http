@@ -149,6 +149,13 @@ GET {{api}}/auth/me
 Authorization: Bearer {{accessToken}}
 
 ###
+# 7c. The caller's own security trail, one page of it: every recorded sign-in attempt, lockout
+#     and credential change on this account, each with the IP address and user agent it came
+#     from. Events older than the retention period are gone — a page, not a history.
+GET {{api}}/auth/me/security-events?page=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+
+###
 @myUserId = {{myProfile.response.body.$.userId}}
 
 ###
@@ -750,7 +757,7 @@ Content-Type: application/json
 }
 
 ###
-# 37. Maintenance. Both purges answer 200 with {"deleted": n} — an object rather than a bare number,
+# 37. Maintenance. Each purge answers 200 with {"deleted": n} — an object rather than a bare number,
 #     so a second field can be added without breaking callers. An external scheduler can call
 #     these; the cadence is a deployment concern.
 #
@@ -764,6 +771,12 @@ Authorization: Bearer {{accessToken}}
 # 38. The same, for refresh-token grants. The table only grows — one row per rotation — until an
 #     operator prunes it, which is why the endpoint exists at all.
 DELETE {{api}}/maintenance/refresh-tokens/expired
+Authorization: Bearer {{accessToken}}
+
+###
+# 38b. The same, for the security-event trail. What "expired" means is
+#      SecurityEventLog:RetentionInDays, not a parameter a caller may choose.
+DELETE {{api}}/maintenance/security-events/expired
 Authorization: Bearer {{accessToken}}
 
 #endif

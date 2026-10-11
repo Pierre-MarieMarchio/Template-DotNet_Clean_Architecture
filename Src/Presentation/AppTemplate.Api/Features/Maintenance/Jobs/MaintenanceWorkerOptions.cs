@@ -4,9 +4,9 @@ namespace AppTemplate.Api.Features.Maintenance.Jobs;
 
 /// <summary>
 /// The maintenance timer's cadence: how often it wakes up, and whether the idempotency purge runs
-/// when it does. Every other purge owns its own switch under this same section — the refresh-token
-/// one is <c>RefreshTokenPurgeOptions</c> — so an operator who runs one cleanup some other way is
-/// not forced into both, and a feature removed from the template takes its key with it.
+/// when it does. Every other purge owns its own switch under this same section — authentication's
+/// two are <c>AuthPurgeOptions</c> — so an operator who runs one cleanup some other way is not
+/// forced into the rest, and a feature removed from the template takes its keys with it.
 /// </summary>
 public sealed class MaintenanceWorkerOptions
 {

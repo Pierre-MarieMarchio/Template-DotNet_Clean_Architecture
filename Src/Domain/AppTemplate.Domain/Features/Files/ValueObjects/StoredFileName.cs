@@ -4,13 +4,10 @@ using AppTemplate.Domain.Core.Common.Exceptions;
 
 namespace AppTemplate.Domain.Features.Files.ValueObjects;
 
-/// <summary>
-/// The name a client gave a file, kept to be shown back and offered as a download name. It is a
-/// label: it never reaches a filesystem and never addresses anything — bytes are addressed by
-/// <see cref="ObjectKey"/>, minted independently. The rules below exist because the value ends up
-/// in a <c>Content-Disposition</c> header and on a user's disk, where a refusal is visible and a
-/// truncation is not.
-/// </summary>
+/// <summary>The name a client gave a file, kept to be shown back and offered as a download name. A
+/// label: it never reaches a filesystem — bytes are addressed by <see cref="ObjectKey"/>, minted
+/// independently. The rules exist because the value ends up in a <c>Content-Disposition</c> header,
+/// where a refusal is visible and a truncation is not.</summary>
 public sealed record StoredFileName
 {
     /// <summary>

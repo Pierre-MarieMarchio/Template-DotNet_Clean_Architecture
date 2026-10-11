@@ -6,12 +6,10 @@ using AppTemplate.Domain.Features.Reminders.ValueObjects;
 
 namespace AppTemplate.Domain.Features.Reminders.Entities;
 
-/// <summary>
-/// A notification promised for a to-do item at a given instant; an aggregate of one, since nothing
-/// about it needs to be consistent with anything else in the same transaction. It names the item it
-/// is about rather than living inside <c>TodoList</c>: firing reads by due date across every owner,
-/// and would otherwise load a whole aggregate to reach one row.
-/// </summary>
+/// <summary>A notification promised for a to-do item at a given instant; an aggregate of one,
+/// since nothing about it needs to be consistent with anything else in the same transaction. It
+/// names the item it is about rather than living inside <c>TodoList</c>: firing reads by due date
+/// across every owner without loading a whole aggregate to reach one row.</summary>
 public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
     /// <summary>The wait after the first failed attempt; each further failure doubles it.</summary>
@@ -60,12 +58,10 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// </summary>
     public UserId OwnerId { get; private set; }
 
-    /// <summary>
-    /// Carried so that deleting a list can retire its reminders without first reading the items it
-    /// is about to remove. A copy, correct only while an item cannot move between lists — the case
-    /// here, <c>TodoItem.TodoListId</c> having no mutator; a feature that moves items must update
-    /// it too, or it goes quietly stale.
-    /// </summary>
+    /// <summary>Carried so that deleting a list can retire its reminders without first reading
+    /// the items it is about to remove. A copy, correct only while an item cannot move between
+    /// lists — the case here, <c>TodoItem.TodoListId</c> having no mutator; a feature that moves
+    /// items must update it too, or it goes quietly stale.</summary>
     public Guid TodoListId { get; private set; }
 
     public Guid TodoItemId { get; private set; }
@@ -107,13 +103,10 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
         return reminder;
     }
 
-    /// <summary>
-    /// Rebuilds a reminder from stored values; a row whose state and instants contradict each
-    /// other is refused. That <see cref="DueAt"/> is in the future is deliberately not re-checked:
-    /// a precondition of scheduling, not a property of the state, it stops being true by the mere
-    /// passing of time — and enforcing it here would refuse to load exactly the rows the firing
-    /// query exists to find.
-    /// </summary>
+    /// <summary>Rebuilds a reminder from stored values; a row whose state and instants contradict
+    /// each other is refused. That <see cref="DueAt"/> is in the future is deliberately not
+    /// re-checked: it stops being true by the mere passing of time, and enforcing it here would
+    /// refuse to load exactly the rows the firing query exists to find.</summary>
     public static Reminder Rehydrate(ReminderSnapshot stored)
     {
         ArgumentNullException.ThrowIfNull(stored);

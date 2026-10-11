@@ -5,12 +5,10 @@ using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 
 namespace AppTemplate.Domain.Features.TodoLists.Entities;
 
-/// <summary>
-/// A single entry inside a <see cref="TodoList"/>: an entity but <b>not</b> an aggregate root — no
-/// repository, reachable only through its list. Every mutator is <c>internal</c> so the root stays
-/// the only thing able to change it, which is what makes the list-level invariants (unique titles,
-/// item cap) enforceable.
-/// </summary>
+/// <summary>A single entry inside a <see cref="TodoList"/>: an entity but <b>not</b> an aggregate
+/// root — no repository, reachable only through its list. Every mutator is <c>internal</c>, so the
+/// root stays the only thing able to change it, which is what makes the list-level invariants
+/// enforceable.</summary>
 public sealed class TodoItem : Entity<Guid>
 {
     public const int MaxDescriptionLength = 2000;
@@ -27,12 +25,10 @@ public sealed class TodoItem : Entity<Guid>
         Description = NormaliseDescription(description);
     }
 
-    /// <summary>
-    /// Rebuilds a stored item; called only by <see cref="TodoList.Rehydrate"/>'s caller — the
-    /// persistence layer — which is why it is <c>public</c> where every mutator is
-    /// <c>internal</c>. Every value goes through the same normalisation and value object a live
-    /// item would, so a row that violates an invariant is refused here.
-    /// </summary>
+    /// <summary>Rebuilds a stored item; called only by <see cref="TodoList.Rehydrate"/>'s caller —
+    /// the persistence layer — which is why it is <c>public</c> where every mutator is
+    /// <c>internal</c>. Every value goes through the same normalisation a live item's would, so a
+    /// row that violates an invariant is refused here.</summary>
     public static TodoItem Rehydrate(
         Guid id,
         Guid todoListId,

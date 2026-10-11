@@ -2,31 +2,19 @@
 
 namespace AppTemplate.Domain.Common.Tagging;
 
-/// <summary>
-/// The tags one thing carries, and the three rules that govern them: a tag is held once however
-/// many times it is sent, a cap bounds how many one thing may carry, and a replacement is total
-/// rather than a merge.
-/// </summary>
-/// <remarks>
-/// Owned by an aggregate rather than exposed to callers: every method here is reached through the
-/// aggregate that holds the set, so the cap and the aggregate's own invariants are enforced
-/// together. The cap and the subject are the aggregate's to choose, because how many tags a thing
-/// may carry is a decision about that thing; the rules are the same for everything this application
-/// tags, which is why they are written once here.
-/// </remarks>
+/// <summary>The tags one thing carries, under three rules: a tag is held once however often it is
+/// sent, a cap bounds how many, and a replacement is total rather than a merge.</summary>
+/// <remarks>Reached only through the owning aggregate, so the cap and its invariants are enforced
+/// together; the cap and the subject are the aggregate's to choose, the rules are shared.</remarks>
 public sealed class TagSet
 {
     private readonly List<Tag> _tags = [];
     private readonly string _subject;
 
-    /// <param name="capacity">
-    /// The most tags the owning aggregate will carry. A bound is required rather than advisable:
-    /// without one a single request could send an unbounded collection into a per-tag loop.
-    /// </param>
-    /// <param name="subject">
-    /// How the owning aggregate names itself in a refusal — "to-do item", "stored file". It
-    /// reaches a caller, so it reads as prose rather than as a type name.
-    /// </param>
+    /// <param name="capacity">The most tags the owning aggregate will carry; a bound, not advice —
+    /// without one a request could feed an unbounded collection into a per-tag loop.</param>
+    /// <param name="subject">How the owning aggregate names itself in a refusal — "to-do item";
+    /// it reaches a caller, so it reads as prose, not as a type name.</param>
     public TagSet(int capacity, string subject)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
@@ -44,14 +32,9 @@ public sealed class TagSet
 
     /// <summary>Adds a tag, or does nothing if it is already held.</summary>
     /// <param name="tag">The tag to hold.</param>
-    /// <exception cref="DomainException">
-    /// The set is full and <paramref name="tag"/> is not already in it.
-    /// </exception>
-    /// <remarks>
-    /// A tag already present is a no-op rather than an error: failing would force every client to
-    /// read-then-write to stay correct and would make a retried request fail spuriously. The cap is
-    /// checked only for a tag that is actually new, for the same reason.
-    /// </remarks>
+    /// <exception cref="DomainException">The set is full and <paramref name="tag"/> is not already in it.</exception>
+    /// <remarks>A duplicate is a no-op rather than an error, so a retried request cannot fail
+    /// spuriously; the cap is checked only for a tag that is actually new, for the same reason.</remarks>
     public void Add(Tag tag)
     {
         ArgumentNullException.ThrowIfNull(tag);
@@ -78,18 +61,13 @@ public sealed class TagSet
         _tags.Remove(tag);
     }
 
-    /// <summary>
-    /// Replaces everything held with <paramref name="wanted"/>: what is no longer there is removed,
-    /// what is new is added.
-    /// </summary>
+    /// <summary>Replaces everything held with <paramref name="wanted"/>: what is no longer there is
+    /// removed, what is new is added.</summary>
     /// <param name="wanted">The set the caller wants to end up with.</param>
     /// <exception cref="DomainException"><paramref name="wanted"/> holds more tags than the cap allows.</exception>
-    /// <remarks>
-    /// Total replacement rather than a merge, and the removals happen first, so the cap applies to
-    /// the result rather than to the union: swapping twenty tags for twenty others is not a request
-    /// for forty. Duplicates within <paramref name="wanted"/> collapse, because <see cref="Tag"/>
-    /// normalises before it compares.
-    /// </remarks>
+    /// <remarks>Total replacement, not a merge, and removals happen first, so the cap applies to the
+    /// result and not the union: twenty tags swapped for twenty others is not a request for forty.
+    /// Duplicates collapse, because <see cref="Tag"/> normalises before it compares.</remarks>
     public void Replace(IEnumerable<Tag> wanted)
     {
         ArgumentNullException.ThrowIfNull(wanted);

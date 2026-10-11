@@ -7,12 +7,10 @@ using AppTemplate.Domain.Features.Files.ValueObjects;
 
 namespace AppTemplate.Domain.Features.Files.Entities;
 
-/// <summary>
-/// One file in the system: its metadata, never its bytes. The row and the bytes are written by two
-/// parties with no shared transaction, so the state is <c>Pending → Deposited → Available</c> or
-/// <c>Deposited → Quarantined</c>, and neither terminal state can be left. Deleting removes the
-/// row; the orphan sweep reclaims the bytes.
-/// </summary>
+/// <summary>One file in the system: its metadata, never its bytes. The row and the bytes are written
+/// by two parties with no shared transaction, so the state is <c>Pending → Deposited → Available</c>
+/// or <c>Deposited → Quarantined</c>, and neither terminal state can be left; deleting removes the
+/// row, and the orphan sweep reclaims the bytes.</summary>
 public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
     /// <summary>How many tags one file carries; the rules are <see cref="TagSet"/>'s.</summary>
@@ -132,12 +130,10 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
             checksum,
             now);
 
-    /// <summary>
-    /// Rebuilds a file from stored values; a row whose state and instants contradict each other is
-    /// refused. <see cref="AvailableAt"/> is deliberately not ordered against
-    /// <see cref="RegisteredAt"/>: a wall clock an NTP correction can step backwards would make a
-    /// legitimate row unloadable over a field nothing decides from.
-    /// </summary>
+    /// <summary>Rebuilds a file from stored values; a row whose state and instants contradict each
+    /// other is refused. <see cref="AvailableAt"/> is deliberately not ordered against
+    /// <see cref="RegisteredAt"/>: a clock an NTP correction stepped backwards would make a
+    /// legitimate row unloadable.</summary>
     public static StoredFile Rehydrate(StoredFileSnapshot stored)
     {
         ArgumentNullException.ThrowIfNull(stored);
@@ -185,12 +181,10 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         return file;
     }
 
-    /// <summary>
-    /// Records that the bytes on the store are the ones promised, from the store's own report; it
-    /// does not make the file servable. A mismatch leaves the file pending for the abandonment
-    /// sweep. No event is raised, or a consumer would run the inspection inside the confirming
-    /// request.
-    /// </summary>
+    /// <summary>Records that the bytes on the store are the ones promised, from the store's own
+    /// report; it does not make the file servable. A mismatch leaves the file pending for the
+    /// abandonment sweep. No event is raised, or a consumer would run the inspection inside the
+    /// confirming request.</summary>
     /// <exception cref="DomainException">The file is not pending, or the deposit is not what was declared.</exception>
     public void ConfirmDeposit(FileSize observedSize, Sha256Checksum observedChecksum)
     {
@@ -215,11 +209,9 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         State = StoredFileState.Deposited;
     }
 
-    /// <summary>
-    /// Releases the file for serving once its content was examined and accepted. Only a deposited
-    /// file qualifies, so the state machine, not the caller's diligence, stops a refused file
-    /// being released by a second pass.
-    /// </summary>
+    /// <summary>Releases the file for serving once its content was examined and accepted. Only a
+    /// deposited file qualifies, so the state machine, not the caller's diligence, stops a refused
+    /// file being released by a second pass.</summary>
     /// <exception cref="DomainException">The file has no confirmed deposit, or was already released or refused.</exception>
     public void MakeAvailable(DateTimeOffset now)
     {
@@ -234,12 +226,10 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         RaiseDomainEvent(new StoredFileMadeAvailableDomainEvent(Id, OwnerId, ObjectKey, DeclaredMediaType, now));
     }
 
-    /// <summary>
-    /// Refuses the file on the evidence of its content; terminal, from deposited only. The bytes
-    /// stay on the store: the row still names the key, so no sweep would reclaim them, and a
+    /// <summary>Refuses the file on the evidence of its content; terminal, from deposited only. The
+    /// bytes stay on the store: the row still names the key, so no sweep would reclaim them, and a
     /// refused file is the one somebody may need to look at. No reason is recorded; see
-    /// <see cref="StoredFileState.Quarantined"/>.
-    /// </summary>
+    /// <see cref="StoredFileState.Quarantined"/>.</summary>
     /// <exception cref="DomainException">The file has no confirmed deposit, or was already released or refused.</exception>
     public void Quarantine(DateTimeOffset now)
     {
@@ -253,11 +243,9 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         RaiseDomainEvent(new StoredFileQuarantinedDomainEvent(Id, OwnerId, ObjectKey, now));
     }
 
-    /// <summary>
-    /// Records an inspection that reached no verdict and pushes the next one out: one minute,
+    /// <summary>Records an inspection that reached no verdict and pushes the next one out: one minute,
     /// doubled per attempt, capped at one hour. It never refuses the file: an outage must not
-    /// become a quarantine.
-    /// </summary>
+    /// become a quarantine.</summary>
     /// <exception cref="DomainException">The file is not deposited.</exception>
     public void DeferInspection(DateTimeOffset now)
     {
@@ -285,11 +273,9 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         return delay < _longestInspectionRetryDelay ? delay : _longestInspectionRetryDelay;
     }
 
-    /// <summary>
-    /// Raises the event that lets the bytes be reclaimed now rather than at the next sweep; it
-    /// changes nothing about the file and is called alongside <c>IStoredFileRepository.Remove</c>,
-    /// never instead of it.
-    /// </summary>
+    /// <summary>Raises the event that lets the bytes be reclaimed now rather than at the next sweep;
+    /// it changes nothing about the file and is called alongside <c>IStoredFileRepository.Remove</c>,
+    /// never instead of it.</summary>
     /// <exception cref="DomainException">Deletion was already announced in this unit of work.</exception>
     public void Delete(DateTimeOffset now)
     {

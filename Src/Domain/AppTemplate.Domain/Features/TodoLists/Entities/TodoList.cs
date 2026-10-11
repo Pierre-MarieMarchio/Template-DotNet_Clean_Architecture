@@ -7,18 +7,12 @@ using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 
 namespace AppTemplate.Domain.Features.TodoLists.Entities;
 
-/// <summary>
-/// A to-do list together with its items and their tags; the module's only aggregate root and
-/// therefore its only type with a repository. Items and tags have no independent existence, and
-/// making them separately addressable would leave no single object able to enforce a rule that
-/// spans them.
-/// </summary>
+/// <summary>A to-do list with its items and their tags: the module's only aggregate root and only
+/// type with a repository — items and tags have no existence apart from the list that holds them.</summary>
 public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
-    /// <summary>
-    /// A write loads the whole aggregate, so this cap is the only bound on the cost of every
-    /// command; a workload needing more wants a different aggregate boundary, not a bigger constant.
-    /// </summary>
+    /// <summary>A write loads the whole aggregate, so this cap is the only bound on a command's cost;
+    /// a workload needing more wants a different aggregate boundary.</summary>
     public const int MaxItems = 500;
 
     private readonly List<TodoItem> _items = [];
@@ -49,15 +43,10 @@ public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
         return list;
     }
 
-    /// <summary>
-    /// Rebuilds a stored aggregate — the seam a persistence layer with its own model needs.
-    /// Declared here so the compiler checks the signature: a new piece of state cannot be added
-    /// without this method being visited, where reflection over private members would fail at
-    /// runtime instead. Unlike <see cref="Create"/> it raises no event and accepts the id rather
-    /// than minting one; every stored value still passes the checks a live aggregate applies.
-    /// The version and audit values stay with the store, written through <see cref="IVersioned"/>
-    /// and <see cref="IAuditable"/>.
-    /// </summary>
+    /// <summary>Rebuilds a stored aggregate — the persistence seam, declared here so the compiler
+    /// checks the signature. Unlike <see cref="Create"/> it raises no event and accepts the id; stored
+    /// values still pass a live aggregate's checks, and version and audit go through
+    /// <see cref="IVersioned"/> and <see cref="IAuditable"/>.</summary>
     /// <param name="id">The stored identifier. Never generated here.</param>
     /// <param name="ownerId">The stored owner.</param>
     /// <param name="name">The stored name, re-validated.</param>

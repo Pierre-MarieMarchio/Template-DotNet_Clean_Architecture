@@ -2,13 +2,10 @@
 
 namespace AppTemplate.Domain.Core.Common.Primitives;
 
-/// <summary>
-/// An aggregate root whose row carries the two stamps the store owns: the audit values and the
-/// optimistic-concurrency token. Both are declared here because the shape is the same every time —
-/// a getter anyone may read, and a setter reachable only by casting to <see cref="IAuditable"/> or
-/// <see cref="IVersioned"/>, so code that wants to forge either has to say so first. An aggregate
-/// that needs neither derives from <see cref="AggregateRoot{TId}"/> instead.
-/// </summary>
+/// <summary>An aggregate root whose row carries the two stamps the store owns: the audit values and
+/// the optimistic-concurrency token. The setter is reachable only by casting to <see cref="IAuditable"/>
+/// or <see cref="IVersioned"/>, so code that wants to forge either has to say so first; an aggregate
+/// that needs neither derives from <see cref="AggregateRoot{TId}"/> instead.</summary>
 /// <typeparam name="TId">The identity type, which may not be null.</typeparam>
 public abstract class AuditableAggregateRoot<TId> : AggregateRoot<TId>, IAuditable, IVersioned
     where TId : notnull

@@ -138,7 +138,6 @@ public sealed class AccountController(
     }
 
     /// <summary>
-    /// <summary>
     /// Deletes the caller's own account, and with it every session its tokens name: the answer is
     /// the last one this token can obtain. What the other features hold under the id is removed
     /// through the account-deleted fact they each consume — see <c>DeleteMyAccountUseCase</c>.

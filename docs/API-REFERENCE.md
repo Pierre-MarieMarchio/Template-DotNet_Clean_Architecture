@@ -333,7 +333,9 @@ a new owner id, with none of the deleted one's data — that is what deleting th
 account meant, and the provider's own account is the provider's to delete. When the
 provider retires a subject, an administrator calls this with the owner id, or the
 project wires the provider's own deletion signal to the same service; the template
-ships no endpoint for that signal.
+ships no endpoint for that signal. This trigger records no security event: the
+persisted trail is the Auth module's, and this template has no Auth module — audit
+deletions here through the provider's own logs.
 
 #endif-->
 ## Maintenance — `api/v1/maintenance/*`

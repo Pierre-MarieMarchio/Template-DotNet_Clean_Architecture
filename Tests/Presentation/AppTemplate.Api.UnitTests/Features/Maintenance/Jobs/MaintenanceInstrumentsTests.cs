@@ -136,7 +136,8 @@ public sealed class MaintenanceInstrumentsTests
             new FakeRefreshTokenPurge(),
             new FakeSecurityEventPurge(),
             options,
-            refreshTokensEnabled: false);
+            refreshTokensEnabled: false,
+            securityEventsEnabled: false);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await BackgroundServiceProbe.WaitUntilAsync(

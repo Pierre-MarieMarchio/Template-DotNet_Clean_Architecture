@@ -5,19 +5,11 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SetUpTwoFactor;
 
-/// <summary>
-/// Begins two-factor enrollment: hands back a shared key and an <c>otpauth://</c> URI to scan, but
-/// arms nothing yet — see <see cref="Commands.ConfirmTwoFactorSetup"/> for the step that does.
-/// <para>
-/// No <c>CredentialInvalidationPolicy</c> here, on purpose. The first call for an account provisions a
-/// secret, which rotates the security stamp as a side effect of ASP.NET Identity's own
-/// <c>ResetAuthenticatorKeyAsync</c> — the caller's own access token stops validating on its very
-/// next request, exactly as it would after a password change, and self-heals at the next refresh.
-/// Revoking every refresh token on top of that would sign every device the account is signed into
-/// out of a step that has not actually changed anything yet: two-factor sign-in stays off until
-/// <see cref="Commands.ConfirmTwoFactorSetup"/> proves the caller can produce a code from it.
-/// </para>
-/// </summary>
+/// <summary>Begins two-factor enrollment: hands back a shared key and an <c>otpauth://</c> URI to
+/// scan, but arms nothing yet — <see cref="Commands.ConfirmTwoFactorSetup"/> does that. No
+/// <c>CredentialInvalidationPolicy</c> here, on purpose: provisioning a secret rotates the security
+/// stamp through Identity's own <c>ResetAuthenticatorKeyAsync</c>, and revoking every refresh token
+/// on top of that would sign every device out of a step that has changed nothing yet.</summary>
 public sealed class SetUpTwoFactorUseCase(
     ITwoFactorService twoFactor,
     ICurrentUser currentUser) : ISetUpTwoFactorUseCase

@@ -6,20 +6,13 @@ using AppTemplate.Domain.Features.Files.Repositories;
 
 namespace AppTemplate.Application.Features.Files.Consumers.AccountDeleted;
 
-/// <summary>
-/// The stored files' declared fate for the data of a deleted account: <b>deleted</b>, rows and bytes.
-/// Each removal goes through <c>StoredFile.Delete</c> like any other, so the
-/// <c>StoredFileDeletedDomainEvent</c> it raises reclaims the bytes promptly, and the orphan sweep
-/// reclaims them anyway if that consumer is never reached — the row, not the event, is what makes
-/// the bytes garbage.
-/// <para>
-/// This runs after the transaction that removed the account has already committed, so it owns
-/// committing its own change through <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>:
-/// the same <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never
-/// reaching this consumer, and the precondition is re-derived through
-/// <see cref="IUserAccountDirectory"/> rather than trusted.
-/// </para>
-/// </summary>
+/// <summary>The stored files' declared fate for the data of a deleted account: <b>deleted</b>,
+/// rows and bytes. Each removal goes through <c>StoredFile.Delete</c>, so the event it raises
+/// reclaims the bytes promptly — and the orphan sweep reclaims them anyway: the row, not the
+/// event, is what makes the bytes garbage. Runs after the account's transaction has committed and
+/// owns its own commit through <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>:
+/// the <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never reaching
+/// this consumer, and the precondition is re-derived through <see cref="IUserAccountDirectory"/>.</summary>
 internal sealed class DeleteStoredFilesOnAccountDeletedConsumer(
     IStoredFileRepository files,
     IStoredFileQueries queries,

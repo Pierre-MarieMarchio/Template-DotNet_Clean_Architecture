@@ -6,16 +6,11 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 
-/// <summary>
-/// Removes registrations never deposited against, so the quota slot each holds comes back. The query
-/// is the coarse filter, <see cref="StoredFile.IsAbandoned"/> the per-file decision. Each removal
-/// announces <see cref="StoredFile.Delete"/> so unconfirmed bytes are reclaimed promptly. Background
-/// job: must not read <see cref="ICurrentUser"/>.
-/// <para>
-/// Idempotent: a batch is one commit, so a failed pass writes nothing and the next one selects the
-/// same rows again.
-/// </para>
-/// </summary>
+/// <summary>Removes registrations never deposited against, so the quota slot each holds comes back.
+/// The query is the coarse filter, <see cref="StoredFile.IsAbandoned"/> the per-file decision; each
+/// removal announces <see cref="StoredFile.Delete"/> so unconfirmed bytes are reclaimed promptly.
+/// Background job: must not read <see cref="ICurrentUser"/>. Idempotent: a batch is one commit, so a
+/// failed pass writes nothing and the next selects the same rows again.</summary>
 public sealed class PurgeAbandonedRegistrationsUseCase(
     IStoredFileRepository repository,
     IUnitOfWork unitOfWork,

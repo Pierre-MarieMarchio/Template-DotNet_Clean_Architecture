@@ -4,16 +4,11 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.TodoLists.Consumers.TodoItemCompleted;
 
-/// <summary>
-/// Worked example of a domain-event consumer: complete an item and this runs, once the transaction
-/// has committed. Replace it with something that matters — a notification, a projection refresh —
-/// or delete it.
-/// </summary>
-/// <remarks>
-/// It sits in the Application layer on purpose. Publishing events is a persistence mechanism, but
-/// deciding what happens next is application behaviour, so a consumer needs nothing from any
-/// infrastructure module and can reach this layer's own ports.
-/// </remarks>
+/// <summary>Worked example of a domain-event consumer: complete an item and this runs, once the
+/// transaction has committed. Replace it with something that matters, or delete it.</summary>
+/// <remarks>It sits in the Application layer on purpose: publishing events is a persistence
+/// mechanism, but deciding what happens next is application behaviour, so a consumer needs nothing
+/// from any infrastructure module.</remarks>
 internal sealed class LogTodoItemCompletedConsumer(ILogger<LogTodoItemCompletedConsumer> logger)
     : IDomainEventConsumer<TodoItemCompletedDomainEvent>
 {

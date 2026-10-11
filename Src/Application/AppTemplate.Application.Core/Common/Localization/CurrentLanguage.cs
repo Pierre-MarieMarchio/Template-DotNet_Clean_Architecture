@@ -3,17 +3,12 @@
 namespace AppTemplate.Application.Core.Common.Localization;
 
 /// <summary>The language the mail this flow is about should be written in, as a BCP-47 tag.</summary>
-/// <remarks>
-/// This is what <c>CultureInfo.CurrentUICulture</c> would be, and cannot be: the repository builds
-/// with <c>InvariantGlobalization=true</c> (see <c>Directory.Build.props</c> and the API's
-/// Dockerfile, whose runtime image ships no ICU because of it), so at run time only the invariant
-/// culture exists and <c>CultureInfo.GetCultureInfo("fr")</c> throws — a tag is what lets the
-/// template pick a language without asking a deployment to add ICU. It is ambient rather than a
-/// parameter for the reason the platform's own equivalent is: the language is a property of the
-/// exchange, not of any one call, and threading it through every use case and mail port would put
-/// a parameter nothing in between reads on a dozen signatures. It lives in the application layer
-/// because two infrastructure modules read it and a module may not reference a sibling.
-/// </remarks>
+/// <remarks>What <c>CultureInfo.CurrentUICulture</c> would be, and cannot be: the repository builds
+/// with <c>InvariantGlobalization=true</c>, so at run time only the invariant culture exists and
+/// <c>CultureInfo.GetCultureInfo("fr")</c> throws — a tag lets the template pick a language without
+/// asking a deployment to add ICU. It is ambient because the language is a property of the
+/// exchange, not of any one call; it lives in the application layer because two infrastructure
+/// modules read it and a module may not reference a sibling.</remarks>
 public static class CurrentLanguage
 {
     /// <summary>
@@ -31,12 +26,9 @@ public static class CurrentLanguage
 
     private static string _default = FallbackTag;
 
-    /// <summary>
-    /// The host's own default, set once at start-up from <c>Localization:DefaultCulture</c>. Not
-    /// <see cref="AsyncLocal{T}"/>, deliberately: a value set during start-up would not flow into
-    /// every hosted service's execution context, and a job whose loops silently reverted to
-    /// English is the failure this avoids.
-    /// </summary>
+    /// <summary>The host's own default, set once at start-up from <c>Localization:DefaultCulture</c>.
+    /// Not <see cref="AsyncLocal{T}"/>, deliberately: a value set during start-up would not flow into
+    /// every hosted service's execution context.</summary>
     public static string Default
     {
         get => _default;

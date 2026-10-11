@@ -1,13 +1,9 @@
 ﻿namespace AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 
-/// <summary>
-/// How much of one owner's allowance is already spoken for, split into bytes on the store and bytes promised.
-/// <para>
-/// Three of the four states mean the bytes are on the store (deposited, available, quarantined). Counting only
-/// available files would leave the others weighing on nobody's quota, and a quarantined object is never reclaimed
-/// while its row exists, so a refused file would be the cheapest way to store bytes for ever.
-/// </para>
-/// </summary>
+/// <summary>How much of one owner's allowance is already spoken for: bytes on the store and bytes
+/// promised. Three of the four states mean the bytes are on the store (deposited, available,
+/// quarantined), and a quarantined object is never reclaimed while its row exists, so counting only
+/// available files would make a refused file the cheapest way to store bytes for ever.</summary>
 /// <param name="StoredCount">Files whose bytes are on the store, in any of those three states.</param>
 /// <param name="StoredBytes">What they weigh; equal to the declared size, since the length is bound into the
 /// signature.</param>

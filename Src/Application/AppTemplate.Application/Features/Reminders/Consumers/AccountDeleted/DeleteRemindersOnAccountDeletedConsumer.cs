@@ -6,17 +6,11 @@ using AppTemplate.Domain.Features.Reminders.Repositories;
 
 namespace AppTemplate.Application.Features.Reminders.Consumers.AccountDeleted;
 
-/// <summary>
-/// The reminders' declared fate for the data of a deleted account: <b>deleted</b>, whatever the
-/// state each reminder is in — a reminder about an item nobody owns is noise waiting to fire.
-/// <para>
-/// This runs after the transaction that removed the account has already committed, so it owns
-/// committing its own change through <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>:
-/// the same <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never
-/// reaching this consumer, and the precondition is re-derived through
-/// <see cref="IUserAccountDirectory"/> rather than trusted.
-/// </para>
-/// </summary>
+/// <summary>The reminders' declared fate for the data of a deleted account: <b>deleted</b>, whatever
+/// the state each reminder is in. Runs after the account's transaction has committed and owns its
+/// own commit through <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>: the
+/// <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never reaching this
+/// consumer, and the precondition is re-derived through <see cref="IUserAccountDirectory"/>.</summary>
 internal sealed class DeleteRemindersOnAccountDeletedConsumer(
     IReminderRepository reminders,
     IReminderQueries queries,

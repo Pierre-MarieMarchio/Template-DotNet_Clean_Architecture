@@ -10,16 +10,12 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 
-/// <summary>
-/// Turns "this caller may read this file" into a short-lived signed URL or, when the store cannot
-/// sign, into the opened content.
-/// <para>
-/// The read check lives here, because a signed URL is a bearer right with no identity attached: the
-/// owner reads, another user only under <c>Authenticated</c> visibility
-/// (<see cref="IStoredFileService.LoadReadableAsync"/>). Only <see cref="StoredFileState.Available"/>
-/// is served, by name, so a state added later is refused by default.
-/// </para>
-/// </summary>
+/// <summary>Turns "this caller may read this file" into a short-lived signed URL or, when the store
+/// cannot sign, into the opened content. The read check lives here because a signed URL is a bearer
+/// right with no identity attached: the owner reads, another user only under <c>Authenticated</c>
+/// visibility (<see cref="IStoredFileService.LoadReadableAsync"/>). Only
+/// <see cref="StoredFileState.Available"/> is served, by name, so a state added later is refused by
+/// default.</summary>
 public sealed class IssueFileDownloadUseCase(
     IStoredFileService files,
     IFileDirectTransfer transfer,

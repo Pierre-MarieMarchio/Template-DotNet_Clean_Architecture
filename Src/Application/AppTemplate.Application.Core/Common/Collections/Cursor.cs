@@ -10,13 +10,10 @@ namespace AppTemplate.Application.Core.Common.Collections;
 /// A keyset bookmark: the sort field and direction it was minted under, the value the sort key held
 /// on the last row of the page it was minted from, and that row's id as a tiebreaker.
 /// </summary>
-/// <remarks>
-/// <b>Opaque, but not authenticated.</b> Nothing here is signed, and it does not need to be: a
-/// cursor carries only values the caller was already served on a row they were allowed to see, and
-/// the query that resumes from it still filters by owner regardless of what the cursor claims.
-/// Tampering can only change which of the caller's own rows show up next, or produce a cursor this
-/// type refuses to decode; it cannot widen what the caller may read.
-/// </remarks>
+/// <remarks><b>Opaque, but not authenticated.</b> A cursor carries only values the caller was
+/// already served on a row they were allowed to see, and the resuming query still filters by owner
+/// regardless of what the cursor claims — tampering can only change which of the caller's own rows
+/// show up next, or produce a cursor this type refuses to decode.</remarks>
 public sealed record Cursor
 {
     /// <summary>Comfortably above any real encoded cursor, and small enough to reject abuse outright.</summary>

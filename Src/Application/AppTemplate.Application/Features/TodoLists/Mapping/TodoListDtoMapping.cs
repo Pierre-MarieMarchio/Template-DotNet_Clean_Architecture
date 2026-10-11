@@ -6,20 +6,14 @@ using AppTemplate.Domain.Features.TodoLists.Entities;
 namespace AppTemplate.Application.Features.TodoLists.Mapping;
 
 /// <summary>Turns the aggregate a command just wrote into the same DTOs a read would have produced, without a second query.</summary>
-/// <remarks>
-/// Sound only because <c>TodoListTracker</c> writes the store-assigned version and the refreshed
-/// audit timestamps back onto the aggregate inside <c>SaveChangesAsync</c> — so once that call
-/// has returned, <see cref="IVersioned.Version"/>, <see cref="IAuditable.CreatedAt"/> and
-/// <see cref="IAuditable.LastModifiedAt"/> already hold the values the row was just committed
-/// with. Reading them back through <c>ITodoListQueries</c> instead would run a second, unrelated
-/// query outside the transaction, with a window in which another writer commits and makes that
-/// second read describe a version newer than the one this call produced.
-/// <para>
-/// Only correct because nothing between the write and this projection mutates the aggregate
-/// again — in particular, a domain-event consumer running inside <c>SaveChangesAsync</c> must
-/// not reach back into the aggregate it was raised from.
-/// </para>
-/// </remarks>
+/// <remarks>Sound only because <c>TodoListTracker</c> writes the store-assigned version and the
+/// refreshed audit timestamps back onto the aggregate inside <c>SaveChangesAsync</c>, so
+/// <see cref="IVersioned.Version"/>, <see cref="IAuditable.CreatedAt"/> and
+/// <see cref="IAuditable.LastModifiedAt"/> already hold the committed values once that call
+/// returns; a second read through <c>ITodoListQueries</c> would run outside the transaction, where
+/// another writer could commit first. Also only correct because nothing between the write and this
+/// projection mutates the aggregate again — a domain-event consumer running inside
+/// <c>SaveChangesAsync</c> must not reach back into the aggregate it was raised from.</remarks>
 internal static class TodoListDtoMapping
 {
     public static Versioned<TodoListDetailDto> Detail(TodoList todoList)

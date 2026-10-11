@@ -10,17 +10,11 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RemoveRole;
 
-/// <summary>
-/// The self-guard here is not "an administrator may not remove their own <c>Administrator</c> role":
-/// this layer has no reference to that literal — it lives in the persistence module's
-/// <c>IdentityRoles</c>, spelled exactly once so the seeder and the API policy cannot drift apart, and
-/// a third spelling here would reopen that. The guard is broader instead: an administrator may not
-/// remove <em>any</em> role from their own account through this capability, full stop. Today
-/// <c>Admin</c> is the only role seeded, so the practical effect is identical — no administrator can
-/// strip their own access — and it stays correct even if a derived project seeds a role whose removal
-/// is harmless, since self-service role changes belong on the caller's own account, not behind an
-/// administrative endpoint that acts on someone else's.
-/// </summary>
+/// <summary>The self-guard here is not "an administrator may not remove their own
+/// <c>Administrator</c> role" — this layer has no reference to that literal, which lives in the
+/// persistence module's <c>IdentityRoles</c> spelled exactly once. The guard is broader: an
+/// administrator may not remove <em>any</em> role from their own account through this capability,
+/// which stays correct even if a derived project seeds a role whose removal is harmless.</summary>
 public sealed class RemoveRoleUseCase(
     IAccountAdministrationService administration,
     ISessionTokensService sessionTokens,

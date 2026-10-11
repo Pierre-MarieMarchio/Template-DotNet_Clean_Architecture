@@ -4,21 +4,11 @@ using AppTemplate.Application.Core.Common.Results;
 namespace AppTemplate.Application.Core.Common.Collections;
 
 /// <summary>Checks a decoded cursor's key against the CLR type of the field it was minted under, for the fields a feature says hold a date.</summary>
-/// <remarks>
-/// <see cref="Cursor.Decode"/> only checks a cursor's shape: a whitelisted field, a recognised
-/// direction, a non-blank key short enough to be real. It cannot check whether the key parses as
-/// that field's own type, because the generic machinery in this namespace does not know which of a
-/// feature's fields are dates and which are bare strings — only the feature does, which is why it
-/// names them here.
-/// <para>
-/// Nothing signs a cursor's payload, so a caller can hand back one with the key edited. Without this
-/// check, an unparseable date key would only be discovered by the persistence layer's keyset
-/// predicate, whose one recourse against a value that should have been validated already is to
-/// throw — which the global exception handler turns into a 500. Running the check here, before the
-/// request ever reaches the port, keeps a tampered cursor exactly where every other malformed
-/// request already lands: a 400 with <c>cursor.invalid</c>.
-/// </para>
-/// </remarks>
+/// <remarks><see cref="Cursor.Decode"/> checks a cursor's shape only; whether the key parses as
+/// the field's own type is the feature's to say, which is why it names its date fields here. Nothing
+/// signs a cursor's payload, so a caller can hand back one with the key edited — and the check here,
+/// before the request reaches the port, is what keeps a tampered cursor where every other malformed
+/// request lands: a 400 with <c>cursor.invalid</c>, not a 500 out of the keyset predicate.</remarks>
 internal static class CursorKeys
 {
     /// <param name="cursor">A cursor that has already cleared <see cref="Cursor.Decode"/>.</param>

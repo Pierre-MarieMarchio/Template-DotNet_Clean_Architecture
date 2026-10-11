@@ -12,17 +12,13 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
 
-/// <summary>
-/// Reads the content of confirmed deposits and releases or quarantines each file: the head decides
-/// what it is, the scanner whether it is malware, <see cref="StoredFileContentPolicy"/> what that
-/// means. The file's category chooses the checks; an unconfigured category gets both. Background
-/// job: must not read <see cref="ICurrentUser"/>.
-/// <para>
-/// One host at a time, each file committed on its own. A file with no verdict is deferred with
-/// backoff and never released or refused (see <c>docs/DECISIONS.md</c>). A concurrency conflict ends
-/// the pass; the next one reads the rest afresh.
-/// </para>
-/// </summary>
+/// <summary>Reads the content of confirmed deposits and releases or quarantines each file: the head
+/// decides what it is, the scanner whether it is malware, <see cref="StoredFileContentPolicy"/> what
+/// that means; the file's category chooses the checks, an unconfigured one gets both. Background
+/// job: must not read <see cref="ICurrentUser"/>. One host at a time, each file committed on its own;
+/// a file with no verdict is deferred with backoff, never released or refused (see
+/// <c>docs/DECISIONS.md</c>). A concurrency conflict ends the pass; the next one reads the rest
+/// afresh.</summary>
 public sealed class InspectDepositedFilesUseCase(
     IStoredFileRepository repository,
     IFileContentStore content,

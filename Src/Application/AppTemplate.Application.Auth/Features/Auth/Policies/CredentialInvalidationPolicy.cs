@@ -3,18 +3,13 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 
 namespace AppTemplate.Application.Auth.Features.Auth.Policies;
 
-/// <summary>
-/// What a use case runs immediately after rotating a user's security stamp. The stamp lives inside
-/// ASP.NET Identity and its rotation already fails every access token in circulation; refresh
-/// tokens are issued by this codebase, not by Identity, and survive the rotation untouched — left
-/// alone, a stolen or still-valid refresh token would keep minting fresh access tokens for ever.
-/// Revoking every grant and recording the fact are two steps every stamp rotation owes, called
-/// here so a future feature that rotates a stamp cannot forget one. Two forms, chosen by who asked
-/// for the change: the owner's own change from a signed-in session spares that session
-/// (<see cref="InvalidateOtherSessionsAsync"/>); everything else — a reset by mailed link, an
-/// administrator's action, a confirmed email change — ends every session
-/// (<see cref="InvalidateAsync"/>).
-/// </summary>
+/// <summary>What a use case runs immediately after rotating a user's security stamp. The rotation
+/// already fails every access token in circulation; refresh tokens are issued by this codebase, not
+/// by Identity, and survive it untouched — so revoking every grant and recording the fact are two
+/// steps every stamp rotation owes, called here so a future feature cannot forget one. Two forms,
+/// chosen by who asked for the change: the owner's own change spares that session
+/// (<see cref="InvalidateOtherSessionsAsync"/>); everything else ends every session
+/// (<see cref="InvalidateAsync"/>).</summary>
 public static class CredentialInvalidationPolicy
 {
     /// <summary>
@@ -40,11 +35,9 @@ public static class CredentialInvalidationPolicy
     /// and records the rotation. Called by the owner's own change, after the stamp was rotated.
     /// </summary>
     /// <param name="userId">The account whose stamp was just rotated.</param>
-    /// <param name="currentSessionId">
-    /// The session the change was made from, read from the caller's access token. <c>null</c> — a
-    /// token issued before sessions were named in it — ends every session, as
-    /// <see cref="InvalidateAsync"/> does: an unknown session is not one to spare.
-    /// </param>
+    /// <param name="currentSessionId">The session the change was made from, read from the caller's
+    /// access token. <c>null</c> — a token issued before sessions were named in it — ends every
+    /// session: an unknown session is not one to spare.</param>
     public static async Task InvalidateOtherSessionsAsync(
         ISessionTokensService sessionTokens,
         ISecurityEventLog securityEventLog,

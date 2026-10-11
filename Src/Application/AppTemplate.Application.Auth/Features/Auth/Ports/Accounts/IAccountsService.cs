@@ -1,14 +1,11 @@
 ﻿namespace AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 
-/// <summary>
-/// The account itself: creating one, checking its password, saying whether it may still sign in,
-/// changing its password, reading its profile, and deleting it. Nothing about tokens or mail.
-/// <b>Cancellation is observed on entry only, and cannot be propagated:</b> an implementation over
-/// ASP.NET Identity has no way to pass a <see cref="CancellationToken"/> into <c>UserManager</c> or
-/// <c>SignInManager</c>, so a token cancelled mid-call does not stop it — the parameter stays
-/// because the check at entry is worth having, not because the work is interruptible. Every other
-/// authentication port behaves the same way.
-/// </summary>
+/// <summary>The account itself: creating one, checking its password, saying whether it may still
+/// sign in, changing its password, reading its profile, and deleting it. Nothing about tokens or
+/// mail. <b>Cancellation is observed on entry only:</b> ASP.NET Identity offers no way to pass a
+/// <see cref="CancellationToken"/> into <c>UserManager</c> or <c>SignInManager</c>, so the parameter
+/// stays for the entry check, not because the work is interruptible. Every other authentication
+/// port behaves the same way.</summary>
 public interface IAccountsService
 {
     /// <summary>
@@ -34,23 +31,18 @@ public interface IAccountsService
     /// <summary>Whether an already-authenticated principal is still allowed to obtain a new token.</summary>
     Task<bool> CanSignInAsync(Guid userId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Verifies the current password and, on a match, replaces it. Identity rotates the security
-    /// stamp as part of this call, which — through the bearer handler's
-    /// <c>ValidateSecurityStampAsync</c> — invalidates every access token already issued for the
-    /// account. Refresh tokens are untouched by that rotation and are the caller's to revoke.
-    /// </summary>
+    /// <summary>Verifies the current password and, on a match, replaces it. Identity rotates the
+    /// security stamp as part of this call, which invalidates every access token already issued for
+    /// the account through <c>ValidateSecurityStampAsync</c>; refresh tokens are untouched and are
+    /// the caller's to revoke.</summary>
     Task<PasswordChangeOutcome> ChangePasswordAsync(
         Guid userId,
         string currentPassword,
         string newPassword,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Reads the account's current profile from the store, never from the bearer token's claims: a
-    /// claim is only as fresh as the access token that carries it, so a role granted or revoked since
-    /// would stay invisible until the token expired.
-    /// </summary>
+    /// <summary>Reads the account's current profile from the store, never from the bearer token's
+    /// claims — a claim is only as fresh as the access token that carries it.</summary>
     /// <returns><c>null</c> when the account no longer exists.</returns>
     Task<UserProfile?> FindProfileAsync(Guid userId, CancellationToken cancellationToken = default);
 

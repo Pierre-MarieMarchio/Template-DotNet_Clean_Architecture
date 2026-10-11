@@ -9,18 +9,12 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.ConfirmFileUpload;
 
-/// <summary>
-/// The second half of an upload: asks the store what is actually there and lets the aggregate decide
-/// whether it is what was promised.
-/// <para>
-/// The file comes out <see cref="StoredFileState.Deposited"/>, not readable: confirming says the
-/// bytes arrived intact, not what they are, and <c>InspectDepositedFilesUseCase</c> releases or
-/// refuses it. A mismatch is reported and nothing is repaired: the file stays pending and the
-/// abandonment sweep removes it, because this process has read neither the bytes nor the digest and
-/// cannot say which was wrong. The description, transition and commit are
-/// <see cref="IStoredFileDepositService"/>'s, shared with the API upload.
-/// </para>
-/// </summary>
+/// <summary>The second half of an upload: asks the store what is actually there and lets the
+/// aggregate decide whether it is what was promised. The file comes out
+/// <see cref="StoredFileState.Deposited"/>, not readable — <c>InspectDepositedFilesUseCase</c>
+/// releases or refuses it. A mismatch is reported and nothing repaired: the file stays pending and
+/// the abandonment sweep removes it. The description, transition and commit are
+/// <see cref="IStoredFileDepositService"/>'s, shared with the API upload.</summary>
 public sealed class ConfirmFileUploadUseCase(
     IStoredFileService files,
     IStoredFileDepositService deposits,

@@ -11,16 +11,10 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 
-/// <summary>
-/// Runs on a schedule, from the API's reminder job — never from a request — and so must not read
-/// <see cref="ICurrentUser"/>: a background scope's <c>NoCallerCurrentUser</c> throws on
-/// <c>UserId</c> rather than pretend an anonymous caller. The whole pass runs under
-/// <see cref="ILeaderLease"/>, with no per-reminder claim on top of it; delivery is at-least-once
-/// and a failure costs one reminder. The retry guarantee — what each failure costs, why a
-/// conflict ends the pass, why a failed notification is never abandoned, and why completion is
-/// re-checked here rather than trusted from the cancelling consumer — is stated in
-/// <c>docs/DECISIONS.md</c>.
-/// </summary>
+/// <summary>Runs on a schedule, from the API's reminder job — never from a request — and so must
+/// not read <see cref="ICurrentUser"/>. The whole pass runs under <see cref="ILeaderLease"/>, with no
+/// per-reminder claim on top of it; delivery is at-least-once and a failure costs one reminder. The
+/// retry guarantee is stated in <c>docs/DECISIONS.md</c>.</summary>
 public sealed class FireDueRemindersUseCase(
     IReminderRepository reminders,
     ITodoItemQueries todoItems,
@@ -37,11 +31,9 @@ public sealed class FireDueRemindersUseCase(
     private const int _batchSize = 200;
 
     /// <summary>Names the exclusion; fixed for the life of the application.</summary>
-    /// <remarks>
-    /// The lock key is derived from this string, so during a rolling deploy every host that must
-    /// contend has to spell it identically. Renaming it would give two releases different keys,
-    /// each uncontended, and both would fire the same batch believing itself the leader.
-    /// </remarks>
+    /// <remarks>The lock key is derived from this string, so during a rolling deploy every host has
+    /// to spell it identically — renaming it would give two releases different keys, each
+    /// uncontended, and both would fire the same batch believing itself the leader.</remarks>
     private const string _leaseName = "apptemplate.reminders.fire-due";
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)

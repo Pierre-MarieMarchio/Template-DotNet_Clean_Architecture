@@ -1,16 +1,12 @@
 ﻿namespace AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 
-/// <summary>
-/// The audit trail for authentication itself: who signed in, who failed to, whose account locked,
-/// and every point a credential was revoked or found already spent. One capability, keeping the
-/// trail: recording is one operation — what varies is the closed set of typed events, each carrying
-/// only the data its own fact carries — and the other is the trail's own retention, so it is
-/// bounded by time rather than growing for ever. <b>Never given an email address:</b> call sites
-/// along this vertical answer identically whether or not the address exists, so a log line naming
-/// the address on one branch would leak exactly what the identical response is hiding — every
-/// event speaks in <see cref="Guid"/> user ids. Fire-and-forget by design: a failure to record one
-/// must never fail the request it describes.
-/// </summary>
+/// <summary>The audit trail for authentication itself: who signed in, who failed to, whose account
+/// locked, and every point a credential was revoked or found already spent. Recording is one
+/// operation — what varies is the closed set of typed events — and the other is the trail's
+/// retention, bounded by time. <b>Never given an email address:</b> call sites answer identically
+/// whether or not the address exists, so a log line naming it on one branch would leak what the
+/// identical response hides — every event speaks in <see cref="Guid"/> user ids. Fire-and-forget by
+/// design: a failure to record one must never fail the request it describes.</summary>
 public interface ISecurityEventLog
 {
     /// <summary>Records one fact and returns; it must not throw and must not fail the request that produced it.</summary>

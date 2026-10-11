@@ -4,19 +4,13 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;
 
-/// <summary>
-/// The guarantee behind <see cref="AppTemplate.Application.Core.Common.Events.UserAccountDeleted"/>:
-/// a fact published in process is not a fact delivered, and a consumer that threw — or was never
-/// reached — leaves rows owned by an id that names no account. This pass finds them, by asking
-/// each feature for the owner ids that still have data and letting the feature's own
-/// <see cref="IDeletedAccountDataPolicy"/> re-derive the precondition against
-/// <see cref="IUserAccountDirectory"/>. The whole pass runs under <see cref="ILeaderLease"/>: each
-/// application is idempotent and per-owner committed, but systematically duplicating every pass is
-/// a connection spent for nothing. Each owner is one transaction of the feature's own, committed
-/// before the next begins, so a pass that dies mid-way has kept what it did and redoes nothing; an
-/// owner whose application throws is logged and skipped — a poisoned owner must not become a
-/// retention policy for everybody else's data.
-/// </summary>
+/// <summary>The guarantee behind <see cref="AppTemplate.Application.Core.Common.Events.UserAccountDeleted"/>:
+/// a fact published in process is not a fact delivered, and this pass finds the rows a missed
+/// consumer leaves behind, each feature's <see cref="IDeletedAccountDataPolicy"/> re-deriving the
+/// precondition against <see cref="IUserAccountDirectory"/>. The pass runs under
+/// <see cref="ILeaderLease"/>. Each owner is one transaction, committed before the next begins, so
+/// a pass that dies mid-way redoes nothing; an owner whose application throws is logged and
+/// skipped.</summary>
 public sealed class SweepDeletedAccountDataUseCase(
     IEnumerable<IDeletedAccountDataPolicy> policies,
     ILeaderLease lease,

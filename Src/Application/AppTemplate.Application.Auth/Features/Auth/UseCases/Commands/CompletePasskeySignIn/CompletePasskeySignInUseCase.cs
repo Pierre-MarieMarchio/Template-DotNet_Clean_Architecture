@@ -11,25 +11,13 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.CompletePasskeySignIn;
 
-/// <summary>
-/// Finishes a passkey sign-in: the credential's assertion is verified against the ceremony's
-/// challenge, the account it names is checked to still be allowed in, and only then is a session
-/// started — one sign-in, one session, exactly as a password's is.
-/// <para>
-/// A verified passkey stands in for the whole of a sign-in, an armed second factor included: the
-/// ceremony's user-verification requirement is <c>required</c> — see
-/// <c>AppTemplate.Infrastructure.Auth</c>'s passkey options — so possession of the credential and
-/// the authenticator's own user check happened together, which is the two factors a password and a
-/// TOTP code provide. No challenge is issued here, and <see cref="LoginOutcome.TwoFactorRequired"/>
-/// is never this use case's answer. The account's armed factor still governs the ways in that
-/// prove less: a password sign-in demands it exactly as before.
-/// </para>
-/// <para>
-/// Every refusal collapses to one error — a ceremony that did not verify, a credential the store
-/// no longer knows, an account that may no longer sign in — for the reason
-/// <see cref="AuthErrors.InvalidPasskeySignIn"/> gives.
-/// </para>
-/// </summary>
+/// <summary>Finishes a passkey sign-in: the assertion is verified against the ceremony's
+/// challenge, the account is checked to still be allowed in, and only then is a session started.
+/// A verified passkey stands in for the whole of a sign-in, an armed second factor included — the
+/// ceremony required user verification, so no challenge is issued here and
+/// <see cref="LoginOutcome.TwoFactorRequired"/> is never this use case's answer; the armed factor
+/// still governs the ways in that prove less. Every refusal collapses to
+/// <see cref="AuthErrors.InvalidPasskeySignIn"/>.</summary>
 public sealed class CompletePasskeySignInUseCase(
     IPasskeyService passkeys,
     IAccountsService accounts,

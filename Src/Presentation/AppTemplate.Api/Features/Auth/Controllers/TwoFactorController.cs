@@ -13,9 +13,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
-/// <summary>
-/// Turning the second factor on and off. Redeeming it is a sign-in, and lives with the sessions.
-/// </summary>
+/// <summary>Turning the second factor on and off. Redeeming it is a sign-in, and lives with the sessions.</summary>
 /// <remarks>
 /// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
 /// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the

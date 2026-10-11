@@ -1,8 +1,6 @@
 ﻿namespace AppTemplate.Api.Common.Errors;
 
-/// <summary>
-/// The <c>type</c> member of a <c>ProblemDetails</c> response.
-/// </summary>
+/// <summary>The <c>type</c> member of a <c>ProblemDetails</c> response.</summary>
 /// <remarks>
 /// RFC 9457 §3.1: <c>type</c> identifies the problem, not the HTTP status it happens to map to. A
 /// literal <c>https://httpstatuses.io/{status}</c> fails that: two 400s with different causes would

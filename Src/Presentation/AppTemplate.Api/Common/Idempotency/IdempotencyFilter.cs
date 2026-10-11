@@ -11,10 +11,7 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Common.Idempotency;
 
-/// <summary>
-/// Makes a <see cref="IdempotentAttribute"/>-marked POST action safely retryable through an
-/// <c>Idempotency-Key</c> header.
-/// </summary>
+/// <summary>Makes a <see cref="IdempotentAttribute"/>-marked POST action safely retryable through an <c>Idempotency-Key</c> header.</summary>
 /// <remarks>
 /// <para>
 /// A resource filter, not an action filter, for two reasons: it must run before model binding, so it

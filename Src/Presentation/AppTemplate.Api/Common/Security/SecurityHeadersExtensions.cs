@@ -2,9 +2,7 @@
 
 namespace AppTemplate.Api.Common.Security;
 
-/// <summary>
-/// The response headers that tell a browser what it may do with what this origin returns.
-/// </summary>
+/// <summary>The response headers that tell a browser what it may do with what this origin returns.</summary>
 /// <remarks>
 /// Every header is written from a <see cref="HttpResponse.OnStarting(Func{object, Task}, object)"/>
 /// callback rather than set as the middleware runs. That is required, not stylistic:

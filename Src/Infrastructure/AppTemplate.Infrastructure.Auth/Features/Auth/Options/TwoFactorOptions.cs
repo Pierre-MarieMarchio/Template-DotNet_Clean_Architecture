@@ -22,10 +22,7 @@ public sealed class TwoFactorOptions
     /// <summary>How many single-use recovery codes enrollment mints when two-factor sign-in is confirmed.</summary>
     public int RecoveryCodeCount { get; set; } = 10;
 
-    /// <summary>
-    /// How many wrong codes one challenge tolerates before it is destroyed and the caller has to
-    /// present the password again.
-    /// </summary>
+    /// <summary>How many wrong codes one challenge tolerates before it is destroyed and the caller has to present the password again.</summary>
     /// <remarks>
     /// <b>This is the only thing that bounds guessing a second factor.</b> Account lockout does not:
     /// it counts failed <em>password</em> checks — <c>CheckPasswordSignInAsync</c> with

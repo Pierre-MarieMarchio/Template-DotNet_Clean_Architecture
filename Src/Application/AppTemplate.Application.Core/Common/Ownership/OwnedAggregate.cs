@@ -5,10 +5,7 @@ using AppTemplate.Domain.Core.Common.Primitives;
 
 namespace AppTemplate.Application.Core.Common.Ownership;
 
-/// <summary>
-/// The gate a command loads an owned aggregate through: ownership first, then the version the
-/// caller said it was deciding against.
-/// </summary>
+/// <summary>The gate a command loads an owned aggregate through: ownership first, then the version the caller said it was deciding against.</summary>
 /// <remarks>
 /// <para>
 /// A non-owner is answered exactly as an absent aggregate. Telling the two apart would turn any

@@ -89,9 +89,7 @@ public sealed record CollectionOrder
         return Result.Success(new CollectionOrder(mode, order, policy));
     }
 
-    /// <summary>
-    /// Resolves the rest of the caller's paging — the page or the cursor — under this order.
-    /// </summary>
+    /// <summary>Resolves the rest of the caller's paging — the page or the cursor — under this order.</summary>
     /// <param name="dateKeyFields">
     /// The feature's own fields whose values are instants, for <see cref="CursorKeys.Validate"/>.
     /// </param>

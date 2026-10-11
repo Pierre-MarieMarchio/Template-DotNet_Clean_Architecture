@@ -18,7 +18,6 @@ public interface ISessionsService
     /// concurrent rotation is issuing at this moment. Idempotent: ending a session already ended
     /// succeeds and changes nothing. Commits before it returns.
     /// </summary>
-    /// <returns><c>false</c> when the account has no session with that id, whether no such session
-    /// exists or it belongs to somebody else: the caller is not told which.</returns>
+    /// <returns><c>false</c> when the account has no session with that id, whether no such session exists or it belongs to somebody else: the caller is not told which.</returns>
     Task<bool> RevokeAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
 }

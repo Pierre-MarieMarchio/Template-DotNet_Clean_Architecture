@@ -10,9 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.TodoLists.Controllers;
 
-/// <summary>
-/// The labels an item carries, and the labels a caller has already used.
-/// </summary>
+/// <summary>The labels an item carries, and the labels a caller has already used.</summary>
 /// <remarks>
 /// Every read that names one aggregate publishes its version as a strong <c>ETag</c>, and every
 /// write of one honours <c>If-Match</c>. See <c>docs/ADDING-A-FEATURE.md</c> for the conventions

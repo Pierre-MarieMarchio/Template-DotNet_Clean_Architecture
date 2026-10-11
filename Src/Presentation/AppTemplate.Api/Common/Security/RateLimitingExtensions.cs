@@ -7,9 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Common.Security;
 
-/// <summary>
-/// Rate limiting: together with account lockout, this is what bounds online password guessing.
-/// </summary>
+/// <summary>Rate limiting: together with account lockout, this is what bounds online password guessing.</summary>
 /// <remarks>
 /// Counters live in this process's memory, one fixed window per client address, so the limit a
 /// caller actually meets is the configured number multiplied by the replica count;

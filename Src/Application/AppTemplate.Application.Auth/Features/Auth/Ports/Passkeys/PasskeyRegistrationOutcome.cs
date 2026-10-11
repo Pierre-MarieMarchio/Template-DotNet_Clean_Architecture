@@ -1,9 +1,7 @@
 ﻿namespace AppTemplate.Application.Auth.Features.Auth.Ports.Passkeys;
 
-/// <summary>
-/// What completing a registration ended with: the credential as stored, when it ended well, and
-/// otherwise the <see cref="PasskeyRegistrationStatus"/> that names why.
-/// </summary>
+/// <summary>What completing a registration ended with: the credential as stored, when it ended
+/// well, and otherwise the <see cref="PasskeyRegistrationStatus"/> that names why.</summary>
 /// <param name="Credential">The stored credential, or <c>null</c> on any status but
 /// <see cref="PasskeyRegistrationStatus.Registered"/>.</param>
 public sealed record PasskeyRegistrationOutcome(PasskeyRegistrationStatus Status, PasskeyCredential? Credential = null)

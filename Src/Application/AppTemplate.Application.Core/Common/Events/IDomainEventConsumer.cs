@@ -15,10 +15,7 @@ public interface IDomainEventConsumer
     Task ConsumeAsync(IDomainEvent domainEvent, CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// Reacts to one kind of domain event, after the transaction that raised it has committed. Several
-/// consumers may react to the same event and all of them run.
-/// </summary>
+/// <summary>Reacts to one kind of domain event, after the transaction that raised it has committed. Several consumers may react to the same event and all of them run.</summary>
 /// <remarks>
 /// Named <em>consumer</em> rather than <em>handler</em> because CA1711 reserves the
 /// <c>EventHandler</c> suffix for delegates, and a reader who sees that suffix on a public type is

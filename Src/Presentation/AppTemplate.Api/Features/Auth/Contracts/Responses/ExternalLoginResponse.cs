@@ -8,10 +8,7 @@ namespace AppTemplate.Api.Features.Auth.Contracts.Responses;
 /// parses a password sign-in parses this one unchanged — including the branch that is not a sign-in
 /// yet.
 /// </summary>
-/// <remarks>
-/// <see cref="Authenticated.AccountCreated"/> is meaningful only here: a password sign-in cannot
-/// bring an account into existence.
-/// </remarks>
+/// <remarks><see cref="Authenticated.AccountCreated"/> is meaningful only here: a password sign-in cannot bring an account into existence.</remarks>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "status")]
 [JsonDerivedType(typeof(Authenticated), "authenticated")]
 [JsonDerivedType(typeof(TwoFactorRequired), "twoFactorRequired")]

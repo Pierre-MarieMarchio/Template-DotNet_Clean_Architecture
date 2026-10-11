@@ -14,9 +14,7 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 /// </summary>
 public static class StoredStamps
 {
-    /// <summary>
-    /// Applies the version and audit stamps a row carries onto the aggregate just rebuilt from it.
-    /// </summary>
+    /// <summary>Applies the version and audit stamps a row carries onto the aggregate just rebuilt from it.</summary>
     /// <param name="aggregate">The aggregate just rehydrated from <paramref name="record"/>'s own
     /// columns.</param>
     /// <param name="record">The row <paramref name="aggregate"/> was rehydrated from.</param>

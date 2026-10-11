@@ -54,9 +54,7 @@ public sealed class AggregateFlushSaveChangesInterceptor(IEnumerable<IAggregateF
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
-    /// <summary>
-    /// Tells each tracker the version and audit stamps the store just decided, once the save landed.
-    /// </summary>
+    /// <summary>Tells each tracker the version and audit stamps the store just decided, once the save landed.</summary>
     /// <param name="eventData">EF's description of the completed save.</param>
     /// <param name="result">The number of rows written; passed through.</param>
     /// <returns><paramref name="result"/>, unchanged.</returns>

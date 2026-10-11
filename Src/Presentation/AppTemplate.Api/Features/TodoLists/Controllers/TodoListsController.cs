@@ -13,10 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.TodoLists.Controllers;
 
-/// <summary>
-/// The lists themselves: the collection, one list with its items, and the three writes that create,
-/// rename and destroy one.
-/// </summary>
+/// <summary>The lists themselves: the collection, one list with its items, and the three writes that create, rename and destroy one.</summary>
 /// <remarks>
 /// Every read that names one aggregate publishes its version as a strong <c>ETag</c>, and every
 /// write of one honours <c>If-Match</c>. See <c>docs/ADDING-A-FEATURE.md</c> for the conventions

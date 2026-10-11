@@ -3,10 +3,7 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Core.Common.Collections;
 
-/// <summary>
-/// Checks a decoded cursor's key against the CLR type of the field it was minted under, for the
-/// fields a feature says hold a date.
-/// </summary>
+/// <summary>Checks a decoded cursor's key against the CLR type of the field it was minted under, for the fields a feature says hold a date.</summary>
 /// <remarks>
 /// <see cref="Cursor.Decode"/> only checks a cursor's shape: a whitelisted field, a recognised
 /// direction, a non-blank key short enough to be real. It cannot check whether the key parses as

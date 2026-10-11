@@ -115,10 +115,8 @@ public sealed class AccountAdministrationController(
         NoContentOrProblem(
             await disableAccountTwoFactor.ExecuteAsync(new DisableAccountTwoFactorCommand(userId), cancellationToken));
 
-    /// <summary>
-    /// The named account's security trail, newest first — the administrator's half of the trail
-    /// every account holder reads on <c>GET /auth/me/security-events</c>.
-    /// </summary>
+    /// <summary>The named account's security trail, newest first — the administrator's half of the
+    /// trail every account holder reads on <c>GET /auth/me/security-events</c>.</summary>
     /// <remarks>
     /// <b>No 404 for an account that does not exist.</b> The trail is retained after an account is
     /// deleted until retention expires — that retention is half of why the trail exists — so the

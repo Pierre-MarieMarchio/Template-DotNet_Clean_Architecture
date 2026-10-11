@@ -14,10 +14,7 @@ using Microsoft.AspNetCore.OpenApi;
 
 namespace AppTemplate.Api.Common.Hosting;
 
-/// <summary>
-/// One call to compose the HTTP mechanisms this API configures, and one to install them in the
-/// order they have to run in.
-/// </summary>
+/// <summary>One call to compose the HTTP mechanisms this API configures, and one to install them in the order they have to run in.</summary>
 /// <remarks>
 /// Telemetry is deliberately absent from <see cref="AddHttpPipeline"/>: it needs this assembly for
 /// <c>service.name</c> and the host's own database instrumentation, so the host calls

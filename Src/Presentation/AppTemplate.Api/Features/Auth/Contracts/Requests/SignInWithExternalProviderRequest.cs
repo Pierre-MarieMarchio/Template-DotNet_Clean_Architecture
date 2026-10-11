@@ -1,8 +1,6 @@
 ﻿namespace AppTemplate.Api.Features.Auth.Contracts.Requests;
 
-/// <summary>
-/// What the client sends after running the provider's authorisation-code-with-PKCE flow itself.
-/// </summary>
+/// <summary>What the client sends after running the provider's authorisation-code-with-PKCE flow itself.</summary>
 /// <remarks>
 /// The provider is a field of the body and not a segment of the route, so an unknown provider is a
 /// 400 like every other rejected field rather than a 404 — see <c>docs/ARCHITECTURE.md</c>.

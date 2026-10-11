@@ -74,10 +74,7 @@ public static class ApplicationModule
     //#endif
     //#if (todoLists)
 
-    /// <summary>
-    /// Registers the to-do list feature: its use cases, its validators, and the access service its
-    /// use cases share.
-    /// </summary>
+    /// <summary>Registers the to-do list feature: its use cases, its validators, and the access service its use cases share.</summary>
     /// <param name="services">The container being built.</param>
     /// <returns>The same collection, for chaining.</returns>
     public static IServiceCollection AddTodoLists(this IServiceCollection services)

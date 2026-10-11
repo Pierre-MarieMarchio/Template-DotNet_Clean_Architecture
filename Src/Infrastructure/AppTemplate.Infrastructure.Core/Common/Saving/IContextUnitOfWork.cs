@@ -3,9 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Core.Common.Saving;
 
-/// <summary>
-/// The commit boundary of one named context.
-/// </summary>
+/// <summary>The commit boundary of one named context.</summary>
 /// <remarks>
 /// <para>
 /// <see cref="IUnitOfWork"/> says nothing about <em>which</em> context it commits, which is exactly

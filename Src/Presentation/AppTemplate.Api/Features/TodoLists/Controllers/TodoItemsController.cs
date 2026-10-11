@@ -14,10 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.TodoLists.Controllers;
 
-/// <summary>
-/// The items of a list: reading them, adding one, replacing its fields, completing and reopening
-/// it, and removing it.
-/// </summary>
+/// <summary>The items of a list: reading them, adding one, replacing its fields, completing and reopening it, and removing it.</summary>
 /// <remarks>
 /// Every read that names one aggregate publishes its version as a strong <c>ETag</c>, and every
 /// write of one honours <c>If-Match</c>. See <c>docs/ADDING-A-FEATURE.md</c> for the conventions

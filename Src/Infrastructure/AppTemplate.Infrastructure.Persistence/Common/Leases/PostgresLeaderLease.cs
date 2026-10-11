@@ -75,9 +75,7 @@ internal sealed class PostgresLeaderLease(IConfiguration configuration, ILogger<
         return await command.ExecuteScalarAsync(cancellationToken) is true;
     }
 
-    /// <summary>
-    /// Releases the lock, best effort, from a <c>finally</c>.
-    /// </summary>
+    /// <summary>Releases the lock, best effort, from a <c>finally</c>.</summary>
     /// <remarks>
     /// Deliberately not given the caller's token. The case that most needs releasing is the
     /// cancelled one, and a cancelled token would make this throw before it did anything — replacing

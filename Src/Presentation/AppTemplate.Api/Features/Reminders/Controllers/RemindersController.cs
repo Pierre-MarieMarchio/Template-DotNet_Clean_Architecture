@@ -11,9 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.Reminders.Controllers;
 
-/// <summary>
-/// The reminder aggregate's HTTP surface.
-/// </summary>
+/// <summary>The reminder aggregate's HTTP surface.</summary>
 /// <remarks>
 /// <b>Two addressing schemes, not one.</b> Scheduling and listing are reached through the item a
 /// reminder is about, because <see cref="ScheduleReminderCommand"/> and

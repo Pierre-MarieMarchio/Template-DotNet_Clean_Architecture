@@ -35,9 +35,7 @@ internal static class MaintenanceJobsExtensions
         return services;
     }
 
-    /// <summary>
-    /// Adds one purge to the maintenance timer. Tasks run in the order they were registered.
-    /// </summary>
+    /// <summary>Adds one purge to the maintenance timer. Tasks run in the order they were registered.</summary>
     /// <param name="services">The container being built.</param>
     /// <param name="label">What the task is called in logs, spans and counters.</param>
     /// <param name="disabledConsequence">What accumulates while the task is off.</param>

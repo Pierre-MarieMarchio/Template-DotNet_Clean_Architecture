@@ -3,10 +3,7 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Common.Tagging;
 
-/// <summary>
-/// What a caller's tag input has to satisfy before it reaches the domain, for every feature that
-/// accepts tags.
-/// </summary>
+/// <summary>What a caller's tag input has to satisfy before it reaches the domain, for every feature that accepts tags.</summary>
 /// <remarks>
 /// The domain refuses bad input too — <see cref="Tag"/> and <see cref="TagSet"/> are what actually
 /// hold the rules. These exist so that a caller gets one 400 naming every field it got wrong,

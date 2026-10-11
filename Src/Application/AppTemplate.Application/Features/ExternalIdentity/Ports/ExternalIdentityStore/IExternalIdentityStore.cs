@@ -35,7 +35,6 @@ public interface IExternalIdentityStore
     /// Both go in one transaction: an owner whose mappings are gone but whose roles remain is
     /// neither deleted nor half of anything.
     /// </summary>
-    /// <returns>How many mappings were removed. Role assignments removed is nobody's answer: no
-    /// mapping naming the owner can be left to resolve against them.</returns>
+    /// <returns>How many mappings were removed. Role assignments removed is nobody's answer: no mapping naming the owner can be left to resolve against them.</returns>
     Task<int> RemoveAsync(UserId userId, CancellationToken cancellationToken = default);
 }

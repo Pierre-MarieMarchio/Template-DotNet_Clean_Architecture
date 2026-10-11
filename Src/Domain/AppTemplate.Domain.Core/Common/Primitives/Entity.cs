@@ -19,10 +19,8 @@ public abstract class Entity<TId> : IEquatable<Entity<TId>>
     /// <summary>The identity equality is decided on.</summary>
     public TId Id { get; private init; }
 
-    /// <summary>
-    /// Equal when the runtime types match and the ids are equal. The type is part of it: two
-    /// aggregates of different kinds that share an id are not the same thing.
-    /// </summary>
+    /// <summary>Equal when the runtime types match and the ids are equal. The type is part of it:
+    /// two aggregates of different kinds that share an id are not the same thing.</summary>
     /// <param name="other">The entity to compare with.</param>
     /// <returns><see langword="true"/> when both name the same entity.</returns>
     public bool Equals(Entity<TId>? other)

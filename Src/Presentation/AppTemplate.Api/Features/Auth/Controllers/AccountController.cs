@@ -16,9 +16,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
-/// <summary>
-/// What the authenticated caller can read and change about their own account.
-/// </summary>
+/// <summary>What the authenticated caller can read and change about their own account.</summary>
 /// <remarks>
 /// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
 /// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the
@@ -85,10 +83,7 @@ public sealed class AccountController(
     /// gives: a stolen session alone must not be able to move the account to an address the attacker
     /// controls.
     /// </summary>
-    /// <remarks>
-    /// 204 whether or not the new address is already registered: the response must not tell the
-    /// caller which addresses exist.
-    /// </remarks>
+    /// <remarks>204 whether or not the new address is already registered: the response must not tell the caller which addresses exist.</remarks>
     [HttpPost("change-email")]
     [Authorize]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]

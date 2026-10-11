@@ -2,9 +2,7 @@
 
 namespace AppTemplate.Application.Core.Common.Localization;
 
-/// <summary>
-/// The language the mail this flow is about should be written in, as a BCP-47 tag.
-/// </summary>
+/// <summary>The language the mail this flow is about should be written in, as a BCP-47 tag.</summary>
 /// <remarks>
 /// This is what <c>CultureInfo.CurrentUICulture</c> would be, and cannot be: the repository builds
 /// with <c>InvariantGlobalization=true</c> (see <c>Directory.Build.props</c> and the API's

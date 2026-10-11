@@ -13,10 +13,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// the same whichever feature answers it. It lives here so that a host without local accounts loses
 /// it with the rest of the feature.
 /// </summary>
-/// <remarks>
-/// Also run by the API's maintenance job; this endpoint is what a scheduler outside the process
-/// calls.
-/// </remarks>
+/// <remarks>Also run by the API's maintenance job; this endpoint is what a scheduler outside the process calls.</remarks>
 [Route("api/v{version:apiVersion}/maintenance")]
 [Asp.Versioning.ApiVersion("1.0")]
 [Tags("Maintenance")]

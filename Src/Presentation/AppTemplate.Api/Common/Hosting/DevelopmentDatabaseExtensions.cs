@@ -3,9 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Api.Common.Hosting;
 
-/// <summary>
-/// Development-only schema bootstrap.
-/// </summary>
+/// <summary>Development-only schema bootstrap.</summary>
 /// <remarks>
 /// Runs after the app is built and only under Development, so a deployment never migrates from the
 /// process that serves requests: that needs DDL rights at runtime and races between replicas on

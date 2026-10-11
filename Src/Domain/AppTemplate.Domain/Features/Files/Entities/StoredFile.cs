@@ -191,8 +191,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// sweep. No event is raised, or a consumer would run the inspection inside the confirming
     /// request.
     /// </summary>
-    /// <exception cref="DomainException">The file is not pending, or the deposit is not what was
-    /// declared.</exception>
+    /// <exception cref="DomainException">The file is not pending, or the deposit is not what was declared.</exception>
     public void ConfirmDeposit(FileSize observedSize, Sha256Checksum observedChecksum)
     {
         ArgumentNullException.ThrowIfNull(observedSize);
@@ -221,8 +220,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// file qualifies, so the state machine, not the caller's diligence, stops a refused file
     /// being released by a second pass.
     /// </summary>
-    /// <exception cref="DomainException">The file has no confirmed deposit, or was already released or
-    /// refused.</exception>
+    /// <exception cref="DomainException">The file has no confirmed deposit, or was already released or refused.</exception>
     public void MakeAvailable(DateTimeOffset now)
     {
         if (State != StoredFileState.Deposited)
@@ -242,8 +240,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     /// refused file is the one somebody may need to look at. No reason is recorded; see
     /// <see cref="StoredFileState.Quarantined"/>.
     /// </summary>
-    /// <exception cref="DomainException">The file has no confirmed deposit, or was already released or
-    /// refused.</exception>
+    /// <exception cref="DomainException">The file has no confirmed deposit, or was already released or refused.</exception>
     public void Quarantine(DateTimeOffset now)
     {
         if (State != StoredFileState.Deposited)

@@ -26,22 +26,15 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// <remarks>
 /// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
 /// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the
-/// <c>[Authorize]</c> on the actions beside it and serve a caller's own profile to anyone.
-/// <para>
-/// The tight <see cref="RateLimitingExtensions.Authentication"/> budget goes on the four ceremony
-/// steps and no other, so the list and the removal — which handle no credential — cannot spend the
-/// allowance that slows brute force down.
-/// </para>
-/// <para>
-/// The two options responses are <c>[NoStore]</c>: each carries a challenge this API minted for one
-/// ceremony, and the sign-in response carries a token pair, which RFC 6749 §5.1 keeps out of any
-/// cache. The ceremony state that travels with a challenge is opaque to the client and verified
-/// against what the client posts back — this API issues no cookie to hold it.
-/// </para>
-/// <para>
-/// Six classes under the one <c>auth</c> prefix, and the prefix is the surface: the twenty-eight
-/// actions are divided between them, and no path depends on which class answers it.
-/// </para>
+/// <c>[Authorize]</c> on the actions beside it. The tight
+/// <see cref="RateLimitingExtensions.Authentication"/> budget goes on the four ceremony steps and
+/// no other, so the list and the removal — which handle no credential — cannot spend the
+/// brute-force allowance. The two options responses are <c>[NoStore]</c>: each carries a challenge
+/// this API minted for one ceremony, and the sign-in response carries a token pair, which RFC
+/// 6749 §5.1 keeps out of any cache. The ceremony state that travels with a challenge is opaque
+/// to the client and verified against what the client posts back — this API issues no cookie to
+/// hold it. Six classes under the one <c>auth</c> prefix, and the prefix is the surface: no path
+/// depends on which class answers it.
 /// </remarks>
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]

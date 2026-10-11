@@ -14,20 +14,13 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// <remarks>
 /// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
 /// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the
-/// <c>[Authorize]</c> on the actions beside it and serve a caller's own profile to anyone.
-/// <para>
-/// The tight <see cref="RateLimitingExtensions.Authentication"/> budget goes on each action handling
-/// a credential -- a password, a TOTP code, a recovery code -- and on no other, so polling an
-/// endpoint that handles none cannot spend the allowance that slows brute force down.
-/// </para>
-/// <para>
-/// Responses carrying a token, a two-factor shared key or recovery codes are <c>[NoStore]</c>: RFC
-/// 6749 §5.1 forbids a cache from storing an OAuth-style credential.
-/// </para>
-/// <para>
-/// Six classes under the one <c>auth</c> prefix, and the prefix is the surface: the twenty-eight actions
-/// are divided between them, and no path depends on which class answers it.
-/// </para>
+/// <c>[Authorize]</c> on the actions beside it. The tight
+/// <see cref="RateLimitingExtensions.Authentication"/> budget goes on each action handling a
+/// credential — a password, a TOTP code, a recovery code — and on no other, so polling an
+/// endpoint that handles none cannot spend the brute-force allowance. Responses carrying a token,
+/// a two-factor shared key or recovery codes are <c>[NoStore]</c>: RFC 6749 §5.1 forbids a cache
+/// from storing an OAuth-style credential. Six classes under the one <c>auth</c> prefix, and the
+/// prefix is the surface: no path depends on which class answers it.
 /// </remarks>
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]

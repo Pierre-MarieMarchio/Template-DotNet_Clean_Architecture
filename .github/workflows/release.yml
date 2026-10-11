@@ -57,29 +57,21 @@ jobs:
         run: dotnet build "$SOLUTION" --configuration "$CONFIGURATION" --no-restore
 
       # No coverage at release time: the floor is a gate on a change, and this
-      # workflow runs on a tag that already passed it. The test-count floor is here
-      # though, because the failure it catches is not about coverage — a release
-      # built from a solution that ran no tests is the one release nobody would
-      # question. Kept a round number below the real total, matching ci.yml.
+      # workflow runs on a tag that already passed it.
       - name: Test
         run: |
-          # A round number below the real total of the smallest suite this project can be
-          # generated with, raised by what it was generated with. Later lines win,
-          # so the floor is the largest one whose feature is present.
-          minimum_tests=800
-          #if (localAuth)
-          minimum_tests=1500
-          #endif
-          #if (files)
-          minimum_tests=2500
-          #endif
-          #if (todoLists)
+          #if (templateMaintenance)
+          # The test-count floor is this repository's own, a round number below the real total
+          # of its suite matching ci.yml: a release built from a solution that ran no tests is
+          # the one release nobody would question, and a project generated with fewer options
+          # starts below any number this suite could justify, so its release carries no floor.
           minimum_tests=3000
+          floor_option="--minimum-expected-tests ${minimum_tests}"
           #endif
           dotnet test "$SOLUTION" \
             --configuration "$CONFIGURATION" \
             --no-build \
-            --minimum-expected-tests "$minimum_tests"
+            ${floor_option}
 
       - name: Audit dependencies
         run: |

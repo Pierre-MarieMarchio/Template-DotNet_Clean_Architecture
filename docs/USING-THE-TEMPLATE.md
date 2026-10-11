@@ -96,7 +96,7 @@ feature of its own gives them a subject.
 | Option | Leaves out when `false` |
 |---|---|
 | `--files` | the `Files` feature in every layer, the storage module and its unit-test project, the MinIO services in Compose, the `Files` and `Jobs:Files` settings, the `files` schema of the business migration and the tests that name any of it |
-| `--ci` | the GitHub Actions build and release workflows, and the workflow gate in `Tools/` |
+| `--ci` | the GitHub Actions build and release workflows |
 | `--sonar` | the local SonarQube profile in Compose, the scanner image and its task, the scanner tool in the local tool manifest, and the SonarQube Cloud workflow (generated only when `--ci` is also true) |
 
 What is left out is absent, not disabled: no project, file, configuration section, table or test
@@ -138,17 +138,21 @@ a gap, and it is why there is no test-kit package to reference — [`TESTING.md`
 says which fixtures can be leaned on unchanged and which two you own from the first commit.
 
 <!--#if (ci)-->
-**And the whole gate.** `.github/workflows/` and everything under `Tools/` come with it, so a
-generated project can judge itself from a clone. Two things about that are worth setting
-deliberately rather than inheriting: `coverage.minimum` states a floor measured against *this*
-repository's suite, and the Sonar workflow analyses nothing until the repository variables it names
-are set. [`BUILD-AND-CI.md`](BUILD-AND-CI.md) covers both.
+**And the whole gate.** `.github/workflows/` and the `Tools/` a project judges itself with come
+with it — the task launcher, the scaffolders, the coverage gate and the test summary — so a
+generated project can judge itself from a clone. The template's own machinery does not: the
+changelog, the tree-auditing gates and the acceptance workflow stay with the template repository.
+Two things about what arrives are worth setting deliberately rather than inheriting:
+`coverage.minimum` states a floor measured against *this* repository's suite, and the Sonar
+workflow analyses nothing until the repository variables it names are set.
+[`BUILD-AND-CI.md`](BUILD-AND-CI.md) covers both.
 <!--#else
-**And the whole gate.** Everything under `Tools/` comes with it, so a
-generated project can judge itself from a clone. Two things about that are worth setting
+**And the gate.** The `Tools/` a project judges itself with come with it — the task launcher,
+the scaffolders, the coverage gate and the test summary — so a generated project can judge
+itself from a clone. The template's own machinery does not: the changelog and the tree-auditing
+gates stay with the template repository. One thing about what arrives is worth setting
 deliberately rather than inheriting: `coverage.minimum` states a floor measured against *this*
-repository's suite, and the Sonar workflow analyses nothing until the repository variables it names
-are set. [`BUILD-AND-CI.md`](BUILD-AND-CI.md) covers both.
+repository's suite. [`BUILD-AND-CI.md`](BUILD-AND-CI.md) covers it.
 #endif-->
 
 **Two documents want replacing before you deploy.** `SECURITY.md`'s reporting section tells a finder
@@ -167,9 +171,11 @@ describes its choices. It writes a manifest of what it created, with a hash of e
 <!--#if (ci)-->
 ## The generation flow is a CI gate
 
-`.github/workflows/ci.yml`'s `template` job runs this exact install → generate → build → test
-sequence, under a different name, on every push. A template that generates a broken project is
-worse than a repository to clone, so that flow is a gate rather than a manual step.
+This repository's `.github/workflows/template-acceptance.yml` runs this exact install → generate →
+build → test sequence, under a different name, on every push to the template repository. A
+template that generates a broken project is worse than a repository to clone, so that flow is a
+gate rather than a manual step — and the workflow is one of the pieces a generated project does
+not inherit.
 
 <!--#endif-->
 ## If the repository already exists

@@ -32,7 +32,7 @@ the documentation:
 dotnet run Tools/Tasks.cs restore
 dotnet run Tools/Tasks.cs build
 dotnet run Tools/Tasks.cs test
-dotnet run Tools/Tasks.cs hygiene                # doc paths, workflow structure, comment tense
+dotnet run Tools/Tasks.cs hygiene                <!--#if (templateMaintenance)--># doc paths, workflow structure, comment tense<!--#else--># the fixtures of every gate this tree carries<!--#endif-->
 dotnet run Tools/Tasks.cs verify                 # the whole gate, in CI's order
 ```
 
@@ -49,7 +49,7 @@ A change is done when all of these pass. `dotnet run Tools/Tasks.cs verify` runs
 order — formatting first, because it is the fastest to fail.
 
 ```bash
-dotnet run Tools/Tasks.cs hygiene                  # four gates, each after its own self-test
+dotnet run Tools/Tasks.cs hygiene                  <!--#if (templateMaintenance)--># four gates, each after its own self-test<!--#else--># the fixtures of every gate this tree carries<!--#endif-->
 dotnet restore AppTemplate.sln
 dotnet format AppTemplate.sln --verify-no-changes  # clean
 dotnet build  AppTemplate.sln                      # 0 warnings, 0 errors
@@ -59,11 +59,17 @@ dotnet list package --vulnerable --include-transitive   # reports nothing
 dotnet run Tools/Tasks.cs coverage                 # line coverage >= coverage.minimum
 ```
 
+<!--#if (templateMaintenance)-->
 `hygiene` exists because two classes of defect are invisible to the compiler and to the tests: a
 documented path that resolves to nothing, and a workflow that would fail the first time it ran.
+<!--#else-->
+`hygiene` runs the fixtures of the gates this tree carries — the scaffolders' and the coverage
+gate's — so a gate that cannot go red never judges the tree.
+<!--#endif-->
 
 ### A gate proves it can go red before it judges anything
 
+<!--#if (templateMaintenance)-->
 Each of the four hygiene gates takes a `--self-test` flag, and running it is a step in its own
 right rather than a nicety:
 
@@ -84,6 +90,12 @@ repository; it says only that it ran.
 and CI does the same, one step per self-test so a fixture failure is legible on its own rather than
 buried in the gate that follows it. **Adding a rule to a gate means adding the fixture that fails
 without it.**
+<!--#else
+Each gate the tree carries takes a `--self-test` flag, and `hygiene` runs every one of them before
+letting a gate look at the tree: a gate whose green has never been contrasted with a red says
+nothing about the repository. **Adding a rule to a gate means adding the fixture that fails
+without it.**
+#endif-->
 
 ## `TreatWarningsAsErrors` is not negotiable
 
@@ -114,10 +126,10 @@ second one.
 
 ## `Tools/`
 
-<!--#if (ci && sonar)-->
-Seven single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond the
+<!--#if (templateMaintenance)-->
+Eight single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond the
 SDK `global.json` pins — no interpreter to find, no package to install, and the same line typed on
-Windows, Linux and macOS. The last entry is the one exception, and it is a Dockerfile rather than
+Windows, Linux and macOS. The ninth entry is the one exception, and it is a Dockerfile rather than
 an app.
 
 | File | What it is |
@@ -131,37 +143,22 @@ an app.
 | [`Tools/CheckNarrativeComments.cs`](../Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
 | [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
 | [`Tools/sonar-scanner.Dockerfile`](../Tools/sonar-scanner.Dockerfile) | not a C# app: the image the local Sonar analysis runs in, which is where its JRE lives instead of on your machine |
-<!--#elseif (ci)
-Seven single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond the
+<!--#elseif (sonar)
+Five single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond the
 SDK `global.json` pins — no interpreter to find, no package to install, and the same line typed on
-Windows, Linux and macOS.
-
-| File | What it is |
-|---|---|
-| [`Tools/Tasks.cs`](../Tools/Tasks.cs) | the task launcher: thin wrappers over the real `dotnet` and `docker` commands |
-| [`Tools/NewFeature.cs`](../Tools/NewFeature.cs) | the feature generator — the skeleton of one feature in the shape, operations and concurrency chosen, plus a creation manifest, so `ADDING-A-FEATURE.md` can be about the thinking. Its `--self-test` runs the real command against throwaway trees |
-| [`Tools/CheckDocPaths.cs`](../Tools/CheckDocPaths.cs) | every repository path cited in a Markdown code span resolves on disk |
-| [`Tools/CheckWorkflows.cs`](../Tools/CheckWorkflows.cs) | what a YAML parse does not catch: a dangling `needs:`, an action on a mutable tag, a missing `permissions:`, a `$VAR` in no `env:`, a script named in a `run:` and absent from disk |
-| [`Tools/CoverageGate.cs`](../Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |
-| [`Tools/CheckNarrativeComments.cs`](../Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
-| [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
-#elseif (sonar)
-Six single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond the
-SDK `global.json` pins — no interpreter to find, no package to install, and the same line typed on
-Windows, Linux and macOS. The last entry is the one exception, and it is a Dockerfile rather than
+Windows, Linux and macOS. The sixth entry is the one exception, and it is a Dockerfile rather than
 an app.
 
 | File | What it is |
 |---|---|
 | [`Tools/Tasks.cs`](../Tools/Tasks.cs) | the task launcher: thin wrappers over the real `dotnet` and `docker` commands |
 | [`Tools/NewFeature.cs`](../Tools/NewFeature.cs) | the feature generator — the skeleton of one feature in the shape, operations and concurrency chosen, plus a creation manifest, so `ADDING-A-FEATURE.md` can be about the thinking. Its `--self-test` runs the real command against throwaway trees |
-| [`Tools/CheckDocPaths.cs`](../Tools/CheckDocPaths.cs) | every repository path cited in a Markdown code span resolves on disk |
+| [`Tools/RemoveFeature.cs`](../Tools/RemoveFeature.cs) | the report of what removing a feature involves, and with `--apply` the undo of a generated skeleton whose manifest hashes, folders and surroundings are all untouched. Its `--self-test` generates features with the real generator and removes them |
 | [`Tools/CoverageGate.cs`](../Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |
-| [`Tools/CheckNarrativeComments.cs`](../Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
 | [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
 | [`Tools/sonar-scanner.Dockerfile`](../Tools/sonar-scanner.Dockerfile) | not a C# app: the image the local Sonar analysis runs in, which is where its JRE lives instead of on your machine |
 #else
-Six single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond the
+Five single-file C# apps, each launched with `dotnet run <file>`, each needing nothing beyond the
 SDK `global.json` pins — no interpreter to find, no package to install, and the same line typed on
 Windows, Linux and macOS.
 
@@ -169,11 +166,15 @@ Windows, Linux and macOS.
 |---|---|
 | [`Tools/Tasks.cs`](../Tools/Tasks.cs) | the task launcher: thin wrappers over the real `dotnet` and `docker` commands |
 | [`Tools/NewFeature.cs`](../Tools/NewFeature.cs) | the feature generator — the skeleton of one feature in the shape, operations and concurrency chosen, plus a creation manifest, so `ADDING-A-FEATURE.md` can be about the thinking. Its `--self-test` runs the real command against throwaway trees |
-| [`Tools/CheckDocPaths.cs`](../Tools/CheckDocPaths.cs) | every repository path cited in a Markdown code span resolves on disk |
+| [`Tools/RemoveFeature.cs`](../Tools/RemoveFeature.cs) | the report of what removing a feature involves, and with `--apply` the undo of a generated skeleton whose manifest hashes, folders and surroundings are all untouched. Its `--self-test` generates features with the real generator and removes them |
 | [`Tools/CoverageGate.cs`](../Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |
-| [`Tools/CheckNarrativeComments.cs`](../Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
 | [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
 #endif-->
+
+The tree-auditing gates — `CheckDocPaths`, `CheckWorkflows`, `CheckNarrativeComments` — are the
+template repository's own and do not ship: they hold this template's documentation, workflows and
+comment policy to this template's tree. The `hygiene` task asks the filesystem which gates its
+tree carries, so the same task serves both.
 
 `Tools/Tasks.cs` prints each command before running it, which is what keeps the launcher honest:
 copy the printed line and you get the same result without it. **No task hides a flag that changes
@@ -187,14 +188,17 @@ the meaning of a build** — in particular none relaxes `TreatWarningsAsErrors`.
 | Job | Does |
 |---|---|
 | Build & test | restore, `dotnet format --verify-no-changes`, build with warnings as errors, assert every test project is in the solution, run the tests with coverage, enforce the floor in `coverage.minimum` |
-| Docs and workflows | the four hygiene gates, each preceded by its own self-test |
+| <!--#if (templateMaintenance)-->Docs and workflows | the four hygiene gates, each preceded by its own self-test<!--#else-->Gates | the `hygiene` task: the fixtures of the gates the tree carries<!--#endif--> |
 | Vulnerable packages | `dotnet list package --vulnerable --include-transitive`, failing on any hit |
 | Docker image | builds the image, then asserts it does not run as root and exposes only 8080 |
+<!--#if (templateMaintenance)-->
 | Template acceptance (five legs) | install → generate under a different name with one option combination → assert the template's name leaked nowhere → bootstrap → build → Docker-free tests → no pending model change per generated context → the generated project's `hygiene` task; see [below](#template-acceptance) |
 | Template refuses unsupported options | `--auth none` alone and with `--examples notes` must exit non-zero and write no file |
+<!--#endif-->
 | Load smoke | the k6 script, **non-blocking** — see [`TESTING.md`](TESTING.md#the-load-smoke-test) |
 | Compose manifest | `docker compose config` against `.env.example` |
 
+<!--#if (templateMaintenance)-->
 ### Template acceptance
 
 A template that generates a broken project is worse than a repository to clone, and every option is a
@@ -211,11 +215,15 @@ another. The legs are the combinations that exercise a different shape, not the 
 
 Each leg builds with `TreatWarningsAsErrors` (from `Directory.Build.props`, as everywhere), runs the
 test projects that do not reference Testcontainers — integration tests stay with the repository's own
-build — and runs `dotnet run Tools/Tasks.cs hygiene` in the generated project, which already knows
-whether it carries the workflow gate. Only `--auth local` generates the Auth context, so only those legs
+build — and runs `dotnet run Tools/Tasks.cs hygiene` in the generated project, which asks the
+filesystem which gates its tree carries. Only `--auth local` generates the Auth context, so only those legs
 compare its model. The separate refusal job covers the rule the other way round: `--auth none` needs
 `--examples none` and `--files false`, enforced by hidden required parameters, and an unsupported
 combination must fail before it writes anything.
+
+The legs live in `.github/workflows/template-acceptance.yml`, a workflow a generated project does
+not receive: `dotnet new install .` of a generated project is a sentence that cannot be true.
+<!--#endif-->
 
 All actions are pinned to a commit SHA, `permissions:` is `contents: read`, and a concurrency group
 supersedes superseded runs. **No CI step passes a flag that would turn warnings back into

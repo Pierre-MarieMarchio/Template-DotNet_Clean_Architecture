@@ -23,8 +23,12 @@ the same directory.
 
 **In a subdirectory.** The generated tree becomes one service among several — `services/api/`, say.
 Nothing above is merged, so the existing repository keeps its own root files. The price is paid in
-the tooling instead: two of the four hygiene gates and one Tasks.cs target stop working until they
-are told where the repository root actually is, and six documentation citations stop resolving.
+<!--#if (ci)-->
+the tooling instead: the workflows have to move to the git root, every path they name has to be
+re-pointed, and the host's `global.json` has to learn the test runner.
+<!--#else
+the tooling instead: the host's `global.json` has to learn the test runner.
+#endif-->
 
 Take the first shape unless the repository must hold more than this one service. The second one is
 not hard, but everything it costs is listed below and none of it is optional.
@@ -38,8 +42,8 @@ switched on, and a class library in its own solution. The generated project was 
 moved to `services/api/`. Every failure quoted below is a failure that happened, with the exit code
 it produced, and every fix is one that was applied and re-measured. The end state was:
 `dotnet build` 0 warnings 0 errors, 3261 tests passing with 0 failing,
-`dotnet format --verify-no-changes` clean, all four hygiene gates green with 3 workflows validated,
-and `docker compose config` clean.
+`dotnet format --verify-no-changes` clean, the `hygiene` task green, and `docker compose config`
+clean.
 
 These things are **not** measured here, and you should treat them as reasoning:
 
@@ -153,7 +157,7 @@ Those three skips are correct and will follow you. They are the template-packagi
 template, and those three rules only mean something about the template.
 
 <!--#if (ci)-->
-### 4. Move the workflows to the git root, and expect two gates to go red
+### 4. Move the workflows to the git root, and re-point every path they name
 
 ```bash
 mv services/api/.github/workflows/ci.yml      .github/workflows/api-ci.yml
@@ -162,64 +166,18 @@ rmdir services/api/.github/workflows services/api/.github
 ```
 
 Renaming them is worth doing if the host already has workflows of its own; nothing depends on the
-names.
+names. GitHub reads `.github/workflows/` from the git root and nowhere else, so a workflow left
+inside the subdirectory is a file that looks like CI and never runs.
 
-Two gates then fail, and both are right to.
-
-`Tools/CheckWorkflows.cs`, pointed at the solution directory, finds no workflow at all and exits 1
-with `no workflow file was examined, so this check proves nothing`. That is its anti-vacuity rule
-working: a validator that examined nothing has established nothing.
-
-`Tools/CheckDocPaths.cs` exits 1 on every citation that no longer resolves — the documents naming a
-workflow file by its old path, which the gate lists one by one. Rewrite them to where the files now
-are. Written as prose rather than in backticks they stop
-being checkable claims about the tree, which is honest for a path that now lives above the scanned
-root; the alternative is to keep them in backticks and teach that gate a second base directory.
-After the rewrite it exited 0, checking 296 path references.
-
-### 5. Point the workflow gate at the git root, and let it dictate the rest
-
-```bash
-dotnet run services/api/Tools/CheckWorkflows.cs .
-```
-
-Run from the repository root, this gate becomes the checklist for the whole adaptation. It verifies
-that every file a `run:` step names exists on disk, so it reports, one by one, every path in the
-moved workflow that still assumes a root it no longer has. Measured: 11 findings in the moved CI
-workflow, each naming the job and the step, plus one against the host repository's own pre-existing
-workflow for having no `permissions:` block.
-
-Prefix each of those paths with the subdirectory. Do **not** reach for
-`defaults: run: working-directory:` instead — GitHub would be satisfied and the gate would not,
-because it resolves the paths as written and knows nothing about that key. Prefixing keeps both
-happy and keeps the check alive.
-
-One expected snag: the gate's path pattern is anchored on the top-level directory names of a
-repository whose solution sits at its root, with no left-hand boundary — so a path under the
-subdirectory is matched from its first recognised segment onwards, resolved as if it sat at the root,
-and reported as missing. Two optional prefixes in that pattern fix it, and
-took the count from 12 findings to 2. The last two were a path named inside two log messages rather
-than passed to a command, and the host's own workflow. With both settled the gate exited 0, having
-validated 3 workflows — the two moved ones and the host's.
-
-That last finding is a feature rather than an accident. Adopting this repository's gates means the
-host's existing workflows start being held to the same standard.
-
-### 6. Point the grouped hygiene target at the git root too
-
-`dotnet run Tools/Tasks.cs hygiene` still exited 1 after all of the above, for the same reason as
-step 4: it hands the solution directory to every gate, including the one whose subject now lives two
-levels up. One line in its `Gates` method fixes it —
-
-```csharp
-Step("dotnet", "run", Gate(repoRoot, "CheckWorkflows.cs"), Path.Combine(repoRoot, "..", ".."));
-```
-
-— after which the target exited 0 with all four gates green.
+A workflow runs from the repository root, so every path its `run:` steps name — the solution,
+`Tools/Tasks.cs`, `coverage.minimum` — has to resolve from there: prefix each with the
+subdirectory. `defaults: run: working-directory:` is the alternative and satisfies GitHub for the
+run block; prefixing is preferred here because it is one mechanical edit per path and the paths
+keep resolving for anyone reading the workflow at the root.
 
 <!--#endif-->
 <!--#if (ci)-->
-### 7. Compose
+### 5. Compose
 <!--#else
 ### 4. Compose
 #endif-->
@@ -237,7 +195,7 @@ docker compose config -q
 Measured: exit 1 without the copy, exit 0 with it and no warnings.
 
 <!--#if (ci)-->
-### 8. What is left at the host's root
+### 6. What is left at the host's root
 <!--#else
 ### 5. What is left at the host's root
 #endif-->
@@ -259,16 +217,14 @@ dotnet build Acme.Billing.sln
 dotnet test Acme.Billing.sln
 dotnet format Acme.Billing.sln --verify-no-changes
 dotnet run Tools/Tasks.cs hygiene
-cd ../.. && dotnet run services/api/Tools/CheckWorkflows.cs .
 ```
 
 What that produced when this document was written: build 0 warnings 0 errors; 3261 passing, 0
-failing, 3 skipped; formatting clean; four gates green; 3 workflows validated, 0 problems.
+failing, 3 skipped; formatting clean; the `hygiene` task green.
 
 The coverage gate is the one thing left to decide rather than repair. `coverage.minimum` states a
 floor measured against this repository's own test suite. It is still the right floor for the
 generated project on day one, and it stops being the right floor the moment you add code of your
 own — re-measure and re-state it rather than carrying the number over unexamined. That file's own
-comments record every measurement the floor was set from, and
-[`TESTING.md`](TESTING.md#with-coverage) says why two of those rows are not comparable to each
-other.
+comments state the rule it is set from, and
+[`TESTING.md`](TESTING.md#with-coverage) says how to take a comparable measurement.

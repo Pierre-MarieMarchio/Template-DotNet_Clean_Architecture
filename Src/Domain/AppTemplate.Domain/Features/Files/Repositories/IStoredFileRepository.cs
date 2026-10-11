@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Features.Files.Entities;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.Files.Entities;
 
 namespace AppTemplate.Domain.Features.Files.Repositories;
 
@@ -34,6 +35,15 @@ public interface IStoredFileRepository
         CancellationToken cancellationToken);
 
     void Add(StoredFile storedFile);
+
+    /// <summary>
+    /// Every file one owner holds, whatever its state, loaded as aggregates with their tags: the
+    /// account-deleted policy removes through the aggregate — <c>StoredFile.Delete</c> announces the
+    /// bytes — not around it.
+    /// </summary>
+    Task<IReadOnlyList<StoredFile>> GetForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Stages the removal of the row, which is the whole of deleting a file. Call

@@ -52,6 +52,11 @@ internal static class CurrentUserExtensions
                 ? new NoCallerCurrentUser()
                 : new CurrentUser(provider.GetRequiredService<IHttpContextAccessor>()));
 
+        // The other fact about the caller the request carries, beside who they are: when the token
+        // authenticating it was issued. Registered in both scopes so nothing that resolves one in
+        // a background scope finds the other missing; in one, it answers null and fails closed.
+        services.AddScoped<ICurrentAccessToken, CurrentAccessToken>();
+
         // Mandatory: no module supplies a default, so omitting it fails at composition rather than
         // stamping null over every audited row.
         services.AddScoped<IAuditActor>(static provider =>

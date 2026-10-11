@@ -8,4 +8,5 @@ public sealed record UserProfile(
     bool EmailConfirmed,
     IReadOnlyList<string> Roles,
     DateTimeOffset CreatedAt,
-    bool TwoFactorEnabled);
+    bool TwoFactorEnabled,
+    bool HasPassword);

@@ -1,4 +1,4 @@
-﻿# API conventions
+# API conventions
 
 What holds for every endpoint, whatever feature it belongs to. The endpoints themselves are in
 [`API-REFERENCE.md`](API-REFERENCE.md); this page is what a client has to understand once and then
@@ -60,7 +60,7 @@ of the contract.
 
 | `code` | Status |
 |---|---|
-| `auth.required` | 401 — no token, an expired one, a route that matched nothing, or a token whose account has since been deleted (`me`, `change-password`, `change-email`, and the three `two-factor/*` actions) |
+| `auth.required` | 401 — no token, an expired one, a route that matched nothing, or a token whose account has since been deleted (`me`, `change-password`, `change-email`, `delete-account`, and the three `two-factor/*` actions) |
 | `auth.forbidden` | 403 — authenticated, but the endpoint's policy is not satisfied, or the action refuses to target the caller's own account |
 | `auth.login.invalidCredentials` | 401 — one answer for unknown address, wrong password, unconfirmed email and lockout alike |
 | `auth.login.invalidTwoFactorChallenge` | 401 — the challenge token is unknown, spent or expired |
@@ -72,6 +72,10 @@ of the contract.
 | `auth.account.notFound` | 404 — an administration action naming an account that does not exist |
 | `auth.account.cannotDeleteSelf` / `auth.lockout.cannotTargetSelf` / `auth.roles.cannotTargetSelf` / `auth.twoFactor.cannotTargetSelf` | 403 — an administrator may not aim these at their own account |
 | `auth.account.deletionRejected` / `auth.lockout.rejected` / `auth.twoFactor.administrativeDisableRejected` | 400 — the store refused the change |
+| `auth.account.reAuthenticationRequired` | 403 — deleting the caller's own account demands a proof the account can offer, and the access token making the call is older than the five-minute window an account with neither a password nor a second factor falls back to. Sign in again and retry |
+<!--#if (externalAuth)
+| `externalIdentity.mapping.notFound` | 404 — an administrative deletion naming an owner id no provider mapping carries |
+#endif-->
 | `auth.twoFactor.setupRejected` / `auth.twoFactor.enableRejected` / `auth.twoFactor.disableRejected` | 400 — the store refused the change, so the second factor is as it was |
 
 **Resources**

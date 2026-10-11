@@ -4,6 +4,7 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
+using AppTemplate.Application.Auth.Features.Auth.Ports.ReAuthentication;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
@@ -123,6 +124,7 @@ public static class AuthModule
         services.AddScoped<ISessionTokensService, SessionTokensService>();
         services.AddScoped<ITwoFactorService, TwoFactorService>();
         services.AddScoped<IAccountAdministrationService, AccountAdministrationService>();
+        services.AddScoped<IReAuthenticationService, ReAuthenticationService>();
         services.AddScoped<IExternalIdentityVerifier, ExternalIdentityVerifier>();
         services.AddScoped<IExternalLoginsService, ExternalLoginsService>();
         services.AddScoped<IAccountEmailFactory, AccountEmailFactory>();

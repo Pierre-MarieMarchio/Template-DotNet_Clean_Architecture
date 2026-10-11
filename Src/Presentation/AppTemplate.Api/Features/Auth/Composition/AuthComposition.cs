@@ -1,7 +1,11 @@
 ﻿using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Common.Security;
+//#if (anyFeature)
+using AppTemplate.Api.Features.Auth.Directories;
+//#endif
 using AppTemplate.Api.Features.Auth.Jobs;
 using AppTemplate.Application.Auth;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
@@ -35,6 +39,13 @@ internal static class AuthComposition
         services.AddAuthApplication();
         services.AddAuthModule(configuration);
         services.AddAuthMaintenanceJobs(configuration);
+
+        // The one half of the deleted-account reaction this host owns: whether an id still names
+        // an account, for the features that re-derive their precondition through it. Composed with
+        // the accounts, so a feature that owns user data can never resolve nothing.
+        //#if (anyFeature)
+        services.AddScoped<IUserAccountDirectory, AccountUserAccountDirectory>();
+        //#endif
 
         services.AddHealthChecks()
             .AddDbContextCheck<AuthDbContext>(name: "auth-database", tags: [HealthEndpoints.ReadyTag]);

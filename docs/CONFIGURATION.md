@@ -1,4 +1,4 @@
-﻿﻿# Configuration
+﻿# Configuration
 
 Every setting the application reads is listed here — this page, not a file, is the complete
 list. The tracked `Src/Presentation/AppTemplate.Api/appsettings.json` is the schema of record for
@@ -1222,6 +1222,22 @@ refresh-token switch is documented next, because it belongs to authentication.
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `PurgeExpiredRefreshTokensEnabled` | bool | `true` | Runs `IPurgeExpiredRefreshTokensUseCase` each iteration when `true`. |
+
+<!--#if (anyFeature)-->
+### `MaintenanceWorker:SweepDeletedAccountsDataEnabled`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `SweepDeletedAccountsDataEnabled` | bool | `true` | Runs `ISweepDeletedAccountDataUseCase` each iteration when `true`. |
+
+A key of the `MaintenanceWorker` section above, read by
+`AppTemplate.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs`. The sweep is the
+guarantee behind the account-deleted fact: it applies each feature's declared policy to the owners
+whose data still names a deleted account, whether or not the fact reached the feature's consumer.
+Off, rows owned by an id that names no account stay where they are — the deletion event is the fast
+path, and this switch is what makes it certain. See
+[`ARCHITECTURE.md`](ARCHITECTURE.md#when-an-account-goes).
+<!--#endif-->
 
 A key of the `MaintenanceWorker` section above, read by
 `AppTemplate.Api/Features/Auth/Jobs/RefreshTokenPurgeOptions.cs` — a class of its own that

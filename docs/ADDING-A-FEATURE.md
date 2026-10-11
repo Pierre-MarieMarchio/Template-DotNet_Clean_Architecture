@@ -1,4 +1,4 @@
-﻿# Adding a feature
+# Adding a feature
 
 A worked walkthrough of the vertical [`../CONTRIBUTING.md`](../CONTRIBUTING.md#adding-a-feature)
 summarises: aggregate → EF model → mapper → tracker → repository → use case (with its
@@ -314,6 +314,19 @@ that is why the gate takes one instead of minting one — and it is what answers
 as an unknown id. Skip either line and the code
 still compiles — the consumer simply never fires, and the use case that takes the collaborator
 throws on its first resolution.
+
+<!--#if (anyFeature)-->
+**A feature that owns user data also declares what a deleted account means for its rows.** Write
+one consumer of `UserAccountDeleted` that also implements `IDeletedAccountDataPolicy` (both faces in
+one class: the consumer is the fast path, the policy face is what the sweep calls), have it
+re-derive the precondition through `IUserAccountDirectory` — the account must be gone — before it
+writes anything, commit per owner through the feature's own `IUnitOfWork`, and bind both faces in
+the feature's `AddX()`: the `AddDomainEventConsumer<UserAccountDeleted, …Consumer>()` line and the
+`AddScoped<IDeletedAccountDataPolicy, …Consumer>()` line. Deleting is the template's own features'
+choice; anonymising is the same two faces writing rows instead of removing them. The sweep that
+guarantees the fact reached a feature is already composed — nothing to add — and a feature that
+holds no user data declares no policy at all.
+<!--#endif-->
 
 A port is a capability, not a façade, and two architecture rules hold it to that.
 `PortConventionTests` refuses any port declaring more than **six** operations: six lets a

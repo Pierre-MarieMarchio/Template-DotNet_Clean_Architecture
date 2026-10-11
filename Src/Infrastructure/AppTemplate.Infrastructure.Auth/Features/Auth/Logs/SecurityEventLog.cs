@@ -70,6 +70,10 @@ internal sealed partial class SecurityEventLog(ILogger<SecurityEventLog> logger)
                 LogAccountDeleted(logger, securityEvent.UserId);
                 break;
 
+            case SecurityEventKind.AccountSelfDeleted:
+                LogAccountSelfDeleted(logger, securityEvent.UserId);
+                break;
+
             case SecurityEventKind.TwoFactorEnabled:
                 LogTwoFactorEnabled(logger, securityEvent.UserId);
                 break;
@@ -149,6 +153,9 @@ internal sealed partial class SecurityEventLog(ILogger<SecurityEventLog> logger)
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "An administrator deleted user {UserId}.")]
     private static partial void LogAccountDeleted(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "User {UserId} deleted their own account.")]
+    private static partial void LogAccountSelfDeleted(ILogger logger, Guid? userId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Two-factor sign-in was armed for user {UserId}.")]
     private static partial void LogTwoFactorEnabled(ILogger logger, Guid? userId);

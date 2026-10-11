@@ -56,6 +56,9 @@ public static class BackgroundJobsModule
         services.AddBackgroundScope();
 
         services.AddMaintenanceJobs(configuration);
+        //#if (anyFeature)
+        services.AddDeletedAccountSweepJobs(configuration);
+        //#endif
         //#if (reminders)
         services.AddReminderJobs(configuration);
         //#endif

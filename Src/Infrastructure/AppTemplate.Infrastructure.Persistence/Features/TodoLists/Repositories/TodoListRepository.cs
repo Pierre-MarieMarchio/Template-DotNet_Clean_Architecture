@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Features.TodoLists.Entities;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
@@ -58,6 +59,34 @@ internal sealed class TodoListRepository(
         tracker.Track(aggregate, record);
 
         return aggregate;
+    }
+
+    public async Task<IReadOnlyList<TodoList>> GetForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+        // The same eager load as GetAsync, for the same correctness reason, over every list the
+        // owner holds rather than one.
+        var records = await context.TodoLists
+            .Include(list => list.Items)
+            .ThenInclude(item => item.Tags)
+            .AsSplitQuery()
+            .Where(list => list.OwnerId == ownerId.Value)
+            .ToListAsync(cancellationToken);
+
+        var aggregates = new List<TodoList>(records.Count);
+
+        foreach (var record in records)
+        {
+            var aggregate = mapper.ToAggregate(record);
+
+            tracker.Track(aggregate, record);
+            aggregates.Add(aggregate);
+        }
+
+        return aggregates;
     }
 
     public void Add(TodoList todoList)

@@ -1,4 +1,4 @@
-﻿# API reference
+# API reference
 
 The endpoints, one section per feature. What holds for all of them — versioning, default-deny
 authorisation, the `code` a failure carries, `ETag`, `Idempotency-Key`, the collection contract and
@@ -36,12 +36,12 @@ at `/scalar/v1`.
 
 ## Authentication — `api/v1/auth/*`
 
-Ten of the eighteen actions here are explicitly `[AllowAnonymous]`; the
-other eight require `[Authorize]` (`logout-all`, `me`, `change-password`, the three
-`two-factor/*` actions, `change-email`, `confirm-email-change`). Sixteen of the
-eighteen are rate-limited to **10 requests per minute per client IP**; `logout-all`
-and `me` deliberately fall to the global limiter instead, since neither is an attempt
-at a credential.
+Ten of the nineteen actions here are explicitly `[AllowAnonymous]`; the
+other nine require `[Authorize]` (`logout-all`, `me`, `change-password`, the three
+`two-factor/*` actions, `change-email`, `confirm-email-change`, `delete-account`).
+Seventeen of the nineteen are rate-limited to **10 requests per minute per client IP**;
+`logout-all` and `me` deliberately fall to the global limiter instead, since neither is
+an attempt at a credential.
 
 | Method | Route | Success | Notes |
 |---|---|---|---|
@@ -61,6 +61,7 @@ at a credential.
 | POST | `/api/v1/auth/two-factor/disable` | 204 | Authenticated. Requires the current password. Signs out every session, the caller's own included, as `change-password` does. |
 | POST | `/api/v1/auth/change-email` | 204 | Authenticated. Requires the current password; mails a token to the new address. |
 | POST | `/api/v1/auth/confirm-email-change` | 204 | Authenticated. Confirms the pending change from the token mailed to the new address. |
+| POST | `/api/v1/auth/delete-account` | 204 | Authenticated. Deletes the caller's own account and every session its tokens name — the last answer this token can obtain. **Re-authentication is demanded on the way out**: the current password when the account has one, a two-factor code when the factor is armed, and — for an account with neither — an access token issued less than five minutes ago, answered `403` `auth.account.reAuthenticationRequired` when the calling one is older. What the other features hold under the id is removed through the account-deleted fact each consumes; see `ARCHITECTURE.md`. |
 | POST | `/api/v1/auth/forgot-password` | 204 | Always 204, whether or not the address exists. |
 | POST | `/api/v1/auth/reset-password` | 204 | **POST with a JSON body**, not a GET with a query string. |
 
@@ -300,8 +301,29 @@ with `403` when the target id names the caller.
 | PUT | `/api/v1/auth/accounts/{userId}/roles/{role}` | 204 — grants a role; 400 if the role does not exist, or if the account already has it |
 | DELETE | `/api/v1/auth/accounts/{userId}/roles/{role}` | 204 — revokes a role; 400 if the role does not exist, or if the account does not have it |
 | DELETE | `/api/v1/auth/accounts/{userId}/two-factor` | 204 — disarms the account's second factor and rotates its security stamp; the way back for a lost phone and lost recovery codes |
-| DELETE | `/api/v1/auth/accounts/{userId}` | 204 — deletes the account outright |
+| DELETE | `/api/v1/auth/accounts/{userId}` | 204 — deletes the account outright; what the other features hold under the id is removed through the account-deleted fact each consumes, not by this call |
 
+<!--#if (externalAuth)
+## External identities — `api/v1/external-identities/*`
+
+Requires the `Administrator` policy on the whole controller — an authenticated
+non-admin gets `403`. This API holds no passwords and mints no tokens: the provider
+does both, so the one administrative act left here is deleting an account's local
+presence.
+
+| Method | Route | Success |
+|---|---|---|
+| DELETE | `/api/v1/external-identities/{userId}` | 204 — deletes every mapping that names the owner and its assigned roles; 404 when no mapping names the id |
+
+The data the features hold under the id is removed through the account-deleted fact
+each consumes; see `ARCHITECTURE.md`. A caller who signs in again is provisioned under
+a new owner id, with none of the deleted one's data — that is what deleting the
+account meant, and the provider's own account is the provider's to delete. When the
+provider retires a subject, an administrator calls this with the owner id, or the
+project wires the provider's own deletion signal to the same service; the template
+ships no endpoint for that signal.
+
+#endif-->
 ## Maintenance — `api/v1/maintenance/*`
 
 | Method | Route | Success |

@@ -4,6 +4,7 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
+using AppTemplate.Application.Auth.Features.Auth.Ports.ReAuthentication;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
@@ -13,6 +14,7 @@ using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEmail;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEmailChange;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteAccount;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteMyAccount;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DisableTwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.LockAccount;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
@@ -41,10 +43,10 @@ namespace AppTemplate.Application.Auth.UnitTests;
 public sealed class ApplicationAuthModuleTests
 {
     /// <summary>
-    /// Twenty-three account and sign-in operations, one for signing in through an external identity
+    /// Twenty-four account and sign-in operations, one for signing in through an external identity
     /// provider, and one administrative purge reached only from a background job.
     /// </summary>
-    private const int _knownUseCaseCount = 25;
+    private const int _knownUseCaseCount = 26;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
@@ -118,6 +120,7 @@ public sealed class ApplicationAuthModuleTests
     [InlineData(typeof(IValidator<DisableTwoFactorCommand>))]
     [InlineData(typeof(IValidator<VerifyTwoFactorCommand>))]
     [InlineData(typeof(IValidator<SignInWithExternalProviderCommand>))]
+    [InlineData(typeof(IValidator<DeleteMyAccountCommand>))]
     public void EveryValidator_IsDiscovered(Type validatorType)
     {
         using var provider = BuildProvider();
@@ -179,6 +182,9 @@ public sealed class ApplicationAuthModuleTests
         services.AddScoped(_ => Substitute.For<ISecurityEventLog>());
         services.AddScoped(_ => Substitute.For<IAccountAdministrationService>());
         services.AddScoped(_ => Substitute.For<ITwoFactorService>());
+        services.AddScoped(_ => Substitute.For<IReAuthenticationService>());
+        services.AddScoped(_ => Substitute.For<ICurrentAccessToken>());
+        services.AddScoped(_ => Substitute.For<IDomainEventPublisher>());
 
         // Several use cases take an ILogger, which every real host supplies.
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));

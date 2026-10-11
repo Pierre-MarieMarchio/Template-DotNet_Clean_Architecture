@@ -26,7 +26,8 @@ public sealed class AccountReminderRecipientDirectoryTests
             EmailConfirmed: true,
             Roles: [],
             CreatedAt: DateTimeOffset.UnixEpoch,
-            TwoFactorEnabled: false));
+            TwoFactorEnabled: false,
+            HasPassword: true));
 
         var recipient = await new AccountReminderRecipientDirectory(_accounts).FindAsync(_ownerId, TestToken);
 

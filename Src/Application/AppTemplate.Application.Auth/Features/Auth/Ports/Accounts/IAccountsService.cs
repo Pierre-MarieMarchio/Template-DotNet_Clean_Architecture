@@ -2,7 +2,7 @@
 
 /// <summary>
 /// The account itself: creating one, checking its password, saying whether it may still sign in,
-/// changing its password, and reading its profile. Nothing about tokens or mail.
+/// changing its password, reading its profile, and deleting it. Nothing about tokens or mail.
 /// <para>
 /// <b>Cancellation is observed on entry only, and cannot be propagated.</b> An implementation over
 /// ASP.NET Identity has no way to pass a <see cref="CancellationToken"/> into
@@ -57,4 +57,17 @@ public interface IAccountsService
     /// </summary>
     /// <returns><c>null</c> when the account no longer exists.</returns>
     Task<UserProfile?> FindProfileAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes the account and what the user store holds for it, its refresh-token grants included.
+    /// The caller's own account is as legitimate a target as anybody else's: the authority to do
+    /// this is the caller's to prove — re-authentication for the holder's own hands, the
+    /// <c>Administrator</c> policy for an administrator's — and the port says nothing about it.
+    /// <para>
+    /// Commits on its own, like every Identity-backed write, so the fact of the deletion can be
+    /// published the moment this returns. Rows another feature owns under this id are not touched:
+    /// those are the owning feature's to remove, through the account-deleted fact.
+    /// </para>
+    /// </summary>
+    Task<AccountDeletionOutcome> DeleteAsync(Guid userId, CancellationToken cancellationToken = default);
 }

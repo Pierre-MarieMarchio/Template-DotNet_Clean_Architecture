@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;
@@ -125,6 +126,10 @@ internal sealed class InMemoryReminderStore : IReminderRepository, IUnitOfWork
             [.. _committed.Values
                 .Where(row => row.Snapshot.TodoItemId == todoItemId)
                 .Select(row => Track(row))]);
+
+    /// <summary>No test of delivery removes an owner's reminders; the double exists for firing.</summary>
+    public Task<IReadOnlyList<Reminder>> GetForOwnerAsync(UserId ownerId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("No test of delivery removes an owner's reminders.");
 
     public void Add(Reminder reminder) => throw new NotSupportedException("No test of delivery schedules one.");
 

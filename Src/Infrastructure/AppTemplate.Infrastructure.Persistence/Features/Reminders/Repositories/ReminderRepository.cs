@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Features.Reminders.Entities;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.Reminders.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.Reminders.ValueObjects;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
@@ -62,6 +63,20 @@ internal sealed class ReminderRepository(
             // waited longer instead of holding the front of every batch.
             .OrderBy(reminder => reminder.NextAttemptAt ?? reminder.DueAt)
             .Take(batchSize)
+            .ToListAsync(cancellationToken);
+
+        return records.Select(LoadOrTrack).ToList();
+    }
+
+    /// <summary>Loads every reminder of one owner, whatever its state, as tracked aggregates.</summary>
+    public async Task<IReadOnlyList<Reminder>> GetForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+        var records = await context.Reminders
+            .Where(reminder => reminder.OwnerId == ownerId.Value)
             .ToListAsync(cancellationToken);
 
         return records.Select(LoadOrTrack).ToList();

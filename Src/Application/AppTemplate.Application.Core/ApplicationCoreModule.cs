@@ -1,6 +1,9 @@
 ﻿using System.Reflection;
 using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.UseCases;
+//#if (anyFeature)
+using AppTemplate.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;
+//#endif
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using AppTemplate.Domain.Core.Common.Events;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +39,27 @@ public static class ApplicationCoreModule
 
         return services.AddUseCases([typeof(PurgeExpiredIdempotencyKeysUseCase)]);
     }
+    //#if (anyFeature)
+
+    /// <summary>
+    /// Registers the sweep that guarantees the data of deleted accounts goes, whether or not the
+    /// <c>UserAccountDeleted</c> fact reached the feature holding it.
+    /// <para>
+    /// Like the purge above, separate from anything else: it resolves
+    /// <c>IUserAccountDirectory</c>, every registered <c>IDeletedAccountDataPolicy</c> and the
+    /// leader lease, so a host with no feature that owns user data supplies adapters it has no
+    /// use for. A host whose features hold user data composes this beside its maintenance timer.
+    /// </para>
+    /// </summary>
+    /// <param name="services">The container being built.</param>
+    /// <returns>The same collection, for chaining.</returns>
+    public static IServiceCollection AddDeletedAccountSweep(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        return services.AddUseCases([typeof(SweepDeletedAccountDataUseCase)]);
+    }
+    //#endif
 
     /// <summary>
     /// Binds a consumer to one event type. Registration is explicit rather than scanned so that a

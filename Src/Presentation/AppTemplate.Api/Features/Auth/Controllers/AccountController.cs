@@ -5,6 +5,7 @@ using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.Features.Auth.Mapping;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePassword;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEmailChange;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteMyAccount;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestEmailChange;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.GetCurrentUser;
 using Microsoft.AspNetCore.Authorization;
@@ -30,7 +31,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// 6749 §5.1 forbids a cache from storing an OAuth-style credential.
 /// </para>
 /// <para>
-/// Five classes under the one <c>auth</c> prefix, and the prefix is the surface: the eighteen actions
+/// Five classes under the one <c>auth</c> prefix, and the prefix is the surface: the nineteen actions
 /// are divided between them, and no path depends on which class answers it.
 /// </para>
 /// </remarks>
@@ -40,7 +41,8 @@ public sealed class AccountController(
     IGetCurrentUserUseCase getCurrentUser,
     IChangePasswordUseCase changePassword,
     IRequestEmailChangeUseCase requestEmailChange,
-    IConfirmEmailChangeUseCase confirmEmailChange) : ApiControllerBase
+    IConfirmEmailChangeUseCase confirmEmailChange,
+    IDeleteMyAccountUseCase deleteMyAccount) : ApiControllerBase
 {
     /// <summary>The authenticated caller's own profile. Takes no input: the identity is the token's.</summary>
     /// <remarks>
@@ -129,5 +131,36 @@ public sealed class AccountController(
         var command = new ConfirmEmailChangeCommand(request.NewEmail, request.Token);
 
         return NoContentOrProblem(await confirmEmailChange.ExecuteAsync(command, cancellationToken));
+    }
+
+    /// <summary>
+    /// Deletes the caller's own account, and with it every session its tokens name: the answer is
+    /// the last one this token can obtain. What the other features hold under the id is removed
+    /// through the account-deleted fact they each consume — see <c>DeleteMyAccountUseCase</c>.
+    /// </summary>
+    /// <remarks>
+    /// Re-authentication is demanded on the way out, for the reason <see cref="ChangePassword"/>
+    /// gives and one beyond it: a password change can be undone by changing back, and this cannot.
+    /// Which proof the account takes is decided by what it holds: the current password when one is
+    /// set, a two-factor code when the factor is armed, and — for an account with neither — an
+    /// access token issued less than five minutes ago, answered as
+    /// <c>auth.account.reAuthenticationRequired</c> when the calling one is older.
+    /// </remarks>
+    [HttpPost("delete-account")]
+    [Authorize]
+    [EnableRateLimiting(RateLimitingExtensions.Authentication)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
+    public async Task<ActionResult> DeleteMyAccount(
+        [FromBody] DeleteMyAccountRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var command = new DeleteMyAccountCommand(request.CurrentPassword, request.TwoFactorCode);
+
+        return NoContentOrProblem(await deleteMyAccount.ExecuteAsync(command, cancellationToken));
     }
 }

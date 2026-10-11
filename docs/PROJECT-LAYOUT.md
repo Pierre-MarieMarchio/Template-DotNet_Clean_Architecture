@@ -37,6 +37,10 @@ only *inside* a feature, where it partitions something already cohesive.
 
 ## The folder map
 
+The map is the template's own full tree, generated with every option on; the projects this solution
+actually holds are the ones `README.md` names, and every rule below holds of whatever subset of it a
+project was generated with.
+
 ```
 AppTemplate.Domain.Core         Common/{Abstractions,Events,Exceptions,Primitives}
                                 no Features/: a primitive belongs to no feature
@@ -223,17 +227,32 @@ entities and so no tag folder; `Files` has four ports where `TodoLists` has one,
 live in somebody else's store.
 <!--#endif-->
 
+<!--#if (localAuth)-->
 `AppTemplate.Application.Auth/Features/Auth/` is the one vertical with no aggregate at all. Nine
 ports stand in for one `IAuthService`, one per intent — accounts, mailed tokens, session tokens,
 two-factor, administration, external identity, external logins, account mails, and the security
 event log. An account here is what its ports say about it.
+<!--#endif-->
 
+<!--#if (reminders)-->
 **Every infrastructure module is partitioned `Common/` plus `Features/<Feature>/`**, whether or not
 it serves more than one feature, so a reader who has learned one module does not learn a second
 filing system for the next. `Email` and `InMemory` carry both kinds of adapter — a transverse
 `IEmailSender` and, in the template as shipped, a feature-scoped `IReminderNotifier` — so their tree
-says which of their files leave with a feature. `Auth` serves one feature and `Storage` serves one feature, and
-both keep the shape anyway. Local logic loses to uniformity here on purpose.
+says which of their files leave with a feature.
+<!--#else
+**Every infrastructure module is partitioned `Common/` plus `Features/<Feature>/`**, whether or not
+it serves more than one feature, so a reader who has learned one module does not learn a second
+filing system for the next.
+<!--#endif-->
+<!--#if (localAuth)-->
+`Auth` serves one feature
+<!--#endif-->
+<!--#if (files)-->
+and `Storage` serves one feature,
+<!--#endif-->
+and
+a module that serves one keeps the shape anyway. Local logic loses to uniformity here on purpose.
 
 ## The rules the tests hold
 
@@ -271,7 +290,11 @@ in the tree above.**
 in both directions.** Null is not an empty word list: empty says the folder exists and its features
 hold their files side by side, null says the folder is not there at all. So a `Common/` or
 `Features/` appearing where the entry says none fails the build, and so does one vanishing from
-under a list of words. `AppTemplate.Application.Auth` is the one null `Common/`, and the empty
+under a list of words.
+<!--#if (localAuth)-->
+`AppTemplate.Application.Auth` is the one null `Common/`,
+<!--#endif-->
+and the empty
 `Features/` word lists belong to the two smallest infrastructure modules, so the first subfolder anyone
 adds there has to be argued for in the pull request that adds it.
 

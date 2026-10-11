@@ -22,6 +22,7 @@ against your production system.
 
 ## What the template provides
 
+<!--#if (localAuth)-->
 ### Authentication and session handling
 - **Default-deny authorisation.** `Program.cs` sets `AuthorizationOptions.FallbackPolicy` to one
   requiring an authenticated user, so an endpoint is protected unless it carries an explicit
@@ -115,6 +116,8 @@ against your production system.
   account by cascade, and their payload — public key, counters, attestation — is one `jsonb`
   column the store reads whole and never queries field by field.
 
+<!--#endif-->
+
 ### Transport and headers
 
 `Common/Security/SecurityHeadersExtensions.cs` holds all of the following, and
@@ -137,10 +140,16 @@ against your production system.
   origin policy that turns CORS into a hole.
 
 ### Abuse resistance
+<!--#if (localAuth)-->
 - Rate limiting per client address: 10 requests/minute on the authentication endpoints, 300/minute
   globally, answering `429` with `Retry-After` and a ProblemDetails body. The two numbers are
   `RateLimiting:AuthenticationPermitLimit` and `RateLimiting:GlobalPermitLimit`, over the
   one-minute `RateLimiting:Window`; those are the defaults.
+<!--#else
+- Rate limiting per client address: 300/minute globally, answering `429` with `Retry-After` and a
+  ProblemDetails body. The number is `RateLimiting:GlobalPermitLimit`, over the one-minute
+  `RateLimiting:Window`; that is the default.
+<!--#endif-->
 - **This is only correct if `ReverseProxy` is configured — see the deployment obligations.**
 - Bounded aggregates: a maximum number of items per list and tags per item, so one request cannot
   make the server do unbounded work.
@@ -191,17 +200,21 @@ against your production system.
 #endif-->
 - **Optimistic concurrency** on writes via PostgreSQL's `xmin`, translated to a
   `ConcurrencyConflictException` and a `409`.
-- **Conditional requests.** Every read of a `TodoList` or `TodoItem` publishes a strong `ETag`, and
+- **Conditional requests.** Every read of a single versioned resource publishes a strong `ETag`, and
   every write honours `If-Match` — a stale, malformed or unrecognised version is refused with `412`.
   `If-Match: *` and no `If-Match` header at all are both accepted while `Concurrency:IfMatch` is
   `Optional`; see the known gap
   below for what stays your responsibility.
 - **Request logging never touches the `Authorization` header, cookies, the query string or the body.**
   `Common/Observability/RequestLoggingMiddleware.cs` logs a fixed field list, so a credential cannot
-  arrive in a log by accident. The auth endpoints
+  arrive in a log by accident.
+<!--#if (localAuth)-->
+  The auth endpoints
   carry passwords and refresh tokens in their bodies, which is why body logging is not merely
   disabled but absent.
+<!--#endif-->
 
+<!--#if (localAuth)-->
 ### Signing in through an external provider
 
 The client runs the OAuth/PKCE flow itself and posts the provider's `id_token`; the API verifies it
@@ -230,6 +243,7 @@ untouched — which is what makes the same endpoint work for a SPA, a mobile app
   outside, on the same reasoning as `/auth/login`.
 - **No client secret is involved.** Verifying an `id_token` is asymmetric cryptography; the template
   holds no secret for any provider, and a deployment configuring one has taken the wrong flow.
+<!--#endif-->
 
 <!--#if (externalAuth)-->
 ### External identity provider
@@ -410,8 +424,9 @@ says otherwise.
   auditable choice.
 - The container runs as a non-root user and exposes only `8080/tcp`; CI asserts both.
 - **Migrations are not applied at startup outside Development.**
+<!--#if (localAuth)-->
 - **The jobs share the API's process, and so its signing key.** The periodic jobs now run inside
-  `AppTemplate.Api`, which signs and verifies every token, so the process that sends reminder mail and
+  `AppTemplate.Api`, which signs and verifies every token, so the process that sends mail and
   deletes expired rows holds the real `Jwt:Key`. That is a deliberate trade for one process and one
   image, and it removes a separation the template used to have: a separate worker needed the `Jwt`
   section only to start — no background loop resolves `AccessTokenIssuer` — and was given a
@@ -419,6 +434,7 @@ says otherwise.
   deployment that wants that property back runs the jobs in a process of its own, sets
   `Jobs:Enabled=false` on the API, and gives that process a placeholder `Jwt:Key` with the
   same `Jwt:Issuer` and `Jwt:Audience`; nothing in the jobs reads the key.
+<!--#endif-->
 
 ## What a deployment must still do
 
@@ -436,10 +452,17 @@ says otherwise.
    their number. Do **not** enable it with empty trust lists to "make it work": ASP.NET Core treats
    two empty lists as *trust every caller*, which lets a client forge its own partition key and
    bypass the limiter just as completely. The options validator refuses to start in that state.
-4. **Supply `Jwt:Key` from a secret manager**, with real entropy, and rotate it. Never from a file
-   in source control. Same for `ConnectionStrings:Default` and the SMTP credentials. Give it to
+4. **Supply the signing secret from a secret manager**, with real entropy, and rotate it. Never
+   from a file in source control. Same for `ConnectionStrings:Default` and the SMTP credentials.
+<!--#if (localAuth)-->
+   Give `Jwt:Key` to
    `AppTemplate.Api` and to nothing else — a separate job runner, if you extract one, needs the *section*,
    not the *key*.
+<!--#else
+   With external authentication the signing secret is the provider's, held by the provider; what
+   this deployment supplies is `Authentication:External:Authority` and
+   `Authentication:External:Audience`.
+<!--#endif-->
 5. **Set `Cors:AllowedOrigins`** to your real origins, and **narrow `AllowedHosts`** from `*` to the
    hostnames you serve.
 6. **Apply migrations as a separate step** — the release workflow builds a self-contained bundle.
@@ -455,30 +478,44 @@ says otherwise.
 - Back up the database and rehearse the restore.
 - Put an authenticated gateway or network policy in front of `/health/ready` if the fact that your
   database is reachable is information you would rather not publish.
+<!--#if (todoLists)-->
 - Review the sample `TodoLists` feature out of your deployment if you do not need it.
+<!--#endif-->
+<!--#if (localAuth)-->
 - Set `Passkey:ServerDomain` before the first passkey is registered if the API does not serve the
   domain its clients call — a credential is scoped to the relying-party domain it was created
   under, so discovering the right one after registrations exist invalidates every passkey the
   accounts hold. Pick it once, with the domain your users' browsers see.
+<!--#endif-->
 
 ## Known gaps
 
 Stated here rather than left to be discovered. None of these is a hypothetical.
 
+<!--#if (accounts)-->
 - **Deletion is covered for the features this template ships; a feature you add has to declare its
-  own policy.** A user erases themselves with `POST /api/v1/auth/delete-account`, which demands a
+  own policy.**
+<!--#if (localAuth)-->
+  A user erases themselves with `POST /api/v1/auth/delete-account`, which demands a
   re-proof first — the current password when the account has one, a two-factor code when the factor
   is armed, and an access token issued less than five minutes ago when the account offers neither —
   so a stolen session alone cannot take the account. An administrator deletes with
   `DELETE /api/v1/auth/accounts/{userId}`, still refused against the caller's own account. Both
   remove the account row and everything ASP.NET Identity owns with it, then publish the
-  `UserAccountDeleted` fact that every feature owning user data consumes — each applying the fate it
+<!--#else
+  An administrator deletes the local presence with
+  `DELETE /api/v1/external-identities/{userId}` — a provider-side deletion signal is that call's to
+  wire — which publishes
+<!--#endif-->
+  the `UserAccountDeleted` fact that every feature owning user data consumes — each applying the fate it
   declared for its own rows, re-checking through the account directory that the account is really
   gone — with a leased sweep behind the fact to catch a consumer that never ran. The template's
   features all delete their rows, and the same two faces are where a feature that prefers
   anonymising declares it. A feature added without a policy leaves its rows orphaned again, so
   `docs/ADDING-A-FEATURE.md` makes the declaration part of adding a feature that owns user data.
+<!--#endif-->
 
+<!--#if (localAuth)-->
 - **Sending mail inside the request leaks which addresses exist, by timing.** Forgot-password,
   resend-confirmation and change-email all answer identically and log nothing, but each awaits an
   SMTP round trip — connection, STARTTLS, AUTH, DATA — **only on the branch where the account
@@ -489,25 +526,39 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   Closing it means taking delivery off the request: queue the message durably and answer on both
   branches at once. A detached task is not the fix — it drops the mail on the next deployment — and
   neither is a fixed delay, which would have to exceed the relay's own variance to hide anything.
+<!--#endif-->
 - **The background work needs an availability signal, and `/health/ready` is not it.** The jobs run
   in the API process, whose readiness probe answers for HTTP — the database checks and the shutdown
   state — so with every instance's jobs stopped, or switched off with `Jobs:Enabled=false`,
-  no reminder is rung, no expired refresh-token grant is deleted and no idempotency key is reclaimed,
-  and the probe stays green. Each of the three jobs emits a heartbeat, and it is what a deployment
+  no idempotency key is reclaimed
+<!--#if (localAuth)-->
+  , no expired refresh-token grant is deleted
+<!--#endif-->
+<!--#if (reminders)-->
+  and no reminder is rung
+<!--#endif-->
+  , and the probe stays green. Each of the three jobs emits a heartbeat, and it is what a deployment
   should alert on going flat, on the instance designated to run them:
-  `apptemplate.jobs.{maintenance,files,reminders}.iterations`, counted once per pass and never
+  the `jobs.*.iterations` counters, counted once per pass and never
   gated on how much the pass found, so a healthy quiet system still produces samples. Alert on that
   instance's restart count alongside them.
   Do **not** alert on the absence of `apptemplate.reminders.missed_cancellations`, which this
   paragraph used to advise: that counter increments only when a cancellation was missed, so silence
   is its healthy state and it cannot tell a working loop from a dead one.
-  Running the jobs on more than one instance is **safe** for the reminder pass, and it was not before. The two
-  purges are idempotent deletes over an already-covered range, so a second process wastes a
-  connection and nothing more. The reminder loop is where concurrency mattered: two replicas ticking
+<!--#if (reminders)-->
+  Running the jobs on more than one instance is **safe** for the reminder pass, and it was not before.
+<!--#endif-->
+<!--#if (accounts)-->
+  The purges are idempotent deletes over an already-covered range, so a second process wastes a
+  connection and nothing more.
+<!--#endif-->
+<!--#if (reminders)-->
+  The reminder loop is where concurrency mattered: two replicas ticking
   in the same second read the same due reminders and both send the mail, and only then does one of
   them lose on `xmin` at its commit. No per-reminder claim prevents that — one held in memory is
   invisible to the other replica, and one written to the store before the send would only add a
   state that a crash strands — so the lease is the one exclusivity there is.
+<!--#endif-->
   The pass now runs under `ILeaderLease`, whose adapter is a PostgreSQL session-level advisory lock
   on its own unpooled connection: exactly one host runs a pass, and losing that process closes the
   session and releases the lock rather than stranding a lease until a timer says otherwise. The
@@ -517,6 +568,7 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   delivery stays at-least-once and anything else put under a lease has to survive a second host
   starting it. What the lease removes is the systematic duplication of every single pass.
   Still open, and the reason this entry stays here: nothing yet alerts when the loops stop.
+<!--#if (localAuth)-->
 - **Nothing bounds distributed credential stuffing.** Lockout is per account and rate limiting is
   per client address, so one password tried against a hundred thousand accounts from a thousand
   addresses trips neither. Closing it needs something neither of those two mechanisms is: a global
@@ -531,6 +583,7 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   the expensive part is constant, but a wrong password writes an access-failure count where an
   unknown address does not. It is far smaller than the hash and always the same sign, so it is
   extractable by averaging. Making it nil would mean writing for a user that does not exist.
+<!--#endif-->
 - **Nothing proves the process actually drains on SIGTERM.** The readiness flip is tested, but
   Kestrel finishing in-flight requests and honouring `ShutdownTimeout` are asserted nowhere. Proving
   them requires running the binary and signalling it, which is a different kind of test than any here.
@@ -561,13 +614,16 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   `DELETE /api/v1/maintenance/idempotency-keys/expired` behind the `Administrator` policy for a
   deployment that runs the jobs on no instance. Deploy neither and a completed key stays replayable
   past its retention window while the table grows without bound.
+<!--#if (localAuth)-->
 - **The auth wire format has two owners.** `ConfigureJwtBearerOptions` in the Identity module builds
   its own `ProblemDetails` and owns the `auth.required` / `auth.forbidden` codes, so a change to how
   failures look must be made in two places.
 - **Cancellation is not propagated through Identity.** `UserManager` and `SignInManager` accept no
   `CancellationToken`, so an abandoned request still runs its user-store I/O to completion.
-- **No audit log of security-relevant events.** Logins, lockouts, token-family revocations and
-  password changes are traced but not recorded in a queryable, tamper-evident store. This stays open
-  deliberately: a table this application can `UPDATE` and `DELETE`
-  through the same connection as business data would look like an audit trail without being one, and
-  what closing it properly requires.
+- **The persisted security trail is not tamper-evident.** Sign-ins, lockouts, credential changes and
+  session events are recorded in the `SecurityEvents` table, readable by the account's owner and an
+  administrator and kept past account deletion for the retention window — but the table lives beside
+  the business data, writable through the same connection, so it is a trail rather than an audit
+  log: a report is exactly as trustworthy as the database user. Closing that properly requires an
+  append-only store outside this application's own write path.
+<!--#endif-->

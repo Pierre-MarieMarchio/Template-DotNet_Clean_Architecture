@@ -1,15 +1,36 @@
 ﻿# Clean Architecture .NET Template
 
 A production-shaped starting point for a .NET 10 HTTP API: Clean Architecture layering, PostgreSQL
-via EF Core, ASP.NET Identity with JWT access tokens and opaque rotating refresh tokens,
-default-deny authorisation, RFC 7807 errors, and configuration that fails fast when it is wrong.
-
-It ships four worked example features — a to-do list with real invariants and domain events, a
-flat reminders aggregate, a file store whose two halves live in different stores, and notes, which
-have no domain model at all — enough to show both feature shapes (a service over a store when there
+via EF Core,
+<!--#if (localAuth)-->
+ASP.NET Identity with JWT access tokens and opaque rotating refresh tokens,
+<!--#endif-->
+<!--#if (accounts)-->
+default-deny authorisation,
+<!--#endif-->
+RFC 7807 errors, and configuration that fails fast when it is wrong.
+<!--#if (anyFeature)-->
+The generation options decided which worked examples it starts with —
+<!--#if (todoLists)-->
+a to-do list with real invariants and domain events, a flat reminders aggregate,
+<!--#endif-->
+<!--#if (files)-->
+a file store whose two halves live in different stores,
+<!--#endif-->
+<!--#if (notes)-->
+and notes, which have no domain model at all
+<!--#endif-->
+— enough to show both feature shapes (a service over a store when there
 is no state to protect, an aggregate when there is), a read/write port split and a `Result`-based
-error policy, without becoming an application you have to delete. [`docs/REMOVING-THE-EXAMPLE-FEATURES.md`](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
+error policy, without becoming an application you have to delete.
+<!--#if (todoLists || notes)-->
+[`docs/REMOVING-THE-EXAMPLE-FEATURES.md`](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
 is the procedure for when you have read them.
+<!--#endif-->
+<!--#else
+The generation options decided which examples and modules this project started with;
+[`docs/USING-THE-TEMPLATE.md`](docs/USING-THE-TEMPLATE.md) says what each one generates.
+<!--#endif-->
 
 **New here? [`docs/README.md`](docs/README.md) is the documentation index.** Every document has one
 subject, and that page says which one answers the question you actually have.
@@ -17,13 +38,22 @@ subject, and that page says which one answers the question you actually have.
 ## What is in the box
 
 - **.NET 10** (`net10.0`), SDK pinned by `global.json`
-- **PostgreSQL** through Npgsql — one connection string, one pool, two `DbContext`s (business and
-  authentication) with a migration history each, over six schemas
+- **PostgreSQL** through Npgsql — one connection string, one pool,
+<!--#if (localAuth)-->
+  two `DbContext`s (business and
+  authentication) with a migration history each
+<!--#else
+  one `DbContext` with its own migration history
+<!--#endif-->
+<!--#if (localAuth)-->
 - **ASP.NET Identity** + JWT bearer, opaque refresh tokens that rotate on every use, two-factor
   enrolment, external identity providers, email confirmation by POST, logout that revokes
+<!--#endif-->
+<!--#if (accounts)-->
 - **Default-deny authorisation** — a fallback policy requires an authenticated user, so an
   endpoint is protected unless it opts out
-- **RFC 7807 ProblemDetails** on every failure, 401 and 403 included, with a stable machine-readable
+<!--#endif-->
+- **RFC 7807 ProblemDetails** on every failure, with a stable machine-readable
   `code` and a `traceId`
 - **EF Core maps persistence models, not domain entities.** A mapper converts, and a
   reflection-driven fidelity test fails when a property does not survive the round trip
@@ -34,8 +64,11 @@ subject, and that page says which one answers the question you actually have.
 - **Conditional requests** (`ETag`/`If-Match`), **idempotent creates** (`Idempotency-Key`), and a
   closed collection contract with offset *and* keyset paging
 - **One process, jobs included** — the API serves HTTP and runs the periodic jobs that call the same
-  use cases on timers, with `BackgroundJobs:Enabled` to turn them off per instance and a PostgreSQL
+  use cases on timers, with `BackgroundJobs:Enabled` to turn them off per instance
+<!--#if (reminders)-->
+  and a PostgreSQL
   advisory-lock lease so the reminder pass is safe to run on more than one
+<!--#endif-->
 - **Multilingual transactional mail**, subject and body from one template per language
 - **Options validated at startup** — a bad setting fails the host, not the first request
 - **Central Package Management**, warnings as errors, `.editorconfig` enforced in the build and CI
@@ -76,13 +109,15 @@ docker compose up --build
 |---|---|
 | API | <http://localhost:8080> |
 | OpenAPI UI — Scalar, development only | <http://localhost:8080/scalar/v1> |
-| Mailpit — confirmation mails land here | <http://localhost:8025> |
+| Mailpit — mails land here | <http://localhost:8025> |
+<!--#if (files)-->
 | MinIO console — uploaded files land here | <http://localhost:9001> |
+<!--#endif-->
 
 Every published port binds to `127.0.0.1`, so nothing is reachable from your local network. TLS is
 not terminated in the container, on purpose.
 
-Then walk an account from registration to a first authenticated request — either with
+Then walk through the requests this API serves — either with
 [`AppTemplate.Api.http`](AppTemplate.Api.http), which is executable in the VS Code REST Client and
 in Visual Studio, or with the `curl` transcript in
 [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md). That document also covers running on the host
@@ -118,7 +153,11 @@ measures the two shapes that work.
 
 | Document | For |
 |---|---|
+<!--#if (localAuth)-->
 | [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md) | getting it running, and the walkthrough from register to first request |
+<!--#else
+| [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md) | getting it running |
+<!--#endif-->
 | [`docs/API-CONVENTIONS.md`](docs/API-CONVENTIONS.md) | what holds for every endpoint — error codes, `ETag`, idempotency, paging |
 | [`docs/API-REFERENCE.md`](docs/API-REFERENCE.md) | the endpoints, one table per feature |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | the layers, the dependency rule, and what is deliberately absent |
@@ -132,10 +171,25 @@ measures the two shapes that work.
 ```
 Src/
   Domain/            AppTemplate.Domain.Core, AppTemplate.Domain
+<!--#if (localAuth)-->
   Application/       AppTemplate.Application.Core, AppTemplate.Application,
                      AppTemplate.Application.Auth
+<!--#else
+  Application/       AppTemplate.Application.Core, AppTemplate.Application
+<!--#endif-->
+<!--#if (localAuth && files)-->
   Infrastructure/    AppTemplate.Infrastructure.Core, .Persistence, .Auth,
                      .Email, .Storage, .InMemory
+<!--#elseif (localAuth)-->
+  Infrastructure/    AppTemplate.Infrastructure.Core, .Persistence, .Auth,
+                     .Email, .InMemory
+<!--#elseif (files)-->
+  Infrastructure/    AppTemplate.Infrastructure.Core, .Persistence,
+                     .Email, .Storage, .InMemory
+<!--#else
+  Infrastructure/    AppTemplate.Infrastructure.Core, .Persistence,
+                     .Email, .InMemory
+<!--#endif-->
   Presentation/      AppTemplate.Presentation.Core, AppTemplate.Api
 Tests/               a 1:1 mirror of Src/, plus Architecture/ and Integration/
 Tools/               the file-based C# apps this repository runs on itself
@@ -143,7 +197,12 @@ docs/                the documentation index and everything it lists
 ```
 
 The directory under `Src/` names the **layer**; the project inside keeps its own name and root
-namespace, so moving a project between layer folders changes no namespace. Five of those projects
+namespace, so moving a project between layer folders changes no namespace.
+<!--#if (localAuth)-->
+Five of those projects
+<!--#else
+Four of those projects
+<!--#endif-->
 are vendored SDK projects, copied into a derived repository rather than published.
 [`docs/PROJECT-LAYOUT.md`](docs/PROJECT-LAYOUT.md) is the full map, down to what each folder holds
 and which architecture test enforces it.

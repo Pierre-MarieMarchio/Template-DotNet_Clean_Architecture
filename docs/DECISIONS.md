@@ -35,8 +35,12 @@ should answer instead. `NoPersistenceRecord_CarriesADeletedFlag` holds it.
 commit, at most once, with no outbox — so a consumer may simply not run. That is survivable only
 because no consumer is the *only* thing keeping a rule true: the effect re-derives its precondition
 when it runs, so running twice is the same as running once, and never running leaves the system
-consistent but stale. A counter makes the divergence observable
-(`apptemplate.reminders.missed_cancellations`, watched per [`SECURITY.md`](../SECURITY.md)). **Any consumer you add
+consistent but stale.
+<!--#if (reminders)-->
+A counter makes the divergence observable
+(`apptemplate.reminders.missed_cancellations`, watched per [`SECURITY.md`](../SECURITY.md)).
+<!--#endif-->
+**Any consumer you add
 has to have that shape**, or the missing outbox stops being a cost and becomes a bug.
 
 **Deleting an account deletes the id's data, and each feature decides what that means for its own
@@ -49,26 +53,37 @@ anonymise) in a consumer of that fact which re-derives its precondition through
 `IUserAccountDirectory` — the account must be gone — and is idempotent, exactly the shape the
 decision above demands. A leased periodic sweep over the maintenance timer is the guarantee: it
 asks each feature for the owner ids that still have data and applies the same policy, so a fact
-that never reached a consumer costs an interval, not the data's fate. The examples and Files all
-delete. The self-service route demands re-authentication (the password when one is set, a two-factor
-code when the factor is armed, an access token under five minutes old otherwise); in the
-external-authenticated template the trigger is an administrative call on the mapping, and a
+that never reached a consumer costs an interval, not the data's fate. Every shipped feature that owns user data deletes.
+<!--#if (localAuth)-->
+The self-service route demands re-authentication (the password when one is set, a two-factor
+code when the factor is armed, an access token under five minutes old otherwise).
+<!--#endif-->
+<!--#if (externalAuth)-->
+The trigger is an administrative call on the mapping, and a
 provider-side deletion signal is that call's to wire — the template ships no endpoint for it.
+<!--#endif-->
 
+<!--#if (files)-->
 **The refusal of an outbox was re-examined against a feature that could have overturned it, and it
 holds.** The `Files` feature looked like the counter-example: a thumbnail that is never generated
 because an event went missing is visible, and bytes that are never reclaimed accumulate. It is not
 one. The reclamation is a periodic sweep that re-derives its own precondition — an object no row
 references is garbage — so the deletion event is a fast path that shortens an interval and nothing
-more, in exactly the shape `CancelRemindersOnTodoItemCompletedConsumer` already had. Derivative
+more
+<!--#if (reminders)-->
+, in exactly the shape `CancelRemindersOnTodoItemCompletedConsumer` already had
+<!--#endif-->
+. Derivative
 generation, when a project adds it, gets the same treatment: sweep for available files without a
 derivative, and let the event only make it prompt.
-The thing that nearly cost this its meaning was not the design. Three files in that feature
+<!--#endif-->
+The thing that nearly cost this its meaning was not the design. Three files in one feature
 described the deletion consumer's behaviour in detail before the consumer existed, and every test
 was green, because nothing related the events raised to the consumers registered.
 `DomainEventTests` now does: every event is either consumed or written into a list saying why it is
 not.
 
+<!--#if (files)-->
 **A sweep is only a guarantee if it reaches everything**, so each Files pass states its retry
 guarantee. All three run under `ILeaderLease`, one host at a time. **Inspection** commits each file
 on its own and defers a file that gets no verdict — one minute, doubled per attempt, at most one
@@ -79,7 +94,9 @@ rows the next pass selects again. **Orphan reclamation** walks the keys in order
 saved after each page and reset at the end of the namespace, so every object present when a walk
 starts is visited within ⌈objects / per-pass budget⌉ + 1 passes across restarts; the `FileSystem`
 store's temporary files older than a day are reclaimed by the same walk.
+<!--#endif-->
 
+<!--#if (files)-->
 **A stored object's key is data, minted once and persisted, not a formula over the file's id.** A
 derived key would make the scheme part of the format of every stored object, so changing it would
 mean copying them all, and the id is a UUIDv7, guessable in sequence, so one key would name its
@@ -91,6 +108,7 @@ share one method so they cannot disagree about a month boundary and delete a liv
 `StoredFileState`'s persisted integers are a column, not an order: `Deposited` is `2` and
 `Available` is `1`, so reordering the members is free and renumbering one rewrites the meaning of
 every row.
+<!--#endif-->
 
 **Extract what two real cases prove identical, and nothing more.** A guessed abstraction is a worse
 defect than an assumed duplication: the duplication is visible and local, the wrong abstraction is
@@ -99,31 +117,37 @@ that resemble each other. `AggregateTracker` is what that looked like when it su
 members that read nothing but what `IVersioned`, `IAuditable` and `AggregateRoot<Guid>` already
 name. `FlushTo` stayed abstract, and the two repositories were never touched.
 
+<!--#if (accounts)-->
 **Authorisation is default-deny.** The fallback policy requires an authenticated user, so a new
 endpoint is closed until someone opens it. `[AllowAnonymous]` is the visible exception and it is
 whitelisted by name in `DefaultDenyTests`; adding one is a line in that test.
-
-**A public API refuses `[Authorize]` at start-up, not 500 at request time.** A project generated
-with `--auth none` authenticates nobody, so a controller action left carrying `[Authorize]` has no
-scheme to challenge with: it fails closed, but as an unexplained 500 on every request. Every other
-invalid setting in this template fails at start-up, so the public variant now does the same — after
-the controller mapping it walks the action descriptors and refuses to boot, naming the actions,
-unless an authentication scheme has come back. `[AllowAnonymous]` still overrides, exactly as it does
-at request time. No test in this repository holds it: the check lives only in the generated
-`--auth none` variant, which this template's own suite never builds.
+<!--#else
+**A public API admits every caller, and refuses `[Authorize]` at start-up.** A project generated
+without accounts authenticates nobody, so a controller action left carrying `[Authorize]` has no
+scheme to challenge with. After the controller mapping the host walks the action descriptors and
+refuses to boot, naming the actions, unless an authentication scheme has come back.
+`[AllowAnonymous]` still overrides, exactly as it does at request time. No test in this repository
+holds it: the check lives only in the generated public variant, which this template's own suite
+never builds.
+<!--#endif-->
 
 **Four words name the four ways this template reaches storage, and each one is checked.**
 `Repository` loads an aggregate, so its contract lives in `AppTemplate.Domain` beside the aggregate.
 `Queries` projects rows onto a DTO without materialising one. `Store` is an application port for
 storage with no aggregate behind it — `IIdempotencyStore`, which a use case depends on. `Table` is
 row access to one table, declared inside the persistence project and reached only by a sibling
-infrastructure module — `IRefreshTokenTable`, which no use case has ever heard of.
+infrastructure module
+<!--#if (localAuth)-->
+ — `IRefreshTokenTable`, which no use case has ever heard of.
+<!--#else
+, and no use case has ever heard of one.
+<!--#endif-->
 `StorageVocabularyTests` holds all four: a `Store` or a `Table` naming a domain entity has become a
 `Repository`, a `Repository` declared outside the Domain is a promise it cannot keep, and a `Table`
 a use case depends on has become a port and needs declaring where ports are.
 The six-operation ceiling `PortConventionTests` enforces is a rule about **ports** — the façade a
-use case sees. A `Table` is not one, and `IRefreshTokenTable` is not counted: it is
-one table's whole surface, held narrow by having exactly one consumer rather than by a count.
+use case sees. A `Table` is not one and is not counted:
+it is one table's whole surface, held narrow by having exactly one consumer rather than by a count.
 
 **There is one outbound HTTP budget, it is written once, and it is a default rather than a call.**
 `AppTemplate.Presentation.Core`'s `AddOutboundHttp()` installs it on `IHttpClientFactory`'s
@@ -146,10 +170,23 @@ the two, for the same reason `RequestTimeoutsOptions` gives about the layer belo
 number moves, re-read both.
 
 **Exclusivity between hosts belongs to the operation, not to the loop that starts it.**
-`ILeaderLease` is an application port, and `FireDueRemindersUseCase` and the three Files passes are
-what take it — not their background services. A `BackgroundService` is a trigger; a guard placed
-there protects the timer's callers and nobody else, and the two purges are already exposed over HTTP by
-`MaintenanceController` as the standing reminder that a second caller does turn up. The adapter is
+`ILeaderLease` is an application port, and the operations that must not run twice at once
+<!--#if (reminders)-->
+(`FireDueRemindersUseCase`
+<!--#endif-->
+<!--#if (files)-->
+, the three Files passes
+<!--#endif-->
+)
+take it inside their use cases — not their background services. A `BackgroundService` is a trigger; a guard placed
+there protects the timer's callers and nobody else, and the
+<!--#if (localAuth)-->
+two purges are already exposed over HTTP by
+`MaintenanceController` as the standing reminder that a second caller does turn up.
+<!--#else
+idempotency-key purge is already exposed over HTTP by `MaintenanceController` as the standing
+reminder that a second caller does turn up.
+<!--#endif--> The adapter is
 a PostgreSQL session-level advisory lock (`Common/Leases/`), chosen because losing the process
 releases the lock rather than stranding a lease until a timer says otherwise. **It is not a fencing
 token** — leadership can be lost mid-run — so anything run under it still has to survive a second
@@ -158,6 +195,7 @@ what holds the first sentence: a port this layer declares and never calls is a d
 left the layer, and the fix is to move the decision back, not to move the file somewhere the rule
 does not look.
 
+<!--#if (localAuth)-->
 **A session is a refresh-token family, and it has an identity before it has a name.** One
 sign-in starts one family of grants — that fact was already true, since a replay kills the chain —
 so the family is what the owner lists and ends, and its id is the `sid` claim of every access token
@@ -172,6 +210,8 @@ followed by one on its live grants, in that order: a process that dies between l
 are dead on arrival, which every rotation tests, so the revocation wins its race with a rotation in
 flight without holding a lock across the two.
 
+<!--#endif-->
+<!--#if (localAuth)-->
 **A passkey ceremony's state is the client's to carry, not a cookie's.** ASP.NET Core Identity's own
 `SignInManager` passkey methods park the ceremony state in the two-factor-user-id cookie; this API
 sets no cookie and keeps no session between the two calls of a sign-in, so the adapter hands the
@@ -179,7 +219,9 @@ state to the client as an opaque string and verifies it against what the client 
 same shape the two-factor challenge token has. The state is not tamper-proofed and does not need to
 be: it carries the challenge the authenticator must have signed, so a rewritten state only produces
 a ceremony that does not verify.
+<!--#endif-->
 
+<!--#if (localAuth)-->
 **A user-verified passkey is the whole of a sign-in.** Passkey sign-in does not stop at the armed
 second factor: the ceremonies demand user verification (`required`, kept unconfigurable), so
 possession of the credential and the authenticator's own user check happened together — the two
@@ -187,7 +229,9 @@ factors a password and a TOTP code provide. ASP.NET Core Identity's own `Passkey
 bypasses the factor for the same reason. The armed factor still governs the ways in that prove
 less: a password sign-in demands its code exactly as before. `CompletePasskeySignInUseCaseTests`
 holds the whole sentence.
+<!--#endif-->
 
+<!--#if (localAuth)-->
 **Registering a passkey demands the proof arming a second factor does.** A stolen session that
 could register its thief's passkey would hand over sign-in for ever after, so the completing call
 re-authenticates — the current password when one is set, and for an account holding nothing its
@@ -195,6 +239,7 @@ holder could present (a provider-linked one) a recently issued access token, the
 window account deletion takes. Registering or removing a passkey ends no session and rotates no
 stamp: a credential changes what future sign-ins can present, not what the sessions already open
 are worth, and ending a session is the sessions' own route.
+<!--#endif-->
 
 **No MediatR, no dispatcher, no pipeline behaviours.** A controller names the use case it calls, and
 `F12` reaches the implementation. `LayerDependencyTests` forbids the package by name.

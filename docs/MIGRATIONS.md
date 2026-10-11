@@ -76,6 +76,7 @@ For the business half, the launcher is the short form:
 dotnet run Tools/Tasks.cs migration-add <Name>
 ```
 
+<!--#if (localAuth)-->
 **The launcher's migration tasks target the business context only.** For the authentication half,
 name the project yourself:
 
@@ -87,7 +88,11 @@ dotnet ef migrations add <Name> \
 ```
 
 The same shape with `Src/Infrastructure/AppTemplate.Infrastructure.Persistence` on both switches is
-what `migration-add` prints and runs. No `--context` argument is needed anywhere: each project holds
+what `migration-add` prints and runs.
+<!--#else
+The launcher's `migration-add` is all there is: this project owns one context, and the command it
+prints and runs names it.
+<!--#endif--> No `--context` argument is needed anywhere: each project holds
 exactly one context, so naming the project names the context.
 
 `dotnet ef migrations list` and `dotnet ef migrations remove` take the same two switches.
@@ -102,9 +107,11 @@ walkthrough.
 
 ## Checking a migration against the model
 
-`has-pending-model-changes` compares the snapshot against the model and needs no database. **Run it
-for both contexts** — which is what `dotnet run Tools/Tasks.cs verify` does:
+`has-pending-model-changes` compares the snapshot against the model and needs
+no database. **Run it for every context this project owns** — which is what
+`dotnet run Tools/Tasks.cs verify` does:
 
+<!--#if (localAuth)-->
 ```bash
 dotnet ef migrations has-pending-model-changes \
   --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
@@ -114,19 +121,32 @@ dotnet ef migrations has-pending-model-changes \
   --project Src/Infrastructure/AppTemplate.Infrastructure.Auth \
   --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Auth
 ```
+<!--#else
+```bash
+dotnet ef migrations has-pending-model-changes \
+  --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
+  --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
+```
+<!--#endif-->
 
+<!--#if (localAuth)-->
 Checking one and not the other is worse than checking neither: the half that is checked goes on
 applying cleanly while the other half's tables are simply absent.
+<!--#endif-->
 
-`PendingModelChangesTests` proves the same thing from inside the suite, over both contexts, which is
+`PendingModelChangesTests` proves the same thing from inside the suite, over every context, which is
 how CI catches drift — the workflow runs no `dotnet ef` command of its own. The integration suites
 are the only thing that ever executes an `Up()`.
 
 ## Applying them
 
+<!--#if (localAuth)-->
 **In Development, and only in Development, startup applies both.** Authentication first, because
 seeding an account writes to its tables; a failure on the second is rethrown rather than stepped
 over, since between the two calls one schema exists and the other does not.
+<!--#else
+**In Development, and only in Development, startup applies the migration.**
+<!--#endif-->
 
 **Any other environment starts without touching the schema, and that is deliberate.** Migrating
 from the process that serves requests needs DDL rights at runtime and races every replica against
@@ -141,27 +161,33 @@ or from a self-contained bundle, which is what a deployment should prefer becaus
 own runtime and needs no SDK on the target:
 
 ```bash
-dotnet run Tools/Tasks.cs migration-bundle      # both contexts
+dotnet run Tools/Tasks.cs migration-bundle
 ```
 
-<!--#if (ci)-->
+<!--#if (localAuth && ci)-->
 **One bundle per context, and you need both.** `migration-bundle` and
 `.github/workflows/release.yml`'s `migration-bundle` job each build two: `efbundle-identity` for the
 `identity` schema and `efbundle` for the business one. Applying one and not the other leaves half
 the schema absent — an API whose identity tables do not exist starts and then fails the first
 sign-in. Their order is not a correctness requirement, since no foreign key crosses the two schemas,
 but both run authentication first, as the Development bootstrap does.
-<!--#else
-**One bundle per context, and you need both.** `migration-bundle` builds
-two: `efbundle-identity` for the
-`identity` schema and `efbundle` for the business one. Applying one and not the other leaves half
-the schema absent — an API whose identity tables do not exist starts and then fails the first
+<!--#elseif (localAuth)-->
+**One bundle per context, and you need both.** `migration-bundle` builds two: `efbundle-identity`
+for the `identity` schema and `efbundle` for the business one. Applying one and not the other leaves
+half the schema absent — an API whose identity tables do not exist starts and then fails the first
 sign-in. Their order is not a correctness requirement, since no foreign key crosses the two schemas,
 but both run authentication first, as the Development bootstrap does.
-#endif-->
+<!--#else
+`migration-bundle` builds the one bundle this project owns, over the business context's history.
+<!--#endif-->
 
-**The deployment step remains yours.** The release workflow uploads the two bundles as plain
-artifacts. Run both successfully with a migration-time database principal before starting a version
+**The deployment step remains yours.**
+<!--#if (localAuth)-->
+The release workflow uploads the two bundles as plain
+artifacts.
+<!--#else
+The release workflow uploads the bundle as a plain artifact.
+<!--#endif--> Run both successfully with a migration-time database principal before starting a version
 of the API that expects the new schema. The API, whether or not it runs the jobs, applies no
 migration outside Development, and starting the jobs grants it no schema-changing privilege.
 
@@ -180,9 +206,13 @@ $HOME/.dotnet/tools/dotnet-ef migrations add <Name> --project …
 
 ## Removing a feature
 
-Removing an example feature touches the business migration and nothing else — authentication's is a
+Removing an example feature touches the business migration and nothing else
+<!--#if (localAuth)-->
+ — authentication's is a
 different file, in a different project, with a history table of its own, so no removal can reach
-it. The business half ships a single initial migration, so on a project that has not yet applied one
+it
+<!--#endif-->
+. The business half ships a single initial migration, so on a project that has not yet applied one
 to a real database the correct move is to regenerate rather than to write a `DropTable`.
 [`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md#the-migrations) is the
 procedure, including what changes once a database *has* applied one.

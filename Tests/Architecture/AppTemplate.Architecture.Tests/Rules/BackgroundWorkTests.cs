@@ -56,11 +56,10 @@ public sealed class BackgroundWorkTests
 
     /// <summary>
     /// A <c>BackgroundService</c> is a trigger, not the operation. A lease taken there protects the
-    /// timer's callers and nobody else — and the two maintenance purges are already exposed over
-    /// HTTP by <c>MaintenanceController</c>, which is the standing proof that a second caller turns
-    /// up. So the guard belongs in the use case, where <c>FireDueRemindersUseCase</c> puts it, and
-    /// this rule is what keeps the next loop from putting it back in the timer because that is the
-    /// easier place to reach.
+    /// timer's callers and nobody else — and a second caller does turn up: a use case the timer
+    /// reaches is one a request can reach too. So the guard belongs in the use case, the way every
+    /// leased operation takes it, and this rule is what keeps the next loop from putting it back
+    /// in the timer because that is the easier place to reach.
     /// </summary>
     [Fact]
     public void NoBackgroundService_TakesTheLeaderLease()

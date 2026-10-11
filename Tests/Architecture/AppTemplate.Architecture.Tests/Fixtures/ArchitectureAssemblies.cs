@@ -89,9 +89,9 @@ internal static class ArchitectureAssemblies
     /// <summary>
     /// Every feature's application-layer surface: its ports, its DTOs, its errors. A cross-cutting
     /// persistence mechanism that names one of these is a feature adapter wearing the shared
-    /// mechanisms' clothes — <c>ReminderDiagnostics</c> is that shape: an OpenTelemetry counter with
-    /// no connection to the database at all, which would sit unnoticed under
-    /// <c>Common/Observability/</c>, since it depends on neither of the two namespaces above.
+    /// mechanisms' clothes — a counter named after a feature, with no connection to the database at
+    /// all, would sit unnoticed under <c>Common/Observability/</c>, since it depends on neither of
+    /// the two namespaces above.
     /// </summary>
     internal const string ApplicationFeaturesNamespace = "AppTemplate.Application.Features";
 

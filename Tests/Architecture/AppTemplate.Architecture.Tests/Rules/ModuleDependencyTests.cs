@@ -70,6 +70,7 @@ public sealed class ModuleDependencyTests
         ("AppTemplate.Infrastructure.InMemory", ArchitectureAssemblies.InMemoryInfrastructure),
     ];
 
+    //#if (localAuth)
     /// <summary>
     /// The one documented exception, and the reason it is one rather than a defect. The identity
     /// module reads accounts through <c>AppUser</c>, which is the shared ASP.NET Identity row that
@@ -87,6 +88,9 @@ public sealed class ModuleDependencyTests
         "IAppUserDirectory",
         "AppUserDirectory",
     ];
+    /*#else
+    private static readonly string[] _commonTypesAllowedToNameAFeature = [];
+    #endif*/
 
     /// <summary>
     /// The same rule the persistence mechanisms are held to, applied to the four other modules.

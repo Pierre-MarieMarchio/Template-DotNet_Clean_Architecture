@@ -23,9 +23,8 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// </para>
 /// <para>
 /// Only a host's <em>own</em> instruments are in scope. A meter belonging to a module a host
-/// composes is that host's decision to export or not — the API names the persistence module's
-/// reminder meter beside its jobs, through <c>PersistenceModule.RemindersMeterName</c>, since the
-/// reminder pass is the one thing that records on it.
+/// composes is that host's decision to export or not — the API names such a meter beside the job
+/// that records on it, since nothing else would make it observable.
 /// </para>
 /// </summary>
 public sealed class ObservabilityRegistrationTests

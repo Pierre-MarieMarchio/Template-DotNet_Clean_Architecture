@@ -1,4 +1,4 @@
-﻿# Security
+# Security
 
 This is a **template**. It is cloned, renamed and modified, so it has no released versions and no
 patch stream: there is nothing here to which a CVE could be assigned, and nothing that reaches your
@@ -425,19 +425,19 @@ says otherwise.
 
 Stated here rather than left to be discovered. None of these is a hypothetical.
 
-- **There is no self-service account deletion, and the administrative one leaves business data
-  behind.** Deletion is `DELETE /api/v1/auth/accounts/{userId}`, behind the `Administrator` policy,
-  and it refuses the caller's own account. A user cannot erase themselves at all — a deployment
-  under an erasure obligation has to add that endpoint, and it should carry a password re-proof for
-  the same reason changing an address does. What deletion does remove is the account row and
-  everything ASP.NET Identity owns with it — grants, claims, logins, tokens — and nothing else. A user's to-do lists and reminders carry an `OwnerId` that is a plain `Guid` with no
-  foreign key to the account, by the same rule that keeps aggregates from referencing each other
-  across features, so nothing cascades to them. They become unreachable, because every read filters
-  by owner, and they stay in the database indefinitely.
-  That is storage growth and, where the data is personal, an erasure obligation the template does
-  not discharge. Closing it is a deployment's decision about *what deletion means* — refuse while
-  data remains, reassign it, or remove it — and the shape to copy is the scheduled purge the
-  maintenance endpoints already use, not a foreign key added across a feature boundary.
+- **Deletion is covered for the features this template ships; a feature you add has to declare its
+  own policy.** A user erases themselves with `POST /api/v1/auth/delete-account`, which demands a
+  re-proof first — the current password when the account has one, a two-factor code when the factor
+  is armed, and an access token issued less than five minutes ago when the account offers neither —
+  so a stolen session alone cannot take the account. An administrator deletes with
+  `DELETE /api/v1/auth/accounts/{userId}`, still refused against the caller's own account. Both
+  remove the account row and everything ASP.NET Identity owns with it, then publish the
+  `UserAccountDeleted` fact that every feature owning user data consumes — each applying the fate it
+  declared for its own rows, re-checking through the account directory that the account is really
+  gone — with a leased sweep behind the fact to catch a consumer that never ran. The template's
+  features all delete their rows, and the same two faces are where a feature that prefers
+  anonymising declares it. A feature added without a policy leaves its rows orphaned again, so
+  `docs/ADDING-A-FEATURE.md` makes the declaration part of adding a feature that owns user data.
 
 - **Sending mail inside the request leaks which addresses exist, by timing.** Forgot-password,
   resend-confirmation and change-email all answer identically and log nothing, but each awaits an

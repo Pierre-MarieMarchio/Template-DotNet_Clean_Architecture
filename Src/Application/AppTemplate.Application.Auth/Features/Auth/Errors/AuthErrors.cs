@@ -173,6 +173,42 @@ public static class AuthErrors
         "The account could not be deleted.");
 
     /// <summary>
+    /// The account holds no credential its holder could present — no password, no armed second
+    /// factor — so the deletion asked for a recently issued access token and the one making the
+    /// call is older than the window. Attached to no field: nothing the caller typed is wrong, the
+    /// session is simply not fresh enough for an operation that cannot be undone.
+    /// </summary>
+    public static Error ReAuthenticationRequired { get; } = Error.Forbidden(
+        "auth.account.reAuthenticationRequired",
+        "Sign in again and retry within five minutes.");
+
+    /// <summary>
+    /// The account has a password, so deleting it asks for the password. Attached to
+    /// "currentPassword", the field the caller left empty.
+    /// </summary>
+    public static Error MissingCurrentPassword { get; } = ValidationError.ForField(
+        "currentPassword",
+        "The current password is required.");
+
+    /// <summary>
+    /// Two-factor sign-in is armed, so deleting the account asks for a code. Attached to
+    /// "twoFactorCode", the field the caller left empty.
+    /// </summary>
+    public static Error MissingTwoFactorCode { get; } = ValidationError.ForField(
+        "twoFactorCode",
+        "A two-factor code is required.");
+
+    /// <summary>
+    /// The submitted code did not confirm the deletion. Attached to "twoFactorCode", and distinct
+    /// from <see cref="InvalidTwoFactorCode"/> only in the field it names: the caller already
+    /// authenticated as the account it is deleting, so there is nothing to protect from enumeration
+    /// here either.
+    /// </summary>
+    public static Error InvalidTwoFactorConfirmationCode { get; } = ValidationError.ForField(
+        "twoFactorCode",
+        "The verification code is incorrect or has expired.");
+
+    /// <summary>
     /// The submitted code did not match. Attached to "code", unlike <see cref="InvalidCredentials"/>:
     /// the caller already authenticated as the account it is arming, so there is no address to
     /// protect from enumeration here.

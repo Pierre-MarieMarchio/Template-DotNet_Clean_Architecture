@@ -109,6 +109,23 @@ internal sealed class NoteQueries(AppDbContext context) : INoteQueries
         return PagedResult.Keyset(page, pageSize, nextCursor);
     }
 
+    /// <remarks>
+    /// The one query here that crosses owners on purpose: it exists so a housekeeping pass can ask
+    /// which ids still hold data, and returns ids only. The primitive is built client-side, because
+    /// its factory validates and validation is not SQL.
+    /// </remarks>
+    public async Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var ids = await context.Notes
+            .AsNoTracking()
+            .Select(note => note.OwnerId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return [.. ids.Select(UserId.Create)];
+    }
+
     private static readonly Expression<Func<NoteRecord, NoteSummaryDto>> _toSummary =
         note => new NoteSummaryDto(note.Id, note.Title, note.CreatedAt, note.LastModifiedAt);
 }

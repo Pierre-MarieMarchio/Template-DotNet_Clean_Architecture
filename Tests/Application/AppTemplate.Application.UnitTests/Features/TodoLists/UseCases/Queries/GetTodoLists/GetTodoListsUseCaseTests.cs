@@ -100,12 +100,15 @@ public sealed class GetTodoListsUseCaseTests
 
     /// <summary>
     /// There is no overload, no optional owner and no <c>Guid.Empty</c> sentinel that could
-    /// stand for "everybody": every read-side method takes an owner.
+    /// stand for "everybody": every read-side method takes an owner. The one exception is named in
+    /// the rule: the deleted-account sweep's owner listing, which crosses owners on purpose and
+    /// answers ids only — no owner can be identified through it.
     /// </summary>
     [Fact]
     public void EveryMethodOnTheReadSidePort_TakesAnOwner() =>
         typeof(ITodoListQueries).GetMethods()
-            .ShouldAllBe(method => method.GetParameters().Any(parameter => parameter.Name == "ownerId"));
+            .ShouldAllBe(method => method.Name == nameof(ITodoListQueries.ListDataOwnerIdsAsync)
+                || method.GetParameters().Any(parameter => parameter.Name == "ownerId"));
 
     #endregion
 

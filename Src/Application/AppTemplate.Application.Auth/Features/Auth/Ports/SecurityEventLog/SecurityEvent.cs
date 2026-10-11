@@ -72,9 +72,16 @@ public sealed record SecurityEvent(
     public static SecurityEvent RoleRevoked(Guid userId, string role) =>
         new(SecurityEventKind.RoleRevoked, userId, Role: role);
 
-    /// <summary>An account was removed. Its id outlives it here, and in the rows that named it.</summary>
+    /// <summary>An account was removed, by an administrator. Its id outlives it here, and in the rows that named it.</summary>
     public static SecurityEvent AccountDeleted(Guid userId) =>
         new(SecurityEventKind.AccountDeleted, userId);
+
+    /// <summary>
+    /// An account was removed by its own holder, the credentials proven again on the way out. Its id
+    /// outlives it here, and in the rows that named it.
+    /// </summary>
+    public static SecurityEvent AccountSelfDeleted(Guid userId) =>
+        new(SecurityEventKind.AccountSelfDeleted, userId);
 
     /// <summary>A first code was verified, so the account now demands one at every sign-in.</summary>
     public static SecurityEvent TwoFactorEnabled(Guid userId) =>

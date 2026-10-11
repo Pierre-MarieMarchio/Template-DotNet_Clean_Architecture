@@ -182,6 +182,9 @@ internal static class HostComposition
         services.AddAuthApplication();
         //#endif
         services.AddPurgeExpiredIdempotencyKeys();
+        //#if (anyFeature)
+        services.AddDeletedAccountSweep();
+        //#endif
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
         //#if (localAuth)
@@ -235,6 +238,9 @@ internal static class HostComposition
         services.AddAuthApplication();
         //#endif
         services.AddPurgeExpiredIdempotencyKeys();
+        //#if (anyFeature)
+        services.AddDeletedAccountSweep();
+        //#endif
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
         //#if (localAuth)
@@ -322,6 +328,9 @@ internal static class HostComposition
         services.AddNotes();
         //#endif
         services.AddPurgeExpiredIdempotencyKeys();
+        //#if (anyFeature)
+        services.AddDeletedAccountSweep();
+        //#endif
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
         services.AddEmailModule(configuration);
@@ -371,6 +380,9 @@ internal static class HostComposition
         services.AddAuthApplication();
         //#endif
         services.AddPurgeExpiredIdempotencyKeys();
+        //#if (anyFeature)
+        services.AddDeletedAccountSweep();
+        //#endif
         services.AddCacheStore();
         /*#if (localAuth)*/
         services.AddPersistenceModule(configuration);
@@ -410,6 +422,9 @@ internal static class HostComposition
         services.AddNotes();
         //#endif
         services.AddPurgeExpiredIdempotencyKeys();
+        //#if (anyFeature)
+        services.AddDeletedAccountSweep();
+        //#endif
         services.AddCacheStore();
         services.AddPersistenceModule(configuration);
         services.AddEmailModule(configuration);
@@ -448,6 +463,10 @@ internal static class HostComposition
         //#if (reminders)
         services.AddScoped<IReminderRecipientDirectory, ArchitectureTestReminderRecipientDirectory>();
         //#endif
+        services.AddScoped<ICurrentAccessToken, ArchitectureTestCurrentAccessToken>();
+        //#if (anyFeature)
+        services.AddScoped<IUserAccountDirectory, ArchitectureTestUserAccountDirectory>();
+        //#endif
     }
 
     /// <summary>
@@ -461,6 +480,10 @@ internal static class HostComposition
         services.AddScoped<IAuditActor, ArchitectureTestBackgroundAuditActor>();
         //#if (reminders)
         services.AddScoped<IReminderRecipientDirectory, ArchitectureTestReminderRecipientDirectory>();
+        //#endif
+        services.AddScoped<ICurrentAccessToken, ArchitectureTestCurrentAccessToken>();
+        //#if (anyFeature)
+        services.AddScoped<IUserAccountDirectory, ArchitectureTestUserAccountDirectory>();
         //#endif
     }
 }
@@ -502,6 +525,27 @@ internal sealed class ArchitectureTestReminderRecipientDirectory : IReminderReci
 {
     public Task<ReminderRecipient?> FindAsync(UserId ownerId, CancellationToken cancellationToken = default) =>
         Task.FromResult<ReminderRecipient?>(null);
+}
+//#endif
+
+/// <summary>
+/// Stands in for <c>AppTemplate.Api.Common.Security.CurrentAccessToken</c>, which needs an HTTP
+/// request. The container tests resolve it and never read the getter.
+/// </summary>
+internal sealed class ArchitectureTestCurrentAccessToken : ICurrentAccessToken
+{
+    public DateTimeOffset? IssuedAt => null;
+}
+
+//#if (anyFeature)
+/// <summary>
+/// Stands in for the account directory the API composes from whoever holds its accounts — its own
+/// users or the external-identity mapping — which is internal to it.
+/// </summary>
+internal sealed class ArchitectureTestUserAccountDirectory : IUserAccountDirectory
+{
+    public Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(true);
 }
 //#endif
 

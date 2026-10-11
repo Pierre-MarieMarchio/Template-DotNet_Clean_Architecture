@@ -79,6 +79,26 @@ internal sealed class NoteStore(AppDbContext context) : INoteStore
     }
 
     /// <summary>
+    /// Stages the removal of the owner's every note in one load, on the same terms as
+    /// <see cref="StageRemovalAsync"/>: the rows are loaded tracked so the commit deletes them, and
+    /// no version is checked because the caller of this holds none — see the port.
+    /// </summary>
+    public async Task<int> StageRemovalForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+        var records = await context.Notes
+            .Where(note => note.OwnerId == ownerId.Value)
+            .ToListAsync(cancellationToken);
+
+        context.Notes.RemoveRange(records);
+
+        return records.Count;
+    }
+
+    /// <summary>
     /// Ownership first, then the caller's versions, in that order: a note that is not the caller's is
     /// never reported as stale. The row stays tracked at the version it was loaded at, which is what
     /// the commit's <c>WHERE xmin = …</c> compares.

@@ -1,22 +1,30 @@
 ﻿//#if (canAddFeature)
 using AppTemplate.Application.Core;
 //#endif
+//#if (anyFeature)
+using AppTemplate.Application.Core.Common.Events;
+using AppTemplate.Application.Core.Common.Ports;
+//#endif
 //#if (externalAuth)
 using AppTemplate.Application.Features.ExternalIdentity.Services;
 //#endif
 //#if (files)
+using AppTemplate.Application.Features.Files.Consumers.AccountDeleted;
 using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
 using AppTemplate.Application.Features.Files.Options;
 using AppTemplate.Application.Features.Files.Services;
 //#endif
 //#if (notes)
+using AppTemplate.Application.Features.Notes.Consumers.AccountDeleted;
 using AppTemplate.Application.Features.Notes.Services;
 //#endif
 //#if (reminders)
+using AppTemplate.Application.Features.Reminders.Consumers.AccountDeleted;
 using AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.Reminders.Services;
 //#endif
 //#if (todoLists)
+using AppTemplate.Application.Features.TodoLists.Consumers.AccountDeleted;
 using AppTemplate.Application.Features.TodoLists.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.TodoLists.Services;
 //#endif
@@ -86,6 +94,11 @@ public static class ApplicationModule
 
         services.AddDomainEventConsumer<TodoItemCompletedDomainEvent, LogTodoItemCompletedConsumer>();
 
+        // The declared fate of this feature's data once the account that owned it is gone, applied
+        // by the consumer when the fact arrives and by the sweep when it never does.
+        services.AddDomainEventConsumer<UserAccountDeleted, DeleteTodoListsOnAccountDeletedConsumer>();
+        services.AddScoped<IDeletedAccountDataPolicy, DeleteTodoListsOnAccountDeletedConsumer>();
+
         return services;
     }
     //#endif
@@ -114,6 +127,11 @@ public static class ApplicationModule
         // completed, neither aware of the other.
         services.AddDomainEventConsumer<
             TodoItemCompletedDomainEvent, CancelRemindersOnTodoItemCompletedConsumer>();
+
+        // The declared fate of this feature's data once the account that owned it is gone, applied
+        // by the consumer when the fact arrives and by the sweep when it never does.
+        services.AddDomainEventConsumer<UserAccountDeleted, DeleteRemindersOnAccountDeletedConsumer>();
+        services.AddScoped<IDeletedAccountDataPolicy, DeleteRemindersOnAccountDeletedConsumer>();
 
         return services;
     }
@@ -147,14 +165,20 @@ public static class ApplicationModule
         services.AddDomainEventConsumer<
             StoredFileDeletedDomainEvent, ReclaimContentOnStoredFileDeletedConsumer>();
 
+        // The declared fate of this feature's data once the account that owned it is gone, applied
+        // by the consumer when the fact arrives and by the sweep when it never does.
+        services.AddDomainEventConsumer<UserAccountDeleted, DeleteStoredFilesOnAccountDeletedConsumer>();
+        services.AddScoped<IDeletedAccountDataPolicy, DeleteStoredFilesOnAccountDeletedConsumer>();
+
         return services;
     }
     //#endif
     //#if (notes)
 
     /// <summary>
-    /// Registers the notes feature: its service and its validator. It has no use cases and answers no
-    /// domain event, and it depends on none of the other features.
+    /// Registers the notes feature: its service and its validator. It has no use cases, and the one
+    /// event it answers is the account-deleted fact every feature that owns user data answers. It
+    /// depends on none of the other features.
     /// </summary>
     /// <param name="services">The container being built.</param>
     /// <returns>The same collection, for chaining.</returns>
@@ -164,6 +188,11 @@ public static class ApplicationModule
 
         services.AddFeature(_notes);
         services.AddScoped<INoteService, NoteService>();
+
+        // The declared fate of this feature's data once the account that owned it is gone, applied
+        // by the consumer when the fact arrives and by the sweep when it never does.
+        services.AddDomainEventConsumer<UserAccountDeleted, DeleteNotesOnAccountDeletedConsumer>();
+        services.AddScoped<IDeletedAccountDataPolicy, DeleteNotesOnAccountDeletedConsumer>();
 
         return services;
     }

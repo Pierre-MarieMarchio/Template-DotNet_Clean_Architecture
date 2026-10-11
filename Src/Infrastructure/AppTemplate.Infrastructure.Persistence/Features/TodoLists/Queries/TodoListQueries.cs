@@ -147,6 +147,22 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
         return PagedResult.Keyset(page, pageSize, nextCursor);
     }
 
+    /// <remarks>
+    /// The one query here that crosses owners on purpose: it exists so a housekeeping pass can ask
+    /// which ids still hold data, and returns ids only — no owner can be identified through it. The
+    /// primitive is built client-side: its factory validates, and validation is not SQL.
+    /// </remarks>
+    public async Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var ids = await context.TodoLists
+            .AsNoTracking()
+            .Select(list => list.OwnerId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return [.. ids.Select(UserId.Create)];
+    }
 
     private static readonly Expression<Func<TodoListRecord, TodoListSummaryDto>> _toSummary =
         list => new TodoListSummaryDto(

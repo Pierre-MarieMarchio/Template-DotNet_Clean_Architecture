@@ -37,4 +37,14 @@ public interface INoteStore
         Guid noteId,
         VersionPrecondition? precondition,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stages the removal of every note <paramref name="ownerId"/> holds, on the terms of
+    /// <see cref="StageReplacementAsync"/>: no precondition is asked, because the account-deleted
+    /// policy that calls this holds no version it could name — it holds a fact instead.
+    /// </summary>
+    /// <returns>How many notes were staged for removal; nothing was staged when the owner holds none.</returns>
+    Task<int> StageRemovalForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken = default);
 }

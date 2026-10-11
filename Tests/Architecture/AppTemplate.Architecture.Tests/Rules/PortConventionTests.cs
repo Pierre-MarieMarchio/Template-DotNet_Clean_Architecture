@@ -132,7 +132,12 @@ public sealed class PortConventionTests
         /*#if (localAuth)*/
         /*#else
         "ICurrentUser",
+        "ICurrentAccessToken",
         "IEmailSender",
+        #endif*/
+        /*#if (accounts)*/
+        /*#else
+        "IDomainEventPublisher",
         #endif*/
     ];
 
@@ -246,8 +251,8 @@ public sealed class PortConventionTests
             .ToList();
 
         authUseCases.Count.ShouldBe(
-            25,
-            "The authentication vertical has twenty-five use cases — twenty-four account and session " +
+            26,
+            "The authentication vertical has twenty-six use cases — twenty-five account and session " +
             "operations plus the expired-grant purge, which belongs to this vertical because a " +
             "refresh token is the only thing it deletes. Finding another number means this rule is " +
             "no longer describing it.");
@@ -321,14 +326,31 @@ public sealed class PortConventionTests
 
     /// <summary>
     /// The interface types a class asks for in its constructors. Concrete parameters are ignored:
-    /// this rule is about which contracts a type is written against.
+    /// this rule is about which contracts a type is written against. A sequence of a port
+    /// (<c>IEnumerable&lt;IFoo&gt;</c>) counts as the port it carries: it is how a class consumes
+    /// every registered implementation, and not seeing through it would let an orchestrator take
+    /// the port while this rule reported it unconsumed.
     /// </summary>
     private static IReadOnlyList<Type> DependenciesOf(Type type) =>
         [.. type.GetConstructors()
             .SelectMany(constructor => constructor.GetParameters())
             .Select(parameter => parameter.ParameterType)
-            .Where(parameterType => parameterType.IsInterface)
+            .SelectMany(ContractsOf)
             .Distinct()];
+
+    /// <summary>The ports one parameter carries: itself when it is an interface, its element when it is a sequence of one.</summary>
+    private static IEnumerable<Type> ContractsOf(Type parameterType)
+    {
+        // A constructed IEnumerable<IPort> is an interface too, so the sequence is unwrapped first:
+        // matching on IsInterface alone would record the sequence type and never the port in it.
+        if (parameterType is { IsGenericType: true }
+            && parameterType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+        {
+            return parameterType.GetGenericArguments()[0] is { IsInterface: true } port ? [port] : [];
+        }
+
+        return parameterType.IsInterface ? [parameterType] : [];
+    }
 
     private sealed record UseCaseDependencies(Type Type, IReadOnlyList<Type> Dependencies);
 }

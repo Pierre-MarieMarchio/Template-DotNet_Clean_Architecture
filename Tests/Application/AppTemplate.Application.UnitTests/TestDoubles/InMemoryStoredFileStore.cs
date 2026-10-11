@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using AppTemplate.Domain.Features.Files.ValueObjects;
@@ -100,6 +101,10 @@ internal sealed class InMemoryStoredFileStore : IStoredFileRepository, IUnitOfWo
         int batchSize,
         CancellationToken cancellationToken) =>
         throw new NotSupportedException("No inspection test reads pending registrations.");
+
+    /// <summary>No inspection test removes an owner's files; the double exists for the background passes.</summary>
+    public Task<IReadOnlyList<StoredFile>> GetForOwnerAsync(UserId ownerId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("No inspection test removes an owner's files.");
 
     public void Add(StoredFile storedFile) => throw new NotSupportedException("No background-pass test registers a file.");
 

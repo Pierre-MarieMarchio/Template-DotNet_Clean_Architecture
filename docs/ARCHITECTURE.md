@@ -538,6 +538,42 @@ records again with an interface in front of them.
 There is no exception today. If one is ever justified it is named in `FeatureIsolationTests`
 with its reason, not hidden by moving a type into a namespace the rule does not read.
 
+## When an account goes
+
+An account's rows and the feature rows that name it live in two contexts with no shared
+transaction, so the deletion that closes finding F is a fact and a reaction, never a
+cross-context write:
+
+1. **The account is deleted and the fact is published** — `UserAccountDeleted(UserId, OccurredAt)`,
+   declared in `AppTemplate.Application.Core` beside the consumer contract so no feature names the
+   module that deleted it. The publisher is `IDomainEventPublisher`, and the publication happens
+   after the deleting call has committed: the fact names what is already true. Three routes
+   publish it — the self-service one (`POST /api/v1/auth/delete-account`, which demands
+   re-authentication first: the password when one is set, a two-factor code when the factor is
+   armed, an access token issued under five minutes ago otherwise), the administrator's
+   (`DELETE /api/v1/auth/accounts/{userId}`), and, in the externally-authenticated template, the
+   administrative call on the mapping (`DELETE /api/v1/external-identities/{userId}`). A
+   provider-side deletion signal is that call's to wire; the template ships no endpoint for it.
+2. **Each feature decides the fate of its own data** and applies that policy in a consumer of the
+   fact, which also implements `IDeletedAccountDataPolicy`: the consumer is the fast path, the
+   policy face is what the sweep calls, and both re-derive the precondition through
+   `IUserAccountDirectory` — the account must be gone — before writing anything, idempotently.
+   The host supplies the directory adapter: over the local accounts
+   (`AccountUserAccountDirectory`) or over the external-identity mapping
+   (`ExternalIdentityUserAccountDirectory`), the same way `ICurrentUser` is resolved. TodoLists,
+   Reminders, Notes and Files all delete; a feature that prefers anonymising implements the same
+   two faces and writes its own rows instead of removing them.
+3. **A leased sweep is the guarantee** — `SweepDeletedAccountDataUseCase`, a maintenance task, asks
+   each policy for the owner ids that still have data and applies it to each. The fact is only a
+   fast path: in-process publication is at most once, so a consumer that never ran is caught by
+   the sweep, not by a retry. The pass runs under `ILeaderLease`, commits per owner through each
+   feature's own unit of work, and skips a failing owner rather than letting it stop its
+   neighbours.
+
+The whole reaction composes only where it has subjects: the ports, the sweep and its registration
+are generated with a feature that owns user data, and nothing of it exists in a template generated
+with none — or with `--auth none`, which refuses such features outright.
+
 ## Background jobs in the API process
 
 `AppTemplate.Api` serves HTTP and runs the periodic jobs in the same process, which is the template's
@@ -555,6 +591,9 @@ Three `BackgroundService`s, composed by the one call `AddBackgroundJobs()`
   one call and one folder. Both tasks run the exact same use cases the maintenance routes expose over
   HTTP: `MaintenanceController` for idempotency keys, and authentication's own
   `RefreshTokenMaintenanceController`, under the same prefix and tag, for refresh-token grants.
+  A third, the deleted-account data sweep, is registered from the background composition itself
+  (`AddDeletedAccountSweepJobs`) because no single feature owns it: every feature that owns user
+  data declares its policy, and one pass sweeps them all — see [When an account goes](#when-an-account-goes).
 - `ReminderBackgroundService` runs `IFireDueRemindersUseCase` on its own timer — the only caller that
   use case ever has, since firing a reminder must never run behind a request.
 - `FileBackgroundService` runs three passes on three separate timers, because their costs are three

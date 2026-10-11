@@ -1,4 +1,5 @@
-﻿using AppTemplate.Domain.Features.TodoLists.Entities;
+﻿using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.TodoLists.Entities;
 
 namespace AppTemplate.Domain.Features.TodoLists.Repositories;
 
@@ -18,6 +19,15 @@ public interface ITodoListRepository
     /// </summary>
     /// <returns>The aggregate, or <c>null</c> when no list has that id.</returns>
     Task<TodoList?> GetAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Every list one owner holds, loaded as aggregates for the same reason a single load is: what is
+    /// done with them next — removal, on an account-deleted policy — goes through the aggregate, not
+    /// around it.
+    /// </summary>
+    Task<IReadOnlyList<TodoList>> GetForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken);
 
     void Add(TodoList todoList);
 

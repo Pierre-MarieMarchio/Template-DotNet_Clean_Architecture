@@ -2,6 +2,7 @@
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteAccount;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
+using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
@@ -17,6 +18,8 @@ public sealed class DeleteAccountUseCaseTests
 
     private readonly IAccountAdministrationService _administration = Substitute.For<IAccountAdministrationService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
+    private readonly IDomainEventPublisher _domainEvents = Substitute.For<IDomainEventPublisher>();
+    private readonly StubDateTimeProvider _dateTimeProvider = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -84,8 +87,25 @@ public sealed class DeleteAccountUseCaseTests
         _securityEventLog.Received(1).Record(SecurityEvent.AccountDeleted(_targetId));
     }
 
+    /// <summary>
+    /// The rows another feature owns under the id are that feature's to remove, and the fact is what
+    /// tells them: an administrative deletion that skipped it would leave them orphaned again.
+    /// </summary>
     [Fact]
-    public async Task AStoreRefusal_RecordsNothing()
+    public async Task ASuccessfulDeletion_PublishesTheAccountDeletedFact()
+    {
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
+
+        await UseCase().ExecuteAsync(new DeleteAccountCommand(_targetId), TestToken);
+
+        await _domainEvents.Received(1).PublishAsync(
+            Arg.Is<UserAccountDeleted>(fact =>
+                fact.UserId.Value == _targetId && fact.OccurredAt == _dateTimeProvider.UtcNow),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AStoreRefusal_RecordsNothingAndPublishesNothing()
     {
         GivenTheOutcomeIs(AccountAdministrationOutcome.Rejected);
 
@@ -93,13 +113,14 @@ public sealed class DeleteAccountUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
+        _domainEvents.ReceivedCalls().ShouldBeEmpty();
     }
 
     private void GivenTheOutcomeIs(AccountAdministrationOutcome outcome) =>
         _administration.DeleteAsync(_targetId, Arg.Any<CancellationToken>()).Returns(outcome);
 
     private DeleteAccountUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_administration, _securityEventLog, currentUser, new DeleteAccountCommandValidator());
+        new(_administration, _securityEventLog, _domainEvents, currentUser, _dateTimeProvider, new DeleteAccountCommandValidator());
 
     private DeleteAccountUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

@@ -74,6 +74,10 @@
       "type": "computed",
       "value": "(auth == \"none\")"
     },
+    "accounts": {
+      "type": "computed",
+      "value": "(localAuth || externalAuth)"
+    },
     "refusedOptions": {
       "type": "computed",
       "value": "(auth == \"none\" && (examples != \"none\" || files))"
@@ -269,8 +273,24 @@
           ]
         },
         {
+          "condition": "(!anyFeature)",
+          "exclude": [
+            "Src/Application/AppTemplate.Application.Core/Common/Ports/IUserAccountDirectory.cs",
+            "Src/Application/AppTemplate.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
+            "Src/Application/AppTemplate.Application.Core/Features/Accounts/**",
+            "Tests/Application/AppTemplate.Application.Core.UnitTests/Features/Accounts/**",
+            "Src/Presentation/AppTemplate.Api/Features/Auth/Directories/**",
+            "Src/Presentation/AppTemplate.Api/Features/ExternalIdentity/Directories/**",
+            "Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
+            "Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Auth/Directories/**",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/ExternalIdentity/Directories/**"
+          ]
+        },
+        {
           "condition": "(publicApi)",
           "exclude": [
+            "Src/Application/AppTemplate.Application.Core/Common/Events/UserAccountDeleted.cs",
             "Src/Presentation/AppTemplate.Api/Common/OpenApi/OpenApiSecurityTransformer.cs",
             "Src/Presentation/AppTemplate.Api/Common/Security/AuthorizationPolicies.cs",
             "Src/Presentation/AppTemplate.Api/Features/Maintenance/Controllers/**",

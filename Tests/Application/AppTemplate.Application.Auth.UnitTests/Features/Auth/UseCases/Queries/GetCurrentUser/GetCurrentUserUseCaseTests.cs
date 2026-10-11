@@ -43,7 +43,7 @@ public sealed class GetCurrentUserUseCaseTests
     {
         var createdAt = DateTimeOffset.UtcNow;
         _accounts.FindProfileAsync(_callerId, Arg.Any<CancellationToken>())
-            .Returns(new UserProfile(_callerId, "someone", "someone@example.com", true, ["Administrator"], createdAt, true));
+            .Returns(new UserProfile(_callerId, "someone", "someone@example.com", true, ["Administrator"], createdAt, true, HasPassword: true));
 
         var result = await UseCase().ExecuteAsync(TestToken);
 
@@ -84,7 +84,7 @@ public sealed class GetCurrentUserUseCaseTests
     }
 
     private static UserProfile AProfile() =>
-        new(_callerId, "someone", "someone@example.com", true, [], DateTimeOffset.UtcNow, false);
+        new(_callerId, "someone", "someone@example.com", true, [], DateTimeOffset.UtcNow, false, HasPassword: true);
 
     private GetCurrentUserUseCase UseCaseFor(ICurrentUser currentUser) => new(_accounts, currentUser);
 

@@ -5,22 +5,11 @@ using MimeKit;
 
 namespace AppTemplate.Infrastructure.Email.Common.Smtp;
 
-/// <summary>
-/// The <see cref="IEmailSender"/> port, over MailKit, rather than <c>System.Net.Mail.SmtpClient</c>
-/// (obsolete since .NET 5) — a type that invites being constructed anew per email, never disposed,
-/// and configured through null-forgiving lookups when nothing declares the settings' shape.
-/// <para>
-/// Internal and sealed. It is an adapter for a port the application layer declares; callers
-/// depend on <see cref="IEmailSender"/> and nothing outside this assembly has any reason to
-/// name this type. Substituting it is a matter of composing a different module — see
-/// <c>AppTemplate.Infrastructure.InMemory</c> — not of subclassing this one.
-/// </para>
-/// <para>
-/// Sending is one connection per message: correct, and adequate for account emails at this
-/// volume. A system sending in bulk wants a pooled or queued sender, which is a different
-/// implementation of the same port rather than a flag on this one.
-/// </para>
-/// </summary>
+/// <summary>The <see cref="IEmailSender"/> port over MailKit, rather than the obsolete
+/// <c>System.Net.Mail.SmtpClient</c>. Internal and sealed: an adapter for a port the application
+/// layer declares; substituting it is composing a different module, not subclassing this one.
+/// Sending is one connection per message — correct, and adequate for account emails at this volume;
+/// bulk sending wants a different implementation of the same port, not a flag on this one.</summary>
 internal sealed class MailKitEmailSender(IOptions<EmailOptions> options) : IEmailSender
 {
     public async Task SendAsync(

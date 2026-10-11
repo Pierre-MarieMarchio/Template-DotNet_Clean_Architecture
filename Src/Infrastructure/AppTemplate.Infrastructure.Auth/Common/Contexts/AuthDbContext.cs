@@ -6,27 +6,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Auth.Common.Contexts;
 
-/// <summary>
-/// Everything this module stores: ASP.NET Identity's tables, the refresh-token grants and the data
-/// protection key ring, in the <see cref="IdentitySchema"/> schema with a migrations history of its
-/// own. Why two contexts on one database, and what that buys, is argued in docs/ARCHITECTURE.md.
-/// <para>
-/// <b>This class is this module's model composition root</b>, and the one type in its
-/// <c>Common/</c> allowed to name a feature — the same licence
-/// <c>AppTemplate.Infrastructure.Persistence</c>'s context has for the business half.
-/// </para>
-/// <para>
-/// <b>Resource ownership.</b> A context instance is a unit of work, scoped to one request by the
-/// container and disposed by it. Staged changes are committed by exactly one call to
-/// <c>SaveChangesAsync</c>, made through the unit of work this module registers over this context;
-/// the services around it borrow the context and never commit.
-/// </para>
-/// <para>
-/// It shares no transaction with the business context. Two contexts on one connection string are
-/// two units of work, so a write here and a write there are two commits — which is what the
-/// business half is arranged never to need.
-/// </para>
-/// </summary>
+/// <summary>Everything this module stores: ASP.NET Identity's tables, the refresh-token grants and
+/// the data protection key ring, in the <see cref="IdentitySchema"/> schema with a migrations
+/// history of its own (docs/ARCHITECTURE.md argues why two contexts on one database). <b>This class
+/// is the module's model composition root</b>, the one type in its <c>Common/</c> allowed to name a
+/// feature. A context instance is a unit of work, scoped to one request and disposed by the
+/// container; staged changes are committed by exactly one <c>SaveChangesAsync</c>, through the unit
+/// of work this module registers, and the services around it borrow the context and never commit. It
+/// shares no transaction with the business context: two contexts on one connection string are two
+/// units of work, so a write here and a write there are two commits.</summary>
 /// <param name="options">The options the container or the design-time factory built.</param>
 public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     : IdentityDbContext<AppUser, AppRole, Guid>(options), IDataProtectionKeyContext

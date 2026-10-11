@@ -140,12 +140,10 @@ public static class PersistenceModule
     }
     //#if (externalAuth)
 
-    /// <summary>
-    /// Registers the stores behind the external-identity mapping: the subject-to-owner store, the
-    /// profile reads by owner and the local role assignments. Separate from
+    /// <summary>Registers the stores behind the external-identity mapping: the subject-to-owner
+    /// store, the profile reads and the role assignments. Separate from
     /// <see cref="AddPersistenceModule"/> because only a host that authenticates callers with an
-    /// external provider has a use for them; it composes the module itself, which is idempotent.
-    /// </summary>
+    /// external provider has a use for them; it composes the module itself, idempotently.</summary>
     /// <param name="services">The container being composed.</param>
     /// <param name="configuration">Must supply the <c>Default</c> connection string.</param>
     public static IServiceCollection AddExternalIdentityPersistence(
@@ -173,12 +171,9 @@ public static class PersistenceModule
         services.Any(descriptor => descriptor.ServiceType == typeof(AppDbContext));
 
     //#if (canAddFeature)
-    /// <summary>
-    /// One tracker per request, resolved under every contract that needs it: the repository takes the
-    /// identity map, the flush interceptor the flusher, the dispatch interceptor the event source.
-    /// Registering the three separately would give each its own instance and its own empty identity
-    /// map, and every write would silently do nothing.
-    /// </summary>
+    /// <summary>One tracker per request, resolved under every contract that needs it — repository,
+    /// flush interceptor, dispatch interceptor: registering the three separately would give each its
+    /// own empty identity map, and every write would silently do nothing.</summary>
     private static void AddScopedTracker<TTracker, TTrackerPort>(IServiceCollection services)
         where TTracker : class, TTrackerPort, IAggregateFlusher, IDomainEventSource
         where TTrackerPort : class
@@ -313,23 +308,14 @@ public static class PersistenceModule
     private static string WithMaxPoolSize(string connectionString, int maxPoolSize) =>
         new NpgsqlConnectionStringBuilder(connectionString) { MaxPoolSize = maxPoolSize }.ConnectionString;
 
-    /// <summary>
-    /// A second way to create an <see cref="AppDbContext"/>, for <see cref="IdempotencyStore"/> and
-    /// the orphan sweep's checkpoint: their own change tracker, connection and commit, rather than the
-    /// request-scoped one.
-    /// <para>
-    /// The factory takes no options action of its own, and that is load-bearing. An action here would
-    /// be a second configuration layered after <see cref="AddContext"/>'s: it would replace the
-    /// connection string built with <see cref="DatabaseOptions.MaxPoolSize"/> by the raw one, and the
-    /// factory's contexts would use a second pool. With none, the factory reuses the registered
-    /// options, so it gets the same connection string, retry policy and interceptors as the scoped
-    /// context.
-    /// </para>
-    /// <para>
-    /// <c>Scoped</c> is load-bearing too: the default <c>Singleton</c> lifetime would make the factory
-    /// depend on those scoped options, which <c>BuildServiceProvider(validateScopes: true)</c> refuses.
-    /// </para>
-    /// </summary>
+    /// <summary>A second way to create an <see cref="AppDbContext"/>, for
+    /// <see cref="IdempotencyStore"/> and the orphan sweep's checkpoint: their own change tracker,
+    /// connection and commit. The factory takes no options action of its own, and that is
+    /// load-bearing: an action here would replace the
+    /// <see cref="DatabaseOptions.MaxPoolSize"/>-bounded connection string with the raw one, and the
+    /// factory's contexts would use a second pool; with none, they get the same options as the scoped
+    /// context. <c>Scoped</c> is load-bearing too — the default <c>Singleton</c> would depend on
+    /// scoped options, which <c>BuildServiceProvider(validateScopes: true)</c> refuses.</summary>
     private static void AddContextFactory(IServiceCollection services)
     {
         services.AddDbContextFactory<AppDbContext>(lifetime: ServiceLifetime.Scoped);

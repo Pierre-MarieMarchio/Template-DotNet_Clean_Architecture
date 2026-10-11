@@ -6,32 +6,22 @@ using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Queries;
 
-/// <summary>
-/// The whitelist's other half: everywhere <see cref="TodoListCollectionPolicy"/> names a field, this
-/// is where that name becomes an actual column. No user string ever reaches an expression — every
-/// method switches on <see cref="SortTerm.Field"/>, and the <c>default</c> arm of every switch
-/// throws rather than silently ordering or filtering by nothing. The use case that builds
-/// <see cref="TodoListCollectionPolicy"/>'s whitelist is supposed to have already rejected anything
-/// not on the list, so reaching a <c>default</c> arm here is this template's own bug, not the
-/// caller's, and it must stay loud.
-/// </summary>
+/// <summary>The whitelist's other half: everywhere <see cref="TodoListCollectionPolicy"/> names a
+/// field, this is where the name becomes a column. No user string reaches an expression — every
+/// method switches on <see cref="SortTerm.Field"/> and every <c>default</c> arm throws: the use case
+/// should have rejected anything off the list, so a <c>default</c> arm is this template's own bug and
+/// must stay loud.</summary>
 internal static class TodoListSortMap
 {
-    /// <summary>
-    /// Folds every term into <c>ORDER BY</c>, then always appends <c>Id</c>. That tiebreaker is not
-    /// optional: without a unique last key, two rows with equal sort keys can swap between pages, so
-    /// one is served twice and another never.
-    /// </summary>
-    /// <remarks>
-    /// The tiebreaker runs in the <em>same direction as the last term</em>, and that is load-bearing
-    /// rather than cosmetic. <see cref="ApplyKeyset"/> resumes with
-    /// <c>key = k AND Id &lt; id</c> when the term is descending, so a tiebreaker fixed ascending
-    /// would order the tied rows one way and walk them the other — and every row tied on the sort key
-    /// past the cursor would be skipped, silently, which is precisely the defect the tiebreaker
-    /// exists to prevent. It also keeps the composite index usable: PostgreSQL can scan
-    /// <c>(OwnerId, CreatedAt, Id)</c> backwards for <c>CreatedAt DESC, Id DESC</c>, but a mixed
-    /// <c>CreatedAt DESC, Id ASC</c> would need an index declared with those directions.
-    /// </remarks>
+    /// <summary>Folds every term into <c>ORDER BY</c>, then always appends <c>Id</c>: without a
+    /// unique last key, two rows with equal sort keys can swap between pages — one served twice,
+    /// another never.</summary>
+    /// <remarks>The tiebreaker runs in the <em>same direction as the last term</em>, and that is
+    /// load-bearing: <see cref="ApplyKeyset"/> resumes with <c>key = k AND Id &lt; id</c> when the
+    /// term is descending, so a fixed-ascending tiebreaker would order the tied rows one way and walk
+    /// them the other, silently skipping every tied row past the cursor. It also keeps the composite
+    /// index usable — PostgreSQL scans <c>(OwnerId, CreatedAt, Id)</c> backwards for
+    /// <c>CreatedAt DESC, Id DESC</c>, but a mixed direction would need its own index.</remarks>
     public static IOrderedQueryable<TodoListRecord> ApplyOrder(IQueryable<TodoListRecord> source, SortOrder sort)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -50,12 +40,9 @@ internal static class TodoListSortMap
             : ordered!.ThenByDescending(record => record.Id);
     }
 
-    /// <summary>
-    /// The keyset row comparison: <c>key &gt; k || (key == k &amp;&amp; Id &gt; id)</c> ascending, the
-    /// mirror descending. <c>CompareTo</c> rather than <c>&lt;</c>/<c>&gt;</c> because it is what
-    /// translates to the plain relational operators on both <c>text</c> and <c>uuid</c> in
-    /// PostgreSQL.
-    /// </summary>
+    /// <summary>The keyset row comparison: <c>key &gt; k || (key == k &amp;&amp; Id &gt; id)</c>
+    /// ascending, the mirror descending. <c>CompareTo</c> because it is what translates to the plain
+    /// relational operators on both <c>text</c> and <c>uuid</c> in PostgreSQL.</summary>
     public static IQueryable<TodoListRecord> ApplyKeyset(IQueryable<TodoListRecord> source, SortTerm term, Cursor cursor)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -73,14 +60,11 @@ internal static class TodoListSortMap
     }
 
     /// <summary>The value the next cursor carries, in the same wire form <see cref="Cursor.Key"/> expects, read from the last row actually served.</summary>
-    /// <remarks>
-    /// It reads the projected summary rather than a <see cref="TodoListRecord"/> on purpose. The
-    /// keyset page never materialises an entity, so a record here could only be one assembled by
-    /// hand from the projection — and a field made keyset-sortable later would then read a default
-    /// off that half-filled object and mint a cursor pointing at the wrong row, silently. Reading
-    /// the DTO makes the same mistake a compile error: a new keyset field has to appear on the
-    /// summary before this switch can name it.
-    /// </remarks>
+    /// <remarks>Reads the projected summary rather than a <see cref="TodoListRecord"/> on purpose:
+    /// the keyset page never materialises an entity, so a record here would be assembled by hand,
+    /// and a field made keyset-sortable later would read a default off that half-filled object and
+    /// mint a cursor pointing at the wrong row, silently. Reading the DTO makes the same mistake a
+    /// compile error.</remarks>
     public static string KeyOf(TodoListSummaryDto summary, string field)
     {
         ArgumentNullException.ThrowIfNull(summary);

@@ -7,27 +7,16 @@ using Microsoft.AspNetCore.Identity;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Services;
 
-/// <summary>
-/// <see cref="IPasskeyService"/> over ASP.NET Core Identity's own passkey support: the ceremony
-/// arithmetic in <see cref="IPasskeyHandler{TUser}"/>, the credential rows in the user store
-/// through <see cref="UserManager{TUser}"/>.
-/// <para>
-/// The handler is used directly rather than through <c>SignInManager</c>'s passkey methods: those
-/// park the ceremony state in a cookie, and this API keeps no cookie state — the state string this
-/// adapter returns to the caller is the same bytes the cookie would have held, and it is verified
-/// against the credential the caller posts back, exactly as it would have been.
-/// </para>
-/// <para>
-/// <b>Transaction, concurrency, resumption.</b> Each store write commits on its own, as every
-/// Identity-backed write here does: a registered credential is durable before the response
-/// leaves, a removed one before the 204 does, and — the ordering that matters — a sign-in's new
-/// signature counter is durable before the use case mints any token, so the replay window closes
-/// first. Concurrent registrations of the same credential are settled by the ceremony itself: it
-/// refuses a credential id any account already holds, so of two racing attempts the second is
-/// told the ceremony did not verify. Concurrent removals of the same credential both read it, one
-/// removes, and the second is told <c>false</c> — the same answer an unknown id gets.
-/// </para>
-/// </summary>
+/// <summary><see cref="IPasskeyService"/> over ASP.NET Core Identity's own passkey support: the
+/// ceremony arithmetic in <see cref="IPasskeyHandler{TUser}"/>, the credential rows in the user
+/// store through <see cref="UserManager{TUser}"/>. The handler is used directly rather than through
+/// <c>SignInManager</c>'s passkey methods — those park the ceremony state in a cookie, and this API
+/// keeps none: the state string returned to the caller is the same bytes the cookie would have held.
+/// Each store write commits on its own: a sign-in's new signature counter is durable before the use
+/// case mints any token, so the replay window closes first. Concurrent registrations of the same
+/// credential are settled by the ceremony — the second of two racing attempts is told it did not
+/// verify — and concurrent removals both read it, one removes, the second is told <c>false</c>, the
+/// same answer an unknown id gets.</summary>
 internal sealed class PasskeyService(
     UserManager<AppUser> userManager,
     IPasskeyHandler<AppUser> passkeyHandler,

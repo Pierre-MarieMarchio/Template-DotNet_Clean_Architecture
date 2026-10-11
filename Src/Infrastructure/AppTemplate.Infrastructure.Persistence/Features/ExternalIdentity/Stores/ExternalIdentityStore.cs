@@ -6,22 +6,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Stores;
 
-/// <summary>
-/// The adapter for <see cref="IExternalIdentityStore"/>. Every call opens a context of its own from
-/// the factory and, for a write, commits it before returning.
-/// <para>
-/// <b>Why not the request's context.</b> The mapping is written while the request is being
-/// authenticated. On the shared context a refused insert would stay tracked as <c>Added</c>, and the
-/// operation's own <c>SaveChangesAsync</c> would try it again; and the operation failing would roll
-/// back a mapping that is true regardless.
-/// </para>
-/// <para>
-/// <b>Transaction and retry.</b> Each write is one statement under the context's retrying execution
-/// strategy, with no explicit transaction to replay. An insert that committed but whose
-/// acknowledgement was lost is retried, meets the unique index, and is answered from the row it
-/// had in fact written.
-/// </para>
-/// </summary>
+/// <summary>The adapter for <see cref="IExternalIdentityStore"/>: every call opens a context of its
+/// own from the factory and, for a write, commits it before returning — not the request's context,
+/// since the mapping is written while the request is being authenticated, and on the shared context a
+/// refused insert would stay tracked as <c>Added</c> for the operation's own
+/// <c>SaveChangesAsync</c> to retry, and an operation failure would roll back a mapping that is true
+/// regardless. Each write is one statement under the retrying execution strategy; an insert that
+/// committed but whose acknowledgement was lost is retried, meets the unique index, and is answered
+/// from the row it had in fact written.</summary>
 internal sealed class ExternalIdentityStore(IDbContextFactory<AppDbContext> contextFactory) : IExternalIdentityStore
 {
     public async Task<ExternalIdentityLink?> FindAsync(

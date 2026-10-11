@@ -5,24 +5,13 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 
-/// <summary>
-/// Resolves consumers straight from the container. No mediator library: the whole mechanism
-/// is a dictionary lookup and a loop, and a dependency whose job is to hide that costs more
-/// in indirection than it saves in code.
-/// <para>
-/// Internal, together with its interface: dispatch happens as part of committing a
-/// transaction and this assembly owns that moment. A feature or a host supplies consumers, never
-/// the dispatcher.
-/// </para>
-/// <para>
-/// <b>Isolation, not durability.</b> Each consumer of an event runs in its own <c>try</c>/<c>catch</c>,
-/// so one consumer's exception cannot stop a sibling consumer of the <em>same</em> event from running.
-/// That is the entire guarantee: the throwing consumer's own side effect is still lost, there is no
-/// retry, and there is no outbox — deliberately, since the operational half of one (a dispatcher, a
-/// dead-letter queue, an alert on lag) has no default a template can ship;
-/// this is the narrower, deliberately incomplete half of that decision.
-/// </para>
-/// </summary>
+/// <summary>Resolves consumers straight from the container — no mediator library: the mechanism is
+/// a dictionary lookup and a loop, and a dependency hiding that costs more in indirection than it
+/// saves in code. Internal, with its interface: dispatch happens as part of committing and this
+/// assembly owns that moment. <b>Isolation, not durability:</b> each consumer runs in its own
+/// <c>try</c>/<c>catch</c>, so one exception cannot stop a sibling consumer of the same event — the
+/// entire guarantee. The throwing consumer's side effect is still lost; no retry, no outbox,
+/// deliberately (docs/DECISIONS.md).</summary>
 public sealed class DomainEventDispatcher(
     IServiceProvider serviceProvider,
     ILogger<DomainEventDispatcher> logger) : IDomainEventDispatcher

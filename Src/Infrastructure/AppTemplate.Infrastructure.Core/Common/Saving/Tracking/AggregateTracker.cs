@@ -6,28 +6,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 
-/// <summary>
-/// The identity map, the drain and the restore path shared by every feature's aggregate tracker — the
-/// part that, once two features' trackers are placed side by side, turns out
-/// to depend on nothing but <typeparamref name="TAggregate"/>'s id, its version and its audit stamps.
-/// <para>
-/// <b>What stays out, on purpose.</b> <see cref="FlushTo"/> is declared here and implemented nowhere:
-/// mapping an aggregate onto its tracked row is exactly where the features diverge — one has child
-/// rows to reconcile and a root to touch when only a child changed, the other does not — and folding
-/// that divergence into one shared method behind a flag would hide the one part of a tracker that is
-/// worth reading feature by feature.
-/// </para>
-/// </summary>
-/// <typeparam name="TAggregate">
-/// The aggregate root, constrained to exactly what a tracker gets to do to it irrespective of the
-/// feature: read its id from <see cref="AggregateRoot{TId}"/>, and write back the version and the audit
-/// stamps the store decided.
-/// </typeparam>
-/// <typeparam name="TRecord">
-/// The row it is stored in, constrained to the audit stamps every row carries. Its version has no shared
-/// interface to hang a constraint on — the concurrency token lives on the record as a plain property,
-/// not behind an abstraction — so <paramref name="version"/> supplies the one line that reads it.
-/// </typeparam>
+/// <summary>The identity map, the drain and the restore path shared by every feature's aggregate
+/// tracker — the part that depends on nothing but <typeparamref name="TAggregate"/>'s id, its version
+/// and its audit stamps. <b><see cref="FlushTo"/> is declared here and implemented nowhere:</b>
+/// mapping an aggregate onto its tracked row is where the features diverge — one has child rows to
+/// reconcile and a root to touch when only a child changed, the other does not — and folding that
+/// into one shared method behind a flag would hide the one part of a tracker worth reading feature
+/// by feature.</summary>
+/// <typeparam name="TAggregate">The aggregate root, constrained to what a tracker gets to do to it:
+/// read its id, write back the version and audit stamps the store decided.</typeparam>
+/// <typeparam name="TRecord">The row it is stored in. Its version has no shared interface to hang a
+/// constraint on, so <paramref name="version"/> supplies the one line that reads it.</typeparam>
 public abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint> version)
     : IAggregateFlusher, IDomainEventSource
     where TAggregate : AggregateRoot<Guid>, IVersioned, IAuditable
@@ -83,11 +72,9 @@ public abstract class AggregateTracker<TAggregate, TRecord>(Func<TRecord, uint> 
         _tracked[aggregate.Id] = new TrackedAggregate(aggregate, record) { IsRemoved = true };
     }
 
-    /// <summary>
-    /// Whether <paramref name="context"/> is tracking one of this tracker's rows. That is what makes it
-    /// the context these aggregates are staged on: the repositories put each row in the request's
-    /// context, and no other context, nor another instance of the same one, ever sees it.
-    /// </summary>
+    /// <summary>Whether <paramref name="context"/> is tracking one of this tracker's rows — what
+    /// makes it the context these aggregates are staged on: the repositories put each row in the
+    /// request's context, and no other context ever sees it.</summary>
     /// <param name="context">The context being saved.</param>
     /// <returns><see langword="true"/> when that context holds at least one of the rows.</returns>
     public bool IsStagedOn(DbContext context)

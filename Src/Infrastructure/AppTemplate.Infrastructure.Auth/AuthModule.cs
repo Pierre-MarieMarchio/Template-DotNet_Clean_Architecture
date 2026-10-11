@@ -42,21 +42,15 @@ using Npgsql;
 
 namespace AppTemplate.Infrastructure.Auth;
 
-/// <summary>
-/// Composes the authentication module: who a caller is, how that is proved, how long the proof
-/// lasts, and the tables that record it. Its one reason to change is authentication policy.
-/// <b>It owns its store:</b> the account, role and grant tables, the data-protection key ring and
-/// the <see cref="AuthDbContext"/> that maps them are this project's, with their own migrations
-/// history in their own schema; beside that sits everything that talks to ASP.NET Identity —
-/// password and lockout policy, bearer validation, access-token signing, refresh-token rotation.
-/// It names no other module: the unit of work and the clock come from
-/// <c>AppTemplate.Infrastructure.Core</c>, which the business half composes the same way, and its
-/// context attaches no save interceptor — none of its rows is <c>IAuditable</c> and it has no
-/// aggregate to flush. It sends no mail (<see cref="AccountEmailFactory"/> renders, the host
-/// delivers through <see cref="IEmailSender"/>) and makes no authentication decision: the sequencing —
-/// what a refusal means, when a token is minted, whether a delivery failure fails the request —
-/// belongs to the use cases in <c>AppTemplate.Application.Auth</c>.
-/// </summary>
+/// <summary>Composes the authentication module: who a caller is, how that is proved, how long the
+/// proof lasts, and the tables that record it. <b>It owns its store:</b> the account, role and grant
+/// tables, the key ring and the <see cref="AuthDbContext"/> that maps them, with their own migrations
+/// history in their own schema; beside that sits everything that talks to ASP.NET Identity. It names
+/// no other module — the unit of work and the clock come from
+/// <c>AppTemplate.Infrastructure.Core</c> — and its context attaches no save interceptor. It sends no
+/// mail (<see cref="AccountEmailFactory"/> renders, the host delivers through
+/// <see cref="IEmailSender"/>) and makes no authentication decision: the sequencing belongs to the
+/// use cases in <c>AppTemplate.Application.Auth</c>.</summary>
 public static class AuthModule
 {
     /// <summary>
@@ -66,14 +60,10 @@ public static class AuthModule
     /// </summary>
     internal const string DataProtectionApplicationName = "AppTemplate";
 
-    /// <summary>
-    /// Registers ASP.NET Identity itself, bearer validation, and an adapter for each authentication
-    /// port the application layer declares. Every configuration section is bound to an options type
-    /// with safe defaults and a validator that runs at start-up, so the process refuses to boot on a
-    /// missing signing key or a password policy weaker than the hard floor. Idempotent, like
-    /// <c>AddPersistenceModule</c>: without the guard it would compose ASP.NET Identity twice and
-    /// leave a duplicate of every adapter.
-    /// </summary>
+    /// <summary>Registers ASP.NET Identity itself, bearer validation, and an adapter for each
+    /// authentication port. Every configuration section is bound to an options type with a
+    /// start-up validator, so the process refuses to boot on a missing signing key or a too-weak
+    /// password policy. Idempotent, like <c>AddPersistenceModule</c>.</summary>
     /// <param name="services">The container being composed.</param>
     /// <param name="configuration">Must supply the <c>Default</c> connection string, which this module
     /// forwards to the persistence module rather than opening a connection of its own.</param>
@@ -150,12 +140,9 @@ public static class AuthModule
         services.TryAddSingleton<IValidateOptions<IdentitySeedOptions>, IdentitySeedOptionsValidator>();
     }
 
-    /// <summary>
-    /// Binds the pooling and command-timeout policy this context shares with every other one. Both
-    /// halves bind the same section into the same type on purpose: Npgsql pools per connection
-    /// string, so two contexts deriving the bound separately would give a deployment two pools of
-    /// that size instead of one.
-    /// </summary>
+    /// <summary>Binds the pooling and command-timeout policy this context shares with every other
+    /// one: Npgsql pools per connection string, so two contexts deriving the bound separately would
+    /// give a deployment two pools of that size instead of one.</summary>
     private static void AddDatabaseOptions(IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<DatabaseOptions>()
@@ -184,12 +171,10 @@ public static class AuthModule
         });
     }
 
-    /// <summary>
-    /// Applies the pool bound to the connection string rather than appending it as text, so a value
-    /// a deployment already set in <c>ConnectionStrings:Default</c> is overridden consistently
-    /// instead of appearing twice. The business half applies the same value the same way, which is
-    /// what makes the two contexts share one pool.
-    /// </summary>
+    /// <summary>Applies the pool bound to the connection string rather than appending it as text,
+    /// so a value already set in <c>ConnectionStrings:Default</c> is overridden consistently; the
+    /// business half applies the same value the same way, which is what makes the two contexts share
+    /// one pool.</summary>
     private static string WithMaxPoolSize(string connectionString, int maxPoolSize) =>
         new NpgsqlConnectionStringBuilder(connectionString) { MaxPoolSize = maxPoolSize }.ConnectionString;
 
@@ -254,23 +239,13 @@ public static class AuthModule
 
     }
 
-    /// <summary>
-    /// The one place this module reaches out over HTTP, and the whole reason it is a typed client.
-    /// <para>
-    /// <c>AddHttpClient</c> is what puts <see cref="SigningKeyDirectory"/> inside the outbound budget
-    /// each host installs on <c>IHttpClientFactory</c>'s defaults (<c>Common/Outbound/</c>): timeouts,
-    /// retry on the safe verbs only, a circuit breaker and a concurrency bound, none of which this
-    /// module names. The alternative shapes all escape it —
-    /// <c>ConfigurationManager&lt;OpenIdConnectConfiguration&gt;</c> and
+    /// <summary>The one place this module reaches out over HTTP, and the whole reason it is a typed
+    /// client: <c>AddHttpClient</c> puts <see cref="SigningKeyDirectory"/> inside the outbound budget
+    /// each host installs on <c>IHttpClientFactory</c>'s defaults. The alternative shapes all escape
+    /// it — <c>ConfigurationManager&lt;OpenIdConnectConfiguration&gt;</c> and
     /// <c>JwtBearerOptions.Backchannel</c> both build an <c>HttpClient</c> of their own unless handed
-    /// one, and neither would have been caught by <c>NoType_ConstructsItsOwnHttpClient</c>.
-    /// </para>
-    /// <para>
-    /// The cache is separate and a singleton because the client is transient by design: the factory
-    /// hands each instance a pooled handler so sockets and DNS rotate, and a cache living on it would
-    /// be a cache that never hit.
-    /// </para>
-    /// </summary>
+    /// one. The cache is separate and a singleton because the client is transient: a cache living on
+    /// it would be a cache that never hit.</summary>
     private static void AddExternalIdentityKeys(IServiceCollection services)
     {
         services.AddSingleton<CachedSigningKeys>();
@@ -340,14 +315,11 @@ public static class AuthModule
                 (identityPasskeys, passkeys) => identityPasskeys.ServerDomain = passkeys.Value.ServerDomain);
     }
 
-    /// <summary>
-    /// Points the data-protection key ring at the shared database instead of the process's local,
-    /// ephemeral one. <c>AddDefaultTokenProviders</c> mints email-confirmation and password-reset
-    /// tokens through <c>DataProtectorTokenProvider</c>, which without this call keys itself from
-    /// whatever the machine or container offers — nothing in a container that is rebuilt on every
-    /// deploy, and nothing shared between replicas. Either way, a token issued by one process is
-    /// rejected by another, and every redeploy invalidates every link already sent.
-    /// </summary>
+    /// <summary>Points the data-protection key ring at the shared database instead of the process's
+    /// local, ephemeral one: <c>AddDefaultTokenProviders</c> mints its tokens through
+    /// <c>DataProtectorTokenProvider</c>, which without this keys itself from whatever the container
+    /// offers — nothing shared between replicas, so a token issued by one process would be rejected by
+    /// another and every redeploy invalidates every link already sent.</summary>
     private static void AddDataProtection(IServiceCollection services)
     {
         services.AddDataProtection()

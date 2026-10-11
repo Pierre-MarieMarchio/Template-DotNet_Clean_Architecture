@@ -32,12 +32,10 @@ public sealed class FilesStorageS3Options
     /// </summary>
     public string Endpoint { get; set; } = string.Empty;
 
-    /// <summary>
-    /// The endpoint <b>signed URLs are minted for</b>, empty to sign for <see cref="Endpoint"/>.
-    /// A Signature Version 4 URL covers its host, so it must be signed for the name the client will
-    /// use: set this whenever the store has an internal and an external name (MinIO on a Docker
-    /// network). Its scheme decides the scheme of every signed URL this module mints.
-    /// </summary>
+    /// <summary>The endpoint <b>signed URLs are minted for</b>, empty to sign for
+    /// <see cref="Endpoint"/>. A Signature Version 4 URL covers its host, so it must be signed for
+    /// the name the client will use — set this whenever the store has an internal and an external
+    /// name (MinIO on a Docker network). Its scheme decides the scheme of every signed URL minted.</summary>
     public string PublicEndpoint { get; set; } = string.Empty;
 
     /// <summary>
@@ -58,12 +56,10 @@ public sealed class FilesStorageS3Options
 
     public string SecretAccessKey { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Allows a plain-HTTP <see cref="SigningEndpoint"/> on a non-loopback host, for containerised
-    /// development stores such as MinIO. It governs only the endpoint URLs are minted for: a signed URL
-    /// is a reusable bearer right that would travel in clear to the client, whereas the server-to-store
-    /// <see cref="Endpoint"/> carries per-request signatures only.
-    /// </summary>
+    /// <summary>Allows a plain-HTTP <see cref="SigningEndpoint"/> on a non-loopback host, for
+    /// containerised development stores such as MinIO. It governs only the endpoint URLs are minted
+    /// for: a signed URL is a reusable bearer right that would travel in clear to the client, whereas
+    /// the server-to-store <see cref="Endpoint"/> carries per-request signatures only.</summary>
     public bool AllowInsecureTransport { get; set; }
 
     /// <summary>

@@ -12,31 +12,15 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Logs;
 
-/// <summary>
-/// Keeps every <see cref="ISecurityEventLog"/> event twice: as a structured log entry, and as a row
-/// of the <c>identity.SecurityEvents</c> table the account holder and an administrator can read back.
-/// <para>
-/// <b>The log entry.</b> The host's <c>AddJsonConsole</c> already emits scopes and named parameters
-/// as JSON fields, so nothing here formats a message for a human — <see cref="LoggerMessage"/>
-/// delegates carry the user id as its own field rather than interpolated into text. It is written
-/// first, so an event the table misses is still in the log.
-/// </para>
-/// <para>
-/// <b>The row, and what is guaranteed about it.</b> It is written in its own short transaction, on a
-/// context of its own, at the moment the event is recorded — which is after the action it describes
-/// has done its work, since every caller records the decision it already took. It is deliberately not
-/// part of the action's transaction: several events have none (a refused sign-in changes nothing), a
-/// shared context would flush whatever the caller still had pending, and a row joined to the action
-/// would vanish with a rollback that is itself worth recording. If the write fails, the failure is
-/// logged at <c>Error</c> with the event's kind and user id, and the action's outcome is left exactly
-/// as it was: availability over completeness. A sign-in does not fail because its audit row could not
-/// be stored, and the trail can therefore have gaps the log does not.
-/// </para>
-/// <para>
-/// The write is synchronous because <see cref="ISecurityEventLog.Record"/> is: one small insert, on
-/// a pooled connection, after the response is decided.
-/// </para>
-/// </summary>
+/// <summary>Keeps every <see cref="ISecurityEventLog"/> event twice: as a structured log entry —
+/// written first, with the user id as its own JSON field, not interpolated into text — and as a row
+/// of the <c>identity.SecurityEvents</c> table. The row is written in its own short transaction,
+/// deliberately not part of the action's: several events have none, a shared context would flush
+/// the caller's pending changes, and a row joined to the action would vanish with a rollback that is
+/// itself worth recording. If the write fails, the failure is logged at <c>Error</c> and the action's
+/// outcome is left as it was — availability over completeness, so the trail can have gaps the log
+/// does not. Synchronous, like <see cref="ISecurityEventLog.Record"/>: one small insert on a pooled
+/// connection, after the response is decided.</summary>
 internal sealed partial class SecurityEventLog(
     ILogger<SecurityEventLog> logger,
     DbContextOptions<AuthDbContext> contextOptions,
@@ -229,12 +213,10 @@ internal sealed partial class SecurityEventLog(
     [LoggerMessage(Level = LogLevel.Information, Message = "Login succeeded for user {UserId}.")]
     private static partial void LogLoginSucceeded(ILogger logger, Guid? userId);
 
-    /// <summary>
-    /// The field is <c>{Status}</c> because what it carries is a <see cref="CredentialCheckStatus"/>.
-    /// In this repository's vocabulary (docs/CONVENTIONS.md, Naming) an <c>…Outcome</c> is the record an
-    /// operation hands back and a <c>…Status</c> is the closed enum of ways it went, so the old
-    /// <c>{Outcome}</c> named the wrong one of the two in the JSON an operator queries.
-    /// </summary>
+    /// <summary>The field is <c>{Status}</c> because what it carries is a
+    /// <see cref="CredentialCheckStatus"/> — in this repository's vocabulary an <c>…Outcome</c> is
+    /// the record an operation hands back and a <c>…Status</c> the closed enum of ways it went, so
+    /// <c>{Outcome}</c> named the wrong one in the JSON an operator queries.</summary>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Authentication failed for user {UserId} with status {Status}.")]

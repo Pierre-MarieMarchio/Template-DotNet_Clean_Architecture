@@ -10,29 +10,15 @@ using MimeKit;
 
 namespace AppTemplate.Infrastructure.Email.Common.Http;
 
-/// <summary>
-/// The <see cref="IEmailSender"/> port over Postmark's HTTP API. The transport a deployment picks
-/// when outbound SMTP is blocked, which is most of them.
-/// <para>
-/// <b>A typed client, deliberately.</b> The hosts install the one outbound budget on
-/// <c>IHttpClientFactory</c>'s defaults from <c>Common/Outbound/</c>, and a client registered with
-/// <c>AddHttpClient</c> inherits all of it — attempt timeout, total timeout, circuit breaker,
-/// concurrency bound — without naming any of it. That is why no timeout appears in this file, and
-/// why constructing a client by hand is forbidden under <c>Src/</c>: it would meet the factory
-/// nowhere and inherit none of that. <c>NoType_ConstructsItsOwnHttpClient</c> reads this repository's
-/// own text for the construction, so it cannot tell a mention from a call — which is why this
-/// sentence describes the ban rather than quoting it.
-/// </para>
-/// <para>
-/// <b>Nothing here retries, and that is the point.</b> The default policy replays only the safe
-/// verbs, so this <c>POST</c> is attempted exactly once. Postmark's send endpoint takes no
-/// idempotency key, so a replay after a timeout is a second delivery the recipient can see — two
-/// confirmation links, two reminders — and the template already has a decision for a delivery that
-/// did not happen: <c>RegisterUseCase</c> commits the account and reports
-/// <c>confirmationEmailSent: false</c>, with the resend endpoint as the recovery path. A failure
-/// therefore travels as an exception and stops here.
-/// </para>
-/// </summary>
+/// <summary>The <see cref="IEmailSender"/> port over Postmark's HTTP API — the transport a
+/// deployment picks when outbound SMTP is blocked. <b>A typed client, deliberately:</b> it inherits
+/// the one outbound budget the hosts install on <c>IHttpClientFactory</c>'s defaults, which is why no
+/// timeout appears here and why constructing a client by hand is forbidden under <c>Src/</c>.
+/// <b>Nothing here retries:</b> the default policy replays only the safe verbs, and Postmark's send
+/// endpoint takes no idempotency key, so a replay after a timeout is a second delivery the recipient
+/// can see. A delivery that did not happen has its own recovery path — <c>RegisterUseCase</c> reports
+/// <c>confirmationEmailSent: false</c>, with the resend endpoint — so a failure travels as an
+/// exception and stops here.</summary>
 internal sealed class PostmarkEmailSender(
     HttpClient httpClient,
     IOptions<PostmarkOptions> postmark,
@@ -104,12 +90,9 @@ internal sealed class PostmarkEmailSender(
         throw await RefusalAsync(response, cancellationToken);
     }
 
-    /// <summary>
-    /// Turns the provider's answer into something an operator can act on, carrying the status and
-    /// Postmark's own error code — <c>300</c> is a malformed request, <c>406</c> an inactive
-    /// recipient, <c>10</c> a bad token — and carrying neither the credential nor the message body.
-    /// The first is what an exception message must never hold; the second is the user's mail.
-    /// </summary>
+    /// <summary>Turns the provider's answer into something an operator can act on: the status and
+    /// Postmark's own error code, carrying neither the credential (what an exception message must
+    /// never hold) nor the message body (the user's mail).</summary>
     private async Task<Exception> RefusalAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)

@@ -6,25 +6,15 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Common.Localization;
 
-/// <summary>
-/// Reads the caller's language off the request and makes it the ambient one, so that a mail this
-/// request causes is written in the language the caller reads rather than the one the server was
-/// deployed in.
-/// </summary>
-/// <remarks>
-/// <para>
-/// Deliberately not <c>UseRequestLocalization</c>, for two reasons. It negotiates against a list of
-/// supported cultures, and this template has no such list to give it — what is supported is which
-/// templates the infrastructure modules embed, and handing it a second list is how the two drift.
-/// And it works in <c>CultureInfo</c>, which this repository builds without: see
-/// <see cref="CurrentLanguage"/> and <c>InvariantGlobalization</c> in <c>Directory.Build.props</c>.
-/// </para>
-/// <para>
-/// The header is believed rather than validated against anything but its own shape: a tag naming a
-/// language nothing was written in falls back on its own, inside the renderer that knows which
-/// languages exist.
-/// </para>
-/// </remarks>
+/// <summary>Reads the caller's language off the request and makes it the ambient one, so a mail
+/// this request causes is written in the language the caller reads rather than the one the server
+/// was deployed in.</summary>
+/// <remarks>Deliberately not <c>UseRequestLocalization</c>: it negotiates against a list of
+/// supported cultures this template does not have (what is supported is which templates the
+/// infrastructure modules embed), and it works in <c>CultureInfo</c>, which this repository builds
+/// without — see <see cref="CurrentLanguage"/> and <c>InvariantGlobalization</c>. The header is
+/// believed rather than validated: a tag naming a language nothing was written in falls back inside
+/// the renderer that knows which languages exist.</remarks>
 internal static class RequestLanguageExtensions
 {
     /// <summary>

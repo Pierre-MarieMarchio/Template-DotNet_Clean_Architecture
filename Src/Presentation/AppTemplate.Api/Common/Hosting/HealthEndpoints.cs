@@ -40,21 +40,15 @@ public static class HealthEndpoints
             .AddCheck<ShutdownHealthCheck>(name: "shutdown", tags: [ReadyTag]);
     }
 
-    /// <summary>
-    /// Maps both probes. Call it beside <c>MapControllers</c>: this is endpoint mapping, not
-    /// middleware, so it deliberately sits outside the pipeline call.
-    /// </summary>
+    /// <summary>Maps both probes. Call it beside <c>MapControllers</c>: this is endpoint mapping,
+    /// not middleware, so it deliberately sits outside the pipeline call.</summary>
     /// <param name="app">The application whose endpoints are being mapped.</param>
     /// <returns>The same application, for chaining.</returns>
-    /// <remarks>
-    /// Off the rate limiter, both of them: without this an orchestrator's probe shares the budget of
-    /// real traffic, and behind a mesh sidecar or a host-network ingress the probe and inbound
-    /// traffic can even share one source address and partition. A traffic spike then answers the
-    /// probe 429 too, which the orchestrator reads as "unhealthy" on readiness and as "kill it" on
-    /// liveness — right as the instance is already struggling, cascading the load onto whatever
-    /// replicas survive. Anonymous for the same kind of reason: the fallback policy demands an
-    /// authenticated user, and a probe holds no token.
-    /// </remarks>
+    /// <remarks>Off the rate limiter, both of them: without this an orchestrator's probe shares the
+    /// budget of real traffic — and behind a mesh sidecar can even share one partition — so a spike
+    /// answers the probe 429 too, which the orchestrator reads as "unhealthy" on readiness and "kill
+    /// it" on liveness, right as the instance is already struggling. Anonymous for the same kind of
+    /// reason: a probe holds no token.</remarks>
     public static WebApplication MapApiHealthEndpoints(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);

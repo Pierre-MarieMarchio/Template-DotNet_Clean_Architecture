@@ -1,20 +1,12 @@
 ﻿namespace AppTemplate.Api.Common.Caching;
 
 /// <summary>States whether a response may be stored at all, so every action carries an explicit caching contract instead of leaving one implied.</summary>
-/// <remarks>
-/// Caching here is revalidation, not storage: <c>private</c> confines storage to
-/// the end client, never a shared cache, because every read here is scoped to the caller's own rows.
-/// <c>no-cache</c> still permits that client to store the response, but requires it to revalidate with
-/// the origin before reuse — which is precisely what the strong <c>ETag</c> / <c>If-None-Match</c> /
-/// <c>304</c> flow this API already publishes exists to make cheap. Neither directive is a promise that
-/// every cache in existence behaves; a cache that ignores <c>private</c> was already untrustworthy with
-/// or without this header.
-/// <para>
-/// An action carrying <see cref="NoStoreAttribute"/> gets <c>no-store</c> instead, on any method —
-/// a token response is not a read, so it never reached the default below, and RFC 6749 §5.1 requires
-/// that directive regardless.
-/// </para>
-/// </remarks>
+/// <remarks>Caching here is revalidation, not storage: <c>private</c> confines storage to the end
+/// client, never a shared cache, because every read is scoped to the caller's own rows.
+/// <c>no-cache</c> still lets the client store the response but requires revalidation before reuse —
+/// what the strong <c>ETag</c> / <c>If-None-Match</c> / <c>304</c> flow exists to make cheap. An
+/// action carrying <see cref="NoStoreAttribute"/> gets <c>no-store</c> instead, on any method; RFC
+/// 6749 §5.1 requires it for token responses regardless.</remarks>
 internal static class CacheHeaderExtensions
 {
     private const string _readDefault = "private, no-cache";

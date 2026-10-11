@@ -22,18 +22,13 @@ namespace AppTemplate.Api.Features.Notes.Controllers;
 public sealed class NotesController(INoteService notes) : ApiControllerBase
 {
     /// <summary>Lists the caller's own notes, sorted and paginated.</summary>
-    /// <remarks>
-    /// Two paging modes: <c>offset</c> (the default), addressed by <c>page</c>/<c>pageSize</c> and
-    /// answering a <c>totalCount</c>; and <c>cursor</c>, addressed by an opaque <c>cursor</c> token
-    /// minted by the previous page's <c>nextCursor</c>, which never counts the whole match set.
-    /// <c>sort</c> is a comma-separated list of whitelisted fields (<c>title</c>, <c>createdAt</c>),
-    /// each optionally suffixed <c>:asc</c>/<c>:desc</c>; cursor mode allows at most one. A page
-    /// carries titles only, not bodies.
-    /// <para>
-    /// No <c>ETag</c>: a page of summaries is not one note, so there is no single version that
-    /// describes it and no write that <c>If-Match</c> could guard.
-    /// </para>
-    /// </remarks>
+    /// <remarks>Two paging modes: <c>offset</c> (the default), addressed by
+    /// <c>page</c>/<c>pageSize</c> and answering a <c>totalCount</c>; and <c>cursor</c>, addressed
+    /// by an opaque token minted by the previous page's <c>nextCursor</c>, which never counts the
+    /// whole match set. <c>sort</c> is a comma-separated list of whitelisted fields (<c>title</c>,
+    /// <c>createdAt</c>), each optionally suffixed <c>:asc</c>/<c>:desc</c>; cursor mode allows at
+    /// most one. A page carries titles only, not bodies. No <c>ETag</c>: a page of summaries is not
+    /// one note, so no write could be guarded by <c>If-Match</c>.</remarks>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<NoteSummaryResponse>))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -60,15 +55,11 @@ public sealed class NotesController(INoteService notes) : ApiControllerBase
     }
 
     /// <summary>Creates a note owned by the caller.</summary>
-    /// <remarks>
-    /// No <c>If-Match</c>: the resource does not exist yet, so there is no version to name.
-    /// <para>
-    /// Idempotent: send an <c>Idempotency-Key</c> header to make a retried request safe. Repeating
-    /// the same key with the same body returns the first response again, carrying
-    /// <c>Idempotency-Replayed: true</c>, instead of creating a second note; repeating it with a
-    /// different body is refused with <c>idempotency.keyReused</c>.
-    /// </para>
-    /// </remarks>
+    /// <remarks>No <c>If-Match</c>: the resource does not exist yet. Idempotent: send an
+    /// <c>Idempotency-Key</c> header to make a retried request safe — repeating the same key with
+    /// the same body returns the first response again, carrying <c>Idempotency-Replayed: true</c>,
+    /// instead of creating a second note; repeating it with a different body is refused with
+    /// <c>idempotency.keyReused</c>.</remarks>
     [HttpPost]
     [Idempotent]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(NoteResponse))]

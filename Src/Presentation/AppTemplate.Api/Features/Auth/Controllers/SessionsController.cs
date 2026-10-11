@@ -60,17 +60,12 @@ public sealed class SessionsController(
         return OkOrProblem(AuthResponseMapping.ToLoginResponse(await login.ExecuteAsync(command, cancellationToken)));
     }
 
-    /// <summary>
-    /// The second step of a two-step login: exchanges a challenge token from
-    /// <see cref="Login"/>'s <c>twoFactorRequired</c> response, plus a code, for a token pair. The
-    /// code is either the authenticator app's current six digits or one of the recovery codes issued
-    /// at enrollment.
-    /// </summary>
-    /// <remarks>
-    /// Answers with the same <see cref="LoginResponse"/> shape as <see cref="Login"/> — always the
-    /// <c>authenticated</c> branch here, since a second <c>twoFactorRequired</c> is not a thing this
-    /// step can produce — so a client that already parses one parses the other for free.
-    /// </remarks>
+    /// <summary>The second step of a two-step login: exchanges a challenge token from
+    /// <see cref="Login"/>'s <c>twoFactorRequired</c> response, plus a code, for a token pair — the
+    /// authenticator app's current six digits or one of the enrollment's recovery codes.</summary>
+    /// <remarks>Answers with the same <see cref="LoginResponse"/> shape as <see cref="Login"/> —
+    /// always the <c>authenticated</c> branch, since a second <c>twoFactorRequired</c> is not a thing
+    /// this step can produce.</remarks>
     [HttpPost("login/two-factor")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -90,25 +85,19 @@ public sealed class SessionsController(
             AuthResponseMapping.ToLoginResponse(await verifyTwoFactor.ExecuteAsync(command, cancellationToken)));
     }
 
-    /// <summary>
-    /// Exchanges an <c>id_token</c> the client obtained from an identity provider for this API's own
-    /// token pair, creating or linking a local account on the way.
-    /// </summary>
-    /// <remarks>
-    /// This API issues no redirect and sets no cookie: the client runs the provider's
-    /// authorisation-code-with-PKCE flow itself and posts only its result here, so every client kind
-    /// takes the same two calls. Answers with <see cref="ExternalLoginResponse"/> —
-    /// <see cref="LoginResponse"/>'s shape plus one field, including the <c>twoFactorRequired</c>
-    /// branch redeemed at <see cref="LoginWithTwoFactor"/>: a provider proves who the caller is,
-    /// which is what a password proves and no more, so serving a token pair here for an account
-    /// with a second factor armed would make linking a provider the way to walk around it. One 401
-    /// for every refusal — a token that did not verify, a provider nobody configured, an address
-    /// held by an unconfirmed account, an account that may no longer sign in: anyone can obtain an
-    /// <c>id_token</c> for an address they control, so a distinct answer for any of these turns
-    /// this into a probe for which addresses are registered here. The provider is a field of the
-    /// body rather than a route segment for the same reason, which
-    /// <see cref="SignInWithExternalProviderRequest"/> sets out.
-    /// </remarks>
+    /// <summary>Exchanges an <c>id_token</c> the client obtained from an identity provider for this
+    /// API's own token pair, creating or linking a local account on the way. This API issues no
+    /// redirect and sets no cookie: the client runs the provider's
+    /// authorisation-code-with-PKCE flow itself and posts only the result.</summary>
+    /// <remarks>Answers with <see cref="ExternalLoginResponse"/> — <see cref="LoginResponse"/>'s
+    /// shape plus one field, including the <c>twoFactorRequired</c> branch redeemed at
+    /// <see cref="LoginWithTwoFactor"/>: a provider proves who the caller is, which is what a
+    /// password proves and no more, so serving a token pair for an account with a second factor armed
+    /// would make linking a provider the way to walk around it. One 401 for every refusal: anyone can
+    /// obtain an <c>id_token</c> for an address they control, so a distinct answer for any of them
+    /// turns this into a probe for which addresses are registered here; the provider is a body field
+    /// rather than a route segment for the same reason
+    /// (<see cref="SignInWithExternalProviderRequest"/>).</remarks>
     [HttpPost("login/external")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -181,15 +170,11 @@ public sealed class SessionsController(
     public async Task<ActionResult> LogoutEverywhere(CancellationToken cancellationToken) =>
         NoContentOrProblem(await logoutEverywhere.ExecuteAsync(cancellationToken));
 
-    /// <summary>
-    /// The caller's live sessions, most recently used first, the one this request is made from
-    /// marked so a client can show "this device" and offer to end the others.
-    /// </summary>
-    /// <remarks>
-    /// Takes no input and carries no credential, so it falls to the global limiter like
-    /// <see cref="LogoutEverywhere"/> — a client that refreshes this list on every app start must
-    /// not be spending the allowance that slows brute force down.
-    /// </remarks>
+    /// <summary>The caller's live sessions, most recently used first, the one this request is made
+    /// from marked so a client can show "this device" and offer to end the others.</summary>
+    /// <remarks>Takes no input and carries no credential, so it falls to the global limiter like
+    /// <see cref="LogoutEverywhere"/> — a client refreshing this list on every app start must not
+    /// spend the allowance that slows brute force down.</remarks>
     [HttpGet("sessions")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(SessionsResponse))]
@@ -197,16 +182,11 @@ public sealed class SessionsController(
     public async Task<ActionResult<SessionsResponse>> ListSessions(CancellationToken cancellationToken) =>
         OkOrProblem(AuthResponseMapping.ToSessionsResponse(await listSessions.ExecuteAsync(cancellationToken)));
 
-    /// <summary>
-    /// Ends one of the caller's sessions by the id the session list names. A session that belongs to
-    /// somebody else answers 404, exactly as an unknown id does, so the route cannot be used to
-    /// learn which session ids exist. Ending a session already ended succeeds again.
-    /// </summary>
-    /// <remarks>
-    /// May name the session the request is made from, which signs that client out. Stopping a
-    /// session's refresh token does not claw back an access token already issued in it: like a
-    /// sign-out, it works from the next refresh on.
-    /// </remarks>
+    /// <summary>Ends one of the caller's sessions by the id the session list names. A session that
+    /// belongs to somebody else answers 404, exactly as an unknown id does, so the route cannot be
+    /// used to learn which session ids exist; ending a session already ended succeeds again.</summary>
+    /// <remarks>Stopping a session's refresh token does not claw back an access token already issued
+    /// in it: like a sign-out, it works from the next refresh on.</remarks>
     [HttpDelete("sessions/{sessionId:guid}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

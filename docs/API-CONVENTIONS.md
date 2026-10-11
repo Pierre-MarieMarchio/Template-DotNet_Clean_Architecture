@@ -137,6 +137,15 @@ server's own limit and on the multipart body. Beyond it the answer is `413` `req
 like any other oversized body. Any other content type on an endpoint is `415`
 `request.unsupportedMediaType`.
 
+**A feature that chooses `PATCH` writes a JSON Merge Patch** (RFC 7396), which is the recommended
+default: a merge patch is applied onto the stored representation, and the merged result is what
+the feature validates and writes — so an invariant is still checked against a whole resource and
+never against a body whose meaning depends on which keys the client happened to send. The merge
+goes through the resource's domain methods and invariants like any other write, never a blind
+property copy; `null` removes a member, and a member the patch omits is unchanged. Another patch
+format has to state its own absent-and-unchanged rule before it can be validated, which is why
+none is recommended.
+
 ## Conditional requests — `ETag` and `If-Match`
 
 **This is a property of versioned resources, not of every resource.** A resource is versioned

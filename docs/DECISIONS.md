@@ -1,4 +1,4 @@
-# Decisions already made, and the shape they impose
+﻿# Decisions already made, and the shape they impose
 
 These are the choices a reasonable person could have made differently. They are written here, and
 where a test can hold one it does — a rule nothing verifies is re-derived and lost inside six
@@ -100,6 +100,15 @@ name. `FlushTo` stayed abstract, and the two repositories were never touched.
 **Authorisation is default-deny.** The fallback policy requires an authenticated user, so a new
 endpoint is closed until someone opens it. `[AllowAnonymous]` is the visible exception and it is
 whitelisted by name in `DefaultDenyTests`; adding one is a line in that test.
+
+**A public API refuses `[Authorize]` at start-up, not 500 at request time.** A project generated
+with `--auth none` authenticates nobody, so a controller action left carrying `[Authorize]` has no
+scheme to challenge with: it fails closed, but as an unexplained 500 on every request. Every other
+invalid setting in this template fails at start-up, so the public variant now does the same — after
+the controller mapping it walks the action descriptors and refuses to boot, naming the actions,
+unless an authentication scheme has come back. `[AllowAnonymous]` still overrides, exactly as it does
+at request time. No test in this repository holds it: the check lives only in the generated
+`--auth none` variant, which this template's own suite never builds.
 
 **Four words name the four ways this template reaches storage, and each one is checked.**
 `Repository` loads an aggregate, so its contract lives in `AppTemplate.Domain` beside the aggregate.

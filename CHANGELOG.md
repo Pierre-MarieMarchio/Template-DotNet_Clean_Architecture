@@ -747,6 +747,12 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   registration or the appsettings row; its unit tests assert the global limit alone. A project with
   local accounts sees no change.
 
+- **A public API (`--auth none`) refuses an `[Authorize]` action at start-up.** No authentication
+  scheme exists in that variant, so the attribute previously surfaced as an unexplained 500 on
+  every request. The host now walks the controller actions after mapping them and refuses to boot,
+  naming the offenders; `[AllowAnonymous]` still overrides, and bringing a scheme back clears the
+  refusal.
+
 - **CI generates and verifies every supported option combination.** The template acceptance job is
   a five-leg matrix (the defaults, `--auth none` with its forced options, `--auth external` with `notes`
   and with `all`, and `--auth local` without Files, workflows or Sonar). Each leg checks that the

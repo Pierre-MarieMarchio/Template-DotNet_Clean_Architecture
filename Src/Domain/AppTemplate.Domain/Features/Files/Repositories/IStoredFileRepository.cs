@@ -3,12 +3,10 @@ using AppTemplate.Domain.Features.Files.Entities;
 
 namespace AppTemplate.Domain.Features.Files.Repositories;
 
-/// <summary>
-/// Aggregate access for <see cref="StoredFile"/>: one method per thing a use case needs, in domain
-/// types only. Listing files and the set of live object keys are projections, not aggregates, and
-/// belong to <c>Queries</c> (see <c>docs/DECISIONS.md</c> on the four storage words). Nothing here
-/// writes: <c>Add</c> and <c>Remove</c> stage, and <c>IUnitOfWork</c> commits.
-/// </summary>
+/// <summary>Aggregate access for <see cref="StoredFile"/>: one method per thing a use case needs,
+/// in domain types only. Listing files and the set of live object keys are projections, not
+/// aggregates, and belong to <c>Queries</c> (see <c>docs/DECISIONS.md</c> on the four storage
+/// words). Nothing here writes: <c>Add</c> and <c>Remove</c> stage, <c>IUnitOfWork</c> commits.</summary>
 public interface IStoredFileRepository
 {
     /// <returns>The file, or <c>null</c> when no file has that id.</returns>
@@ -24,12 +22,10 @@ public interface IStoredFileRepository
         int batchSize,
         CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Deposited files due for inspection at <paramref name="asOf"/>, ordered by when they became
-    /// due (<see cref="StoredFile.NextInspectionAt"/>, else <see cref="StoredFile.RegisteredAt"/>,
-    /// then id), capped at <paramref name="batchSize"/>; a deferred file queues behind those that
-    /// waited longer.
-    /// </summary>
+    /// <summary>Deposited files due for inspection at <paramref name="asOf"/>, ordered by when
+    /// they became due (<see cref="StoredFile.NextInspectionAt"/>, else
+    /// <see cref="StoredFile.RegisteredAt"/>, then id), capped at <paramref name="batchSize"/>;
+    /// a deferred file queues behind those that waited longer.</summary>
     Task<IReadOnlyList<StoredFile>> GetDepositedAsync(
         DateTimeOffset asOf,
         int batchSize,

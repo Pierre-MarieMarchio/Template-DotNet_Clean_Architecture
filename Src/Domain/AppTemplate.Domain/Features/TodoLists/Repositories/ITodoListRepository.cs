@@ -10,11 +10,8 @@ namespace AppTemplate.Domain.Features.TodoLists.Repositories;
 /// </summary>
 public interface ITodoListRepository
 {
-    /// <summary>
-    /// Must load the list, its items and their tags. Eager-loading the whole aggregate is a
-    /// correctness requirement, not an optimisation: the invariants can only be checked against
-    /// all the items.
-    /// </summary>
+    /// <summary>Must load the list, its items and their tags — a correctness requirement, not an
+    /// optimisation, since the invariants can only be checked against all the items.</summary>
     /// <returns>The aggregate, or <c>null</c> when no list has that id.</returns>
     Task<TodoList?> GetAsync(Guid id, CancellationToken cancellationToken);
 

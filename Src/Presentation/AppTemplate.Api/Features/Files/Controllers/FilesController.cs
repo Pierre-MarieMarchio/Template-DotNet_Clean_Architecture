@@ -131,18 +131,13 @@ public sealed class FilesController(
     }
 
     /// <summary>Reserves a place for a file and hands back the right to deposit its bytes.</summary>
-    /// <remarks>
-    /// Idempotent: registering is unaddressed creation, so a retry would otherwise mint a second file,
-    /// key and grant. Send <c>Idempotency-Key</c>; a retry gets the first response back under
-    /// <c>Idempotency-Replayed: true</c>. The filter buffers only <see cref="RegisterFileRequest"/>,
-    /// never the file's bytes. <c>[NoStore]</c>: the signed write URL is a credential.
-    /// <para>
-    /// 400 for an undeclared category, a media type it does not allow or a size above its maximum. 409
-    /// for a store or category without direct upload (<c>storedFile.directUploadUnavailable</c>), the
-    /// quota (<c>storedFile.quotaExceeded</c>) and a value only the domain can refuse (reserved device
-    /// name, wildcard media type, non-hexadecimal checksum).
-    /// </para>
-    /// </remarks>
+    /// <remarks>Idempotent: registering is unaddressed creation, so a retry would otherwise mint a
+    /// second file, key and grant — send <c>Idempotency-Key</c> and a retry gets the first response
+    /// back under <c>Idempotency-Replayed: true</c>. The filter buffers only
+    /// <see cref="RegisterFileRequest"/>, never the bytes. <c>[NoStore]</c>: the signed write URL is a
+    /// credential. 400 for an undeclared category, a media type it does not allow or a size above its
+    /// maximum; 409 for no direct upload (<c>storedFile.directUploadUnavailable</c>), the quota
+    /// (<c>storedFile.quotaExceeded</c>) and a value only the domain can refuse.</remarks>
     [HttpPost]
     [Idempotent]
     [NoStore]
@@ -175,20 +170,15 @@ public sealed class FilesController(
     }
 
     /// <summary>Uploads a file through the API: registers it, stores its bytes and confirms the deposit.</summary>
-    /// <remarks>
-    /// <c>multipart/form-data</c> with <c>category</c>, exactly one <c>file</c> part whose
-    /// <c>Content-Type</c> is the declared media type, and an optional <c>name</c> (default: the part's
-    /// file name). The body is limited to <c>Files:ApiUploadMaxBytes</c> plus 16 KiB of framing, else
-    /// 413. The file comes back <c>deposited</c>. Not <c>[Idempotent]</c> (the filter would buffer the
-    /// file): a retry uploads a second file. <c>[NoStore]</c>: a <c>POST</c> has no default
-    /// <c>Cache-Control</c>.
-    /// <para>
-    /// 400 for a missing or second file part, an unknown category, a media type it does not allow or a
-    /// file above its maximum or the API ceiling. 409 for a category without API uploads
+    /// <remarks><c>multipart/form-data</c> with <c>category</c>, exactly one <c>file</c> part whose
+    /// <c>Content-Type</c> is the declared media type, and an optional <c>name</c> (default: the
+    /// part's file name). The body is limited to <c>Files:ApiUploadMaxBytes</c> plus 16 KiB of
+    /// framing, else 413; the file comes back <c>deposited</c>. Not <c>[Idempotent]</c> (the filter
+    /// would buffer the file): a retry uploads a second file. 400 for a missing or second file part,
+    /// an unknown category, a media type it does not allow or a file above its maximum or the API
+    /// ceiling; 409 for a category without API uploads
     /// (<c>storedFile.apiUploadUnavailable</c>), the quota (<c>storedFile.quotaExceeded</c>,
-    /// <c>storedFile.quotaBusy</c>) and a value the domain refuses.
-    /// </para>
-    /// </remarks>
+    /// <c>storedFile.quotaBusy</c>) and a value the domain refuses.</remarks>
     [HttpPost("uploads")]
     [ApiUploadBodyLimit]
     [NoStore]
@@ -222,16 +212,11 @@ public sealed class FilesController(
     }
 
     /// <summary>Confirms that the bytes have been deposited, moving the file to <c>deposited</c>.</summary>
-    /// <remarks>
-    /// A named operation with no body: the store is asked what it holds and the aggregate refuses unless
-    /// it matches the declaration. Not <c>[Idempotent]</c>: the route names the file and the transition
-    /// is one-way, so a retry meets a non-pending file and gets 409.
-    /// <para>
-    /// Conditional: <c>If-Match: *</c> asks whether the registration still exists, since the abandonment
-    /// sweep removes undeposited ones; a client resuming a long upload gets 412 rather than a 404 it
-    /// might read as a wrong id.
-    /// </para>
-    /// </remarks>
+    /// <remarks>A named operation with no body: the store is asked what it holds and the aggregate
+    /// refuses unless it matches the declaration. Not <c>[Idempotent]</c>: the transition is one-way,
+    /// so a retry meets a non-pending file and gets 409. Conditional: <c>If-Match: *</c> asks whether
+    /// the registration still exists, since the abandonment sweep removes undeposited ones — a client
+    /// resuming a long upload gets 412 rather than a 404 it might read as a wrong id.</remarks>
     [HttpPost("{fileId:guid}/confirm")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(StoredFileResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]

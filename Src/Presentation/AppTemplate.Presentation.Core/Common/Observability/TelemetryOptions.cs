@@ -3,14 +3,10 @@ using OpenTelemetry.Exporter;
 
 namespace AppTemplate.Presentation.Core.Common.Observability;
 
-/// <summary>
-/// Where traces and metrics go, if anywhere. One class for every host, binding one section, so a
-/// sampling ratio set for a deployment means the same thing in each of its processes.
-/// <para>
-/// Public because it is bound from configuration and its section name is part of the template's
-/// contract with whoever deploys it.
-/// </para>
-/// </summary>
+/// <summary>Where traces and metrics go, if anywhere. One class for every host, binding one
+/// section, so a sampling ratio set for a deployment means the same thing in each of its
+/// processes. Public because it is bound from configuration and its section name is part of the
+/// template's contract with whoever deploys it.</summary>
 public sealed class TelemetryOptions
 {
     /// <summary>The configuration section this binds, and part of the deployment contract.</summary>
@@ -35,25 +31,17 @@ public sealed class TelemetryOptions
     /// </summary>
     public OtlpExportProtocol OtlpProtocol { get; set; } = OtlpExportProtocol.Grpc;
 
-    /// <summary>
-    /// Overrides the <c>service.name</c> resource attribute, which otherwise comes from the host
-    /// assembly the caller names. Set it when several deployments of this template share one
-    /// collector.
-    /// <para>
-    /// It cannot default to the assembly this class lives in: every host would then announce itself
-    /// under the same name, and two processes reporting as one is worse than either reporting
-    /// nothing. Which is why the registration takes the host's own assembly rather than reading its
-    /// own.
-    /// </para>
-    /// </summary>
+    /// <summary>Overrides the <c>service.name</c> resource attribute, which otherwise comes from
+    /// the host assembly the caller names; set it when several deployments share one collector. It
+    /// cannot default to the assembly this class lives in — every host would announce itself under
+    /// the same name, and two processes reporting as one is worse than either reporting
+    /// nothing.</summary>
     public string? ServiceName { get; set; }
 
-    /// <summary>
-    /// Fraction of traces kept, applied at the root span so a whole trace is kept or dropped
-    /// together. <c>1.0</c> (the default) keeps every trace — right for a first deployment, wrong
-    /// once ingestion is sustained enough that a trace and an Npgsql span per command are exported
-    /// for every single request. Lower once volume, not curiosity, calls for it.
-    /// </summary>
+    /// <summary>Fraction of traces kept, applied at the root span so a whole trace is kept or
+    /// dropped together. <c>1.0</c> (the default) keeps every trace — right for a first deployment,
+    /// wrong once ingestion is sustained enough that a trace and an Npgsql span per command are
+    /// exported for every request. Lower once volume, not curiosity, calls for it.</summary>
     public double TracesSamplingRatio { get; set; } = 1.0;
 }
 

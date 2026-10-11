@@ -3,21 +3,13 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Presentation.Core.Common.Localization;
 
-/// <summary>
-/// The language this deployment writes to a reader who has not said which one they read.
-/// <para>
-/// There is deliberately <b>no list of supported languages here</b>. What a mail can be written in
-/// is what templates the infrastructure modules embed, and a list in configuration would be a
-/// second statement of that — free to name a language no template backs, or to omit one that ships.
-/// A request asking for a language nothing was written in falls back on its own.
-/// </para>
-/// <para>
-/// Public because it is bound from configuration and its section name is part of the template's
-/// contract with whoever deploys it. One class for every host, binding one section: two of them
-/// could disagree about what an unattributed mail reads like, and a deployment that wrote a
-/// password reset and a reminder in different languages would be right to call that a bug.
-/// </para>
-/// </summary>
+/// <summary>The language this deployment writes to a reader who has not said which one they read.
+/// Deliberately <b>no list of supported languages here</b>: what a mail can be written in is what
+/// templates the infrastructure modules embed, and a list in configuration would be a second
+/// statement of that — free to name a language no template backs, or omit one that ships; a request
+/// asking for a language nothing was written in falls back on its own. Public because it is bound
+/// from configuration; one class for every host, so two processes cannot disagree about what an
+/// unattributed mail reads like.</summary>
 public sealed class LocalizationOptions
 {
     /// <summary>The configuration section this binds, and part of the deployment contract.</summary>

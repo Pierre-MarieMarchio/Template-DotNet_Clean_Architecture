@@ -338,31 +338,36 @@ Bound only when `Email:Transport` is `Postmark`.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `Window` | timespan | `00:01:00` | Length of the fixed window both limits count over. Must be 1 second – 1 day. |
+| `Window` | timespan | `00:01:00` | Length of the fixed window the limits count over. Must be 1 second – 1 day. |
+<!--#if (localAuth)-->
 | `AuthenticationPermitLimit` | int | `10` | Requests per window and client address on the authentication controller (policy `authentication`). Must be at least 1. |
+<!--#endif-->
 | `GlobalPermitLimit` | int | `300` | Requests per window and client address on every request. Must be at least 1. |
 
 Read by `Src/Presentation/AppTemplate.Api/Common/Security/RateLimitingExtensions.cs`. A refused
 request answers `429` with `Retry-After` and a `ProblemDetails` body with
 `code: "rateLimit.exceeded"`.
 
-**Both rate limits are per instance, so the limit a caller actually meets is multiplied by your
+**The rate limits are per instance, so the limit a caller actually meets is multiplied by your
 replica count.** The limiter keeps its counters in the memory of one process; nothing is shared
-between replicas. With the shipped defaults behind a load balancer spreading traffic evenly:
+between replicas.
+<!--#if (localAuth)-->
+With the shipped defaults behind a load balancer spreading traffic evenly:
 
 ```
 effective limit for one client address = AuthenticationPermitLimit (or GlobalPermitLimit) x number of API replicas
 ```
 
-Four replicas therefore admit 40 authentication attempts per minute per address, not 10. Size the
-numbers against the replica count you actually run, and re-check them when you scale. This is a
+Four replicas therefore admit 40 authentication attempts per minute per address, not 10.
+<!--#endif-->
+Size the numbers against the replica count you actually run, and re-check them when you scale. This is a
 deliberate trade rather than a gap: a shared counter means a shared store on the path of every
 request, which buys exactness at the price of a new dependency the limiter must then survive the
 loss of. Where a bound must hold across replicas — a tenant that may not spend another's budget —
 the answer is a second deployment of the same image with its own ingress rules, not a distributed
 counter.
 
-Both limits also partition on the **client address**, including for authenticated callers, so
+The limits also partition on the **client address**, including for authenticated callers, so
 callers sharing an address share a budget. `Src/Presentation/AppTemplate.Api/Common/Security/RateLimiterPartitionKeys.cs`
 explains why partitioning the global limiter by user identity is not available at the point the key
 is computed, and why moving authentication earlier to make it available would cost more than it

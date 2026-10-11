@@ -8,20 +8,14 @@ using Microsoft.IdentityModel.Tokens;
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Verifiers;
 
 /// <summary>
-/// <see cref="IExternalIdentityVerifier"/> over OpenID Connect, for every provider at once.
-/// <para>
-/// <b>One adapter, not one per provider.</b> Google, Microsoft and Apple all mint an OpenID Connect
-/// <c>id_token</c>, and checking one is the same four checks in all three cases: the signature
-/// against the provider's published keys, the issuer, the audience, and the validity window. What
-/// differs between them is a set of strings — an issuer, a client identifier, a key-set address —
-/// so three classes would be three copies of this one with three different constants, and adding a
-/// fourth provider would be a class rather than a configuration section.
-/// </para>
-/// <para>
-/// The one provider-shaped difference that is real lives at the bottom of this file, and it is a
-/// difference in a <em>value's type</em> rather than in behaviour: Apple sends
-/// <c>email_verified</c> as the string <c>"true"</c> where Google sends the JSON boolean.
-/// </para>
+/// <see cref="IExternalIdentityVerifier"/> over OpenID Connect, for every provider at once. One
+/// adapter, not one per provider: Google, Microsoft and Apple all mint an OIDC <c>id_token</c>,
+/// and checking one is the same four checks in all three cases (signature against the provider's
+/// published keys, issuer, audience, validity window); what differs is a set of strings, so three
+/// classes would be three copies with three constants, and a fourth provider would be a class
+/// rather than a configuration section. The one real provider-shaped difference lives at the
+/// bottom of this file: Apple sends <c>email_verified</c> as the string <c>"true"</c> where Google
+/// sends the JSON boolean.
 /// </summary>
 internal sealed class ExternalIdentityVerifier(
     IOptions<ExternalIdentityOptions> options,
@@ -36,8 +30,8 @@ internal sealed class ExternalIdentityVerifier(
     /// <summary>
     /// Pinned, so a token cannot dictate how it is checked. The two asymmetric algorithms every
     /// OpenID Connect provider in practice signs with; leaving this open is how a token signed with
-    /// <c>HS256</c> — using the provider's <em>public</em> key as the shared secret, which is
-    /// published — gets accepted as authentic.
+    /// <c>HS256</c> — using the provider's <em>public</em> key as the shared secret — gets accepted
+    /// as authentic.
     /// </summary>
     private static readonly string[] _permittedAlgorithms =
     [
@@ -46,11 +40,9 @@ internal sealed class ExternalIdentityVerifier(
     ];
 
     /// <summary>
-    /// Small, not zero, and for a stronger reason than the one on
-    /// <c>ConfigureJwtBearerOptions</c>: these timestamps are stamped by somebody else's clock
-    /// entirely, on a host this deployment has no relationship with. Far below the framework's
-    /// five-minute default, which keeps a token usable well past the moment its issuer said it
-    /// stopped being.
+    /// Small, not zero: these timestamps are stamped by somebody else's clock, on a host this
+    /// deployment has no relationship with — and still far below the framework's five-minute
+    /// default, which keeps a token usable well past the moment its issuer said it stopped being.
     /// </summary>
     private static readonly TimeSpan _clockSkew = TimeSpan.FromSeconds(30);
 

@@ -5,30 +5,17 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 
 /// <summary>
 /// Runs every feature's <see cref="IAggregateFlusher"/> immediately before EF computes its diff, and
-/// reads the store's own values back immediately after a successful save.
-/// <para>
-/// <b>Only the flushers staged on the context being saved.</b> A request can save another context,
-/// or a second instance of this one, in a transaction of its own; mapping an aggregate onto that
-/// context would at best write nothing and at worst throw for a row its model does not have.
-/// </para>
-/// <para>
-/// <b>This must be the first interceptor added.</b> Audit stamping only sees an entry that is already
-/// <c>Added</c> or <c>Modified</c>, and event collection only sees aggregates whose state has been
-/// settled; both depend on the flush having happened. Interceptors run in the order they are added,
-/// so the order in <c>PersistenceModule</c> is load-bearing rather than cosmetic.
-/// </para>
-/// <para>
-/// <c>DetectChanges</c> is called explicitly after flushing. EF calls it too, but the ordering
-/// relative to save-changes interception is an implementation detail of the provider, and a mapping
-/// that landed after the last detection would simply not be written. Calling it here is idempotent
-/// and makes the guarantee independent of that detail.
-/// </para>
-/// <para>
-/// It exists as an interceptor rather than as a step inside the unit of work so that a stray
-/// <c>context.SaveChanges()</c> — from a test, from a future caller who forgets — still flushes. A
-/// flush that only happened on the blessed path would be a silent data-loss bug the first time
-/// somebody left it.
-/// </para>
+/// reads the store's own values back immediately after a successful save. <b>Only the flushers
+/// staged on the context being saved:</b> mapping an aggregate onto another context would at best
+/// write nothing and at worst throw for a row its model does not have. <b>This must be the first
+/// interceptor added:</b> audit stamping only sees an entry that is already <c>Added</c> or
+/// <c>Modified</c>, and event collection only sees aggregates whose state has been settled;
+/// interceptors run in the order they are added, so the order in <c>PersistenceModule</c> is
+/// load-bearing. <c>DetectChanges</c> is called explicitly after flushing, because its ordering
+/// relative to save-changes interception is a provider implementation detail and a mapping that
+/// landed after the last detection would simply not be written. It exists as an interceptor rather
+/// than a step inside the unit of work so that a stray <c>context.SaveChanges()</c> still flushes —
+/// a flush that only happened on the blessed path would be a silent data-loss bug.
 /// </summary>
 public sealed class AggregateFlushSaveChangesInterceptor(IEnumerable<IAggregateFlusher> flushers)
     : SaveChangesInterceptor

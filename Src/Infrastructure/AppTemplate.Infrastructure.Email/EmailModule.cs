@@ -15,18 +15,12 @@ namespace AppTemplate.Infrastructure.Email;
 
 /// <summary>
 /// Composes outbound email: the module's own options, and exactly one of the two transports behind
-/// <see cref="IEmailSender"/>.
-/// <para>
-/// This module has exactly one reason to change — how mail leaves the process. It is separate
-/// from the identity module, so a change of SMTP library never touches the assembly that also
-/// owns password policy and token signing.
-/// </para>
-/// <para>
-/// Only the chosen transport's options are bound, so a deployment sending over HTTP owes no relay
-/// settings and one sending over SMTP owes no API credential. Each half is validated with
-/// <c>ValidateOnStart</c>, which is what makes a misconfigured transport stop the process rather
-/// than surface on the first registration attempt.
-/// </para>
+/// <see cref="IEmailSender"/>. One reason to change — how mail leaves the process; it is separate
+/// from the identity module, so a change of SMTP library never touches the assembly that also owns
+/// password policy and token signing. Only the chosen transport's options are bound, so a
+/// deployment sending over HTTP owes no relay settings and one sending over SMTP owes no API
+/// credential; each half is validated with <c>ValidateOnStart</c>, which is what makes a
+/// misconfigured transport stop the process rather than surface on the first registration attempt.
 /// </summary>
 public static class EmailModule
 {
@@ -98,20 +92,13 @@ public static class EmailModule
     /// <c>AddHttpClient</c> is what puts <see cref="PostmarkEmailSender"/> inside the outbound budget
     /// each host installs on <c>IHttpClientFactory</c>'s defaults (<c>Common/Outbound/</c>): timeouts,
     /// a circuit breaker, a concurrency bound, and retry on the safe verbs only — which a send is
-    /// not, deliberately.
-    /// <para>
-    /// The client is named after the adapter rather than after <see cref="IEmailSender"/>, which is
-    /// what the two-type-argument overload would have used: the name is what appears in the
-    /// <c>System.Net.Http.HttpClient.*</c> log categories and in the resilience metrics, and an
-    /// interface name there says which port failed but not which transport.
-    /// </para>
-    /// <para>
-    /// There is deliberately no <c>RedactLoggedHeaders</c> call. The factory's logging handler
-    /// redacts <em>every</em> header value it writes unless it is handed a list, and that call
-    /// replaces the default rather than adding to it — so naming the server token here would be the
-    /// one thing that stops the other headers from being redacted, while changing nothing about the
-    /// token. The default is already the strict one.
-    /// </para>
+    /// not, deliberately. The client is named after the adapter rather than after
+    /// <see cref="IEmailSender"/>: the name appears in the <c>System.Net.Http.HttpClient.*</c> log
+    /// categories and the resilience metrics, where an interface name says which port failed but
+    /// not which transport. There is deliberately no <c>RedactLoggedHeaders</c> call: the factory's
+    /// logging handler redacts <em>every</em> header value it writes unless it is handed a list, and
+    /// that call replaces the default rather than adding to it, so naming the server token here
+    /// would un-redact the other headers while changing nothing about the token.
     /// </summary>
     private static void AddPostmarkTransport(IServiceCollection services, IConfiguration configuration)
     {

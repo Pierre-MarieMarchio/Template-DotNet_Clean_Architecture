@@ -45,54 +45,34 @@ namespace AppTemplate.Infrastructure.Auth;
 /// <summary>
 /// Composes the authentication module: who a caller is, how that is proved, how long the proof
 /// lasts, and the tables that record it. Its one reason to change is authentication policy.
-/// <para>
-/// <b>It owns its store.</b> The account, role and grant tables, the data-protection key ring and
+/// <b>It owns its store:</b> the account, role and grant tables, the data-protection key ring and
 /// the <see cref="AuthDbContext"/> that maps them are this project's, with their own migrations
-/// history in their own schema — which is why it references an EF provider and a design-time
-/// factory. Beside that sits everything that talks to ASP.NET Identity: password and lockout
-/// policy, bearer validation, access-token signing, and refresh-token rotation.
-/// </para>
-/// <para>
-/// It names no other module. What its context commits through — the unit of work — and the clock
-/// come from <c>AppTemplate.Infrastructure.Core</c>, which the business half composes the same way,
-/// so neither module has to know the other exists. Its context attaches no save interceptor: none of
-/// its rows is <c>IAuditable</c>, and it has no aggregate to flush and no domain event to publish.
-/// </para>
-/// <para>
-/// It sends no mail. <see cref="AccountEmailFactory"/> renders the account mails and hands them
-/// back; the use case delivers it through <see cref="IEmailSender"/>, which the host
-/// supplies by composing <c>AppTemplate.Infrastructure.Email</c> or <c>AppTemplate.Infrastructure.InMemory</c>.
-/// </para>
-/// <para>
-/// It makes no authentication decision either. Each registration below satisfies one intent-shaped
-/// port, and the sequencing — what a refusal means, when a token is minted, whether a
-/// delivery failure fails the request — belongs to the use cases in <c>AppTemplate.Application</c>.
-/// </para>
+/// history in their own schema; beside that sits everything that talks to ASP.NET Identity —
+/// password and lockout policy, bearer validation, access-token signing, refresh-token rotation.
+/// It names no other module: the unit of work and the clock come from
+/// <c>AppTemplate.Infrastructure.Core</c>, which the business half composes the same way, and its
+/// context attaches no save interceptor — none of its rows is <c>IAuditable</c> and it has no
+/// aggregate to flush. It sends no mail (<see cref="AccountEmailFactory"/> renders, the host
+/// delivers through <see cref="IEmailSender"/>) and makes no authentication decision: the sequencing —
+/// what a refusal means, when a token is minted, whether a delivery failure fails the request —
+/// belongs to the use cases in <c>AppTemplate.Application.Auth</c>.
 /// </summary>
 public static class AuthModule
 {
     /// <summary>
-    /// The key ring's isolation namespace. Shared between every call to <c>AddDataProtection</c>
-    /// this process makes, so a second one — a test host, say — cannot end up unkeyed by naming a
+    /// The key ring's isolation namespace, shared between every <c>AddDataProtection</c> call this
+    /// process makes, so a second one — a test host, say — cannot end up unkeyed by naming a
     /// different string.
     /// </summary>
     internal const string DataProtectionApplicationName = "AppTemplate";
 
     /// <summary>
     /// Registers ASP.NET Identity itself, bearer validation, and an adapter for each authentication
-    /// port the application layer declares.
-    /// <para>
-    /// Every configuration section is bound to an options type with safe defaults and a
-    /// validator that runs at start-up, so the process refuses to boot on a missing signing
-    /// key or a password policy weaker than the hard floor — rather than failing at the first
-    /// login attempt, or not failing at all.
-    /// </para>
-    /// <para>
-    /// Idempotent, like <c>AddPersistenceModule</c>: a second call adds nothing. Without the guard it
-    /// would compose ASP.NET Identity twice and leave a duplicate of every adapter, so the container
-    /// would resolve one of two equivalent registrations and be a little harder to reason about for
-    /// no reason at all.
-    /// </para>
+    /// port the application layer declares. Every configuration section is bound to an options type
+    /// with safe defaults and a validator that runs at start-up, so the process refuses to boot on a
+    /// missing signing key or a password policy weaker than the hard floor. Idempotent, like
+    /// <c>AddPersistenceModule</c>: without the guard it would compose ASP.NET Identity twice and
+    /// leave a duplicate of every adapter.
     /// </summary>
     /// <param name="services">The container being composed.</param>
     /// <param name="configuration">Must supply the <c>Default</c> connection string, which this module

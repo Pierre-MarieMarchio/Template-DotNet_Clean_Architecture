@@ -253,7 +253,8 @@ internal static class Tasks
 
             case "new-feature":
                 // Two names, not one: the folder is the plural and the type is the singular. The
-                // options follow them untouched: --access is required and NewFeature.cs says so itself.
+                // options follow them untouched: --access, and with it --deletion, are required and
+                // NewFeature.cs says so itself.
                 Step(
                     "dotnet",
                     [
@@ -587,7 +588,7 @@ internal static class Tasks
     private static string Gate(string repoRoot, string fileName) => Path.Combine(repoRoot, "Tools", fileName);
 
     /// <summary>The options <c>NewFeature.cs</c> takes besides the two names and <c>--root</c>.</summary>
-    private static readonly string[] FeatureOptionNames = ["--access", "--operations", "--model", "--concurrency"];
+    private static readonly string[] FeatureOptionNames = ["--access", "--deletion", "--operations", "--model", "--concurrency"];
 
     private static string TaskList() => "  " + string.Join(", ", KnownTasks);
 

@@ -578,9 +578,12 @@ cross-context write:
    feature's own unit of work, and skips a failing owner rather than letting it stop its
    neighbours.
 
-The whole reaction composes only where it has subjects: the ports, the sweep and its registration
-are generated with a feature that owns user data, and nothing of it exists in a template generated
-with none — or with `--auth none`, which refuses such features outright.
+The whole reaction composes only where it has subjects. The generator asks every feature that owns
+user data which fate its rows take (`--deletion delete|anonymise`) and writes its consumer and its
+policy; into a template generated with no feature it also brings the ports, the sweep and the
+account-directory adapter with the first such feature, because the reaction is nobody's private
+piece. Nothing of it exists without a subject — or with `--auth none`, which has no accounts and
+refuses such features outright.
 
 ## Background jobs in the API process
 

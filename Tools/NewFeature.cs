@@ -14,9 +14,9 @@ using System.Text.RegularExpressions;
 /// members a layer's conventions require. Every invariant it satisfies is one an architecture rule
 /// already checks, so the thing it saves is the typing and the thing it cannot save is the thinking.
 /// The option names are the choices a feature actually varies by, and nothing else is a switch:
-/// <c>--access</c> (required, no default), <c>--operations</c>, <c>--model</c> and
-/// <c>--concurrency</c>. <c>docs/ADDING-A-FEATURE.md</c> says what each one means and gives the
-/// command that corresponds to the <c>Notes</c> example.
+/// <c>--access</c> (required, no default), <c>--deletion</c> (required with <c>--access owner</c>),
+/// <c>--operations</c>, <c>--model</c> and <c>--concurrency</c>. <c>docs/ADDING-A-FEATURE.md</c> says
+/// what each one means and gives the command that corresponds to the <c>Notes</c> example.
 /// </para>
 /// <para>
 /// <b>It creates files and edits none.</b> A feature does not compose until its module registrations
@@ -54,6 +54,7 @@ internal static class NewFeature
 
     private const string Usage =
         "Usage: dotnet run Tools/NewFeature.cs <Features> <Feature> --access owner|shared\n"
+        + "           [--deletion delete|anonymise]\n"
         + "           [--operations get,list,create,update,delete]\n"
         + "           [--model record|aggregate]\n"
         + "           [--concurrency none|etag]\n"
@@ -62,6 +63,10 @@ internal static class NewFeature
         + "  <Feature>      the type, PascalCase and singular, e.g. Widget\n"
         + "  --access       required. owner: every operation is scoped to the caller's id.\n"
         + "                 shared: every authenticated caller sees the same records.\n"
+        + "  --deletion     required with --access owner. The fate of the feature's rows when the\n"
+        + "                 account that owns them is deleted: delete removes them, anonymise\n"
+        + "                 rewrites what identifies the owner and keeps the rows.\n"
+        + "                 Refused with --access shared, which owns no user data.\n"
         + "  --operations   default: all five. create needs get.\n"
         + "  --model        default: record, a service over a store, no domain model.\n"
         + "                 aggregate: one use case per operation over a domain aggregate.\n"
@@ -71,7 +76,8 @@ internal static class NewFeature
 
     private static readonly string[] OperationNames = ["get", "list", "create", "update", "delete"];
 
-    private static readonly string[] OptionNames = ["--access", "--operations", "--model", "--concurrency", "--root"];
+    private static readonly string[] OptionNames =
+        ["--access", "--deletion", "--operations", "--model", "--concurrency", "--root"];
 
     /// <summary>Folder names a feature cannot take: each is already a segment of every namespace.</summary>
     private static readonly string[] ReservedNames =
@@ -107,20 +113,27 @@ internal static class NewFeature
         string? Features,
         string? Type,
         string? Access,
+        string? Deletion,
         string? Operations,
         string? Model,
         string? Concurrency,
         string Root);
 
-    /// <summary>A request that passed every check, with the prefix read off the tree.</summary>
+    /// <summary>
+    /// A request that passed every check, with the prefix read off the tree and the account-deleted
+    /// reaction resolved: <c>null</c> when the tree already ships it, otherwise the adapter folder
+    /// (<c>Auth</c> or <c>ExternalIdentity</c>) this feature brings it with.
+    /// </summary>
     private sealed record Spec(
         string Prefix,
         string Features,
         string Type,
         string Access,
+        string Deletion,
         string[] Operations,
         string Model,
-        string Concurrency)
+        string Concurrency,
+        string? Reaction)
     {
         internal bool Has(string operation) => Operations.Contains(operation, StringComparer.Ordinal);
     }
@@ -292,6 +305,7 @@ internal static class NewFeature
             positional.Count > 0 ? positional[0] : null,
             positional.Count > 1 ? positional[1] : null,
             Option("--access"),
+            Option("--deletion"),
             Option("--operations"),
             Option("--model"),
             Option("--concurrency"),
@@ -320,6 +334,29 @@ internal static class NewFeature
         else if (access is not ("owner" or "shared"))
         {
             problems.Add($"--access '{access}' is not a choice. It is owner or shared.");
+        }
+
+        string deletion = request.Deletion ?? string.Empty;
+
+        if (access == "owner")
+        {
+            if (request.Deletion is null)
+            {
+                problems.Add(
+                    "--deletion is required with --access owner and has no default. Say what the feature does "
+                    + "with its rows when the account that owns them is deleted: --deletion delete or "
+                    + "--deletion anonymise.");
+            }
+            else if (deletion is not ("delete" or "anonymise"))
+            {
+                problems.Add($"--deletion '{deletion}' is not a choice. It is delete or anonymise.");
+            }
+        }
+        else if (access == "shared" && request.Deletion is not null)
+        {
+            problems.Add(
+                "--deletion names the fate of user data and --access shared holds none: every authenticated "
+                + "caller reaches the same rows, which no account owns. Leave --deletion out.");
         }
 
         string model = request.Model ?? "record";
@@ -363,7 +400,41 @@ internal static class NewFeature
             return null;
         }
 
-        return new Spec(prefix, features, type, access, operations, model, concurrency);
+        // The account-deleted reaction: shipped whole when a feature already owns user data, so the
+        // only tree without it is one generated with none, where the first owner feature brings it.
+        string? reaction = null;
+
+        if (access == "owner")
+        {
+            string policyPort = System.IO.Path.Combine(
+                root, "Src", "Application", $"{prefix}.Application.Core", "Common", "Ports", "IDeletedAccountDataPolicy.cs");
+
+            if (!File.Exists(policyPort))
+            {
+                string apiFeatures = System.IO.Path.Combine(
+                    root, "Src", "Presentation", $"{prefix}.Api", "Features");
+
+                if (Directory.Exists(System.IO.Path.Combine(apiFeatures, "Auth")))
+                {
+                    reaction = "Auth";
+                }
+                else if (Directory.Exists(System.IO.Path.Combine(apiFeatures, "ExternalIdentity")))
+                {
+                    reaction = "ExternalIdentity";
+                }
+                else
+                {
+                    problems.Add(
+                        "This tree ships none of the account-deleted reaction, and it has neither the local accounts "
+                        + "(Features/Auth) nor an external-identity mapping (Features/ExternalIdentity) to read whether "
+                        + "an id still names an account, so the reaction's precondition has no authority to re-derive "
+                        + "from. Scaffold the feature into a tree this template generated, or write an "
+                        + "IUserAccountDirectory adapter by hand first.");
+                }
+            }
+        }
+
+        return new Spec(prefix, features, type, access, deletion, operations, model, concurrency, reaction);
     }
 
     /// <returns>The chosen operations in their canonical order, or null after reporting why not.</returns>
@@ -589,6 +660,7 @@ internal static class NewFeature
 
         string domain = ProjectOf(spec, "Src/Domain", "Domain");
         string application = ProjectOf(spec, "Src/Application", "Application");
+        string applicationCore = ProjectOf(spec, "Src/Application", "Application.Core");
         string persistence = ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Persistence");
         string api = ProjectOf(spec, "Src/Presentation", "Api");
 
@@ -598,6 +670,28 @@ internal static class NewFeature
         string apiTests = ProjectOf(spec, "Tests/Presentation", "Api.UnitTests");
 
         string feature = "Features/%F%";
+
+        // The account-deleted reaction, only into a tree that ships none of it: a project generated
+        // with no feature gains the two ports, the sweep and the account directory with its first
+        // owner feature, because the fate of user data is not any one feature's private matter.
+        if (spec.Reaction is { } adapter)
+        {
+            Add(applicationCore, "Common/Ports/IDeletedAccountDataPolicy.cs", Templates.DeletedAccountDataPolicy);
+            Add(applicationCore, "Common/Ports/IUserAccountDirectory.cs", Templates.UserAccountDirectory);
+            Add(applicationCore, "Features/Accounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs", Templates.SweepUseCasePort);
+            Add(applicationCore, "Features/Accounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs", Templates.SweepUseCase);
+            Add(api, "Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs", Templates.DeletedAccountSweepJobs);
+            Add(api, "Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs", Templates.DeletedAccountSweepOptions);
+
+            if (adapter == "Auth")
+            {
+                Add(api, "Features/Auth/Directories/AccountUserAccountDirectory.cs", Templates.LocalUserAccountDirectory);
+            }
+            else
+            {
+                Add(api, "Features/ExternalIdentity/Directories/ExternalIdentityUserAccountDirectory.cs", Templates.ExternalUserAccountDirectory);
+            }
+        }
 
         // Domain, aggregate only.
         Add(domain, $"{feature}/Entities/%A%.cs", Templates.Aggregate, "agg");
@@ -613,7 +707,7 @@ internal static class NewFeature
         Add(application, $"{feature}/Policies/%A%InputPolicy.cs", Templates.InputPolicy, "rec");
         Add(application, $"{feature}/Ports/%A%Queries/I%A%Queries.cs", Templates.QueriesPort, "rq");
         Add(application, $"{feature}/Ports/%A%Queries/%A%Filter.cs", Templates.Filter, "list");
-        Add(application, $"{feature}/Ports/%A%Store/I%A%Store.cs", Templates.StorePort, "rec&wq");
+        Add(application, $"{feature}/Ports/%A%Store/I%A%Store.cs", Templates.StorePort, "rec&stage");
         Add(application, $"{feature}/Ports/%A%Store/%A%ChangeStatus.cs", Templates.ChangeStatus, "rec&change");
 
         // Application, the service shape: one service holds every operation.
@@ -648,11 +742,15 @@ internal static class NewFeature
         Add(application, $"{commands}/Delete%A%/IDelete%A%UseCase.cs", Templates.DeleteUseCasePort, "agg&delete");
         Add(application, $"{commands}/Delete%A%/Delete%A%UseCase.cs", Templates.DeleteUseCase, "agg&delete");
 
+        // Application, the account-deleted reaction of a feature that owns user data: one consumer
+        // of the fact, both faces in one class, the same pattern the four shipped features use.
+        Add(application, $"{feature}/Consumers/AccountDeleted/%Verb%%A%OnAccountDeletedConsumer.cs", Templates.AccountDeletedConsumer, "owner");
+
         // Persistence.
         Add(persistence, $"{feature}/Models/%A%Record.cs", Templates.RecordPlain, "rec");
         Add(persistence, $"{feature}/Models/%A%Record.cs", Templates.RecordAudited, "agg");
         Add(persistence, $"{feature}/Configurations/%A%RecordConfiguration.cs", Templates.Configuration);
-        Add(persistence, $"{feature}/Stores/%A%Store.cs", Templates.Store, "rec&wq");
+        Add(persistence, $"{feature}/Stores/%A%Store.cs", Templates.Store, "rec&stage");
         Add(persistence, $"{feature}/Mapping/I%A%Mapper.cs", Templates.MapperPort, "agg");
         Add(persistence, $"{feature}/Mapping/%A%Mapper.cs", Templates.Mapper, "agg");
         Add(persistence, $"{feature}/Tracking/I%A%Tracker.cs", Templates.TrackerPort, "agg");
@@ -723,8 +821,11 @@ internal static class NewFeature
         bool create = spec.Has("create");
         bool update = spec.Has("update");
         bool delete = spec.Has("delete");
+        bool owner = spec.Access == "owner";
 
         When(spec.Concurrency == "etag", "etag");
+        When(spec.Deletion == "delete", "purge");
+        When(spec.Deletion == "anonymise", "anon");
 
         // Something is written, and something is loaded in order to be changed.
         When(create || update || delete, "wq");
@@ -735,8 +836,14 @@ internal static class NewFeature
         When(get || create || update, "dto");
 
         // The queries port reads one: for get, and in the service shape to answer what a write stored.
+        // An owner feature also reads one way whatever its operations: the deleted-account sweep
+        // asks it which owners still hold data.
         When(get || (record && (create || update)), "single");
-        When(flags.Contains("single") || list, "rq");
+        When(flags.Contains("single") || list || owner, "rq");
+
+        // The store stages writes — and an owner feature stages one more write even when no
+        // operation does: the fate of the owner's rows once the account is gone.
+        When(record && (create || update || delete || owner), "stage");
 
         When(get || update || delete || (record && create), "notfound");
         When(record && (create || update), "clock");
@@ -784,6 +891,9 @@ internal static class NewFeature
             ["NullPrecondition"] = etag ? ", null" : string.Empty,
             ["AnyOwner"] = owner ? "Arg.Any<UserId>(), " : string.Empty,
             ["AnyPrecondition"] = etag ? "Arg.Any<VersionPrecondition?>(), " : string.Empty,
+            ["Verb"] = spec.Deletion == "anonymise" ? "Anonymise" : "Delete",
+            ["Fate"] = spec.Deletion == "anonymise" ? "anonymised" : "deleted",
+            ["Stage"] = spec.Deletion == "anonymise" ? "StageAnonymisationForOwnerAsync" : "StageRemovalForOwnerAsync",
         };
 
         // The arguments of the service under test, in the order its constructor takes them.
@@ -963,6 +1073,12 @@ internal static class NewFeature
             writer.WriteEndArray();
             writer.WriteString("model", spec.Model);
             writer.WriteString("concurrency", spec.Concurrency);
+
+            if (spec.Access == "owner")
+            {
+                writer.WriteString("deletion", spec.Deletion);
+            }
+
             writer.WriteEndObject();
 
             writer.WriteStartArray("files");
@@ -1042,12 +1158,16 @@ internal static class NewFeature
         string f = spec.Features;
         string a = spec.Type;
         bool record = spec.Model == "record";
+        bool owner = spec.Access == "owner";
+        string verb = spec.Deletion == "anonymise" ? "Anonymise" : "Delete";
         var flags = Flags(spec);
 
         output.WriteLine(
             $"Wrote {plan.Count} files for {f}/{a} "
             + $"(access {spec.Access}, model {spec.Model}, operations {string.Join(',', spec.Operations)}, "
-            + $"concurrency {spec.Concurrency}):");
+            + $"concurrency {spec.Concurrency}"
+            + (owner ? $", deletion {spec.Deletion}" : string.Empty)
+            + "):");
 
         foreach (var emission in plan)
         {
@@ -1064,7 +1184,12 @@ internal static class NewFeature
 
         output.WriteLine();
         output.WriteLine("It does not compose yet, and nothing here edited a file it does not own.");
-        output.WriteLine("Six edits, each by hand, each somewhere an absence should be visible:");
+        output.WriteLine(spec.Reaction is null
+            ? "Six edits, each by hand, each somewhere an absence should be visible:"
+            : "Ten edits, each by hand: six like every feature, and four more because this project was");
+        output.WriteLine(spec.Reaction is null
+            ? string.Empty
+            : "generated with no feature that owns user data, so its account-deleted reaction ships with this one.");
         output.WriteLine();
         output.WriteLine($"  1. Src/Infrastructure/{p}.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs");
         output.WriteLine($"       public const string {f}Schema = \"{Snake(f)}\";");
@@ -1084,13 +1209,21 @@ internal static class NewFeature
             output.WriteLine($"       services.AddFeature(\"{f}\");   // its validators and use cases, found by folder");
         }
 
+        if (owner)
+        {
+            output.WriteLine($"       services.AddDomainEventConsumer<UserAccountDeleted, {verb}{a}OnAccountDeletedConsumer>();");
+            output.WriteLine($"       services.AddScoped<IDeletedAccountDataPolicy, {verb}{a}OnAccountDeletedConsumer>();");
+            output.WriteLine("     // the declared fate of this feature's data once the account that owned it is gone, applied");
+            output.WriteLine("     // by the consumer when the fact arrives and by the sweep when it never does");
+        }
+
         output.WriteLine();
         output.WriteLine($"  3. Src/Infrastructure/{p}.Infrastructure.Persistence/PersistenceModule.cs: an Add{f}Feature(services),");
         output.WriteLine("     called from AddPersistenceModule, registering the adapters of this feature's ports:");
 
         if (record)
         {
-            if (flags.Contains("wq"))
+            if (flags.Contains("stage"))
             {
                 output.WriteLine($"       services.TryAddScoped<I{a}Store, {a}Store>();");
             }
@@ -1123,7 +1256,7 @@ internal static class NewFeature
 
         string[] ports =
         [
-            .. record && flags.Contains("wq") ? [$"I{a}Store"] : Array.Empty<string>(),
+            .. record && flags.Contains("stage") ? [$"I{a}Store"] : Array.Empty<string>(),
             .. !record ? [$"I{a}Repository"] : Array.Empty<string>(),
             .. flags.Contains("rq") ? [$"I{a}Queries"] : Array.Empty<string>(),
         ];
@@ -1147,6 +1280,28 @@ internal static class NewFeature
             output.WriteLine("     and this project had none. Step 5 is what makes the container tests resolve the feature.");
         }
 
+        if (owner && spec.Reaction is { } adapter)
+        {
+            string directory = adapter == "Auth" ? "AccountUserAccountDirectory" : "ExternalIdentityUserAccountDirectory";
+            string composition = adapter == "Auth"
+                ? $"Src/Presentation/{p}.Api/Features/Auth/Composition/AuthComposition.cs"
+                : $"Src/Presentation/{p}.Api/Features/ExternalIdentity/Composition/ExternalAuthenticationComposition.cs";
+
+            output.WriteLine();
+            output.WriteLine($"  7. Src/Application/{p}.Application.Core/ApplicationCoreModule.cs: the AddDeletedAccountSweep()");
+            output.WriteLine("     method beside AddPurgeExpiredIdempotencyKeys, with using");
+            output.WriteLine($"     {p}.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;");
+            output.WriteLine();
+            output.WriteLine($"  8. Src/Presentation/{p}.Api/Program.cs: builder.Services.AddDeletedAccountSweep(); beside");
+            output.WriteLine("     builder.Services.AddPurgeExpiredIdempotencyKeys();");
+            output.WriteLine();
+            output.WriteLine($"  9. Src/Presentation/{p}.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs:");
+            output.WriteLine("     services.AddDeletedAccountSweepJobs(configuration); after services.AddMaintenanceJobs(configuration);");
+            output.WriteLine();
+            output.WriteLine($" 10. {composition}: services.AddScoped<IUserAccountDirectory, {directory}>();");
+            output.WriteLine("     with the usings of the directory's namespace and Application.Core's ports");
+        }
+
         output.WriteLine();
         output.WriteLine($"When integration tests exercise the feature, AppDbContext.{f}Schema also joins the schemas their database");
         output.WriteLine("fixture truncates between tests (Tests/Integration, TestDatabase).");
@@ -1166,7 +1321,7 @@ internal static class NewFeature
         }
 
         output.WriteLine("Not generated, because it is a decision rather than a shape: the rules the feature protects, any domain");
-        output.WriteLine("event, authorisation beyond default-deny, and the integration tests against PostgreSQL.");
+        output.WriteLine("event of its own, authorisation beyond default-deny, and the integration tests against PostgreSQL.");
 
         if (spec.Concurrency == "none")
         {
@@ -1210,6 +1365,7 @@ internal static class NewFeature
             NoOverwriteCases(scratch, Expect);
             ManifestCases(scratch, Expect);
             RollbackCases(scratch, Expect);
+            ReactionCases(scratch, Expect);
             TemplateGuardCases(Expect);
         }
         finally
@@ -1230,7 +1386,12 @@ internal static class NewFeature
         return problems.Count == 0 ? 0 : 1;
     }
 
-    private static string NewTree(string scratch)
+    /// <param name="reaction">
+    /// Whether the tree already ships the account-deleted reaction, as one generated with a feature
+    /// that owns user data does. A tree generated with none ships none of it — and still keeps its
+    /// accounts, which is what the adapter folder below reads.
+    /// </param>
+    private static string NewTree(string scratch, bool reaction = true)
     {
         string root = System.IO.Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
 
@@ -1254,6 +1415,20 @@ internal static class NewFeature
         File.WriteAllText(
             System.IO.Path.Combine(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs"),
             "// the context a person edits\n");
+
+        if (reaction)
+        {
+            string ports = System.IO.Path.Combine(root, "Src/Application/Acme.Application.Core/Common/Ports");
+
+            Directory.CreateDirectory(ports);
+            File.WriteAllText(
+                System.IO.Path.Combine(ports, "IDeletedAccountDataPolicy.cs"),
+                "// the reaction this tree already ships\n");
+        }
+        else
+        {
+            Directory.CreateDirectory(System.IO.Path.Combine(root, "Src/Presentation/Acme.Api/Features/Auth"));
+        }
 
         return root;
     }
@@ -1286,7 +1461,12 @@ internal static class NewFeature
         (string[] Args, string Fragment)[] refusals =
         [
             (["Widgets", "Widget"], "--access is required"),
-            (["Widgets", "Widget", "--access", "owner", "--bogus", "x"], "'--bogus' is not an option"),
+            (["Widgets", "Widget", "--access", "owner"], "--deletion is required"),
+            (["Widgets", "Widget", "--access", "owner", "--deletion"], "'--deletion' needs a value"),
+            (["Widgets", "Widget", "--access", "owner", "--deletion", "keep"], "--deletion 'keep' is not a choice"),
+            (["Widgets", "Widget", "--access", "shared", "--deletion", "delete"], "Leave --deletion out"),
+            (["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--bogus", "x"], "'--bogus' is not an option"),
+            (["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--deletion", "anonymise"], "is given twice"),
             (["Widgets", "Widget", "--access"], "'--access' needs a value"),
             (["Widgets", "Widget", "--access", "owner", "--access", "shared"], "is given twice"),
             (["Widgets", "--access", "owner"], "Expected two names"),
@@ -1330,7 +1510,7 @@ internal static class NewFeature
         string stranger = System.IO.Path.Combine(scratch, "stranger");
         Directory.CreateDirectory(stranger);
 
-        var elsewhere = Invoke(stranger, "Widgets", "Widget", "--access", "owner");
+        var elsewhere = Invoke(stranger, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
 
         expect(elsewhere.Code == 1 && elsewhere.Error.Contains("<Prefix>.Domain", StringComparison.Ordinal), "A tree without a domain project was not refused for it.");
         expect(!Directory.EnumerateFileSystemEntries(stranger).Any(), "A refused tree was written to.");
@@ -1343,13 +1523,13 @@ internal static class NewFeature
 
         (string[] Args, string Fragment)[] refusals =
         [
-            (["Widgets", "Widget", "--access", "owner", "--operations", "create,list"], "create needs get"),
-            (["Widgets", "Widget", "--access", "owner", "--operations", "update", "--concurrency", "etag"], "etag needs get"),
-            (["Widgets", "Widget", "--access", "owner", "--operations", "delete", "--concurrency", "etag"], "etag needs get"),
-            (["Widgets", "Widget", "--access", "owner", "--operations", "get,create", "--concurrency", "etag"], "guards update and delete"),
-            (["Widgets", "Widget", "--access", "owner", "--model", "aggregate"], "needs --concurrency etag"),
-            (["Widgets", "Widget", "--access", "owner", "--model", "aggregate", "--concurrency", "none"], "needs --concurrency etag"),
-            (["Widgets", "Widget", "--access", "owner", "--model", "aggregate", "--concurrency", "etag", "--operations", "get,list"], "at least one of create, update or delete"),
+            (["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--operations", "create,list"], "create needs get"),
+            (["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--operations", "update", "--concurrency", "etag"], "etag needs get"),
+            (["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--operations", "delete", "--concurrency", "etag"], "etag needs get"),
+            (["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--operations", "get,create", "--concurrency", "etag"], "guards update and delete"),
+            (["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--model", "aggregate"], "needs --concurrency etag"),
+            (["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--model", "aggregate", "--concurrency", "none"], "needs --concurrency etag"),
+            (["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--model", "aggregate", "--concurrency", "etag", "--operations", "get,list"], "at least one of create, update or delete"),
         ];
 
         foreach (var (args, fragment) in refusals)
@@ -1414,13 +1594,13 @@ internal static class NewFeature
     {
         string root = NewTree(scratch);
 
-        (string Model, string Access, string Concurrency)[] shapes =
+        (string Model, string Access, string Concurrency, string? Deletion)[] shapes =
         [
-            ("record", "owner", "etag"),
-            ("record", "shared", "none"),
-            ("record", "owner", "none"),
-            ("aggregate", "owner", "etag"),
-            ("aggregate", "shared", "etag"),
+            ("record", "owner", "etag", "delete"),
+            ("record", "owner", "none", "anonymise"),
+            ("record", "shared", "none", null),
+            ("aggregate", "owner", "etag", "anonymise"),
+            ("aggregate", "shared", "etag", null),
         ];
 
         int sequence = 0;
@@ -1429,25 +1609,33 @@ internal static class NewFeature
         {
             string[] operations = [.. OperationNames.Where((_, index) => (mask & (1 << index)) != 0)];
 
-            foreach (var (model, access, concurrency) in shapes)
+            foreach (var (model, access, concurrency, deletion) in shapes)
             {
                 sequence++;
 
                 string features = $"Items{sequence}";
                 string type = $"Item{sequence}";
-                string label = $"{model}/{access}/{concurrency}/{string.Join(',', operations)}";
+                string label = $"{model}/{access}/{concurrency}/{deletion ?? "none"}/{string.Join(',', operations)}";
 
                 bool valid = Contradictions(operations, model, concurrency).Count == 0;
                 var before = Snapshot(root);
 
-                var result = Invoke(
-                    root,
+                var arguments = new List<string>
+                {
                     features,
                     type,
                     "--access", access,
                     "--model", model,
                     "--concurrency", concurrency,
-                    "--operations", string.Join(',', operations));
+                    "--operations", string.Join(',', operations),
+                };
+
+                if (deletion is not null)
+                {
+                    arguments.InsertRange(2, ["--deletion", deletion]);
+                }
+
+                var result = Invoke(root, [.. arguments]);
 
                 var after = Snapshot(root);
 
@@ -1469,7 +1657,7 @@ internal static class NewFeature
 
                 expect(before.All(pair => after[pair.Key] == pair.Value), $"[{label}] edited a file that already existed.");
 
-                SubsetExpectations(root, label, features, type, model, access, concurrency, operations, created, expect);
+                SubsetExpectations(root, label, features, type, model, access, concurrency, deletion, operations, created, expect);
             }
         }
     }
@@ -1482,6 +1670,7 @@ internal static class NewFeature
         string model,
         string access,
         string concurrency,
+        string? deletion,
         string[] operations,
         string[] created,
         Action<bool, string> expect)
@@ -1503,11 +1692,14 @@ internal static class NewFeature
 
         string use(string operation, string name) => $"UseCases/{operation}/{name}/{name}UseCase.cs";
 
+        string verb = deletion == "anonymise" ? "Anonymise" : "Delete";
+
         Present(record || changes, $"Services/I{type}Service.cs");
-        Present(record && writes, $"Ports/{type}Store/I{type}Store.cs");
+        Present(record && (writes || owner), $"Ports/{type}Store/I{type}Store.cs");
         Present(record && changes, $"Ports/{type}Store/{type}ChangeStatus.cs");
-        Present(record && writes, $"Stores/{type}Store.cs");
-        Present(Has("get") || Has("list") || (record && (Has("create") || Has("update"))), $"Ports/{type}Queries/I{type}Queries.cs");
+        Present(record && (writes || owner), $"Stores/{type}Store.cs");
+        Present(Has("get") || Has("list") || owner || (record && (Has("create") || Has("update"))), $"Ports/{type}Queries/I{type}Queries.cs");
+        Present(owner, $"Consumers/AccountDeleted/{verb}{type}OnAccountDeletedConsumer.cs");
         Present(Has("list"), $"Dtos/{type}SummaryDto.cs");
         Present(Has("list"), $"Policies/{type}CollectionPolicy.cs");
         Present(Has("list"), $"Queries/{type}SortMap.cs");
@@ -1566,20 +1758,39 @@ internal static class NewFeature
 
             string store = Text($"Ports/{type}Store/I{type}Store.cs");
 
-            if (writes)
+            if (writes || owner)
             {
                 Contains(store, " Add(", Has("create"), "the store port");
                 Contains(store, "StageReplacementAsync(", Has("update"), "the store port");
                 Contains(store, "StageRemovalAsync(", Has("delete"), "the store port");
+                Contains(store, "ListDataOwnerIdsAsync", false, "the store port");
+                Contains(store, deletion == "anonymise" ? "StageAnonymisationForOwnerAsync" : "StageRemovalForOwnerAsync", owner, "the store port");
             }
         }
         else
         {
             string repository = Text($"Repositories/I{type}Repository.cs");
 
-            Contains(repository, "Task<", changes, "the repository port");
+            Contains(repository, "Task<", changes || owner, "the repository port");
             Contains(repository, " Add(", Has("create"), "the repository port");
-            Contains(repository, " Remove(", Has("delete"), "the repository port");
+            Contains(repository, " Remove(", Has("delete") || owner, "the repository port");
+            Contains(repository, "GetForOwnerAsync", owner, "the repository port");
+        }
+
+        // The account-deleted reaction: one consumer whatever the operations, written to the declared
+        // fate, with the queries port answering the sweep.
+        string consumer = Text($"Consumers/AccountDeleted/{verb}{type}OnAccountDeletedConsumer.cs");
+        string queriesPort = Text($"Ports/{type}Queries/I{type}Queries.cs");
+
+        Contains(consumer, "IUserAccountDirectory", owner, "the consumer");
+        Contains(consumer, "accounts.ExistsAsync(owner", owner, "the consumer");
+        Contains(consumer, "ListDataOwnerIdsAsync", owner, "the consumer");
+        Contains(consumer, deletion == "anonymise" ? "Anonymise()" : "Remove(aggregate)", owner && !record, "the consumer");
+        Contains(queriesPort, "ListDataOwnerIdsAsync", owner, "the queries port");
+
+        if (owner && !record && deletion == "anonymise")
+        {
+            Contains(Text($"Entities/{type}.cs"), "public void Anonymise()", true, "the aggregate");
         }
 
         // A persisted version exists exactly when concurrency asks for one, and the owner exactly when
@@ -1617,9 +1828,9 @@ internal static class NewFeature
     {
         string root = NewTree(scratch);
 
-        var first = Invoke(root, "Gadgets", "Gadget", "--access", "owner");
+        var first = Invoke(root, "Gadgets", "Gadget", "--access", "owner", "--deletion", "delete");
         var afterFirst = Snapshot(root);
-        var second = Invoke(root, "Gadgets", "Gadget", "--access", "owner");
+        var second = Invoke(root, "Gadgets", "Gadget", "--access", "owner", "--deletion", "delete");
 
         expect(first.Code == 0, "The first generation was refused.");
         expect(second.Code == 1 && second.Error.Contains("already exists", StringComparison.Ordinal), "Generating the same feature twice was not refused.");
@@ -1633,7 +1844,7 @@ internal static class NewFeature
         File.WriteAllText(inTheWay, "// somebody's own test\n");
 
         var before = Snapshot(other);
-        var blocked = Invoke(other, "Widgets", "Widget", "--access", "owner");
+        var blocked = Invoke(other, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
 
         expect(blocked.Code == 1 && blocked.Error.Contains("none is ever overwritten", StringComparison.Ordinal), "A file in the way was not refused.");
         expect(Same(before, Snapshot(other)), "A refusal over an existing file changed the tree.");
@@ -1647,7 +1858,7 @@ internal static class NewFeature
             "public const string WidgetsSchema = \"widgets\";\n");
 
         var snapshot = Snapshot(named);
-        var collision = Invoke(named, "Widgets", "Widget", "--access", "owner");
+        var collision = Invoke(named, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
 
         expect(collision.Code == 1 && collision.Error.Contains("already declares", StringComparison.Ordinal), "A name the context already declares was accepted.");
         expect(Same(snapshot, Snapshot(named)), "A name collision changed the tree.");
@@ -1659,7 +1870,7 @@ internal static class NewFeature
         var before = Snapshot(root);
 
         var result = Invoke(
-            root, "Notes", "Note", "--access", "owner", "--concurrency", "etag", "--operations", "get,list,update");
+            root, "Notes", "Note", "--access", "owner", "--deletion", "delete", "--concurrency", "etag", "--operations", "get,list,update");
 
         expect(result.Code == 0, $"The manifest case was refused: {result.Error}");
 
@@ -1680,6 +1891,7 @@ internal static class NewFeature
         expect(manifest.GetProperty("feature").GetString() == "Notes" && manifest.GetProperty("type").GetString() == "Note", "The manifest names the wrong feature.");
         expect(options.GetProperty("access").GetString() == "owner", "The manifest records the wrong access.");
         expect(options.GetProperty("concurrency").GetString() == "etag", "The manifest records the wrong concurrency.");
+        expect(options.GetProperty("deletion").GetString() == "delete", "The manifest records the wrong deletion.");
         expect(options.GetProperty("model").GetString() == "record", "The manifest records the wrong model.");
         expect(
             string.Join(',', options.GetProperty("operations").EnumerateArray().Select(element => element.GetString())) == "get,list,update",
@@ -1711,10 +1923,112 @@ internal static class NewFeature
         File.WriteAllText(System.IO.Path.Combine(root, "Src/Presentation/Acme.Api/Features"), "not a folder\n");
 
         var before = Snapshot(root);
-        var result = Invoke(root, "Widgets", "Widget", "--access", "owner");
+        var result = Invoke(root, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
 
         expect(result.Code == 1 && result.Error.Contains("nothing was left behind", StringComparison.Ordinal), "A write that fails half way was not reported as rolled back.");
         expect(Same(before, Snapshot(root)), "A write that failed half way left files or folders behind.");
+    }
+
+    /// <summary>
+    /// The account-deleted reaction against the trees the template really generates: one with a
+    /// feature that owns user data ships it whole, one generated with no feature gains it with its
+    /// first owner feature, and a tree with no accounts at all is refused rather than given a
+    /// reaction whose precondition has no authority to re-derive from.
+    /// </summary>
+    private static void ReactionCases(string scratch, Action<bool, string> expect)
+    {
+        // A tree that already ships the reaction: only the consumer joins the feature, and the
+        // printed edits stay six.
+        string shipped = NewTree(scratch);
+
+        var present = Invoke(shipped, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
+
+        expect(present.Code == 0, $"An owner feature into a tree with the reaction was refused: {present.Error.Split('\n')[0]}");
+        expect(
+            !File.Exists(System.IO.Path.Combine(shipped, "Src/Application/Acme.Application.Core/Common/Ports/IUserAccountDirectory.cs")),
+            "A tree that ships the reaction had its account directory re-emitted.");
+        expect(present.Output.Contains("Six edits", StringComparison.Ordinal), "A tree that ships the reaction was told to edit more than six places.");
+        expect(!present.Output.Contains("AddDeletedAccountSweep", StringComparison.Ordinal), "A tree that ships the reaction was told to register its sweep again.");
+
+        // A tree generated with no feature: the first owner feature brings the ports, the sweep and
+        // the account directory with it, and the registrations are printed as edits, never written.
+        string bare = NewTree(scratch, reaction: false);
+
+        var first = Invoke(bare, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
+
+        expect(first.Code == 0, $"The first owner feature into a bare tree was refused: {first.Error.Split('\n')[0]}");
+
+        string[] reaction =
+        [
+            "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
+            "Src/Application/Acme.Application.Core/Common/Ports/IUserAccountDirectory.cs",
+            "Src/Application/Acme.Application.Core/Features/Accounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs",
+            "Src/Application/Acme.Application.Core/Features/Accounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs",
+            "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
+            "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
+            "Src/Presentation/Acme.Api/Features/Auth/Directories/AccountUserAccountDirectory.cs",
+        ];
+
+        foreach (string path in reaction)
+        {
+            expect(File.Exists(System.IO.Path.Combine(bare, path)), $"{path} was not written with the first owner feature.");
+
+            foreach (string problem in FileProblems(bare, path))
+            {
+                expect(false, $"[bare] {problem}");
+            }
+        }
+
+        expect(first.Output.Contains("Ten edits", StringComparison.Ordinal), "The reaction's registrations were not printed as edits.");
+        expect(first.Output.Contains("AddDeletedAccountSweep", StringComparison.Ordinal), "The sweep registration was not printed.");
+
+        // A second owner feature finds the reaction the first one brought: the ports are emitted
+        // once, not per feature, and nothing of the first feature is touched.
+        var second = Invoke(bare, "Sprockets", "Sprocket", "--access", "owner", "--deletion", "anonymise");
+
+        expect(second.Code == 0, $"The second owner feature was refused: {second.Error.Split('\n')[0]}");
+        expect(
+            !File.ReadAllText(System.IO.Path.Combine(bare, "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs"))
+                .Contains("Sprockets", StringComparison.Ordinal),
+            "The second owner feature rewrote a file the first one had created.");
+        expect(second.Output.Contains("Six edits", StringComparison.Ordinal), "The second owner feature was told to edit more than six places.");
+
+        // A shared feature into a bare tree brings none of it: it owns no user data.
+        string other = NewTree(scratch, reaction: false);
+
+        var shared = Invoke(other, "Widgets", "Widget", "--access", "shared");
+
+        expect(shared.Code == 0, $"A shared feature into a bare tree was refused: {shared.Error.Split('\n')[0]}");
+        expect(!Directory.Exists(System.IO.Path.Combine(other, "Src/Application/Acme.Application.Core")), "A shared feature brought the reaction with it.");
+        expect(shared.Output.Contains("Six edits", StringComparison.Ordinal), "A shared feature was told to edit more than six places.");
+
+        // The externally authenticated template: the account directory reads the mapping, not the
+        // local accounts.
+        string external = NewTree(scratch, reaction: false);
+
+        Directory.Delete(System.IO.Path.Combine(external, "Src/Presentation/Acme.Api/Features/Auth"));
+        Directory.CreateDirectory(System.IO.Path.Combine(external, "Src/Presentation/Acme.Api/Features/ExternalIdentity"));
+
+        var mapped = Invoke(external, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
+
+        expect(mapped.Code == 0, $"An owner feature into an externally authenticated bare tree was refused: {mapped.Error.Split('\n')[0]}");
+        expect(
+            File.Exists(System.IO.Path.Combine(external, "Src/Presentation/Acme.Api/Features/ExternalIdentity/Directories/ExternalIdentityUserAccountDirectory.cs")),
+            "The external-identity account directory was not written.");
+        expect(mapped.Output.Contains("ExternalAuthenticationComposition", StringComparison.Ordinal), "The external composition was not named for the registration.");
+
+        // No accounts anywhere: the reaction's precondition has no authority to re-derive from, so
+        // the feature is refused rather than given one that cannot hold.
+        string publicApi = NewTree(scratch, reaction: false);
+
+        Directory.Delete(System.IO.Path.Combine(publicApi, "Src/Presentation/Acme.Api/Features/Auth"), recursive: true);
+
+        var before = Snapshot(publicApi);
+        var refused = Invoke(publicApi, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
+
+        expect(refused.Code == 1, "An owner feature into a tree with no accounts was not refused.");
+        expect(refused.Error.Contains("neither the local accounts", StringComparison.Ordinal), "The refusal did not name the missing account directory.");
+        expect(Same(before, Snapshot(publicApi)), "The refused tree was written to.");
     }
 
     private static void TemplateGuardCases(Action<bool, string> expect)
@@ -1808,7 +2122,8 @@ internal static class Template
     private static readonly HashSet<string> KnownFlags = new(StringComparer.Ordinal)
     {
         "get", "list", "create", "update", "delete", "owner", "shared", "rec", "agg", "etag",
-        "content", "change", "wq", "dto", "single", "rq", "notfound", "clock",
+        "content", "change", "wq", "dto", "single", "rq", "notfound", "clock", "stage",
+        "purge", "anon",
     };
 
     private static readonly Regex TokenPattern = new("%([A-Za-z]+)%", RegexOptions.None, TimeSpan.FromSeconds(2));
@@ -2008,6 +2323,14 @@ internal static class Templates
 
             /// <summary>The longest description, in characters.</summary>
             public const int DescriptionMaxLength = 2_000;
+        %if anon%
+
+            /// <summary>
+            /// What every text field of an anonymised %L% carries, so none keeps anything identifying
+            /// the account that owned it.
+            /// </summary>
+            public const string AnonymisedText = "[deleted account]";
+        %end%
 
             private %A%(
                 Guid id,
@@ -2031,7 +2354,7 @@ internal static class Templates
             public UserId OwnerId { get; }
 
         %end%
-        %if update%
+        %if update|anon%
             public string Name { get; private set; }
 
             public string Description { get; private set; }
@@ -2093,6 +2416,18 @@ internal static class Templates
             }
 
         %end%
+        %if anon%
+            /// <summary>
+            /// Rewrites this %L% so nothing identifies the account that owned it: the row stays — what
+            /// references it keeps meaning — and the text goes. The account-deleted policy's declared fate.
+            /// </summary>
+            public void Anonymise()
+            {
+                Name = AnonymisedText;
+                Description = string.Empty;
+            }
+
+        %end%
         %if content%
             private static string RequireName(string name)
             {
@@ -2124,6 +2459,7 @@ internal static class Templates
         """;
 
     internal const string RepositoryPort = """
+        using %P%.Domain.Core.Common.Primitives; //?UserId
         using %P%.Domain.Features.%F%.Entities;
 
         namespace %P%.Domain.Features.%F%.Repositories;
@@ -2135,11 +2471,22 @@ internal static class Templates
             Task<%A%?> GetAsync(Guid id, CancellationToken cancellationToken);
 
         %end%
+        %if owner%
+            /// <summary>
+            /// Every %A% one owner holds, loaded as aggregates for the same reason a single load is: what
+            /// is done with them next — removal or anonymisation, on an account-deleted policy — goes
+            /// through the aggregate, not around it.
+            /// </summary>
+            Task<IReadOnlyList<%A%>> GetForOwnerAsync(
+                UserId ownerId,
+                CancellationToken cancellationToken);
+
+        %end%
         %if create%
             void Add(%A% aggregate);
 
         %end%
-        %if delete%
+        %if delete|owner%
             void Remove(%A% aggregate);
         %end%
         }
@@ -2297,7 +2644,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Collections; //?FeaturePageRequest
         using %P%.Application.Core.Common.Concurrency; //?Versioned
         using %P%.Application.Core.Common.Results; //?PagedResult
-        using %P%.Application.Features.%F%.Dtos;
+        using %P%.Application.Features.%F%.Dtos; //?%A%SummaryDto|%A%Dto
         using %P%.Domain.Core.Common.Primitives; //?UserId
 
         namespace %P%.Application.Features.%F%.Ports.%A%Queries;
@@ -2306,7 +2653,8 @@ internal static class Templates
         /// The read side of %a% %L%'s storage: projections onto DTOs, with nothing staged and nothing tracked.
         %if owner%
         /// Every method names the owner and scopes to it, which is what makes somebody else's %L% and a
-        /// missing one the same empty answer.
+        /// missing one the same empty answer — with one exception: the sweep's owner listing, the one
+        /// read here that crosses owners, because no account is asking.
         %end%
         /// </summary>
         public interface I%A%Queries
@@ -2336,6 +2684,15 @@ internal static class Templates
         %end%
                 Guid %L%Id,
                 CancellationToken cancellationToken = default);
+        %end%
+        %if owner%
+
+            /// <summary>
+            /// Every owner id that still holds a %L%, regardless of that account's fate: the
+            /// deleted-account sweep asks, then decides the fate itself through the account directory.
+            /// Distinct, unordered.
+            /// </summary>
+            Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(CancellationToken cancellationToken = default);
         %end%
         }
         """;
@@ -2399,6 +2756,32 @@ internal static class Templates
         %if etag%
                 VersionPrecondition? precondition,
         %end%
+                CancellationToken cancellationToken = default);
+        %end%
+        %if purge%
+
+            /// <summary>
+            /// Stages the removal of every %L% <paramref name="ownerId"/> holds: no precondition is
+            /// asked, because the account-deleted policy that calls this holds no version it could
+            /// name — it holds a fact instead.
+            /// </summary>
+            /// <returns>How many %F% were staged for removal; nothing was staged when the owner holds none.</returns>
+            Task<int> StageRemovalForOwnerAsync(
+                UserId ownerId,
+                CancellationToken cancellationToken = default);
+        %end%
+        %if anon%
+
+            /// <summary>
+            /// Stages the anonymisation of every %L% <paramref name="ownerId"/> holds: no precondition
+            /// is asked, because the account-deleted policy that calls this holds no version it could
+            /// name — it holds a fact instead. The rows stay; what identifies the owner goes.
+            /// </summary>
+            /// <returns>
+            /// How many %F% were staged for anonymisation; nothing was staged when the owner holds none.
+            /// </returns>
+            Task<int> StageAnonymisationForOwnerAsync(
+                UserId ownerId,
                 CancellationToken cancellationToken = default);
         %end%
         }
@@ -3484,7 +3867,7 @@ internal static class Templates
         using %P%.Domain.Core.Common.Primitives; //?UserId
         using %P%.Infrastructure.Persistence.Common.Contexts;
         using %P%.Infrastructure.Persistence.Features.%F%.Models;
-        using Microsoft.EntityFrameworkCore; //?SingleOrDefaultAsync
+        using Microsoft.EntityFrameworkCore; //?SingleOrDefaultAsync|ToListAsync
 
         namespace %P%.Infrastructure.Persistence.Features.%F%.Stores;
 
@@ -3650,6 +4033,60 @@ internal static class Templates
         %end%
             }
         %end%
+        %if purge%
+
+            /// <summary>
+            /// Stages the removal of the owner's every %L% in one load: the rows are loaded tracked so
+            /// the commit deletes them, and no version is checked because the caller of this holds
+            /// none — see the port.
+            /// </summary>
+            public async Task<int> StageRemovalForOwnerAsync(
+                UserId ownerId,
+                CancellationToken cancellationToken = default)
+            {
+                ArgumentNullException.ThrowIfNull(ownerId);
+
+                var records = await context.%F%
+                    .Where(record => record.OwnerId == ownerId.Value)
+                    .ToListAsync(cancellationToken);
+
+                context.%F%.RemoveRange(records);
+
+                return records.Count;
+            }
+        %end%
+        %if anon%
+
+            /// <summary>
+            /// Stages the anonymisation of the owner's every %L% in one load: the rows are loaded
+            /// tracked so the commit rewrites them, and no version is checked because the caller of
+            /// this holds none — see the port.
+            /// </summary>
+            public async Task<int> StageAnonymisationForOwnerAsync(
+                UserId ownerId,
+                CancellationToken cancellationToken = default)
+            {
+                ArgumentNullException.ThrowIfNull(ownerId);
+
+                var records = await context.%F%
+                    .Where(record => record.OwnerId == ownerId.Value)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var record in records)
+                {
+                    record.Name = AnonymisedText;
+                    record.Description = string.Empty;
+                }
+
+                return records.Count;
+            }
+
+            /// <summary>
+            /// What every text field of an anonymised %L% carries, so none keeps anything identifying
+            /// the account that owned it.
+            /// </summary>
+            private const string AnonymisedText = "[deleted account]";
+        %end%
         }
         """;
 
@@ -3793,13 +4230,14 @@ internal static class Templates
         """;
 
     internal const string Repository = """
+        using %P%.Domain.Core.Common.Primitives; //?UserId
         using %P%.Domain.Features.%F%.Entities;
         using %P%.Domain.Features.%F%.Repositories;
         using %P%.Infrastructure.Persistence.Common.Contexts;
         using %P%.Infrastructure.Persistence.Features.%F%.Mapping;
         using %P%.Infrastructure.Persistence.Features.%F%.Models; //?%A%Record
         using %P%.Infrastructure.Persistence.Features.%F%.Tracking;
-        using Microsoft.EntityFrameworkCore; //?FirstOrDefaultAsync
+        using Microsoft.EntityFrameworkCore; //?FirstOrDefaultAsync|ToListAsync
 
         namespace %P%.Infrastructure.Persistence.Features.%F%.Repositories;
 
@@ -3826,6 +4264,28 @@ internal static class Templates
             }
 
         %end%
+        %if owner%
+            public async Task<IReadOnlyList<%A%>> GetForOwnerAsync(
+                UserId ownerId,
+                CancellationToken cancellationToken)
+            {
+                ArgumentNullException.ThrowIfNull(ownerId);
+
+                var records = await context.%F%
+                    .Where(record => record.OwnerId == ownerId.Value)
+                    .ToListAsync(cancellationToken);
+
+                var aggregates = new List<%A%>(records.Count);
+
+                foreach (var record in records)
+                {
+                    aggregates.Add(LoadOrTrack(record));
+                }
+
+                return aggregates;
+            }
+
+        %end%
         %if create%
             public void Add(%A% aggregate)
             {
@@ -3838,7 +4298,7 @@ internal static class Templates
             }
 
         %end%
-        %if delete%
+        %if delete|owner%
             public void Remove(%A% aggregate)
             {
                 ArgumentNullException.ThrowIfNull(aggregate);
@@ -3866,12 +4326,442 @@ internal static class Templates
         }
         """;
 
+    // ---- Application, the account-deleted reaction of a feature that owns user data -------------------
+
+    internal const string AccountDeletedConsumer = """
+        using %P%.Application.Core.Common.Events; //?UserAccountDeleted
+        using %P%.Application.Core.Common.Ports; //?IDeletedAccountDataPolicy|IUserAccountDirectory|IUnitOfWork
+        using %P%.Domain.Core.Common.Primitives;
+        %if rec%
+        using %P%.Application.Features.%F%.Ports.%A%Store;
+        %end%
+        %if agg%
+        using %P%.Domain.Features.%F%.Repositories;
+        %end%
+
+        namespace %P%.Application.Features.%F%.Consumers.AccountDeleted;
+
+        /// <summary>
+        /// The %F%' declared fate for the data of a deleted account: <b>%Fate%</b>. The rows are this
+        /// feature's, so the decision is made here rather than by the account that left.
+        /// <para>
+        /// This runs after the transaction that removed the account has already committed, so it owns
+        /// committing its own change through <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>:
+        /// the same <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never
+        /// reaching this consumer, and the precondition is re-derived through
+        /// <see cref="IUserAccountDirectory"/> rather than trusted, so a redelivery — or an account
+        /// recreated under the same id — cannot touch a live owner's %F%.
+        /// </para>
+        /// </summary>
+        internal sealed class %Verb%%A%OnAccountDeletedConsumer(
+        %if rec%
+            I%A%Store store,
+        %end%
+        %if agg%
+            I%A%Repository repository,
+        %end%
+            I%A%Queries queries,
+            IUserAccountDirectory accounts,
+            IUnitOfWork unitOfWork) : IDomainEventConsumer<UserAccountDeleted>, IDeletedAccountDataPolicy
+        {
+            public Task ConsumeAsync(UserAccountDeleted domainEvent, CancellationToken cancellationToken = default)
+            {
+                ArgumentNullException.ThrowIfNull(domainEvent);
+
+                return ApplyAsync(domainEvent.UserId, cancellationToken);
+            }
+
+            public async Task<bool> ApplyAsync(UserId owner, CancellationToken cancellationToken = default)
+            {
+                ArgumentNullException.ThrowIfNull(owner);
+
+                // The precondition, re-derived: an account that exists again — or never left — keeps its
+                // %F%, whatever this call was told.
+                if (await accounts.ExistsAsync(owner, cancellationToken))
+                {
+                    return false;
+                }
+
+        %if purge%
+        %if rec%
+                int staged = await store.StageRemovalForOwnerAsync(owner, cancellationToken);
+
+                // Also what a redelivery finds: an owner with nothing staged is simply a finished one.
+                if (staged == 0)
+                {
+                    return false;
+                }
+        %end%
+        %if agg%
+                var owned = await repository.GetForOwnerAsync(owner, cancellationToken);
+
+                // Also what a redelivery finds: removal is idempotent, but there is no point loading
+                // and saving nothing to prove it.
+                if (owned.Count == 0)
+                {
+                    return false;
+                }
+
+                foreach (var aggregate in owned)
+                {
+                    repository.Remove(aggregate);
+                }
+        %end%
+        %end%
+        %if anon%
+        %if rec%
+                int staged = await store.StageAnonymisationForOwnerAsync(owner, cancellationToken);
+
+                // Also what a redelivery finds: an owner with nothing staged is simply a finished one.
+                if (staged == 0)
+                {
+                    return false;
+                }
+        %end%
+        %if agg%
+                var owned = await repository.GetForOwnerAsync(owner, cancellationToken);
+
+                // Also what a redelivery finds: what is already anonymised keeps nothing that
+                // identifies anybody, but there is no point loading and saving nothing to prove it.
+                if (owned.Count == 0)
+                {
+                    return false;
+                }
+
+                foreach (var aggregate in owned)
+                {
+                    aggregate.Anonymise();
+                }
+        %end%
+        %end%
+
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+
+                return true;
+            }
+
+            public Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
+                CancellationToken cancellationToken = default) =>
+                queries.ListDataOwnerIdsAsync(cancellationToken);
+        }
+        """;
+
+    // ---- The reaction a tree generated with no feature gains with its first owner feature -------------
+
+    internal const string DeletedAccountDataPolicy = """
+        using %P%.Domain.Core.Common.Primitives;
+
+        namespace %P%.Application.Core.Common.Ports;
+
+        /// <summary>
+        /// What one feature does with the data of an account that is gone, declared by that feature and
+        /// applied by it: the fate of a deleted account's rows is their owner's decision, not the
+        /// account's, and not the sweep's.
+        /// <para>
+        /// A feature that holds user data implements this alongside its consumer of
+        /// <see cref="%P%.Application.Core.Common.Events.UserAccountDeleted"/> — usually as the
+        /// same class — and registers both with its own composition. The consumer is the fast path; the
+        /// sweep is the guarantee; this port is the one path they share, which is why
+        /// <see cref="ApplyAsync"/> re-derives the whole precondition rather than assuming the account is
+        /// gone because somebody said so.
+        /// </para>
+        /// </summary>
+        public interface IDeletedAccountDataPolicy
+        {
+            /// <summary>
+            /// Applies this feature's policy — delete or anonymise, whichever it declared — to the data
+            /// one owner still holds here.
+            /// </summary>
+            /// <remarks>
+            /// <para>
+            /// <b>Transaction.</b> One call is one transaction of this feature's own, committed before it
+            /// returns, independent of the request that caused it: the account's deletion has already
+            /// committed, and a failure here must never be reported as a failure of that.
+            /// </para>
+            /// <para>
+            /// <b>Idempotence.</b> The precondition is re-derived through
+            /// <see cref="IUserAccountDirectory"/>: when the account exists again, or never left, nothing
+            /// is written. An owner with no data here is the same answer as one already swept.
+            /// </para>
+            /// <para>
+            /// <b>Retry.</b> A failure propagates to the caller — the event's consumer logs it, the sweep
+            /// retries the owner at its next pass — and the next attempt starts from the precondition,
+            /// never from a partial run.
+            /// </para>
+            /// </remarks>
+            /// <param name="owner">The deleted account to act on.</param>
+            /// <param name="cancellationToken">Cancels the work.</param>
+            /// <returns>
+            /// <c>true</c> when this call removed or rewrote data; <c>false</c> when there was none, or
+            /// the account names an account again.
+            /// </returns>
+            Task<bool> ApplyAsync(UserId owner, CancellationToken cancellationToken = default);
+
+            /// <summary>
+            /// Every owner id that still has data here, whatever its account's fate: the sweep asks for the
+            /// ids and decides the fate itself, through the directory, so the same question is never
+            /// answered two ways in one pass.
+            /// </summary>
+            /// <param name="cancellationToken">Cancels the listing.</param>
+            Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(CancellationToken cancellationToken = default);
+        }
+        """;
+
+    internal const string UserAccountDirectory = """
+        using %P%.Domain.Core.Common.Primitives;
+
+        namespace %P%.Application.Core.Common.Ports;
+
+        /// <summary>
+        /// Whether an id still names an account. The contract the account-deleted reaction rests on: a
+        /// consumer of <see cref="%P%.Application.Core.Common.Events.UserAccountDeleted"/> and the
+        /// sweep behind it both re-derive from the directory rather than trust that the fact reached them,
+        /// so a delivery that is late, duplicated or replayed cannot delete the data of an account that
+        /// exists.
+        /// <para>
+        /// Accounts owns no feature here, and this port names none. The host supplies the adapter: over
+        /// the local accounts when the template keeps its own, over the external-identity mapping when it
+        /// does not — the same choice <c>ICurrentUser</c> is resolved by.
+        /// </para>
+        /// </summary>
+        public interface IUserAccountDirectory
+        {
+            /// <returns>Whether an account exists under <paramref name="userId"/> right now.</returns>
+            Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default);
+        }
+        """;
+
+    internal const string SweepUseCasePort = """
+        using %P%.Application.Core.Common.Results;
+        using %P%.Application.Core.Common.UseCases;
+
+        namespace %P%.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;
+
+        /// <summary>
+        /// Removes the data of accounts that are gone, whether or not the deletion event reached the
+        /// feature that holds it. Administrative rather than user-facing: nothing about a caller's own
+        /// request needs this. Scheduled on the maintenance timer.
+        /// </summary>
+        public interface ISweepDeletedAccountDataUseCase : IUseCase<Result<int>>
+        {
+        }
+        """;
+
+    internal const string SweepUseCase = """
+        using %P%.Application.Core.Common.Ports;
+        using %P%.Application.Core.Common.Results;
+        using Microsoft.Extensions.Logging;
+
+        namespace %P%.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;
+
+        /// <summary>
+        /// The guarantee behind <see cref="%P%.Application.Core.Common.Events.UserAccountDeleted"/>:
+        /// a fact published in process is not a fact delivered, and a consumer that threw — or was never
+        /// reached because the process died between the commit and the publication — leaves rows owned by
+        /// an id that names no account. This pass finds them, by asking each feature for the owner ids that
+        /// still have data and letting the feature's own <see cref="IDeletedAccountDataPolicy"/> re-derive
+        /// the precondition against <see cref="IUserAccountDirectory"/>, so the sweep decides nothing a
+        /// feature did not declare.
+        /// <para>
+        /// <b>One host at a time.</b> The whole pass runs under <see cref="ILeaderLease"/>, for the reason
+        /// <c>FireDueRemindersUseCase</c> gives: two hosts sweeping the same owner are safe — each
+        /// application is idempotent and per-owner committed — but systematically duplicating every pass
+        /// is a connection spent for nothing.
+        /// </para>
+        /// <para>
+        /// <b>Resumption.</b> Each owner is one transaction of the feature's own, committed before the
+        /// next begins, so a pass that dies mid-way has kept what it did and redoes nothing. An owner
+        /// whose application throws is logged and skipped, never allowed to stop its neighbours: a poisoned
+        /// owner must not become a retention policy for everybody else's data.
+        /// </para>
+        /// <para>
+        /// <b>Cost.</b> One listing per feature and one directory lookup per listed owner, inside the
+        /// policy; the lookups are what a pass scales with. A template-scale owner count makes this
+        /// negligible, and the interval is the maintenance timer's.
+        /// </para>
+        /// </summary>
+        public sealed class SweepDeletedAccountDataUseCase(
+            IEnumerable<IDeletedAccountDataPolicy> policies,
+            ILeaderLease lease,
+            ILogger<SweepDeletedAccountDataUseCase> logger) : ISweepDeletedAccountDataUseCase
+        {
+            /// <summary>The lock key derives from this name: a cross-release contract, renaming it lets two releases both run the pass.</summary>
+            private const string _leaseName = "apptemplate.accounts.sweep-deleted-data";
+
+            /// <inheritdoc />
+            public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+            {
+                int swept = 0;
+
+                bool ranHere = await lease.TryRunExclusivelyAsync(
+                    _leaseName,
+                    async leaseToken => swept = await SweepAsync(leaseToken),
+                    cancellationToken);
+
+                if (!ranHere && logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation(
+                        "Deleted-account data sweep skipped: another host holds the '{LeaseName}' lease.",
+                        _leaseName);
+                }
+
+                return swept;
+            }
+
+            private async Task<int> SweepAsync(CancellationToken cancellationToken)
+            {
+                int swept = 0;
+
+                foreach (var policy in policies)
+                {
+                    var owners = await policy.ListDataOwnerIdsAsync(cancellationToken);
+
+                    foreach (var owner in owners)
+                    {
+                        try
+                        {
+                            // The policy re-derives the precondition: an account that exists again, or
+                            // never left, leaves its data alone, whatever this pass assumed.
+                            if (await policy.ApplyAsync(owner, cancellationToken))
+                            {
+                                swept++;
+                            }
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            // Shutdown, not a failed owner: end the pass instead of logging it.
+                            throw;
+                        }
+                        catch (Exception exception)
+                        {
+                            logger.LogError(
+                                exception,
+                                "Sweeping the data of deleted account {Owner} through {Policy} failed; "
+                                + "the owner is skipped and retried at the next pass.",
+                                owner.Value,
+                                policy.GetType().Name);
+                        }
+                    }
+                }
+
+                return swept;
+            }
+        }
+        """;
+
+    internal const string DeletedAccountSweepJobs = """
+        using %P%.Api.Features.Maintenance.Jobs;
+        using %P%.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;
+        using Microsoft.Extensions.Options;
+
+        namespace %P%.Api.Features.BackgroundJobs.Jobs;
+
+        internal static class DeletedAccountSweepJobsExtensions
+        {
+            /// <summary>
+            /// Contributes the deleted-account data sweep to the maintenance timer: the pass that
+            /// guarantees what the <c>UserAccountDeleted</c> event only makes fast.
+            /// </summary>
+            /// <remarks>
+            /// Not any one feature's purge, which is why it is not registered from a feature's own
+            /// composition: every feature that owns user data declares its policy, and this one task
+            /// sweeps them all. Registered from the background composition, gated on accounts — a host
+            /// without accounts holds no data an account's deletion could orphan. Inert on an instance
+            /// that runs no jobs, like every other contribution to the timer.
+            /// </remarks>
+            internal static IServiceCollection AddDeletedAccountSweepJobs(
+                this IServiceCollection services,
+                IConfiguration configuration)
+            {
+                ArgumentNullException.ThrowIfNull(services);
+                ArgumentNullException.ThrowIfNull(configuration);
+
+                services.AddOptions<DeletedAccountSweepOptions>()
+                    .Bind(configuration.GetSection(MaintenanceWorkerOptions.SectionName));
+
+                services.AddMaintenanceTask<ISweepDeletedAccountDataUseCase>(
+                    "data of deleted accounts",
+                    "Rows owned by an id that names no account stay where they are: the deletion event is "
+                    + "the fast path, and this sweep is what makes it certain.",
+                    provider => provider.GetRequiredService<IOptions<DeletedAccountSweepOptions>>()
+                        .Value.SweepDeletedAccountsDataEnabled);
+
+                return services;
+            }
+        }
+        """;
+
+    internal const string DeletedAccountSweepOptions = """
+        namespace %P%.Api.Features.BackgroundJobs.Jobs;
+
+        /// <summary>
+        /// The off switch of the deleted-account data sweep, read from the maintenance section next to the
+        /// other purges': <c>MaintenanceWorker:SweepDeletedAccountsDataEnabled</c>.
+        /// <para>
+        /// A class of its own, for the same reason <c>RefreshTokenPurgeOptions</c> is: a project generated
+        /// without accounts loses the key together with the sweep. Internal, and without a section name of
+        /// its own: the section is the maintenance timer's.
+        /// </para>
+        /// </summary>
+        internal sealed class DeletedAccountSweepOptions
+        {
+            public bool SweepDeletedAccountsDataEnabled { get; set; } = true;
+        }
+        """;
+
+    internal const string LocalUserAccountDirectory = """
+        using %P%.Application.Auth.Features.Auth.Ports.Accounts;
+        using %P%.Application.Core.Common.Ports;
+        using %P%.Domain.Core.Common.Primitives;
+
+        namespace %P%.Api.Features.Auth.Directories;
+
+        /// <summary>
+        /// <see cref="IUserAccountDirectory"/> over the local accounts: an id names an account exactly
+        /// when the user store still holds a profile for it. Neither the directory's contract nor the
+        /// accounts' feature names the other, so this adapter is where they meet.
+        /// </summary>
+        internal sealed class AccountUserAccountDirectory(IAccountsService accounts) : IUserAccountDirectory
+        {
+            public async Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default)
+            {
+                ArgumentNullException.ThrowIfNull(userId);
+
+                return await accounts.FindProfileAsync(userId.Value, cancellationToken) is not null;
+            }
+        }
+        """;
+
+    internal const string ExternalUserAccountDirectory = """
+        using %P%.Application.Core.Common.Ports;
+        using %P%.Application.Features.ExternalIdentity.Services;
+        using %P%.Domain.Core.Common.Primitives;
+
+        namespace %P%.Api.Features.ExternalIdentity.Directories;
+
+        /// <summary>
+        /// <see cref="IUserAccountDirectory"/> over the external-identity mapping: an id names an account
+        /// exactly when some provider's subject is still mapped to it. Neither the directory's contract
+        /// nor the mapping's feature names the other, so this adapter is where they meet.
+        /// </summary>
+        internal sealed class ExternalIdentityUserAccountDirectory(
+            IExternalIdentityService externalIdentities) : IUserAccountDirectory
+        {
+            public async Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default)
+            {
+                ArgumentNullException.ThrowIfNull(userId);
+
+                return await externalIdentities.FindProfileAsync(userId, cancellationToken) is not null;
+            }
+        }
+        """;
+
     internal const string Queries = """
         using System.Linq.Expressions; //?Expression
         using %P%.Application.Core.Common.Collections; //?FeaturePageRequest
         using %P%.Application.Core.Common.Concurrency; //?Versioned
         using %P%.Application.Core.Common.Results; //?PagedResult
-        using %P%.Application.Features.%F%.Dtos;
+        using %P%.Application.Features.%F%.Dtos; //?%A%SummaryDto|%A%Dto
         using %P%.Application.Features.%F%.Ports.%A%Queries;
         using %P%.Domain.Core.Common.Primitives; //?UserId
         using %P%.Infrastructure.Persistence.Common.Contexts;
@@ -3885,7 +4775,8 @@ internal static class Templates
         /// selects only the columns the DTO needs and nothing is tracked.
         %if owner%
         /// Every query names the owner, so a missing %L% and somebody else's are the same empty answer and
-        /// no row of another user is read first and compared afterwards.
+        /// no row of another user is read first and compared afterwards — except the sweep's owner listing,
+        /// the one read here that crosses owners, because no account is asking.
         %end%
         /// </summary>
         internal sealed class %A%Queries(AppDbContext context) : I%A%Queries
@@ -3948,6 +4839,25 @@ internal static class Templates
                         record.LastModifiedAt))
         %end%
                     .FirstOrDefaultAsync(cancellationToken);
+            }
+
+        %end%
+        %if owner%
+            /// <remarks>
+            /// The one query here that crosses owners on purpose: it exists so a housekeeping pass can ask
+            /// which ids still hold data, and returns ids only. The primitive is built client-side, because
+            /// its factory validates and validation is not SQL.
+            /// </remarks>
+            public async Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
+                CancellationToken cancellationToken = default)
+            {
+                var ids = await context.%F%
+                    .AsNoTracking()
+                    .Select(record => record.OwnerId)
+                    .Distinct()
+                    .ToListAsync(cancellationToken);
+
+                return [.. ids.Select(UserId.Create)];
             }
 
         %end%

@@ -26,6 +26,12 @@ using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Storage;
 //#endif
 using AppTemplate.Presentation.Core.Common.Outbound;
+/*#if (publicApi)
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+#endif*/
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -132,10 +138,11 @@ builder.Services.AddAuthorizationBuilder()
 /*#else
 // Public by choice: generated without accounts, this API authenticates nobody, and the fallback
 // policy says every endpoint answers anonymous callers rather than leaving that to a missing one.
-// Nothing private is opened by it: no endpoint needs a caller, an operation that does still fails
-// because ICurrentUser has none to give, and an endpoint marked [Authorize] fails rather than
-// opening, since there is no scheme to challenge with. Accounts come back with an authentication
-// scheme and the default-deny policy of the authenticated templates.
+// Nothing private is opened by it: no endpoint needs a caller, and an operation that does still
+// fails because ICurrentUser has none to give. An endpoint left marked [Authorize] has no scheme
+// to challenge with, and the check after the controller mapping refuses it at start-up rather than
+// letting it answer 500 on every request. Accounts come back with an authentication scheme and the
+// default-deny policy of the authenticated templates.
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
         .RequireAssertion(static _ => true)
@@ -160,6 +167,35 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+/*#if (publicApi)
+// No authentication scheme exists in this variant, so an action left carrying [Authorize] would
+// answer 500 on every request: closed, but telling nobody why. Every other invalid setting here
+// refuses at start-up, so this one does too, naming the actions. [AllowAnonymous] still wins,
+// exactly as it does at request time, and bringing a scheme back clears the condition.
+var schemes = await app.Services.GetRequiredService<IAuthenticationSchemeProvider>()
+    .GetAllSchemesAsync();
+
+if (schemes.Any() is false)
+{
+    var unauthorized = app.Services.GetRequiredService<IActionDescriptorCollectionProvider>()
+        .ActionDescriptors.Items
+        .OfType<ControllerActionDescriptor>()
+        .Where(action => action.EndpointMetadata.OfType<IAuthorizeData>().Any()
+            && action.EndpointMetadata.OfType<IAllowAnonymous>().Any() is false)
+        .Select(action => action.DisplayName)
+        .Order(StringComparer.Ordinal)
+        .ToList();
+
+    if (unauthorized.Count > 0)
+    {
+        throw new InvalidOperationException(
+            "This API authenticates nobody, so [Authorize] cannot be satisfied on: "
+            + string.Join(", ", unauthorized)
+            + ". Remove the attribute, or bring an authentication scheme back.");
+    }
+}
+#endif*/
 
 app.MapApiHealthEndpoints();
 

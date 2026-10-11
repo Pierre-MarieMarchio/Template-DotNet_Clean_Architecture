@@ -8,26 +8,15 @@ using Microsoft.IdentityModel.Tokens;
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Directories;
 
 /// <summary>
-/// Fetches and caches a provider's JWKS.
-/// <para>
-/// <b>A typed client, deliberately.</b> The hosts install the one outbound budget on
-/// <c>IHttpClientFactory</c>'s defaults from <c>Common/Outbound/</c>, and a client registered with
-/// <c>AddHttpClient</c> inherits every part of it — attempt timeout, total timeout, retry on the
-/// safe verbs, circuit breaker, concurrency bound — without naming any of it. That inheritance is
-/// the reason the timeouts and the back-off do not appear in this file, and the circuit breaker is
-/// specifically what stops a provider that is down from turning every sign-in into a ten-second
-/// wait.
-/// </para>
-/// <para>
-/// The escape this type exists to avoid is real and close by:
-/// <c>JwtBearerOptions.Backchannel</c>, left unassigned, is built from an <c>HttpClient</c> the
-/// handler news up itself, and the same is true of <c>HttpDocumentRetriever</c>'s parameterless
-/// constructor — which is what <c>ConfigurationManager&lt;OpenIdConnectConfiguration&gt;</c> uses
-/// unless it is handed one. Either would have taken this module's outbound calls out of the budget
-/// silently, and <c>NoType_ConstructsItsOwnHttpClient</c> would not have seen it: that rule reads
-/// this repository's own source for the construction, and in both of those cases the construction
-/// happens inside the package.
-/// </para>
+/// Fetches and caches a provider's JWKS. <b>A typed client, deliberately:</b> the hosts install the
+/// one outbound budget on <c>IHttpClientFactory</c>'s defaults from <c>Common/Outbound/</c>, and a
+/// client registered with <c>AddHttpClient</c> inherits every part of it — attempt timeout, total
+/// timeout, retry on the safe verbs, circuit breaker, concurrency bound — without naming any of it,
+/// which is why none of it appears in this file. The escape this type exists to avoid is real and
+/// close by: <c>JwtBearerOptions.Backchannel</c> and <c>HttpDocumentRetriever</c>'s parameterless
+/// constructor both new up an <c>HttpClient</c> inside the package, which would take this module's
+/// outbound calls out of the budget silently — and <c>NoType_ConstructsItsOwnHttpClient</c> could
+/// not have seen it, because that rule reads this repository's own source.
 /// </summary>
 internal sealed class SigningKeyDirectory(
     HttpClient httpClient,
@@ -37,14 +26,12 @@ internal sealed class SigningKeyDirectory(
     ILogger<SigningKeyDirectory> logger) : ISigningKeyDirectory
 {
     /// <summary>
-    /// The shortest interval between two forced re-fetches of one provider's keys.
-    /// <para>
-    /// One minute, and both directions of the trade are uncomfortable. Longer, and a rotation the
-    /// cache missed keeps refusing real sign-ins for that long; shorter, and a caller can drive one
-    /// outbound request per token by inventing a <c>kid</c>. A minute caps the forged-token cost at
-    /// sixty requests an hour per provider and caps a missed rotation at sixty seconds, which is
-    /// well inside the head start every provider gives by publishing a key before signing with it.
-    /// </para>
+    /// The shortest interval between two forced re-fetches of one provider's keys. One minute, and
+    /// both directions of the trade are uncomfortable: longer, and a rotation the cache missed
+    /// keeps refusing real sign-ins for that long; shorter, and a caller can drive one outbound
+    /// request per token by inventing a <c>kid</c>. A minute caps the forged-token cost at sixty
+    /// requests an hour per provider and a missed rotation at sixty seconds, well inside the head
+    /// start every provider gives by publishing a key before signing with it.
     /// </summary>
     private static readonly TimeSpan _minimumTimeBetweenForcedFetches = TimeSpan.FromMinutes(1);
 

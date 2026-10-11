@@ -5,19 +5,13 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 
 /// <summary>
 /// Somewhere the events raised during the current request have accumulated, ready to be published
-/// once the transaction commits.
-/// <para>
-/// EF does not map the domain types, so no aggregate is in the change tracker and an interceptor that
-/// looked there would find nothing, publish nothing and fail silently — the worst possible failure for
-/// a mechanism whose whole job is a side effect. The feature that holds the aggregates is asked
-/// instead: <c>Common/</c> knows only this interface, and each feature's aggregate tracker implements
-/// it.
-/// </para>
-/// <para>
-/// <b>Which save publishes them.</b> Only a save of the context the source's rows are staged on: the
-/// events describe that write, and another context's commit — the identity module's, or the
-/// idempotency store's second instance of the same context — says nothing about whether it landed.
-/// </para>
+/// once the transaction commits. EF does not map the domain types, so no aggregate is in the change
+/// tracker and an interceptor that looked there would find nothing, publish nothing and fail
+/// silently — the worst failure for a mechanism whose whole job is a side effect. The feature that
+/// holds the aggregates is asked instead: <c>Common/</c> knows only this interface. <b>Only a save
+/// of the context the source's rows are staged on publishes them:</b> the events describe that
+/// write, and another context's commit — the identity module's, the idempotency store's second
+/// instance of the same context — says nothing about whether it landed.
 /// </summary>
 public interface IDomainEventSource
 {

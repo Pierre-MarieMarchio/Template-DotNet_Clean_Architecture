@@ -25,31 +25,19 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
 
 /// <summary>
 /// The business half's <see cref="DbContext"/>: the domain's persistence models and the tables no
-/// feature owns, in one model with one migrations history. Authentication stores through a context
-/// of its own on the same connection — why two rather than one, and why one database rather than
-/// two, is argued in docs/ARCHITECTURE.md.
-/// <para>
-/// <b>This class is the model's composition root.</b> It is the one type in <c>Common/</c> allowed
-/// to name a feature, exactly as <c>Program.cs</c> is the one place allowed to name every module.
-/// The cross-cutting mechanisms beside it — auditing, event dispatch, the unit of work, the flush
-/// pipeline — name no feature at all, and an architecture test asserts that.
-/// </para>
-/// <para>
-/// <b>Resource ownership.</b> A context instance is a unit of work. The DI container opens it,
-/// scoped to one request, and disposes it when the request ends; nothing else may dispose it.
-/// Staged changes are committed by exactly one call to <c>SaveChangesAsync</c>, made by
-/// <see cref="Application.Core.Common.Ports.IUnitOfWork"/> on behalf of a use case. Repositories,
-/// query classes and stores borrow the context and never commit: ownership of the transaction never
-/// transfers to them.
-/// </para>
-/// <para>
-/// Two things it deliberately does not do. It does not take <c>ICurrentUser</c>: that would make
-/// every instance depend on an HTTP request, so any use outside one — a background worker, a
-/// migration, a seeding routine — would stamp audit columns with an empty caller. And it does not
-/// override <c>SaveChangesAsync</c> to stamp, flush or dispatch: that behaviour belongs in
-/// <see cref="Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor"/> implementations,
-/// which also apply to the synchronous overload an override would miss.
-/// </para>
+/// feature owns, in one model with one migrations history; authentication stores through a context
+/// of its own on the same connection (why two rather than one, and why one database rather than
+/// two, is argued in docs/ARCHITECTURE.md). <b>This class is the model's composition root:</b> the
+/// one type in <c>Common/</c> allowed to name a feature, exactly as <c>Program.cs</c> is the one
+/// place allowed to name every module. A context instance is a unit of work: the DI container
+/// opens it scoped to one request and disposes it; staged changes are committed by exactly one
+/// call to <c>SaveChangesAsync</c>, made by <see cref="Application.Core.Common.Ports.IUnitOfWork"/>
+/// on behalf of a use case — repositories, query classes and stores borrow the context and never
+/// commit. Two things it deliberately does not do: it does not take <c>ICurrentUser</c>, which
+/// would make every instance depend on an HTTP request and stamp audit columns with an empty
+/// caller outside one; and it does not override <c>SaveChangesAsync</c> to stamp, flush or
+/// dispatch — that belongs in <see cref="Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor"/>
+/// implementations, which also apply to the synchronous overload an override would miss.
 /// </summary>
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {

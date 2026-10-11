@@ -30,7 +30,7 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
 
     //#endif
     /// <summary>
-    /// The five classes answering the <c>auth</c> prefix. Every rule below reads all five, for the
+    /// The six classes answering the <c>auth</c> prefix. Every rule below reads all six, for the
     /// same reason a feature's rules read every class of its prefix: default deny is a property of an endpoint, and
     /// a rule enumerating one class stops asking the question of the others.
     /// </summary>
@@ -39,6 +39,7 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
         typeof(RegistrationController),
         typeof(SessionsController),
         typeof(AccountController),
+        typeof(PasskeysController),
         typeof(TwoFactorController),
         typeof(PasswordRecoveryController),
     ];
@@ -188,8 +189,8 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
 
     /// <summary>
     /// Which authentication actions require a token, enumerated so that adding one without deciding
-    /// fails here. Everything else on the five controllers is anonymous by necessity: a caller signing in,
-    /// confirming an address or resetting a password has no token yet.
+    /// fails here. Everything else on the six controllers is anonymous by necessity: a caller signing in,
+    /// confirming an address, resetting a password or completing a passkey ceremony has no token yet.
     /// </summary>
     [Fact]
     public void OnlyTheAccountActions_RequireAToken()
@@ -205,13 +206,21 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
 
         authenticated.ShouldBe(
             [
+                nameof(PasskeysController.BeginPasskeyRegistration),
                 nameof(AccountController.ChangePassword),
+                nameof(PasskeysController.CompletePasskeyRegistration),
                 nameof(AccountController.ConfirmEmailChange),
                 nameof(TwoFactorController.ConfirmTwoFactorSetup),
+                nameof(AccountController.DeleteMyAccount),
                 nameof(TwoFactorController.DisableTwoFactor),
                 nameof(AccountController.GetCurrentUser),
+                nameof(AccountController.GetMySecurityEvents),
+                nameof(PasskeysController.ListPasskeys),
+                nameof(SessionsController.ListSessions),
                 nameof(SessionsController.LogoutEverywhere),
+                nameof(PasskeysController.RemovePasskey),
                 nameof(AccountController.RequestEmailChange),
+                nameof(SessionsController.RevokeSession),
                 nameof(TwoFactorController.SetUpTwoFactor),
             ],
             "An authentication endpoint changed sides. Decide deliberately, then update this list.");

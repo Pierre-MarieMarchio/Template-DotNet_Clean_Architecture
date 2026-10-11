@@ -11,8 +11,8 @@ namespace AppTemplate.Api.UnitTests.Features.Maintenance.Jobs;
 /// <summary>
 /// Exercises the loop itself — resilience across iterations, respect for the toggles, and
 /// respect for the stopping token — against fake use cases resolved from a real, minimal
-/// container. No database, no HTTP: this is the same orchestration <c>MaintenanceController</c>
-/// would trigger over HTTP, run here on a timer instead of a request.
+/// container. No database, no HTTP: what runs here is the timer's own orchestration, with every
+/// use case faked and every real dependency of the loop itself in place.
 /// </summary>
 public sealed class MaintenanceBackgroundServiceTests
 {

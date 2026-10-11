@@ -20,7 +20,7 @@ public sealed class SharedInstanceRegistrationTests
 {
     /// <summary>
     /// Turns red if any of a tracker's registrations stops delegating to the same descriptor — for
-    /// example by becoming its own <c>AddScoped&lt;IAggregateFlusher, TodoListTracker&gt;()</c>.
+    /// example by a tracker being registered as its own flusher instead of the shared instance.
     /// <para>
     /// Asserted per tracker, not across all of them: each aggregate has its own, and the contracts
     /// they share are collection contracts — the flush interceptor takes

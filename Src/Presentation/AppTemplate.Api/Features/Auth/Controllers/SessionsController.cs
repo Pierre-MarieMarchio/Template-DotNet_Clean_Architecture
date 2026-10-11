@@ -24,20 +24,12 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// <remarks>
 /// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
 /// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the
-/// <c>[Authorize]</c> on the actions beside it and serve a caller's own profile to anyone.
-/// <para>
-/// The tight <see cref="RateLimitingExtensions.Authentication"/> budget goes on each action handling
-/// a credential -- a password, a TOTP code, a recovery code -- and on no other, so polling an
-/// endpoint that handles none cannot spend the allowance that slows brute force down.
-/// </para>
-/// <para>
-/// Responses carrying a token, a two-factor shared key or recovery codes are <c>[NoStore]</c>: RFC
-/// 6749 §5.1 forbids a cache from storing an OAuth-style credential.
-/// </para>
-/// <para>
-/// Six classes under the one <c>auth</c> prefix, and the prefix is the surface: the twenty-eight actions
-/// are divided between them, and no path depends on which class answers it.
-/// </para>
+/// <c>[Authorize]</c> on the actions beside it. The tight
+/// <see cref="RateLimitingExtensions.Authentication"/> budget goes on each action handling a
+/// credential and on no other, so polling an endpoint that handles none cannot spend the
+/// brute-force allowance. Responses carrying a token are <c>[NoStore]</c>: RFC 6749 §5.1 forbids
+/// a cache from storing an OAuth-style credential. Six classes under the one <c>auth</c> prefix,
+/// and the prefix is the surface: no path depends on which class answers it.
 /// </remarks>
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]
@@ -106,24 +98,18 @@ public sealed class SessionsController(
     /// </summary>
     /// <remarks>
     /// This API issues no redirect and sets no cookie: the client runs the provider's
-    /// authorisation-code-with-PKCE flow itself and posts only its result here, so a browser app, a
-    /// phone and a desktop client all take the same two calls and the token model is untouched.
-    /// <para>
-    /// Answers with <see cref="ExternalLoginResponse"/>, which is <see cref="LoginResponse"/>'s shape
-    /// plus one field — including the <c>twoFactorRequired</c> branch, redeemed at
-    /// <see cref="LoginWithTwoFactor"/>. A provider proves who the caller is, which is what a password
-    /// proves and no more; serving a token pair here for an account with a second factor armed would
-    /// make linking a provider the way to walk around it.
-    /// </para>
-    /// <para>
-    /// One 401 for every refusal — a token that did not verify, a provider nobody configured, an
-    /// address the provider would not vouch for, an address held by an account that never confirmed
-    /// it, an account that may no longer sign in. Anyone can obtain an <c>id_token</c> for an address
-    /// they control, so a distinct answer for any of those turns this into a probe for which addresses
-    /// are registered here and which providers this installation accepts. The provider is a field of
-    /// the body rather than a route segment for the same reason, which
+    /// authorisation-code-with-PKCE flow itself and posts only its result here, so every client kind
+    /// takes the same two calls. Answers with <see cref="ExternalLoginResponse"/> —
+    /// <see cref="LoginResponse"/>'s shape plus one field, including the <c>twoFactorRequired</c>
+    /// branch redeemed at <see cref="LoginWithTwoFactor"/>: a provider proves who the caller is,
+    /// which is what a password proves and no more, so serving a token pair here for an account
+    /// with a second factor armed would make linking a provider the way to walk around it. One 401
+    /// for every refusal — a token that did not verify, a provider nobody configured, an address
+    /// held by an unconfirmed account, an account that may no longer sign in: anyone can obtain an
+    /// <c>id_token</c> for an address they control, so a distinct answer for any of these turns
+    /// this into a probe for which addresses are registered here. The provider is a field of the
+    /// body rather than a route segment for the same reason, which
     /// <see cref="SignInWithExternalProviderRequest"/> sets out.
-    /// </para>
     /// </remarks>
     [HttpPost("login/external")]
     [AllowAnonymous]

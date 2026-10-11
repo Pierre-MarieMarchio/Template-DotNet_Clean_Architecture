@@ -10,37 +10,25 @@ namespace AppTemplate.Presentation.Core.Common.Observability;
 
 /// <summary>
 /// Traces and metrics over OTLP, for any host: the options, the resource, the sampler, the
-/// outbound-HTTP instrumentation and the exporter.
-/// <para>
-/// What this cannot supply, and takes from the caller instead, is everything that names the host.
-/// A host's own <c>ActivitySource</c> and <c>Meter</c> names live in its feature folders, so a
-/// shared extension that listed them would have to reference the host that references it — a
-/// project cycle no visibility change resolves. And the service name has to be the host's, because
-/// two processes reporting under one name is worse than either reporting nothing.
-/// </para>
-/// <para>
-/// Which is why <c>host</c> is an assembly rather than a string: the name and the
-/// version are read from it, so a rename or a version bump cannot leave a stale literal — the same
-/// property the per-host versions had, pointed at the right assembly.
-/// </para>
-/// <para>
-/// No ASP.NET Core instrumentation here, and none is reachable: this project carries no framework
-/// reference, which is what lets a host with no HTTP surface use it. An HTTP host adds its own
-/// through <c>tracing</c> and <c>metrics</c>, which is also where a
-/// database instrumentation goes — <c>AddNpgsql()</c> would otherwise put a PostgreSQL driver
-/// behind every presentation host, desktop ones included.
-/// </para>
+/// outbound-HTTP instrumentation and the exporter. What this cannot supply, and takes from the
+/// caller instead, is everything that names the host: a host's own <c>ActivitySource</c> and
+/// <c>Meter</c> names live in its feature folders — a shared extension that listed them would have
+/// to reference the host that references it, a project cycle no visibility change resolves — and
+/// the service name has to be the host's. Which is why <c>host</c> is an assembly rather than a
+/// string: name and version are read from it, so a rename or a version bump cannot leave a stale
+/// literal. No ASP.NET Core instrumentation here, and none is reachable — this project carries no
+/// framework reference, which is what lets a host with no HTTP surface use it; an HTTP host adds
+/// its own through <c>tracing</c> and <c>metrics</c>, which is also where database instrumentation
+/// goes, so <c>AddNpgsql()</c> does not put a PostgreSQL driver behind every presentation host.
 /// </summary>
 public static class ObservabilityExtensions
 {
     /// <summary>
     /// Binds and validates <see cref="TelemetryOptions"/>, and — only when it is enabled —
-    /// registers the tracer and meter providers.
-    /// <para>
-    /// Nothing at all is registered when nothing is configured: no instrumentation, no exporter, no
-    /// background flush. That is what lets a deployment run with no collector near it, rather than
-    /// running an exporter that retries against a socket that will never answer.
-    /// </para>
+    /// registers the tracer and meter providers. Nothing at all is registered when nothing is
+    /// configured: no instrumentation, no exporter, no background flush, so a deployment can run
+    /// with no collector near it rather than an exporter retrying against a socket that will never
+    /// answer.
     /// </summary>
     /// <param name="services">The container being built.</param>
     /// <param name="configuration">Read for the <see cref="TelemetryOptions.SectionName"/> section.</param>

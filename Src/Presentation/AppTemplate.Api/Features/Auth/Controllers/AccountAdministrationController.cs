@@ -100,15 +100,12 @@ public sealed class AccountAdministrationController(
     /// Strips the account's second factor without its password or a code — the escape hatch for
     /// somebody who has lost the authenticator app <em>and</em> the recovery codes, and so can prove
     /// neither. Without this, the only recourse was <see cref="Delete"/>, which throws the account
-    /// away along with everything it owns rather than the one thing actually stuck.
-    /// <para>
-    /// Refused with a 403 when <paramref name="userId"/> names the caller — not <see cref="Lock"/>'s
-    /// reason, since disabling two-factor sign-in on the caller's own account locks nothing and
-    /// leaves it fully reachable afterward. It is refused because letting this route reach the
-    /// caller's own account would let a stolen administrator session strip that account's second
-    /// factor without ever presenting the password the self-service route demands — see
+    /// away along with everything it owns rather than the one thing actually stuck. Refused with a
+    /// 403 when <paramref name="userId"/> names the caller — not <see cref="Lock"/>'s reason, since
+    /// this locks nothing: it is refused because letting this route reach the caller's own account
+    /// would let a stolen administrator session strip that account's second factor without ever
+    /// presenting the password the self-service route demands — see
     /// <c>DisableAccountTwoFactorUseCase</c>.
-    /// </para>
     /// </summary>
     [HttpDelete("{userId:guid}/two-factor")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

@@ -4,11 +4,8 @@ namespace AppTemplate.Api.Common.Idempotency;
 
 /// <summary>
 /// How long a claimed <c>Idempotency-Key</c> is remembered, and the limits that keep the store from
-/// growing without bound.
-/// <para>
-/// Public because it is bound from configuration and its section name is part of the template's
-/// contract with whoever deploys it.
-/// </para>
+/// growing without bound. Public because it is bound from configuration and its section name is
+/// part of the template's contract with whoever deploys it.
 /// </summary>
 public sealed class IdempotencyOptions
 {
@@ -25,26 +22,16 @@ public sealed class IdempotencyOptions
     public TimeSpan Retention { get; set; } = TimeSpan.FromHours(24);
 
     /// <summary>
-    /// How long an unfinished claim blocks a retry before it is treated as abandoned — the
-    /// claimant's process died before it could call <c>CompleteAsync</c> or <c>ReleaseAsync</c> — and
-    /// made reclaimable by whoever asks next.
-    /// <para>
-    /// Unrelated to <see cref="Retention"/>, which governs how long a <em>completed</em> response
-    /// stays replayable; this one only ever matters while a claim is still unfinished. It must stay
-    /// comfortably above the longest a legitimate request may run, or it would expire out from under
-    /// a claimant that is still working and hand the key to a second, concurrent attempt — the exact
-    /// double write this whole mechanism exists to prevent.
-    /// </para>
-    /// <para>
-    /// 15 minutes: three times the 5-minute
-    /// <see cref="AppTemplate.Api.Common.Hosting.RequestTimeoutsOptions.Default"/> — the longest an
-    /// ordinary (non-streaming) request is allowed to run before the platform cuts it off itself,
-    /// at which point the filter's own <c>catch</c> releases the claim promptly. The margin is headroom
-    /// for clock drift between instances and for the little work still left once the action returns
-    /// (writing the response, then <c>CompleteAsync</c>'s own round trip). A value below that
-    /// 5-minute ceiling would turn a slow-but-legitimate write into a lease expiring while it is
-    /// still in flight.
-    /// </para>
+    /// How long an unfinished claim blocks a retry before it is treated as abandoned — the claimant's
+    /// process died before it could call <c>CompleteAsync</c> or <c>ReleaseAsync</c> — and made
+    /// reclaimable by whoever asks next. Unrelated to <see cref="Retention"/>, which governs how
+    /// long a <em>completed</em> response stays replayable: this one must stay comfortably above
+    /// the longest a legitimate request may run, or it would expire out from under a claimant still
+    /// working and hand the key to a second, concurrent attempt. 15 minutes: three times the
+    /// 5-minute <see cref="AppTemplate.Api.Common.Hosting.RequestTimeoutsOptions.Default"/> — the
+    /// longest an ordinary request runs before the platform cuts it off, at which point the
+    /// filter's own <c>catch</c> releases the claim — with headroom for clock drift between
+    /// instances and the work left once the action returns.
     /// </summary>
     public TimeSpan ClaimLease { get; set; } = TimeSpan.FromMinutes(15);
 

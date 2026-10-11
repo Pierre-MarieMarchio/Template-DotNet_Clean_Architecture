@@ -18,9 +18,9 @@ namespace AppTemplate.Api.UnitTests.Common.Security;
 /// exercised through the same <c>PartitionedRateLimiter</c> the middleware drives.
 /// </summary>
 /// <remarks>
-/// <c>RateLimiterOptions</c> keeps its named policies in an internal map, so the <c>authentication</c>
-/// policy cannot be invoked from here. Both policies are built by the same helper, which is tested
-/// directly; what the policy does with it afterwards is the integration suite's.
+/// <c>RateLimiterOptions</c> keeps its named policies in an internal map, so a named policy cannot
+/// be invoked from here. Every policy is built by the same helper, which is tested directly; what a
+/// policy does with it afterwards is the integration suite's.
 /// </remarks>
 public sealed class RateLimitingExtensionsTests
 {
@@ -69,7 +69,9 @@ public sealed class RateLimitingExtensionsTests
     {
         var defaults = new RateLimitingOptions();
 
+        //#if (localAuth)
         defaults.AuthenticationPermitLimit.ShouldBe(10);
+        //#endif
         defaults.GlobalPermitLimit.ShouldBe(300);
         defaults.Window.ShouldBe(TimeSpan.FromMinutes(1));
     }

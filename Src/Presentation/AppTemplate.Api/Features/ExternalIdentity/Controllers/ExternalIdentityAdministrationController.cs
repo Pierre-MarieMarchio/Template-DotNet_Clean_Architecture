@@ -16,8 +16,8 @@ namespace AppTemplate.Api.Features.ExternalIdentity.Controllers;
 /// Everything here is restricted to <see cref="AuthorizationPolicies.Administrator"/> on the class:
 /// nothing on this surface has a self-service counterpart, so there is no accidental
 /// <c>[AllowAnonymous]</c> for a class-level policy to defeat. No
-/// <see cref="RateLimitingExtensions.Authentication"/> budget: nothing here handles a
-/// credential, and every request is already behind an access token and the Administrator policy.
+/// authentication budget: nothing here handles a credential, and every request is already behind
+/// an access token and the Administrator policy.
 /// <para>
 /// The deletion the provider itself performs has no signal here, deliberately: when the provider
 /// retires a subject, an administrator calls this with the owner id, or the project wires the

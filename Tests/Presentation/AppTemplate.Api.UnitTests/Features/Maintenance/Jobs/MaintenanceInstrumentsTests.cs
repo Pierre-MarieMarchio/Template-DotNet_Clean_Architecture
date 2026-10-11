@@ -38,7 +38,7 @@ public sealed class MaintenanceInstrumentsTests
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, l) =>
         {
-            if (instrument.Meter.Name == "AppTemplate.Worker.Maintenance")
+            if (instrument.Meter.Name == "AppTemplate.Jobs.Maintenance")
             {
                 l.EnableMeasurementEvents(instrument);
             }
@@ -48,11 +48,11 @@ public sealed class MaintenanceInstrumentsTests
             var tagArray = tags.ToArray();
             string? task = tagArray.FirstOrDefault(t => t.Key == "task").Value as string;
 
-            if (instrument.Name == "apptemplate.worker.maintenance.purged")
+            if (instrument.Name == "apptemplate.jobs.maintenance.purged")
             {
                 purgedMeasurements.Enqueue((measurement, task));
             }
-            else if (instrument.Name == "apptemplate.worker.maintenance.iterations")
+            else if (instrument.Name == "apptemplate.jobs.maintenance.iterations")
             {
                 string? outcome = tagArray.FirstOrDefault(t => t.Key == "outcome").Value as string;
                 iterationMeasurements.Enqueue((measurement, task, outcome));
@@ -60,7 +60,7 @@ public sealed class MaintenanceInstrumentsTests
         });
         listener.Start();
 
-        var options = new MaintenanceWorkerOptions
+        var options = new JobsMaintenanceOptions
         {
             Interval = _tinyInterval,
             PurgeExpiredIdempotencyKeysEnabled = true,
@@ -102,14 +102,14 @@ public sealed class MaintenanceInstrumentsTests
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, l) =>
         {
-            if (instrument.Meter.Name == "AppTemplate.Worker.Maintenance")
+            if (instrument.Meter.Name == "AppTemplate.Jobs.Maintenance")
             {
                 l.EnableMeasurementEvents(instrument);
             }
         };
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, _) =>
         {
-            if (instrument.Name != "apptemplate.worker.maintenance.iterations")
+            if (instrument.Name != "apptemplate.jobs.maintenance.iterations")
             {
                 return;
             }
@@ -125,7 +125,7 @@ public sealed class MaintenanceInstrumentsTests
 
         /*#if (localAuth)*/
         var idempotency = new FakeIdempotencyPurge();
-        var options = new MaintenanceWorkerOptions
+        var options = new JobsMaintenanceOptions
         {
             Interval = _tinyInterval,
             PurgeExpiredIdempotencyKeysEnabled = true,
@@ -155,7 +155,7 @@ public sealed class MaintenanceInstrumentsTests
         /*#else
         // The one task this project has, switched off: nothing runs, so what the loop records is
         // the only sign it is alive.
-        var options = new MaintenanceWorkerOptions
+        var options = new JobsMaintenanceOptions
         {
             Interval = _tinyInterval,
             PurgeExpiredIdempotencyKeysEnabled = false,

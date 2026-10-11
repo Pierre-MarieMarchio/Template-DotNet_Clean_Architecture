@@ -9,9 +9,9 @@ namespace AppTemplate.Api.Features.Reminders.Jobs;
 /// pass fires is <c>FireDueRemindersUseCase</c>'s own concern, not something this job
 /// could pass through even if it wanted to.
 /// </summary>
-public sealed class ReminderWorkerOptions
+public sealed class JobsRemindersOptions
 {
-    public const string SectionName = "ReminderWorker";
+    public const string SectionName = "Jobs:Reminders";
 
     public TimeSpan Interval { get; set; } = TimeSpan.FromMinutes(1);
 
@@ -23,19 +23,19 @@ public sealed class ReminderWorkerOptions
     public bool Enabled { get; set; } = true;
 }
 
-internal sealed class ReminderWorkerOptionsValidator : IValidateOptions<ReminderWorkerOptions>
+internal sealed class JobsRemindersOptionsValidator : IValidateOptions<JobsRemindersOptions>
 {
     private static readonly TimeSpan _minimumInterval = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan _maximumInterval = TimeSpan.FromHours(1);
 
-    public ValidateOptionsResult Validate(string? name, ReminderWorkerOptions options)
+    public ValidateOptionsResult Validate(string? name, JobsRemindersOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         if (options.Interval < _minimumInterval || options.Interval > _maximumInterval)
         {
             return ValidateOptionsResult.Fail(
-                $"'{ReminderWorkerOptions.SectionName}:Interval' must be between {_minimumInterval} and " +
+                $"'{JobsRemindersOptions.SectionName}:Interval' must be between {_minimumInterval} and " +
                 $"{_maximumInterval}.");
         }
 

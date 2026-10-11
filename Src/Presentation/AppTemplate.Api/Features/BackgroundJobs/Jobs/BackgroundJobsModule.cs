@@ -28,7 +28,7 @@ namespace AppTemplate.Api.Features.BackgroundJobs.Jobs;
 public static class BackgroundJobsModule
 {
     /// <summary>
-    /// Registers the jobs when <c>BackgroundJobs:Enabled</c> is true, and nothing at all when it is
+    /// Registers the jobs when <c>Jobs:Enabled</c> is true, and nothing at all when it is
     /// not: an instance that only serves HTTP binds no job option and so requires none. When the jobs
     /// are enabled, an invalid job setting stops start-up rather than looking disabled.
     /// </summary>
@@ -42,11 +42,11 @@ public static class BackgroundJobsModule
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var role = configuration.GetSection(BackgroundJobsOptions.SectionName).Get<BackgroundJobsOptions>()
-            ?? new BackgroundJobsOptions();
+        var role = configuration.GetSection(JobsOptions.SectionName).Get<JobsOptions>()
+            ?? new JobsOptions();
 
-        services.AddOptions<BackgroundJobsOptions>()
-            .Bind(configuration.GetSection(BackgroundJobsOptions.SectionName));
+        services.AddOptions<JobsOptions>()
+            .Bind(configuration.GetSection(JobsOptions.SectionName));
 
         if (!role.Enabled)
         {

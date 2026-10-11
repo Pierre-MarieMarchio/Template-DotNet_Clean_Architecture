@@ -17,7 +17,7 @@ namespace AppTemplate.Api.UnitTests.Features.Files.Jobs;
 /// Proves the metric the file loops emit carries the case that would otherwise stay invisible: a
 /// sweep that removed nothing. That is the normal state of both of these in a healthy system, so a
 /// count of what they removed can never say whether they ran — only
-/// <c>apptemplate.worker.files.iterations</c> can, and it is what an alert on "a sweep stopped"
+/// <c>apptemplate.jobs.files.iterations</c> can, and it is what an alert on "a sweep stopped"
 /// would watch.
 /// </summary>
 public sealed class FileInstrumentsTests
@@ -41,7 +41,7 @@ public sealed class FileInstrumentsTests
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, l) =>
         {
-            if (instrument.Meter.Name == "AppTemplate.Worker.Files")
+            if (instrument.Meter.Name == "AppTemplate.Jobs.Files")
             {
                 l.EnableMeasurementEvents(instrument);
             }
@@ -51,15 +51,15 @@ public sealed class FileInstrumentsTests
             var tagArray = tags.ToArray();
             string? task = tagArray.FirstOrDefault(t => t.Key == "task").Value as string;
 
-            if (instrument.Name == "apptemplate.worker.files.registrations_purged")
+            if (instrument.Name == "apptemplate.jobs.files.registrations_purged")
             {
                 purgedMeasurements.Enqueue((measurement, task));
             }
-            else if (instrument.Name == "apptemplate.worker.files.objects_reclaimed")
+            else if (instrument.Name == "apptemplate.jobs.files.objects_reclaimed")
             {
                 reclaimedMeasurements.Enqueue((measurement, task));
             }
-            else if (instrument.Name == "apptemplate.worker.files.iterations")
+            else if (instrument.Name == "apptemplate.jobs.files.iterations")
             {
                 string? outcome = tagArray.FirstOrDefault(t => t.Key == "outcome").Value as string;
                 iterationMeasurements.Enqueue((measurement, task, outcome));
@@ -73,7 +73,7 @@ public sealed class FileInstrumentsTests
         services.AddScoped<IReclaimOrphanedContentUseCase>(_ => sweep);
         using var provider = services.BuildServiceProvider();
 
-        var options = new FileWorkerOptions
+        var options = new JobsFilesOptions
         {
             PurgeAbandonedRegistrationsInterval = _tinyInterval,
             PurgeAbandonedRegistrationsEnabled = true,
@@ -116,8 +116,8 @@ public sealed class FileInstrumentsTests
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, l) =>
         {
-            if (instrument.Meter.Name == "AppTemplate.Worker.Files"
-                && instrument.Name == "apptemplate.worker.files.iterations")
+            if (instrument.Meter.Name == "AppTemplate.Jobs.Files"
+                && instrument.Name == "apptemplate.jobs.files.iterations")
             {
                 l.EnableMeasurementEvents(instrument);
             }
@@ -137,7 +137,7 @@ public sealed class FileInstrumentsTests
         services.AddScoped<IReclaimOrphanedContentUseCase>(_ => sweep);
         using var provider = services.BuildServiceProvider();
 
-        var options = new FileWorkerOptions
+        var options = new JobsFilesOptions
         {
             PurgeAbandonedRegistrationsInterval = _tinyInterval,
             PurgeAbandonedRegistrationsEnabled = true,
@@ -162,7 +162,7 @@ public sealed class FileInstrumentsTests
     /// <summary>
     /// The third case, and the one this feature needs most: a loop a configuration flag switched off
     /// still counts its passes, tagged <c>disabled</c>. Without it an operator reading a flat
-    /// <c>apptemplate.worker.files.iterations</c> cannot tell a loop somebody turned off from one
+    /// <c>apptemplate.jobs.files.iterations</c> cannot tell a loop somebody turned off from one
     /// that died — and the inspection loop is the one whose death leaves every upload permanently
     /// unreadable. <c>ReminderBackgroundService</c> has counted its own disabled pass all along; this
     /// holds the file loops to the same reading.
@@ -175,8 +175,8 @@ public sealed class FileInstrumentsTests
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, l) =>
         {
-            if (instrument.Meter.Name == "AppTemplate.Worker.Files"
-                && instrument.Name == "apptemplate.worker.files.iterations")
+            if (instrument.Meter.Name == "AppTemplate.Jobs.Files"
+                && instrument.Name == "apptemplate.jobs.files.iterations")
             {
                 l.EnableMeasurementEvents(instrument);
             }
@@ -194,7 +194,7 @@ public sealed class FileInstrumentsTests
         // reached for one would fail this test rather than quietly counting an exception.
         using var provider = new ServiceCollection().AddBackgroundScope().BuildServiceProvider();
 
-        var options = new FileWorkerOptions
+        var options = new JobsFilesOptions
         {
             PurgeAbandonedRegistrationsInterval = _tinyInterval,
             PurgeAbandonedRegistrationsEnabled = false,

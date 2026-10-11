@@ -88,7 +88,7 @@ public sealed class ReminderInstrumentsTests
 
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, _) =>
         {
-            if (instrument.Name != "apptemplate.worker.reminders.iterations")
+            if (instrument.Name != "apptemplate.jobs.reminders.iterations")
             {
                 return;
             }
@@ -114,7 +114,7 @@ public sealed class ReminderInstrumentsTests
         services.AddScoped<IFireDueRemindersUseCase>(_ => useCase);
         using var provider = services.BuildServiceProvider();
 
-        var options = new ReminderWorkerOptions { Interval = _tinyInterval, Enabled = enabled };
+        var options = new JobsRemindersOptions { Interval = _tinyInterval, Enabled = enabled };
 
         using var service = new ReminderBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),

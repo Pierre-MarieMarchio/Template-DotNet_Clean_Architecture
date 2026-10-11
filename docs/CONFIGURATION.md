@@ -61,7 +61,7 @@ be filled from user secrets or environment variables.
 > | `Files:Storage:S3` | `AddStorageModule`, when `Files:Storage:Provider` is `S3` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
 > | `Files:Storage`, `Files:Storage:FileSystem`, `Files:Scanning` | `AddStorageModule` (the `FileSystem` section only for that provider) | `AppTemplate.Infrastructure.Storage/Features/Files/Options/` |
 > | `BackgroundJobs` | `AddBackgroundJobs`, called from `AppTemplate.Api`'s `Program.cs` | `AppTemplate.Api/Common/Jobs/` |
-> | `MaintenanceWorker`, and each feature's own `…Worker` section | `AddBackgroundJobs`, and only when `BackgroundJobs:Enabled` is true | `AppTemplate.Api/Features/<Feature>/Jobs/` |
+> | `Jobs:Enabled`, and each feature's own `Jobs:…` section | `AddBackgroundJobs`, and only when `Jobs:Enabled` is true | `AppTemplate.Api/Common/Jobs/` and `AppTemplate.Api/Features/<Feature>/Jobs/` |
 > | `OpenTelemetry` | `AddObservability`, through the API's `AddApiObservability` | `AppTemplate.Presentation.Core/Common/Observability/` |
 > | `Localization` | `AddLocalizationOptions`, through the API's `AddRequestLanguage` | `AppTemplate.Presentation.Core/Common/Localization/` |
 > | Everything else | `AppTemplate.Api`'s own `Program.cs`, through `AddHttpPipeline` | beside the middleware that reads it, under `AppTemplate.Api/Common/` |
@@ -89,7 +89,7 @@ single call that composes the jobs. The jobs call the same application-layer use
 do — `MaintenanceController` exposes the two purges over HTTP, for example — on a timer instead of a
 request, and a due reminder is rung through the same `IReminderNotifier` port.
 
-**`BackgroundJobs:Enabled` is a deployment role, not a job setting.** It defaults to `true`, so a
+**`Jobs:Enabled` is a deployment role, not a job setting.** It defaults to `true`, so a
 single instance does everything. Set it to `false` and the instance still serves every route, but
 starts no periodic pass — and binds none of the three job sections, so it is not made to supply or
 validate settings it never reads. When it is `true`, each job's section is bound and validated at
@@ -97,7 +97,7 @@ startup like any other: an invalid interval fails the host with a message naming
 never quietly read as "disabled". A job is disabled only by its own `Enabled` flag, which keeps
 counting and logging as disabled on every tick.
 
-**Several instances.** Set `BackgroundJobs__Enabled=false` on every instance that should only serve
+**Several instances.** Set `Jobs__Enabled=false` on every instance that should only serve
 HTTP and leave it `true` on exactly one designated instance. That keeps the file passes — which walk
 the object store — from being multiplied by the number of replicas, without a queue or a global
 scheduler. The protections underneath stay in place and are not a substitute for that choice: the
@@ -110,7 +110,7 @@ instance's job heartbeats (the `iterations` counters under [`OpenTelemetry`](#op
 
 **A separate runner, later.** If measured load or release needs justify a process of its own, the
 jobs' hosting adapters and their one composition call move into it, and the API sets
-`BackgroundJobs:Enabled=false`. That process supplies its own caller and audit identity
+`Jobs:Enabled=false`. That process supplies its own caller and audit identity
 (`AddNoCallerIdentity()` and an `IAuditActor` that answers nobody, both of which already exist) and
 its own telemetry. Use cases, contracts and storage guarantees do not move.
 
@@ -144,9 +144,9 @@ module composes ASP.NET Identity and bearer validation with no narrower call.
 **Authentication's two purges belong to authentication.** They are not listed in the background
 composition: `AddAuthFeature` (`Src/Presentation/AppTemplate.Api/Features/Auth/Composition/AuthComposition.cs`)
 registers them with the maintenance timer, from the authentication feature's own folder, and
-[`MaintenanceWorker:PurgeExpiredRefreshTokensEnabled`](#maintenanceworkerpurgeexpiredrefreshtokensenabled)
+[`Jobs:Maintenance:PurgeExpiredRefreshTokensEnabled`](#jobsmaintenancepurgeexpiredrefreshtokensenabled)
 and
-[`MaintenanceWorker:PurgeExpiredSecurityEventsEnabled`](#maintenanceworkerpurgeexpiredsecurityeventsenabled)
+[`Jobs:Maintenance:PurgeExpiredSecurityEventsEnabled`](#jobsmaintenancepurgeexpiredsecurityeventsenabled)
 are read by an options class that lives beside them. A project built without authentication deletes that
 call and that folder and edits nothing in the composition — `BackgroundWorkTests` fails the build if
 the composition ever names authentication.
@@ -201,7 +201,7 @@ there: what is deliberately not configurable, and how a key becomes an environme
 | The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [`RateLimiting`](#ratelimiting) |
 | Correctness mechanisms | [`Concurrency`](#concurrency) · [`Idempotency`](#idempotency) · [`IdempotencyPurge`](#idempotencypurge) |
 | Lifecycle and observability | [`Shutdown`](#shutdown) · [`OpenTelemetry`](#opentelemetry) · [standard ASP.NET Core keys](#standard-aspnet-core-keys) |
-| Background jobs | [`BackgroundJobs`](#backgroundjobs) · [`FileWorker`](#fileworker) · [`MaintenanceWorker`](#maintenanceworker) · [`ReminderWorker`](#reminderworker) |
+| Background jobs | [`Jobs`](#jobs) · [`Jobs:Files`](#jobsfiles) · [`Jobs:Maintenance`](#jobsmaintenance) · [`Jobs:Reminders`](#jobsreminders) |
 | Read these anyway | [not configurable, and why](#not-configurable--and-why-that-is-worth-knowing) · [outbound HTTP](#outbound-http--deliberately-not-configurable) · [environment-variable mapping](#environment-variable-mapping) |
 
 <!--#else
@@ -213,7 +213,7 @@ there: what is deliberately not configurable, and how a key becomes an environme
 | The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [`RateLimiting`](#ratelimiting) |
 | Correctness mechanisms | [`Concurrency`](#concurrency) · [`Idempotency`](#idempotency) · [`IdempotencyPurge`](#idempotencypurge) |
 | Lifecycle and observability | [`Shutdown`](#shutdown) · [`OpenTelemetry`](#opentelemetry) · [standard ASP.NET Core keys](#standard-aspnet-core-keys) |
-| Background jobs | [`BackgroundJobs`](#backgroundjobs) · [`FileWorker`](#fileworker) · [`MaintenanceWorker`](#maintenanceworker) |
+| Background jobs | [`Jobs`](#jobs) · [`Jobs:Files`](#jobsfiles) · [`Jobs:Maintenance`](#jobsmaintenance) |
 | Read these anyway | [not configurable, and why](#not-configurable--and-why-that-is-worth-knowing) · [outbound HTTP](#outbound-http--deliberately-not-configurable) · [environment-variable mapping](#environment-variable-mapping) |
 #endif-->
 
@@ -278,7 +278,7 @@ idempotent endpoint. `AddContextFactory` deliberately shares `AddContext`'s opti
 than building a second one, specifically so both draw from the one pool this setting bounds
 instead of a second, unbounded one.
 
-**The jobs draw from the same pool as requests.** An instance with `BackgroundJobs:Enabled=true`
+**The jobs draw from the same pool as requests.** An instance with `Jobs:Enabled=true`
 runs its passes — the reminder pass, the purges, the file passes — on connections from its own
 `Database:MaxPoolSize`, beside the requests it is serving. Leave headroom for a pass running during
 load rather than sizing the pool for requests alone.
@@ -434,10 +434,10 @@ owners across a change of provider, and why a token that cannot be mapped is ref
 **`Local` roles have no API.** Assignments are rows of `(UserId, Role)` written by SQL or a seed.
 
 <!--#endif-->
-### `FileWorker`
+### `Jobs:Files`
 
 The Files feature's two sweeps and its inspection pass. Bound by `AddBackgroundJobs`, and only when
-`BackgroundJobs:Enabled` is true: an instance that runs no jobs never reads it.
+`Jobs:Enabled` is true: an instance that runs no jobs never reads it.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
@@ -613,9 +613,9 @@ it — the same asymmetry the S3 SDK has. Its timeouts are set on the adapter by
 that budget.
 
 **Inspection is the only thing that makes a file readable**, so
-`FileWorker:InspectDepositedFilesInterval` is a latency a user feels, not a background cost — and
-`FileWorker:InspectDepositedFilesEnabled` set to `false` does not degrade the feature, it stops it.
-That is why the two live under `FileWorker` with the sweeps but are documented as the opposite kind
+`Jobs:Files:InspectDepositedFilesInterval` is a latency a user feels, not a background cost — and
+`Jobs:Files:InspectDepositedFilesEnabled` set to `false` does not degrade the feature, it stops it.
+That is why the two live under `Jobs:Files` with the sweeps but are documented as the opposite kind
 of switch.
 
 ### Outbound HTTP — deliberately not configurable
@@ -1045,16 +1045,16 @@ metrics cover ASP.NET Core, `HttpClient`, the runtime, the connection pool and t
 jobs' own sources and meters to that same pipeline — the three jobs' `ActivitySource`s and `Meter`s and
 the persistence project's reminder meter, by `PersistenceModule.RemindersMeterName` — through
 callbacks that run only when telemetry is enabled and the jobs run, so an instance with no collector,
-or with `BackgroundJobs:Enabled=false`, registers nothing for them. `service.name` is `AppTemplate.Api`,
+or with `Jobs:Enabled=false`, registers nothing for them. `service.name` is `AppTemplate.Api`,
 read from its assembly, for the jobs as for requests.
 
 **The jobs' signals** are what tells a stopped loop from a quiet one. Each pass adds one to an
 `iterations` counter tagged with its `outcome` (`success`, `failure`, `exception` or `disabled`) and
 its `task`, whether or not it found anything, and writes a log line on start, stop and every skip; a
 flat `iterations` series is a loop that stopped, and `outcome != "disabled"` is what an alert on that
-should read. The meters keep the names they had when the jobs ran in a process of their own —
-`AppTemplate.Worker.Files`, `AppTemplate.Worker.Maintenance` and `AppTemplate.Worker.Reminders` —
-so a dashboard built against them keeps working.
+should read. The meters are named after their section, one per loop —
+`AppTemplate.Jobs.Files`, `AppTemplate.Jobs.Maintenance` and `AppTemplate.Jobs.Reminders` —
+and their counters sit under `apptemplate.jobs.*`.
 
 - **An unreachable collector is safe.** Startup succeeds and the failing export cycles produce
   no log output at all, because the OTLP exporter reports failures on its own `EventSource`
@@ -1205,7 +1205,7 @@ of a clean error either way.
 failing under normal load, not just under a real incident. **Set it outside 1 second – 1 hour** and
 the host fails `ValidateOnStart()` and does not boot.
 
-### `BackgroundJobs`
+### `Jobs`
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
@@ -1215,15 +1215,15 @@ A role switch, read by `AddBackgroundJobs` before it registers anything, so it i
 `IValidateOptions` rule — a value that is not a boolean fails startup from the binder. See
 [One process](#one-process-http-and-the-periodic-jobs) for running several instances.
 
-### `MaintenanceWorker`
+### `Jobs:Maintenance`
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `Interval` | timespan | `01:00:00` | How often the maintenance job wakes up. Governs every task. Range **1 second – 1 day**. |
 | `PurgeExpiredIdempotencyKeysEnabled` | bool | `true` | Runs `IPurgeExpiredIdempotencyKeysUseCase` each iteration when `true`. |
 
-Read by `AppTemplate.Api/Features/Maintenance/Jobs/MaintenanceWorkerOptions.cs`, when
-`BackgroundJobs:Enabled` is true. Each task can be switched off independently — an operator running
+Read by `AppTemplate.Api/Features/Maintenance/Jobs/JobsMaintenanceOptions.cs`, when
+`Jobs:Enabled` is true. Each task can be switched off independently — an operator running
 the idempotency purge here but one of authentication's some other way is not forced into the rest.
 The two authentication switches are documented next, because they belong to authentication.
 
@@ -1241,20 +1241,20 @@ The two authentication switches are documented next, because they belong to auth
 - **Set outside 1 second – 1 day** and an instance that runs the jobs fails `ValidateOnStart()` and
   does not boot.
 
-### `MaintenanceWorker:PurgeExpiredRefreshTokensEnabled`
+### `Jobs:Maintenance:PurgeExpiredRefreshTokensEnabled`
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `PurgeExpiredRefreshTokensEnabled` | bool | `true` | Runs `IPurgeExpiredRefreshTokensUseCase` each iteration when `true`. |
 
 <!--#if (anyFeature)-->
-### `MaintenanceWorker:SweepDeletedAccountsDataEnabled`
+### `Jobs:Maintenance:SweepDeletedAccountsDataEnabled`
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `SweepDeletedAccountsDataEnabled` | bool | `true` | Runs `ISweepDeletedAccountDataUseCase` each iteration when `true`. |
 
-A key of the `MaintenanceWorker` section above, read by
+A key of the `Jobs:Maintenance` section above, read by
 `AppTemplate.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs`. The sweep is the
 guarantee behind the account-deleted fact: it applies each feature's declared policy to the owners
 whose data still names a deleted account, whether or not the fact reached the feature's consumer.
@@ -1263,13 +1263,13 @@ path, and this switch is what makes it certain. See
 [`ARCHITECTURE.md`](ARCHITECTURE.md#when-an-account-goes).
 <!--#endif-->
 
-A key of the `MaintenanceWorker` section above, read by
+A key of the `Jobs:Maintenance` section above, read by
 `AppTemplate.Api/Features/Auth/Jobs/AuthPurgeOptions.cs` — a class of the authentication feature's
 own that its composition binds to that section, so a project without authentication loses the key
 with the purge. Off, rotated and expired grants accumulate: nothing else removes them, and the
 maintenance job says so at warning level on every skipped iteration.
 
-### `MaintenanceWorker:PurgeExpiredSecurityEventsEnabled`
+### `Jobs:Maintenance:PurgeExpiredSecurityEventsEnabled`
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
@@ -1283,15 +1283,15 @@ also an authorized endpoint, `DELETE /maintenance/security-events/expired`, for 
 the process.
 
 <!--#if (reminders)-->
-### `ReminderWorker`
+### `Jobs:Reminders`
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `Interval` | timespan | `00:01:00` | How often the reminder job looks for due reminders. Range **1 second – 1 hour**. |
 | `Enabled` | bool | `true` | Off leaves the rest of the process running without firing reminders — a maintenance window, or a deployment still validating the `IReminderNotifier` it wired in before letting it ring anyone for real. |
 
-Read by `AppTemplate.Api/Features/Reminders/Jobs/ReminderWorkerOptions.cs`, when
-`BackgroundJobs:Enabled` is true. There is no batch-size knob: `IFireDueRemindersUseCase` takes no
+Read by `AppTemplate.Api/Features/Reminders/Jobs/JobsRemindersOptions.cs`, when
+`Jobs:Enabled` is true. There is no batch-size knob: `IFireDueRemindersUseCase` takes no
 command, so how many reminders one pass claims is `FireDueRemindersUseCase.BatchSize`'s concern and
 not something the job could pass through. Two instances with the job enabled do not systematically
 send twice — the use case takes the leader lease — but the lease is not a fencing token, so delivery
@@ -1339,7 +1339,7 @@ caller may set its own header; the middleware never overwrites one already prese
 URLs**, and they measure three different costs: how many unexpired write rights one caller
 may be holding, how large that caller's listing may get, and how much of the bucket one
 owner may fill. A caller that meets any of them gets `409` `storedFile.quotaExceeded`. The
-pending bound is self-clearing — `FileWorker:PurgeAbandonedRegistrations*` removes
+pending bound is self-clearing — `Jobs:Files:PurgeAbandonedRegistrations*` removes
 registrations that were never deposited against — so a client that crashed mid-upload waits
 rather than being locked out.
 
@@ -1376,8 +1376,8 @@ them to an options class with a validator — do not read them straight from
 | `Database:MaxPoolSize` | `Database__MaxPoolSize` |
 | `IdempotencyPurge:BatchSize` | `IdempotencyPurge__BatchSize` |
 | `Files:Storage:S3:BucketName` | `Files__Storage__S3__BucketName` |
-| `BackgroundJobs:Enabled` | `BackgroundJobs__Enabled` |
-| `MaintenanceWorker:Interval` | `MaintenanceWorker__Interval` |
+| `Jobs:Enabled` | `Jobs__Enabled` |
+| `Jobs:Maintenance:Interval` | `Jobs__Maintenance__Interval` |
 
 Colons do not work as separators in environment variables on all platforms; the double
 underscore always does.

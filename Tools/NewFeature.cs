@@ -1,4 +1,4 @@
-#:property UseAppHost=false
+﻿#:property UseAppHost=false
 
 using System.Security.Cryptography;
 using System.Text;
@@ -4677,7 +4677,7 @@ internal static class Templates
                 ArgumentNullException.ThrowIfNull(configuration);
 
                 services.AddOptions<DeletedAccountSweepOptions>()
-                    .Bind(configuration.GetSection(MaintenanceWorkerOptions.SectionName));
+                    .Bind(configuration.GetSection(JobsMaintenanceOptions.SectionName));
 
                 services.AddMaintenanceTask<ISweepDeletedAccountDataUseCase>(
                     "data of deleted accounts",
@@ -4696,7 +4696,7 @@ internal static class Templates
 
         /// <summary>
         /// The off switch of the deleted-account data sweep, read from the maintenance section next to the
-        /// other purges': <c>MaintenanceWorker:SweepDeletedAccountsDataEnabled</c>.
+        /// other purges': <c>Jobs:Maintenance:SweepDeletedAccountsDataEnabled</c>.
         /// <para>
         /// A class of its own, for the same reason <c>RefreshTokenPurgeOptions</c> is: a project generated
         /// without accounts loses the key together with the sweep. Internal, and without a section name of

@@ -4,14 +4,14 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Maintenance.Jobs;
 
-public sealed class MaintenanceWorkerOptionsValidatorTests
+public sealed class JobsMaintenanceOptionsValidatorTests
 {
-    private readonly MaintenanceWorkerOptionsValidator _validator = new();
+    private readonly JobsMaintenanceOptionsValidator _validator = new();
 
     [Fact]
     public void Validate_Succeeds_ForTheDefaults()
     {
-        var result = _validator.Validate(name: null, new MaintenanceWorkerOptions());
+        var result = _validator.Validate(name: null, new JobsMaintenanceOptions());
 
         result.Succeeded.ShouldBeTrue();
     }
@@ -21,7 +21,7 @@ public sealed class MaintenanceWorkerOptionsValidatorTests
     [InlineData("1.00:00:00")]
     public void Validate_Succeeds_AtEachBoundary(string interval)
     {
-        var options = new MaintenanceWorkerOptions { Interval = TimeSpan.Parse(interval) };
+        var options = new JobsMaintenanceOptions { Interval = TimeSpan.Parse(interval) };
 
         _validator.Validate(name: null, options).Succeeded.ShouldBeTrue();
     }
@@ -29,16 +29,16 @@ public sealed class MaintenanceWorkerOptionsValidatorTests
     [Fact]
     public void Validate_Fails_WhenIntervalIsZero()
     {
-        var result = _validator.Validate(name: null, new MaintenanceWorkerOptions { Interval = TimeSpan.Zero });
+        var result = _validator.Validate(name: null, new JobsMaintenanceOptions { Interval = TimeSpan.Zero });
 
         result.Failed.ShouldBeTrue();
-        result.FailureMessage.ShouldContain("MaintenanceWorker:Interval");
+        result.FailureMessage.ShouldContain("Jobs:Maintenance:Interval");
     }
 
     [Fact]
     public void Validate_Fails_WhenIntervalIsNegative()
     {
-        var options = new MaintenanceWorkerOptions { Interval = TimeSpan.FromSeconds(-1) };
+        var options = new JobsMaintenanceOptions { Interval = TimeSpan.FromSeconds(-1) };
 
         _validator.Validate(name: null, options).Failed.ShouldBeTrue();
     }
@@ -46,7 +46,7 @@ public sealed class MaintenanceWorkerOptionsValidatorTests
     [Fact]
     public void Validate_Fails_WhenIntervalExceedsOneDay()
     {
-        var options = new MaintenanceWorkerOptions { Interval = TimeSpan.FromDays(1) + TimeSpan.FromSeconds(1) };
+        var options = new JobsMaintenanceOptions { Interval = TimeSpan.FromDays(1) + TimeSpan.FromSeconds(1) };
 
         _validator.Validate(name: null, options).Failed.ShouldBeTrue();
     }

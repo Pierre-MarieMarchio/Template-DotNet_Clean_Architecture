@@ -18,7 +18,7 @@ namespace AppTemplate.Api.Features.Maintenance.Jobs;
 /// </summary>
 internal sealed class MaintenanceBackgroundService(
     IServiceScopeFactory scopeFactory,
-    IOptions<MaintenanceWorkerOptions> options,
+    IOptions<JobsMaintenanceOptions> options,
     IEnumerable<IMaintenanceTask> tasks,
     ILogger<MaintenanceBackgroundService> logger) : BackgroundService
 {
@@ -30,7 +30,7 @@ internal sealed class MaintenanceBackgroundService(
         if (logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(
-                "Maintenance worker starting. Interval: {Interval}. Purges enabled: {Purges}.",
+                "Maintenance job starting. Interval: {Interval}. Purges enabled: {Purges}.",
                 settings.Interval,
                 string.Join(", ", registered.Select(task => $"{task.Label}={task.Enabled}")));
         }
@@ -40,7 +40,7 @@ internal sealed class MaintenanceBackgroundService(
             token => RunIterationAsync(registered, token),
             stoppingToken);
 
-        logger.LogInformation("Maintenance worker stopping.");
+        logger.LogInformation("Maintenance job stopping.");
     }
 
     private async Task RunIterationAsync(List<IMaintenanceTask> registered, CancellationToken stoppingToken)

@@ -17,7 +17,7 @@ namespace AppTemplate.Api.Features.Reminders.Jobs;
 /// </summary>
 internal sealed class ReminderBackgroundService(
     IServiceScopeFactory scopeFactory,
-    IOptions<ReminderWorkerOptions> options,
+    IOptions<JobsRemindersOptions> options,
     ILogger<ReminderBackgroundService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -27,7 +27,7 @@ internal sealed class ReminderBackgroundService(
         if (logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(
-                "Reminder worker starting. Interval: {Interval}. Enabled: {Enabled}.",
+                "Reminder job starting. Interval: {Interval}. Enabled: {Enabled}.",
                 settings.Interval,
                 settings.Enabled);
         }
@@ -37,10 +37,10 @@ internal sealed class ReminderBackgroundService(
             token => RunIterationAsync(settings, token),
             stoppingToken);
 
-        logger.LogInformation("Reminder worker stopping.");
+        logger.LogInformation("Reminder job stopping.");
     }
 
-    private async Task RunIterationAsync(ReminderWorkerOptions settings, CancellationToken stoppingToken)
+    private async Task RunIterationAsync(JobsRemindersOptions settings, CancellationToken stoppingToken)
     {
         if (!settings.Enabled)
         {

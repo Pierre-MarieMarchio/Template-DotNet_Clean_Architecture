@@ -26,7 +26,7 @@ internal static class AuthJobsExtensions
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.AddOptions<AuthPurgeOptions>()
-            .Bind(configuration.GetSection(MaintenanceWorkerOptions.SectionName));
+            .Bind(configuration.GetSection(JobsMaintenanceOptions.SectionName));
 
         services.AddMaintenanceTask<IPurgeExpiredRefreshTokensUseCase>(
             "expired refresh-token grants",

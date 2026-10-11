@@ -5,7 +5,7 @@ namespace AppTemplate.Api.Features.Reminders.Jobs;
 internal static class ReminderJobsExtensions
 {
     /// <summary>
-    /// Binds and validates <see cref="ReminderWorkerOptions"/> and starts the timer that fires due
+    /// Binds and validates <see cref="JobsRemindersOptions"/> and starts the timer that fires due
     /// reminders.
     /// </summary>
     internal static IServiceCollection AddReminderJobs(
@@ -15,11 +15,11 @@ internal static class ReminderJobsExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddOptions<ReminderWorkerOptions>()
-            .Bind(configuration.GetSection(ReminderWorkerOptions.SectionName))
+        services.AddOptions<JobsRemindersOptions>()
+            .Bind(configuration.GetSection(JobsRemindersOptions.SectionName))
             .ValidateOnStart();
 
-        services.AddSingleton<IValidateOptions<ReminderWorkerOptions>, ReminderWorkerOptionsValidator>();
+        services.AddSingleton<IValidateOptions<JobsRemindersOptions>, JobsRemindersOptionsValidator>();
 
         services.AddHostedService<ReminderBackgroundService>();
 

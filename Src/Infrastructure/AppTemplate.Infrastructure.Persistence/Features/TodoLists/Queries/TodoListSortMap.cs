@@ -72,10 +72,7 @@ internal static class TodoListSortMap
         };
     }
 
-    /// <summary>
-    /// The value the next cursor carries, in the same wire form <see cref="Cursor.Key"/> expects,
-    /// read from the last row actually served.
-    /// </summary>
+    /// <summary>The value the next cursor carries, in the same wire form <see cref="Cursor.Key"/> expects, read from the last row actually served.</summary>
     /// <remarks>
     /// It reads the projected summary rather than a <see cref="TodoListRecord"/> on purpose. The
     /// keyset page never materialises an entity, so a record here could only be one assembled by

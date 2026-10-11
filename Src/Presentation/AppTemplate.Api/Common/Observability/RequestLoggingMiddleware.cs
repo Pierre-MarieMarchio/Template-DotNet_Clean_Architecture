@@ -2,9 +2,7 @@
 
 namespace AppTemplate.Api.Common.Observability;
 
-/// <summary>
-/// One structured entry per request, carrying both identifiers a failure is investigated with.
-/// </summary>
+/// <summary>One structured entry per request, carrying both identifiers a failure is investigated with.</summary>
 /// <remarks>
 /// <para>
 /// <b>Redaction guarantee.</b> This middleware logs the fixed set of fields named in

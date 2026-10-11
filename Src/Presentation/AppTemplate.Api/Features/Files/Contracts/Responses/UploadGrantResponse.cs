@@ -1,8 +1,6 @@
 ﻿namespace AppTemplate.Api.Features.Files.Contracts.Responses;
 
-/// <summary>
-/// The right to deposit one file's bytes directly on the object store.
-/// </summary>
+/// <summary>The right to deposit one file's bytes directly on the object store.</summary>
 /// <remarks>
 /// Every field is a credential or part of one: whoever holds <paramref name="Url"/> can write the
 /// object, so the response is <c>no-store</c>.

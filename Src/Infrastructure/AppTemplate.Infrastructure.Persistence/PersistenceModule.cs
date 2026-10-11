@@ -100,10 +100,8 @@ public static class PersistenceModule
     public const string RemindersMeterName = "AppTemplate.Reminders";
 
     //#endif
-    /// <summary>
-    /// Registers everything that touches the database. Idempotent: the host calls it, and so does the
-    /// authentication module, which needs the context and the clock.
-    /// </summary>
+    /// <summary>Registers everything that touches the database. Idempotent: the host calls it, and
+    /// so does the authentication module, which needs the context and the clock.</summary>
     /// <param name="services">The container being composed.</param>
     /// <param name="configuration">Must supply the <c>Default</c> connection string.</param>
     public static IServiceCollection AddPersistenceModule(

@@ -27,9 +27,7 @@ internal sealed class EfUnitOfWork<TContext>(TContext context) : IContextUnitOfW
     /// <summary>Commits everything staged on the context, as one transaction.</summary>
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>The number of rows written.</returns>
-    /// <exception cref="ConcurrencyConflictException">
-    /// Another writer changed a row this write depended on. The staged changes stay uncommitted.
-    /// </exception>
+    /// <exception cref="ConcurrencyConflictException">Another writer changed a row this write depended on. The staged changes stay uncommitted.</exception>
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         try

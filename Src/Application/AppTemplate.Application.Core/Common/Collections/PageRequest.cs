@@ -58,9 +58,7 @@ public sealed record PageRequest
     /// The one place the two modes are checked against each other, so a request carrying both a page
     /// number and a cursor is refused instead of resolved by silently preferring one of them.
     /// </summary>
-    /// <returns>
-    /// A failure rather than an exception: bad paging is an answer the layer above turns into a 400.
-    /// </returns>
+    /// <returns>A failure rather than an exception: bad paging is an answer the layer above turns into a 400.</returns>
     public static Result<PageRequest> Create(
         PagingMode mode,
         int? page,

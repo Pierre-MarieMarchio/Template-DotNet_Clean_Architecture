@@ -54,14 +54,8 @@ internal static class StoredFileResponseMapping
     public static Result<StoredFileRegistrationResponse> ToRegistrationResponse(Result<RegisterFileOutcome> result) =>
         result.Map(ToResponse);
 
-    /// <summary>
-    /// A string on the wire rather than the enum's number, in the words <c>StoredFileFilter</c> parses,
-    /// so a client filters with the value it just read.
-    /// </summary>
-    /// <remarks>
-    /// Every member is named and the default arm throws, so a state added without a word here fails
-    /// loudly in tests rather than as a 500 on the first read.
-    /// </remarks>
+    /// <summary>A string on the wire rather than the enum's number, in the words <c>StoredFileFilter</c> parses, so a client filters with the value it just read.</summary>
+    /// <remarks>Every member is named and the default arm throws, so a state added without a word here fails loudly in tests rather than as a 500 on the first read.</remarks>
     private static string ToStatus(StoredFileState state) => state switch
     {
         StoredFileState.Pending => "pending",

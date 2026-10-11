@@ -5,10 +5,7 @@ using AppTemplate.Domain.Features.TodoLists.Entities;
 
 namespace AppTemplate.Application.Features.TodoLists.Mapping;
 
-/// <summary>
-/// Turns the aggregate a command just wrote into the same DTOs a read would have produced,
-/// without a second query.
-/// </summary>
+/// <summary>Turns the aggregate a command just wrote into the same DTOs a read would have produced, without a second query.</summary>
 /// <remarks>
 /// Sound only because <c>TodoListTracker</c> writes the store-assigned version and the refreshed
 /// audit timestamps back onto the aggregate inside <c>SaveChangesAsync</c> — so once that call

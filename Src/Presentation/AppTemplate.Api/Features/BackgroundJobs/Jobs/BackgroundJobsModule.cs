@@ -9,9 +9,7 @@ using AppTemplate.Api.Features.Reminders.Jobs;
 
 namespace AppTemplate.Api.Features.BackgroundJobs.Jobs;
 
-/// <summary>
-/// The one call that composes the periodic jobs: maintenance, reminders and the three file passes.
-/// </summary>
+/// <summary>The one call that composes the periodic jobs: maintenance, reminders and the three file passes.</summary>
 /// <remarks>
 /// <para>
 /// Everything the jobs need is behind this call — options, validation, hosted services and

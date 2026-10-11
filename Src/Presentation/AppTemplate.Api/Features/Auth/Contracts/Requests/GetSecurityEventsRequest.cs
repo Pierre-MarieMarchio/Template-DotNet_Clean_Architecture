@@ -1,9 +1,6 @@
 ﻿namespace AppTemplate.Api.Features.Auth.Contracts.Requests;
 
-/// <summary>
-/// Bound from the query string. Both security-event listings share it: the only input either
-/// takes is which page, since whose events they are never is.
-/// </summary>
+/// <summary>Bound from the query string. Both security-event listings share it: the only input either takes is which page, since whose events they are never is.</summary>
 /// <remarks>
 /// <c>page</c> and <c>pageSize</c> are typed as <see cref="int"/>?, so a value that is not a number
 /// never reaches the controller: model binding answers 400 with <c>request.validationFailed</c>

@@ -4,9 +4,7 @@ using System.Text;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Leases;
 
-/// <summary>
-/// The <c>bigint</c> a PostgreSQL advisory lock is taken on, derived from a name.
-/// </summary>
+/// <summary>The <c>bigint</c> a PostgreSQL advisory lock is taken on, derived from a name.</summary>
 /// <remarks>
 /// SHA-256 truncated to eight bytes, read big-endian. <c>string.GetHashCode()</c> is randomised per
 /// process and <c>BitConverter.ToInt64</c> follows the machine's endianness: either would give two

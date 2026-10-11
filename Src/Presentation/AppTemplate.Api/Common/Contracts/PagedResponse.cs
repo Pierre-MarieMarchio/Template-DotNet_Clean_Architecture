@@ -2,10 +2,7 @@
 
 namespace AppTemplate.Api.Common.Contracts;
 
-/// <summary>
-/// The wire shape of one page, mirroring <see cref="PagedResult{TItem}"/> so that no application
-/// type is serialised straight onto the wire.
-/// </summary>
+/// <summary>The wire shape of one page, mirroring <see cref="PagedResult{TItem}"/> so that no application type is serialised straight onto the wire.</summary>
 /// <remarks>
 /// <paramref name="TotalPages"/> and <paramref name="HasNextPage"/> are plain members here, where on
 /// the application record they are derived. A client cannot tell the difference, and a contract that

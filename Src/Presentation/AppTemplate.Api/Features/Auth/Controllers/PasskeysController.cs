@@ -19,10 +19,8 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
-/// <summary>
-/// Registering, listing, removing and signing in with passkeys — every endpoint of the WebAuthn
-/// ceremonies, over the support ASP.NET Core Identity itself provides.
-/// </summary>
+/// <summary>Registering, listing, removing and signing in with passkeys — every endpoint of the
+/// WebAuthn ceremonies, over the support ASP.NET Core Identity itself provides.</summary>
 /// <remarks>
 /// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
 /// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the
@@ -73,10 +71,7 @@ public sealed class PasskeysController(
     /// ago, answered <c>403 auth.account.reAuthenticationRequired</c> when the calling one is
     /// older.
     /// </summary>
-    /// <remarks>
-    /// Sessions are untouched: registering a credential changes what future sign-ins can present,
-    /// not what the sessions already open are worth.
-    /// </remarks>
+    /// <remarks>Sessions are untouched: registering a credential changes what future sign-ins can present, not what the sessions already open are worth.</remarks>
     [HttpPost("passkeys/register")]
     [Authorize]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]

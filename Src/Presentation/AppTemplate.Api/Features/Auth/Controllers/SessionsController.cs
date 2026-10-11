@@ -18,9 +18,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
-/// <summary>
-/// Starting a session, extending it, and ending it -- every endpoint that mints or revokes a token.
-/// </summary>
+/// <summary>Starting a session, extending it, and ending it -- every endpoint that mints or revokes a token.</summary>
 /// <remarks>
 /// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
 /// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the

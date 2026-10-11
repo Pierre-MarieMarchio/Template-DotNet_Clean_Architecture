@@ -1,9 +1,7 @@
 ﻿namespace AppTemplate.Api.Features.Files.Contracts.Responses;
 
-/// <summary>
-/// The wire shape of one file, without its content (see <c>GET .../content</c>). One shape serves
-/// the list, the single read and the body of a confirmation or upload.
-/// </summary>
+/// <summary>The wire shape of one file, without its content (see <c>GET .../content</c>). One shape
+/// serves the list, the single read and the body of a confirmation or upload.</summary>
 /// <param name="Category">The category the file was registered under, as configured in
 /// <c>Files:Categories</c>.</param>
 /// <param name="DeclaredMediaType">What the client said the file is; checked against the bytes only

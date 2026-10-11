@@ -2,10 +2,7 @@
 
 namespace AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityStore;
 
-/// <summary>
-/// One mapping row: the provider's (issuer, subject) pair, the internal owner it stands for, and the
-/// profile last seen with it.
-/// </summary>
+/// <summary>One mapping row: the provider's (issuer, subject) pair, the internal owner it stands for, and the profile last seen with it.</summary>
 /// <param name="Issuer">The issuer of the tokens naming this subject.</param>
 /// <param name="Subject">The provider's identifier for the caller.</param>
 /// <param name="UserId">The owner id every business row of this caller carries.</param>

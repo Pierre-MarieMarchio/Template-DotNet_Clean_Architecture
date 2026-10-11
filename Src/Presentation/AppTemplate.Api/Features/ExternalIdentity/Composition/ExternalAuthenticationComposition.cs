@@ -24,10 +24,7 @@ internal static class ExternalAuthenticationComposition
     /// mapping of each token's subject to an internal owner with its tables' stores, the roles from
     /// the configured source, and the <see cref="AuthorizationPolicies.Administrator"/> policy.
     /// </summary>
-    /// <remarks>
-    /// The mapping lives in the business database, so this adds no readiness check of its own: the
-    /// host's business database check already covers it.
-    /// </remarks>
+    /// <remarks>The mapping lives in the business database, so this adds no readiness check of its own: the host's business database check already covers it.</remarks>
     internal static IServiceCollection AddExternalAuthentication(
         this IServiceCollection services,
         IConfiguration configuration)

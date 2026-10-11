@@ -37,10 +37,7 @@ public abstract class ApiControllerBase : ControllerBase
         return result.IsSuccess ? Serialised(result.Value) : result.Error!.ToActionResult(HttpContext);
     }
 
-    /// <summary>
-    /// 200, serialised as <typeparamref name="TValue"/> rather than as whatever the value's runtime
-    /// type happens to be.
-    /// </summary>
+    /// <summary>200, serialised as <typeparamref name="TValue"/> rather than as whatever the value's runtime type happens to be.</summary>
     /// <remarks>
     /// <c>Ok(value)</c> leaves <see cref="ObjectResult.DeclaredType"/> null, and the output formatter
     /// then serialises the runtime type. For a closed hierarchy that is silently wrong: a
@@ -54,10 +51,7 @@ public abstract class ApiControllerBase : ControllerBase
     /// Publishes the aggregate's version as a strong <c>ETag</c> and answers 304 when the caller's
     /// <c>If-None-Match</c> already names it.
     /// </summary>
-    /// <remarks>
-    /// The header is written before the status is chosen: RFC 9110 requires a 304 to carry the
-    /// validator it is refusing to resend the body for.
-    /// </remarks>
+    /// <remarks>The header is written before the status is chosen: RFC 9110 requires a 304 to carry the validator it is refusing to resend the body for.</remarks>
     protected ActionResult<TValue> OkOrProblem<TValue>(Result<Versioned<TValue>> result) where TValue : notnull
     {
         ArgumentNullException.ThrowIfNull(result);
@@ -191,9 +185,7 @@ public abstract class ApiControllerBase : ControllerBase
     /// Whether the request carried a precondition that only an existing resource can satisfy.
     /// </param>
     /// <param name="result">The use case's outcome.</param>
-    /// <returns>
-    /// The same result, or a precondition failure when absence is what broke the precondition.
-    /// </returns>
+    /// <returns>The same result, or a precondition failure when absence is what broke the precondition.</returns>
     protected static Result<TValue> RequiringExistence<TValue>(bool requiresExistence, Result<TValue> result)
     {
         ArgumentNullException.ThrowIfNull(result);

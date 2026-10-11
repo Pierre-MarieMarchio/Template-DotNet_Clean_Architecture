@@ -14,10 +14,7 @@ internal static class AuthJobsExtensions
     /// project that drops authentication drops this call with it, leaving the background
     /// composition untouched.
     /// </summary>
-    /// <remarks>
-    /// Inert on an instance that runs no jobs: it registers a task and an option, and nothing reads
-    /// either until the maintenance timer exists.
-    /// </remarks>
+    /// <remarks>Inert on an instance that runs no jobs: it registers a task and an option, and nothing reads either until the maintenance timer exists.</remarks>
     internal static IServiceCollection AddAuthMaintenanceJobs(
         this IServiceCollection services,
         IConfiguration configuration)

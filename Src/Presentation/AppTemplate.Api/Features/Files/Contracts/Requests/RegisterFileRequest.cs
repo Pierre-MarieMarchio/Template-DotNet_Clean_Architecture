@@ -2,10 +2,7 @@
 
 namespace AppTemplate.Api.Features.Files.Contracts.Requests;
 
-/// <summary>
-/// What the client says about a file it is about to deposit directly: metadata only, the bytes go
-/// to the store.
-/// </summary>
+/// <summary>What the client says about a file it is about to deposit directly: metadata only, the bytes go to the store.</summary>
 /// <param name="Category">One of the categories configured in <c>Files:Categories</c>; it decides
 /// the media types, size, upload modes and quota that apply.</param>
 /// <param name="Name">A label to show and the name a download is offered under; it addresses

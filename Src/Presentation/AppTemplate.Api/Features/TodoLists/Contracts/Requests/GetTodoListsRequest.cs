@@ -1,8 +1,6 @@
 ﻿namespace AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 
-/// <summary>
-/// Bound from the query string.
-/// </summary>
+/// <summary>Bound from the query string.</summary>
 /// <remarks>
 /// <c>page</c> and <c>pageSize</c> are typed as <see cref="int"/>?, so a value that is not a number
 /// never reaches the controller: model binding answers 400 with <c>request.validationFailed</c> and

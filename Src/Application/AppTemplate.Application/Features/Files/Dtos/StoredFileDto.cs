@@ -2,10 +2,8 @@
 
 namespace AppTemplate.Application.Features.Files.Dtos;
 
-/// <summary>
-/// A stored file as every read of it produces it. It carries no content and no URL: reading the
-/// bytes is a separate act that mints a short-lived grant or streams them.
-/// </summary>
+/// <summary>A stored file as every read of it produces it. It carries no content and no URL:
+/// reading the bytes is a separate act that mints a short-lived grant or streams them.</summary>
 /// <param name="Category">The configured category the file was registered under.</param>
 /// <param name="DeclaredMediaType">What the client said the file is: a claim the content was checked
 /// against when the file is available, an unchecked one otherwise. Never a measurement.</param>

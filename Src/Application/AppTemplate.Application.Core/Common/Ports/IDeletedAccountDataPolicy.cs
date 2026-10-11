@@ -14,10 +14,7 @@ namespace AppTemplate.Application.Core.Common.Ports;
 /// </summary>
 public interface IDeletedAccountDataPolicy
 {
-    /// <summary>
-    /// Applies this feature's policy — delete or anonymise, whichever it declared — to the data
-    /// one owner still holds here.
-    /// </summary>
+    /// <summary>Applies this feature's policy — delete or anonymise, whichever it declared — to the data one owner still holds here.</summary>
     /// <remarks>
     /// One call is one transaction of this feature's own, committed before it returns — the
     /// account's deletion has already committed, and a failure here must never be reported as a
@@ -28,10 +25,7 @@ public interface IDeletedAccountDataPolicy
     /// </remarks>
     /// <param name="owner">The deleted account to act on.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>
-    /// <c>true</c> when this call removed or rewrote data; <c>false</c> when there was none, or
-    /// the account names an account again.
-    /// </returns>
+    /// <returns><c>true</c> when this call removed or rewrote data; <c>false</c> when there was none, or the account names an account again.</returns>
     Task<bool> ApplyAsync(UserId owner, CancellationToken cancellationToken = default);
 
     /// <summary>

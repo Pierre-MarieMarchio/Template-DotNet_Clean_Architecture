@@ -1,10 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Policies;
 namespace AppTemplate.Application.Core.Common.Collections;
 
-/// <summary>
-/// One entry of a feature's sortable whitelist: the name a caller may send, and whether a keyset
-/// cursor may be built over it.
-/// </summary>
+/// <summary>One entry of a feature's sortable whitelist: the name a caller may send, and whether a keyset cursor may be built over it.</summary>
 /// <remarks>
 /// There is no public constructor, but the two factories are public, and the distinction matters.
 /// A <see cref="SortableField"/> is a <em>declaration</em>, not caller input: what makes the

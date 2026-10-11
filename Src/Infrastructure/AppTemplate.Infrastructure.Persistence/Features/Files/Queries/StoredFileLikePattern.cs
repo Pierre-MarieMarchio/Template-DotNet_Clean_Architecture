@@ -2,10 +2,7 @@
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 
-/// <summary>
-/// Turns free text into a safe <c>ILIKE</c> "contains" pattern: unescaped, a caller's <c>%</c> would
-/// match every row and <c>_</c> would become a wildcard.
-/// </summary>
+/// <summary>Turns free text into a safe <c>ILIKE</c> "contains" pattern: unescaped, a caller's <c>%</c> would match every row and <c>_</c> would become a wildcard.</summary>
 /// <remarks>
 /// A twin of <c>TodoListLikePattern</c> rather than a shared helper, so that deleting the example
 /// to-do feature cannot break this search. Promote it to <c>Common/</c> when a third feature needs it.

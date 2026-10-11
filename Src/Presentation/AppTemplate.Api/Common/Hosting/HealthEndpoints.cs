@@ -2,9 +2,7 @@
 
 namespace AppTemplate.Api.Common.Hosting;
 
-/// <summary>
-/// The two probes an orchestrator polls, and the one path prefix everything else agrees to ignore.
-/// </summary>
+/// <summary>The two probes an orchestrator polls, and the one path prefix everything else agrees to ignore.</summary>
 /// <remarks>
 /// Liveness answers "is the process up" with no dependency, so an orchestrator does not restart the
 /// API because the database is briefly unreachable. Readiness answers "can it serve traffic", and

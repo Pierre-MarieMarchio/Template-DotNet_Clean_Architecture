@@ -13,10 +13,7 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 /// </summary>
 internal static class StoredFileSortMap
 {
-    /// <summary>
-    /// Folds every term into <c>ORDER BY</c>, then appends <c>Id</c> as a unique tiebreaker, so equal
-    /// sort keys cannot swap between pages.
-    /// </summary>
+    /// <summary>Folds every term into <c>ORDER BY</c>, then appends <c>Id</c> as a unique tiebreaker, so equal sort keys cannot swap between pages.</summary>
     /// <remarks>
     /// The tiebreaker runs in the direction of the last term: <see cref="ApplyKeyset"/> resumes with
     /// <c>Id &lt; id</c> when descending, so a fixed ascending tiebreaker would skip every tied row

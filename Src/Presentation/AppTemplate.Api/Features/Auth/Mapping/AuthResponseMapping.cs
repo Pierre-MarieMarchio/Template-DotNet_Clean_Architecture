@@ -15,13 +15,8 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Api.Features.Auth.Mapping;
 
-/// <summary>
-/// Projects use-case output onto the HTTP contract.
-/// </summary>
-/// <remarks>
-/// Each lift tests <see cref="Result.IsFailure"/> on its own line before touching
-/// <c>Result{T}.Value</c>, which throws on a failure.
-/// </remarks>
+/// <summary>Projects use-case output onto the HTTP contract.</summary>
+/// <remarks>Each lift tests <see cref="Result.IsFailure"/> on its own line before touching <c>Result{T}.Value</c>, which throws on a failure.</remarks>
 internal static class AuthResponseMapping
 {
     public static Result<RegisterResponse> ToRegisterResponse(Result<RegisterOutcome> result) =>

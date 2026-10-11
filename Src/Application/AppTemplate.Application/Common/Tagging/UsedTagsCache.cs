@@ -1,10 +1,8 @@
 ﻿using AppTemplate.Domain.Core.Common.Primitives;
 namespace AppTemplate.Application.Common.Tagging;
 
-/// <summary>
-/// Where one owner's used-tag list is kept, and for how long. Shared by every feature that owns
-/// tags, so the lifetime is one decision rather than one per feature.
-/// </summary>
+/// <summary>Where one owner's used-tag list is kept, and for how long. Shared by every feature that
+/// owns tags, so the lifetime is one decision rather than one per feature.</summary>
 /// <remarks>
 /// This list is a suggestion: it answers "which tags has this owner used before", offered in a
 /// picker or a filter, so a list a minute out of date costs a tag typed in full. It decides no

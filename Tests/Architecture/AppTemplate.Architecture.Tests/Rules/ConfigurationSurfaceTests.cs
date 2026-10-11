@@ -176,8 +176,10 @@ public sealed class ConfigurationSurfaceTests
             $"Far fewer sections were parsed out of '{_configurationGuide}' than it holds, so the " +
             "guide is being read with the wrong heading shape.");
 
+        // The floor counts the smallest project the options can generate (--auth none, no examples,
+        // no Files), which binds one key fewer than the local-accounts template this file lives in.
         bound.Values.Sum(facts => facts.Keys.Count).ShouldBeGreaterThanOrEqualTo(
-            43,
+            42,
             "Far fewer bindable members were found than the options classes declare, so the member " +
             "pattern has stopped matching the shape they are written in.");
 

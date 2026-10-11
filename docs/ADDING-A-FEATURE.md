@@ -632,12 +632,11 @@ missing header come from `ApiControllerBase.ReadPrecondition`. **And a write ans
 the representation it produced and that representation's new `ETag`**, so a caller never
 re-reads what it just changed in order to keep writing.
 
-Two things about the HTTP surface are decided for you, and `HttpSurfaceTests` holds
-both. **There is no `PATCH`**: a partial update means an omitted field is ambiguous
-between *absent* and *unchanged*, and an invariant is a property of the whole
-aggregate, so it cannot be checked against a body whose meaning depends on which keys
-the client happened to send. Every write says in its route what it does — `RenameX`,
-`CompleteX`, `RescheduleX` — rather than accepting a bag of optional fields.
+**Each feature chooses its write style.** A write says in its route or body what it does — a
+complete representation through `PUT`, or a named operation (`RenameX`, `CompleteX`,
+`RescheduleX`) — rather than a bag of optional fields. `PATCH` is allowed where it fits, and
+[`API-CONVENTIONS.md`](API-CONVENTIONS.md) states the shape it takes here: JSON Merge Patch,
+applied through the aggregate's own methods and invariants, never a blind property copy.
 **And an `[AllowAnonymous]` is two edits, not one**: the attribute on the action, and
 the action's method name added to the `_anonymousActions` array in
 `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/HttpSurfaceTests.cs`. That

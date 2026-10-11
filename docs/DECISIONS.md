@@ -8,10 +8,12 @@ months. If one of them is wrong for your project, change it deliberately: change
 [`ARCHITECTURE.md`](ARCHITECTURE.md) describes the current layer boundaries and what is deliberately
 absent.
 
-**Writes are named operations. There is no `PATCH`.** A partial update whose semantics depend on
-which keys the client happened to send cannot be validated against an invariant, because the
-invariant is a property of the whole aggregate. So an omitted field means *absent*, not *unchanged*,
-and every write says in its URL what it does. `NoEndpoint_AcceptsPatch` holds it.
+**PATCH is allowed; each feature chooses its write style.** A feature may expose a complete
+representation through `PUT`, named operations, or `PATCH` — whichever fits its callers. A `PATCH`
+on an aggregate is a write like any other: it goes through the aggregate's domain methods and
+invariants, never a blind property copy. JSON Merge Patch (RFC 7396) is the recommended default
+when a feature chooses `PATCH`, because it alone says what an absent member and an unchanged one
+mean; [`API-CONVENTIONS.md`](API-CONVENTIONS.md) states the shape.
 
 **Filtering is a closed set of typed parameters.** Not a filter expression language: a grammar the
 client composes is a query planner you now own, an injection surface, and a performance cliff no

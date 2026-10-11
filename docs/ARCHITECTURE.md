@@ -125,28 +125,14 @@ needs a primitive this one lacks copies the project and tunes it. The whole poin
 is what it leaves for a derived project to write: its own `Features/`, plus whatever its own
 features come to share as business.
 
-**Which brings up the one thing worth being precise about, because two folders share a name.**
-`<Layer>.Core/Common/` is the agnostic half of a layer — `Result`, `Error`, `PageRequest`,
-`SortOrder`, `IUnitOfWork`, `ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`, `UserId`. Nothing
-in it knows a feature, and nothing in it ever may; that is the whole claim of those projects.
-`<Layer>/Common/` is the business-shared half, and it exists so business code is not repeated across
-features: a value object three features spend, a DTO two features answer with, a policy that spans
-them. The sorting test is one question — **does it know a feature?** If it names a feature, or would
-have to the moment a second feature used it, it belongs in the business project's `Common/`; if it
-does not and never will, it belongs one project inwards.
-
-**Tagging is what occupies the business half, in both layers.** Two example features accept tags —
-a to-do item and a stored file — which is what makes a tag business-shared rather than either
-feature's own. `AppTemplate.Domain/Common/Tagging/` holds `Tag`, the normalised free-text label, and
-`TagSet`, the three rules that govern a set of them: held once however many times it is sent, capped,
-and replaced totally rather than merged. `AppTemplate.Application/Common/Tagging/` holds
-`TagValidation`, so a caller gets one 400 naming every tag it got wrong rather than the first, and
-`UsedTagsCache`, which is where the key and the lifetime of the used-tag read are decided once
-instead of once per feature. Every one of those names a tag and nothing narrower, and none of them
-names a feature — which is the sorting test above, answered in the direction that keeps them out of
-the two `.Core` projects. `LayoutConventionTests` holds the vocabulary of both folders, checked in
-both directions, and its failure message asks which of the two kinds a new folder is before naming
-its words.
+**Two folders share a name, and one question sorts between them.** `<Layer>.Core/Common/` is the
+agnostic half of a layer — `Result`, `Error`, `PageRequest`, `SortOrder`, `IUnitOfWork`,
+`ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`, `UserId` — and nothing in it may know a
+feature; `<Layer>/Common/` is the business-shared half, what several features share *as business*.
+The sorting test is one question — **does it know a feature?** — and
+[`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md#two-folders-called-common) holds the rule, the worked
+example (`Common/Tagging/`, in both business layers) and the vocabulary test that holds both
+folders.
 
 `AppTemplate.Application.Core` is the same shape one layer out, and it holds the application layer's
 *mechanisms* rather than any of its business: `Result` and `Error`, the `IUseCase` marker every
@@ -429,12 +415,9 @@ folders, plus `IEmailSender` and `IDateTimeProvider` under its own `Common/`, an
 extension method per feature (`AddInMemoryExternalIdentities`,
 `AddInMemoryReminderNotifications`, `AddInMemoryFileContent`) on top of `AddInMemoryModule`
 itself. `Identity` serves `Auth` alone, `Email` serves the two ports that send mail, and
-`Storage` serves `Files` alone. What is uniform is the *shape*: every module is partitioned
-as `Common/` (the mechanisms) plus `Features/<Feature>/` (models, configurations, mapping,
-tracking, repositories, queries, and — for row access to one table rather than an aggregate,
-such as `IRefreshTokenTable` — stores), whether it serves one feature or four, because a
-reader who has learned one module should not have to learn a second filing system for the
-next.
+`Storage` serves `Files` alone. What is uniform is the partition — `Common/` plus
+`Features/<Feature>/`, whatever a module serves — which
+[`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md#inside-a-feature) states once, with the reason.
 
 That shape is held by two tests, over all five modules that have a `Common/`.
 `ModuleDependencyTests.ThePersistenceMechanisms_KnowNoFeature` takes the types under
@@ -1032,18 +1015,9 @@ so the trust set is exactly what you configured and nothing more — putting the
 
 ## Adding a feature
 
-1. **Domain** — aggregate, value objects, events, invariants in the root. No packages.
-   If this step needs a NuGet package, the logic probably belongs in step 3.
-2. **Application** — in `AppTemplate.Application/Features/<F>/`: a use case per operation
-   returning `Result`; a repository port for the write side and a queries port for reads;
-   DTOs; an `Errors` class with the stable codes. The `Result`, the `IUseCase` marker its
-   named interface derives from, the paging and precondition types and the cross-cutting
-   ports all come from `AppTemplate.Application.Core`, which a feature adds nothing to.
-3. **Infrastructure** — in the module that owns the capability: EF configuration, the
-   repository and query implementations, a migration. A new capability means a new
-   module project with one DI extension method, referencing Application and
-   Persistence.
-4. **Api** — a controller that calls the use case; `ApiControllerBase` does the
-   mapping.
-5. **Tests** — mirror the tree under `Tests/`. Unit-test the aggregate with no host;
-   integration-test the module against a Testcontainers PostgreSQL.
+The whole vertical — choose the shape first, then domain, application, persistence, API, tests and
+migration, with the real signatures at each step — is
+[`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md), and the generator
+(`dotnet run Tools/Tasks.cs new-feature …`) writes either shape for the operations a feature
+chooses. What a removal involves is
+[`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md).

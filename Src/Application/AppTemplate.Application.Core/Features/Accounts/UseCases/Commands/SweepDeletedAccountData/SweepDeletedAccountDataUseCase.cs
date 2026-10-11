@@ -7,28 +7,15 @@ namespace AppTemplate.Application.Core.Features.Accounts.UseCases.Commands.Sweep
 /// <summary>
 /// The guarantee behind <see cref="AppTemplate.Application.Core.Common.Events.UserAccountDeleted"/>:
 /// a fact published in process is not a fact delivered, and a consumer that threw — or was never
-/// reached because the process died between the commit and the publication — leaves rows owned by
-/// an id that names no account. This pass finds them, by asking each feature for the owner ids that
-/// still have data and letting the feature's own <see cref="IDeletedAccountDataPolicy"/> re-derive
-/// the precondition against <see cref="IUserAccountDirectory"/>, so the sweep decides nothing a
-/// feature did not declare.
-/// <para>
-/// <b>One host at a time.</b> The whole pass runs under <see cref="ILeaderLease"/>, for the reason
-/// <c>FireDueRemindersUseCase</c> gives: two hosts sweeping the same owner are safe — each
-/// application is idempotent and per-owner committed — but systematically duplicating every pass
-/// is a connection spent for nothing.
-/// </para>
-/// <para>
-/// <b>Resumption.</b> Each owner is one transaction of the feature's own, committed before the
-/// next begins, so a pass that dies mid-way has kept what it did and redoes nothing. An owner
-/// whose application throws is logged and skipped, never allowed to stop its neighbours: a poisoned
-/// owner must not become a retention policy for everybody else's data.
-/// </para>
-/// <para>
-/// <b>Cost.</b> One listing per feature and one directory lookup per listed owner, inside the
-/// policy; the lookups are what a pass scales with. A template-scale owner count makes this
-/// negligible, and the interval is the maintenance timer's.
-/// </para>
+/// reached — leaves rows owned by an id that names no account. This pass finds them, by asking
+/// each feature for the owner ids that still have data and letting the feature's own
+/// <see cref="IDeletedAccountDataPolicy"/> re-derive the precondition against
+/// <see cref="IUserAccountDirectory"/>. The whole pass runs under <see cref="ILeaderLease"/>: each
+/// application is idempotent and per-owner committed, but systematically duplicating every pass is
+/// a connection spent for nothing. Each owner is one transaction of the feature's own, committed
+/// before the next begins, so a pass that dies mid-way has kept what it did and redoes nothing; an
+/// owner whose application throws is logged and skipped — a poisoned owner must not become a
+/// retention policy for everybody else's data.
 /// </summary>
 public sealed class SweepDeletedAccountDataUseCase(
     IEnumerable<IDeletedAccountDataPolicy> policies,

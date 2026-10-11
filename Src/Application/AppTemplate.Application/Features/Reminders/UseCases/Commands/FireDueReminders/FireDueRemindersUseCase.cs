@@ -12,59 +12,14 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 
 /// <summary>
-/// Runs on a schedule, from the API's reminder job — never from a request — which is why it
-/// must not read <see cref="ICurrentUser"/>: a background scope's <c>NoCallerCurrentUser</c> throws on
-/// <c>UserId</c> rather than pretend an anonymous caller, and a use case that reads it would fail
-/// on its very first iteration.
-/// <para>
-/// <b>One host at a time.</b> The whole pass runs under <see cref="ILeaderLease"/>, and that lease
-/// is the only thing keeping two replicas from delivering the same reminder twice. There is no
-/// per-reminder claim on top of it: one held in memory is invisible to the other host, and one
-/// written to the store before the send would add a state that a crash strands. Finding the lease
-/// taken returns zero notified and says so in the log, because zero on its own would be
-/// indistinguishable from a pass that had nothing due.
-/// </para>
-/// <para>
-/// <b>Delivery is at-least-once, and what a failure costs is one reminder.</b> Each reminder is
-/// notified and then committed on its own, so a commit that fails loses that reminder's outcome and
-/// nothing else: the ones before it are already <c>Fired</c> and are never sent again. A crash
-/// between <see cref="IReminderNotifier.NotifyAsync"/> succeeding and that reminder's commit leaves
-/// it <c>Pending</c>, and the next pass sends it again. The lease narrows the window in which two
-/// hosts could both do this; it is not a fencing token, so leadership can lapse mid-pass without
-/// this code being told, and a second host may then fire what this one is firing.
-/// </para>
-/// <para>
-/// <b>A conflict ends the pass.</b> A reminder changed by somebody else — cancelled, say, while its
-/// notification was in flight — makes its commit fail, and the failed write stays staged in this
-/// scope, so every later save would meet the same conflict. The pass therefore stops there and the
-/// reminders after it wait for the next one, which reads the conflicting reminder afresh: a cancelled
-/// one is no longer due. A notification already sent for it stays sent, as the race allows.
-/// </para>
-/// <para>
-/// <b>A failed notification is retried, never abandoned, and never at the cost of the others.</b>
-/// It is recorded on the reminder, which waits a minute before its next attempt and doubles the wait
-/// up to an hour. Reminders come back in the order they became eligible, so one that keeps failing
-/// queues behind those that have waited longer instead of filling every batch. It is retried for as
-/// long as its item is outstanding; there is no state in which it is given up on.
-/// </para>
-/// <para>
-/// <b>Completion is re-checked here, not trusted from the event that should have cancelled the
-/// reminder already.</b> <c>CancelRemindersOnTodoItemCompletedConsumer</c> runs outside the
-/// transaction that completed the item and is not retried if it is missed, so this check is what
-/// makes firing correct independently of whether that delivery happened. Removing it makes that
-/// consumer load-bearing.
-/// </para>
-/// <para>
-/// <b>An id absent from <see cref="ITodoItemQueries.GetCompletionStatesAsync"/>'s result is
-/// cancelled here exactly like a completed one.</b> Removing a to-do item or deleting its list
-/// raises no domain event, and none is needed: the orphaned reminder is retired the next time it
-/// comes up for firing, which is also why it is not counted as a missed cancellation — see
-/// <see cref="IReminderDiagnostics"/>.
-/// </para>
-/// <para>
-/// <b>An owner who no longer names an account is cancelled too.</b> There is nobody to ring, and
-/// retrying would not change that; nothing is counted as notified.
-/// </para>
+/// Runs on a schedule, from the API's reminder job — never from a request — and so must not read
+/// <see cref="ICurrentUser"/>: a background scope's <c>NoCallerCurrentUser</c> throws on
+/// <c>UserId</c> rather than pretend an anonymous caller. The whole pass runs under
+/// <see cref="ILeaderLease"/>, with no per-reminder claim on top of it; delivery is at-least-once
+/// and a failure costs one reminder. The retry guarantee — what each failure costs, why a
+/// conflict ends the pass, why a failed notification is never abandoned, and why completion is
+/// re-checked here rather than trusted from the cancelling consumer — is stated in
+/// <c>docs/DECISIONS.md</c>.
 /// </summary>
 public sealed class FireDueRemindersUseCase(
     IReminderRepository reminders,
@@ -81,16 +36,11 @@ public sealed class FireDueRemindersUseCase(
     /// the next run rather than loaded all at once.</summary>
     private const int _batchSize = 200;
 
-    /// <summary>
-    /// Names the exclusion, and is fixed for the life of the application.
-    /// </summary>
+    /// <summary>Names the exclusion; fixed for the life of the application.</summary>
     /// <remarks>
-    /// The lock key is derived from this string, so every host that must contend has to spell it
-    /// identically — and during a rolling deploy the hosts contending are two releases of this
-    /// binary at once. Renaming it would give them two different keys, each uncontended, and both
-    /// would fire the same batch believing itself the leader: the exact failure this exists to
-    /// prevent, occurring precisely while the code that prevents it is being deployed. Nothing in
-    /// the build can see that, which is why it is written here rather than left to be inferred.
+    /// The lock key is derived from this string, so during a rolling deploy every host that must
+    /// contend has to spell it identically. Renaming it would give two releases different keys,
+    /// each uncontended, and both would fire the same batch believing itself the leader.
     /// </remarks>
     private const string _leaseName = "apptemplate.reminders.fire-due";
 

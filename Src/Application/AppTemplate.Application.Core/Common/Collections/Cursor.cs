@@ -12,10 +12,10 @@ namespace AppTemplate.Application.Core.Common.Collections;
 /// </summary>
 /// <remarks>
 /// <b>Opaque, but not authenticated.</b> Nothing here is signed, and it does not need to be: a
-/// cursor carries only values the caller was already served on a row they were already allowed to
-/// see, and the query that resumes from it still filters by owner regardless of what the cursor
-/// claims. Tampering with it can only change which of the caller's own rows show up next, or produce
-/// a cursor this type refuses to decode; it cannot widen what the caller may read.
+/// cursor carries only values the caller was already served on a row they were allowed to see, and
+/// the query that resumes from it still filters by owner regardless of what the cursor claims.
+/// Tampering can only change which of the caller's own rows show up next, or produce a cursor this
+/// type refuses to decode; it cannot widen what the caller may read.
 /// </remarks>
 public sealed record Cursor
 {
@@ -24,7 +24,7 @@ public sealed record Cursor
 
     /// <summary>
     /// A cursor's key is a value read out of one row; nothing legitimate produces one longer than
-    /// this. Enforced here, in the layer that owns <c>cursor.invalid</c>, rather than in the
+    /// this. Enforced here, the layer that owns <c>cursor.invalid</c>, rather than in the
     /// persistence layer that only finds out a key is unreasonable once it fails to parse.
     /// </summary>
     private const int _maxKeyLength = 128;
@@ -43,8 +43,8 @@ public sealed record Cursor
     public string Field { get; }
 
     /// <summary>
-    /// The direction this cursor was minted under. A request resuming it under the opposite one is
-    /// refused rather than reinterpreted, because either reading skips or repeats rows.
+    /// The direction this cursor was minted under; resuming under the opposite one is refused
+    /// rather than reinterpreted, because either reading skips or repeats rows.
     /// </summary>
     public SortDirection Direction { get; }
 
@@ -77,9 +77,9 @@ public sealed record Cursor
     }
 
     /// <summary>
-    /// Every failure here is <c>cursor.invalid</c>, and none of them echo <paramref name="raw"/> back
-    /// in the message: it is caller input that ends up in logs, not a value this API should promise
-    /// to repeat.
+    /// Every failure here is <c>cursor.invalid</c>, and none of them echo <paramref name="raw"/>
+    /// back in the message: it is caller input that ends up in logs, not a value this API should
+    /// promise to repeat.
     /// </summary>
     internal static Result<Cursor> Decode(string raw, ICollectionPolicy policy)
     {

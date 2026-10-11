@@ -51,17 +51,12 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Application;
 
 /// <summary>
-/// One call per feature, and a host composes the features it offers.
-/// <para>
-/// There is no call that adds all of them. That is what makes a feature removable: deleting its
-/// folder and its one line here is the whole operation, and nothing else claims to have registered
-/// it. A single entry point scanning the assembly would put every port every feature declares into
-/// every host's graph, which under <c>ValidateOnBuild</c> makes each of them mandatory everywhere.
-/// </para>
-/// <para>
-/// A feature takes an <c>IConfiguration</c> only when it has application policy a deployment
-/// declares, as the Files categories are. The other features read no settings.
-/// </para>
+/// One call per feature, and a host composes the features it offers. There is no call that adds all
+/// of them: deleting a feature's folder and its one line here is the whole removal, and a single
+/// entry point scanning the assembly would put every port every feature declares into every host's
+/// graph, which under <c>ValidateOnBuild</c> makes each of them mandatory everywhere. A feature
+/// takes an <c>IConfiguration</c> only when it has application policy a deployment declares, as the
+/// Files categories are.
 /// </summary>
 public static class ApplicationModule
 {
@@ -105,14 +100,10 @@ public static class ApplicationModule
     //#if (reminders)
 
     /// <summary>
-    /// Registers the reminder feature.
-    /// <para>
-    /// <b>Not independent of <see cref="AddTodoLists"/>.</b> Scheduling a reminder reaches into the
-    /// to-do list's read port, which is the only ownership check made before a reminder is created,
-    /// so a host that composes this without that one resolves nothing. The two example features are
-    /// not symmetric, and saying so here is cheaper than a start-up failure that does not explain
-    /// itself.
-    /// </para>
+    /// Registers the reminder feature. Not independent of <see cref="AddTodoLists"/>: scheduling a
+    /// reminder reaches into the to-do list's read port, which is the only ownership check made
+    /// before a reminder is created, so a host that composes this without that one resolves
+    /// nothing.
     /// </summary>
     /// <param name="services">The container being built.</param>
     /// <returns>The same collection, for chaining.</returns>
@@ -176,9 +167,8 @@ public static class ApplicationModule
     //#if (notes)
 
     /// <summary>
-    /// Registers the notes feature: its service and its validator. It has no use cases, and the one
-    /// event it answers is the account-deleted fact every feature that owns user data answers. It
-    /// depends on none of the other features.
+    /// Registers the notes feature: its service and its validator. No use cases, and the one event
+    /// it answers is the account-deleted fact; depends on none of the other features.
     /// </summary>
     /// <param name="services">The container being built.</param>
     /// <returns>The same collection, for chaining.</returns>
@@ -219,11 +209,8 @@ public static class ApplicationModule
 
     /// <summary>
     /// The use cases and validators one vertical declares, discovered by the folder they sit in.
-    /// <para>
-    /// Discovery within a feature, opt-in between features. A hand-written list of thirty use cases
-    /// per feature could only go stale, and the namespace already states which feature a type
-    /// belongs to — a rule elsewhere holds that it does.
-    /// </para>
+    /// Discovery within a feature, opt-in between features: a hand-written list of use cases could
+    /// only go stale, and the namespace already states which feature a type belongs to.
     /// </summary>
     private static void AddFeature(this IServiceCollection services, string vertical)
     {

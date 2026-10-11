@@ -1,19 +1,14 @@
 ﻿namespace AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 
 /// <summary>
-/// The single-use tokens an account receives by mail, each minted and redeemed here: confirming the
-/// address, resetting a forgotten password, and moving the account to a new address.
-/// <para>
-/// Composing and delivering the message is not here. A caller that holds a token decides whether a
-/// mail is worth sending and what a delivery failure means, and that decision belongs to the use
-/// case rather than to the store that minted the token.
-/// </para>
-/// <para>
-/// Confirmation and reset are keyed by address, because their caller is anonymous: no answer may
-/// tell an unknown address from a known one. The email change is keyed by the caller's id, since
-/// the caller already authenticated; what it must still not disclose is whether <em>the new</em>
-/// address is registered — see <see cref="EmailChangeRequestOutcome"/>.
-/// </para>
+/// The single-use tokens an account receives by mail: confirming the address, resetting a forgotten
+/// password, and moving the account to a new address. Composing and delivering the message is not
+/// here — whether a mail is worth sending and what a delivery failure means is the use case's
+/// decision, not the store's that minted the token. Confirmation and reset are keyed by address,
+/// because their caller is anonymous: no answer may tell an unknown address from a known one. The
+/// email change is keyed by the caller's id, since the caller already authenticated; what it must
+/// still not disclose is whether <em>the new</em> address is registered — see
+/// <see cref="EmailChangeRequestOutcome"/>.
 /// </summary>
 public interface IEmailTokensService
 {

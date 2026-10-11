@@ -43,6 +43,24 @@ A counter makes the divergence observable
 **Any consumer you add
 has to have that shape**, or the missing outbox stops being a cost and becomes a bug.
 
+<!--#if (reminders)-->
+**The reminder pass states its own retry guarantee.** `FireDueRemindersUseCase` runs the whole pass
+under `ILeaderLease`, with no per-reminder claim on top: one held in memory is invisible to the
+other host, and one written to the store before the send would add a state a crash strands.
+Delivery is at-least-once — each reminder is notified and then committed on its own, so a failed
+commit costs that one reminder's outcome and nothing else, and a crash between send and commit
+leaves it pending for the next pass; the lease narrows the window but is not a fencing token, so a
+second host may still fire what the first is firing. A conflict ends the pass: the failed write
+stays staged in the scope, so every later save would meet the same conflict, and the next pass
+reads the conflicting reminder afresh. A failed notification backs off — a minute doubling to an
+hour — and is never abandoned, and reminders come back in the order they became eligible so one
+that keeps failing cannot fill every batch. Completion is re-checked in the pass rather than
+trusted from `CancelRemindersOnTodoItemCompletedConsumer`, which runs outside the transaction and
+is not retried: the check is what keeps firing correct independently of that delivery. An item
+absent from the completion query — removed, or its list deleted — is cancelled like a completed
+one and is not counted as a missed cancellation.
+<!--#endif-->
+
 **Deleting an account deletes the id's data, and each feature decides what that means for its own
 rows.** The account row and the feature rows live in two contexts with no shared transaction, so
 Auth never reaches across: it publishes the fact `UserAccountDeleted(UserId, OccurredAt)` —

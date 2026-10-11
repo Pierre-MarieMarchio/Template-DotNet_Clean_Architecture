@@ -7,7 +7,7 @@ public enum SecurityEventKind
     LoginSucceeded,
 
     /// <summary>
-    /// A credential check refused sign-in. Which check refused travels on
+    /// A credential check refused sign-in; which check refused travels on
     /// <see cref="SecurityEvent.Status"/>, where the response to the caller carries no such detail.
     /// </summary>
     AuthenticationFailed,
@@ -25,14 +25,14 @@ public enum SecurityEventKind
     RefreshTokenRevoked,
 
     /// <summary>
-    /// A refresh token was presented after it had already been consumed — a replay of a stolen
-    /// token, or the legitimate holder racing a copy they did not know existed.
+    /// A refresh token was presented after it had already been consumed — a stolen token's replay,
+    /// or the legitimate holder racing a copy they did not know existed.
     /// </summary>
     RefreshTokenReplayDetected,
 
     /// <summary>
     /// A user's security stamp was rotated, invalidating every credential issued against the old
-    /// one. Recorded by a password change and by a password reset, both through
+    /// one; recorded by a password change and reset, both through
     /// <see cref="AppTemplate.Application.Auth.Features.Auth.Policies.CredentialInvalidationPolicy"/>.
     /// </summary>
     SecurityStampRotated,
@@ -53,16 +53,16 @@ public enum SecurityEventKind
     AccountDeleted,
 
     /// <summary>
-    /// An account was removed from the store by its own holder, having proven its credentials again
-    /// — the same ending as <see cref="AccountDeleted"/> reached by a different hand, which is why
-    /// the two are separate facts: one belongs in an audit of what administrators did, the other in
-    /// an audit of what accounts did to themselves.
+    /// An account was removed from the store by its own holder, having proven its credentials
+    /// again. The same ending as <see cref="AccountDeleted"/> reached by a different hand, and
+    /// separate for it: one belongs in an audit of what administrators did, the other in an audit
+    /// of what accounts did to themselves.
     /// </summary>
     AccountSelfDeleted,
 
     /// <summary>
-    /// Two-factor sign-in was armed: a first code was verified and the account now requires one at
-    /// every login.
+    /// Two-factor sign-in was armed: a first code was verified and the account now requires one
+    /// at every login.
     /// </summary>
     TwoFactorEnabled,
 
@@ -70,40 +70,38 @@ public enum SecurityEventKind
     TwoFactorDisabled,
 
     /// <summary>
-    /// A login's second step presented a challenge that was still live but a code that did not match
-    /// it — the six-digit equivalent of <see cref="AuthenticationFailed"/> for the first step.
+    /// A login's second step presented a live challenge with a code that did not match it — the
+    /// six-digit equivalent of <see cref="AuthenticationFailed"/> for the first step.
     /// </summary>
     TwoFactorChallengeFailed,
 
     /// <summary>
     /// A login's second step was completed with a recovery code instead of the authenticator app —
-    /// worth its own fact, since it is also the signal that one of the ten one-time codes is now gone.
+    /// also the signal that one of the ten one-time codes is now gone.
     /// </summary>
     RecoveryCodeRedeemed,
 
     /// <summary>
-    /// An administrator disabled two-factor sign-in on someone else's account through
-    /// <see cref="AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration.IAccountAdministrationService"/>,
-    /// rather than the account itself proving its password through <see cref="TwoFactorDisabled"/>'s route.
+    /// An administrator disabled two-factor sign-in on someone else's account, rather than the
+    /// account proving its password through <see cref="TwoFactorDisabled"/>'s route.
     /// </summary>
     TwoFactorDisabledByAdministrator,
 
     /// <summary>
     /// A passkey was registered on the account, after the holder proved the session was their own.
-    /// Worth its own fact beside <see cref="TwoFactorEnabled"/>: a passkey is a complete way in,
-    /// not a second step on one.
+    /// Its own fact beside <see cref="TwoFactorEnabled"/>: a passkey is a complete way in, not a
+    /// second step on one.
     /// </summary>
     PasskeyRegistered,
 
     /// <summary>
-    /// One of the account's passkeys was removed by its holder. The audit pairing of
-    /// <see cref="PasskeyRegistered"/>: the two say between them which credentials were live over
-    /// what period.
+    /// One of the account's passkeys was removed by its holder; with
+    /// <see cref="PasskeyRegistered"/>, the two say which credentials were live over what period.
     /// </summary>
     PasskeyRemoved,
 
     /// <summary>
-    /// A sign-in completed on a passkey alone. Separate from <see cref="LoginSucceeded"/> so the
+    /// A sign-in completed on a passkey alone; separate from <see cref="LoginSucceeded"/> so the
     /// trail says which credential a session started with.
     /// </summary>
     PasskeySignInSucceeded,

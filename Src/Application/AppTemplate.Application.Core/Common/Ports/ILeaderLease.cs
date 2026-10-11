@@ -2,25 +2,17 @@
 
 /// <summary>
 /// Runs work on one host at a time, so that a loop which is only correct at a single replica can be
-/// deployed at several.
-/// <para>
-/// Not every scheduled job needs this. An idempotent delete over a range already covered costs a
-/// second replica a connection and nothing else. A pass that claims work in memory and commits the
-/// batch at the end does need it: two hosts both take the claim and both act, and only afterwards
-/// does one of them lose on <c>xmin</c>. A claim of that kind defends against a host that died
-/// mid-attempt, not against a concurrent pass.
-/// </para>
+/// deployed at several. Not every scheduled job needs it: an idempotent delete over a range
+/// already covered costs a second replica a connection and nothing else. A pass that claims work
+/// in memory and commits the batch at the end does need it — two hosts both take the claim and
+/// both act, and only afterwards does one of them lose on <c>xmin</c>; a claim of that kind
+/// defends against a host that died mid-attempt, not against a concurrent pass.
 /// </summary>
 /// <remarks>
-/// The work is a delegate rather than a handle the caller disposes, so that the exclusion lasts
-/// exactly as long as the work: a handle handed back is released when the caller gets round to it,
-/// and never if the caller forgets.
-/// <para>
-/// <b>This is not a fencing token.</b> Leadership can be lost mid-run — the mechanism behind it can
-/// drop without the work being told — so the work still has to be safe if a second host begins it.
-/// What a lease removes is the systematic duplication of every single pass, not the overlap that a
-/// failure can still produce.
-/// </para>
+/// The work is a delegate rather than a handle the caller disposes, so the exclusion lasts exactly
+/// as long as the work. <b>This is not a fencing token:</b> leadership can be lost mid-run, so the
+/// work still has to be safe if a second host begins it; what a lease removes is the systematic
+/// duplication of every pass, not the overlap a failure can still produce.
 /// </remarks>
 public interface ILeaderLease
 {
@@ -39,8 +31,8 @@ public interface ILeaderLease
     /// <remarks>
     /// An exception thrown by <paramref name="work"/> — <see cref="OperationCanceledException"/>
     /// included — reaches the caller with the lease already released. It is never reported as
-    /// <c>false</c>: that answer means "somebody else has it", and a caller that could not tell the
-    /// two apart would log a failed pass as a quiet standby.
+    /// <c>false</c>: a caller that could not tell "it failed" from "somebody else has it" would log
+    /// a failed pass as a quiet standby.
     /// </remarks>
     Task<bool> TryRunExclusivelyAsync(
         string leaseName,

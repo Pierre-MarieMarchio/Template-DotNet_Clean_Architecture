@@ -4,23 +4,16 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 namespace AppTemplate.Application.Auth.Features.Auth.Policies;
 
 /// <summary>
-/// What a use case runs immediately after rotating a user's security stamp.
-/// <para>
-/// The stamp lives inside ASP.NET Identity and its rotation already fails every access token in
-/// circulation — that part needs nothing further. Refresh tokens are issued by this codebase, not
-/// by Identity, and survive the rotation untouched: left alone, a stolen or still-valid refresh
-/// token would keep minting fresh access tokens forever. Revoking every grant and recording the
-/// fact are therefore two steps every stamp rotation owes, called here so a future feature that
-/// rotates a stamp cannot forget one.
-/// </para>
-/// <para>
-/// Two forms, chosen by who asked for the change. When the account's owner changed it from a
-/// signed-in session — a new password, a second factor armed or dropped — that session already
-/// proved the new posture and <see cref="InvalidateOtherSessionsAsync"/> spares it: its access token
-/// still fails on the rotated stamp, but its refresh token mints a new one. Everything else — a
-/// reset by mailed link, an administrator's action, a confirmed email change — ends every session
-/// through <see cref="InvalidateAsync"/>.
-/// </para>
+/// What a use case runs immediately after rotating a user's security stamp. The stamp lives inside
+/// ASP.NET Identity and its rotation already fails every access token in circulation; refresh
+/// tokens are issued by this codebase, not by Identity, and survive the rotation untouched — left
+/// alone, a stolen or still-valid refresh token would keep minting fresh access tokens for ever.
+/// Revoking every grant and recording the fact are two steps every stamp rotation owes, called
+/// here so a future feature that rotates a stamp cannot forget one. Two forms, chosen by who asked
+/// for the change: the owner's own change from a signed-in session spares that session
+/// (<see cref="InvalidateOtherSessionsAsync"/>); everything else — a reset by mailed link, an
+/// administrator's action, a confirmed email change — ends every session
+/// (<see cref="InvalidateAsync"/>).
 /// </summary>
 public static class CredentialInvalidationPolicy
 {

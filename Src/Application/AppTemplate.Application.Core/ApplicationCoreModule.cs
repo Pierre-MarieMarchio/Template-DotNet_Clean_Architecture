@@ -12,24 +12,17 @@ namespace AppTemplate.Application.Core;
 
 /// <summary>
 /// What a host composes to use this project: the registration helpers every application project
-/// binds its own types through, and the one use case this project declares.
-/// <para>
-/// There is deliberately no single <c>AddApplicationCore()</c> covering all of it. This project
-/// declares ports, results and markers — things a host implements or names, not things a container
-/// resolves — so an umbrella call would register nothing, and a call that does nothing is worse
-/// than its absence: it reads like the seam that makes the project work.
-/// </para>
+/// binds its own types through, and the one use case this project declares. There is deliberately
+/// no single <c>AddApplicationCore()</c>: this project declares ports, results and markers —
+/// things a host implements or names, not things a container resolves — so an umbrella call would
+/// register nothing, and a call that does nothing reads like the seam that makes the project work.
 /// </summary>
 public static class ApplicationCoreModule
 {
     /// <summary>
-    /// Registers the expired-idempotency-key purge.
-    /// <para>
-    /// Separate from anything else on purpose. It resolves <c>IIdempotencyStore</c> and
-    /// <c>IDateTimeProvider</c>, so a host with neither a maintenance endpoint nor a maintenance
-    /// loop would be made to supply two adapters it has no use for. Both hosts in this template do
-    /// schedule it; a derived project that drops idempotency drops this line with it.
-    /// </para>
+    /// Registers the expired-idempotency-key purge, separate from anything else on purpose: it
+    /// resolves <c>IIdempotencyStore</c> and <c>IDateTimeProvider</c>, so a host with no
+    /// maintenance endpoint or loop would be made to supply two adapters it has no use for.
     /// </summary>
     /// <param name="services">The container being built.</param>
     /// <returns>The same collection, for chaining.</returns>
@@ -43,13 +36,10 @@ public static class ApplicationCoreModule
 
     /// <summary>
     /// Registers the sweep that guarantees the data of deleted accounts goes, whether or not the
-    /// <c>UserAccountDeleted</c> fact reached the feature holding it.
-    /// <para>
-    /// Like the purge above, separate from anything else: it resolves
-    /// <c>IUserAccountDirectory</c>, every registered <c>IDeletedAccountDataPolicy</c> and the
-    /// leader lease, so a host with no feature that owns user data supplies adapters it has no
-    /// use for. A host whose features hold user data composes this beside its maintenance timer.
-    /// </para>
+    /// <c>UserAccountDeleted</c> fact reached the feature holding it. Like the purge above,
+    /// separate from anything else: it resolves <c>IUserAccountDirectory</c>, every registered
+    /// <c>IDeletedAccountDataPolicy</c> and the leader lease, so a host with no feature that owns
+    /// user data supplies adapters it has no use for.
     /// </summary>
     /// <param name="services">The container being built.</param>
     /// <returns>The same collection, for chaining.</returns>

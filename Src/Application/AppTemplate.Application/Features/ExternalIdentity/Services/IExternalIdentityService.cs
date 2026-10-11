@@ -18,17 +18,14 @@ public interface IExternalIdentityService
     /// refreshing its email and display name when the provider's have changed.
     /// </summary>
     /// <remarks>
-    /// <para><b>Transaction.</b> Each write is one statement in its own transaction, committed before
-    /// this returns and independent of the request's unit of work.</para>
-    /// <para><b>Concurrency.</b> Two first requests of the same caller race on the unique index over
-    /// (issuer, subject): one inserts, the other's insert is refused and it reads the winner's row, so
-    /// both answer the same owner. A refresh is last-writer-wins over values the provider sent.</para>
-    /// <para><b>Idempotence.</b> Calling again for the same caller answers the same owner and writes
-    /// nothing unless the profile changed or the last-seen instant is stale.</para>
-    /// <para><b>Retry.</b> A transient failure is retried by the context's execution strategy; a retry
-    /// of an insert that had in fact committed meets the index and reads the row back, so it cannot
-    /// create a second owner. Anything else propagates and the request fails: there is no fallback
-    /// owner.</para>
+    /// Each write is one statement in its own transaction, committed before this returns and
+    /// independent of the request's unit of work. Two first requests of the same caller race on the
+    /// unique index over (issuer, subject): one inserts, the other's insert is refused and it reads
+    /// the winner's row, so both answer the same owner. Calling again answers the same owner and
+    /// writes nothing unless the profile changed or the last-seen instant is stale. A transient
+    /// failure is retried by the context's execution strategy; a retry of an insert that had in
+    /// fact committed meets the index and reads the row back, so it cannot create a second owner.
+    /// Anything else propagates and the request fails: there is no fallback owner.
     /// </remarks>
     Task<UserId> ResolveAsync(ExternalCallerDto caller, CancellationToken cancellationToken = default);
 
@@ -41,24 +38,18 @@ public interface IExternalIdentityService
     /// <summary>
     /// Deletes the account's local presence: every mapping that names the owner, and the role
     /// assignments held for it. The provider's own account is the provider's to delete — this is
-    /// the application's half of that, and the only trigger the template wires: an administrative
-    /// call. A provider-side deletion signal has no endpoint here, deliberately; see
-    /// <c>docs/ARCHITECTURE.md</c>.
+    /// the application's half, and the only trigger the template wires is an administrative call;
+    /// a provider-side deletion signal has no endpoint here, deliberately (see
+    /// <c>docs/ARCHITECTURE.md</c>).
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <b>Transaction.</b> The store commits the deletion before this returns, in a transaction of
-    /// its own; the fact published afterwards names what is already true.
-    /// </para>
-    /// <para>
-    /// <b>Idempotence.</b> A second call for the same owner answers
-    /// <see cref="Errors.ExternalIdentityErrors.MappingNotFound"/> — the first one finished, and
-    /// there is nothing left to delete. A caller that signs in again is provisioned afresh, under a
-    /// new owner id with none of the old one's data: that is what deleting this account meant.</para>
-    /// <para>
-    /// <b>Retry.</b> A transient failure is retried by the store's execution strategy, replaying
-    /// the whole transaction. Anything else propagates and the request fails with nothing removed.
-    /// </para>
+    /// The store commits the deletion before this returns, in a transaction of its own; the fact
+    /// published afterwards names what is already true. A second call for the same owner answers
+    /// <see cref="Errors.ExternalIdentityErrors.MappingNotFound"/> — the first one finished. A
+    /// caller that signs in again is provisioned afresh, under a new owner id with none of the old
+    /// one's data: that is what deleting this account meant. A transient failure is retried by the
+    /// store's execution strategy, replaying the whole transaction; anything else propagates and
+    /// the request fails with nothing removed.
     /// </remarks>
     /// <param name="userId">The internal owner to delete.</param>
     /// <returns>Success, or the not-found error when no mapping names the owner.</returns>

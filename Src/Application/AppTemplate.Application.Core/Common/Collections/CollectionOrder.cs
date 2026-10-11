@@ -10,10 +10,9 @@ namespace AppTemplate.Application.Core.Common.Collections;
 /// </summary>
 /// <remarks>
 /// Binding a collection request is deliberately two steps rather than one, because a feature's own
-/// filter is built between them: <see cref="Parse"/> refuses what is wrong with the order,
-/// the feature refuses what is wrong with its filter, and <see cref="ToPageRequest"/> then resolves
-/// the cursor against the order it was minted under. A caller sending two mistakes at once is told
-/// about the first of them in that order.
+/// filter is built between them: <see cref="Parse"/> refuses what is wrong with the order, the
+/// feature refuses what is wrong with its filter, and <see cref="ToPageRequest"/> then resolves the
+/// cursor against the order it was minted under.
 /// </remarks>
 public sealed record CollectionOrder
 {
@@ -126,8 +125,8 @@ public sealed record CollectionOrder
 
             // The read side compares the cursor's key using the request's sort term, so resuming a
             // name-ordered cursor under a date-ordered sort would parse a name as a date and throw.
-            // Not resolved by preferring one over the other: ignoring `sort` would serve an order
-            // the caller did not ask for, and re-minting the cursor would skip or repeat rows.
+            // Ignoring `sort` would serve an order the caller did not ask for; re-minting would
+            // skip or repeat rows.
             if (Mode == PagingMode.Cursor
                 && (!string.Equals(decoded.Field, Sort.Terms[0].Field, StringComparison.Ordinal)
                     || decoded.Direction != Sort.Terms[0].Direction))

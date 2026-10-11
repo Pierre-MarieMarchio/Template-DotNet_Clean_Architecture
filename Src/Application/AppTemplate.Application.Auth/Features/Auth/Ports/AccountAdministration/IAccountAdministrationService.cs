@@ -1,15 +1,12 @@
 ﻿namespace AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
 
 /// <summary>
-/// What an administrator does to someone else's account, on the administrator's own authority rather
-/// than that account's credential: suspend and release it, grant and revoke roles, strip a stuck
-/// second factor, and delete it.
-/// <para>
-/// Every operation that takes access away — lock, grant, revoke, two-factor removal — rotates the
-/// account's security stamp, so access tokens already issued stop validating. Refresh tokens are
-/// untouched by that rotation and are the caller's to revoke. Unlocking takes nothing away and
-/// rotates nothing.
-/// </para>
+/// What an administrator does to someone else's account, on the administrator's own authority
+/// rather than that account's credential: suspend and release it, grant and revoke roles, strip a
+/// stuck second factor, and delete it. Every operation that takes access away — lock, grant,
+/// revoke, two-factor removal — rotates the account's security stamp, so access tokens already
+/// issued stop validating; refresh tokens are untouched by that rotation and are the caller's to
+/// revoke. Unlocking takes nothing away and rotates nothing.
 /// </summary>
 public interface IAccountAdministrationService
 {

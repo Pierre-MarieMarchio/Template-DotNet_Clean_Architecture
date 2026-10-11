@@ -88,7 +88,7 @@ public sealed class LogoutUseCaseTests
     {
         await _useCase.ExecuteAsync(new LogoutCommand("an-opaque-secret"), TestToken);
 
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
     }
 
     [Fact]

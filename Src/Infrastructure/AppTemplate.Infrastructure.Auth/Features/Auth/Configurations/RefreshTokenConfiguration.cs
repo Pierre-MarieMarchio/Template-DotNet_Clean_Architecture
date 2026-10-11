@@ -35,12 +35,20 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
         // Revoking a whole token family is a per-user scan; give it an index.
         builder.HasIndex(token => new { token.UserId, token.RevokedAt });
 
+        // Ending a session revokes the family's live grants by family id, not by user.
+        builder.HasIndex(token => new { token.FamilyId, token.RevokedAt });
+
         // The purge sweep is a range scan over this column; without the index it is a full table scan.
         builder.HasIndex(token => token.ExpiresAt);
 
         builder.HasOne(token => token.User)
             .WithMany(user => user.RefreshTokens)
             .HasForeignKey(token => token.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(token => token.Family)
+            .WithMany(family => family.Tokens)
+            .HasForeignKey(token => token.FamilyId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
 using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Auth.Ports.CurrentSession;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
@@ -28,6 +29,7 @@ public sealed class SignInWithExternalProviderUseCase(
     ISessionTokensService sessionTokens,
     ITwoFactorService twoFactor,
     ISecurityEventLog securityEventLog,
+    ICurrentSession currentSession,
     IValidator<SignInWithExternalProviderCommand> validator) : ISignInWithExternalProviderUseCase
 {
     /// <inheritdoc />
@@ -178,8 +180,15 @@ public sealed class SignInWithExternalProviderUseCase(
 
         securityEventLog.Record(SecurityEvent.LoginSucceeded(account.UserId));
 
-        var accessToken = await sessionTokens.IssueAccessTokenAsync(account.UserId, cancellationToken);
-        var refreshToken = await sessionTokens.IssueRefreshTokenAsync(account.UserId, cancellationToken);
+        // The refresh token first: it starts the session the access token names.
+        var refreshToken = await sessionTokens.IssueRefreshTokenAsync(
+            account.UserId,
+            currentSession.Client,
+            cancellationToken);
+        var accessToken = await sessionTokens.IssueAccessTokenAsync(
+            account.UserId,
+            refreshToken.SessionId,
+            cancellationToken);
 
         return Result.Success<SignInWithExternalProviderOutcome>(
             new SignInWithExternalProviderOutcome.Authenticated(

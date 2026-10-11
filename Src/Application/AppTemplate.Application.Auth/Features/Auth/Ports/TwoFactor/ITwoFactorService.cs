@@ -24,8 +24,8 @@ public interface ITwoFactorService
     /// against both, turns two-factor sign-in on and mints a fresh set of recovery codes. Never armed
     /// by <see cref="BeginSetupAsync"/> alone — only a confirmed code proves the caller can produce
     /// one. The password is required for the reason <see cref="DisableAsync"/> gives: arming the
-    /// factor ends every session exactly as disarming it does. Refused on an account already armed,
-    /// so the recovery codes its holder was shown stay the valid ones.
+    /// factor ends every other session exactly as disarming it does. Refused on an account already
+    /// armed, so the recovery codes its holder was shown stay the valid ones.
     /// </summary>
     Task<TwoFactorConfirmationOutcome> ConfirmSetupAsync(
         Guid userId,

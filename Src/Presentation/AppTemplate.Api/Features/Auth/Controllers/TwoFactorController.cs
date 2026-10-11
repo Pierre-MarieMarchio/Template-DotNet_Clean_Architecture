@@ -30,7 +30,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// 6749 §5.1 forbids a cache from storing an OAuth-style credential.
 /// </para>
 /// <para>
-/// Five classes under the one <c>auth</c> prefix, and the prefix is the surface: the eighteen actions
+/// Five classes under the one <c>auth</c> prefix, and the prefix is the surface: the twenty actions
 /// are divided between them, and no path depends on which class answers it.
 /// </para>
 /// </remarks>
@@ -63,8 +63,8 @@ public sealed class TwoFactorController(
     /// codes, shown once: losing them along with the authenticator app is losing the account. The
     /// current password is presented again, for the reason <see cref="DisableTwoFactor"/> gives: a
     /// stolen session alone must not be able to arm the account's second factor any more than it can
-    /// strip one — confirming revokes every session, this one included, exactly as disabling does, so
-    /// proving the password matters just as much here.
+    /// strip one — confirming ends every other session exactly as disabling does, so proving the
+    /// password matters just as much here.
     /// </summary>
     [HttpPost("two-factor/confirm")]
     [Authorize]

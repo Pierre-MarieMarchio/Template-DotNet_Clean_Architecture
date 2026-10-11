@@ -26,7 +26,7 @@ internal sealed class AccessTokenIssuer(
     private readonly JsonWebTokenHandler _handler = new();
 
     /// <exception cref="InvalidOperationException">No account has that id.</exception>
-    public async Task<IssuedAccessToken> IssueAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<IssuedAccessToken> IssueAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default)
     {
         var user = await directory.FindByIdAsync(userId, cancellationToken)
             ?? throw new InvalidOperationException($"No account with id '{userId}' exists.");
@@ -39,6 +39,11 @@ internal sealed class AccessTokenIssuer(
 
         var identity = new ClaimsIdentity(claims);
         identity.AddClaim(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")));
+
+        // The session the token is issued in, so a later request can tell which one it is made
+        // from. The short name is on purpose: no inbound claim-type mapping renames it, so the
+        // claim reads back exactly as it was written.
+        identity.AddClaim(new Claim(JwtRegisteredClaimNames.Sid, sessionId.ToString()));
 
         var descriptor = new SecurityTokenDescriptor
         {

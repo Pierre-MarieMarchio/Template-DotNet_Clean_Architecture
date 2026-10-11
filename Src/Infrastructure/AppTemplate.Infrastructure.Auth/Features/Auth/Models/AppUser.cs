@@ -33,4 +33,10 @@ public sealed class AppUser : IdentityUser<Guid>
     /// convention over public properties.
     /// </summary>
     internal ICollection<RefreshToken> RefreshTokens { get; } = [];
+
+    /// <summary>
+    /// The user's sessions. Internal for the same reason: a session is reached through
+    /// <see cref="Tables.IRefreshTokenFamilyTable"/>, never by walking the account.
+    /// </summary>
+    internal ICollection<RefreshTokenFamilyRecord> RefreshTokenFamilies { get; } = [];
 }

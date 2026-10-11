@@ -23,7 +23,7 @@ namespace AppTemplate.Api.UnitTests.Features.Auth.Controllers;
 /// </remarks>
 public sealed class AuthenticationSurfaceTests
 {
-    /// <summary>The five classes the eighteen authentication actions are divided between.</summary>
+    /// <summary>The five classes the twenty authentication actions are divided between.</summary>
     private static readonly Type[] _controllers =
     [
         typeof(RegistrationController),
@@ -125,7 +125,7 @@ public sealed class AuthenticationSurfaceTests
             .ToList();
 
         actions.Count.ShouldBeGreaterThanOrEqualTo(
-            18,
+            20,
             "Far fewer actions were found than the five controllers declare between them, so every "
             + "attribute rule in this class is passing over an empty set.");
 

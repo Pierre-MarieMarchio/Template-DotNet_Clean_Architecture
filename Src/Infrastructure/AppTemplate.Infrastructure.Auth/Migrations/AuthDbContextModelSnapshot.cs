@@ -129,6 +129,9 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("FamilyId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ReplacedByTokenHash")
                         .HasMaxLength(43)
                         .HasColumnType("character(43)")
@@ -153,9 +156,41 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                     b.HasIndex("TokenHash")
                         .IsUnique();
 
+                    b.HasIndex("FamilyId", "RevokedAt");
+
                     b.HasIndex("UserId", "RevokedAt");
 
                     b.ToTable("RefreshTokens", "identity");
+                });
+
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.RefreshTokenFamilyRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Id", "RevokedAt");
+
+                    b.HasIndex("UserId", "RevokedAt");
+
+                    b.ToTable("RefreshTokenFamilies", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
@@ -282,8 +317,27 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.RefreshToken", b =>
                 {
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.RefreshTokenFamilyRecord", "Family")
+                        .WithMany("Tokens")
+                        .HasForeignKey("FamilyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", "User")
                         .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Family");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.RefreshTokenFamilyRecord", b =>
+                {
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", "User")
+                        .WithMany("RefreshTokenFamilies")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -344,7 +398,14 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", b =>
                 {
+                    b.Navigation("RefreshTokenFamilies");
+
                     b.Navigation("RefreshTokens");
+                });
+
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.RefreshTokenFamilyRecord", b =>
+                {
+                    b.Navigation("Tokens");
                 });
 #pragma warning restore 612, 618
         }

@@ -36,12 +36,12 @@ at `/scalar/v1`.
 
 ## Authentication — `api/v1/auth/*`
 
-Ten of the nineteen actions here are explicitly `[AllowAnonymous]`; the
-other nine require `[Authorize]` (`logout-all`, `me`, `change-password`, the three
-`two-factor/*` actions, `change-email`, `confirm-email-change`, `delete-account`).
-Seventeen of the nineteen are rate-limited to **10 requests per minute per client IP**;
-`logout-all` and `me` deliberately fall to the global limiter instead, since neither is
-an attempt at a credential.
+Ten of the twenty-one actions here are explicitly `[AllowAnonymous]`; the
+other eleven require `[Authorize]` (`logout-all`, `me`, `change-password`, the three
+`two-factor/*` actions, `change-email`, `confirm-email-change`, `delete-account`, and the
+two `sessions` actions). Seventeen of the twenty-one are rate-limited to **10 requests per
+minute per client IP**; `logout-all`, `me` and the two `sessions` actions deliberately
+fall to the global limiter instead, since none is an attempt at a credential.
 
 | Method | Route | Success | Notes |
 |---|---|---|---|
@@ -52,13 +52,15 @@ an attempt at a credential.
 | POST | `/api/v1/auth/refresh` | 200 | Consumes the presented refresh token and returns a new pair. |
 | POST | `/api/v1/auth/confirm-email` | 204 | **POST with a JSON body**, not a GET with a query string. |
 | POST | `/api/v1/auth/resend-confirmation-email` | 204 | Always 204, whether or not the address exists. |
-| POST | `/api/v1/auth/logout` | 204 | Revokes the presented refresh token. Idempotent. |
-| POST | `/api/v1/auth/logout-all` | 204 | Authenticated. Revokes every refresh token grant the caller holds. |
+| POST | `/api/v1/auth/logout` | 204 | Ends the session the presented refresh token belongs to. Idempotent. |
+| POST | `/api/v1/auth/logout-all` | 204 | Authenticated. Ends every session the caller holds. |
+| GET | `/api/v1/auth/sessions` | 200 | Authenticated. The caller's live sessions, most recently used first, the one this request is made from carrying `current: true`. |
 | GET, HEAD | `/api/v1/auth/me` | 200 | Authenticated. The caller's own profile; takes no input. |
-| POST | `/api/v1/auth/change-password` | 204 | Authenticated. The current password is presented again as proof the session is not a stolen token. **Signs out every session, the caller's own included**: the access token dies with the security stamp and every refresh token is revoked, so the caller signs in again. |
+| POST | `/api/v1/auth/change-password` | 204 | Authenticated. The current password is presented again as proof the session is not a stolen token. **Signs out every other session**: the access token dies with the security stamp and every other session's refresh token is revoked, so the other clients sign in again; the session the change was made from refreshes into the new posture. |
 | POST | `/api/v1/auth/two-factor/setup` | 200 | Authenticated. Provisions a shared key; arms nothing on its own. **It rotates the security stamp, so the access token that called it stops working** — sign in again before calling `two-factor/confirm`. |
-| POST | `/api/v1/auth/two-factor/confirm` | 200 | Authenticated, and requires the current password: arming a second factor is the irreversible direction, so a stolen session alone must not do it. Confirms enrollment, arms two-factor sign-in, and returns ten recovery codes shown once. Signs out every session, the caller's own included, as `change-password` does. 409 when two-factor sign-in is already on: the codes on file stay the ones shown. |
-| POST | `/api/v1/auth/two-factor/disable` | 204 | Authenticated. Requires the current password. Signs out every session, the caller's own included, as `change-password` does. |
+| POST | `/api/v1/auth/two-factor/confirm` | 200 | Authenticated, and requires the current password: arming a second factor is the irreversible direction, so a stolen session alone must not do it. Confirms enrollment, arms two-factor sign-in, and returns ten recovery codes shown once. Signs out every other session, as `change-password` does. 409 when two-factor sign-in is already on: the codes on file stay the ones shown. |
+| POST | `/api/v1/auth/two-factor/disable` | 204 | Authenticated. Requires the current password. Signs out every other session, as `change-password` does. |
+| DELETE | `/api/v1/auth/sessions/{sessionId}` | 204 | Authenticated. Ends one of the caller's sessions by the id the session list names — its own included, which signs that client out. 404 for a session that belongs to somebody else, exactly as for an unknown id; ending an already-ended session succeeds again. |
 | POST | `/api/v1/auth/change-email` | 204 | Authenticated. Requires the current password; mails a token to the new address. |
 | POST | `/api/v1/auth/confirm-email-change` | 204 | Authenticated. Confirms the pending change from the token mailed to the new address. |
 | POST | `/api/v1/auth/delete-account` | 204 | Authenticated. Deletes the caller's own account and every session its tokens name — the last answer this token can obtain. **Re-authentication is demanded on the way out**: the current password when the account has one, a two-factor code when the factor is armed, and — for an account with neither — an access token issued less than five minutes ago, answered `403` `auth.account.reAuthenticationRequired` when the calling one is older. What the other features hold under the id is removed through the account-deleted fact each consumes; see `ARCHITECTURE.md`. |
@@ -68,9 +70,15 @@ an attempt at a credential.
 **The refresh token is in the response body, not a cookie.** It is an opaque
 32-byte CSPRNG value, base64url-encoded — not a JWT — and only its SHA-256 hash is
 stored. Every presentation rotates it. Presenting one that was already rotated or
-revoked is treated as theft: the **entire token family for that user is revoked** and
-the request fails. Verified: replaying a consumed token returns 401, and the
+revoked is treated as theft: **every session of that user is revoked** and the
+request fails. Verified: replaying a consumed token returns 401, and the
 token it had been rotated into stops working too.
+
+**One sign-in is one session.** A session is the refresh-token family that sign-in
+started; the access token issued beside its first grant carries a `sid` claim naming
+it, and every refresh stays in the same session. A token of a session that was ended —
+signed out, revoked by its owner, or killed with the rest — is refused without the
+theft alarm: it is what a client still holding it sends next.
 
 <!--#if (todoLists)-->
 ## To-do lists — `api/v1/todo-lists/*`

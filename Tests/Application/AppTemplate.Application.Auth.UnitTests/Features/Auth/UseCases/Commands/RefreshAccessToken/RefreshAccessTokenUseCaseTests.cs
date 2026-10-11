@@ -2,6 +2,7 @@
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RefreshAccessToken;
+using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
 using Shouldly;
@@ -22,6 +23,10 @@ public sealed class RefreshAccessTokenUseCaseTests
     private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
     private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
+
+    /// <summary>The client whose refresh call this is, so the assertion can see it recorded.</summary>
+    private static readonly SessionClient _client = new("test-agent/1.0");
+
     private readonly RefreshAccessTokenUseCase _useCase;
 
     public RefreshAccessTokenUseCaseTests() =>
@@ -29,6 +34,7 @@ public sealed class RefreshAccessTokenUseCaseTests
             _accounts,
             _sessionTokens,
             _securityEventLog,
+            new StubCurrentSession(null, _client),
             new RefreshAccessTokenCommandValidator());
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -58,7 +64,7 @@ public sealed class RefreshAccessTokenUseCaseTests
     [Fact]
     public async Task ARejectedRotation_IsAnsweredWithOneErrorAndMintsNothing()
     {
-        _sessionTokens.RotateRefreshTokenAsync("already-used", Arg.Any<CancellationToken>())
+        _sessionTokens.RotateRefreshTokenAsync("already-used", Arg.Any<SessionClient>(), Arg.Any<CancellationToken>())
             .Returns(RefreshTokenRotation.Rejected);
 
         var result = await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("already-used"), TestToken);
@@ -68,7 +74,7 @@ public sealed class RefreshAccessTokenUseCaseTests
             "auth.refreshToken.invalid",
             "The refresh token is invalid or has expired."));
 
-        await _sessionTokens.DidNotReceiveWithAnyArgs().IssueAccessTokenAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().IssueAccessTokenAsync(default, default, Arg.Any<CancellationToken>());
         _accounts.ReceivedCalls().ShouldBeEmpty("a rejected token names no account to ask about.");
     }
 
@@ -88,8 +94,8 @@ public sealed class RefreshAccessTokenUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.refreshToken.invalid");
 
-        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(userId, Arg.Any<CancellationToken>());
-        await _sessionTokens.DidNotReceiveWithAnyArgs().IssueAccessTokenAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(userId, cancellationToken: Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().IssueAccessTokenAsync(default, default, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -121,7 +127,7 @@ public sealed class RefreshAccessTokenUseCaseTests
         result.Value.RefreshToken.ShouldBe("successor");
         result.Value.RefreshTokenExpiresAt.ShouldBe(_refreshTokenExpiry);
 
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -136,7 +142,7 @@ public sealed class RefreshAccessTokenUseCaseTests
 
         await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("presented"), TestToken);
 
-        await _sessionTokens.DidNotReceiveWithAnyArgs().IssueRefreshTokenAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().IssueRefreshTokenAsync(default, Arg.Any<SessionClient>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -153,9 +159,9 @@ public sealed class RefreshAccessTokenUseCaseTests
 
         Received.InOrder(() =>
         {
-            _sessionTokens.RotateRefreshTokenAsync("presented", Arg.Any<CancellationToken>());
+            _sessionTokens.RotateRefreshTokenAsync("presented", Arg.Any<SessionClient>(), Arg.Any<CancellationToken>());
             _accounts.CanSignInAsync(userId, Arg.Any<CancellationToken>());
-            _sessionTokens.IssueAccessTokenAsync(userId, Arg.Any<CancellationToken>());
+            _sessionTokens.IssueAccessTokenAsync(userId, Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         });
     }
 
@@ -168,21 +174,21 @@ public sealed class RefreshAccessTokenUseCaseTests
 
         await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("presented"), cancellation.Token);
 
-        await _sessionTokens.Received(1).RotateRefreshTokenAsync("presented", cancellation.Token);
+        await _sessionTokens.Received(1).RotateRefreshTokenAsync("presented", Arg.Any<SessionClient>(), cancellation.Token);
         await _accounts.Received(1).CanSignInAsync(userId, cancellation.Token);
-        await _sessionTokens.Received(1).IssueAccessTokenAsync(userId, cancellation.Token);
+        await _sessionTokens.Received(1).IssueAccessTokenAsync(userId, Arg.Any<Guid>(), cancellation.Token);
     }
 
     private Guid GivenTheGrantRotates()
     {
         var userId = Guid.CreateVersion7();
 
-        _sessionTokens.RotateRefreshTokenAsync("presented", Arg.Any<CancellationToken>())
+        _sessionTokens.RotateRefreshTokenAsync("presented", Arg.Any<SessionClient>(), Arg.Any<CancellationToken>())
             .Returns(RefreshTokenRotation.Rotated(
                 userId,
-                new IssuedRefreshToken("successor", _refreshTokenExpiry)));
+                new IssuedRefreshToken("successor", _refreshTokenExpiry, Guid.CreateVersion7())));
 
-        _sessionTokens.IssueAccessTokenAsync(userId, Arg.Any<CancellationToken>())
+        _sessionTokens.IssueAccessTokenAsync(userId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new IssuedAccessToken("access-token", _accessTokenExpiry));
 
         return userId;

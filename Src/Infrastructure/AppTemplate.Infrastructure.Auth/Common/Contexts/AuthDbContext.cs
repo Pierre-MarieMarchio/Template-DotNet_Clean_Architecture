@@ -52,13 +52,20 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     internal DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     /// <summary>
+    /// Sessions: one row per sign-in, holding what its owner lists it by — see
+    /// <see cref="Features.Auth.Tables.IRefreshTokenFamilyTable"/> for the boundary the module
+    /// reaches it through.
+    /// </summary>
+    internal DbSet<RefreshTokenFamilyRecord> RefreshTokenFamilies => Set<RefreshTokenFamilyRecord>();
+
+    /// <summary>
     /// The key ring <see cref="IDataProtectionKeyContext"/> requires. Public, unlike the set above:
     /// the ASP.NET Core data-protection system reads and writes it directly through that interface,
     /// so nothing about it can be internal to this assembly.
     /// </summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
-    /// <summary>Applies this module's nine configurations.</summary>
+    /// <summary>Applies this module's ten configurations.</summary>
     /// <param name="builder">The model being built.</param>
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -66,12 +73,13 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 
         base.OnModelCreating(builder);
 
-        // Named one by one rather than discovered by scanning the assembly: nine lines the compiler
+        // Named one by one rather than discovered by scanning the assembly: ten lines the compiler
         // checks, instead of a reflection call that silently maps nothing when a configuration class
         // is renamed or moved. No default schema is set — every table names its own.
         builder.ApplyConfiguration(new AppUserConfiguration());
         builder.ApplyConfiguration(new AppRoleConfiguration());
         builder.ApplyConfiguration(new RefreshTokenConfiguration());
+        builder.ApplyConfiguration(new RefreshTokenFamilyConfiguration());
         builder.ApplyConfiguration(new UserRoleConfiguration());
         builder.ApplyConfiguration(new UserClaimConfiguration());
         builder.ApplyConfiguration(new UserLoginConfiguration());

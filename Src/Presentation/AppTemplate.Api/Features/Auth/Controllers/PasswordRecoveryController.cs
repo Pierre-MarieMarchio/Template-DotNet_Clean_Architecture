@@ -25,7 +25,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// 6749 §5.1 forbids a cache from storing an OAuth-style credential.
 /// </para>
 /// <para>
-/// Five classes under the one <c>auth</c> prefix, and the prefix is the surface: the eighteen actions
+/// Five classes under the one <c>auth</c> prefix, and the prefix is the surface: the twenty actions
 /// are divided between them, and no path depends on which class answers it.
 /// </para>
 /// </remarks>

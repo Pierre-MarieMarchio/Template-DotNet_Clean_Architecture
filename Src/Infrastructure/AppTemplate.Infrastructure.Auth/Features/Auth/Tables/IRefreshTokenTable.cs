@@ -1,7 +1,8 @@
 ﻿namespace AppTemplate.Infrastructure.Auth.Features.Auth.Tables;
 
 /// <summary>
-/// The storage half of refresh-token handling: rows in, rows out, and nothing about policy.
+/// The storage half of refresh-token handling: grant rows in, grant rows out, and nothing about
+/// policy.
 /// <para>
 /// This is the seam that keeps every decision in the identity module — a token is 32 CSPRNG bytes,
 /// only its SHA-256 hash is persisted, every presentation rotates the grant, and a replayed token
@@ -15,6 +16,11 @@
 /// <c>StorageVocabularyTests</c> holds the distinction.
 /// </para>
 /// <para>
+/// The lifecycle of a session — the family these grants belong to — is
+/// <see cref="IRefreshTokenFamilyTable"/>'s, not this one's: a grant is created into a family this
+/// table does not start and cannot end.
+/// </para>
+/// <para>
 /// Public because it crosses an assembly boundary. Every method stages and <c>IUnitOfWork</c>
 /// commits, with the one exception stated on <see cref="TryRotateAsync"/>: one context serves the
 /// request, so a rotation and whatever else it staged commit together.
@@ -22,18 +28,22 @@
 /// </summary>
 public interface IRefreshTokenTable
 {
-    void Add(Guid userId, string tokenHash, DateTimeOffset createdAt, DateTimeOffset expiresAt);
+    /// <summary>Stages a grant as the newest one of its session.</summary>
+    void Add(Guid userId, Guid familyId, string tokenHash, DateTimeOffset createdAt, DateTimeOffset expiresAt);
 
     /// <summary>
     /// The grant with this hash, or <c>null</c> when there is none. Returns revoked and expired grants
-    /// too: the caller has to tell "unknown" from "already used" in order to detect a replay, even though
-    /// it must answer the client identically either way.
+    /// too, and the state of the grant's session: the caller has to tell "unknown" from "already
+    /// used" from "session ended" in order to detect a replay without alarming a client that merely
+    /// holds a token of an ended session, even though it must answer the client identically for
+    /// each of the first two.
     /// </summary>
     Task<RefreshTokenGrant?> FindAsync(string tokenHash, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Consumes a live grant and stages its successor: the presented grant is marked revoked and its
-    /// successor's hash recorded so the chain stays auditable, then the successor row is staged.
+    /// Consumes a live grant and stages its successor in the same session: the presented grant is
+    /// marked revoked and its successor's hash recorded so the chain stays auditable, then the
+    /// successor row is staged.
     /// <para>
     /// The consumption is one conditional UPDATE that commits on its own, and that is the exception to
     /// "every method stages". It is what makes rotation single-use: the liveness test travels in the
@@ -42,6 +52,13 @@ public interface IRefreshTokenTable
     /// from a tracked row is keyed on the primary key alone and both presentations would pass. The
     /// successor is only staged, so a commit that never happens leaves the grant consumed with no
     /// replacement issued — the client has to authenticate again, which is the safe direction.
+    /// </para>
+    /// <para>
+    /// The liveness test is the grant's alone, never the session's: whether the session may still
+    /// rotate was answered when the grant was read, and a session revoked while this UPDATE runs
+    /// still gets its successor — one that is dead on arrival, because the next presentation finds
+    /// the family revoked. This is how a revocation wins its race with a rotation without holding a
+    /// lock across the two.
     /// </para>
     /// </summary>
     /// <returns><c>false</c> when the presented hash names no live grant: unknown, expired, already
@@ -55,21 +72,10 @@ public interface IRefreshTokenTable
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Stages the revocation of a live grant. Silent when the hash is unknown or already revoked, so
-    /// logging out cannot be used to probe for valid tokens.
-    /// </summary>
-    Task RevokeAsync(string tokenHash, DateTimeOffset revokedAt, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Stages the revocation of every live grant for a user: theft response, and the hook for
-    /// "sign out everywhere".
-    /// </summary>
-    Task RevokeAllForUserAsync(Guid userId, DateTimeOffset revokedAt, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Deletes every grant that expired at or before <paramref name="cutoff"/>, committing on its
     /// own rather than through <c>IUnitOfWork</c> — like <see cref="TryRotateAsync"/>, a housekeeping
-    /// sweep has no request to share a transaction with.
+    /// sweep has no request to share a transaction with. Sessions whose every grant went this way
+    /// are <see cref="IRefreshTokenFamilyTable.PurgeChildlessAsync"/>'s to delete.
     /// </summary>
     Task<int> PurgeExpiredAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default);
 }

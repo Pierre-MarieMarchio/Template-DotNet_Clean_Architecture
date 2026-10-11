@@ -88,7 +88,7 @@ public sealed class ResetPasswordUseCaseTests
 
         await _useCase.ExecuteAsync(ARequest(), TestToken);
 
-        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(userId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(userId, cancellationToken: Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public sealed class ResetPasswordUseCaseTests
 
         await _useCase.ExecuteAsync(ARequest(), TestToken);
 
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 

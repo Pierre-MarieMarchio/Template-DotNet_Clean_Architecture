@@ -10,14 +10,14 @@ namespace AppTemplate.Domain.Features.Files.ValueObjects;
 public sealed record FileSize
 {
     /// <summary>
-    /// A zero-byte object looks like an upload that never happened, and telling those apart is why files are
-    /// registered before they are deposited; zero is refused.
+    /// Zero is refused: a zero-byte object looks like an upload that never happened, and telling
+    /// those apart is why files are registered before they are deposited.
     /// </summary>
     public const long MinBytes = 1;
 
     /// <summary>
-    /// 5 GiB, the ceiling of a single-part <c>PUT</c>. Registration offers one signed URL, so a larger file could not
-    /// physically be deposited.
+    /// 5 GiB, the ceiling of a single-part <c>PUT</c>: registration offers one signed URL, so a
+    /// larger file could not physically be deposited.
     /// </summary>
     public const long MaxBytes = 5L * 1024 * 1024 * 1024;
 

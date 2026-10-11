@@ -5,20 +5,17 @@ using AppTemplate.Domain.Core.Common.Exceptions;
 namespace AppTemplate.Domain.Features.Files.ValueObjects;
 
 /// <summary>
-/// The name a client gave a file, kept to be shown back and offered as a download name.
-/// <para>
-/// It is a label. It never reaches a filesystem and never addresses anything: bytes are addressed by
-/// <see cref="ObjectKey"/>, minted independently. Keep it that way; the day this value is joined onto a path or a
-/// key, the rules below become the only defence. They exist anyway because the value ends up in a
-/// <c>Content-Disposition</c> header and on a user's disk, and a refusal here is visible where a truncation later is
-/// not.
-/// </para>
+/// The name a client gave a file, kept to be shown back and offered as a download name. It is a
+/// label: it never reaches a filesystem and never addresses anything — bytes are addressed by
+/// <see cref="ObjectKey"/>, minted independently. The rules below exist because the value ends up
+/// in a <c>Content-Disposition</c> header and on a user's disk, where a refusal is visible and a
+/// truncation is not.
 /// </summary>
 public sealed record StoredFileName
 {
     /// <summary>
-    /// Essentially every filesystem caps a path component at 255; a longer name is silently truncated by whatever
-    /// saves it, and two files then collide.
+    /// Essentially every filesystem caps a path component at 255; a longer name is silently
+    /// truncated by whatever saves it, and two files then collide.
     /// </summary>
     public const int MaxLength = 255;
 

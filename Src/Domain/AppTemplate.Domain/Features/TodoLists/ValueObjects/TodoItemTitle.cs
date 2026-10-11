@@ -3,10 +3,9 @@
 namespace AppTemplate.Domain.Features.TodoLists.ValueObjects;
 
 /// <summary>
-/// The title of a <see cref="Entities.TodoItem"/>. It exists as a type rather than a bare
-/// string because "non-empty, trimmed, at most 200 characters" is a rule that must hold
-/// everywhere a title appears — including on the load path — and a type is the only way to
-/// guarantee that without repeating the check in every caller.
+/// The title of a <see cref="Entities.TodoItem"/>, non-empty, trimmed, at most 200 characters. A
+/// type rather than a bare string, because the rule must hold everywhere a title appears —
+/// including on the load path.
 /// </summary>
 public sealed record TodoItemTitle
 {

@@ -6,10 +6,10 @@ using AppTemplate.Domain.Features.TodoLists.ValueObjects;
 namespace AppTemplate.Domain.Features.TodoLists.Entities;
 
 /// <summary>
-/// A single entry inside a <see cref="TodoList"/>. An entity but <b>not</b> an aggregate
-/// root: it has no repository and is only reachable through its list. Every mutator is
-/// <c>internal</c> so the root stays the only thing able to change it, which is what makes
-/// the list-level invariants (unique titles, item cap) enforceable.
+/// A single entry inside a <see cref="TodoList"/>: an entity but <b>not</b> an aggregate root — no
+/// repository, reachable only through its list. Every mutator is <c>internal</c> so the root stays
+/// the only thing able to change it, which is what makes the list-level invariants (unique titles,
+/// item cap) enforceable.
 /// </summary>
 public sealed class TodoItem : Entity<Guid>
 {
@@ -28,14 +28,10 @@ public sealed class TodoItem : Entity<Guid>
     }
 
     /// <summary>
-    /// Rebuilds a stored item. Called only by <see cref="TodoList.Rehydrate"/>'s caller — the
-    /// persistence layer — which is why it is <c>public</c> where every mutator is <c>internal</c>:
-    /// reconstitution comes from outside the assembly, whereas change never does.
-    /// <para>
-    /// Every value goes through the same normalisation and the same value object a live item would,
-    /// so a row that no longer satisfies an invariant is refused here rather than silently becoming
-    /// an aggregate that cannot honour its own rules.
-    /// </para>
+    /// Rebuilds a stored item; called only by <see cref="TodoList.Rehydrate"/>'s caller — the
+    /// persistence layer — which is why it is <c>public</c> where every mutator is
+    /// <c>internal</c>. Every value goes through the same normalisation and value object a live
+    /// item would, so a row that violates an invariant is refused here.
     /// </summary>
     public static TodoItem Rehydrate(
         Guid id,
@@ -112,9 +108,8 @@ public sealed class TodoItem : Entity<Guid>
     }
 
     /// <summary>
-    /// Idempotent, unlike <see cref="Complete"/>: reopening an already-open item is not a
-    /// mistake worth rejecting, whereas completing a completed one usually signals a stale
-    /// client racing another completion.
+    /// Idempotent, unlike <see cref="Complete"/>: reopening an already-open item is not a mistake
+    /// worth rejecting, whereas completing a completed one usually signals a stale client.
     /// </summary>
     /// <returns><see langword="true"/> if the item was completed and is now reopened.</returns>
     internal bool Reopen()

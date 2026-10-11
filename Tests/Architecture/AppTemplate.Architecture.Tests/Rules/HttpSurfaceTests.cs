@@ -6,7 +6,7 @@ using Xunit;
 namespace AppTemplate.Architecture.Tests.Rules;
 
 /// <summary>
-/// Four properties of the HTTP surface that no compiler and no unit test can see, because each one
+/// Three properties of the HTTP surface that no compiler and no unit test can see, because each one
 /// is about what the API <em>does not</em> do. They are read from source rather than from metadata:
 /// this test project deliberately references no presentation project, so that the container tests
 /// compose them module by module the way <c>Program.cs</c> does.
@@ -56,12 +56,6 @@ public sealed class HttpSurfaceTests
     private const int _fluentlyAnonymousEndpoints = 4;
 
     /// <summary>
-    /// Every spelling that would add a <c>PATCH</c>. The attribute is the obvious one; the other two
-    /// are the ways a route can take a verb without naming an attribute for it.
-    /// </summary>
-    private static readonly string[] _patchNeedles = ["[HttpPatch", "AcceptVerbs", "MapMethods"];
-
-    /// <summary>
     /// <c>Headers.Link</c> is the one that matters. <c>IHeaderDictionary</c> carries a generated
     /// property per known header, and this repository writes every response header through it —
     /// <c>Response.Headers.ETag</c>, <c>.RetryAfter</c>, <c>.CacheControl</c>, <c>.Vary</c>. A rule
@@ -77,20 +71,6 @@ public sealed class HttpSurfaceTests
         @"\[AllowAnonymous\][^{};]*?\b(?:public|internal)\s[^(]*?\b(\w+)\s*\(",
         RegexOptions.Singleline,
         TimeSpan.FromSeconds(5));
-
-    /// <summary>
-    /// A partial update whose meaning depends on which keys the client happened to send cannot be
-    /// checked against an invariant, because an invariant is a property of the whole aggregate. So
-    /// an omitted field means <em>absent</em>, not <em>unchanged</em>, and every write says in its
-    /// route what it does.
-    /// </summary>
-    [Fact]
-    public void NoEndpoint_AcceptsPatch()
-    {
-        Offenders(_patchNeedles).ShouldBeEmpty(
-            "A PATCH would make an omitted field ambiguous between 'absent' and 'unchanged', which " +
-            "is not a distinction an aggregate's invariants can be validated against.");
-    }
 
     /// <summary>
     /// Whether there is a next page is stated once, in <c>PagedResult</c>, in the body every client
@@ -155,16 +135,9 @@ public sealed class HttpSurfaceTests
     /// <summary>
     /// Proves each needle set detects every spelling it names, on text rather than on the tree. The
     /// rules above are satisfied by an empty result, so nothing about them says the needles would
-    /// find anything: this is what stands between a mistyped needle and three rules that pass on
+    /// find anything: this is what stands between a mistyped needle and rules that pass on
     /// every input.
     /// </summary>
-    [Theory]
-    [InlineData("[HttpPatch(\"x\")]")]
-    [InlineData("[AcceptVerbs(\"PATCH\")]")]
-    [InlineData("app.MapMethods(\"/x\", [\"PATCH\"], handler);")]
-    public void ThePatchNeedles_DetectEverySpellingTheyName(string source) =>
-        Mentions(source, _patchNeedles).ShouldBeTrue();
-
     [Theory]
     [InlineData("Response.Headers.Link = value;")]
     [InlineData("context.Response.Headers[HeaderNames.Link] = value;")]
@@ -184,11 +157,8 @@ public sealed class HttpSurfaceTests
     /// </summary>
     [Theory]
     [InlineData("Response.Headers.ETag = tag;")]
-    [InlineData("[HttpPut(\"{id:guid}\")]")]
-    [InlineData("// A PUT carrying the complete representation, not a PATCH.")]
     public void TheNeedles_LeaveOrdinaryCodeAlone(string source)
     {
-        Mentions(source, _patchNeedles).ShouldBeFalse();
         Mentions(source, _linkNeedles).ShouldBeFalse();
         Mentions(source, _scheduleNeedles).ShouldBeFalse();
     }

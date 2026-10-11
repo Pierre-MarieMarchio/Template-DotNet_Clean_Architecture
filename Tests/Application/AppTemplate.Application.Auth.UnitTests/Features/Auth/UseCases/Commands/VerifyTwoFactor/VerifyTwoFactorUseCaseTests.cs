@@ -4,6 +4,7 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.VerifyTwoFactor;
+using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
 using Shouldly;
@@ -21,6 +22,9 @@ public sealed class VerifyTwoFactorUseCaseTests
     private static readonly DateTimeOffset _accessTokenExpiry = DateTimeOffset.UnixEpoch.AddMinutes(15);
     private static readonly DateTimeOffset _refreshTokenExpiry = DateTimeOffset.UnixEpoch.AddDays(30);
 
+    /// <summary>The client a second-step sign-in names its new session by, so assertions can see it travel.</summary>
+    private static readonly SessionClient _client = new("test-agent/1.0");
+
     private readonly ITwoFactorService _twoFactor = Substitute.For<ITwoFactorService>();
     private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
     private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
@@ -33,6 +37,7 @@ public sealed class VerifyTwoFactorUseCaseTests
             _accounts,
             _sessionTokens,
             _securityEventLog,
+            new StubCurrentSession(null, _client),
             new VerifyTwoFactorCommandValidator());
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -185,12 +190,14 @@ public sealed class VerifyTwoFactorUseCaseTests
 
         _accounts.CanSignInAsync(account.UserId, Arg.Any<CancellationToken>()).Returns(true);
 
-        _sessionTokens.IssueAccessTokenAsync(account.UserId, Arg.Any<CancellationToken>())
+        _sessionTokens.IssueAccessTokenAsync(account.UserId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new IssuedAccessToken("access-token", _accessTokenExpiry));
 
-        _sessionTokens.IssueRefreshTokenAsync(account.UserId, Arg.Any<CancellationToken>())
-            .Returns(new IssuedRefreshToken("refresh-token", _refreshTokenExpiry));
+        _sessionTokens.IssueRefreshTokenAsync(account.UserId, Arg.Any<SessionClient>(), Arg.Any<CancellationToken>())
+            .Returns(ARefreshToken());
 
         return account;
     }
+
+    private static IssuedRefreshToken ARefreshToken() => new("refresh-token", _refreshTokenExpiry, Guid.CreateVersion7());
 }

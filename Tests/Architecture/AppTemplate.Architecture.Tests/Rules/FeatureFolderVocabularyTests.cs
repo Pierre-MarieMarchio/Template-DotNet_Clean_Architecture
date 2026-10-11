@@ -56,6 +56,7 @@ public sealed class FeatureFolderVocabularyTests
         ["Queries"] = ["Queries", "Query", "Map", "Pattern"],
         ["Repositories"] = ["Repository"],
         ["Scanners"] = ["Scanner"],
+        ["Security"] = ["Session", "Extensions"],
         ["Seeding"] = ["Seeder", "Options", "Roles"],
         ["Services"] = ["Service"],
         ["Stores"] = ["Store"],

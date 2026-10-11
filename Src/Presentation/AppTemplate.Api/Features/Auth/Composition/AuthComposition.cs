@@ -4,6 +4,7 @@ using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Directories;
 //#endif
 using AppTemplate.Api.Features.Auth.Jobs;
+using AppTemplate.Api.Features.Auth.Security;
 using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth;
@@ -38,6 +39,7 @@ internal static class AuthComposition
 
         services.AddAuthApplication();
         services.AddAuthModule(configuration);
+        services.AddApiCurrentSession();
         services.AddAuthMaintenanceJobs(configuration);
 
         // The one half of the deleted-account reaction this host owns: whether an id still names

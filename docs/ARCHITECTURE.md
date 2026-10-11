@@ -341,7 +341,9 @@ split runs there rather than putting every port in one layer:
 | `ICacheStore` | `AppTemplate.Application.Core` | `HybridCacheStore`, in process until a deployment registers a distributed second level |
 | `IAccountsService` | `AppTemplate.Application.Auth` | `UserManager` / `SignInManager`: create, verify a password, may-sign-in, change password, read the profile |
 | `IEmailTokensService` | `AppTemplate.Application.Auth` | ASP.NET Identity's token providers: confirmation, password reset, email change |
-| `ISessionTokensService` | `AppTemplate.Application.Auth` | signed JWT over the account's current claims, and opaque rotating grants over `IRefreshTokenTable` |
+| `ISessionTokensService` | `AppTemplate.Application.Auth` | signed JWT over the account's current claims, and opaque rotating grants over `IRefreshTokenTable`, one refresh-token family per session |
+| `ISessionsService` | `AppTemplate.Application.Auth` | a session list its owner reads and ends, over `IRefreshTokenFamilyTable` |
+| `ICurrentSession` | `AppTemplate.Application.Auth` | `CurrentSession`, reading the token's `sid` claim and the request's `User-Agent` |
 | `ITwoFactorService` | `AppTemplate.Application.Auth` | Identity's authenticator plumbing, and the sign-in challenge in its token store |
 | `IAccountAdministrationService` | `AppTemplate.Application.Auth` | lock, unlock, roles, two-factor removal and deletion, over `UserManager` |
 | `IExternalIdentityVerifier` | `AppTemplate.Application.Auth` | an `id_token` checked against a provider's JWKS |
@@ -354,7 +356,7 @@ point of the seam is that the application layer can be read, and tested, without
 knowing that EF Core, MailKit or ASP.NET Identity exist. A port named after its
 implementation has already given that away.
 
-The authentication ports are the interesting ones. There are nine of them, one per
+The authentication ports are the interesting ones. There are eleven of them, one per
 intent, rather than one `IAuthService`, and the split is what keeps the
 *sequencing* in Application: `RegisterUseCase` creates the account, then mints a
 confirmation token, then composes and sends the mail through `IEmailSender`, and
@@ -364,8 +366,10 @@ account, then revokes the whole family if it may no longer sign in. Each port is
 intent an adapter can satisfy on its own, and none declares more than six operations,
 and the ASP.NET Identity types (`AppUser`, `UserManager<>`) never appear in
 Application. An architecture test asserts that no port grows wide enough to take the
-sequencing back. Because those nine ports are all `AppTemplate.Application.Auth` speaks in, that
-project names no aggregate: an account here is what its ports say about it.
+sequencing back. Because those eleven ports are all `AppTemplate.Application.Auth` speaks in, that
+project names no aggregate: an account here is what its ports say about it. One of
+them, `ICurrentSession`, names which session a request is made from, and only the host
+can satisfy it — it sees the request — the same licence `ICurrentUser` has.
 
 ## Infrastructure is split per capability, with no per-technology sub-split
 
@@ -859,7 +863,7 @@ state that no longer exists is the lost update the token exists to prevent.
 | Schema | Tables |
 |---|---|
 | `todo` | `TodoLists`, `TodoItems`, `TodoItemTags` |
-| `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `DataProtectionKeys` |
+| `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `RefreshTokenFamilies`, `DataProtectionKeys` |
 | `reminders` | `Reminders` |
 | `files` | `StoredFiles` |
 | `notes` | `Notes` |

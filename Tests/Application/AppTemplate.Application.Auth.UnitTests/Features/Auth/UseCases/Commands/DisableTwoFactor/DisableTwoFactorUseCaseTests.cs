@@ -24,7 +24,7 @@ public sealed class DisableTwoFactorUseCaseTests
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
-        var result = await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(ARequest(), TestToken);
+        var result = await UseCaseFor(StubCurrentUser.Anonymous, StubCurrentSession.WithoutSession).ExecuteAsync(ARequest(), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
@@ -73,7 +73,7 @@ public sealed class DisableTwoFactorUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -90,7 +90,7 @@ public sealed class DisableTwoFactorUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.twoFactor.disableRejected");
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -116,17 +116,39 @@ public sealed class DisableTwoFactorUseCaseTests
 
     /// <summary>
     /// The security stamp already rotated inside <c>DisableAsync</c>; refresh tokens survive that
-    /// rotation and are this use case's responsibility to revoke.
+    /// rotation and are this use case's responsibility to revoke. The caller's own session, which
+    /// just proved the password, is the one spared.
     /// </summary>
     [Fact]
-    public async Task ARightPassword_RevokesEveryRefreshTokenForTheAccount()
+    public async Task ARightPassword_RevokesEverySessionButTheCallersOwn()
     {
         GivenTheOutcomeIs(TwoFactorDisableStatus.Disabled);
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(
+            _callerId,
+            _currentSession.SessionId,
+            Arg.Any<CancellationToken>());
         _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_callerId));
+    }
+
+    /// <summary>
+    /// A token that names no session — issued before sessions were named in it — spares nothing:
+    /// an unknown session is not one to spare.
+    /// </summary>
+    [Fact]
+    public async Task ARightPasswordFromATokenWithoutASession_RevokesEverySession()
+    {
+        GivenTheOutcomeIs(TwoFactorDisableStatus.Disabled);
+
+        await UseCaseFor(StubCurrentUser.WithId(_callerId), StubCurrentSession.WithoutSession)
+            .ExecuteAsync(ARequest(), TestToken);
+
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(
+            _callerId,
+            null,
+            Arg.Any<CancellationToken>());
     }
 
     private static DisableTwoFactorCommand ARequest() => new("correct horse battery");
@@ -134,8 +156,11 @@ public sealed class DisableTwoFactorUseCaseTests
     private void GivenTheOutcomeIs(TwoFactorDisableStatus disable) =>
         _twoFactor.DisableAsync(_callerId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(disable);
 
-    private DisableTwoFactorUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_twoFactor, _sessionTokens, _securityEventLog, currentUser, new DisableTwoFactorCommandValidator());
+    /// <summary>The session the caller disarms the factor from, fixed so assertions can name it.</summary>
+    private readonly StubCurrentSession _currentSession = StubCurrentSession.InSession(Guid.CreateVersion7());
 
-    private DisableTwoFactorUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+    private DisableTwoFactorUseCase UseCaseFor(ICurrentUser currentUser, StubCurrentSession currentSession) =>
+        new(_twoFactor, _sessionTokens, _securityEventLog, currentUser, currentSession, new DisableTwoFactorCommandValidator());
+
+    private DisableTwoFactorUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId), _currentSession);
 }

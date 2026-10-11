@@ -131,6 +131,14 @@ public static class AuthErrors
         "No such account.");
 
     /// <summary>
+    /// The caller named a session that is not one of theirs. Also the answer for another account's
+    /// session, so the route discloses nothing about which session ids exist.
+    /// </summary>
+    public static Error NoSuchSession { get; } = Error.NotFound(
+        "auth.session.notFound",
+        "No such session.");
+
+    /// <summary>
     /// An administrator locking their own account would take effect on the very request that asked
     /// for it — the security-stamp rotation the lock requires would invalidate the token making the
     /// call — and there would be no other administrator left with a working session to undo it.

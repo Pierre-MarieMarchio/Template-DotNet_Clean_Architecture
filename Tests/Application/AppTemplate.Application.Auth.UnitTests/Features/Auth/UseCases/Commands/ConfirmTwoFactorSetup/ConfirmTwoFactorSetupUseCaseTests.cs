@@ -24,7 +24,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
-        var result = await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(ARequest(), TestToken);
+        var result = await UseCaseFor(StubCurrentUser.Anonymous, StubCurrentSession.WithoutSession).ExecuteAsync(ARequest(), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
@@ -79,7 +79,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -101,7 +101,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -115,7 +115,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.required");
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -133,7 +133,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.twoFactor.alreadyEnabled");
         result.Error.Type.ShouldBe(ErrorType.Conflict);
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -150,7 +150,7 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.twoFactor.enableRejected");
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -182,29 +182,36 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
     /// survive that rotation, so this use case has to revoke them itself.
     /// </summary>
     [Fact]
-    public async Task ARightPasswordAndCode_RevokesEveryRefreshTokenForTheAccount()
+    public async Task ARightPasswordAndCode_RevokesEverySessionButTheCallersOwn()
     {
         GivenTheOutcomeIs(TwoFactorConfirmationOutcome.Confirmed(["a code"]));
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(
+            _callerId,
+            _currentSession.SessionId,
+            Arg.Any<CancellationToken>());
         _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_callerId));
     }
 
     /// <summary>
-    /// Account-wide, the caller's own session included: nothing in the request names the caller's
-    /// refresh-token family, so the use case has no grant it could spare.
+    /// Arming the factor just proved both the password and the new factor from this session, so the
+    /// session is the one that need not re-authenticate. A token that names no session spares
+    /// nothing: an unknown session is not one to spare.
     /// </summary>
     [Fact]
-    public async Task ARightPasswordAndCode_RevokesTheCallersOwnSessionToo()
+    public async Task ARightPasswordAndCodeFromATokenWithoutASession_RevokesEverySession()
     {
         GivenTheOutcomeIs(TwoFactorConfirmationOutcome.Confirmed(["a code"]));
 
-        await UseCase().ExecuteAsync(ARequest(), TestToken);
+        await UseCaseFor(StubCurrentUser.WithId(_callerId), StubCurrentSession.WithoutSession)
+            .ExecuteAsync(ARequest(), TestToken);
 
-        _sessionTokens.ReceivedCalls().Select(call => call.GetMethodInfo().Name)
-            .ShouldBe([nameof(ISessionTokensService.RevokeAllRefreshTokensAsync)]);
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(
+            _callerId,
+            null,
+            Arg.Any<CancellationToken>());
     }
 
     private static ConfirmTwoFactorSetupCommand ARequest() => new("correct horse battery", "123456");
@@ -213,8 +220,11 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         _twoFactor.ConfirmSetupAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(confirmation);
 
-    private ConfirmTwoFactorSetupUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(_twoFactor, _sessionTokens, _securityEventLog, currentUser, new ConfirmTwoFactorSetupCommandValidator());
+    /// <summary>The session the caller arms the factor from, fixed so assertions can name it.</summary>
+    private readonly StubCurrentSession _currentSession = StubCurrentSession.InSession(Guid.CreateVersion7());
 
-    private ConfirmTwoFactorSetupUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+    private ConfirmTwoFactorSetupUseCase UseCaseFor(ICurrentUser currentUser, StubCurrentSession currentSession) =>
+        new(_twoFactor, _sessionTokens, _securityEventLog, currentUser, currentSession, new ConfirmTwoFactorSetupCommandValidator());
+
+    private ConfirmTwoFactorSetupUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId), _currentSession);
 }

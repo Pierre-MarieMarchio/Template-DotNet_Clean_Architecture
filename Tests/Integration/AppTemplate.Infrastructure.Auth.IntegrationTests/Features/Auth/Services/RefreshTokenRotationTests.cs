@@ -91,12 +91,80 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
         (await fixture.CountLiveGrantsAsync(user.Id, TestToken)).ShouldBe(1);
     }
 
+    /// <summary>
+    /// One sign-in is one session: the successor of a rotation stays in the family the presented
+    /// token started, so the session the access token names survives every refresh.
+    /// </summary>
+    [Fact]
+    public async Task ARotation_KeepsThePresentedTokensSession()
+    {
+        var user = await fixture.CreateUserAsync(TestToken);
+        var issued = await IssueAsync(user.Id);
+
+        var rotated = await PresentAsync(user, issued.Value);
+
+        rotated.Succeeded.ShouldBeTrue();
+        rotated.Token!.SessionId.ShouldBe(issued.SessionId);
+    }
+
+    /// <summary>
+    /// A token of a session that was ended is what a client still holding it sends next, so it is
+    /// refused without the replay alarm: nothing else of the account's goes, and in particular the
+    /// account's other sessions do not.
+    /// </summary>
+    [Fact]
+    public async Task ATokensOfAnEndedSession_AreRefusedWithoutTouchingTheOtherSessions()
+    {
+        var user = await fixture.CreateUserAsync(TestToken);
+        var ended = await IssueAsync(user.Id);
+        var spared = await IssueAsync(user.Id);
+
+        await using (var scope = fixture.Services.CreateAsyncScope())
+        {
+            await CreateGrants(scope.ServiceProvider, Substitute.For<IAppUserDirectory>())
+                .RevokeRefreshTokenAsync(ended.Value, TestToken);
+        }
+
+        var presented = await PresentAsync(user, ended.Value);
+
+        presented.Succeeded.ShouldBeFalse();
+        (await fixture.CountLiveGrantsAsync(user.Id, TestToken)).ShouldBe(
+            1,
+            "ending one session must not be answered as a replay, which would end every session of " +
+            "the account — the spared one included.");
+        (await fixture.CountLiveSessionsAsync(user.Id, TestToken)).ShouldBe(1);
+    }
+
+    /// <summary>
+    /// The exception a credential change asks for: every session of the account ends but the one the
+    /// change was made from, whose live grant — and only whose — must survive the sweep.
+    /// </summary>
+    [Fact]
+    public async Task EndingEverySessionButOne_LeavesThatOnesGrantLive()
+    {
+        var user = await fixture.CreateUserAsync(TestToken);
+        var spared = await IssueAsync(user.Id);
+        await IssueAsync(user.Id);
+
+        await using (var scope = fixture.Services.CreateAsyncScope())
+        {
+            await CreateGrants(scope.ServiceProvider, Substitute.For<IAppUserDirectory>())
+                .RevokeAllRefreshTokensAsync(user.Id, spared.SessionId, TestToken);
+        }
+
+        (await fixture.CountLiveGrantsAsync(user.Id, TestToken)).ShouldBe(1);
+        (await fixture.CountLiveSessionsAsync(user.Id, TestToken)).ShouldBe(
+            1,
+            "the session the sweep spares must still be usable, which a live grant alone does not " +
+            "prove: a revoked family serves none of its grants.");
+    }
+
     private async Task<IssuedRefreshToken> IssueAsync(Guid userId)
     {
         await using var scope = fixture.Services.CreateAsyncScope();
 
         return await CreateGrants(scope.ServiceProvider, Substitute.For<IAppUserDirectory>())
-            .IssueRefreshTokenAsync(userId, TestToken);
+            .IssueRefreshTokenAsync(userId, SessionClient.Unknown, TestToken);
     }
 
     /// <summary>
@@ -119,7 +187,8 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
         directory.FindByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(_ => ArriveThenReturnAsync(rendezvous, user));
 
-        return await CreateGrants(scope.ServiceProvider, directory).RotateRefreshTokenAsync(presentedToken, TestToken);
+        return await CreateGrants(scope.ServiceProvider, directory)
+            .RotateRefreshTokenAsync(presentedToken, SessionClient.Unknown, TestToken);
     }
 
     private static async Task<AppUser?> ArriveThenReturnAsync(Rendezvous? rendezvous, AppUser user)
@@ -144,6 +213,7 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
                 new OptionsWrapper<JwtOptions>(new JwtOptions()),
                 scoped.GetRequiredService<IDateTimeProvider>()),
             scoped.GetRequiredService<IRefreshTokenTable>(),
+            scoped.GetRequiredService<IRefreshTokenFamilyTable>(),
             directory,
             scoped.GetRequiredService<IContextUnitOfWork<AuthDbContext>>(),
             scoped.GetRequiredService<IDateTimeProvider>(),

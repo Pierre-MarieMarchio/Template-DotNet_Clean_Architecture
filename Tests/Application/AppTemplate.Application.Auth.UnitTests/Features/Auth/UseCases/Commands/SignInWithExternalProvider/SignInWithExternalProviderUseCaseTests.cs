@@ -5,6 +5,7 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
+using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
 using Shouldly;
@@ -25,6 +26,9 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
     private static readonly DateTimeOffset _accessTokenExpiry = DateTimeOffset.UnixEpoch.AddMinutes(15);
     private static readonly DateTimeOffset _refreshTokenExpiry = DateTimeOffset.UnixEpoch.AddDays(30);
+
+    /// <summary>The client an external sign-in names its new session by, so assertions can see it travel.</summary>
+    private static readonly SessionClient _client = new("test-agent/1.0");
 
     private static readonly Error _refusal = Error.Unauthorized(
         "auth.externalSignIn.refused",
@@ -47,13 +51,14 @@ public sealed class SignInWithExternalProviderUseCaseTests
             _sessionTokens,
             _twoFactor,
             _securityEventLog,
+            new StubCurrentSession(null, _client),
             new SignInWithExternalProviderCommandValidator());
 
-        _sessionTokens.IssueAccessTokenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        _sessionTokens.IssueAccessTokenAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new IssuedAccessToken("access-token", _accessTokenExpiry));
 
-        _sessionTokens.IssueRefreshTokenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(new IssuedRefreshToken("refresh-token", _refreshTokenExpiry));
+        _sessionTokens.IssueRefreshTokenAsync(Arg.Any<Guid>(), Arg.Any<SessionClient>(), Arg.Any<CancellationToken>())
+            .Returns(_refreshToken);
 
         _accounts.CanSignInAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
     }
@@ -459,8 +464,11 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
-        await _sessionTokens.Received(1).IssueAccessTokenAsync(account.UserId, Arg.Any<CancellationToken>());
-        await _sessionTokens.Received(1).IssueRefreshTokenAsync(account.UserId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).IssueRefreshTokenAsync(account.UserId, _client, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).IssueAccessTokenAsync(
+            account.UserId,
+            _refreshToken.SessionId,
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -480,8 +488,8 @@ public sealed class SignInWithExternalProviderUseCaseTests
         await _externalLogins.Received(1).FindByEmailAsync(_email, cancellation.Token);
         await _externalLogins.Received(1).ProvisionAsync(_email, _provider, _subject, cancellation.Token);
         await _accounts.Received(1).CanSignInAsync(provisioned.UserId, cancellation.Token);
-        await _sessionTokens.Received(1).IssueAccessTokenAsync(provisioned.UserId, cancellation.Token);
-        await _sessionTokens.Received(1).IssueRefreshTokenAsync(provisioned.UserId, cancellation.Token);
+        await _sessionTokens.Received(1).IssueAccessTokenAsync(provisioned.UserId, Arg.Any<Guid>(), cancellation.Token);
+        await _sessionTokens.Received(1).IssueRefreshTokenAsync(provisioned.UserId, Arg.Any<SessionClient>(), cancellation.Token);
     }
 
     #endregion
@@ -493,6 +501,8 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
     private static AccountIdentity AnAccount(bool twoFactorEnabled = false) =>
         new(Guid.CreateVersion7(), "someone", _email, twoFactorEnabled);
+
+    private static readonly IssuedRefreshToken _refreshToken = new("refresh-token", _refreshTokenExpiry, Guid.CreateVersion7());
 
     private void GivenTheToken(VerifiedExternalIdentity? identity) =>
         _verifier.VerifyAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())

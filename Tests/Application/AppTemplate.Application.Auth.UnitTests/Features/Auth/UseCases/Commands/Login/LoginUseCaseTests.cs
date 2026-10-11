@@ -3,6 +3,7 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
+using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Results;
 using NSubstitute;
 using Shouldly;
@@ -24,6 +25,12 @@ public sealed class LoginUseCaseTests
     private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ITwoFactorService _twoFactor = Substitute.For<ITwoFactorService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
+
+    /// <summary>The client a login names its new session by, so the assertion can see it travel.</summary>
+    private static readonly SessionClient _client = new("test-agent/1.0");
+
+    private readonly StubCurrentSession _currentSession = new(null, _client);
+
     private readonly LoginUseCase _useCase;
 
     public LoginUseCaseTests() =>
@@ -32,6 +39,7 @@ public sealed class LoginUseCaseTests
             _sessionTokens,
             _twoFactor,
             _securityEventLog,
+            _currentSession,
             new LoginCommandValidator());
 
     /// <summary>
@@ -247,7 +255,9 @@ public sealed class LoginUseCaseTests
 
     /// <summary>
     /// Both tokens are issued for the account the check returned, not for anything taken from the
-    /// request — the request only ever held an address somebody typed.
+    /// request — the request only ever held an address somebody typed. The refresh token is issued
+    /// first and names its client, and the access token names the session it started: that is the
+    /// order that makes one login one session.
     /// </summary>
     [Fact]
     public async Task BothTokens_AreIssuedForTheVerifiedAccount()
@@ -256,8 +266,11 @@ public sealed class LoginUseCaseTests
 
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
-        await _sessionTokens.Received(1).IssueAccessTokenAsync(account.UserId, Arg.Any<CancellationToken>());
-        await _sessionTokens.Received(1).IssueRefreshTokenAsync(account.UserId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).IssueRefreshTokenAsync(account.UserId, _client, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).IssueAccessTokenAsync(
+            account.UserId,
+            _refreshToken.SessionId,
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -273,8 +286,14 @@ public sealed class LoginUseCaseTests
             Arg.Any<string>(),
             cancellation.Token);
 
-        await _sessionTokens.Received(1).IssueAccessTokenAsync(account.UserId, cancellation.Token);
-        await _sessionTokens.Received(1).IssueRefreshTokenAsync(account.UserId, cancellation.Token);
+        await _sessionTokens.Received(1).IssueAccessTokenAsync(
+            account.UserId,
+            Arg.Any<Guid>(),
+            cancellation.Token);
+        await _sessionTokens.Received(1).IssueRefreshTokenAsync(
+            account.UserId,
+            Arg.Any<SessionClient>(),
+            cancellation.Token);
     }
 
     #endregion
@@ -329,12 +348,14 @@ public sealed class LoginUseCaseTests
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(CredentialCheckOutcome.Verified(account));
 
-        _sessionTokens.IssueAccessTokenAsync(account.UserId, Arg.Any<CancellationToken>())
+        _sessionTokens.IssueAccessTokenAsync(account.UserId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new IssuedAccessToken("access-token", _accessTokenExpiry));
 
-        _sessionTokens.IssueRefreshTokenAsync(account.UserId, Arg.Any<CancellationToken>())
-            .Returns(new IssuedRefreshToken("refresh-token", _refreshTokenExpiry));
+        _sessionTokens.IssueRefreshTokenAsync(account.UserId, Arg.Any<SessionClient>(), Arg.Any<CancellationToken>())
+            .Returns(_refreshToken);
 
         return account;
     }
+
+    private static readonly IssuedRefreshToken _refreshToken = new("refresh-token", _refreshTokenExpiry, Guid.CreateVersion7());
 }

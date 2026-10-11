@@ -146,6 +146,36 @@ public sealed class GrantTableFixture : IAsyncLifetime
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// How many of a user's sessions are still live — neither revoked nor out of live grants — read
+    /// over the context's own connection, for the same reason as <see cref="CountLiveGrantsAsync"/>.
+    /// </summary>
+    public async Task<int> CountLiveSessionsAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        await using var scope = Services.CreateAsyncScope();
+
+        var connection = scope.ServiceProvider.GetRequiredService<AuthDbContext>().Database.GetDbConnection();
+
+        if (connection.State != ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            $"""
+            SELECT count(*) FROM {AuthDbContext.IdentitySchema}."RefreshTokenFamilies" AS f
+            WHERE f."UserId" = @userId AND f."RevokedAt" IS NULL
+              AND EXISTS (
+                SELECT 1 FROM {AuthDbContext.IdentitySchema}."RefreshTokens" AS t
+                WHERE t."FamilyId" = f."Id" AND t."RevokedAt" IS NULL)
+            """;
+
+        command.Parameters.Add(Parameter(command, "userId", userId));
+
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+    }
+
     private static DbParameter Parameter(DbCommand command, string name, object value)
     {
         var parameter = command.CreateParameter();

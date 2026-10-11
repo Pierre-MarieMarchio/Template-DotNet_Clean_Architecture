@@ -90,7 +90,7 @@ public sealed class ConfirmEmailChangeUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, Arg.Any<CancellationToken>());
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, cancellationToken: Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class ConfirmEmailChangeUseCaseTests
 
         await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, Arg.Any<CancellationToken>());
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 

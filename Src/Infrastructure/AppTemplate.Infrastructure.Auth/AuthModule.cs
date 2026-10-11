@@ -6,6 +6,7 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ReAuthentication;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Sessions;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
 using AppTemplate.Application.Core.Common.Ports;
@@ -114,6 +115,7 @@ public static class AuthModule
         services.AddSystemClock();
 
         services.TryAddScoped<IRefreshTokenTable, RefreshTokenTable>();
+        services.TryAddScoped<IRefreshTokenFamilyTable, RefreshTokenFamilyTable>();
 
         // Constructible only once ASP.NET Identity is composed below: seeding hashes a password and
         // generates a security stamp rather than writing a row.
@@ -122,6 +124,7 @@ public static class AuthModule
         services.AddScoped<IAccountsService, AccountsService>();
         services.AddScoped<IEmailTokensService, EmailTokensService>();
         services.AddScoped<ISessionTokensService, SessionTokensService>();
+        services.AddScoped<ISessionsService, SessionsService>();
         services.AddScoped<ITwoFactorService, TwoFactorService>();
         services.AddScoped<IAccountAdministrationService, AccountAdministrationService>();
         services.AddScoped<IReAuthenticationService, ReAuthenticationService>();

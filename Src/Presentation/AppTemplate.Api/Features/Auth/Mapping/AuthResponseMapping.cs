@@ -6,6 +6,7 @@ using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Register;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SetUpTwoFactor;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.GetCurrentUser;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.ListSessions;
 using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Api.Features.Auth.Mapping;
@@ -92,4 +93,16 @@ internal static class AuthResponseMapping
             value.Roles,
             value.CreatedAt,
             value.TwoFactorEnabled));
+
+    public static Result<SessionsResponse> ToSessionsResponse(
+        Result<IReadOnlyList<ListSessionsItem>> result) =>
+        result.Map(value => new SessionsResponse(
+        [
+            .. value.Select(session => new SessionResponse(
+                session.Id,
+                session.CreatedAt,
+                session.LastUsedAt,
+                session.UserAgent,
+                session.Current)),
+        ]));
 }

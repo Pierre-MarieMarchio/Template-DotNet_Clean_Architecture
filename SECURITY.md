@@ -28,9 +28,25 @@ against your production system.
   `[AllowAnonymous]`. Forgetting `[Authorize]` does not publish an endpoint. The policy also
   applies where no endpoint matched, so an unknown route answers `401` to an anonymous caller.
 - **Opaque, rotating refresh tokens**, never JWTs. Only a hash is stored. Presenting a token always
-  consumes it, and replaying one that was already consumed **revokes the whole family** for that
-  user. `RefreshTokenTable` does the consumption as a single conditional `UPDATE` — zero affected
-  rows *is* the replay signal — so two simultaneous presentations cannot both succeed.
+  consumes it, and replaying one that was already consumed **revokes every session of that user**.
+  `RefreshTokenTable` does the consumption as a single conditional `UPDATE` — zero affected
+  rows *is* the replay signal — so two simultaneous presentations cannot both succeed. A token of a
+  session that was ended — signed out, revoked by its owner, or killed by a credential change — is
+  refused without that alarm: it is what a client still holding it sends next, and the revocation
+  commits before or during a rotation always wins.
+- **Sessions an owner can see and end.** One sign-in is one session: a refresh-token family, with
+  its creation time, its last use and the client's `User-Agent` as of that use. The access token
+  carries a `sid` claim naming the session it was issued in. `GET /auth/sessions` lists the caller's
+  own live sessions — marking the one the request comes from — and
+  `DELETE /auth/sessions/{id}` ends one; a session belonging to somebody else answers `404`,
+  exactly as an unknown id does, so the route cannot be used to learn which session ids exist.
+  Deliberately stored about a client: its `User-Agent` string, truncated. Deliberately not stored:
+  the address the request came from, which is personal data with no owner-facing use.
+- **A credential change ends every other session.** A password change from a signed-in session, and
+  arming or disarming the second factor, revoke every session of the account but the one the change
+  was made from — that session proved the new posture, and its access token still dies with the
+  rotated security stamp; its refresh token mints the replacement. A password reset through the
+  mailed link, which is not made from any session, still revokes them all.
 - **Account lockout** and a configurable password policy with a floor that configuration cannot
   lower. Email confirmation is required to sign in.
 - **JWT validation** with issuer and audience always checked, a pinned algorithm list
@@ -66,11 +82,11 @@ against your production system.
   the challenge without moving its deadline, so guessing cannot keep one alive. The challenge is
   never a bearer credential by itself and is stored server-side, keyed by
   account, so it is redeemable by any replica behind the load balancer and survives a redeploy.
-  Enabling or disabling the second factor rotates the security stamp and revokes every refresh token
-  for the account, exactly like a password change — **and requires the current password on both
-  sides of that symmetry**: arming the second factor is a security-posture change that costs every
-  session, the caller's own included, exactly as disarming it does, so a stolen access token alone
-  can do neither.
+  Enabling or disabling the second factor rotates the security stamp and ends every session of the
+  account but the one the change is made from, exactly like a password change — **and requires the
+  current password on both sides of that symmetry**: arming the second factor is a
+  security-posture change that costs the caller every other session, exactly as disarming it does,
+  so a stolen access token alone can do neither.
 - **An administrative escape hatch for a second factor nobody can prove possession of any more**: an
   account that has lost the authenticator app *and* its recovery codes cannot complete `/login` at
   all, and had no recourse short of deleting the account outright. An administrator can strip that

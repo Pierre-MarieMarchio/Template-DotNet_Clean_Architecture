@@ -96,23 +96,22 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "RefreshTokens",
+                name: "RefreshTokenFamilies",
                 schema: "identity",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    TokenHash = table.Column<string>(type: "character(43)", fixedLength: true, maxLength: 43, nullable: false),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    RevokedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    ReplacedByTokenHash = table.Column<string>(type: "character(43)", fixedLength: true, maxLength: 43, nullable: true)
+                    LastUsedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    UserAgent = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    RevokedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_RefreshTokens", x => x.Id);
+                    table.PrimaryKey("PK_RefreshTokenFamilies", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_RefreshTokens_User_UserId",
+                        name: "FK_RefreshTokenFamilies_User_UserId",
                         column: x => x.UserId,
                         principalSchema: "identity",
                         principalTable: "User",
@@ -214,11 +213,62 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "RefreshTokens",
+                schema: "identity",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TokenHash = table.Column<string>(type: "character(43)", fixedLength: true, maxLength: 43, nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FamilyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    ExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    RevokedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    ReplacedByTokenHash = table.Column<string>(type: "character(43)", fixedLength: true, maxLength: 43, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RefreshTokens", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RefreshTokens_RefreshTokenFamilies_FamilyId",
+                        column: x => x.FamilyId,
+                        principalSchema: "identity",
+                        principalTable: "RefreshTokenFamilies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_RefreshTokens_User_UserId",
+                        column: x => x.UserId,
+                        principalSchema: "identity",
+                        principalTable: "User",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokenFamilies_Id_RevokedAt",
+                schema: "identity",
+                table: "RefreshTokenFamilies",
+                columns: new[] { "Id", "RevokedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokenFamilies_UserId_RevokedAt",
+                schema: "identity",
+                table: "RefreshTokenFamilies",
+                columns: new[] { "UserId", "RevokedAt" });
+
             migrationBuilder.CreateIndex(
                 name: "IX_RefreshTokens_ExpiresAt",
                 schema: "identity",
                 table: "RefreshTokens",
                 column: "ExpiresAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_FamilyId_RevokedAt",
+                schema: "identity",
+                table: "RefreshTokens",
+                columns: new[] { "FamilyId", "RevokedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_RefreshTokens_TokenHash",
@@ -308,6 +358,10 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             migrationBuilder.DropTable(
                 name: "UserTokens",
+                schema: "identity");
+
+            migrationBuilder.DropTable(
+                name: "RefreshTokenFamilies",
                 schema: "identity");
 
             migrationBuilder.DropTable(

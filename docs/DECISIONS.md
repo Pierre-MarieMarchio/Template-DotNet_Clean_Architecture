@@ -147,6 +147,20 @@ what holds the first sentence: a port this layer declares and never calls is a d
 left the layer, and the fix is to move the decision back, not to move the file somewhere the rule
 does not look.
 
+**A session is a refresh-token family, and it has an identity before it has a name.** One
+sign-in starts one family of grants — that fact was already true, since a replay kills the chain —
+so the family is what the owner lists and ends, and its id is the `sid` claim of every access token
+issued in it. What a session records about its client is its `User-Agent` at the last use and
+nothing else: an address is personal data with no owner-facing use, and a session list exists to be
+recognised by its owner. A credential change made from a signed-in session — a new password, a
+second factor armed or dropped — ends every *other* session and spares the one that proved the new
+posture; a password reset through the mailed link, made from no session, ends them all; and a token
+that names no session — issued before the `sid` claim existed — spares nothing, because an unknown
+session is not one to spare. Ending a session is one conditional `UPDATE` on the family row
+followed by one on its live grants, in that order: a process that dies between leaves grants that
+are dead on arrival, which every rotation tests, so the revocation wins its race with a rotation in
+flight without holding a lock across the two.
+
 **No MediatR, no dispatcher, no pipeline behaviours.** A controller names the use case it calls, and
 `F12` reaches the implementation. `LayerDependencyTests` forbids the package by name.
 

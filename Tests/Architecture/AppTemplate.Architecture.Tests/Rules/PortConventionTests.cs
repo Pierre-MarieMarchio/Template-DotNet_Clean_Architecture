@@ -251,11 +251,11 @@ public sealed class PortConventionTests
             .ToList();
 
         authUseCases.Count.ShouldBe(
-            26,
-            "The authentication vertical has twenty-six use cases — twenty-five account and session " +
-            "operations plus the expired-grant purge, which belongs to this vertical because a " +
-            "refresh token is the only thing it deletes. Finding another number means this rule is " +
-            "no longer describing it.");
+            28,
+            "The authentication vertical has twenty-eight use cases — twenty-five account and " +
+            "session operations, the two the session list gives its owner, and the expired-grant " +
+            "purge, which belongs to this vertical because a refresh token is the only thing it " +
+            "deletes. Finding another number means this rule is no longer describing it.");
 
         // The validator every use case takes is not a collaborator it sequences.
         var orchestrating = authUseCases

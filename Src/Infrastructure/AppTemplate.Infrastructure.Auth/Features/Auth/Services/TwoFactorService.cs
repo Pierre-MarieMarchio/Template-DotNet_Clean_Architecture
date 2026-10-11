@@ -107,7 +107,7 @@ internal sealed class TwoFactorService(
         }
 
         // Not CheckPasswordAsync: a rehash-needed result rotates the security stamp, which would
-        // cost the caller every session it holds on a password that was correct. VerifyHashedPassword
+        // cost the caller every session it holds except the one it is calling from. VerifyHashedPassword
         // has no such side effect.
         if (user.PasswordHash is not { } hash ||
             userManager.PasswordHasher.VerifyHashedPassword(user, hash, currentPassword)

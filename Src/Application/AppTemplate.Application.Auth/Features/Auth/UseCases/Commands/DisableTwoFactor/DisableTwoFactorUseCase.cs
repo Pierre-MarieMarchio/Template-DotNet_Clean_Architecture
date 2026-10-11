@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Auth.Features.Auth.Errors;
 using AppTemplate.Application.Auth.Features.Auth.Policies;
+using AppTemplate.Application.Auth.Features.Auth.Ports.CurrentSession;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
@@ -11,15 +12,17 @@ using FluentValidation;
 namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DisableTwoFactor;
 
 /// <summary>
-/// Turns the caller's own second factor off once the password is proven, then revokes every
+/// Turns the caller's own second factor off once the password is proven, then revokes every other
 /// session: dropping a factor is the same posture change as arming one, so the tokens issued
-/// under the stronger one do not survive it.
+/// under the stronger one do not survive it. The caller's own session, which just proved the
+/// password, is spared; a token naming no session spares nothing.
 /// </summary>
 public sealed class DisableTwoFactorUseCase(
     ITwoFactorService twoFactor,
     ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser,
+    ICurrentSession currentSession,
     IValidator<DisableTwoFactorCommand> validator) : IDisableTwoFactorUseCase
 {
     /// <inheritdoc />
@@ -62,7 +65,12 @@ public sealed class DisableTwoFactorUseCase(
 
         securityEventLog.Record(SecurityEvent.TwoFactorDisabled(userId.Value.Value));
 
-        await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, userId.Value.Value, cancellationToken);
+        await CredentialInvalidationPolicy.InvalidateOtherSessionsAsync(
+            sessionTokens,
+            securityEventLog,
+            userId.Value.Value,
+            currentSession.SessionId,
+            cancellationToken);
 
         return Result.Success();
     }

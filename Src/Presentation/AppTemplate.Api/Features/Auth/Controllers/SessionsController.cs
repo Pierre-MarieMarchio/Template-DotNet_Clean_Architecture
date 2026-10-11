@@ -8,8 +8,10 @@ using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Logout;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.LogoutEverywhere;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RefreshAccessToken;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RevokeSession;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.VerifyTwoFactor;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.ListSessions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -33,7 +35,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 /// 6749 §5.1 forbids a cache from storing an OAuth-style credential.
 /// </para>
 /// <para>
-/// Five classes under the one <c>auth</c> prefix, and the prefix is the surface: the eighteen actions
+/// Five classes under the one <c>auth</c> prefix, and the prefix is the surface: the twenty actions
 /// are divided between them, and no path depends on which class answers it.
 /// </para>
 /// </remarks>
@@ -45,7 +47,9 @@ public sealed class SessionsController(
     ISignInWithExternalProviderUseCase signInWithExternalProvider,
     IRefreshAccessTokenUseCase refreshAccessToken,
     ILogoutUseCase logout,
-    ILogoutEverywhereUseCase logoutEverywhere) : ApiControllerBase
+    ILogoutEverywhereUseCase logoutEverywhere,
+    IListSessionsUseCase listSessions,
+    IRevokeSessionUseCase revokeSession) : ApiControllerBase
 {
     /// <summary>Exchanges credentials for an access token and a refresh token.</summary>
     [HttpPost("login")]
@@ -192,4 +196,39 @@ public sealed class SessionsController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> LogoutEverywhere(CancellationToken cancellationToken) =>
         NoContentOrProblem(await logoutEverywhere.ExecuteAsync(cancellationToken));
+
+    /// <summary>
+    /// The caller's live sessions, most recently used first, the one this request is made from
+    /// marked so a client can show "this device" and offer to end the others.
+    /// </summary>
+    /// <remarks>
+    /// Takes no input and carries no credential, so it falls to the global limiter like
+    /// <see cref="LogoutEverywhere"/> — a client that refreshes this list on every app start must
+    /// not be spending the allowance that slows brute force down.
+    /// </remarks>
+    [HttpGet("sessions")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(SessionsResponse))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
+    public async Task<ActionResult<SessionsResponse>> ListSessions(CancellationToken cancellationToken) =>
+        OkOrProblem(AuthResponseMapping.ToSessionsResponse(await listSessions.ExecuteAsync(cancellationToken)));
+
+    /// <summary>
+    /// Ends one of the caller's sessions by the id the session list names. A session that belongs to
+    /// somebody else answers 404, exactly as an unknown id does, so the route cannot be used to
+    /// learn which session ids exist. Ending a session already ended succeeds again.
+    /// </summary>
+    /// <remarks>
+    /// May name the session the request is made from, which signs that client out. Stopping a
+    /// session's refresh token does not claw back an access token already issued in it: like a
+    /// sign-out, it works from the next refresh on.
+    /// </remarks>
+    [HttpDelete("sessions/{sessionId:guid}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
+    public async Task<ActionResult> RevokeSession(Guid sessionId, CancellationToken cancellationToken) =>
+        NoContentOrProblem(await revokeSession.ExecuteAsync(new RevokeSessionCommand(sessionId), cancellationToken));
 }

@@ -248,9 +248,8 @@ public sealed class ContainerCompositionTests
     {
         AssertResolvable(
             ApplicationPortContracts,
-            "The jobs run FireDueReminders, the purges and the file passes through the same ports " +
-            "the API's controllers use. A port only the API's own composition could satisfy would " +
-            "fail here.",
+            "The jobs run through the same ports the API's controllers use. A port only the " +
+            "API's own composition could satisfy would fail here.",
             HostComposition.ComposeBackgroundOnly);
     }
     //#if (localAuth)

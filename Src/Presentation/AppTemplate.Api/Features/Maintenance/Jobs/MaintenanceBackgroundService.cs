@@ -7,8 +7,8 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Api.Features.Maintenance.Jobs;
 
 /// <summary>
-/// Runs every registered <see cref="IMaintenanceTask"/> on one timer — the purges that
-/// <c>MaintenanceController</c> exposes over HTTP, through the same use cases.
+/// Runs every registered <see cref="IMaintenanceTask"/> on one timer — every purge through the
+/// use case that owns it, whether a request can also reach that use case or not.
 /// <para>
 /// All tasks share one background scope per iteration, and each is switched on or off by its own
 /// option. A failing task is logged and retried at the next interval, and does not stop its

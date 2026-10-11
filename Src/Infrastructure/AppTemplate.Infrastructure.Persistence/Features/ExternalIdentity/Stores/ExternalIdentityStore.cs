@@ -103,4 +103,33 @@ internal sealed class ExternalIdentityStore(IDbContextFactory<AppDbContext> cont
                     .SetProperty(identity => identity.LastSeenAt, link.LastSeenAt),
                 cancellationToken);
     }
+
+    public async Task<int> RemoveAsync(UserId userId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(userId);
+
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+        // Two statements, one transaction, replayed as a whole by the context's retrying execution
+        // strategy: an owner is deleted with its roles or not at all, and a retry never resumes
+        // half of one.
+        var strategy = context.Database.CreateExecutionStrategy();
+
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            int removed = await context.ExternalIdentities
+                .Where(identity => identity.UserId == userId.Value)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            await context.RoleAssignments
+                .Where(assignment => assignment.UserId == userId.Value)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+
+            return removed;
+        });
+    }
 }

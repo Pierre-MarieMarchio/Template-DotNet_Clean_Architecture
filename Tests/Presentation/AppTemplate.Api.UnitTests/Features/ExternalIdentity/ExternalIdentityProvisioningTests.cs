@@ -1,10 +1,12 @@
 ﻿using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.UnitTests.Composition;
 using AppTemplate.Application;
+using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.ExternalIdentity.Dtos;
 using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityStore;
 using AppTemplate.Application.Features.ExternalIdentity.Services;
+using AppTemplate.Domain.Core.Common.Events;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
@@ -27,6 +29,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
     private const string _issuer = "https://idp.example.com/realms/app";
 
     private readonly SettableClock _clock = new();
+    private readonly RecordingPublisher _published = new();
     private string _database = null!;
     private SqliteConnection _keeper = null!;
     private ServiceProvider _services = null!;
@@ -63,6 +66,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
         services.AddExternalIdentity();
         services.AddExternalIdentityPersistence(configuration);
         services.AddSingleton<IDateTimeProvider>(_clock);
+        services.AddSingleton<IDomainEventPublisher>(_published);
         SqliteSavingHost.OnSqlite<AppDbContext>(services, _database);
 
         if (decorate is not null)
@@ -262,6 +266,72 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
         (await ResolveAsync(new ExternalCallerDto("https://new.example.com", "new-subject", null, null))).ShouldBe(owner);
     }
 
+    /// <summary>
+    /// The administrative deletion: the mappings and the locally assigned roles go together, and
+    /// the fact that tells the features their owner is gone is published once the store has
+    /// committed it.
+    /// </summary>
+    [Fact]
+    public async Task ADeletedOwner_LosesItsMappingsAndRoles_AndIsPublished()
+    {
+        var owner = await ResolveAsync(Caller("subject-1", "a@example.com", "Ada"));
+        await ExecuteAsync(
+            $"INSERT INTO \"RoleAssignments\" (\"UserId\", \"Role\") VALUES ('{owner.Value.ToString().ToUpperInvariant()}', 'Admin')");
+
+        await using var scope = _services.CreateAsyncScope();
+        var deletion = await scope.ServiceProvider.GetRequiredService<IExternalIdentityService>()
+            .DeleteAsync(owner, TestToken);
+
+        deletion.IsSuccess.ShouldBeTrue();
+        (await RowsAsync()).ShouldBeEmpty();
+
+        await using var read = _services.CreateAsyncScope();
+        (await read.ServiceProvider.GetRequiredService<IExternalIdentityService>()
+            .ListAssignedRolesAsync(owner, TestToken)).ShouldBeEmpty();
+
+        var fact = _published.Events.OfType<UserAccountDeleted>().Single();
+        fact.UserId.ShouldBe(owner);
+        fact.OccurredAt.ShouldBe(_clock.UtcNow);
+    }
+
+    /// <summary>
+    /// The idempotence the port documents: a second call for the same owner answers not-found —
+    /// the first one finished — and publishes nothing further.
+    /// </summary>
+    [Fact]
+    public async Task ASecondDeletionOfTheSameOwner_IsNotFound()
+    {
+        var owner = await ResolveAsync(Caller("subject-1"));
+
+        await using (var first = _services.CreateAsyncScope())
+        {
+            (await first.ServiceProvider.GetRequiredService<IExternalIdentityService>()
+                .DeleteAsync(owner, TestToken)).IsSuccess.ShouldBeTrue();
+        }
+
+        await using var second = _services.CreateAsyncScope();
+        var again = await second.ServiceProvider.GetRequiredService<IExternalIdentityService>()
+            .DeleteAsync(owner, TestToken);
+
+        again.IsFailure.ShouldBeTrue();
+        again.Error!.Code.ShouldBe("externalIdentity.mapping.notFound");
+        _published.Events.OfType<UserAccountDeleted>().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task AnOwnerNoMappingNames_IsNotFoundAndPublishesNothing()
+    {
+        var unknown = UserId.Create(Guid.CreateVersion7());
+
+        await using var scope = _services.CreateAsyncScope();
+        var deletion = await scope.ServiceProvider.GetRequiredService<IExternalIdentityService>()
+            .DeleteAsync(unknown, TestToken);
+
+        deletion.IsFailure.ShouldBeTrue();
+        deletion.Error!.Code.ShouldBe("externalIdentity.mapping.notFound");
+        _published.Events.ShouldBeEmpty();
+    }
+
     private static ExternalCallerDto Caller(string subject, string? email = null, string? name = null) =>
         new(_issuer, subject, email, name);
 
@@ -337,5 +407,40 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
 
         public Task RefreshAsync(ExternalIdentityLink link, CancellationToken cancellationToken = default) =>
             inner.RefreshAsync(link, cancellationToken);
+
+        public Task<int> RemoveAsync(UserId userId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("No provisioning test deletes an account.");
+    }
+
+    /// <summary>
+    /// Records what the service publishes, in order: the deletion's fact is what the features
+    /// holding data under the owner react to, and the tests here assert on what reached them.
+    /// </summary>
+    private sealed class RecordingPublisher : IDomainEventPublisher
+    {
+        private readonly List<IDomainEvent> _events = [];
+
+        public IReadOnlyList<IDomainEvent> Events
+        {
+            get
+            {
+                lock (_events)
+                {
+                    return [.. _events];
+                }
+            }
+        }
+
+        public Task PublishAsync(IDomainEvent domainEvent, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(domainEvent);
+
+            lock (_events)
+            {
+                _events.Add(domainEvent);
+            }
+
+            return Task.CompletedTask;
+        }
     }
 }

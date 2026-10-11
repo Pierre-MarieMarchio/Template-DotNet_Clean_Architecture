@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Features.ExternalIdentity.Dtos;
+﻿using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.ExternalIdentity.Dtos;
 using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityQueries;
 using AppTemplate.Domain.Core.Common.Primitives;
 
@@ -36,4 +37,30 @@ public interface IExternalIdentityService
 
     /// <returns>What the provider last said about the owner, or <c>null</c> when no mapping names it.</returns>
     Task<ExternalIdentityProfile?> FindProfileAsync(UserId userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes the account's local presence: every mapping that names the owner, and the role
+    /// assignments held for it. The provider's own account is the provider's to delete — this is
+    /// the application's half of that, and the only trigger the template wires: an administrative
+    /// call. A provider-side deletion signal has no endpoint here, deliberately; see
+    /// <c>docs/ARCHITECTURE.md</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Transaction.</b> The store commits the deletion before this returns, in a transaction of
+    /// its own; the fact published afterwards names what is already true.
+    /// </para>
+    /// <para>
+    /// <b>Idempotence.</b> A second call for the same owner answers
+    /// <see cref="Errors.ExternalIdentityErrors.MappingNotFound"/> — the first one finished, and
+    /// there is nothing left to delete. A caller that signs in again is provisioned afresh, under a
+    /// new owner id with none of the old one's data: that is what deleting this account meant.</para>
+    /// <para>
+    /// <b>Retry.</b> A transient failure is retried by the store's execution strategy, replaying
+    /// the whole transaction. Anything else propagates and the request fails with nothing removed.
+    /// </para>
+    /// </remarks>
+    /// <param name="userId">The internal owner to delete.</param>
+    /// <returns>Success, or the not-found error when no mapping names the owner.</returns>
+    Task<Result> DeleteAsync(UserId userId, CancellationToken cancellationToken = default);
 }

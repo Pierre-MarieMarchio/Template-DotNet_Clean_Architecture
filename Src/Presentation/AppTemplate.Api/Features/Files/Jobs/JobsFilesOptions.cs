@@ -14,9 +14,9 @@ namespace AppTemplate.Api.Features.Files.Jobs;
 /// the upload window of a grant, and shortening it could delete a registration still uploading.
 /// </para>
 /// </summary>
-public sealed class FileWorkerOptions
+public sealed class JobsFilesOptions
 {
-    public const string SectionName = "FileWorker";
+    public const string SectionName = "Jobs:Files";
 
     /// <summary>
     /// One hour. A pass of <see cref="PurgeAbandonedRegistrationsUseCase"/> caps at 200 rows, so the
@@ -43,7 +43,7 @@ public sealed class FileWorkerOptions
     public bool InspectDepositedFilesEnabled { get; set; } = true;
 }
 
-internal sealed class FileWorkerOptionsValidator : IValidateOptions<FileWorkerOptions>
+internal sealed class JobsFilesOptionsValidator : IValidateOptions<JobsFilesOptions>
 {
     private static readonly TimeSpan _minimumPurgeInterval = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan _maximumPurgeInterval = TimeSpan.FromDays(1);
@@ -59,7 +59,7 @@ internal sealed class FileWorkerOptionsValidator : IValidateOptions<FileWorkerOp
 
     private static readonly TimeSpan _maximumInspectInterval = TimeSpan.FromHours(1);
 
-    public ValidateOptionsResult Validate(string? name, FileWorkerOptions options)
+    public ValidateOptionsResult Validate(string? name, JobsFilesOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -67,7 +67,7 @@ internal sealed class FileWorkerOptionsValidator : IValidateOptions<FileWorkerOp
             || options.PurgeAbandonedRegistrationsInterval > _maximumPurgeInterval)
         {
             return ValidateOptionsResult.Fail(
-                $"'{FileWorkerOptions.SectionName}:PurgeAbandonedRegistrationsInterval' must be between " +
+                $"'{JobsFilesOptions.SectionName}:PurgeAbandonedRegistrationsInterval' must be between " +
                 $"{_minimumPurgeInterval} and {_maximumPurgeInterval}.");
         }
 
@@ -75,7 +75,7 @@ internal sealed class FileWorkerOptionsValidator : IValidateOptions<FileWorkerOp
             || options.ReclaimOrphanedContentInterval > _maximumReclaimInterval)
         {
             return ValidateOptionsResult.Fail(
-                $"'{FileWorkerOptions.SectionName}:ReclaimOrphanedContentInterval' must be between " +
+                $"'{JobsFilesOptions.SectionName}:ReclaimOrphanedContentInterval' must be between " +
                 $"{_minimumReclaimInterval} and {_maximumReclaimInterval}.");
         }
 
@@ -83,7 +83,7 @@ internal sealed class FileWorkerOptionsValidator : IValidateOptions<FileWorkerOp
             || options.InspectDepositedFilesInterval > _maximumInspectInterval)
         {
             return ValidateOptionsResult.Fail(
-                $"'{FileWorkerOptions.SectionName}:InspectDepositedFilesInterval' must be between " +
+                $"'{JobsFilesOptions.SectionName}:InspectDepositedFilesInterval' must be between " +
                 $"{_minimumInspectInterval} and {_maximumInspectInterval}.");
         }
 

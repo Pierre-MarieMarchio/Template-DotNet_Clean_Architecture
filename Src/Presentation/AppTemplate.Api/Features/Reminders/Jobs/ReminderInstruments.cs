@@ -17,7 +17,7 @@ internal static class ReminderInstruments
     /// <summary>Shared by the <see cref="ActivitySource"/> and the <see cref="Meter"/> below, and by
     /// <c>BackgroundJobsTelemetry</c>'s own <c>AddSource</c>/<c>AddMeter</c> calls — one name,
     /// so the two can never drift apart.</summary>
-    public const string Name = "AppTemplate.Worker.Reminders";
+    public const string Name = "AppTemplate.Jobs.Reminders";
 
     public static readonly ActivitySource ActivitySource = new(Name);
 
@@ -29,7 +29,7 @@ internal static class ReminderInstruments
     /// to do nothing, and an operator reading a flat line needs to know which of the two it is.
     /// </summary>
     public static readonly Counter<long> Iterations = _meter.CreateCounter<long>(
-        "apptemplate.worker.reminders.iterations",
+        "apptemplate.jobs.reminders.iterations",
         unit: "{iteration}",
         description: "Reminder passes that ran, tagged by outcome (success, failure, exception, disabled).");
 
@@ -38,7 +38,7 @@ internal static class ReminderInstruments
     /// cannot stand in for <see cref="Iterations"/>.
     /// </summary>
     public static readonly Counter<long> Notified = _meter.CreateCounter<long>(
-        "apptemplate.worker.reminders.notified",
+        "apptemplate.jobs.reminders.notified",
         unit: "{reminder}",
         description: "Due reminders the loop notified.");
 }

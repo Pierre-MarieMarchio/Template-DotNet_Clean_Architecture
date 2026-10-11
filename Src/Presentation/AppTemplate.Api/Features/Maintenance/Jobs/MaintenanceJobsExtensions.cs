@@ -8,7 +8,7 @@ namespace AppTemplate.Api.Features.Maintenance.Jobs;
 internal static class MaintenanceJobsExtensions
 {
     /// <summary>
-    /// Binds and validates <see cref="MaintenanceWorkerOptions"/>, registers the idempotency purge,
+    /// Binds and validates <see cref="JobsMaintenanceOptions"/>, registers the idempotency purge,
     /// and starts the timer that runs it and every other registered <see cref="IMaintenanceTask"/>.
     /// </summary>
     internal static IServiceCollection AddMaintenanceJobs(
@@ -18,16 +18,16 @@ internal static class MaintenanceJobsExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddOptions<MaintenanceWorkerOptions>()
-            .Bind(configuration.GetSection(MaintenanceWorkerOptions.SectionName))
+        services.AddOptions<JobsMaintenanceOptions>()
+            .Bind(configuration.GetSection(JobsMaintenanceOptions.SectionName))
             .ValidateOnStart();
 
-        services.AddSingleton<IValidateOptions<MaintenanceWorkerOptions>, MaintenanceWorkerOptionsValidator>();
+        services.AddSingleton<IValidateOptions<JobsMaintenanceOptions>, JobsMaintenanceOptionsValidator>();
 
         services.AddMaintenanceTask<IPurgeExpiredIdempotencyKeysUseCase>(
             "expired idempotency keys",
             "Claimed keys will accumulate: nothing else removes an expired claim.",
-            provider => provider.GetRequiredService<IOptions<MaintenanceWorkerOptions>>()
+            provider => provider.GetRequiredService<IOptions<JobsMaintenanceOptions>>()
                 .Value.PurgeExpiredIdempotencyKeysEnabled);
 
         services.AddHostedService<MaintenanceBackgroundService>();

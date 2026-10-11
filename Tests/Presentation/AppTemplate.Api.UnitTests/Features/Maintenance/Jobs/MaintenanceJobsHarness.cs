@@ -31,7 +31,7 @@ internal static class MaintenanceJobsHarness
         IPurgeExpiredRefreshTokensUseCase refreshTokens,
         IPurgeExpiredSecurityEventsUseCase securityEvents,
         //#endif
-        MaintenanceWorkerOptions options,
+        JobsMaintenanceOptions options,
         //#if (localAuth)
         bool refreshTokensEnabled = true,
         bool securityEventsEnabled = true,

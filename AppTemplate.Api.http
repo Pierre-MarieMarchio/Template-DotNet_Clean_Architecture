@@ -906,7 +906,7 @@ Authorization: Bearer {{accessToken}}
 ###
 # 42. Read the metadata. Never the bytes. `status` reads `deposited` at this point, not `available`:
 #      confirming says the bytes arrived intact, not what they are. The inspection job is
-#      what reaches a verdict, on FileWorker:InspectDepositedFilesInterval — one minute by default.
+#      what reaches a verdict, on Jobs:Files:InspectDepositedFilesInterval — one minute by default.
 GET {{api}}/files/{{storedFileId}}
 Authorization: Bearer {{accessToken}}
 
@@ -917,8 +917,8 @@ Authorization: Bearer {{accessToken}}
 
 ###
 # 44. Download. Answers 409 storedFile.notAvailable until the inspection pass has run — wait out
-#      FileWorker:InspectDepositedFilesInterval and send it again, or shorten that interval with
-#      FILE_WORKER_INSPECT_INTERVAL in .env.
+#      Jobs:Files:InspectDepositedFilesInterval and send it again, or shorten that interval with
+#      JOBS_FILES_INSPECT_INTERVAL in .env.
 #      Then, with the S3 store, answers 302 to a short-lived signed URL rather than streaming the
 #      object. That URL is a BEARER right — anyone holding it can read the object until it expires —
 #      which is why Files:Storage:S3:MaxGrantLifetime is short and why the redirect must not be

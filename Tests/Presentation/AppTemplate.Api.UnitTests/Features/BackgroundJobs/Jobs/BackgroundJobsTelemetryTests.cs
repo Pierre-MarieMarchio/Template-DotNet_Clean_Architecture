@@ -92,7 +92,7 @@ public sealed class BackgroundJobsTelemetryTests
                     telemetryEnabled ? "true" : "false",
                 [$"{TelemetryOptions.SectionName}:{nameof(TelemetryOptions.OtlpEndpoint)}"] =
                     telemetryEnabled ? _collector : null,
-                [$"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.Enabled)}"] =
+                [$"{JobsOptions.SectionName}:{nameof(JobsOptions.Enabled)}"] =
                     jobsEnabled ? "true" : "false",
             })
             .Build();

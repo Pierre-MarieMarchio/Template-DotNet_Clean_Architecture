@@ -1,4 +1,4 @@
-# API reference
+﻿# API reference
 
 The endpoints, one section per feature. What holds for all of them — versioning, default-deny
 authorisation, the `code` a failure carries, `ETag`, `Idempotency-Key`, the collection contract and
@@ -208,7 +208,7 @@ the row and the bytes. The response is `no-store`.
 
 **Confirming does not make the file readable.** It leaves the file `deposited` — the bytes
 arrived and are the ones declared, but nothing has looked at them — until the inspection
-job has, and `FileWorker:InspectDepositedFilesInterval`, one minute by default,
+job has, and `Jobs:Files:InspectDepositedFilesInterval`, one minute by default,
 is a latency a user feels. `availableAt` is `null` until then.
 
 `status` has **four** values, and a client that branches on it must handle all of them:

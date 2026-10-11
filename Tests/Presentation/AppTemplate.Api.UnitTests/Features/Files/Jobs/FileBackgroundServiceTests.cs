@@ -196,11 +196,11 @@ public sealed class FileBackgroundServiceTests
     /// the only two knobs this host is allowed to offer.
     /// </summary>
     [Fact]
-    public void FileWorkerOptions_OffersNoWayToNarrowWhatTheOrphanSweepCovers()
+    public void FileJobsOptions_OffersNoWayToNarrowWhatTheOrphanSweepCovers()
     {
         string[] forbidden = ["Segment", "Prefix", "Lookback", "Since", "Oldest", "Newest", "Age"];
 
-        var properties = typeof(FileWorkerOptions).GetProperties().Select(property => property.Name).ToList();
+        var properties = typeof(JobsFilesOptions).GetProperties().Select(property => property.Name).ToList();
 
         properties.ShouldNotBeEmpty("this rule would pass vacuously against a type with no properties");
 
@@ -212,7 +212,7 @@ public sealed class FileBackgroundServiceTests
             "The orphan sweep's coverage is not configurable: every time slice has to be visited.");
     }
 
-    private static FileWorkerOptions EnabledOptions() => new()
+    private static JobsFilesOptions EnabledOptions() => new()
     {
         PurgeAbandonedRegistrationsInterval = _tinyInterval,
         PurgeAbandonedRegistrationsEnabled = true,
@@ -223,7 +223,7 @@ public sealed class FileBackgroundServiceTests
     private static FileBackgroundService CreateService(
         FakeAbandonedRegistrationPurge purge,
         FakeOrphanedContentSweep sweep,
-        FileWorkerOptions options)
+        JobsFilesOptions options)
     {
         var services = new ServiceCollection();
         services.AddBackgroundScope();

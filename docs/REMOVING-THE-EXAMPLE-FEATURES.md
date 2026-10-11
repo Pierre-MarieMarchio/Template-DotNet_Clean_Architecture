@@ -486,18 +486,18 @@ navigation blocks. The blocks are named by their persistence model's full type n
 None of this breaks a build, and all of it goes stale silently.
 
 - **`Src/Presentation/AppTemplate.Api/appsettings.json`** and
-  **`Src/Presentation/AppTemplate.Api/appsettings.Development.json`**: the `ReminderWorker` section
-  **(R)** and the `FileWorker` section **(F)**.
+  **`Src/Presentation/AppTemplate.Api/appsettings.Development.json`**: the `Jobs:Reminders` section
+  **(R)** and the `Jobs:Files` section **(F)**.
 - **`Src/Presentation/AppTemplate.Api/appsettings.json`**: the `Files` section **(F)**.
-- **`docker-compose.yml`** and **`.env.example`**: the `ReminderWorker__*` block and the
-  `REMINDER_WORKER_*` variables **(R)**; the `FileWorker__*` block and the `FILE_WORKER_*` variables
+- **`docker-compose.yml`** and **`.env.example`**: the `Jobs__Reminders__*` block and the
+  `JOBS_REMINDERS_*` variables **(R)**; the `Jobs__Files__*` block and the `JOBS_FILES_*` variables
   **(F)**.
 - **`docker-compose.yml`** **(F)**: the `Files__Storage__S3__*` environment block, the `minio` and `minio-bucket`
   services, and the `minio-data` volume.
 - **`AppTemplate.Api.http`**: the numbered request blocks for the feature you removed. They are the
   file's whole point, so they are worth replacing with your own rather than only deleting.
 - **`Tests/Architecture/AppTemplate.Architecture.Tests/Rules/ConfigurationSurfaceTests.cs`** names
-  `ReminderWorker` twice in its own documentation as the example of a section **(R)**; point it at
+  `Jobs:Reminders` twice in its own documentation as the example of a section **(R)**; point it at
   another section that still exists.
 
 ## Do the background jobs still have a reason to exist?
@@ -598,7 +598,7 @@ fails rather than passing over nothing:
   put the first operation of yours that must not run twice at once under the lease, or delete the
   port, its adapter, its integration tests, the `Leases` entry in `LayoutConventionTests`'s `Common/`
   vocabulary and `BackgroundWorkTests` itself — and then run at most one instance with
-  `BackgroundJobs:Enabled` true unless what remains is safe to run concurrently.
+  `Jobs:Enabled` true unless what remains is safe to run concurrently.
 - `SharedInstanceRegistrationTests.EveryAggregateTracker_ResolvesAsOneInstanceUnderEveryContractItServes`
   — its floor is two trackers; the composed container has none.
 - `DefaultDenyAuthorizationTests` — no controller left that relies on the fallback policy.

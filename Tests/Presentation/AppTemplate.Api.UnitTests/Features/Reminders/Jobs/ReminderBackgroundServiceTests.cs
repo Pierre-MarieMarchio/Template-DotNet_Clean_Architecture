@@ -122,10 +122,10 @@ public sealed class ReminderBackgroundServiceTests
         await service.StopAsync(CancellationToken.None);
 
         logger.Lines.ShouldContain(line => line.Message.Contains(
-            "Reminder worker stopping", StringComparison.Ordinal));
+            "Reminder job stopping", StringComparison.Ordinal));
     }
 
-    private static ReminderWorkerOptions EnabledOptions() => new()
+    private static JobsRemindersOptions EnabledOptions() => new()
     {
         Interval = _tinyInterval,
         Enabled = true,
@@ -133,7 +133,7 @@ public sealed class ReminderBackgroundServiceTests
 
     private static ReminderBackgroundService CreateService(
         FakeFireDueRemindersUseCase useCase,
-        ReminderWorkerOptions options)
+        JobsRemindersOptions options)
     {
         var services = new ServiceCollection();
         services.AddBackgroundScope();

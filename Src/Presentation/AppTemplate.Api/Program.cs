@@ -93,7 +93,7 @@ builder.Services.AddControllers();
 builder.Services.AddHttpPipeline(builder.Configuration);
 builder.Services.AddApiObservability(builder.Configuration);
 
-// The periodic jobs, started by this process unless BackgroundJobs:Enabled is false. One call, so a
+// The periodic jobs, started by this process unless Jobs:Enabled is false. One call, so a
 // separate runner can make the same one. The caller and audit identity that tells a job's scope from
 // a request's is registered with the HTTP pipeline above.
 builder.Services.AddBackgroundJobs(builder.Configuration);

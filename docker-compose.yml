@@ -1,4 +1,4 @@
-# Local development stack: PostgreSQL + a mail catcher + the API.
+﻿# Local development stack: PostgreSQL + a mail catcher + the API.
 #
 #     cp .env.example .env
 #     docker compose up --build
@@ -114,34 +114,34 @@ services:
 
       # --- Background jobs -----------------------------------------------------
       # This process runs the periodic jobs as well as serving HTTP, which is the template's default:
-      # one application process. BACKGROUND_JOBS_ENABLED=false makes an instance serve HTTP only; with
-      # several instances, leave it true on exactly one. See docs/CONFIGURATION.md. The sections below
-      # are read only while it is true.
-      BackgroundJobs__Enabled: ${BACKGROUND_JOBS_ENABLED:-true}
+      # one application process. JOBS_ENABLED=false makes an instance serve HTTP only; with several
+      # instances, leave it true on exactly one. See docs/CONFIGURATION.md. The sections below are
+      # read only while it is true.
+      Jobs__Enabled: ${JOBS_ENABLED:-true}
 
-      # --- MaintenanceWorker ---------------------------------------------------
+      # --- Jobs:Maintenance ----------------------------------------------------
       #if (!publicApi)
       # The same purges MaintenanceController exposes over HTTP, on a timer.
       #else
       # The same purges as the maintenance use cases, on a timer; no endpoint exposes them.
       #endif
-      MaintenanceWorker__Interval: ${MAINTENANCE_WORKER_INTERVAL:-01:00:00}
-      MaintenanceWorker__PurgeExpiredIdempotencyKeysEnabled: ${MAINTENANCE_WORKER_PURGE_IDEMPOTENCY_KEYS:-true}
+      Jobs__Maintenance__Interval: ${JOBS_MAINTENANCE_INTERVAL:-01:00:00}
+      Jobs__Maintenance__PurgeExpiredIdempotencyKeysEnabled: ${JOBS_MAINTENANCE_PURGE_IDEMPOTENCY_KEYS:-true}
       #if (localAuth)
-      MaintenanceWorker__PurgeExpiredRefreshTokensEnabled: ${MAINTENANCE_WORKER_PURGE_REFRESH_TOKENS:-true}
+      Jobs__Maintenance__PurgeExpiredRefreshTokensEnabled: ${JOBS_MAINTENANCE_PURGE_REFRESH_TOKENS:-true}
       #endif
 
       #if (reminders)
-      # --- ReminderWorker ------------------------------------------------------
+      # --- Jobs:Reminders -------------------------------------------------------
       # The second job, on its own timer. Enabled is the off switch for a stack that wants the
       # maintenance purges running without any reminder mail leaving the box — the job stops, the
       # rest of the process keeps going. See docs/CONFIGURATION.md.
-      ReminderWorker__Interval: ${REMINDER_WORKER_INTERVAL:-00:01:00}
-      ReminderWorker__Enabled: ${REMINDER_WORKER_ENABLED:-true}
+      Jobs__Reminders__Interval: ${JOBS_REMINDERS_INTERVAL:-00:01:00}
+      Jobs__Reminders__Enabled: ${JOBS_REMINDERS_ENABLED:-true}
       #endif
 
       #if (files)
-      # --- FileWorker ----------------------------------------------------------
+      # --- Jobs:Files -----------------------------------------------------------
       # THREE passes for the Files feature, not two. The inspection pass is the one a user waits on:
       # it is the only thing that moves a file from deposited to available, so with it off or slow no
       # upload ever becomes readable. The reclamation sweep is the correctness guarantee of the whole
@@ -149,12 +149,12 @@ services:
       # row references is garbage" — so turning it off leaks storage silently. The purge of abandoned
       # registrations retires a client that asked for an upload grant and never used it.
       # See docs/CONFIGURATION.md.
-      FileWorker__InspectDepositedFilesInterval: ${FILE_WORKER_INSPECT_INTERVAL:-00:01:00}
-      FileWorker__InspectDepositedFilesEnabled: ${FILE_WORKER_INSPECT_ENABLED:-true}
-      FileWorker__PurgeAbandonedRegistrationsInterval: ${FILE_WORKER_PURGE_INTERVAL:-01:00:00}
-      FileWorker__PurgeAbandonedRegistrationsEnabled: ${FILE_WORKER_PURGE_ENABLED:-true}
-      FileWorker__ReclaimOrphanedContentInterval: ${FILE_WORKER_RECLAIM_INTERVAL:-12:00:00}
-      FileWorker__ReclaimOrphanedContentEnabled: ${FILE_WORKER_RECLAIM_ENABLED:-true}
+      Jobs__Files__InspectDepositedFilesInterval: ${JOBS_FILES_INSPECT_INTERVAL:-00:01:00}
+      Jobs__Files__InspectDepositedFilesEnabled: ${JOBS_FILES_INSPECT_ENABLED:-true}
+      Jobs__Files__PurgeAbandonedRegistrationsInterval: ${JOBS_FILES_PURGE_INTERVAL:-01:00:00}
+      Jobs__Files__PurgeAbandonedRegistrationsEnabled: ${JOBS_FILES_PURGE_ENABLED:-true}
+      Jobs__Files__ReclaimOrphanedContentInterval: ${JOBS_FILES_RECLAIM_INTERVAL:-12:00:00}
+      Jobs__Files__ReclaimOrphanedContentEnabled: ${JOBS_FILES_RECLAIM_ENABLED:-true}
 
       #endif
       # --- Localization ------------------------------------------------------

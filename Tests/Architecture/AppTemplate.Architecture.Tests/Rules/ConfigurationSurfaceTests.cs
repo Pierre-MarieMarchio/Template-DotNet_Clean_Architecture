@@ -60,7 +60,7 @@ public sealed class ConfigurationSurfaceTests
     /// ones naming a section: the guide ends with <c>### Not configurable</c> and
     /// <c>### Standard ASP.NET Core keys</c>, and a slice that ran to the next *named* section would
     /// hand the last named one both of those tables — which is exactly how this rule first reported
-    /// <c>AllowedHosts</c> as a key of <c>ReminderWorker</c>.
+    /// <c>AllowedHosts</c> as a key of <c>Jobs:Reminders</c>.
     /// </summary>
     private static readonly Regex _anyHeading = new(
         @"^### ",

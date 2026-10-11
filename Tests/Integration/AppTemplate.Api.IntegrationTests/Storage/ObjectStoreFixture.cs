@@ -39,10 +39,16 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
 {
     /// <summary>
     /// The same image the development stack runs (<c>docker-compose.yml</c>), pinned to the same
-    /// release rather than to the module's own default — which is two years older. What these tests
-    /// exercise is then the store a developer already has in front of them.
+    /// release rather than to the module's own default. What these tests exercise is then the store
+    /// a developer already has in front of them.
     /// </summary>
-    private const string _minioImage = "minio/minio:RELEASE.2025-04-22T22-12-26Z";
+    /// <remarks>
+    /// MinIO stopped publishing images when it went source-only (October 2025), and
+    /// <c>minio/minio</c> left Docker Hub with it. This is the community build of that same release
+    /// tag, produced from the official source; it ships the same <c>minio</c> and <c>mc</c> binaries
+    /// the official image did.
+    /// </remarks>
+    private const string _minioImage = "coollabsio/minio:RELEASE.2025-04-22T22-12-26Z";
 
     /// <summary>
     /// Long enough for MinIO, which refuses to start on a root password under eight characters.
@@ -204,10 +210,12 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
-        await _scope.DisposeAsync();
-
+        // Only when a host was built: a failed InitializeAsync leaves the scope at its default,
+        // and disposing that reports a NullReferenceException that hides the real failure.
         if (_host is not null)
         {
+            await _scope.DisposeAsync();
+
             await _host.DisposeAsync();
         }
 

@@ -6,25 +6,15 @@ namespace AppTemplate.Application.Core.Common.Localization;
 /// The language the mail this flow is about should be written in, as a BCP-47 tag.
 /// </summary>
 /// <remarks>
-/// <para>
-/// <b>This is what <c>CultureInfo.CurrentUICulture</c> would be, and cannot be here.</b> The
-/// repository builds with <c>InvariantGlobalization=true</c> — see <c>Directory.Build.props</c>, and
-/// the API's Dockerfile, whose runtime image ships no ICU because of it — so at run time the only
-/// culture that exists is the invariant one and <c>CultureInfo.GetCultureInfo("fr")</c> throws.
-/// Carrying a tag rather than a culture is what lets this template pick a language without asking a
-/// deployment to add ICU to its image.
-/// </para>
-/// <para>
-/// It is ambient rather than a parameter for the reason the platform's own equivalent is: the
-/// language is a property of the exchange, not of any one call, and threading it through every use
-/// case and every mail port would put a parameter nothing in between reads on a dozen signatures.
-/// It lives in the application layer because two infrastructure modules read it and a module may not
-/// reference a sibling.
-/// </para>
-/// <para>
-/// <see cref="Default"/> is set once at start-up and <see cref="Tag"/> per request, so a host with
-/// no requests still has an answer and a request that names no language falls back to one.
-/// </para>
+/// This is what <c>CultureInfo.CurrentUICulture</c> would be, and cannot be: the repository builds
+/// with <c>InvariantGlobalization=true</c> (see <c>Directory.Build.props</c> and the API's
+/// Dockerfile, whose runtime image ships no ICU because of it), so at run time only the invariant
+/// culture exists and <c>CultureInfo.GetCultureInfo("fr")</c> throws — a tag is what lets the
+/// template pick a language without asking a deployment to add ICU. It is ambient rather than a
+/// parameter for the reason the platform's own equivalent is: the language is a property of the
+/// exchange, not of any one call, and threading it through every use case and mail port would put
+/// a parameter nothing in between reads on a dozen signatures. It lives in the application layer
+/// because two infrastructure modules read it and a module may not reference a sibling.
 /// </remarks>
 public static class CurrentLanguage
 {
@@ -46,8 +36,8 @@ public static class CurrentLanguage
     /// <summary>
     /// The host's own default, set once at start-up from <c>Localization:DefaultCulture</c>. Not
     /// <see cref="AsyncLocal{T}"/>, deliberately: a value set during start-up would not flow into
-    /// every hosted service's own execution context, and a worker whose loops silently reverted to
-    /// English is the failure this is arranged to avoid.
+    /// every hosted service's execution context, and a job whose loops silently reverted to
+    /// English is the failure this avoids.
     /// </summary>
     public static string Default
     {
@@ -60,9 +50,8 @@ public static class CurrentLanguage
     public static string Current => _tag.Value ?? _default;
 
     /// <summary>
-    /// Set per request by the API. A malformed tag is ignored rather than refused: it arrives in a
-    /// header a caller controls, and a mail in the wrong language is a better answer than a failed
-    /// request.
+    /// Set per request by the API. A malformed tag is ignored rather than refused: a mail in the
+    /// wrong language is a better answer than a failed request.
     /// </summary>
     public static string? Tag
     {
@@ -71,8 +60,8 @@ public static class CurrentLanguage
     }
 
     /// <summary>
-    /// Shape only. Whether a tag names a language this deployment can write is not a question this
-    /// type answers — that is which templates are embedded, and the renderers fall back on their own.
+    /// Shape only: whether a tag names a language this deployment can write is which templates are
+    /// embedded, and the renderers fall back on their own.
     /// </summary>
     public static bool IsWellFormed(string? tag) =>
         !string.IsNullOrWhiteSpace(tag) && tag.Length <= 35 && _wellFormed.IsMatch(tag);

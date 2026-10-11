@@ -9,25 +9,14 @@ namespace AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted
 
 /// <summary>
 /// Cancels every still-pending reminder on an item once it is completed, so a reminder does not
-/// fire for something already done.
-/// <para>
-/// This runs after the transaction that completed the item has already committed — see
-/// <c>DomainEventDispatchSaveChangesInterceptor</c> — so, unlike a use case, it owns committing
-/// its own change through <see cref="IUnitOfWork"/> rather than riding one that already
-/// happened. That commit runs on the same scoped <c>DbContext</c> the completion just used, one
-/// save nested inside the other's post-commit callback; it is not a second, independent
-/// transaction.
-/// </para>
-/// <para>
-/// <b>This is a fast path, not the correctness guarantee — deleting this class would not make
-/// firing wrong, only slower to notice.</b> <c>FireDueRemindersUseCase</c> re-checks completion
-/// at firing time regardless, for exactly the case this consumer cannot cover: the event never
-/// reaches it, or this call throws and is logged rather than retried (see
-/// <c>DomainEventDispatcher</c>). Without this consumer a completed item's reminder would simply
-/// wait until it next comes due to be cancelled there instead. A missed cancellation shows up as
-/// <see cref="IReminderDiagnostics.RecordMissedCancellation"/>, not as a wrong notification —
-/// which is what makes it safe for this consumer to be best-effort in the first place.
-/// </para>
+/// fire for something already done. Runs after the transaction that completed the item has
+/// committed — see <c>DomainEventDispatchSaveChangesInterceptor</c> — so, unlike a use case, it
+/// owns committing its own change through <see cref="IUnitOfWork"/>, on the same scoped
+/// <c>DbContext</c> the completion just used. <b>A fast path, not the correctness guarantee:</b>
+/// <c>FireDueRemindersUseCase</c> re-checks completion at firing time, for exactly the case this
+/// consumer cannot cover — the event never reaches it, or this call throws and is not retried —
+/// and a missed cancellation shows up as <see cref="IReminderDiagnostics.RecordMissedCancellation"/>,
+/// not as a wrong notification.
 /// </summary>
 internal sealed class CancelRemindersOnTodoItemCompletedConsumer(
     IReminderRepository reminders,

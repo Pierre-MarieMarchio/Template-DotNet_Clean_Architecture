@@ -2,17 +2,12 @@
 
 /// <summary>
 /// The tokens a signed-in session holds: a short-lived signed access token, and an opaque refresh
-/// token whose grants this port issues, rotates, revokes and finally purges.
-/// <para>
-/// The raw token values are credentials, so a caller of this port can mint one. That is why the
-/// adapter behind it is internal to its module and why nothing outside this vertical's use cases
-/// takes a dependency on it.
-/// </para>
-/// <para>
-/// <b>Every refresh-token operation commits the request's unit of work</b>, because a grant has to
-/// be durable before its value is handed to a client. A caller that has staged other work in the
-/// same request must expect that work to be committed too.
-/// </para>
+/// token whose grants this port issues, rotates, revokes and finally purges. The raw token values
+/// are credentials, so a caller of this port can mint one — which is why the adapter behind it is
+/// internal to its module and nothing outside this vertical's use cases depends on it. Every
+/// refresh-token operation commits the request's unit of work, because a grant has to be durable
+/// before its value is handed to a client; a caller with other work staged in the same request must
+/// expect that work to be committed too.
 /// </summary>
 public interface ISessionTokensService
 {
@@ -41,13 +36,12 @@ public interface ISessionTokensService
 
     /// <summary>
     /// Consumes a presented refresh token and issues its successor in the same session, single-use:
-    /// of two simultaneous presentations exactly one may be told it rotated. Presenting one that was
-    /// already rotated while its session is still live means either a replay or a leak, so every
-    /// session of that user is revoked and the request fails. A token of a session that was ended —
-    /// signed out, revoked, or ended by a credential change — is refused without that alarm: it is
-    /// what a client still holding it sends next, and nothing about it is suspicious. A revocation
-    /// committed before or during a rotation wins: the session's successor, if one was being issued,
-    /// never rotates.
+    /// of two simultaneous presentations exactly one may be told it rotated. Presenting one already
+    /// rotated while its session is still live means a replay or a leak, so every session of that
+    /// user is revoked and the request fails; a token of an ended session is refused without that
+    /// alarm — it is what a client still holding it sends next, and nothing about it is suspicious.
+    /// A revocation committed before or during a rotation wins: the session's successor, if one was
+    /// being issued, never rotates.
     /// </summary>
     /// <param name="client">Recorded on the session as its latest use.</param>
     Task<RefreshTokenRotation> RotateRefreshTokenAsync(

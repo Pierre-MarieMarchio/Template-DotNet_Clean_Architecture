@@ -4,14 +4,14 @@ using AppTemplate.Application.Core.Common.Validation;
 namespace AppTemplate.Application.Auth.Features.Auth.Errors;
 
 /// <summary>
-/// The failures this vertical is allowed to disclose. Each is a single, stable, deliberately
-/// uninformative value, and several of them are the same value returned for causes the caller must
-/// not be able to tell apart.
+/// The failures this vertical is allowed to disclose: single, stable, deliberately uninformative
+/// values, several of them the same value returned for causes the caller must not be able to tell
+/// apart.
 /// </summary>
 public static class AuthErrors
 {
     /// <summary>
-    /// One error for every login failure: unknown address, wrong password, unconfirmed email,
+    /// One error for every login failure — unknown address, wrong password, unconfirmed email,
     /// locked-out account. Even the lockout is not disclosed, since saying so confirms the account.
     /// </summary>
     public static Error InvalidCredentials { get; } = Error.Unauthorized(
@@ -19,20 +19,17 @@ public static class AuthErrors
         "Email or password is incorrect.");
 
     /// <summary>
-    /// One error for every way signing in through an identity provider can fail: a token that did not
-    /// verify, a provider nobody configured, a provider that would not vouch for the address, an
-    /// address already held by an account that never confirmed it, and an account that may no longer
-    /// sign in. The last two are why this collapses as hard as <see cref="InvalidCredentials"/> does —
-    /// anyone can obtain an <c>id_token</c> for an address they control, so a distinct answer for
-    /// "that address belongs to an unconfirmed local account" would turn this endpoint into a probe
-    /// for which addresses have been registered here.
+    /// One error for every way signing in through an identity provider can fail. It collapses as
+    /// hard as <see cref="InvalidCredentials"/> does: anyone can obtain an <c>id_token</c> for an
+    /// address they control, so a distinct answer for "that address belongs to an unconfirmed local
+    /// account" would turn this endpoint into a probe for which addresses are registered here.
     /// </summary>
     public static Error ExternalSignInRefused { get; } = Error.Unauthorized(
         "auth.externalSignIn.refused",
         "The external sign-in could not be completed.");
 
     /// <summary>
-    /// Covers unknown, expired, revoked and replayed refresh tokens alike. A replay additionally
+    /// Covers unknown, expired, revoked and replayed refresh tokens alike; a replay additionally
     /// revokes the whole family, but the response is identical.
     /// </summary>
     public static Error InvalidRefreshToken { get; } = Error.Unauthorized(
@@ -49,7 +46,7 @@ public static class AuthErrors
 
     /// <summary>
     /// Registration cannot fully hide that an address is taken, but it does not have to say so:
-    /// the message is neutral and identical for a duplicate username and a duplicate email.
+    /// neutral and identical for a duplicate username and a duplicate email.
     /// </summary>
     public static Error RegistrationConflict { get; } = Error.Conflict(
         "auth.register.unavailable",
@@ -57,9 +54,8 @@ public static class AuthErrors
 
     /// <summary>
     /// Each message describes the submitted value it is attached to — allowed characters, format,
-    /// password policy — so it is safe, and useful, to return verbatim. Attached to the
-    /// "userName", "email" and "password" fields rather than used as the error message itself, so a
-    /// client can render each next to the field it concerns instead of parsing free text.
+    /// password policy — so it is safe to return verbatim, and attached to the field it concerns
+    /// so a client renders it there instead of parsing free text.
     /// </summary>
     public static Error RegistrationRejected(string? userName, string? email, string? password)
     {
@@ -85,7 +81,7 @@ public static class AuthErrors
 
     /// <summary>
     /// The current password matched; the store refused the new one itself. Attached to
-    /// "newPassword", the field the caller typed it in. See <see cref="RegistrationRejected"/>.
+    /// "newPassword". See <see cref="RegistrationRejected"/>.
     /// </summary>
     public static Error PasswordChangeRejected(string message) => ValidationError.ForField("newPassword", message);
 
@@ -103,16 +99,14 @@ public static class AuthErrors
         "The password reset link is invalid or has expired.");
 
     /// <summary>
-    /// The token was valid; the store refused the new password itself. Attached to "newPassword",
-    /// the field the caller typed it in. See <see cref="RegistrationRejected"/>.
+    /// The token was valid; the store refused the new password itself. Attached to "newPassword".
+    /// See <see cref="RegistrationRejected"/>.
     /// </summary>
     public static Error PasswordResetRejected(string message) => ValidationError.ForField("newPassword", message);
 
     /// <summary>
-    /// Identical whether the token is unknown, expired, already used, or issued for a different
-    /// address. Unlike <see cref="InvalidEmailConfirmation"/> this is not an anti-enumeration
-    /// measure — the caller already authenticated as the account it names — it is simply one error
-    /// for every way a bad token can fail.
+    /// Identical for every way a bad token can fail. Not an anti-enumeration measure — the caller
+    /// already authenticated as the account it names — simply one error for a bad token.
     /// </summary>
     public static Error InvalidEmailChange { get; } = Error.Validation(
         "auth.changeEmail.invalid",
@@ -122,16 +116,15 @@ public static class AuthErrors
     public static Error EmailChangeRejected(string message) => ValidationError.ForField("email", message);
 
     /// <summary>
-    /// An administrative action named an id no account carries. Unlike <see cref="InvalidCredentials"/>
-    /// this is not an anti-enumeration measure: the caller is an authenticated administrator acting on
-    /// an id it already has from a user list, not an anonymous caller probing for one.
+    /// An administrative action named an id no account carries; not an anti-enumeration measure —
+    /// the caller is an administrator acting on an id it already has.
     /// </summary>
     public static Error NoSuchAccount { get; } = Error.NotFound(
         "auth.account.notFound",
         "No such account.");
 
     /// <summary>
-    /// The caller named a session that is not one of theirs. Also the answer for another account's
+    /// The caller named a session that is not one of theirs; also the answer for another account's
     /// session, so the route discloses nothing about which session ids exist.
     /// </summary>
     public static Error NoSuchSession { get; } = Error.NotFound(
@@ -139,9 +132,9 @@ public static class AuthErrors
         "No such session.");
 
     /// <summary>
-    /// An administrator locking their own account would take effect on the very request that asked
-    /// for it — the security-stamp rotation the lock requires would invalidate the token making the
-    /// call — and there would be no other administrator left with a working session to undo it.
+    /// Locking their own account would take effect on the very request asking for it — the
+    /// security-stamp rotation would invalidate the token making the call — and no other
+    /// administrator would keep a working session to undo it.
     /// </summary>
     public static Error CannotLockOwnAccount { get; } = Error.Forbidden(
         "auth.lockout.cannotTargetSelf",
@@ -153,8 +146,8 @@ public static class AuthErrors
         "The lockout change could not be applied.");
 
     /// <summary>
-    /// An administrator removing their own role would revoke the very permission the request is
-    /// being made under, for the reason <see cref="CannotLockOwnAccount"/> gives.
+    /// Removing their own role would revoke the very permission the request is made under, for
+    /// the reason <see cref="CannotLockOwnAccount"/> gives.
     /// </summary>
     public static Error CannotRemoveOwnRole { get; } = Error.Forbidden(
         "auth.roles.cannotTargetSelf",
@@ -164,17 +157,17 @@ public static class AuthErrors
     public static Error RoleAssignmentRejected(string message) => ValidationError.ForField("role", message);
 
     /// <summary>
-    /// An administrator deleting their own account is a more permanent version of
-    /// <see cref="CannotLockOwnAccount"/>'s problem: nothing survives to undo it.
+    /// Deleting their own account is a more permanent version of <see cref="CannotLockOwnAccount"/>'s
+    /// problem: nothing survives to undo it.
     /// </summary>
     public static Error CannotDeleteOwnAccount { get; } = Error.Forbidden(
         "auth.account.cannotDeleteSelf",
         "An administrator cannot delete their own account.");
 
     /// <summary>
-    /// The account was found but the store refused to delete it. No message is carried: unlike a
-    /// rejected password or role name, a deletion failure describes the store's own state, not
-    /// something the caller submitted, so there is nothing safe to echo back.
+    /// The account was found but the store refused to delete it. No message is carried: the failure
+    /// describes the store's own state, not something the caller submitted, so there is nothing
+    /// safe to echo back.
     /// </summary>
     public static Error AccountDeletionRejected { get; } = Error.Validation(
         "auth.account.deletionRejected",
@@ -182,75 +175,69 @@ public static class AuthErrors
 
     /// <summary>
     /// The account holds no credential its holder could present — no password, no armed second
-    /// factor — so the deletion asked for a recently issued access token and the one making the
-    /// call is older than the window. Attached to no field: nothing the caller typed is wrong, the
-    /// session is simply not fresh enough for an operation that cannot be undone.
+    /// factor — so the deletion asked for a recently issued access token and this one is older than
+    /// the window. Attached to no field: nothing the caller typed is wrong.
     /// </summary>
     public static Error ReAuthenticationRequired { get; } = Error.Forbidden(
         "auth.account.reAuthenticationRequired",
         "Sign in again and retry within five minutes.");
 
     /// <summary>
-    /// The account has a password, so deleting it asks for the password. Attached to
-    /// "currentPassword", the field the caller left empty.
+    /// The account has a password, so deleting it asks for one; attached to "currentPassword", the
+    /// field left empty.
     /// </summary>
     public static Error MissingCurrentPassword { get; } = ValidationError.ForField(
         "currentPassword",
         "The current password is required.");
 
     /// <summary>
-    /// Two-factor sign-in is armed, so deleting the account asks for a code. Attached to
-    /// "twoFactorCode", the field the caller left empty.
+    /// Two-factor sign-in is armed, so deleting the account asks for a code; attached to
+    /// "twoFactorCode", the field left empty.
     /// </summary>
     public static Error MissingTwoFactorCode { get; } = ValidationError.ForField(
         "twoFactorCode",
         "A two-factor code is required.");
 
     /// <summary>
-    /// The submitted code did not confirm the deletion. Attached to "twoFactorCode", and distinct
-    /// from <see cref="InvalidTwoFactorCode"/> only in the field it names: the caller already
-    /// authenticated as the account it is deleting, so there is nothing to protect from enumeration
-    /// here either.
+    /// The submitted code did not confirm the deletion; attached to "twoFactorCode". The caller
+    /// already authenticated as the account it is deleting, so there is nothing to protect from
+    /// enumeration.
     /// </summary>
     public static Error InvalidTwoFactorConfirmationCode { get; } = ValidationError.ForField(
         "twoFactorCode",
         "The verification code is incorrect or has expired.");
 
     /// <summary>
-    /// The submitted code did not match. Attached to "code", unlike <see cref="InvalidCredentials"/>:
-    /// the caller already authenticated as the account it is arming, so there is no address to
-    /// protect from enumeration here.
+    /// The submitted code did not match; attached to "code", unlike <see cref="InvalidCredentials"/>:
+    /// the caller already authenticated, so there is no address to protect from enumeration.
     /// </summary>
     public static Error InvalidTwoFactorCode { get; } = ValidationError.ForField(
         "code",
         "The verification code is incorrect or has expired.");
 
     /// <summary>
-    /// Two-factor sign-in is already active. Provisioning a fresh secret on top of it would silently
-    /// swap the key every authenticator app already on file was built from — see
-    /// <c>SetUpTwoFactorUseCase</c> for why that is refused rather than allowed.
+    /// Two-factor sign-in is already active; provisioning a fresh secret on top would silently swap
+    /// the key every authenticator app already on file was built from — see
+    /// <c>SetUpTwoFactorUseCase</c> for why that is refused.
     /// </summary>
     public static Error TwoFactorAlreadyEnabled { get; } = Error.Conflict(
         "auth.twoFactor.alreadyEnabled",
         "Two-factor authentication is already enabled on this account.");
 
     /// <summary>
-    /// Covers an unknown, expired or already-redeemed challenge and a wrong code alike. Telling the
-    /// two apart would tell a caller holding a stolen challenge token whether the code it tried was
-    /// merely wrong or the challenge itself was already spent — the same reason
-    /// <see cref="InvalidCredentials"/> collapses every login refusal into one answer.
+    /// Covers an unknown, expired, redeemed challenge and a wrong code alike: telling the two apart
+    /// would tell a holder of a stolen challenge token whether the code it tried was merely wrong
+    /// or the challenge itself was already spent.
     /// </summary>
     public static Error InvalidTwoFactorChallenge { get; } = Error.Unauthorized(
         "auth.login.invalidTwoFactorChallenge",
         "The two-factor challenge is invalid or has expired.");
 
     /// <summary>
-    /// An administrator stripping their own second factor through <c>IAccountAdministrationService</c>
-    /// would bypass the very password proof <c>ITwoFactorService.DisableAsync</c> requires of
-    /// everyone else disarming their own account — a stolen admin session could otherwise do to its
-    /// own account exactly what this whole feature exists to prevent a stolen session doing.
-    /// <c>ITwoFactorService.DisableAsync</c>'s self-service route is what an administrator uses on
-    /// their own account instead.
+    /// An administrator stripping their own second factor this way would bypass the password proof
+    /// the self-service route requires of everyone else — a stolen admin session could otherwise do
+    /// to its own account exactly what this feature exists to prevent. <c>ITwoFactorService.DisableAsync</c>
+    /// is what an administrator uses on their own account.
     /// </summary>
     public static Error CannotDisableOwnTwoFactor { get; } = Error.Forbidden(
         "auth.twoFactor.cannotTargetSelf",
@@ -263,10 +250,9 @@ public static class AuthErrors
 
     /// <summary>
     /// The passkey registration ceremony did not verify — a state string this API never issued, a
-    /// credential that does not answer it, a credential already registered, or a state issued for
-    /// a different account. Attached to "credential", the value the caller posted: the caller is
-    /// authenticated, so there is no account to protect from enumeration here, but nothing safe to
-    /// echo either, since the message would be this one whatever broke.
+    /// credential that does not answer it, one already registered, or a state issued for a
+    /// different account. Attached to "credential": the caller is authenticated, so there is no
+    /// account to protect from enumeration, and nothing safe to echo either.
     /// </summary>
     public static Error InvalidPasskeyRegistration { get; } = ValidationError.ForField(
         "credential",
@@ -278,7 +264,7 @@ public static class AuthErrors
         "The passkey could not be registered.");
 
     /// <summary>
-    /// The caller named a passkey that is not one of theirs. Also the answer for another account's
+    /// The caller named a passkey that is not one of theirs; also the answer for another account's
     /// passkey and for one already removed, so the route discloses nothing about which credential
     /// ids exist.
     /// </summary>
@@ -287,12 +273,10 @@ public static class AuthErrors
         "No such passkey.");
 
     /// <summary>
-    /// One error for every way a passkey sign-in can fail: a state string this API never issued, a
-    /// ceremony that did not verify, an account no longer allowed to sign in. A passkey ceremony
-    /// is cryptographic, so a distinct answer for any of these is not an enumeration oracle the
-    /// way a wrong password is — but the caller can do nothing with the distinction either, and
-    /// the anonymous route keeps one answer for the same reason <see cref="InvalidCredentials"/>
-    /// does.
+    /// One error for every way a passkey sign-in can fail. A ceremony is cryptographic, so a
+    /// distinct answer is not an enumeration oracle the way a wrong password is — but the caller can
+    /// do nothing with the distinction either, and the anonymous route keeps one answer for the
+    /// same reason <see cref="InvalidCredentials"/> does.
     /// </summary>
     public static Error InvalidPasskeySignIn { get; } = Error.Unauthorized(
         "auth.passkeySignIn.invalid",

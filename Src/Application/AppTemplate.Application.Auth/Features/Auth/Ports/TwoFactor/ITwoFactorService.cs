@@ -2,30 +2,28 @@
 
 /// <summary>
 /// An account's second factor: its holder enrolling and removing it, and the sign-in challenge that
-/// asks for a code once a password is verified.
-/// <para>
-/// Two kinds of caller reach it. Enrollment is reached by an authenticated caller managing their own
-/// account and never issues a token; the challenge is reached by an anonymous caller mid sign-in and
-/// never changes whether the factor is armed. Stripping the factor from someone else's account is an
-/// administrator's act, and lives with <c>IAccountAdministrationService</c>.
-/// </para>
+/// asks for a code once a password is verified. Enrollment is reached by an authenticated caller
+/// managing their own account and never issues a token; the challenge is reached by an anonymous
+/// caller mid sign-in and never changes whether the factor is armed. Stripping the factor from
+/// someone else's account is an administrator's act, and lives with
+/// <c>IAccountAdministrationService</c>.
 /// </summary>
 public interface ITwoFactorService
 {
     /// <summary>
     /// Provisions a secret if none is pending yet, and returns it either way — a second call before
-    /// confirmation hands back the same one rather than silently replacing it, so reloading the setup
-    /// page does not invalidate a code the caller already scanned.
+    /// confirmation hands back the same one, so reloading the setup page does not invalidate a code
+    /// the caller already scanned.
     /// </summary>
     Task<TwoFactorSetupOutcome> BeginSetupAsync(Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Verifies the current password and the first code against the pending secret and, on a match
-    /// against both, turns two-factor sign-in on and mints a fresh set of recovery codes. Never armed
-    /// by <see cref="BeginSetupAsync"/> alone — only a confirmed code proves the caller can produce
-    /// one. The password is required for the reason <see cref="DisableAsync"/> gives: arming the
-    /// factor ends every other session exactly as disarming it does. Refused on an account already
-    /// armed, so the recovery codes its holder was shown stay the valid ones.
+    /// against both, turns two-factor sign-in on and mints a fresh set of recovery codes. Never
+    /// armed by <see cref="BeginSetupAsync"/> alone — only a confirmed code proves the caller can
+    /// produce one; the password is required for the reason <see cref="DisableAsync"/> gives.
+    /// Refused on an account already armed, so the recovery codes its holder was shown stay the
+    /// valid ones.
     /// </summary>
     Task<TwoFactorConfirmationOutcome> ConfirmSetupAsync(
         Guid userId,

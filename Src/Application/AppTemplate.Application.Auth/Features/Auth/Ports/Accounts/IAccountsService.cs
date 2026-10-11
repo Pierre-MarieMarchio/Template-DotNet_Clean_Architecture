@@ -3,14 +3,11 @@
 /// <summary>
 /// The account itself: creating one, checking its password, saying whether it may still sign in,
 /// changing its password, reading its profile, and deleting it. Nothing about tokens or mail.
-/// <para>
-/// <b>Cancellation is observed on entry only, and cannot be propagated.</b> An implementation over
-/// ASP.NET Identity has no way to pass a <see cref="CancellationToken"/> into
-/// <c>UserManager</c> or <c>SignInManager</c>, so a token cancelled while one of these calls is in
-/// flight does not stop it. The parameter is kept because these calls sit on a request's path and
-/// the check at entry is worth having, not because the work is interruptible. Every other
+/// <b>Cancellation is observed on entry only, and cannot be propagated:</b> an implementation over
+/// ASP.NET Identity has no way to pass a <see cref="CancellationToken"/> into <c>UserManager</c> or
+/// <c>SignInManager</c>, so a token cancelled mid-call does not stop it — the parameter stays
+/// because the check at entry is worth having, not because the work is interruptible. Every other
 /// authentication port behaves the same way.
-/// </para>
 /// </summary>
 public interface IAccountsService
 {
@@ -38,11 +35,10 @@ public interface IAccountsService
     Task<bool> CanSignInAsync(Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Verifies the current password and, on a match, replaces it. ASP.NET Identity rotates the
-    /// security stamp as part of this call, which — through the bearer handler's
+    /// Verifies the current password and, on a match, replaces it. Identity rotates the security
+    /// stamp as part of this call, which — through the bearer handler's
     /// <c>ValidateSecurityStampAsync</c> — invalidates every access token already issued for the
-    /// account. Refresh tokens are untouched by that rotation and are the caller's responsibility to
-    /// revoke.
+    /// account. Refresh tokens are untouched by that rotation and are the caller's to revoke.
     /// </summary>
     Task<PasswordChangeOutcome> ChangePasswordAsync(
         Guid userId,
@@ -51,23 +47,20 @@ public interface IAccountsService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Reads the account's current profile from the store. Never built from the bearer token's
-    /// claims: a claim is only as fresh as the access token that carries it, so a role granted or
-    /// revoked since would stay invisible until the token expired.
+    /// Reads the account's current profile from the store, never from the bearer token's claims: a
+    /// claim is only as fresh as the access token that carries it, so a role granted or revoked since
+    /// would stay invisible until the token expired.
     /// </summary>
     /// <returns><c>null</c> when the account no longer exists.</returns>
     Task<UserProfile?> FindProfileAsync(Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Deletes the account and what the user store holds for it, its refresh-token grants included.
-    /// The caller's own account is as legitimate a target as anybody else's: the authority to do
-    /// this is the caller's to prove — re-authentication for the holder's own hands, the
+    /// The authority is the caller's to prove — re-authentication for the holder's own hands, the
     /// <c>Administrator</c> policy for an administrator's — and the port says nothing about it.
-    /// <para>
     /// Commits on its own, like every Identity-backed write, so the fact of the deletion can be
     /// published the moment this returns. Rows another feature owns under this id are not touched:
     /// those are the owning feature's to remove, through the account-deleted fact.
-    /// </para>
     /// </summary>
     Task<AccountDeletionOutcome> DeleteAsync(Guid userId, CancellationToken cancellationToken = default);
 }

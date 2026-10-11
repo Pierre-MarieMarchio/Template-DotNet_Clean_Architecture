@@ -6,17 +6,12 @@ namespace AppTemplate.Application.Common.Tagging;
 /// tags, so the lifetime is one decision rather than one per feature.
 /// </summary>
 /// <remarks>
-/// <para>
-/// This list is a suggestion. It answers "which tags has this owner used before", which a client
-/// offers in a picker or a filter, so a list a minute out of date costs a tag typed in full. It
-/// decides no authorisation, enforces no bound, becomes no <c>ETag</c> and tells nothing what to
-/// delete — the reasons <see cref="Core.Common.Ports.ICacheStore"/> gives for what may not be
-/// cached.
-/// </para>
-/// <para>
-/// The entry is dropped by whatever changes an owner's tags, so the lifetime is the ceiling on how
-/// long a change made anywhere else — a sweep, another deployment's process — can stay unseen.
-/// </para>
+/// This list is a suggestion: it answers "which tags has this owner used before", offered in a
+/// picker or a filter, so a list a minute out of date costs a tag typed in full. It decides no
+/// authorisation, enforces no bound and tells nothing what to delete — the reasons
+/// <see cref="Core.Common.Ports.ICacheStore"/> gives for what may not be cached. The entry is
+/// dropped by whatever changes an owner's tags, so the lifetime is the ceiling on how long a
+/// change made elsewhere can stay unseen.
 /// </remarks>
 public static class UsedTagsCache
 {

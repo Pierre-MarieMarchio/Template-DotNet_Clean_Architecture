@@ -1,4 +1,4 @@
-# Security
+﻿# Security
 
 This is a **template**. It is cloned, renamed and modified, so it has no released versions and no
 patch stream: there is nothing here to which a CVE could be assigned, and nothing that reaches your
@@ -354,7 +354,7 @@ says otherwise.
 - **Inspection happens in a background job, not in the request.** Scanning 200 MiB inside an HTTP request
   is the same CPU-denial problem as resizing an image there, which this template refuses by name.
   The consequence is a state a client can observe: a confirmed upload is `deposited`, not
-  `available`, until the loop has decided — and `FileWorker:InspectDepositedFilesInterval` is
+  `available`, until the loop has decided — and `Jobs:Files:InspectDepositedFilesInterval` is
   therefore a user-visible latency rather than a cost.
 - **No verdict is not a pass.** A scanner that cannot be reached leaves the file `deposited` and
   retries — one minute later, doubling, at most an hour — behind the files that have waited longer;
@@ -417,7 +417,7 @@ says otherwise.
   section only to start — no background loop resolves `AccessTokenIssuer` — and was given a
   self-describing placeholder, so a compromised background container could not mint a token. A
   deployment that wants that property back runs the jobs in a process of its own, sets
-  `BackgroundJobs:Enabled=false` on the API, and gives that process a placeholder `Jwt:Key` with the
+  `Jobs:Enabled=false` on the API, and gives that process a placeholder `Jwt:Key` with the
   same `Jwt:Issuer` and `Jwt:Audience`; nothing in the jobs reads the key.
 
 ## What a deployment must still do
@@ -491,11 +491,11 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   neither is a fixed delay, which would have to exceed the relay's own variance to hide anything.
 - **The background work needs an availability signal, and `/health/ready` is not it.** The jobs run
   in the API process, whose readiness probe answers for HTTP — the database checks and the shutdown
-  state — so with every instance's jobs stopped, or switched off with `BackgroundJobs:Enabled=false`,
+  state — so with every instance's jobs stopped, or switched off with `Jobs:Enabled=false`,
   no reminder is rung, no expired refresh-token grant is deleted and no idempotency key is reclaimed,
   and the probe stays green. Each of the three jobs emits a heartbeat, and it is what a deployment
   should alert on going flat, on the instance designated to run them:
-  `apptemplate.worker.{maintenance,files,reminders}.iterations`, counted once per pass and never
+  `apptemplate.jobs.{maintenance,files,reminders}.iterations`, counted once per pass and never
   gated on how much the pass found, so a healthy quiet system still produces samples. Alert on that
   instance's restart count alongside them.
   Do **not** alert on the absence of `apptemplate.reminders.missed_cancellations`, which this

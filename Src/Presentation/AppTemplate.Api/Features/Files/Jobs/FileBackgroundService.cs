@@ -19,7 +19,7 @@ namespace AppTemplate.Api.Features.Files.Jobs;
 /// </summary>
 internal sealed class FileBackgroundService(
     IServiceScopeFactory scopeFactory,
-    IOptions<FileWorkerOptions> options,
+    IOptions<JobsFilesOptions> options,
     ILogger<FileBackgroundService> logger) : BackgroundService
 {
     private const string _abandonedRegistrationsTask = "abandoned registrations";
@@ -35,7 +35,7 @@ internal sealed class FileBackgroundService(
         {
             // The abandonment delay is in the line because no setting carries it.
             logger.LogInformation(
-                "File worker starting. Abandoned-registration purge enabled: {PurgeEnabled}, every " +
+                "File job starting. Abandoned-registration purge enabled: {PurgeEnabled}, every " +
                 "{PurgeInterval}, giving up on a registration after {AbandonedAfter}. Orphaned-content " +
                 "reclamation enabled: {ReclaimEnabled}, every {ReclaimInterval}.",
                 settings.PurgeAbandonedRegistrationsEnabled,
@@ -72,7 +72,7 @@ internal sealed class FileBackgroundService(
                 FileInstruments.DepositsInspected,
                 stoppingToken));
 
-        logger.LogInformation("File worker stopping.");
+        logger.LogInformation("File job stopping.");
     }
 
     /// <param name="disabledConsequence">What goes wrong while the pass is off, logged at warning level on

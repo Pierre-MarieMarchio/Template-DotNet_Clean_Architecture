@@ -5,7 +5,7 @@ namespace AppTemplate.Api.Features.Files.Jobs;
 internal static class FileJobsExtensions
 {
     /// <summary>
-    /// Binds and validates <see cref="FileWorkerOptions"/> and starts the three file passes.
+    /// Binds and validates <see cref="JobsFilesOptions"/> and starts the three file passes.
     /// </summary>
     internal static IServiceCollection AddFileJobs(
         this IServiceCollection services,
@@ -14,11 +14,11 @@ internal static class FileJobsExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddOptions<FileWorkerOptions>()
-            .Bind(configuration.GetSection(FileWorkerOptions.SectionName))
+        services.AddOptions<JobsFilesOptions>()
+            .Bind(configuration.GetSection(JobsFilesOptions.SectionName))
             .ValidateOnStart();
 
-        services.AddSingleton<IValidateOptions<FileWorkerOptions>, FileWorkerOptionsValidator>();
+        services.AddSingleton<IValidateOptions<JobsFilesOptions>, JobsFilesOptionsValidator>();
 
         services.AddHostedService<FileBackgroundService>();
 

@@ -8,10 +8,10 @@
 /// its own <c>Enabled</c> and interval, and those are read only when this is true.
 /// </para>
 /// </summary>
-public sealed class BackgroundJobsOptions
+public sealed class JobsOptions
 {
     /// <summary>The configuration section this type is bound from.</summary>
-    public const string SectionName = "BackgroundJobs";
+    public const string SectionName = "Jobs";
 
     /// <summary>
     /// True by default, so a single instance serves HTTP and runs every job. Set it false on the

@@ -729,6 +729,18 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **The background jobs' configuration speaks with one vocabulary, and `Worker` is gone from it.**
+  The `MaintenanceWorker`, `ReminderWorker` and `FileWorker` sections become `Jobs:Maintenance`,
+  `Jobs:Reminders` and `Jobs:Files`, and the deployment role `BackgroundJobs:Enabled` becomes
+  `Jobs:Enabled` in the same `Jobs` section; the options classes follow (`JobsMaintenanceOptions`,
+  `JobsRemindersOptions`, `JobsFilesOptions`, `JobsOptions`). The meters are renamed with them:
+  `AppTemplate.Jobs.{Maintenance,Reminders,Files}` and the counters under `apptemplate.jobs.*`.
+  Nothing is released, so no dashboard or deployment depends on the old names.
+  **Migration for a derived project:** rename the keys in `appsettings.json`,
+  `appsettings.Development.json`, `docker-compose.yml` and `.env`
+  (`MaintenanceWorker__Interval` becomes `Jobs__Maintenance__Interval`, `BACKGROUND_JOBS_ENABLED`
+  becomes `JOBS_ENABLED`, and so on for every key of the three sections).
+
 - **CI generates and verifies every supported option combination.** The template acceptance job is
   a five-leg matrix (the defaults, `--auth none` with its forced options, `--auth external` with `notes`
   and with `all`, and `--auth local` without Files, workflows or Sonar). Each leg checks that the

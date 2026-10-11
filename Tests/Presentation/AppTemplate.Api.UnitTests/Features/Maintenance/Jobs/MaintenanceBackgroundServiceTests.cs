@@ -186,7 +186,7 @@ public sealed class MaintenanceBackgroundServiceTests
         await service.StopAsync(CancellationToken.None);
 
         logger.Lines.ShouldContain(line => line.Message.Contains(
-            "Maintenance worker stopping", StringComparison.Ordinal));
+            "Maintenance job stopping", StringComparison.Ordinal));
     }
 
     //#if (localAuth)
@@ -199,7 +199,7 @@ public sealed class MaintenanceBackgroundServiceTests
         && line.Message.Contains("expired security events", StringComparison.Ordinal);
 
     //#endif
-    private static MaintenanceWorkerOptions EnabledOptions() => new()
+    private static JobsMaintenanceOptions EnabledOptions() => new()
     {
         Interval = _tinyInterval,
         PurgeExpiredIdempotencyKeysEnabled = true,

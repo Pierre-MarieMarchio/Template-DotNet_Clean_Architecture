@@ -25,7 +25,7 @@ internal static class DeletedAccountSweepJobsExtensions
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.AddOptions<DeletedAccountSweepOptions>()
-            .Bind(configuration.GetSection(MaintenanceWorkerOptions.SectionName));
+            .Bind(configuration.GetSection(JobsMaintenanceOptions.SectionName));
 
         services.AddMaintenanceTask<ISweepDeletedAccountDataUseCase>(
             "data of deleted accounts",

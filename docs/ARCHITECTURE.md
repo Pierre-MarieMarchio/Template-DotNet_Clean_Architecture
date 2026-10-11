@@ -618,7 +618,7 @@ Three `BackgroundService`s, composed by the one call `AddBackgroundJobs()`
   multipart request and writes them through `IFileContentStore` itself — and both confirm through
   `IStoredFileDepositService`, so the inspection never knows which path a file took.
 
-**`BackgroundJobs:Enabled` is the role of an instance, and it is the only host-level switch.** True by
+**`Jobs:Enabled` is the role of an instance, and it is the only host-level switch.** True by
 default; false makes the instance serve HTTP and start no loop, and binds no job section, so it is not
 made to supply settings it never reads. Each job keeps its own `Enabled` and interval, read only
 while the role is on, and an invalid enabled setting stops startup instead of looking disabled.
@@ -655,7 +655,7 @@ The jobs prove nothing new about the Application layer — the use cases never k
 them — but they keep the claim honest: they call real use cases without shortcutting to
 infrastructure, and what changed when they moved into the API is the trigger and nothing else.
 
-**Several instances, and a separate runner.** Set `BackgroundJobs:Enabled=false` on the HTTP-only
+**Several instances, and a separate runner.** Set `Jobs:Enabled=false` on the HTTP-only
 instances and `true` on one designated instance: that stops the file passes, which walk the object
 store, from being multiplied by the replica count, without assuming a queue or a global scheduler.
 The protections underneath stay in place because a rolling deployment, a manual maintenance request
@@ -665,7 +665,7 @@ maintenance purges are idempotent. Each file pass's retry guarantee is stated in
 designated instance's job heartbeats — the `iterations` counters — are what show the passes run;
 `/health/ready` reports HTTP readiness only. If measured load or release needs justify a process of
 its own, the hosting adapters and their one composition call move into it, the API sets
-`BackgroundJobs:Enabled=false`, and the new process supplies its own caller, audit identity and
+`Jobs:Enabled=false`, and the new process supplies its own caller, audit identity and
 telemetry. Use cases, contracts and storage guarantees stay where they are: that is a deployment and
 presentation change, not a migration of the business model.
 

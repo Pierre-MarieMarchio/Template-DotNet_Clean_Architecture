@@ -68,7 +68,7 @@ public sealed class BackgroundJobsModuleTests
     [Fact]
     public void Disabled_StartsNoJob_AndBindsNoJobOption()
     {
-        var services = Compose(new Dictionary<string, string?> { ["BackgroundJobs:Enabled"] = "false" });
+        var services = Compose(new Dictionary<string, string?> { ["Jobs:Enabled"] = "false" });
 
         using var provider = services.BuildServiceProvider(_strict);
 
@@ -76,12 +76,12 @@ public sealed class BackgroundJobsModuleTests
 
         Type[] jobValidators =
         [
-            typeof(IValidateOptions<MaintenanceWorkerOptions>),
+            typeof(IValidateOptions<JobsMaintenanceOptions>),
             //#if (reminders)
-            typeof(IValidateOptions<ReminderWorkerOptions>),
+            typeof(IValidateOptions<JobsRemindersOptions>),
             //#endif
             //#if (files)
-            typeof(IValidateOptions<FileWorkerOptions>),
+            typeof(IValidateOptions<JobsFilesOptions>),
             //#endif
         ];
 
@@ -95,13 +95,13 @@ public sealed class BackgroundJobsModuleTests
     {
         using var host = BuildHost(new Dictionary<string, string?>
         {
-            ["BackgroundJobs:Enabled"] = "false",
-            ["MaintenanceWorker:Interval"] = "00:00:00",
+            ["Jobs:Enabled"] = "false",
+            ["Jobs:Maintenance:Interval"] = "00:00:00",
             //#if (reminders)
-            ["ReminderWorker:Interval"] = "7.00:00:00",
+            ["Jobs:Reminders:Interval"] = "7.00:00:00",
             //#endif
             //#if (files)
-            ["FileWorker:InspectDepositedFilesInterval"] = "00:00:01",
+            ["Jobs:Files:InspectDepositedFilesInterval"] = "00:00:01",
             //#endif
         });
 
@@ -110,14 +110,14 @@ public sealed class BackgroundJobsModuleTests
     }
 
     [Theory]
-    [InlineData("MaintenanceWorker:Interval", "00:00:00")]
+    [InlineData("Jobs:Maintenance:Interval", "00:00:00")]
     //#if (reminders)
-    [InlineData("ReminderWorker:Interval", "7.00:00:00")]
+    [InlineData("Jobs:Reminders:Interval", "7.00:00:00")]
     //#endif
     //#if (files)
-    [InlineData("FileWorker:InspectDepositedFilesInterval", "00:00:01")]
-    [InlineData("FileWorker:ReclaimOrphanedContentInterval", "00:00:05")]
-    [InlineData("FileWorker:PurgeAbandonedRegistrationsInterval", "00:00:00")]
+    [InlineData("Jobs:Files:InspectDepositedFilesInterval", "00:00:01")]
+    [InlineData("Jobs:Files:ReclaimOrphanedContentInterval", "00:00:05")]
+    [InlineData("Jobs:Files:PurgeAbandonedRegistrationsInterval", "00:00:00")]
     //#endif
     public async Task Enabled_RefusesToStart_OnAnInvalidJobSetting(string key, string value)
     {

@@ -1,0 +1,229 @@
+name: Template acceptance
+
+# The repository is a `dotnet new` template as well as a working solution, and the jobs
+# here prove the packaged template is what it claims: `sourceName` substitution, the
+# derived kebab-case symbols, the regenerated GUIDs and every condition an option
+# switches only run when `dotnet new` runs, and a template that generates a broken
+# project is worse than a repository to clone. Each leg installs the template from the
+# checkout, generates a project under a name that is not "AppTemplate", and builds,
+# tests and gates exactly what an adopter would get.
+#
+# Template repository only: `dotnet new install .` of a generated project is a sentence
+# that cannot be true, so this workflow does not ship with one.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# One in-flight run per ref. A new push supersedes the previous run instead of
+# queueing behind it; runs on main are never cancelled so the default branch
+# always ends up with a conclusive result.
+concurrency:
+  group: template-acceptance-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Least privilege at the top level. Jobs that need more must opt in locally;
+# nothing here writes to the repository.
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+
+jobs:
+  # The legs are the combinations that exercise a different shape, not the cross product of
+  # every option. `auth_context` says whether the generated solution has the Auth DbContext,
+  # which only `--auth local` generates.
+  template:
+    name: Template acceptance (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: defaults
+            options: ""
+            auth_context: "true"
+          - name: auth none, smallest project
+            options: --auth none --examples none --files false
+            auth_context: "false"
+          - name: external auth, notes
+            options: --auth external --examples notes
+            auth_context: "false"
+          - name: local auth, no files, no ci, no sonar
+            options: --auth local --examples none --files false --ci false --sonar false
+            auth_context: "true"
+          - name: external auth, all examples
+            options: --auth external --examples all --files true
+            auth_context: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Install the template from this checkout
+        run: dotnet new install .
+
+      # A name unrelated to "AppTemplate" on purpose — same class of name a real
+      # adopter would pick, and different enough in shape and length to catch a
+      # substitution that only happens to work for the template's own name. The options
+      # are deliberately unquoted: they are several arguments, and they come from the
+      # matrix above, not from anything a pull request can write.
+      - name: Generate a project under a different name
+        env:
+          OPTIONS: ${{ matrix.options }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          dotnet new cleanarch-webapi -n Sample.Generated.Project -o "${{ runner.temp }}/generated" $OPTIONS
+
+      # The template's name must survive nowhere: not in a file's content, not in a path.
+      # A substitution that missed a file the options left in would otherwise only show up
+      # in an adopter's repository.
+      - name: Assert the template's own name leaked nowhere
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          content=$(grep -rIil --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj -e 'AppTemplate' -e 'app-template' . || true)
+          paths=$(find . \( -name .git -o -name bin -o -name obj \) -prune -o \( -iname '*AppTemplate*' -o -iname '*app-template*' \) -print)
+          if [ -n "$content$paths" ]; then
+            echo "::error title=Template name leaked::The generated project still names the template."
+            printf '%s\n' "$content" "$paths"
+            exit 1
+          fi
+
+      # Proves the documented first step, and proves it is *sufficient*. Sorted using
+      # directives are ordered alphabetically, so the correct order depends on where the
+      # generated project's own namespace falls among FluentValidation, Microsoft.* and
+      # the rest — which no single committed ordering can satisfy for every possible name.
+      # A generated project therefore fails the format check until formatted once, and the
+      # docs/USING-THE-TEMPLATE.md tells an adopter to run `dotnet run Tools/Tasks.cs bootstrap`
+      # first. If that
+      # one run ever stopped being enough, this step is what would say so.
+      - name: Bootstrap formatting, then verify it is stable
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          dotnet tool restore
+          dotnet format Sample.Generated.Project.sln
+          dotnet format Sample.Generated.Project.sln --verify-no-changes --verbosity normal
+
+      - name: Restore and build the generated project
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          dotnet restore Sample.Generated.Project.sln
+          dotnet build Sample.Generated.Project.sln --configuration Release --no-restore
+
+      # The Docker-free subset, selected by the property that actually decides it — a
+      # Testcontainers reference in the csproj — rather than by a name pattern. Naming
+      # `*IntegrationTests*` would silently include Identity.UnitTests, which also runs
+      # against a real PostgreSQL. The suites that need a database are a property of the
+      # generated *code*, already proved by build-test against this same source; this
+      # job's narrower question is whether the generated project is what it claims to be
+      # under a fresh name and under each option set.
+      - name: Run the Docker-free tests
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          mapfile -t projects < <(grep -r --include='*.csproj' -L 'Testcontainers' Tests | sort)
+          if [ "${#projects[@]}" -eq 0 ]; then
+            echo "::error title=No test projects::Discovery found nothing to run in the generated project."
+            exit 1
+          fi
+          for project in "${projects[@]}"; do
+            echo "::group::$project"
+            dotnet test "$project" --configuration Release --no-build --output Detailed
+            echo "::endgroup::"
+          done
+
+      # One comparison per DbContext the options generate, the way the `verify` task does
+      # it: a model whose snapshot nobody compares is a model nobody migrates.
+      - name: Assert no context has a pending model change
+        working-directory: ${{ runner.temp }}/generated
+        env:
+          AUTH_CONTEXT: ${{ matrix.auth_context }}
+        run: |
+          set -euo pipefail
+          contexts=(Persistence)
+          if [ "$AUTH_CONTEXT" = "true" ]; then
+            contexts+=(Auth)
+          fi
+          for context in "${contexts[@]}"; do
+            project=$(find Src/Infrastructure -maxdepth 1 -type d -name "*.Infrastructure.$context")
+            if [ -z "$project" ]; then
+              echo "::error title=Missing project::No Infrastructure.$context project was generated."
+              exit 1
+            fi
+            echo "::group::$context"
+            dotnet ef migrations has-pending-model-changes --project "$project" --startup-project "$project" --configuration Release --no-build
+            echo "::endgroup::"
+          done
+
+      # The generated project's own gates, through the task an adopter runs: the
+      # scaffolders' self-tests and the coverage gate's fixtures. The tree-auditing
+      # gates are the template repository's own and do not ship; the task asks the
+      # filesystem which gates its project carries, so this step cannot drift from
+      # the exclusion that removes one.
+      - name: Run the generated project's hygiene gates
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs hygiene
+
+      - name: Uninstall the template
+        if: always()
+        run: dotnet new uninstall .
+
+  # The options that cannot be combined must be refused, and refused before anything is
+  # written. `--auth none` alone and with `--examples notes` leave the hidden required
+  # parameters unmet; a template that generated anyway would hand an adopter a project
+  # whose example features have no authentication to stand on.
+  template-refusals:
+    name: Template refuses unsupported options
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Install the template from this checkout
+        run: dotnet new install .
+
+      - name: Assert each unsupported combination exits non-zero and writes nothing
+        run: |
+          set -euo pipefail
+          refuse() {
+            local out="${{ runner.temp }}/refused-$1"
+            shift
+            if dotnet new cleanarch-webapi -n Sample.Refused -o "$out" "$@"; then
+              echo "::error title=Accepted::'dotnet new cleanarch-webapi $*' must be refused."
+              exit 1
+            fi
+            if [ -e "$out" ] && [ -n "$(find "$out" -type f -print -quit)" ]; then
+              echo "::error title=Wrote files::'dotnet new cleanarch-webapi $*' was refused but left files behind."
+              exit 1
+            fi
+          }
+          refuse alone --auth none
+          refuse notes --auth none --examples notes
+
+      - name: Uninstall the template
+        if: always()
+        run: dotnet new uninstall .
+

@@ -367,9 +367,9 @@ internal static class Tasks
             case "hygiene":
                 // No solution build needed. Catches a doc path that resolves to nothing, a workflow
                 // that would fail the first time it ran, and a comment that says what the code was
-                // rather than what it is. Each gate runs its fixtures first: a green from a gate
-                // that cannot go red proves nothing. The coverage gate's own run needs reports, so
-                // only its fixtures belong here.
+                // rather than what it is — each gate running its fixtures first, because a green
+                // from a gate that cannot go red proves nothing. The coverage gate's own run needs
+                // reports, so only its fixtures belong here.
                 Gates(repoRoot);
                 break;
 
@@ -407,22 +407,37 @@ internal static class Tasks
         return 0;
     }
 
-    /// <summary>The five hygiene gates, each preceded by the fixtures that prove it can go red.</summary>
+    /// <summary>The hygiene gates, each preceded by the fixtures that prove it can go red.</summary>
+    /// <remarks>
+    /// The scaffolders' and the coverage gate's fixtures run everywhere; the tree-auditing gates
+    /// are the template repository's own and a generated project receives none of them. Which set
+    /// a tree holds is asked of the filesystem rather than repeated as a condition, so this task
+    /// and the exclusions that shape a generated project cannot drift apart.
+    /// </remarks>
     private static void Gates(string repoRoot)
     {
         // The scaffolder is not a gate over the tree, but its self-test is what keeps its templates
         // from drifting away from the shapes the rules below check.
         Step("dotnet", "run", Gate(repoRoot, "NewFeature.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "RemoveFeature.cs"), "--self-test");
-        Step("dotnet", "run", Gate(repoRoot, "CheckDocPaths.cs"), "--self-test");
-        Step("dotnet", "run", Gate(repoRoot, "CheckDocPaths.cs"), repoRoot);
-        //#if (ci)
-        Step("dotnet", "run", Gate(repoRoot, "CheckWorkflows.cs"), "--self-test");
-        Step("dotnet", "run", Gate(repoRoot, "CheckWorkflows.cs"), repoRoot);
-        //#endif
+        OptionalGate(repoRoot, "CheckDocPaths.cs", "--self-test");
+        OptionalGate(repoRoot, "CheckDocPaths.cs", repoRoot);
+        OptionalGate(repoRoot, "CheckWorkflows.cs", "--self-test");
+        OptionalGate(repoRoot, "CheckWorkflows.cs", repoRoot);
         Step("dotnet", "run", Gate(repoRoot, "CoverageGate.cs"), "--self-test");
-        Step("dotnet", "run", Gate(repoRoot, "CheckNarrativeComments.cs"), "--self-test");
-        Step("dotnet", "run", Gate(repoRoot, "CheckNarrativeComments.cs"), repoRoot);
+        OptionalGate(repoRoot, "CheckNarrativeComments.cs", "--self-test");
+        OptionalGate(repoRoot, "CheckNarrativeComments.cs", repoRoot);
+    }
+
+    /// <summary>Runs one gate's command when the tree carries the gate, and skips it when it does not.</summary>
+    private static void OptionalGate(string repoRoot, string fileName, params string[] arguments)
+    {
+        string path = Path.Combine(repoRoot, "Tools", fileName);
+
+        if (File.Exists(path))
+        {
+            Step("dotnet", ["run", path, .. arguments]);
+        }
     }
 
     private static void Coverage(string repoRoot, string solution, string configuration, string runsettings)

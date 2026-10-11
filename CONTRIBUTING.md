@@ -25,9 +25,10 @@ A change is done when this passes, without overrides:
 dotnet run Tools/Tasks.cs verify
 ```
 
-That is the whole gate in CI's order — the four hygiene gates each after their own self-test,
-restore, formatting, build with warnings as errors, the tests, and migration drift for both
-contexts. The coverage floor is `dotnet run Tools/Tasks.cs coverage`, and
+That is the whole gate in CI's order — <!--#if (templateMaintenance)-->the four hygiene gates each
+after their own self-test<!--#else-->the `hygiene` task, running every carried gate's fixtures
+first<!--#endif-->, restore, formatting, build with warnings as errors, the tests, and migration
+drift for both contexts. The coverage floor is `dotnet run Tools/Tasks.cs coverage`, and
 `dotnet list package --vulnerable --include-transitive` has to report nothing.
 
 Three things about it are worth knowing before they cost you time.
@@ -40,8 +41,10 @@ path-scoped `.editorconfig` section with a comment saying why.
 gate on encoding alone, with a message that does not say so. `dotnet run Tools/Tasks.cs format-fix`
 after creating or moving any file.
 
+<!--#if (templateMaintenance)-->
 **A gate proves it can go red before it judges anything.** Adding a rule to one of the four hygiene
 gates means adding the fixture that fails without it.
+<!--#endif-->
 
 <!--#if (sonarWorkflow)-->
 **Sonar is not one of the gates, and it can still fail your pull request.** The gate above is what a
@@ -104,6 +107,7 @@ the one without an aggregate and `--model aggregate` the one with.
 
 ## Documentation is part of the change
 
+<!--#if (templateMaintenance)-->
 Two gates read the documentation, and they are not proofreading.
 
 `Tools/CheckDocPaths.cs` checks every repository path cited in a Markdown code span against the
@@ -113,10 +117,12 @@ real file has to be written so it does not read as one** — a placeholder such 
 rather than a plausible-looking name.
 
 `Tools/CheckNarrativeComments.cs` holds the comment rule over `.cs` and `.md` alike, `CHANGELOG.md`
-excepted — narrating history is what a changelog is for. **Rationale belongs in `docs/`**, not in a
+excepted — narrating history is what a changelog is for.
+<!--#endif-->
+**Rationale belongs in `docs/`**, not in a
 paragraph above a method: measurements, rejected options and arbitrations go in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/DECISIONS.md`](docs/DECISIONS.md) or a
-pending task specification — see [`docs/README.md`](docs/README.md#planned-work).
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/DECISIONS.md`](docs/DECISIONS.md)<!--#if (templateMaintenance)--> or a
+plan of record under docs/plans/<!--#endif-->.
 
 So: a change that moves a file updates the document that cites it, and a new architectural
 constraint becomes a section in the document that owns the subject *and* an executable rule in

@@ -123,6 +123,7 @@ by navigating them. So:
 under this directory — where a reader who wants them can address them directly. A design decision
 worth keeping is worth a section there, not a paragraph above a method.
 
+<!--#if (templateMaintenance)-->
 <!-- narrative-ok: stating this rule requires quoting the phrases it bans -->
 `Tools/CheckNarrativeComments.cs` executes the history half of that rule over every `.cs` and
 `.md` file, `CHANGELOG.md` excepted — narrating history is what a changelog is for. Its pattern
@@ -132,4 +133,5 @@ later would show up inside the v1" is design rationale, and no regular expressio
 a sentence about this repository's past. A line that cannot avoid the construction carries a
 `narrative-ok: <reason>` marker, and the marker count is printed so exemptions cannot spread
 unnoticed.
+<!--#endif-->
 

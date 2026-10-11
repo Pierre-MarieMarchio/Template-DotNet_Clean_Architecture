@@ -66,10 +66,11 @@ simple shape and `--model aggregate` is the rich one.
 ## The generator
 
 **There is a generator, and it writes the shape so this document can be about the thinking.** It has
-four choices, which are the four things a feature actually varies by, and nothing else is a switch:
+five choices, which are the five things a feature actually varies by, and nothing else is a switch:
 
 ```bash
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner|shared \
+    [--deletion delete|anonymise] \
     [--operations get,list,create,update,delete] \
     [--model record|aggregate] \
     [--concurrency none|etag]
@@ -82,6 +83,7 @@ is what reads them; `dotnet run Tools/NewFeature.cs <Features> <Feature> ...` is
 | Choice | Default | Meaning |
 |---|---|---|
 | `--access` | **none: required** | `owner` scopes every operation to the caller's id, read from `ICurrentUser` and never from a body, so another caller's record is answered exactly like a missing one. `shared` has no owner column and no filter: every authenticated caller reaches the same records. Neither is anonymous access, because the API still denies by default and the service still refuses a caller it cannot identify. |
+| `--deletion` | **none: required with `--access owner`** | The fate of the feature's rows once the account that owns them is deleted, which the account cannot decide for data it no longer owns. `delete` removes them; `anonymise` rewrites what identifies the owner and keeps the rows. Either way the generator writes the consumer of `UserAccountDeleted` that applies the policy, both its faces in one class (section 2 below says what binds them by hand), and in `--model aggregate` the `Anonymise()` domain method that policy needs. Refused with `--access shared`, which holds no user data. |
 | `--operations` | all five | Any subset of `get`, `list`, `create`, `update`, `delete`. An operation left out produces no file, method, route or registration. Each read stages and commits nothing. |
 | `--model` | `record` | `record` is the simple shape: one service, a write port (`I<Feature>Store`) and a read port (`I<Feature>Queries`), and the EF record is the only model. `aggregate` is the rich shape: a domain aggregate with its repository port, one use case per operation, a queries port, and a record, mapper and tracker. The question in [Choose the shape first](#choose-the-shape-first) decides, and nothing else does. |
 | `--concurrency` | `none` | `none`: an update replaces what is stored whatever its state, so **of two concurrent writers the last one wins**; the API publishes no `ETag` and reads no `If-Match`, and says so in its comments. `etag`: a persisted version (PostgreSQL's `xmin`), an `ETag` on reads, `If-Match` on writes, and a stale write refused at the database. |
@@ -89,12 +91,16 @@ is what reads them; `dotnet run Tools/NewFeature.cs <Features> <Feature> ...` is
 A port is one capability, and staging writes is not reading, which is why a `record` feature has a store
 and a queries port rather than every operation in a single port. A port whose operations are all
 left out is not written: with only `get` and `list` there is no store, and with only `delete` there is
-no queries port.
+no queries port. A feature that owns user data is the exception on both sides: its account-deleted
+reaction reads through the queries port and writes through the store (or the repository) whatever
+the operations are, so an owner feature always has both halves.
 
 **The combinations that are refused**, each before anything is written and each with the change that
 fixes it:
 
 - `create` without `get`: the `201` carries a `Location`, and the route it names is the one of `get`.
+- `--access owner` without `--deletion`: the fate of user data is not a default to slip into.
+- `--deletion` with `--access shared`: no caller owns the rows, so there is no fate to declare.
 - `--concurrency etag` with `update` or `delete` but no `get`: nobody could read the version to send it back.
 - `--model record --concurrency etag` with neither `update` nor `delete`: a version nothing checks.
 - `--model aggregate` without `--concurrency etag`. An aggregate is loaded whole and written whole,
@@ -106,7 +112,7 @@ fixes it:
 **The command that corresponds to `Notes`** is the one that chooses what `Notes` chose:
 
 ```bash
-dotnet run Tools/Tasks.cs new-feature Notes Note --access owner --concurrency etag
+dotnet run Tools/Tasks.cs new-feature Notes Note --access owner --deletion delete --concurrency etag
 ```
 
 The record shape and all five operations come from the defaults. **An optionless command is not
@@ -128,7 +134,10 @@ exists yet. Otherwise it refuses before deleting anything and prints the same re
 
 - Application: the DTOs, the errors, the input and collection policies where they are used, the
   validator, the ports, and either the service (`record`) or the use cases with their commands and
-  queries (`aggregate`).
+  queries (`aggregate`). An owner feature also gets the consumer of `UserAccountDeleted` that
+  applies its declared policy, the `ListDataOwnerIdsAsync` the sweep asks its queries port for, and
+  the owner-wide write the policy applies (`StageRemovalForOwnerAsync` / `StageAnonymisationForOwnerAsync`
+  on the store, `GetForOwnerAsync` on the repository, `Anonymise()` on the aggregate).
 - Domain, for `aggregate` only: the aggregate and its repository port. It holds a name and a
   description with the length rules of a new write, and nothing that the feature has not been asked
   for: the rules it protects are yours to write.
@@ -140,12 +149,22 @@ exists yet. Otherwise it refuses before deleting anything and prints the same re
   service (anonymous callers refused and nothing read or written for them, an absent record not found,
   invalid content staging nothing); for `aggregate` the aggregate's rules and the mapper's round trip.
 
+A project generated with no feature ships none of the account-deleted reaction, and its first owner
+feature brings the missing pieces with it: `IDeletedAccountDataPolicy` and `IUserAccountDirectory`
+in `Application.Core`, the sweep use case, the background registration of the sweep, and the
+account-directory adapter over the local accounts or the external-identity mapping. A project that
+already has a feature — or a tree without accounts, which is refused — gets none of those.
+
 **It creates files and edits none**, because registration is opt-in per feature precisely so that a
 feature nobody composes is visibly registered nowhere. It prints the edits instead — the three in
-`AppDbContext`, the `Add<Features>()` of `ApplicationModule` and of `PersistenceModule`, the call in
-`Program.cs`, and the two test classes that list every feature — and then the migration step. It
-does not run EF: while the project is unreleased the repository keeps one `InitialCreate` per
-context, so the step is to regenerate it, and after a release it is a named migration.
+`AppDbContext`, the `Add<Features>()` of `ApplicationModule` (with, for an owner feature, the two
+faces of its account-deleted policy) and of `PersistenceModule`, the call in `Program.cs`, and the
+two test classes that list every feature — and then the migration step. When it brought the
+account-deleted reaction with it, four more edits are printed: the `AddDeletedAccountSweep()` of
+`ApplicationCoreModule` and its call in `Program.cs`, the `AddDeletedAccountSweepJobs()` call of
+`BackgroundJobsModule`, and the directory adapter in the composition of the accounts. It does not
+run EF: while the project is unreleased the repository keeps one `InitialCreate` per context, so the
+step is to regenerate it, and after a release it is a named migration.
 
 **Before writing anything** it checks every name and option, refuses a combination that would not hold
 together, and refuses to write if the feature folder, the manifest or any file it would create
@@ -316,16 +335,18 @@ still compiles — the consumer simply never fires, and the use case that takes 
 throws on its first resolution.
 
 <!--#if (anyFeature)-->
-**A feature that owns user data also declares what a deleted account means for its rows.** Write
-one consumer of `UserAccountDeleted` that also implements `IDeletedAccountDataPolicy` (both faces in
-one class: the consumer is the fast path, the policy face is what the sweep calls), have it
-re-derive the precondition through `IUserAccountDirectory` — the account must be gone — before it
-writes anything, commit per owner through the feature's own `IUnitOfWork`, and bind both faces in
-the feature's `AddX()`: the `AddDomainEventConsumer<UserAccountDeleted, …Consumer>()` line and the
-`AddScoped<IDeletedAccountDataPolicy, …Consumer>()` line. Deleting is the template's own features'
-choice; anonymising is the same two faces writing rows instead of removing them. The sweep that
-guarantees the fact reached a feature is already composed — nothing to add — and a feature that
-holds no user data declares no policy at all.
+**A feature that owns user data also declares what a deleted account means for its rows**, and the
+generator asks which fate and writes the reaction: one consumer of `UserAccountDeleted` that also
+implements `IDeletedAccountDataPolicy` (both faces in one class: the consumer is the fast path, the
+policy face is what the sweep calls), re-deriving the precondition through `IUserAccountDirectory`
+— the account must be gone — before it writes anything, and committing per owner through the
+feature's own `IUnitOfWork`. What stays by hand is the binding of both faces in the feature's
+`AddX()` — the `AddDomainEventConsumer<UserAccountDeleted, …Consumer>()` line and the
+`AddScoped<IDeletedAccountDataPolicy, …Consumer>()` line — because registration is opt-in
+everywhere else and this is no exception. Deleting is the template's own features' choice;
+anonymising is the same two faces writing rows instead of removing them. The sweep that guarantees
+the fact reached a feature is already composed — nothing to add — and a feature that holds no user
+data declares no policy at all.
 <!--#endif-->
 
 A port is a capability, not a façade, and two architecture rules hold it to that.

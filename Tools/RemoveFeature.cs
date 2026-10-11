@@ -884,9 +884,9 @@ internal static class RemoveFeature
     {
         string[][] combinations =
         [
-            ["Widgets", "Widget", "--access", "owner", "--model", "aggregate", "--concurrency", "etag"],
+            ["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--model", "aggregate", "--concurrency", "etag"],
             ["Notes", "Note", "--access", "shared", "--operations", "get,list", "--concurrency", "none"],
-            ["Gadgets", "Gadget", "--access", "owner", "--model", "record", "--concurrency", "etag", "--operations", "get,list,create,update"],
+            ["Gadgets", "Gadget", "--access", "owner", "--deletion", "anonymise", "--model", "record", "--concurrency", "etag", "--operations", "get,list,create,update"],
         ];
 
         foreach (string[] combination in combinations)
@@ -906,6 +906,11 @@ internal static class RemoveFeature
 
             Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
             Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddTodoLists();\n");
+
+            // The account-deleted reaction, as a tree generated with a feature ships it: this test is
+            // about removing a feature, and the reaction a first owner feature would bring along is
+            // the generator's own self-test's subject.
+            Put(root, "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
 
             var original = Snapshot(root);
 

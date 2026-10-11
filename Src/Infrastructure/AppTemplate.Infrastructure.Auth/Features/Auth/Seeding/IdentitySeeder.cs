@@ -7,14 +7,10 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
 
-/// <summary>
-/// Creates the <c>Admin</c> role and, in Development only, one administrator account.
-/// <para>
-/// Three guarantees, in order. It is opt-in: nothing happens unless <c>IdentitySeed:Enabled</c> is
-/// set. It is refused outside Development, loudly, rather than shipping a known superuser to
-/// production. And a failed create throws instead of being ignored, so a password the hasher
-/// rejected cannot pass for a clean start-up.
-/// </para>
+/// <summary>Creates the <c>Admin</c> role and, in Development only, one administrator account.
+/// Three guarantees: it is opt-in (<c>IdentitySeed:Enabled</c>); it is refused outside Development,
+/// loudly, rather than shipping a known superuser to production; and a failed create throws, so a
+/// password the hasher rejected cannot pass for a clean start-up.
 /// <para>
 /// It writes through <see cref="UserManager{TUser}"/> rather than through the context, because an
 /// account is not just a row: the password has to be hashed with the configured hasher and the

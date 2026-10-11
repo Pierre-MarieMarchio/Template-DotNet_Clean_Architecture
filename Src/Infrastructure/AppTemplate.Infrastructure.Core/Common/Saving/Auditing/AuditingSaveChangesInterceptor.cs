@@ -5,25 +5,15 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 
-/// <summary>
-/// Stamps audit columns on the persistence models that opt in via <see cref="IAuditable"/>.
-/// <para>
-/// The contract is an interface and the dispatch is pattern matching, so a renamed property fails
-/// at compile time. An unattributed write is recorded as <c>null</c>, because "we do not know who
-/// did this" is a fact worth keeping and <c>Guid.Empty</c> is a lie that looks like a user id. It
+/// <summary>Stamps audit columns on the persistence models that opt in via
+/// <see cref="IAuditable"/>. An unattributed write is recorded as <c>null</c> — "we do not know who
+/// did this" is a fact worth keeping, where <c>Guid.Empty</c> is a lie that looks like a user id. It
 /// takes <see cref="IAuditActor"/> rather than <c>ICurrentUser</c>: this runs on every save, from
-/// hosts that have no caller to name, and asking those for a caller made the stamp a reason the
-/// commit could fail. It stamps
-/// the record, not the aggregate: the tracked entities are the persistence models and they are what
-/// carries the audit columns, so this interceptor is their single writer. A mapper that copied audit
-/// values out of a domain object into a row would be a second writer, and the two would diverge.
-/// </para>
-/// <para>
-/// It knows no feature. Marking an aggregate root modified because one of its children changed is a
-/// per-aggregate rule — it depends on which navigation leads back to the root — so it belongs to the
-/// feature that owns the aggregate, in its flusher, which runs first for exactly that reason.
-/// </para>
-/// </summary>
+/// hosts with no caller to name. It stamps the record, not the aggregate — the tracked entities are
+/// the persistence models, so this interceptor is their single writer; a mapper copying audit
+/// values out of a domain object would be a second writer, and the two would diverge. It knows no
+/// feature: marking a root modified because a child changed is a per-aggregate rule, and belongs to
+/// the feature's flusher, which runs first for exactly that reason.</summary>
 public sealed class AuditingSaveChangesInterceptor(
     IAuditActor auditActor,
     IDateTimeProvider dateTimeProvider) : SaveChangesInterceptor

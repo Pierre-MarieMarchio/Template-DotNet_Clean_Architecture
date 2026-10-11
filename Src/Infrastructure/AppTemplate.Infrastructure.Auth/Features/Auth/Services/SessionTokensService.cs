@@ -15,26 +15,17 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Services;
 
-/// <summary>
-/// <see cref="ISessionTokensService"/>: signs access tokens through <see cref="AccessTokenIssuer"/>,
-/// and issues, rotates, revokes and purges refresh tokens, one family per session.
-///
-/// A refresh token is 32 bytes from a CSPRNG, base64url-encoded — not a JWT, so a stolen refresh
-/// token is not also a bearer token. Only the SHA-256 hash is persisted, and every presentation
-/// rotates the grant: presenting one that was already rotated means either a replay or a leak, so
-/// every session of that user is revoked and the request fails. Presenting one of a session that
-/// was ended is different: it is what a client still holding it sends next, and it is refused
-/// without the alarm.
-///
-/// <para>
-/// Rows are staged through <see cref="IRefreshTokenTable"/> and <see
-/// cref="IRefreshTokenFamilyTable"/> and committed through <see cref="IContextUnitOfWork{TContext}"/>
-/// over this module's own context, so a rotation could share a transaction with other work. The one
-/// step that does not wait for that commit is consuming a presented grant: single-use rotation has
-/// to be decided by one conditional UPDATE, and <see cref="IRefreshTokenTable.TryRotateAsync"/>
-/// says why.
-/// </para>
-/// </summary>
+/// <summary><see cref="ISessionTokensService"/>: signs access tokens through
+/// <see cref="AccessTokenIssuer"/>, and issues, rotates, revokes and purges refresh tokens, one
+/// family per session. A refresh token is 32 CSPRNG bytes, base64url-encoded — not a JWT, so a
+/// stolen one is not also a bearer token; only its SHA-256 hash is persisted, and every presentation
+/// rotates the grant — presenting one already rotated means replay or leak, so every session of that
+/// user is revoked, while presenting one of an ended session is merely refused, without the alarm.
+/// Rows are staged through <see cref="IRefreshTokenTable"/> and
+/// <see cref="IRefreshTokenFamilyTable"/> and committed through
+/// <see cref="IContextUnitOfWork{TContext}"/>, so a rotation could share a transaction with other
+/// work; consuming a presented grant is the one step that does not wait — single-use rotation is
+/// decided by one conditional UPDATE (<see cref="IRefreshTokenTable.TryRotateAsync"/> says why).</summary>
 internal sealed class SessionTokensService(
     AccessTokenIssuer accessTokenIssuer,
     IRefreshTokenTable table,

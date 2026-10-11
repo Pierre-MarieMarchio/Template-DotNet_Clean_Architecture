@@ -13,28 +13,17 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Services;
 
-/// <summary>
-/// <see cref="ITwoFactorService"/> over <see cref="UserManager{TUser}"/>. Enrollment uses ASP.NET
-/// Identity's own authenticator plumbing — <c>GetAuthenticatorKeyAsync</c>,
-/// <c>ResetAuthenticatorKeyAsync</c>, <c>VerifyTwoFactorTokenAsync</c>,
-/// <c>GenerateNewTwoFactorRecoveryCodesAsync</c> — rather than RFC 6238 implemented by hand: the
-/// shared secret, the 30-second step and the SHA-1 HMAC are exactly what
-/// <see cref="TokenOptions.DefaultAuthenticatorProvider"/> already does, tested by the framework.
-/// <para>
-/// <b>The sign-in challenge is server-held state, and has to stay that way.</b> It proves only that a
-/// password was verified a moment ago, and it is checked against the stored row so that it can be
-/// revoked on use; a self-describing bearer token would have neither property. The row lives in the
-/// same <c>AspNetUserTokens</c> table Identity uses for the authenticator key and recovery codes,
-/// under a login provider name of this module's own so the two never collide, and it survives a
-/// redeploy and is visible to every replica, which an in-memory cache would not be.
-/// </para>
-/// <para>
-/// <b>Challenge format.</b> The token handed to the caller is <c>{userId}.{secret}</c>: a login is
-/// anonymous, so the account has to be self-describing rather than found by an index this table does
-/// not offer. Only <c>SHA-256(secret)</c> is stored. <c>SetAuthenticationTokenAsync</c> overwrites in
-/// place, so issuing a new challenge for an account supersedes whichever one came before it.
-/// </para>
-/// </summary>
+/// <summary><see cref="ITwoFactorService"/> over <see cref="UserManager{TUser}"/>. Enrollment uses
+/// ASP.NET Identity's own authenticator plumbing rather than RFC 6238 by hand — the shared secret,
+/// the 30-second step and the SHA-1 HMAC are what
+/// <see cref="TokenOptions.DefaultAuthenticatorProvider"/> already does. <b>The sign-in challenge is
+/// server-held state, and has to stay that way:</b> it proves only that a password was verified a
+/// moment ago and can be revoked on use, which a self-describing bearer token could not be. The row
+/// lives in the same <c>AspNetUserTokens</c> table Identity uses for the authenticator key, under a
+/// login provider name of this module's own, so it survives a redeploy and is visible to every
+/// replica. The token handed to the caller is <c>{userId}.{secret}</c> — a login is anonymous, so the
+/// account is self-describing — and only <c>SHA-256(secret)</c> is stored; issuing a new challenge
+/// supersedes the previous one in place.</summary>
 internal sealed class TwoFactorService(
     UserManager<AppUser> userManager,
     IAppUserDirectory directory,
@@ -175,11 +164,9 @@ internal sealed class TwoFactorService(
             : TwoFactorDisableStatus.Rejected;
     }
 
-    /// <summary>
-    /// Turns the second factor off and discards its secret: the one sequence both this service and
-    /// <see cref="AccountAdministrationService"/> run once their own proof is settled. On success the
-    /// security stamp has rotated, whether the factor was armed or not.
-    /// </summary>
+    /// <summary>Turns the second factor off and discards its secret: the one sequence both this
+    /// service and <see cref="AccountAdministrationService"/> run once their own proof is settled.
+    /// On success the security stamp has rotated, armed or not.</summary>
     /// <returns><c>false</c> when the store refused to turn the factor off, which leaves it on.</returns>
     internal static async Task<bool> TurnOffAsync(UserManager<AppUser> userManager, AppUser user)
     {
@@ -331,12 +318,9 @@ internal sealed class TwoFactorService(
             CultureInfo.InvariantCulture,
             $"{expiresAt.ToUnixTimeSeconds()}:{Base64Url.EncodeToString(hash)}:{attempts}");
 
-    /// <summary>
-    /// Reads either shape. A two-part value is one written before the attempt counter existed, and
-    /// is read as having spent none: a challenge live across the deploy that added this is worth
-    /// honouring, and the alternative — treating it as unparseable — would sign out everybody
-    /// mid-login for no security gain.
-    /// </summary>
+    /// <summary>Reads either shape. A two-part value predates the attempt counter and is read as
+    /// having spent none: a challenge live across the deploy that added this is worth honouring, and
+    /// treating it as unparseable would sign out everybody mid-login for no security gain.</summary>
     private static bool TryDecode(string stored, out DateTimeOffset expiresAt, out byte[] hash, out int attempts)
     {
         expiresAt = default;

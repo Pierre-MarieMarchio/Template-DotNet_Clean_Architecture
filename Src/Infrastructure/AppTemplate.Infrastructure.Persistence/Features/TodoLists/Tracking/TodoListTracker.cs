@@ -6,40 +6,22 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;
 
-/// <summary>
-/// The reconciliation half of <see cref="AggregateTracker{TAggregate,TRecord}"/> for
-/// <see cref="TodoList"/>: how its aggregate's state — including its item and tag children — is written
-/// onto the row EF is already tracking. The identity map, the drain and the restore path that make up
-/// the other half are inherited unchanged; see the base class for those.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>Change detection.</b> EF cannot see a mutation inside an aggregate it does not track, so
-/// <see cref="FlushTo"/> maps the aggregate onto the tracked row and then lets EF's own diff decide what
-/// to write, rather than rebuilding the row — which would make every write a full-row <c>UPDATE</c> and
-/// flatten the audit columns. Child rows are reconciled by id, so an item nobody touched is compared
-/// equal and produces no statement at all.
-/// </para>
-/// <para>
-/// <b>Aggregate boundary.</b> A change to a child is a change to its aggregate. After mapping, the
-/// change tracker is asked which item and tag rows are dirty, and every root that owns one is enrolled
-/// in the write even when none of its own columns moved. That is what makes the root's <c>xmin</c> the
-/// arbiter for every write anywhere in the aggregate, and what moves its <c>LastModifiedAt</c> when an
-/// item is added. Without it two callers could add items to the same list concurrently and the list
-/// would claim it had not changed since it was created. This is also the reason
-/// <c>AggregateTracker{TAggregate,TRecord}.FlushTo</c> is not shared:
-/// <see cref="AppTemplate.Infrastructure.Persistence.Features.Reminders.Tracking.ReminderTracker"/>
-/// has no child row to enrol a root for, so it has nothing resembling this method beyond its first few
-/// lines.
-/// </para>
-/// <para>
-/// <b>Concurrency.</b> The version the aggregate is carrying is pushed into the row's <em>original</em>
-/// value, which is the value EF puts in the <c>WHERE</c> clause. In the ordinary case it is already
-/// equal — the aggregate got it from this very row — so this is a no-op; the point is that the guarantee
-/// then holds by construction rather than by coincidence, including for an aggregate that outlived the
-/// query that produced it.
-/// </para>
-/// </remarks>
+/// <summary>The reconciliation half of <see cref="AggregateTracker{TAggregate,TRecord}"/> for
+/// <see cref="TodoList"/>: how the aggregate's state — item and tag children included — is written
+/// onto the row EF is already tracking; the identity map, the drain and the restore path are
+/// inherited unchanged.</summary>
+/// <remarks><b>Change detection:</b> <see cref="FlushTo"/> maps the aggregate onto the tracked row
+/// and lets EF's own diff decide what to write, rather than rebuilding the row — a full-row
+/// <c>UPDATE</c> that would flatten the audit columns; child rows reconcile by id, so an untouched
+/// item produces no statement. <b>Aggregate boundary:</b> after mapping, every root that owns a
+/// dirty item or tag row is enrolled in the write even when none of its own columns moved — what
+/// makes the root's <c>xmin</c> the arbiter for the whole aggregate and moves its
+/// <c>LastModifiedAt</c> when an item is added; also why <c>AggregateTracker.FlushTo</c> is not
+/// shared with <see cref="AppTemplate.Infrastructure.Persistence.Features.Reminders.Tracking.ReminderTracker"/>,
+/// which has no child row to enrol a root for. <b>Concurrency:</b> the aggregate's version is pushed
+/// into the row's <em>original</em> value — the value EF puts in the <c>WHERE</c> clause — usually
+/// already equal, so the guarantee holds by construction even for an aggregate that outlived the
+/// query that produced it.</remarks>
 internal sealed class TodoListTracker(ITodoListMapper mapper)
     : AggregateTracker<TodoList, TodoListRecord>(record => record.Version), ITodoListTracker
 {

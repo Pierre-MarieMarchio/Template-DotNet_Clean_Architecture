@@ -3,16 +3,11 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Options;
 
-/// <summary>
-/// Which identity providers this installation accepts an <c>id_token</c> from, and how long their
-/// signing keys are believed.
-/// <para>
-/// <b>An empty section is valid and is the default.</b> A deployment that does not offer external
-/// sign-in boots normally and refuses every attempt as
+/// <summary>Which identity providers this installation accepts an <c>id_token</c> from, and how
+/// long their signing keys are believed. <b>An empty section is valid and is the default:</b> a
+/// deployment that does not offer external sign-in boots normally and refuses every attempt as
 /// <c>ExternalIdentityStatus.UnknownProvider</c>; a validator that demanded a provider would stop
-/// the process for a feature the project may never turn on.
-/// </para>
-/// </summary>
+/// the process for a feature the project may never turn on.</summary>
 public sealed class ExternalIdentityOptions
 {
     public const string SectionName = "ExternalIdentity";
@@ -28,22 +23,11 @@ public sealed class ExternalIdentityOptions
     /// </summary>
     public IList<ExternalIdentityProviderOptions> Providers { get; } = [];
 
-    /// <summary>
-    /// How long a fetched key set is used before it is fetched again.
-    /// <para>
-    /// Fifteen minutes, and the number is a compromise between two failures rather than a guess.
-    /// Fetching per sign-in would put the provider on the hot path of every login; a long-lived
-    /// cache means a key the provider <em>withdrew</em> stays trusted here for as long as the cache
-    /// says. Fifteen minutes bounds that window at fifteen minutes and costs ninety-six requests a
-    /// day per provider, which is nothing.
-    /// </para>
-    /// <para>
-    /// Key <em>rotation</em> — the far more common event — is not handled by this number at all: a
-    /// token naming a key the cache does not hold triggers an immediate re-fetch, so a new key is
-    /// picked up on the first token that uses it rather than up to fifteen minutes later. See
-    /// <see cref="SigningKeyDirectory"/>.
-    /// </para>
-    /// </summary>
+    /// <summary>How long a fetched key set is used before it is fetched again — fifteen minutes, a
+    /// compromise: fetching per sign-in would put the provider on the hot path of every login, and a
+    /// longer cache means a key the provider <em>withdrew</em> stays trusted that much longer. Key
+    /// <em>rotation</em> is not handled by this number at all — a token naming a key the cache does
+    /// not hold triggers an immediate re-fetch (<see cref="SigningKeyDirectory"/>).</summary>
     public TimeSpan KeySetLifetime { get; set; } = TimeSpan.FromMinutes(15);
 
     /// <summary>

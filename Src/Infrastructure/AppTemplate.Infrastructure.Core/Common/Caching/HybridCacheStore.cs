@@ -4,21 +4,12 @@ using Microsoft.Extensions.Caching.Hybrid;
 namespace AppTemplate.Infrastructure.Core.Common.Caching;
 
 /// <summary><see cref="ICacheStore"/> over <see cref="HybridCache"/>.</summary>
-/// <remarks>
-/// <para>
-/// With no distributed cache registered, <see cref="HybridCache"/> is an in-process cache, so each
-/// process holds its own copy and no eviction reaches the others. A second level is added by
-/// registering an <c>IDistributedCache</c>; nothing here changes, and no caller does either.
-/// </para>
-/// <para>
-/// Concurrent misses on one key run the factory once and share its result, which is what a plain
-/// dictionary would have to be written to do.
-/// </para>
-/// <para>
-/// Both expirations are set to the same lifetime: the local copy outliving the shared one would
-/// hand back a value the rest of the deployment has already dropped.
-/// </para>
-/// </remarks>
+/// <remarks>With no distributed cache registered, <see cref="HybridCache"/> is in-process: each
+/// process holds its own copy and no eviction reaches the others; a second level is added by
+/// registering an <c>IDistributedCache</c>, with nothing here changing. Concurrent misses on one key
+/// run the factory once and share its result. Both expirations are the same lifetime — the local
+/// copy outliving the shared one would hand back a value the rest of the deployment has already
+/// dropped.</remarks>
 internal sealed class HybridCacheStore(HybridCache cache) : ICacheStore
 {
     public Task<T> GetOrCreateAsync<T>(

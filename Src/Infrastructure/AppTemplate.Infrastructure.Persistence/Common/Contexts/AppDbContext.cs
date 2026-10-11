@@ -23,22 +23,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
 
-/// <summary>
-/// The business half's <see cref="DbContext"/>: the domain's persistence models and the tables no
-/// feature owns, in one model with one migrations history; authentication stores through a context
-/// of its own on the same connection (why two rather than one, and why one database rather than
-/// two, is argued in docs/ARCHITECTURE.md). <b>This class is the model's composition root:</b> the
-/// one type in <c>Common/</c> allowed to name a feature, exactly as <c>Program.cs</c> is the one
-/// place allowed to name every module. A context instance is a unit of work: the DI container
-/// opens it scoped to one request and disposes it; staged changes are committed by exactly one
-/// call to <c>SaveChangesAsync</c>, made by <see cref="Application.Core.Common.Ports.IUnitOfWork"/>
-/// on behalf of a use case — repositories, query classes and stores borrow the context and never
-/// commit. Two things it deliberately does not do: it does not take <c>ICurrentUser</c>, which
-/// would make every instance depend on an HTTP request and stamp audit columns with an empty
-/// caller outside one; and it does not override <c>SaveChangesAsync</c> to stamp, flush or
-/// dispatch — that belongs in <see cref="Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor"/>
-/// implementations, which also apply to the synchronous overload an override would miss.
-/// </summary>
+/// <summary>The business half's <see cref="DbContext"/>: the domain's persistence models and the
+/// tables no feature owns, in one model with one migrations history; authentication stores through a
+/// context of its own on the same connection (docs/ARCHITECTURE.md argues why two rather than one).
+/// <b>This class is the model's composition root</b> — the one type in <c>Common/</c> allowed to name
+/// a feature, as <c>Program.cs</c> is the one place allowed to name every module. A context instance
+/// is a unit of work, scoped to one request; staged changes are committed by exactly one
+/// <c>SaveChangesAsync</c>, made by <see cref="Application.Core.Common.Ports.IUnitOfWork"/> on
+/// behalf of a use case — repositories and stores borrow the context and never commit. It takes no
+/// <c>ICurrentUser</c>, which would make every instance depend on an HTTP request, and it does not
+/// override <c>SaveChangesAsync</c> to stamp, flush or dispatch — that belongs in
+/// <see cref="Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor"/> implementations,
+/// which also apply to the synchronous overload an override would miss.</summary>
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     //#if (todoLists)
@@ -81,24 +77,19 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// </summary>
     public const string PlatformSchema = "platform";
 
-    /// <summary>
-    /// This context's history table. It is left in the connection's default schema rather than
-    /// inside a feature's, because it belongs to none of them; the other context's sits in the
-    /// schema its own tables live in. Naming it here and in the design-time factory keeps the tool
-    /// and the runtime from disagreeing about where applied migrations are recorded.
-    /// </summary>
+    /// <summary>This context's history table, left in the connection's default schema because it
+    /// belongs to no feature. Naming it here and in the design-time factory keeps the tool and the
+    /// runtime from disagreeing about where applied migrations are recorded.</summary>
     public const string MigrationsHistoryTableName = "__EFMigrationsHistory";
 
     /// <summary>The schema the migrations history table lives in.</summary>
     public const string MigrationsHistorySchema = "public";
 
     //#if (todoLists)
-    /// <summary>
-    /// The to-do list aggregate's root table. This is a <em>persistence model</em>, not the domain
-    /// aggregate: the domain type is mapped onto it by
-    /// <see cref="Features.TodoLists.Mapping.ITodoListMapper"/> and is never tracked by EF. Internal,
-    /// because nothing outside this assembly has any business naming a storage shape.
-    /// </summary>
+    /// <summary>The to-do list aggregate's root table — a <em>persistence model</em>, not the domain
+    /// aggregate, which <see cref="Features.TodoLists.Mapping.ITodoListMapper"/> maps onto it and EF
+    /// never tracks. Internal: nothing outside this assembly has any business naming a storage
+    /// shape.</summary>
     internal DbSet<TodoListRecord> TodoLists => Set<TodoListRecord>();
 
     //#endif
@@ -111,12 +102,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     //#endif
     //#if (files)
-    /// <summary>
-    /// The stored-file aggregate's table: everything about a file except its content, which never
-    /// passes through this application at all. Also a persistence model rather than the domain
-    /// aggregate, mapped by <see cref="Features.Files.Mapping.IStoredFileMapper"/> and never tracked by
-    /// EF.
-    /// </summary>
+    /// <summary>The stored-file aggregate's table: everything about a file except its content,
+    /// which never passes through this application. Also a persistence model, mapped by
+    /// <see cref="Features.Files.Mapping.IStoredFileMapper"/> and never tracked by EF.</summary>
     internal DbSet<StoredFileRecord> StoredFiles => Set<StoredFileRecord>();
 
     /// <summary>Where the orphan sweep's walk of the object store has reached.</summary>
@@ -143,12 +131,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     internal DbSet<RoleAssignmentRecord> RoleAssignments => Set<RoleAssignmentRecord>();
 
     //#endif
-    /// <summary>
-    /// Claimed idempotency keys. Internal for the same reason as every other row type here: the
-    /// rules for claiming, completing and releasing one live in
+    /// <summary>Claimed idempotency keys. Internal like every other row type here: the rules for
+    /// claiming, completing and releasing one live in
     /// <see cref="Common.Idempotency.IdempotencyStore"/>, reached only through
-    /// <see cref="Application.Core.Common.Idempotency.IIdempotencyStore"/>.
-    /// </summary>
+    /// <see cref="Application.Core.Common.Idempotency.IIdempotencyStore"/>.</summary>
     internal DbSet<IdempotencyRecord> IdempotencyKeys => Set<IdempotencyRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

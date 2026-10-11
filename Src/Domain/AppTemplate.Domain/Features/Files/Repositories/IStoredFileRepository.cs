@@ -15,8 +15,8 @@ public interface IStoredFileRepository
     Task<StoredFile?> GetAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Registrations never deposited against, oldest first, capped at <paramref name="batchSize"/>.
-    /// A coarse filter: <see cref="StoredFile.IsAbandoned"/> decides whether one may be given up on.
+    /// Registrations never deposited against, oldest first, capped at <paramref name="batchSize"/>;
+    /// a coarse filter — <see cref="StoredFile.IsAbandoned"/> decides whether one may be given up on.
     /// </summary>
     /// <param name="registeredBefore">Only files registered strictly before this instant.</param>
     Task<IReadOnlyList<StoredFile>> GetPendingRegisteredBeforeAsync(
@@ -25,9 +25,10 @@ public interface IStoredFileRepository
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Deposited files due for inspection at <paramref name="asOf"/>, ordered by when they became due
-    /// (<see cref="StoredFile.NextInspectionAt"/>, else <see cref="StoredFile.RegisteredAt"/>, then id),
-    /// capped at <paramref name="batchSize"/>, so a deferred file queues behind those that waited longer.
+    /// Deposited files due for inspection at <paramref name="asOf"/>, ordered by when they became
+    /// due (<see cref="StoredFile.NextInspectionAt"/>, else <see cref="StoredFile.RegisteredAt"/>,
+    /// then id), capped at <paramref name="batchSize"/>; a deferred file queues behind those that
+    /// waited longer.
     /// </summary>
     Task<IReadOnlyList<StoredFile>> GetDepositedAsync(
         DateTimeOffset asOf,
@@ -37,9 +38,8 @@ public interface IStoredFileRepository
     void Add(StoredFile storedFile);
 
     /// <summary>
-    /// Every file one owner holds, whatever its state, loaded as aggregates with their tags: the
-    /// account-deleted policy removes through the aggregate — <c>StoredFile.Delete</c> announces the
-    /// bytes — not around it.
+    /// Every file one owner holds, with tags, as aggregates: the account-deleted policy removes
+    /// through the aggregate — <c>StoredFile.Delete</c> announces the bytes — not around it.
     /// </summary>
     Task<IReadOnlyList<StoredFile>> GetForOwnerAsync(
         UserId ownerId,

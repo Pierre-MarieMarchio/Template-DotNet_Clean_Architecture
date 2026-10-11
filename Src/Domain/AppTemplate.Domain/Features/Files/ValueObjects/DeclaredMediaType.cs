@@ -3,13 +3,10 @@
 namespace AppTemplate.Domain.Features.Files.ValueObjects;
 
 /// <summary>
-/// The media type a client said its file would be.
-/// <para>
-/// It validates the shape of the claim and nothing about the bytes, which this aggregate never holds: a declared
-/// <c>image/png</c> may be HTML or an executable. It is safe for showing the user what they said and for refusing a
-/// type the application does not accept; anything treating it as a fact about content (serving it without
-/// <c>X-Content-Type-Options: nosniff</c>, choosing a decoder) is a vulnerability.
-/// </para>
+/// The media type a client said its file would be: a validated claim about nothing. It is safe for
+/// showing the user their own claim and for refusing a type the application does not accept;
+/// anything treating it as a fact about content — serving without <c>X-Content-Type-Options:
+/// nosniff</c>, choosing a decoder — is a vulnerability.
 /// </summary>
 public sealed record DeclaredMediaType
 {

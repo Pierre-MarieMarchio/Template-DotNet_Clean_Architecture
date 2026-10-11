@@ -6,31 +6,22 @@ using AppTemplate.Domain.Core.Common.Exceptions;
 namespace AppTemplate.Domain.Features.Files.ValueObjects;
 
 /// <summary>
-/// The name the bytes of a <see cref="Entities.StoredFile"/> are filed under in the object store.
-/// <para>
-/// It is data, not a formula: minted once by <see cref="New"/>, persisted beside the file and never recomputed from
-/// its id (see <c>docs/DECISIONS.md</c>).
-/// </para>
+/// The name the bytes of a <see cref="Entities.StoredFile"/> are filed under in the object store:
+/// data, not a formula — minted once by <see cref="New"/>, persisted beside the file and never
+/// recomputed from its id (see <c>docs/DECISIONS.md</c>).
 /// </summary>
 public sealed record ObjectKey
 {
     /// <summary>
-    /// The first segment of every key: an opaque, reserved partition. There is no tenancy today; the day one arrives
-    /// its identifier goes in this slot, so a prefix-scoped policy can be written per tenant without moving an
-    /// existing object.
+    /// An opaque, reserved partition: the day tenancy arrives its identifier goes in this slot, so
+    /// a prefix-scoped policy can be written per tenant without moving an existing object.
     /// </summary>
     public const string UnpartitionedPrefix = "t0";
 
-    /// <summary>
-    /// 128 bits of entropy, sized against enumeration through a mis-scoped bucket policy rather than against
-    /// collision.
-    /// </summary>
+    /// <summary>128 bits of entropy, sized against enumeration through a mis-scoped bucket policy rather than collision.</summary>
     public const int NameLength = 32;
 
-    /// <summary>
-    /// Half the store's 1024-byte cap, leaving room for a future tenant segment so the failure is a refused value,
-    /// not a rejected write.
-    /// </summary>
+    /// <summary>Half the store's 1024-byte cap, leaving room for a future tenant segment.</summary>
     public const int MaxLength = 512;
 
     // Narrower than the store accepts: a key is pasted into a signed URL path, so every character a URL parser, shell
@@ -53,11 +44,9 @@ public sealed record ObjectKey
             RandomNumberGenerator.GetHexString(NameLength, lowercase: true));
 
     /// <summary>
-    /// The UTC month slice a key minted at <paramref name="instant"/> belongs to.
-    /// <para>
-    /// One method for mint and sweep, in UTC, so the two cannot disagree near a month boundary; every slice must be
-    /// swept (see <c>docs/DECISIONS.md</c>).
-    /// </para>
+    /// The UTC month slice a key minted at <paramref name="instant"/> belongs to; one method for
+    /// mint and sweep, in UTC, so the two cannot disagree near a month boundary (see
+    /// <c>docs/DECISIONS.md</c>).
     /// </summary>
     public static string TimeSegmentFor(DateTimeOffset instant) =>
         instant.UtcDateTime.ToString("yyyyMM", CultureInfo.InvariantCulture);

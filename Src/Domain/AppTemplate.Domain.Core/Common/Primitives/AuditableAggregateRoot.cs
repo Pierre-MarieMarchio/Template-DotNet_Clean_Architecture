@@ -4,14 +4,10 @@ namespace AppTemplate.Domain.Core.Common.Primitives;
 
 /// <summary>
 /// An aggregate root whose row carries the two stamps the store owns: the audit values and the
-/// optimistic-concurrency token.
-/// <para>
-/// Both are declared here rather than on each aggregate because the shape they need is the same
-/// one every time — a getter anyone may read, and a setter reachable only by casting to
-/// <see cref="IAuditable"/> or <see cref="IVersioned"/>, so code that wanted to forge either has
-/// to say so first. An aggregate that needs neither derives from <see cref="AggregateRoot{TId}"/>
-/// instead.
-/// </para>
+/// optimistic-concurrency token. Both are declared here because the shape is the same every time —
+/// a getter anyone may read, and a setter reachable only by casting to <see cref="IAuditable"/> or
+/// <see cref="IVersioned"/>, so code that wants to forge either has to say so first. An aggregate
+/// that needs neither derives from <see cref="AggregateRoot{TId}"/> instead.
 /// </summary>
 /// <typeparam name="TId">The identity type, which may not be null.</typeparam>
 public abstract class AuditableAggregateRoot<TId> : AggregateRoot<TId>, IAuditable, IVersioned
@@ -24,9 +20,8 @@ public abstract class AuditableAggregateRoot<TId> : AggregateRoot<TId>, IAuditab
     }
 
     /// <summary>
-    /// Optimistic concurrency token: an opaque value the store owns, replaced by the store on every
-    /// write. It lives on the root and nowhere below it, because the root is the consistency
-    /// boundary: a concurrent edit to anything inside the aggregate is a conflict on the whole of it.
+    /// Optimistic concurrency token, owned and replaced by the store on every write. It lives on
+    /// the root and nowhere below it, because the root is the consistency boundary.
     /// </summary>
     public uint Version { get; private set; }
 

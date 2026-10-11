@@ -43,7 +43,7 @@ one exists.
 | Domain | `AppTemplate.Domain` | aggregates, value objects, domain events, invariants | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application.Core` | the mechanisms a use case is written *from*: `Result`/`Error`, the `IUseCase` marker, validation, offset and cursor pagination, idempotency, optimistic concurrency, the cross-cutting ports | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application` | the business features' use cases, feature ports, DTOs, validators | `AppTemplate.Domain` + `AppTemplate.Application.Core` |
-| Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind thirteen ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
+| Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind fourteen ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: what a context saves through — the unit of work, the three interceptors, the aggregate tracker — plus the system clock, multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Auth`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
 | Presentation | `AppTemplate.Presentation.Core` | what any host needs whatever its transport: one outbound HTTP policy, the language a flow is written in, OTLP traces and metrics, the identity of a process with no caller — and no framework reference, deliberately | `AppTemplate.Application.Core` |
@@ -60,7 +60,7 @@ graph RL
     Pers[AppTemplate.Infrastructure.Persistence<br/>the business context, per-feature models,<br/>mapping, trackers, repositories, queries,<br/>the idempotency table, the Postgres lease]
     InfraCore[AppTemplate.Infrastructure.Core<br/>the unit of work, the three save interceptors,<br/>the aggregate tracker, the clock, multilingual mail,<br/>the cache adapter behind ICacheStore]
     App[AppTemplate.Application<br/>the business features: use cases, feature ports, DTOs]
-    Auth[AppTemplate.Application.Auth<br/>sign-in, accounts, tokens, two-factor,<br/>behind thirteen ports — no domain type]
+    Auth[AppTemplate.Application.Auth<br/>sign-in, accounts, tokens, two-factor,<br/>passkeys, behind fourteen ports — no domain type]
     AppCore[AppTemplate.Application.Core<br/>Result, IUseCase, validation, pagination,<br/>idempotency, concurrency, cross-cutting ports]
     Dom[AppTemplate.Domain<br/>aggregates, value objects, events]
     DomCore[AppTemplate.Domain.Core<br/>entity, aggregate root, domain event,<br/>audit and concurrency contracts, domain exception]
@@ -170,11 +170,11 @@ makes the project work.
 
 `AppTemplate.Application.Auth` is the layer's third project, and it is a vertical rather than a
 Core: authentication and account administration as use cases — sign-in, refresh-token rotation, the
-password and email lifecycle, two-factor enrolment, external providers, roles and lockouts — under
+password and email lifecycle, two-factor enrolment, passkey ceremonies, external providers, roles and lockouts — under
 `Features/Auth/{Errors,Policies,Ports,UseCases}`. It declares one project reference,
 `AppTemplate.Application.Core`, and it names **no aggregate**: the identity model is not one here,
-it lives behind the thirteen ports in `Features/Auth/Ports/`. The one domain type it names is
-`UserId`, which arrives through `ICurrentUser` — and every one of its own thirteen ports takes the
+it lives behind the fourteen ports in `Features/Auth/Ports/`. The one domain type it names is
+`UserId`, which arrives through `ICurrentUser` — and every one of its own fourteen ports takes the
 raw `Guid` inside it instead, because what an account is identified by here is the subject a token
 carries rather than the business's notion of an owner. That is why the unwrap is visible at each of
 those calls. It has a project of its own because it
@@ -345,6 +345,7 @@ split runs there rather than putting every port in one layer:
 | `ISessionsService` | `AppTemplate.Application.Auth` | a session list its owner reads and ends, over `IRefreshTokenFamilyTable` |
 | `ICurrentSession` | `AppTemplate.Application.Auth` | `CurrentSession`, reading the token's `sid` claim and the request's `User-Agent` |
 | `ITwoFactorService` | `AppTemplate.Application.Auth` | Identity's authenticator plumbing, and the sign-in challenge in its token store |
+| `IPasskeyService` | `AppTemplate.Application.Auth` | Identity's WebAuthn ceremonies over `IPasskeyHandler`, and the credential rows over `UserManager` |
 | `IAccountAdministrationService` | `AppTemplate.Application.Auth` | lock, unlock, roles, two-factor removal and deletion, over `UserManager` |
 | `IExternalIdentityVerifier` | `AppTemplate.Application.Auth` | an `id_token` checked against a provider's JWKS |
 | `IExternalLoginsService` | `AppTemplate.Application.Auth` | the `(provider, subject)` link, over ASP.NET Identity |
@@ -357,7 +358,7 @@ point of the seam is that the application layer can be read, and tested, without
 knowing that EF Core, MailKit or ASP.NET Identity exist. A port named after its
 implementation has already given that away.
 
-The authentication ports are the interesting ones. There are thirteen of them, one per
+The authentication ports are the interesting ones. There are fourteen of them, one per
 intent, rather than one `IAuthService`, and the split is what keeps the
 *sequencing* in Application: `RegisterUseCase` creates the account, then mints a
 confirmation token, then composes and sends the mail through `IEmailSender`, and
@@ -367,7 +368,7 @@ account, then revokes the whole family if it may no longer sign in. Each port is
 intent an adapter can satisfy on its own, and none declares more than six operations,
 and the ASP.NET Identity types (`AppUser`, `UserManager<>`) never appear in
 Application. An architecture test asserts that no port grows wide enough to take the
-sequencing back. Because those thirteen ports are all `AppTemplate.Application.Auth` speaks in, that
+sequencing back. Because those fourteen ports are all `AppTemplate.Application.Auth` speaks in, that
 project names no aggregate: an account here is what its ports say about it. One of
 them, `ICurrentSession`, names which session a request is made from, and only the host
 can satisfy it — it sees the request — the same licence `ICurrentUser` has.
@@ -961,7 +962,7 @@ change tracker useful without it ever seeing the aggregate.
   error shapes.
 - **Authorisation is default-deny.** `Program.cs` installs an authorization fallback
   policy requiring an authenticated user, so an endpoint is protected unless it opts
-  out. Ten of the twenty-two authentication actions and the two health endpoints do —
+  out. Twelve of the twenty-eight authentication actions and the two health endpoints do —
   and, in Development only, so do the two OpenAPI endpoints. One consequence: because
   the fallback policy also applies when no endpoint matched, an unknown route answers
   401 to an anonymous caller rather than 404.

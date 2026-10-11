@@ -94,6 +94,26 @@ against your production system.
   account's own credential — and is refused with a 403 against their own account, so a stolen
   administrator session cannot use this route to do to itself what the symmetry above exists to
   prevent a stolen session doing.
+- **Passkeys (WebAuthn)**, built entirely on ASP.NET Core Identity's own support for .NET 10 — no
+  hand-rolled CBOR, no third-party FIDO2 library. The ceremonies are over
+  `IPasskeyHandler`, not `SignInManager`'s passkey methods: those park the ceremony state in a
+  cookie, and this API sets none. The state travels to the client as an opaque string and is
+  verified against what the client posts back — the challenge inside it is what the authenticator
+  must have signed, so a rewritten state only produces a ceremony that does not verify. Origin
+  validation is the framework's own: the client data's origin must equal the request's `Origin`
+  header, and the relying-party id comes from `Passkey:ServerDomain` when set, else the request's
+  host. User verification is `required` and not configurable, which is what lets a verified passkey
+  stand in for the whole of a sign-in — an armed second factor is bypassed exactly as ASP.NET Core
+  Identity's own `PasskeySignInAsync` bypasses it, and the factor still governs the ways in that
+  prove less. Signature counters are persisted **before** the sign-in's tokens are minted, so the
+  replay window closes first; a counter that did not advance (the clone signal) refuses the
+  ceremony. Registering a passkey demands re-authentication — the current password, or a recently
+  issued access token for an account that offers nothing its holder could present — because a
+  passkey is a whole way in, not a second step on one; listing and removing one stay within the
+  caller's own account, with the same 404 for somebody else's credential as for an unknown id.
+  The credential rows live in the identity schema (`identity.UserPasskeys`), deleted with the
+  account by cascade, and their payload — public key, counters, attestation — is one `jsonb`
+  column the store reads whole and never queries field by field.
 
 ### Transport and headers
 
@@ -436,6 +456,10 @@ says otherwise.
 - Put an authenticated gateway or network policy in front of `/health/ready` if the fact that your
   database is reachable is information you would rather not publish.
 - Review the sample `TodoLists` feature out of your deployment if you do not need it.
+- Set `Passkey:ServerDomain` before the first passkey is registered if the API does not serve the
+  domain its clients call — a credential is scoped to the relying-party domain it was created
+  under, so discovering the right one after registrations exist invalidates every passkey the
+  accounts hold. Pick it once, with the domain your users' browsers see.
 
 ## Known gaps
 

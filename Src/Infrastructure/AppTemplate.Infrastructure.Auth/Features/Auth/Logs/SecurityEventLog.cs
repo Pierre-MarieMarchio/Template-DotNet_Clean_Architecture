@@ -193,6 +193,22 @@ internal sealed partial class SecurityEventLog(
                 LogTwoFactorDisabledByAdministrator(logger, securityEvent.UserId);
                 break;
 
+            case SecurityEventKind.PasskeyRegistered:
+                LogPasskeyRegistered(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.PasskeyRemoved:
+                LogPasskeyRemoved(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.PasskeySignInSucceeded:
+                LogPasskeySignInSucceeded(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.PasskeySignInFailed:
+                LogPasskeySignInFailed(logger, securityEvent.UserId);
+                break;
+
             default:
                 throw new ArgumentOutOfRangeException(
                     nameof(securityEvent),
@@ -281,4 +297,16 @@ internal sealed partial class SecurityEventLog(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "An administrator disabled two-factor sign-in for user {UserId}.")]
     private static partial void LogTwoFactorDisabledByAdministrator(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "A passkey was registered for user {UserId}.")]
+    private static partial void LogPasskeyRegistered(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "A passkey of user {UserId} was removed.")]
+    private static partial void LogPasskeyRemoved(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "User {UserId} signed in with a passkey.")]
+    private static partial void LogPasskeySignInSucceeded(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A passkey sign-in was refused for user {UserId}.")]
+    private static partial void LogPasskeySignInFailed(ILogger logger, Guid? userId);
 }

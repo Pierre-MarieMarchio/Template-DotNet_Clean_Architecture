@@ -740,6 +740,16 @@ address — per process, so times your replica count. Multiply the three before 
 what they bound together is how many six-digit codes somebody who already has the password may
 offer.
 
+### `Passkey`
+
+The relying-party side of the passkey ceremonies. The rest of the WebAuthn posture — user
+verification required, the challenge size, the authenticator timeout — is ASP.NET Core Identity's
+own safe defaults, kept deliberately unconfigurable.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `ServerDomain` | string | *(the request's host)* | The WebAuthn relying-party id: the effective domain of this API, which a browser's `navigator.credentials.*` calls require their origin to be a subdomain of. A bare domain — no scheme, port or path. **Changing it invalidates every passkey the accounts hold**, because a credential is scoped to the domain it was created under; set it once, before the first registration. |
+
 ### `ProblemTypes`
 
 | Key | Type | Default | Notes |

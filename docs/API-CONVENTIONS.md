@@ -31,7 +31,7 @@ deleted the day a second version exists.
 
 `Program.cs` installs an authorization fallback policy requiring an authenticated
 user. An endpoint is protected **unless it explicitly opts out** with
-`[AllowAnonymous]`; ten of the twenty-two authentication actions and the two health
+`[AllowAnonymous]`; twelve of the twenty-eight authentication actions and the two health
 endpoints do — and, in Development only, so do the two OpenAPI endpoints (see
 [`GETTING-STARTED.md`](GETTING-STARTED.md#with-compose)).
 
@@ -72,11 +72,15 @@ of the contract.
 | `auth.account.notFound` | 404 — an administration action naming an account that does not exist |
 | `auth.account.cannotDeleteSelf` / `auth.lockout.cannotTargetSelf` / `auth.roles.cannotTargetSelf` / `auth.twoFactor.cannotTargetSelf` | 403 — an administrator may not aim these at their own account |
 | `auth.account.deletionRejected` / `auth.lockout.rejected` / `auth.twoFactor.administrativeDisableRejected` | 400 — the store refused the change |
-| `auth.account.reAuthenticationRequired` | 403 — deleting the caller's own account demands a proof the account can offer, and the access token making the call is older than the five-minute window an account with neither a password nor a second factor falls back to. Sign in again and retry |
+| `auth.account.reAuthenticationRequired` | 403 — deleting the caller's own account, or registering a passkey on an account that offers no credential its holder could present, demands a proof; when the proof falls back to the access token itself, the token making the call is older than the five-minute window. Sign in again and retry |
 <!--#if (externalAuth)
 | `externalIdentity.mapping.notFound` | 404 — an administrative deletion naming an owner id no provider mapping carries |
 #endif-->
 | `auth.twoFactor.setupRejected` / `auth.twoFactor.enableRejected` / `auth.twoFactor.disableRejected` | 400 — the store refused the change, so the second factor is as it was |
+| `auth.passkeySignIn.invalid` | 401 — one answer for a state string this API never issued, a ceremony that did not verify, and an account no longer allowed to sign in |
+| `auth.passkey.registrationInvalid` | 400 — the registration ceremony did not verify; attached to `credential` |
+| `auth.passkey.registrationRejected` | 400 — the ceremony verified, but the store refused to hold the credential |
+| `auth.passkey.notFound` | 404 — the passkey named is not one of the caller's, exactly as an unknown id; removing one already removed succeeds instead |
 
 **Resources**
 

@@ -67,7 +67,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     /// </summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
-    /// <summary>Applies this module's ten configurations.</summary>
+    /// <summary>Applies this module's twelve configurations.</summary>
     /// <param name="builder">The model being built.</param>
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -75,19 +75,20 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 
         base.OnModelCreating(builder);
 
-        // Named one by one rather than discovered by scanning the assembly: ten lines the compiler
+        // Named one by one rather than discovered by scanning the assembly: twelve lines the compiler
         // checks, instead of a reflection call that silently maps nothing when a configuration class
         // is renamed or moved. No default schema is set — every table names its own.
         builder.ApplyConfiguration(new AppUserConfiguration());
         builder.ApplyConfiguration(new AppRoleConfiguration());
         builder.ApplyConfiguration(new RefreshTokenConfiguration());
         builder.ApplyConfiguration(new RefreshTokenFamilyConfiguration());
+        builder.ApplyConfiguration(new SecurityEventConfiguration());
+        builder.ApplyConfiguration(new UserPasskeyConfiguration());
         builder.ApplyConfiguration(new UserRoleConfiguration());
         builder.ApplyConfiguration(new UserClaimConfiguration());
         builder.ApplyConfiguration(new UserLoginConfiguration());
         builder.ApplyConfiguration(new RoleClaimConfiguration());
         builder.ApplyConfiguration(new UserTokenConfiguration());
         builder.ApplyConfiguration(new DataProtectionKeyConfiguration());
-        builder.ApplyConfiguration(new SecurityEventConfiguration());
     }
 }

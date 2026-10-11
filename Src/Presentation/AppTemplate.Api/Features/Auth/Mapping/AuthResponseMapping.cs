@@ -1,5 +1,7 @@
-﻿using AppTemplate.Api.Common.Contracts;
+﻿using System.Buffers.Text;
+using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Passkeys;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventQueries;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
@@ -107,6 +109,45 @@ internal static class AuthResponseMapping
                 session.UserAgent,
                 session.Current)),
         ]));
+
+    /// <summary>
+    /// The passkey list. The credential id travels base64url-encoded — a WebAuthn id is opaque
+    /// bytes, and this is the encoding the removal route takes it back in, so a client that holds
+    /// the list can address an item without converting anything itself.
+    /// </summary>
+    public static Result<PasskeysResponse> ToPasskeysResponse(
+        Result<IReadOnlyList<PasskeyCredential>> result) =>
+        result.Map(value => new PasskeysResponse(
+        [
+            .. value.Select(passkey => new PasskeyResponse(
+                Base64Url.EncodeToString(passkey.CredentialId),
+                passkey.Name,
+                passkey.CreatedAt)),
+        ]));
+
+    /// <summary>The registered passkey, as the registration's answer names it.</summary>
+    public static Result<PasskeyResponse> ToPasskeyResponse(Result<PasskeyCredential> result) =>
+        result.Map(passkey => new PasskeyResponse(
+            Base64Url.EncodeToString(passkey.CredentialId),
+            passkey.Name,
+            passkey.CreatedAt));
+
+    /// <summary>
+    /// The registration options, with the ceremony's state exactly as the client must post it
+    /// back: opaque, not a value this contract interprets.
+    /// </summary>
+    public static Result<PasskeyRegistrationOptionsResponse> ToRegistrationOptionsResponse(
+        Result<PasskeyRegistrationChallenge> result) =>
+        result.Map(challenge => new PasskeyRegistrationOptionsResponse(
+            challenge.CreationOptions,
+            challenge.RegistrationState));
+
+    /// <summary>The sign-in options, with the ceremony's state exactly as the client must post it back.</summary>
+    public static Result<PasskeySignInOptionsResponse> ToSignInOptionsResponse(
+        Result<PasskeySignInChallenge> result) =>
+        result.Map(challenge => new PasskeySignInOptionsResponse(
+            challenge.SignInOptions,
+            challenge.AuthenticationState));
 
     /// <summary>
     /// One page of the security trail. The item projection is named once and

@@ -30,34 +30,22 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace AppTemplate.Infrastructure.InMemory;
 
 /// <summary>
-/// Substitutes the adapters that talk to the outside world with doubles that do not.
-/// <para>
-/// This module has one reason to change: what a test host needs in place of a real
-/// dependency. It is a product project rather than a file in a test assembly so that every
-/// host composes it the same way — <c>AddInMemoryModule</c> after the real modules — instead
-/// of each test project growing its own fake and its own registration order.
-/// </para>
+/// Substitutes the adapters that talk to the outside world with doubles that do not. One reason
+/// to change: what a test host needs in place of a real dependency. It is a product project
+/// rather than a file in a test assembly so that every host composes it the same way —
+/// <c>AddInMemoryModule</c> after the real modules — instead of each test project growing its own
+/// fake and its own registration order.
 /// </summary>
 public static class InMemoryModule
 {
     /// <summary>
     /// Replaces the clock, the email sender and every port whose real adapter reaches outside the
-    /// process with controllable, recording doubles. <see cref="IEmailSender"/>'s real adapter sends
-    /// actual mail, and so does any feature's notifier built over it; a file port's talks to a
-    /// bucket, a disk or a scanner, and the external identity verifier of the supplied accounts
-    /// fetches a key set from an identity provider, which are the same kind of dependency.
-    /// <para>
-    /// It <b>removes and re-adds</b> rather than relying on last-registration-wins, and it
-    /// takes no <c>IConfiguration</c> because there is nothing to configure. Replacement is
-    /// explicit: a double that only worked when it happened to be registered last is a
+    /// process with controllable, recording doubles. It <b>removes and re-adds</b> rather than
+    /// relying on last-registration-wins, and takes no <c>IConfiguration</c> because there is
+    /// nothing to configure: a double that only worked when it happened to be registered last is a
     /// silent dependency on composition order, and the failure mode is a test that quietly
-    /// exercised the real SMTP client.
-    /// </para>
-    /// <para>
-    /// Call it <em>after</em> the modules whose adapters it replaces. Calling it before them
-    /// is a no-op that leaves the real adapters in place, which is why the call order in the
-    /// host matters and is documented there.
-    /// </para>
+    /// exercised the real SMTP client. Call it <em>after</em> the modules whose adapters it
+    /// replaces; calling it before them leaves the real adapters in place.
     /// </summary>
     public static IServiceCollection AddInMemoryModule(this IServiceCollection services)
     {
@@ -93,13 +81,10 @@ public static class InMemoryModule
 
     /// <summary>
     /// Registers the arranged <see cref="IExternalIdentityVerifier"/> on its own, without the clock
-    /// and email-sender swaps <see cref="AddInMemoryModule"/> also makes.
-    /// <para>
-    /// The real adapter (<c>ExternalIdentityVerifier</c>, in <c>AppTemplate.Infrastructure.Auth</c>)
-    /// fetches a provider's key set over HTTP, so it is an outward call like every other one replaced
-    /// here — and it is also the only port a test could not reach any other way, since presenting a
-    /// token it would accept means holding Google's private key.
-    /// </para>
+    /// and email-sender swaps <see cref="AddInMemoryModule"/> also makes. The real adapter
+    /// (<c>ExternalIdentityVerifier</c>, in <c>AppTemplate.Infrastructure.Auth</c>) fetches a
+    /// provider's key set over HTTP, and it is the only port a test could not reach any other way:
+    /// presenting a token it would accept means holding the provider's private key.
     /// </summary>
     public static IServiceCollection AddInMemoryExternalIdentities(this IServiceCollection services)
     {
@@ -173,14 +158,11 @@ public static class InMemoryModule
 
     /// <summary>
     /// Registers the in-memory object store behind the four file ports, without the clock and
-    /// email-sender swaps <see cref="AddInMemoryModule"/> also makes.
-    /// <para>
-    /// The store, the direct transfer and the inventory share one <see cref="StoredObjects"/>: the
-    /// sweep lists what the store holds and deletes through it, so two instances would make it
-    /// reclaim nothing while appearing to work. The scanner answers from <see cref="ArrangedScans"/>.
-    /// It needs a clock, which <see cref="AddInMemoryModule"/> registers; called on its own, it
-    /// inherits the host's.
-    /// </para>
+    /// email-sender swaps <see cref="AddInMemoryModule"/> also makes. The store, the direct
+    /// transfer and the inventory share one <see cref="StoredObjects"/>: the sweep lists what the
+    /// store holds and deletes through it, so two instances would make it reclaim nothing while
+    /// appearing to work. The scanner answers from <see cref="ArrangedScans"/>; it needs a clock,
+    /// which <see cref="AddInMemoryModule"/> registers — called on its own, it inherits the host's.
     /// </summary>
     public static IServiceCollection AddInMemoryFileContent(this IServiceCollection services)
     {

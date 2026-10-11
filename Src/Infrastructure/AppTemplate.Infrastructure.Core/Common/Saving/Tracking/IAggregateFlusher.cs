@@ -4,20 +4,15 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 
 /// <summary>
 /// The bridge between a domain aggregate and the persistence model that stores it, for one feature.
-/// <para>
-/// This abstraction exists because EF Core does not map the domain types. That is a deliberate
-/// choice, and it has a direct cost: EF's change tracker cannot see a mutation made inside an
-/// aggregate, because it is not tracking the aggregate. Something has to write the aggregate's state
-/// onto the tracked rows before EF computes its diff, and something has to read the store's own
-/// values — the concurrency token, the audit stamps — back into the aggregate afterwards. That
-/// something is a flusher, one per aggregate, and this is the only shape <c>Common/</c> knows about.
-/// </para>
-/// <para>
-/// The two halves must not be collapsed into "rebuild the row from the aggregate". Assigning every
-/// column from a freshly mapped, detached record makes every write a full-row <c>UPDATE</c> and
-/// overwrites the audit columns the interceptor owns. An implementation therefore mutates the
-/// <em>tracked</em> rows in place and lets EF decide what actually changed.
-/// </para>
+/// EF Core does not map the domain types, so its change tracker cannot see a mutation made inside
+/// an aggregate: something has to write the aggregate's state onto the tracked rows before EF
+/// computes its diff, and read the store's own values — the concurrency token, the audit stamps —
+/// back into the aggregate afterwards. That something is a flusher, one per aggregate, and this is
+/// the only shape <c>Common/</c> knows about. The two halves must not be collapsed into "rebuild
+/// the row from the aggregate": assigning every column from a freshly mapped, detached record
+/// makes every write a full-row <c>UPDATE</c> and overwrites the audit columns the interceptor
+/// owns — an implementation mutates the <em>tracked</em> rows in place and lets EF decide what
+/// actually changed.
 /// </summary>
 public interface IAggregateFlusher
 {

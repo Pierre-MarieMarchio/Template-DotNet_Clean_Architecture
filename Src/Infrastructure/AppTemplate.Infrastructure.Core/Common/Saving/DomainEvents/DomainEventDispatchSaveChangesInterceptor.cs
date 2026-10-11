@@ -7,31 +7,18 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 
 /// <summary>
 /// Collects the domain events raised during a save, and publishes them only once that save has
-/// committed.
-/// <para>
-/// The ordering is the entire point. Publishing before the commit means a handler can
-/// observe — or email about, or bill for — a change that then rolls back. Collecting before
-/// and publishing after also drains the aggregates exactly once, so an event cannot be
-/// delivered twice by a later save in the same request.
-/// </para>
-/// <para>
-/// <b>Where the events come from.</b> Every <see cref="IDomainEventSource"/> in the request scope
-/// whose rows are staged on the context being saved is drained, because EF does not map the domain
-/// types and no aggregate is ever in its change tracker. A source staged elsewhere is left alone: a
-/// request also commits other contexts, and a second instance of this one for idempotency claims, and
-/// none of those commits is the write its events describe. Which source each event came from is
-/// remembered, so a failed save can hand it back.
-/// </para>
-/// <para>
-/// <b>A publish failure is not a commit failure.</b> By the time dispatch runs the transaction is
-/// already committed, so an exception escaping here would tell the caller a write failed that in fact
-/// landed — and the caller would retry it. Each event is therefore dispatched on its own, and a
-/// consumer that throws is logged and stepped over.
-/// </para>
-/// <para>
-/// Handlers run in-process, in the caller's own request, and are not retried. One that must reach
-/// another system belongs behind an outbox rather than doing that I/O here.
-/// </para>
+/// committed. The ordering is the entire point: publishing before the commit means a handler can
+/// observe — or email about, or bill for — a change that then rolls back, and collecting before,
+/// publishing after also drains the aggregates exactly once. Every
+/// <see cref="IDomainEventSource"/> in the request scope whose rows are staged on the context
+/// being saved is drained (EF does not map the domain types, so no aggregate is ever in its change
+/// tracker); a source staged elsewhere is left alone, since a request also commits other contexts
+/// and none of those commits is the write its events describe. <b>A publish failure is not a
+/// commit failure:</b> by the time dispatch runs the transaction has already committed, and an
+/// exception escaping here would tell the caller a write failed that in fact landed — so each
+/// event is dispatched on its own and a consumer that throws is logged and stepped over.
+/// Handlers run in-process, in the caller's own request, and are not retried; one that must reach
+/// another system belongs behind an outbox.
 /// </summary>
 public sealed class DomainEventDispatchSaveChangesInterceptor(
     IDomainEventDispatcher dispatcher,

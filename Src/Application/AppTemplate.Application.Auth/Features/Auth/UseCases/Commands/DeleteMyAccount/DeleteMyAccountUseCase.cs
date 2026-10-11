@@ -15,16 +15,12 @@ namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteMyA
 /// Deletes the caller's own account, once they prove the session is the holder's own and not merely
 /// a live one. The proof is whatever the account can present: <b>the password, if one is set, plus
 /// a two-factor code, if the factor is armed</b> — an account with neither, a provider-linked one,
-/// falls back to an access token issued less than
-/// <see cref="RecentAuthenticationWindow"/> ago, so a stolen session at least has to be a fresh
-/// stolen session, and its holder can still see what happened and act.
-/// <para>
-/// The account row and what the user store holds for it — refresh-token grants included — are
-/// deleted in one committing call; the security event and the
-/// <see cref="UserAccountDeleted"/> fact follow it, so the features that own data under this id hear
-/// it from their own consumers and the sweep, not from this use case reaching past the module
-/// boundary. Publishing happens after the deletion has committed, the ordering the fact promises.
-/// </para>
+/// falls back to an access token issued less than <see cref="RecentAuthenticationWindow"/> ago, so
+/// a stolen session at least has to be a fresh one. The account row and what the user store holds
+/// for it are deleted in one committing call; the security event and the
+/// <see cref="UserAccountDeleted"/> fact follow it — published after the deletion has committed,
+/// the ordering the fact promises — so the features that own data under this id hear it from their
+/// own consumers and the sweep, not from this use case reaching past the module boundary.
 /// </summary>
 public sealed class DeleteMyAccountUseCase(
     IAccountsService accounts,
@@ -38,9 +34,9 @@ public sealed class DeleteMyAccountUseCase(
 {
     /// <summary>
     /// How recently the access token must have been issued, when the account offers no credential
-    /// its holder could present. An access token's lifetime is minutes; a window of the same order
-    /// says "signed in on purpose, moments ago" without demanding a second sign-in the account has
-    /// no way to perform.
+    /// its holder could present: minutes, the order of a token's own lifetime, so it says
+    /// "signed in on purpose, moments ago" without demanding a second sign-in the account has no
+    /// way to perform.
     /// </summary>
     public static readonly TimeSpan RecentAuthenticationWindow = TimeSpan.FromMinutes(5);
 

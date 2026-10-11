@@ -4,14 +4,12 @@ namespace AppTemplate.Application.Core.Common.Policies;
 
 /// <summary>
 /// What a feature declares about its own collection endpoint: which fields may be sorted on, how it
-/// is ordered when nobody asks, and the ceilings on what a caller may request.
-/// <para>
-/// The contract is here; every implementation is a <c>…CollectionPolicy</c> under that feature's own
+/// is ordered when nobody asks, and the ceilings on what a caller may request. The contract is here;
+/// every implementation is a <c>…CollectionPolicy</c> under that feature's own
 /// <c>Features/&lt;F&gt;/Policies/</c>, because only the feature knows which of its columns are
 /// indexed and cheap to order by. <c>Common/Collections/</c> owns the parsing and the enforcement,
-/// which are the same for every feature, and this interface is the one thing those mechanics ask a
-/// feature to declare — so it sits with the other policies rather than among them.
-/// </para>
+/// the same for every feature, and this interface is the one thing those mechanics ask a feature to
+/// declare.
 /// </summary>
 /// <remarks>
 /// Implementations are plain classes with a parameterless constructor, so an architecture rule can

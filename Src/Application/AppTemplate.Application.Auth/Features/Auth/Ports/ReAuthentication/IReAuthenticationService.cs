@@ -2,22 +2,12 @@
 
 /// <summary>
 /// The primitives behind re-authentication: proving that this session still holds the account's own
-/// credentials, for an operation that is not reversible once done.
-/// <para>
-/// Deliberately primitive, not one "confirm me" call: <b>which</b> evidence an operation demands is
-/// a decision — the password only when one is set, a code only when the factor is armed — and it
-/// belongs to the use case, where a unit test can enumerate the cases. This port answers only
-/// "is this the credential?" for the evidence it is handed.
-/// </para>
-/// <para>
-/// The account's existence is not this port's question: a caller that reached it already holds an
-/// access token naming the account, and reports its absence the way every self-service operation
-/// does — through <c>IAccountsService.FindProfileAsync</c>.
-/// </para>
-/// <para>
-/// <b>Cancellation is observed on entry only</b>, for the reason given on
-/// <see cref="Accounts.IAccountsService"/>.
-/// </para>
+/// credentials, for an operation that is not reversible once done. Deliberately primitive, not one
+/// "confirm me" call — <b>which</b> evidence an operation demands is the use case's decision, where
+/// a unit test can enumerate the cases; this port answers only "is this the credential?" for the
+/// evidence it is handed. The account's existence is not this port's question: a caller that
+/// reached it already holds an access token naming the account. Cancellation is observed on entry
+/// only, for the reason given on <see cref="Accounts.IAccountsService"/>.
 /// </summary>
 public interface IReAuthenticationService
 {

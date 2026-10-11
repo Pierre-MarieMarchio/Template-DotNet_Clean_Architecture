@@ -47,6 +47,7 @@ dotnet run Tools/Tasks.cs coverage    # line coverage against the floor in cover
 
 What CI runs, and the switches are the platform's own rather than VSTest's:
 
+<!--#if (templateMaintenance)-->
 ```bash
 dotnet test AppTemplate.sln \
   --configuration Release \
@@ -58,14 +59,27 @@ dotnet test AppTemplate.sln \
   --minimum-expected-tests 3000
 ```
 
+`--minimum-expected-tests` is the platform's own answer to a run that is green because it executed
+nothing: it fails the run, with exit code 5, rather than reporting success over zero tests. The
+floor is this repository's own — a project generated with fewer options starts below any number
+this suite could justify, so its CI carries none.
+<!--#else
+```bash
+dotnet test AppTemplate.sln \
+  --configuration Release \
+  --results-directory TestResults \
+  --report-xunit-trx \
+  --coverage \
+  --coverage-settings coverage.runsettings \
+  --coverage-output-format cobertura
+```
+#endif-->
+
 The resemblance to VSTest is a trap: there is no `--logger` and no `--collect`, and `--settings` is
 accepted and then ignored, so coverage settings have to arrive through `--coverage-settings` or
 every exclusion in that file goes unapplied. One Cobertura report is written per test module;
 `Tools/CoverageGate.cs` merges them as a union over (source file, line) before comparing against
 the floor.
-
-`--minimum-expected-tests` is the platform's own answer to a run that is green because it executed
-nothing: it fails the run, with exit code 5, rather than reporting success over zero tests.
 
 `coverage.minimum` holds the floor and the rule it is set from: measured with Docker present and in
 Debug, a few points under the figure, because rows measured differently do not compare.
@@ -84,7 +98,8 @@ this repository:
 - An architecture rule can pass **vacuously** on an empty candidate set. Assert the set is non-empty
   *before* asserting the condition. `AggregateRoots_AreSealed` once matched zero types and passed.
 - A test project missing from `AppTemplate.sln` makes `dotnet test AppTemplate.sln` green with zero tests. CI asserts
-  every project under `Tests/` is in the solution, and that the run executed more than zero tests.
+  every project under `Tests/` is in the solution<!--#if (templateMaintenance)-->, and that the run executed more than
+  zero tests<!--#endif-->.
 - **A test that picks its own static type does not test the real path.** A unit test asserting the
   discriminator of a polymorphic response passed while the API served a body without one, because it
   called `JsonSerializer.Serialize<TBase>(…)` and named the base itself. MVC does not: `Ok(value)`

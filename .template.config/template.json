@@ -82,6 +82,11 @@
       "type": "computed",
       "value": "(auth == \"none\" && (examples != \"none\" || files))"
     },
+    "templateMaintenance": {
+      "type": "computed",
+      "value": "false",
+      "description": "Never true in a generated project. Names the pieces that maintain the template itself - the acceptance matrix, the test-count floor, the tree-auditing gates, the changelog - so they stay in the template repository only."
+    },
     "files": {
       "type": "parameter",
       "datatype": "bool",
@@ -233,7 +238,12 @@
             ".env",
             ".vs/**",
             "docs/plans/**",
-            "docs/guide_architecture_pour_agent.md"
+            "docs/guide_architecture_pour_agent.md",
+            "CHANGELOG.md",
+            ".github/workflows/template-acceptance.yml",
+            "Tools/CheckDocPaths.cs",
+            "Tools/CheckWorkflows.cs",
+            "Tools/CheckNarrativeComments.cs"
           ]
         },
         {
@@ -377,8 +387,7 @@
           "condition": "(!ci)",
           "exclude": [
             ".github/workflows/ci.yml",
-            ".github/workflows/release.yml",
-            "Tools/CheckWorkflows.cs"
+            ".github/workflows/release.yml"
           ]
         },
         {

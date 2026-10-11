@@ -6,17 +6,12 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmEmail;
 
-/// <summary>
-/// Redeeming the token rotates the account's security stamp, which is what makes it single-use.
-/// <para>
-/// It does <em>not</em> then call <c>CredentialInvalidationPolicy</c>, unlike every other operation that
-/// rotates a stamp. Sign-in requires a confirmed email, so no session can exist yet and there are no
-/// refresh tokens to revoke — calling it would be a no-op dressed as a precaution. A deployment that
-/// sets <c>Identity:RequireConfirmedEmail</c> to false changes that: sessions become possible before
-/// confirmation, and this use case then needs the same revocation the others make, which in turn
-/// needs the redeemed account's id to travel back from the port.
-/// </para>
-/// </summary>
+/// <summary>Redeeming the token rotates the account's security stamp, which is what makes it
+/// single-use. It does <em>not</em> then call <c>CredentialInvalidationPolicy</c>, unlike every other
+/// stamp-rotating operation: sign-in requires a confirmed email, so no session can exist yet and
+/// there are no refresh tokens to revoke. A deployment that sets
+/// <c>Identity:RequireConfirmedEmail</c> to false changes that — this use case then needs the same
+/// revocation the others make.</summary>
 public sealed class ConfirmEmailUseCase(
     IEmailTokensService emailTokens,
     IValidator<ConfirmEmailCommand> validator) : IConfirmEmailUseCase

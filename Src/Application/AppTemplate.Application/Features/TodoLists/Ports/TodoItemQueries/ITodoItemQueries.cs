@@ -2,16 +2,11 @@
 
 namespace AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 
-/// <summary>
-/// What another feature may ask about a to-do item, and all it may ask. <c>Reminders</c> is the
-/// consumer today; it reaches items through these two questions rather than through the list
-/// queries or the item rows, so the day it is extracted nothing but this port has to be replaced.
-/// <para>
-/// Declared here because the answers are <c>TodoLists</c>' to give: which list holds an item, who
-/// owns it and whether it is done are facts of this feature's storage that no other feature may
-/// read for itself.
-/// </para>
-/// </summary>
+/// <summary>What another feature may ask about a to-do item, and all it may ask. <c>Reminders</c> is
+/// the consumer today; it reaches items through these two questions rather than the list queries or
+/// the item rows. Declared here because the answers are <c>TodoLists</c>' to give: which list holds
+/// an item, who owns it and whether it is done are facts of this feature's storage that no other
+/// feature may read for itself.</summary>
 public interface ITodoItemQueries
 {
     /// <returns><c>true</c> when the item exists in that list and the list belongs to

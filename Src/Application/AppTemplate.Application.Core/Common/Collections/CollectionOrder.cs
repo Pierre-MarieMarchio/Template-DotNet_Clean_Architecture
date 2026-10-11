@@ -3,17 +3,13 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Core.Common.Collections;
 
-/// <summary>
-/// The paging mode and the sort order a caller asked for, parsed against a feature's own whitelist
-/// and checked against each other — the half of a collection request that is the same whatever the
-/// feature, and whatever that feature lets a caller filter by.
-/// </summary>
-/// <remarks>
-/// Binding a collection request is deliberately two steps rather than one, because a feature's own
-/// filter is built between them: <see cref="Parse"/> refuses what is wrong with the order, the
-/// feature refuses what is wrong with its filter, and <see cref="ToPageRequest"/> then resolves the
-/// cursor against the order it was minted under.
-/// </remarks>
+/// <summary>The paging mode and the sort order a caller asked for, parsed against a feature's own
+/// whitelist and checked against each other — the half of a collection request that is the same
+/// whatever the feature.</summary>
+/// <remarks>Binding is deliberately two steps, because the feature's own filter is built between
+/// them: <see cref="Parse"/> refuses what is wrong with the order, the feature refuses what is wrong
+/// with its filter, and <see cref="ToPageRequest"/> resolves the cursor against the order it was
+/// minted under.</remarks>
 public sealed record CollectionOrder
 {
     /// <summary>The policy this order was parsed against, so the cursor is resolved against the same one.</summary>

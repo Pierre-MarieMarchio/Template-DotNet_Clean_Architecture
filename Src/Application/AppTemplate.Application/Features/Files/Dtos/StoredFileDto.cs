@@ -8,8 +8,7 @@ namespace AppTemplate.Application.Features.Files.Dtos;
 /// <param name="DeclaredMediaType">What the client said the file is: a claim the content was checked
 /// against when the file is available, an unchecked one otherwise. Never a measurement.</param>
 /// <param name="SizeInBytes">Declared while pending, agreed with the store from deposited onwards.</param>
-/// <param name="AvailableAt">Null until the content has been examined and cleared, and for ever for a
-/// refused file.</param>
+/// <param name="AvailableAt">Null until the content has been examined and cleared, and for ever for a refused file.</param>
 /// <param name="Tags">The owner's labels, normalised and de-duplicated by the domain.</param>
 /// <param name="State">Where the file is in its life: <see cref="StoredFileState.Deposited"/> means
 /// "wait", <see cref="StoredFileState.Quarantined"/> means "never".</param>

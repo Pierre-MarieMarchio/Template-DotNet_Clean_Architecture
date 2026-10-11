@@ -6,18 +6,12 @@ using AppTemplate.Domain.Core.Common.Primitives;
 
 namespace AppTemplate.Application.Features.Notes.Consumers.AccountDeleted;
 
-/// <summary>
-/// The notes' declared fate for the data of a deleted account: <b>deleted</b>. The simple feature's
-/// share of the account-deleted reaction: the store removes the owner's rows in one stage and this
-/// commits them — the same division of labour every note write uses.
-/// <para>
-/// This runs after the transaction that removed the account has already committed, so it owns
-/// committing its own change through <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>:
-/// the same <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never
-/// reaching this consumer, and the precondition is re-derived through
-/// <see cref="IUserAccountDirectory"/> rather than trusted.
-/// </para>
-/// </summary>
+/// <summary>The notes' declared fate for the data of a deleted account: <b>deleted</b> — the store
+/// removes the owner's rows in one stage and this commits them, as every note write does. Runs
+/// after the account's transaction has committed and owns its own commit through
+/// <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>: the
+/// <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never reaching
+/// this consumer, and the precondition is re-derived through <see cref="IUserAccountDirectory"/>.</summary>
 internal sealed class DeleteNotesOnAccountDeletedConsumer(
     INoteStore notes,
     INoteQueries queries,

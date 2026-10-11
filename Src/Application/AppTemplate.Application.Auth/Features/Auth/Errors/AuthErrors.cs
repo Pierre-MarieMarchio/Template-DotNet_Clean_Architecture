@@ -18,12 +18,9 @@ public static class AuthErrors
         "auth.login.invalidCredentials",
         "Email or password is incorrect.");
 
-    /// <summary>
-    /// One error for every way signing in through an identity provider can fail. It collapses as
-    /// hard as <see cref="InvalidCredentials"/> does: anyone can obtain an <c>id_token</c> for an
-    /// address they control, so a distinct answer for "that address belongs to an unconfirmed local
-    /// account" would turn this endpoint into a probe for which addresses are registered here.
-    /// </summary>
+    /// <summary>One error for every way signing in through an identity provider can fail. It collapses
+    /// as hard as <see cref="InvalidCredentials"/> does, or the endpoint becomes a probe for which
+    /// addresses are registered here.</summary>
     public static Error ExternalSignInRefused { get; } = Error.Unauthorized(
         "auth.externalSignIn.refused",
         "The external sign-in could not be completed.");
@@ -233,12 +230,9 @@ public static class AuthErrors
         "auth.login.invalidTwoFactorChallenge",
         "The two-factor challenge is invalid or has expired.");
 
-    /// <summary>
-    /// An administrator stripping their own second factor this way would bypass the password proof
-    /// the self-service route requires of everyone else — a stolen admin session could otherwise do
-    /// to its own account exactly what this feature exists to prevent. <c>ITwoFactorService.DisableAsync</c>
-    /// is what an administrator uses on their own account.
-    /// </summary>
+    /// <summary>An administrator stripping their own second factor this way would bypass the password
+    /// proof the self-service route requires of everyone else; <c>ITwoFactorService.DisableAsync</c>
+    /// is what an administrator uses on their own account.</summary>
     public static Error CannotDisableOwnTwoFactor { get; } = Error.Forbidden(
         "auth.twoFactor.cannotTargetSelf",
         "An administrator cannot disable two-factor sign-in on their own account this way.");
@@ -248,12 +242,9 @@ public static class AuthErrors
         "auth.twoFactor.setupRejected",
         "Two-factor setup could not be started on this account.");
 
-    /// <summary>
-    /// The passkey registration ceremony did not verify — a state string this API never issued, a
-    /// credential that does not answer it, one already registered, or a state issued for a
-    /// different account. Attached to "credential": the caller is authenticated, so there is no
-    /// account to protect from enumeration, and nothing safe to echo either.
-    /// </summary>
+    /// <summary>The passkey registration ceremony did not verify — a state this API never issued, a
+    /// credential that does not answer it, one already registered, or a state issued for a different
+    /// account.</summary>
     public static Error InvalidPasskeyRegistration { get; } = ValidationError.ForField(
         "credential",
         "The passkey registration could not be completed.");
@@ -272,12 +263,9 @@ public static class AuthErrors
         "auth.passkey.notFound",
         "No such passkey.");
 
-    /// <summary>
-    /// One error for every way a passkey sign-in can fail. A ceremony is cryptographic, so a
-    /// distinct answer is not an enumeration oracle the way a wrong password is — but the caller can
-    /// do nothing with the distinction either, and the anonymous route keeps one answer for the
-    /// same reason <see cref="InvalidCredentials"/> does.
-    /// </summary>
+    /// <summary>One error for every way a passkey sign-in can fail: a ceremony is cryptographic, so a
+    /// distinct answer is no enumeration oracle, but the caller can do nothing with the distinction
+    /// either — one answer, as <see cref="InvalidCredentials"/> keeps.</summary>
     public static Error InvalidPasskeySignIn { get; } = Error.Unauthorized(
         "auth.passkeySignIn.invalid",
         "The passkey sign-in could not be completed.");

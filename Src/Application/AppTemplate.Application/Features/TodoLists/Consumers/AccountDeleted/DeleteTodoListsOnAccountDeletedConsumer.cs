@@ -6,19 +6,13 @@ using AppTemplate.Domain.Features.TodoLists.Repositories;
 
 namespace AppTemplate.Application.Features.TodoLists.Consumers.AccountDeleted;
 
-/// <summary>
-/// The to-do lists' declared fate for the data of a deleted account: <b>deleted</b>. The lists, their
-/// items and their tags are this feature's rows, so the decision is made here rather than by the
-/// account that left, and the rows go with the id that named them.
-/// <para>
-/// This runs after the transaction that removed the account has already committed, so it owns
-/// committing its own change through <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>:
-/// the same <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never
-/// reaching this consumer, and the precondition is re-derived through
-/// <see cref="IUserAccountDirectory"/> rather than trusted, so a redelivery — or an account recreated
-/// under the same id — cannot delete a live owner's lists.
-/// </para>
-/// </summary>
+/// <summary>The to-do lists' declared fate for the data of a deleted account: <b>deleted</b> — the
+/// lists, their items and their tags are this feature's rows, so the decision is made here. Runs
+/// after the account's transaction has committed and owns its own commit through
+/// <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>: the
+/// <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never reaching this
+/// consumer, and the precondition is re-derived through <see cref="IUserAccountDirectory"/>, so a
+/// redelivery cannot delete a live owner's lists.</summary>
 internal sealed class DeleteTodoListsOnAccountDeletedConsumer(
     ITodoListRepository lists,
     ITodoListQueries queries,

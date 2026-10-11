@@ -5,21 +5,14 @@
 /// </summary>
 public interface IIdempotencyStore
 {
-    /// <summary>
-    /// Attempts to claim <paramref name="key"/>. Two concurrent claims of the same key can only ever
-    /// produce one <see cref="IdempotencyStatus.Claimed"/>; the loser sees whatever the winner's row
-    /// currently says — including when the "winner" is a retry reclaiming a lease the original
-    /// claimant never gave up.
-    /// </summary>
-    /// <param name="expiresAt">
-    /// How long a <em>completed</em> response stays replayable — the retention window. Unrelated to
-    /// <paramref name="claimedUntil"/>: this one only ever matters once the claim is done.
-    /// </param>
-    /// <param name="claimedUntil">
-    /// How long an <em>unfinished</em> claim blocks a retry before it is treated as abandoned — the
-    /// claimant's process died before it could call <see cref="CompleteAsync"/> or
-    /// <see cref="ReleaseAsync"/> — and made reclaimable by whoever asks next.
-    /// </param>
+    /// <summary>Attempts to claim <paramref name="key"/>. Two concurrent claims can only produce one
+    /// <see cref="IdempotencyStatus.Claimed"/>; the loser sees whatever the winner's row currently
+    /// says — including when the "winner" is a retry reclaiming an abandoned lease.</summary>
+    /// <param name="expiresAt">How long a <em>completed</em> response stays replayable; unrelated to
+    /// <paramref name="claimedUntil"/>, which only matters while the claim is unfinished.</param>
+    /// <param name="claimedUntil">How long an <em>unfinished</em> claim blocks a retry before it is
+    /// treated as abandoned — the claimant died before <see cref="CompleteAsync"/> or
+    /// <see cref="ReleaseAsync"/> — and made reclaimable by whoever asks next.</param>
     Task<IdempotencyClaim> ClaimAsync(
         IdempotencyKey key,
         DateTimeOffset expiresAt,

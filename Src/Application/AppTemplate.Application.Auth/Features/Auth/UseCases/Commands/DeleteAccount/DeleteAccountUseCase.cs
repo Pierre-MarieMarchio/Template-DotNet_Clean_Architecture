@@ -11,18 +11,12 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteAccount;
 
-/// <summary>
-/// Removes exactly the account row and what ASP.NET Identity owns alongside it — see
+/// <summary>Removes exactly the account row and what ASP.NET Identity owns alongside it — see
 /// <see cref="IAccountAdministrationService"/> for why nothing here reaches past that. No
-/// <c>CredentialInvalidationPolicy</c> call either: there is no security stamp left to rotate once the row
-/// is gone, and the refresh-token grants go with it through the store's own cascading delete.
-/// <para>
-/// What other features own under the id is still their business, not this module's: the
-/// <see cref="UserAccountDeleted"/> fact published after the deletion has committed is what tells
-/// them, each through its own policy, so an account deleted here no longer leaves rows behind that
-/// no id will ever resolve to again.
-/// </para>
-/// </summary>
+/// <c>CredentialInvalidationPolicy</c> call either: there is no security stamp left to rotate once
+/// the row is gone, and the refresh-token grants go with it through the store's cascading delete.
+/// What other features own under the id is their business: the <see cref="UserAccountDeleted"/>
+/// fact published after the commit is what tells them, each through its own policy.</summary>
 public sealed class DeleteAccountUseCase(
     IAccountAdministrationService administration,
     ISecurityEventLog securityEventLog,

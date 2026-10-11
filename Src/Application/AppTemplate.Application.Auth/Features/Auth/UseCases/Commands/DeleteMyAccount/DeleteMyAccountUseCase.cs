@@ -11,17 +11,14 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.DeleteMyAccount;
 
-/// <summary>
-/// Deletes the caller's own account, once they prove the session is the holder's own and not merely
-/// a live one. The proof is whatever the account can present: <b>the password, if one is set, plus
-/// a two-factor code, if the factor is armed</b> — an account with neither, a provider-linked one,
-/// falls back to an access token issued less than <see cref="RecentAuthenticationWindow"/> ago, so
-/// a stolen session at least has to be a fresh one. The account row and what the user store holds
-/// for it are deleted in one committing call; the security event and the
-/// <see cref="UserAccountDeleted"/> fact follow it — published after the deletion has committed,
-/// the ordering the fact promises — so the features that own data under this id hear it from their
-/// own consumers and the sweep, not from this use case reaching past the module boundary.
-/// </summary>
+/// <summary>Deletes the caller's own account, once they prove the session is the holder's own and
+/// not merely a live one: <b>the password, if one is set, plus a two-factor code, if the factor is
+/// armed</b> — an account with neither falls back to an access token issued less than
+/// <see cref="RecentAuthenticationWindow"/> ago, so a stolen session at least has to be a fresh
+/// one. The account row and what the user store holds for it are deleted in one committing call;
+/// the <see cref="UserAccountDeleted"/> fact follows, published after the deletion has committed, so
+/// the features that own data under this id hear it from their own consumers and the sweep, not from
+/// this use case reaching past the module boundary.</summary>
 public sealed class DeleteMyAccountUseCase(
     IAccountsService accounts,
     IReAuthenticationService reAuthentication,
@@ -32,12 +29,8 @@ public sealed class DeleteMyAccountUseCase(
     IDateTimeProvider dateTimeProvider,
     IValidator<DeleteMyAccountCommand> validator) : IDeleteMyAccountUseCase
 {
-    /// <summary>
-    /// How recently the access token must have been issued, when the account offers no credential
-    /// its holder could present: minutes, the order of a token's own lifetime, so it says
-    /// "signed in on purpose, moments ago" without demanding a second sign-in the account has no
-    /// way to perform.
-    /// </summary>
+    /// <summary>How recently the access token must have been issued when the account offers no
+    /// credential its holder could present: minutes, the order of a token's own lifetime.</summary>
     public static readonly TimeSpan RecentAuthenticationWindow = TimeSpan.FromMinutes(5);
 
     /// <inheritdoc />

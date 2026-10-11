@@ -11,22 +11,13 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.CompletePasskeyRegistration;
 
-/// <summary>
-/// Completes a passkey registration and stores the credential, once the holder proves the session
-/// is the account's own and not merely a live one — for the reason
-/// <c>ConfirmTwoFactorSetupUseCase</c> gives, except that the stakes are higher: a passkey is not a
-/// second step on a way in, it is a whole way in, and a stolen session that could register one
-/// would hand its thief sign-in for ever after. The proof is the same shape account deletion takes:
-/// the password when one is set, and — for an account holding nothing its holder could present,
-/// a provider-linked one — an access token issued within
-/// <see cref="DeleteMyAccountUseCase.RecentAuthenticationWindow"/> ago, so a stolen session at
-/// least has to be a fresh one.
-/// <para>
-/// Registering a credential ends no session and rotates no stamp: it changes what <em>future</em>
-/// sign-ins can present, not what the sessions already open are worth, and the token model is
-/// untouched. Removing one is the same — the way to end a session is the sessions' own route.
-/// </para>
-/// </summary>
+/// <summary>Completes a passkey registration and stores the credential, once the holder proves the
+/// session is the account's own and not merely a live one — the reason
+/// <c>ConfirmTwoFactorSetupUseCase</c> gives, with higher stakes: a passkey is a whole way in, and
+/// a stolen session that could register one would hand its thief sign-in for ever after. The proof
+/// is the shape account deletion takes — the password, or for a provider-linked account an access
+/// token issued within <see cref="DeleteMyAccountUseCase.RecentAuthenticationWindow"/>. Registering
+/// a credential ends no session and rotates no stamp; removing one is the same.</summary>
 public sealed class CompletePasskeyRegistrationUseCase(
     IPasskeyService passkeys,
     IAccountsService accounts,

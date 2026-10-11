@@ -12,18 +12,18 @@ using Xunit;
 namespace AppTemplate.Api.UnitTests.Features.Auth.Controllers;
 
 /// <summary>
-/// The attributes every authentication endpoint stands on, whichever of the five controllers under
+/// The attributes every authentication endpoint stands on, whichever of the six controllers under
 /// the <c>auth</c> prefix declares it.
 /// </summary>
 /// <remarks>
-/// Read off the five types rather than one, because each rule below is a claim about the surface a
+/// Read off the six types rather than one, because each rule below is a claim about the surface a
 /// caller meets: the credential budget, the caching contract, the absence of idempotency and the
 /// inbound body limit are properties of a URL. A rule enumerating one class would have gone on
 /// passing while asking nothing of the other four.
 /// </remarks>
 public sealed class AuthenticationSurfaceTests
 {
-    /// <summary>The five classes the twenty authentication actions are divided between.</summary>
+    /// <summary>The six classes the twenty-eight authentication actions are divided between.</summary>
     private static readonly Type[] _controllers =
     [
         typeof(RegistrationController),
@@ -31,6 +31,7 @@ public sealed class AuthenticationSurfaceTests
         typeof(AccountController),
         typeof(TwoFactorController),
         typeof(PasswordRecoveryController),
+        typeof(PasskeysController),
     ];
 
     #region The attributes this endpoint stands on
@@ -48,6 +49,7 @@ public sealed class AuthenticationSurfaceTests
             nameof(SessionsController.LoginWithExternalProvider),
             nameof(SessionsController.LoginWithTwoFactor),
             nameof(SessionsController.Refresh),
+            nameof(PasskeysController.CompletePasskeySignIn),
         ];
 
         foreach (string name in minting)
@@ -125,8 +127,8 @@ public sealed class AuthenticationSurfaceTests
             .ToList();
 
         actions.Count.ShouldBeGreaterThanOrEqualTo(
-            20,
-            "Far fewer actions were found than the five controllers declare between them, so every "
+            28,
+            "Far fewer actions were found than the six controllers declare between them, so every "
             + "attribute rule in this class is passing over an empty set.");
 
         return actions;

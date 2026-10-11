@@ -183,6 +183,27 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "UserPasskeys",
+                schema: "identity",
+                columns: table => new
+                {
+                    CredentialId = table.Column<byte[]>(type: "bytea", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Data = table.Column<string>(type: "jsonb", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserPasskeys", x => x.CredentialId);
+                    table.ForeignKey(
+                        name: "FK_UserPasskeys_User_UserId",
+                        column: x => x.UserId,
+                        principalSchema: "identity",
+                        principalTable: "User",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "UserRoles",
                 schema: "identity",
                 columns: table => new
@@ -353,6 +374,12 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_UserPasskeys_UserId",
+                schema: "identity",
+                table: "UserPasskeys",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_UserRoles_RoleId",
                 schema: "identity",
                 table: "UserRoles",
@@ -384,6 +411,10 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             migrationBuilder.DropTable(
                 name: "UserLogins",
+                schema: "identity");
+
+            migrationBuilder.DropTable(
+                name: "UserPasskeys",
                 schema: "identity");
 
             migrationBuilder.DropTable(

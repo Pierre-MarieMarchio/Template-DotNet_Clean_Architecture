@@ -5,6 +5,7 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.CurrentSession;
 using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Passkeys;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ReAuthentication;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventQueries;
@@ -51,7 +52,7 @@ public sealed class ApplicationAuthModuleTests
     /// provider, two security-trail reads, two administrative purges reached only from a background
     /// job, and the two the session list gives its owner: reading it and ending one of its entries.
     /// </summary>
-    private const int _knownUseCaseCount = 31;
+    private const int _knownUseCaseCount = 37;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
@@ -191,6 +192,7 @@ public sealed class ApplicationAuthModuleTests
         services.AddScoped(_ => Substitute.For<ISecurityEventQueries>());
         services.AddScoped(_ => Substitute.For<IAccountAdministrationService>());
         services.AddScoped(_ => Substitute.For<ITwoFactorService>());
+        services.AddScoped(_ => Substitute.For<IPasskeyService>());
         services.AddScoped(_ => Substitute.For<IReAuthenticationService>());
         services.AddScoped(_ => Substitute.For<ICurrentAccessToken>());
         services.AddScoped(_ => Substitute.For<IDomainEventPublisher>());

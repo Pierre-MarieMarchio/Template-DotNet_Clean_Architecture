@@ -4,6 +4,7 @@ using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Auth.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Passkeys;
 using AppTemplate.Application.Auth.Features.Auth.Ports.ReAuthentication;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventQueries;
@@ -128,6 +129,7 @@ public static class AuthModule
         services.AddScoped<ISessionTokensService, SessionTokensService>();
         services.AddScoped<ISessionsService, SessionsService>();
         services.AddScoped<ITwoFactorService, TwoFactorService>();
+        services.AddScoped<IPasskeyService, PasskeyService>();
         services.AddScoped<IAccountAdministrationService, AccountAdministrationService>();
         services.AddScoped<IReAuthenticationService, ReAuthenticationService>();
         services.AddScoped<IExternalIdentityVerifier, ExternalIdentityVerifier>();
@@ -258,6 +260,11 @@ public static class AuthModule
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<SecurityEventLogOptions>, SecurityEventLogOptionsValidator>();
 
+        services.AddOptions<PasskeyOptions>()
+            .Bind(configuration.GetSection(PasskeyOptions.SectionName))
+            .ValidateOnStart();
+        services.TryAddSingleton<IValidateOptions<PasskeyOptions>, PasskeyOptionsValidator>();
+
         // The one section allowed to be absent: a deployment offering no external sign-in boots with
         // no providers and refuses every attempt.
         services.AddOptions<ExternalIdentityOptions>()
@@ -344,6 +351,13 @@ public static class AuthModule
         services.AddOptions<EmailChangeTokenProviderOptions>()
             .Configure<IOptions<EmailChangeOptions>>(
                 (tokenOptions, emailChangeOptions) => tokenOptions.TokenLifespan = emailChangeOptions.Value.TokenLifespan);
+
+        // The one member of the WebAuthn posture a deployment sets; the rest of
+        // IdentityPasskeyOptions keeps its own safe defaults — user verification required among
+        // them, which is what lets a passkey stand in for the whole of a sign-in.
+        services.AddOptions<IdentityPasskeyOptions>()
+            .Configure<IOptions<PasskeyOptions>>(
+                (identityPasskeys, passkeys) => identityPasskeys.ServerDomain = passkeys.Value.ServerDomain);
     }
 
     /// <summary>

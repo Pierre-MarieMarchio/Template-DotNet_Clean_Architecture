@@ -1,6 +1,8 @@
-﻿using System.Text.Json;
+﻿using System.Buffers.Text;
+using System.Text.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.Features.Auth.Mapping;
+using AppTemplate.Application.Auth.Features.Auth.Ports.Passkeys;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventQueries;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
@@ -348,6 +350,54 @@ public sealed class AuthResponseMappingTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_someRefusal);
+    }
+
+    [Fact]
+    public void ToPasskeysResponse_EncodesEveryCredentialIdAsBase64Url()
+    {
+        var credentialId = new byte[] { 1, 2, 3, 250, 251, 252, 253, 254, 255 };
+        var listed = new[] { new PasskeyCredential(credentialId, "YubiKey 5", _accessExpiry) };
+
+        var response = AuthResponseMapping.ToPasskeysResponse(
+            Result.Success<IReadOnlyList<PasskeyCredential>>(listed)).Value;
+
+        var item = response.Passkeys.ShouldHaveSingleItem();
+        item.Id.ShouldBe(Base64Url.EncodeToString(credentialId));
+        item.Name.ShouldBe("YubiKey 5");
+        item.CreatedAt.ShouldBe(_accessExpiry);
+    }
+
+    [Fact]
+    public void ToPasskeyResponse_EncodesTheCredentialIdAsBase64Url()
+    {
+        var credentialId = new byte[] { 9, 8, 7 };
+
+        var response = AuthResponseMapping.ToPasskeyResponse(
+            Result.Success(new PasskeyCredential(credentialId, null, _accessExpiry))).Value;
+
+        response.Id.ShouldBe(Base64Url.EncodeToString(credentialId));
+        response.Name.ShouldBeNull();
+        response.CreatedAt.ShouldBe(_accessExpiry);
+    }
+
+    [Fact]
+    public void ToRegistrationOptionsResponse_CopiesTheOptionsAndTheStateUnchanged()
+    {
+        var response = AuthResponseMapping.ToRegistrationOptionsResponse(
+            Result.Success(new PasskeyRegistrationChallenge("the-creation-options", "the-state"))).Value;
+
+        response.CreationOptions.ShouldBe("the-creation-options");
+        response.RegistrationState.ShouldBe("the-state");
+    }
+
+    [Fact]
+    public void ToSignInOptionsResponse_CopiesTheOptionsAndTheStateUnchanged()
+    {
+        var response = AuthResponseMapping.ToSignInOptionsResponse(
+            Result.Success(new PasskeySignInChallenge("the-sign-in-options", "the-state"))).Value;
+
+        response.SignInOptions.ShouldBe("the-sign-in-options");
+        response.AuthenticationState.ShouldBe("the-state");
     }
 
     // Proves the contract's shape, not what MVC serves: `response` is declared as the polymorphic

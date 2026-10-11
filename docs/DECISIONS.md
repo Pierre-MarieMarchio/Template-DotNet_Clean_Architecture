@@ -161,6 +161,30 @@ followed by one on its live grants, in that order: a process that dies between l
 are dead on arrival, which every rotation tests, so the revocation wins its race with a rotation in
 flight without holding a lock across the two.
 
+**A passkey ceremony's state is the client's to carry, not a cookie's.** ASP.NET Core Identity's own
+`SignInManager` passkey methods park the ceremony state in the two-factor-user-id cookie; this API
+sets no cookie and keeps no session between the two calls of a sign-in, so the adapter hands the
+state to the client as an opaque string and verifies it against what the client posts back — the
+same shape the two-factor challenge token has. The state is not tamper-proofed and does not need to
+be: it carries the challenge the authenticator must have signed, so a rewritten state only produces
+a ceremony that does not verify.
+
+**A user-verified passkey is the whole of a sign-in.** Passkey sign-in does not stop at the armed
+second factor: the ceremonies demand user verification (`required`, kept unconfigurable), so
+possession of the credential and the authenticator's own user check happened together — the two
+factors a password and a TOTP code provide. ASP.NET Core Identity's own `PasskeySignInAsync`
+bypasses the factor for the same reason. The armed factor still governs the ways in that prove
+less: a password sign-in demands its code exactly as before. `CompletePasskeySignInUseCaseTests`
+holds the whole sentence.
+
+**Registering a passkey demands the proof arming a second factor does.** A stolen session that
+could register its thief's passkey would hand over sign-in for ever after, so the completing call
+re-authenticates — the current password when one is set, and for an account holding nothing its
+holder could present (a provider-linked one) a recently issued access token, the same fallback and
+window account deletion takes. Registering or removing a passkey ends no session and rotates no
+stamp: a credential changes what future sign-ins can present, not what the sessions already open
+are worth, and ending a session is the sessions' own route.
+
 **No MediatR, no dispatcher, no pipeline behaviours.** A controller names the use case it calls, and
 `F12` reaches the implementation. `LayerDependencyTests` forbids the package by name.
 

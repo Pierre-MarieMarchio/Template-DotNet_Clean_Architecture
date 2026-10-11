@@ -261,6 +261,43 @@ public static class AuthErrors
         "auth.twoFactor.setupRejected",
         "Two-factor setup could not be started on this account.");
 
+    /// <summary>
+    /// The passkey registration ceremony did not verify — a state string this API never issued, a
+    /// credential that does not answer it, a credential already registered, or a state issued for
+    /// a different account. Attached to "credential", the value the caller posted: the caller is
+    /// authenticated, so there is no account to protect from enumeration here, but nothing safe to
+    /// echo either, since the message would be this one whatever broke.
+    /// </summary>
+    public static Error InvalidPasskeyRegistration { get; } = ValidationError.ForField(
+        "credential",
+        "The passkey registration could not be completed.");
+
+    /// <summary>The ceremony verified, but the store refused to hold the credential. See <see cref="AccountDeletionRejected"/> for why no message is carried.</summary>
+    public static Error PasskeyRegistrationRejected { get; } = Error.Validation(
+        "auth.passkey.registrationRejected",
+        "The passkey could not be registered.");
+
+    /// <summary>
+    /// The caller named a passkey that is not one of theirs. Also the answer for another account's
+    /// passkey and for one already removed, so the route discloses nothing about which credential
+    /// ids exist.
+    /// </summary>
+    public static Error NoSuchPasskey { get; } = Error.NotFound(
+        "auth.passkey.notFound",
+        "No such passkey.");
+
+    /// <summary>
+    /// One error for every way a passkey sign-in can fail: a state string this API never issued, a
+    /// ceremony that did not verify, an account no longer allowed to sign in. A passkey ceremony
+    /// is cryptographic, so a distinct answer for any of these is not an enumeration oracle the
+    /// way a wrong password is — but the caller can do nothing with the distinction either, and
+    /// the anonymous route keeps one answer for the same reason <see cref="InvalidCredentials"/>
+    /// does.
+    /// </summary>
+    public static Error InvalidPasskeySignIn { get; } = Error.Unauthorized(
+        "auth.passkeySignIn.invalid",
+        "The passkey sign-in could not be completed.");
+
     /// <summary>Password and code matched, but the store refused to arm the factor. See <see cref="AccountDeletionRejected"/> for why no message is carried.</summary>
     public static Error TwoFactorEnableRejected { get; } = Error.Validation(
         "auth.twoFactor.enableRejected",

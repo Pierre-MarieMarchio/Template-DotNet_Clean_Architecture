@@ -88,8 +88,12 @@ public sealed class LayoutConventionTests
                 //#endif
                 // Providers/ holds an adapter the host supplies to a module for something only a
                 // request can answer — where an event came from — as Directories/ holds the ones
-                // that join two features.
+                // that join two features. Only the local accounts file one today, so the word
+                // travels with them: without it the unused-word pass below would report a word no
+                // feature of the tree files under.
+                //#if (localAuth)
                 "Providers",
+                //#endif
             ],
         //#if (localAuth)
 

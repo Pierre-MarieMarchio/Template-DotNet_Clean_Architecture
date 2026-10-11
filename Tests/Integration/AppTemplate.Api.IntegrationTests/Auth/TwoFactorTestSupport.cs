@@ -71,8 +71,8 @@ internal static class TwoFactorTestSupport
     /// <summary>
     /// Enrolls and arms two-factor sign-in for the caller <paramref name="client"/> is authenticated
     /// as, from a fresh <see cref="TestSession"/>, and returns the shared key and the recovery codes.
-    /// Confirming revokes every refresh token for the account, so <paramref name="client"/> carries no
-    /// working credential once this returns — callers sign back in through the challenge flow.
+    /// Confirming ends every session but the caller's own, and that one's access token dies with the
+    /// stamp rotation — callers sign back in through the challenge flow for a fresh one.
     /// </summary>
     public static async Task<(string SharedKey, IReadOnlyList<string> RecoveryCodes)> EnableTwoFactorAsync(
         HttpClient client,

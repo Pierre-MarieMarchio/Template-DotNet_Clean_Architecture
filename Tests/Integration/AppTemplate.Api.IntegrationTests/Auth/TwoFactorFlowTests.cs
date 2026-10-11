@@ -236,15 +236,20 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
     }
 
     /// <summary>
-    /// Arming the second factor ends the caller's own session too, not only the others: its access
-    /// token dies with the stamp, and the refresh token it holds is revoked with every other one. No
-    /// grant records which session it belongs to, so there is none to spare.
+    /// Arming the second factor from the caller's own session ends every other session and spares
+    /// that one — the owner's decision when sessions were named: the confirm step proved possession
+    /// of the password and the code, so the caller is not signed out by its own change. The spared
+    /// grant keeps refreshing although the stamp rotation killed the access token it held; a second
+    /// session's grant does not.
     /// </summary>
     [Fact]
-    public async Task ConfirmingTwoFactor_SignsOutTheCallersOwnSessionToo()
+    public async Task ConfirmingTwoFactor_EndsEveryOtherSessionButSparesTheCallersOwn()
     {
         var (client, user, session) = await SignInAsync();
         var setup = await TwoFactorTestSupport.BeginTwoFactorSetupAsync(client, TestToken);
+
+        var otherDevice = CreateClient();
+        var otherTokens = await LoginAsync(otherDevice, user);
 
         using var refreshed = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh", new RefreshAccessTokenRequest(session.Tokens.RefreshToken), TestToken);
@@ -257,7 +262,11 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
 
         using var afterConfirming = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh", new RefreshAccessTokenRequest(callersTokens.RefreshToken), TestToken);
-        afterConfirming.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-        (await ApiJson.ReadProblemAsync(afterConfirming, TestToken)).Code.ShouldBe("auth.refreshToken.invalid");
+        afterConfirming.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var otherRefreshed = await otherDevice.PostAsJsonAsync(
+            $"{AuthRoute}/refresh", new RefreshAccessTokenRequest(otherTokens.RefreshToken), TestToken);
+        otherRefreshed.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await ApiJson.ReadProblemAsync(otherRefreshed, TestToken)).Code.ShouldBe("auth.refreshToken.invalid");
     }
 }

@@ -1,6 +1,8 @@
 ﻿using System.Text.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.Features.Auth.Mapping;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventQueries;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RefreshAccessToken;
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Register;
@@ -309,6 +311,43 @@ public sealed class AuthResponseMappingTests
 
         root.GetProperty("status").GetString().ShouldBe("twoFactorRequired");
         root.GetProperty("challengeToken").GetString().ShouldBe("challenge");
+    }
+
+    [Fact]
+    public void ToSecurityEventPageResponse_CopiesEveryField_AndNamesTheKind()
+    {
+        var entry = new SecurityEventEntry(
+            Guid.CreateVersion7(),
+            SecurityEventKind.RefreshTokenReplayDetected,
+            _accessExpiry,
+            "203.0.113.7",
+            "Mozilla/5.0",
+            "invalidCredentials");
+
+        var page = AuthResponseMapping.ToSecurityEventPageResponse(
+            Result.Success(PagedResult.Offset([entry], 3, 20, 41))).Value;
+
+        var item = page.Items.ShouldHaveSingleItem();
+        item.Id.ShouldBe(entry.Id);
+        item.Kind.ShouldBe(nameof(SecurityEventKind.RefreshTokenReplayDetected));
+        item.OccurredAt.ShouldBe(_accessExpiry);
+        item.IpAddress.ShouldBe("203.0.113.7");
+        item.UserAgent.ShouldBe("Mozilla/5.0");
+        item.Detail.ShouldBe("invalidCredentials");
+        page.TotalCount.ShouldBe(41);
+        page.Page.ShouldBe(3);
+        page.PageSize.ShouldBe(20);
+    }
+
+    [Fact]
+    public void ToSecurityEventPageResponse_PropagatesAFailure_WithoutReadingTheValue()
+    {
+        var result = Should.NotThrow(
+            () => AuthResponseMapping.ToSecurityEventPageResponse(
+                Result.Failure<PagedResult<SecurityEventEntry>>(_someRefusal)));
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(_someRefusal);
     }
 
     // Proves the contract's shape, not what MVC serves: `response` is declared as the polymorphic

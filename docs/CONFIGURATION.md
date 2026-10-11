@@ -52,7 +52,7 @@ be filled from user secrets or environment variables.
 > | Section | Bound by | Declared in |
 > |---|---|---|
 > | `Identity`, `IdentityTokens` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Common/Options/` |
-> | `Jwt`, `RefreshToken`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `TwoFactor`, `ExternalIdentity` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Auth/Options/` |
+> | `Jwt`, `RefreshToken`, `SecurityEventLog`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `TwoFactor`, `ExternalIdentity` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Auth/Options/` |
 > | `IdentitySeed` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Auth/Seeding/` |
 > | `Database` | `AddPersistenceModule` **and** `AddAuthModule` | `AppTemplate.Infrastructure.Core/Common/Options/` |
 > | `IdempotencyPurge` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Idempotency/` |
@@ -141,11 +141,13 @@ module composes ASP.NET Identity and bearer validation with no narrower call.
 #endif-->
 
 <!--#if (localAuth)-->
-**The refresh-token purge belongs to authentication.** It is not listed in the background
+**Authentication's two purges belong to authentication.** They are not listed in the background
 composition: `AddAuthFeature` (`Src/Presentation/AppTemplate.Api/Features/Auth/Composition/AuthComposition.cs`)
-registers it with the maintenance timer, from the authentication feature's own folder, and
+registers them with the maintenance timer, from the authentication feature's own folder, and
 [`MaintenanceWorker:PurgeExpiredRefreshTokensEnabled`](#maintenanceworkerpurgeexpiredrefreshtokensenabled)
-is read by an options class that lives beside it. A project built without authentication deletes that
+and
+[`MaintenanceWorker:PurgeExpiredSecurityEventsEnabled`](#maintenanceworkerpurgeexpiredsecurityeventsenabled)
+are read by an options class that lives beside them. A project built without authentication deletes that
 call and that folder and edits nothing in the composition — `BackgroundWorkTests` fails the build if
 the composition ever names authentication.
 <!--#endif-->
@@ -194,7 +196,7 @@ there: what is deliberately not configurable, and how a key becomes an environme
 | | Sections |
 |---|---|
 | Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Files`](#files) · [`Files:Storage`](#filesstorage) · [`Files:Storage:S3`](#filesstorages3) · [`Files:Storage:FileSystem`](#filesstoragefilesystem) · [`Files:Scanning`](#filesscanning) |
-| Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
+| Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`SecurityEventLog`](#securityeventlog) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
 | Mail | [`Email:Transport`](#emailtransport--smtp-or-an-http-api) · [`Email`](#email) · [`Postmark`](#postmark) · [`EmailConfirmation`](#emailconfirmation) · [`PasswordReset`](#passwordreset) · [`EmailChange`](#emailchange) · [`Localization`](#localization) |
 | The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [`RateLimiting`](#ratelimiting) |
 | Correctness mechanisms | [`Concurrency`](#concurrency) · [`Idempotency`](#idempotency) · [`IdempotencyPurge`](#idempotencypurge) |
@@ -206,7 +208,7 @@ there: what is deliberately not configurable, and how a key becomes an environme
 | | Sections |
 |---|---|
 | Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Files`](#files) · [`Files:Storage`](#filesstorage) · [`Files:Storage:S3`](#filesstorages3) · [`Files:Storage:FileSystem`](#filesstoragefilesystem) · [`Files:Scanning`](#filesscanning) |
-| Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
+| Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`SecurityEventLog`](#securityeventlog) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
 | Mail | [`Email:Transport`](#emailtransport--smtp-or-an-http-api) · [`Email`](#email) · [`Postmark`](#postmark) · [`EmailConfirmation`](#emailconfirmation) · [`PasswordReset`](#passwordreset) · [`EmailChange`](#emailchange) · [`Localization`](#localization) |
 | The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [`RateLimiting`](#ratelimiting) |
 | Correctness mechanisms | [`Concurrency`](#concurrency) · [`Idempotency`](#idempotency) · [`IdempotencyPurge`](#idempotencypurge) |
@@ -679,6 +681,18 @@ opposite. 1000 is a starting point, not a measured optimum for your ingestion ra
 |---|---|---|---|
 | `LifetimeInDays` | int | `7` | Range **1–90**. Token size (32 bytes) and hashing (SHA-256) are not configurable. |
 | `RetentionInDays` | int | `7` | Range **1–90**. How long an expired grant's row survives before `ISessionTokensService` deletes it — a retention window on rows, not a lifetime on tokens. Read by the sweep that runs in the maintenance job. |
+
+### `SecurityEventLog`
+
+How long the persisted security-event trail — every sign-in attempt, lockout, credential
+revocation and replay the `ILogger` output already carries — is kept before the purge deletes it,
+readable over the API by the account holder (`GET /auth/me/security-events`) and by an
+administrator for any account.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `RetentionInDays` | int | `90` | Range **1–3650**. Days an event is kept before `PurgeExpiredSecurityEvents` deletes it — for every account, a deleted one included, whose rows are removed by this purge and nothing else. Events also survive the account itself: the table carries no foreign key, by design. |
+| `PurgeBatchSize` | int | `1000` | Range **1–100000**. Rows one delete statement removes; the purge repeats until a statement removes fewer, so a large backlog is cleared in short transactions rather than one long lock over the table. |
 
 ### `Identity`
 
@@ -1200,8 +1214,8 @@ A role switch, read by `AddBackgroundJobs` before it registers anything, so it i
 
 Read by `AppTemplate.Api/Features/Maintenance/Jobs/MaintenanceWorkerOptions.cs`, when
 `BackgroundJobs:Enabled` is true. Each task can be switched off independently — an operator running
-the idempotency purge here but the refresh-token purge some other way is not forced into both. The
-refresh-token switch is documented next, because it belongs to authentication.
+the idempotency purge here but one of authentication's some other way is not forced into the rest.
+The two authentication switches are documented next, because they belong to authentication.
 
 - Every iteration resolves its use cases from one fresh background scope
   (`IServiceScopeFactory.CreateBackgroundScope()`), never from a scope held for the process lifetime,
@@ -1240,10 +1254,23 @@ path, and this switch is what makes it certain. See
 <!--#endif-->
 
 A key of the `MaintenanceWorker` section above, read by
-`AppTemplate.Api/Features/Auth/Jobs/RefreshTokenPurgeOptions.cs` — a class of its own that
-the authentication feature's composition binds to that section, so a project without authentication loses the key
+`AppTemplate.Api/Features/Auth/Jobs/AuthPurgeOptions.cs` — a class of the authentication feature's
+own that its composition binds to that section, so a project without authentication loses the key
 with the purge. Off, rotated and expired grants accumulate: nothing else removes them, and the
 maintenance job says so at warning level on every skipped iteration.
+
+### `MaintenanceWorker:PurgeExpiredSecurityEventsEnabled`
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `PurgeExpiredSecurityEventsEnabled` | bool | `true` | Runs `IPurgeExpiredSecurityEventsUseCase` each iteration when `true`. |
+
+Read by the same `AuthPurgeOptions` class as the refresh-token switch, for the same reason: the
+security-event purge is authentication's, and what it deletes — the trail — is defined by
+[`SecurityEventLog:RetentionInDays`](#securityeventlog), not by this key. Off, aged-out events
+accumulate; the maintenance job says so at warning level on every skipped iteration. The purge is
+also an authorized endpoint, `DELETE /maintenance/security-events/expired`, for a scheduler outside
+the process.
 
 <!--#if (reminders)-->
 ### `ReminderWorker`

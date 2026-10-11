@@ -24,8 +24,9 @@ public sealed class MaintenanceBackgroundServiceTests
     {
         var idempotency = new FakeIdempotencyPurge(new InvalidOperationException("boom"));
         var refreshTokens = new FakeRefreshTokenPurge();
+        var securityEvents = new FakeSecurityEventPurge();
 
-        using var service = MaintenanceJobsHarness.Create(idempotency, refreshTokens, EnabledOptions());
+        using var service = MaintenanceJobsHarness.Create(idempotency, refreshTokens, securityEvents, EnabledOptions());
 
         await service.StartAsync(CancellationToken.None);
         await BackgroundServiceProbe.WaitUntilAsync(
@@ -37,6 +38,7 @@ public sealed class MaintenanceBackgroundServiceTests
         // reaching a later iteration, and does not stop its sibling task in the SAME iteration.
         idempotency.CallCount.ShouldBeGreaterThanOrEqualTo(3);
         refreshTokens.CallCount.ShouldBeGreaterThanOrEqualTo(3);
+        securityEvents.CallCount.ShouldBeGreaterThanOrEqualTo(3);
     }
 
     [Fact]
@@ -44,7 +46,8 @@ public sealed class MaintenanceBackgroundServiceTests
     {
         var idempotency = new FakeIdempotencyPurge();
         var refreshTokens = new FakeRefreshTokenPurge();
-        using var service = MaintenanceJobsHarness.Create(idempotency, refreshTokens, EnabledOptions(), refreshTokensEnabled: false);
+        using var service = MaintenanceJobsHarness.Create(
+            idempotency, refreshTokens, new FakeSecurityEventPurge(), EnabledOptions(), refreshTokensEnabled: false);
 
         await service.StartAsync(CancellationToken.None);
         await BackgroundServiceProbe.WaitUntilAsync(
@@ -61,15 +64,16 @@ public sealed class MaintenanceBackgroundServiceTests
     {
         var idempotency = new FakeIdempotencyPurge();
         var refreshTokens = new FakeRefreshTokenPurge();
+        var securityEvents = new FakeSecurityEventPurge();
         var options = EnabledOptions();
         options.PurgeExpiredIdempotencyKeysEnabled = false;
 
-        using var service = MaintenanceJobsHarness.Create(idempotency, refreshTokens, options);
+        using var service = MaintenanceJobsHarness.Create(idempotency, refreshTokens, securityEvents, options);
 
         await service.StartAsync(CancellationToken.None);
         await BackgroundServiceProbe.WaitUntilAsync(
-            () => refreshTokens.CallCount >= 3,
-            "the refresh-token purge to have run three times");
+            () => securityEvents.CallCount >= 3,
+            "the security-event purge to have run three times");
         await service.StopAsync(CancellationToken.None);
 
         idempotency.CallCount.ShouldBe(0);
@@ -94,6 +98,7 @@ public sealed class MaintenanceBackgroundServiceTests
             idempotencyPurge,
             //#if (localAuth)
             new FakeRefreshTokenPurge(),
+            new FakeSecurityEventPurge(),
             //#endif
             options);
 
@@ -123,19 +128,25 @@ public sealed class MaintenanceBackgroundServiceTests
         using var service = MaintenanceJobsHarness.Create(
             new FakeIdempotencyPurge(),
             new FakeRefreshTokenPurge(),
+            new FakeSecurityEventPurge(),
             EnabledOptions(),
             refreshTokensEnabled: false,
+            securityEventsEnabled: false,
             logger);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await BackgroundServiceProbe.WaitUntilAsync(
-            () => logger.Lines.Any(IsTheDisabledRefreshTokenLine),
-            "the disabled refresh-token purge to be logged");
+            () => logger.Lines.Any(IsTheDisabledRefreshTokenLine) && logger.Lines.Any(IsTheDisabledSecurityEventsLine),
+            "both of authentication's disabled purges to be logged");
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         var line = logger.Lines.First(IsTheDisabledRefreshTokenLine);
         line.Message.ShouldContain("disabled");
         line.Message.ShouldContain("nothing else removes them");
+
+        var securityEventsLine = logger.Lines.First(IsTheDisabledSecurityEventsLine);
+        securityEventsLine.Message.ShouldContain("disabled");
+        securityEventsLine.Message.ShouldContain("nothing else removes them");
     }
     //#endif
 
@@ -157,12 +168,14 @@ public sealed class MaintenanceBackgroundServiceTests
             idempotencyPurge,
             //#if (localAuth)
             new FakeRefreshTokenPurge(),
+            new FakeSecurityEventPurge(),
             //#endif
             options,
             //#if (localAuth)
             refreshTokensEnabled: true,
+            securityEventsEnabled: true,
             //#endif
-            logger);
+            logger: logger);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -180,6 +193,10 @@ public sealed class MaintenanceBackgroundServiceTests
     private static bool IsTheDisabledRefreshTokenLine((LogLevel Level, string Message) line) =>
         line.Level == LogLevel.Warning
         && line.Message.Contains("expired refresh-token grants", StringComparison.Ordinal);
+
+    private static bool IsTheDisabledSecurityEventsLine((LogLevel Level, string Message) line) =>
+        line.Level == LogLevel.Warning
+        && line.Message.Contains("expired security events", StringComparison.Ordinal);
 
     //#endif
     private static MaintenanceWorkerOptions EnabledOptions() => new()

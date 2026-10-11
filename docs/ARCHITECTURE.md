@@ -1,4 +1,4 @@
-# Architecture
+﻿# Architecture
 
 A Clean Architecture layout for a .NET 10 HTTP API. This document records the
 decisions and, more usefully, the reasons — including the things this template
@@ -43,7 +43,7 @@ one exists.
 | Domain | `AppTemplate.Domain` | aggregates, value objects, domain events, invariants | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application.Core` | the mechanisms a use case is written *from*: `Result`/`Error`, the `IUseCase` marker, validation, offset and cursor pagination, idempotency, optimistic concurrency, the cross-cutting ports | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application` | the business features' use cases, feature ports, DTOs, validators | `AppTemplate.Domain` + `AppTemplate.Application.Core` |
-| Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind nine ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
+| Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind ten ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: what a context saves through — the unit of work, the three interceptors, the aggregate tracker — plus the system clock, multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
 | Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Auth`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
 | Presentation | `AppTemplate.Presentation.Core` | what any host needs whatever its transport: one outbound HTTP policy, the language a flow is written in, OTLP traces and metrics, the identity of a process with no caller — and no framework reference, deliberately | `AppTemplate.Application.Core` |
@@ -60,7 +60,7 @@ graph RL
     Pers[AppTemplate.Infrastructure.Persistence<br/>the business context, per-feature models,<br/>mapping, trackers, repositories, queries,<br/>the idempotency table, the Postgres lease]
     InfraCore[AppTemplate.Infrastructure.Core<br/>the unit of work, the three save interceptors,<br/>the aggregate tracker, the clock, multilingual mail,<br/>the cache adapter behind ICacheStore]
     App[AppTemplate.Application<br/>the business features: use cases, feature ports, DTOs]
-    Auth[AppTemplate.Application.Auth<br/>sign-in, accounts, tokens, two-factor,<br/>behind nine ports — no domain type]
+    Auth[AppTemplate.Application.Auth<br/>sign-in, accounts, tokens, two-factor,<br/>behind ten ports — no domain type]
     AppCore[AppTemplate.Application.Core<br/>Result, IUseCase, validation, pagination,<br/>idempotency, concurrency, cross-cutting ports]
     Dom[AppTemplate.Domain<br/>aggregates, value objects, events]
     DomCore[AppTemplate.Domain.Core<br/>entity, aggregate root, domain event,<br/>audit and concurrency contracts, domain exception]
@@ -102,7 +102,7 @@ graph RL
 nothing in `AppTemplate.Application` names `AppTemplate.Application.Auth`, so a project that needs
 it declares it: the identity module, the email module (its reminder notifier resolves a user profile
 to find an address), the in-memory doubles, and the host. `AppTemplate.Infrastructure.Auth`
-declares no arrow to `AppTemplate.Application` at all — it implements nine Auth ports and nothing
+declares no arrow to `AppTemplate.Application` at all — it implements ten Auth ports and nothing
 else.
 
 `AppTemplate.Application.Core` is drawn by twelve arrows rather than reached through one, and that
@@ -173,8 +173,8 @@ Core: authentication and account administration as use cases — sign-in, refres
 password and email lifecycle, two-factor enrolment, external providers, roles and lockouts — under
 `Features/Auth/{Errors,Policies,Ports,UseCases}`. It declares one project reference,
 `AppTemplate.Application.Core`, and it names **no aggregate**: the identity model is not one here,
-it lives behind the nine ports in `Features/Auth/Ports/`. The one domain type it names is
-`UserId`, which arrives through `ICurrentUser` — and every one of its own nine ports takes the
+it lives behind the ten ports in `Features/Auth/Ports/`. The one domain type it names is
+`UserId`, which arrives through `ICurrentUser` — and every one of its own ten ports takes the
 raw `Guid` inside it instead, because what an account is identified by here is the subject a token
 carries rather than the business's notion of an owner. That is why the unwrap is visible at each of
 those calls. It has a project of its own because it
@@ -349,14 +349,15 @@ split runs there rather than putting every port in one layer:
 | `IExternalIdentityVerifier` | `AppTemplate.Application.Auth` | an `id_token` checked against a provider's JWKS |
 | `IExternalLoginsService` | `AppTemplate.Application.Auth` | the `(provider, subject)` link, over ASP.NET Identity |
 | `IAccountEmailFactory` | `AppTemplate.Application.Auth` | HTML templates plus each link's page |
-| `ISecurityEventLog` | `AppTemplate.Application.Auth` | structured log entries, one per security event |
+| `ISecurityEventLog` | `AppTemplate.Application.Auth` | structured log entries, plus the trail persisted in the identity schema and its retention purge |
+| `ISecurityEventQueries` | `AppTemplate.Application.Auth` | one account's persisted trail, read back a page at a time |
 
 There is no `IEfCoreRepository`, no `ISmtpClient`, no `IHttpContextWrapper`. The
 point of the seam is that the application layer can be read, and tested, without
 knowing that EF Core, MailKit or ASP.NET Identity exist. A port named after its
 implementation has already given that away.
 
-The authentication ports are the interesting ones. There are eleven of them, one per
+The authentication ports are the interesting ones. There are thirteen of them, one per
 intent, rather than one `IAuthService`, and the split is what keeps the
 *sequencing* in Application: `RegisterUseCase` creates the account, then mints a
 confirmation token, then composes and sends the mail through `IEmailSender`, and
@@ -366,7 +367,7 @@ account, then revokes the whole family if it may no longer sign in. Each port is
 intent an adapter can satisfy on its own, and none declares more than six operations,
 and the ASP.NET Identity types (`AppUser`, `UserManager<>`) never appear in
 Application. An architecture test asserts that no port grows wide enough to take the
-sequencing back. Because those eleven ports are all `AppTemplate.Application.Auth` speaks in, that
+sequencing back. Because those thirteen ports are all `AppTemplate.Application.Auth` speaks in, that
 project names no aggregate: an account here is what its ports say about it. One of
 them, `ICurrentSession`, names which session a request is made from, and only the host
 can satisfy it — it sees the request — the same licence `ICurrentUser` has.
@@ -863,7 +864,7 @@ state that no longer exists is the lost update the token exists to prevent.
 | Schema | Tables |
 |---|---|
 | `todo` | `TodoLists`, `TodoItems`, `TodoItemTags` |
-| `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `RefreshTokenFamilies`, `DataProtectionKeys` |
+| `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `RefreshTokenFamilies`, `SecurityEvents`, `DataProtectionKeys` |
 | `reminders` | `Reminders` |
 | `files` | `StoredFiles` |
 | `notes` | `Notes` |
@@ -954,7 +955,7 @@ change tracker useful without it ever seeing the aggregate.
   error shapes.
 - **Authorisation is default-deny.** `Program.cs` installs an authorization fallback
   policy requiring an authenticated user, so an endpoint is protected unless it opts
-  out. Ten of the eighteen authentication actions and the two health endpoints do —
+  out. Ten of the nineteen authentication actions and the two health endpoints do —
   and, in Development only, so do the two OpenAPI endpoints. One consequence: because
   the fallback policy also applies when no endpoint matched, an unknown route answers
   401 to an anonymous caller rather than 404.

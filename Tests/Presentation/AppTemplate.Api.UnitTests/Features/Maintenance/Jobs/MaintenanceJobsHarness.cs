@@ -5,6 +5,7 @@ using AppTemplate.Api.Features.Auth.Jobs;
 using AppTemplate.Api.Features.Maintenance.Jobs;
 //#if (localAuth)
 using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
+using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredSecurityEvents;
 //#endif
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using Microsoft.Extensions.Configuration;
@@ -20,18 +21,20 @@ internal static class MaintenanceJobsHarness
 {
     /// <summary>
     /// The real registration — the idempotency purge from the maintenance feature and, with the
-    /// supplied accounts, the refresh-token purge from authentication's — over fake use cases, with
-    /// the option objects replaced so the interval can be shorter than the validator allows a
-    /// deployment to choose.
+    /// supplied accounts, authentication's two purges — over fake use cases, with the option
+    /// objects replaced so the interval can be shorter than the validator allows a deployment to
+    /// choose.
     /// </summary>
     internal static MaintenanceBackgroundService Create(
         IPurgeExpiredIdempotencyKeysUseCase idempotency,
         //#if (localAuth)
         IPurgeExpiredRefreshTokensUseCase refreshTokens,
+        IPurgeExpiredSecurityEventsUseCase securityEvents,
         //#endif
         MaintenanceWorkerOptions options,
         //#if (localAuth)
         bool refreshTokensEnabled = true,
+        bool securityEventsEnabled = true,
         //#endif
         ILogger<MaintenanceBackgroundService>? logger = null)
     {
@@ -42,6 +45,7 @@ internal static class MaintenanceJobsHarness
         services.AddScoped(_ => idempotency);
         //#if (localAuth)
         services.AddScoped(_ => refreshTokens);
+        services.AddScoped(_ => securityEvents);
         //#endif
         services.AddMaintenanceJobs(configuration);
         //#if (localAuth)
@@ -49,9 +53,10 @@ internal static class MaintenanceJobsHarness
         //#endif
         services.AddSingleton(Options.Create(options));
         //#if (localAuth)
-        services.AddSingleton(Options.Create(new RefreshTokenPurgeOptions
+        services.AddSingleton(Options.Create(new AuthPurgeOptions
         {
             PurgeExpiredRefreshTokensEnabled = refreshTokensEnabled,
+            PurgeExpiredSecurityEventsEnabled = securityEventsEnabled,
         }));
         //#endif
         services.AddSingleton(logger ?? NullLogger<MaintenanceBackgroundService>.Instance);

@@ -5,23 +5,14 @@ using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
 
-/// <summary>
-/// The one place that knows both shapes.
-/// <para>
-/// Read the three methods as three different jobs rather than as three overloads of "copy the fields".
-/// <see cref="ToAggregate"/> is total: every stored value becomes domain state, or it is lost.
-/// <see cref="ToNewRecord"/> is total in the other direction, which is what makes it the subject of the
-/// round-trip fidelity test. <see cref="WriteTo"/> is deliberately <em>partial</em>: it writes the
-/// columns the domain owns and leaves alone the ones the store owns, because the audit stamps and the
-/// concurrency token have exactly one writer each and it is not this class.
-/// </para>
-/// <para>
-/// Stateless and registered as a singleton, so it can safely be shared. It touches no
-/// <c>DbContext</c> — reconciliation is expressed as adds and removes on plain collections, and
-/// turning those into SQL is EF's job, decided by the change tracker after the fact. Keeping the
-/// mapper ignorant of EF is also what lets the fidelity test exercise it with no database at all.
-/// </para>
-/// </summary>
+/// <summary>The one place that knows both shapes. Read the three methods as different jobs, not
+/// overloads of "copy the fields": <see cref="ToAggregate"/> is total (every stored value becomes
+/// domain state or is lost), <see cref="ToNewRecord"/> is total the other way — the subject of the
+/// round-trip fidelity test — and <see cref="WriteTo"/> is deliberately <em>partial</em>: it writes
+/// the domain's columns and leaves the audit stamps and concurrency token alone, which have exactly
+/// one writer each and not this class. Stateless, a singleton, touching no <c>DbContext</c> —
+/// reconciliation is adds and removes on plain collections, and turning those into SQL is EF's —
+/// which is also what lets the fidelity test exercise it with no database.</summary>
 internal sealed class TodoListMapper : ITodoListMapper
 {
     public TodoList ToAggregate(TodoListRecord record)

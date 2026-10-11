@@ -2,23 +2,12 @@
 
 namespace AppTemplate.Infrastructure.InMemory.Common.Time;
 
-/// <summary>
-/// A clock that does not move unless it is told to. Time-dependent behaviour — token expiry,
-/// refresh-token rotation, audit stamps — is then a matter of arithmetic rather than of
-/// waiting, and a test that asserts on an expiry no longer has to sleep or to tolerate a
-/// window.
-/// <para>
-/// Public, and public for a reason: the whole point is that the test controls it, so
-/// <see cref="Set"/> and <see cref="Advance"/> have to cross the assembly boundary. Resolve
-/// the concrete type to move time; production code resolves <see cref="IDateTimeProvider"/>
-/// and cannot tell the difference.
-/// </para>
-/// <para>
-/// Reads and writes are locked. An integration test drives the API from several requests, and
-/// a clock that could be read while being advanced would produce a torn value on a 32-bit
-/// runtime and an unreproducible failure on any of them.
-/// </para>
-/// </summary>
+/// <summary>A clock that does not move unless it is told to — time-dependent behaviour becomes
+/// arithmetic, and a test asserting on an expiry neither sleeps nor tolerates a window. Public on
+/// purpose: the test controls it, so <see cref="Set"/> and <see cref="Advance"/> cross the assembly
+/// boundary; production code resolves <see cref="IDateTimeProvider"/> and cannot tell the
+/// difference. Reads and writes are locked, since an integration test drives the API from several
+/// requests and a torn read would be an unreproducible failure.</summary>
 public sealed class FixedDateTimeProvider : IDateTimeProvider
 {
     /// <summary>

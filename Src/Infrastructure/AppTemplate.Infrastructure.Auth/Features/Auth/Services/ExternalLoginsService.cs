@@ -8,27 +8,19 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Services;
 
-/// <summary>
-/// <see cref="IExternalLoginsService"/> over ASP.NET Identity's <c>UserLogins</c> table — mapped
-/// since the schema was first written and, until now, never read.
-/// <para>
-/// It translates and decides nothing. Which of these four operations a sign-in calls is
+/// <summary><see cref="IExternalLoginsService"/> over ASP.NET Identity's <c>UserLogins</c> table.
+/// It translates and decides nothing: which of these four operations a sign-in calls is
 /// <c>ExternalAccountLinkPolicy</c>'s decision, and every refusal here is reported as the store's
-/// refusal rather than interpreted into one.
-/// </para>
-/// </summary>
+/// refusal rather than interpreted into one.</summary>
 internal sealed class ExternalLoginsService(
     UserManager<AppUser> userManager,
     IAppUserDirectory directory,
     IOptions<IdentityOptions> identityOptions,
     IDateTimeProvider dateTimeProvider) : IExternalLoginsService
 {
-    /// <summary>
-    /// How many user names are tried before provisioning gives up. Three, because the only reason to
-    /// try again is that the derived name is taken, and the second and third candidates carry random
-    /// suffixes — a fourth collision is not a name clash any more, it is a store saying no for a
-    /// reason more attempts will not change.
-    /// </summary>
+    /// <summary>How many user names are tried before provisioning gives up. Three: the only reason to
+    /// try again is that the derived name is taken, and a fourth collision is a store saying no for a
+    /// reason more attempts will not change.</summary>
     private const int _userNameAttempts = 3;
 
     /// <summary>
@@ -130,12 +122,10 @@ internal sealed class ExternalLoginsService(
         return null;
     }
 
-    /// <summary>
-    /// The second half of the one step the port promises. There is no transaction across the two
-    /// calls, so a failed link is compensated rather than left behind: without the deletion, a
-    /// failure here leaves an account holding the address, carrying no password and attached to no
-    /// provider — one nobody can ever sign into and which blocks the address for good.
-    /// </summary>
+    /// <summary>The second half of the one step the port promises. No transaction spans the two
+    /// calls, so a failed link is compensated: without the deletion it would leave an account holding
+    /// the address, carrying no password and attached to no provider — one nobody can sign into and
+    /// which blocks the address for good.</summary>
     private async Task<AccountIdentity?> LinkNewAccountAsync(
         AppUser user,
         string provider,
@@ -162,22 +152,13 @@ internal sealed class ExternalLoginsService(
     private static AccountIdentity ToAccountIdentity(AppUser user) =>
         new(user.Id, user.UserName ?? string.Empty, user.Email ?? string.Empty, user.TwoFactorEnabled);
 
-    /// <summary>
-    /// A user name built from the address, kept inside <c>IdentityOptions.User.AllowedUserNameCharacters</c>.
-    /// <para>
-    /// The filtering is not cosmetic. That setting is a hard gate in ASP.NET Identity's own
-    /// <c>UserValidator</c>, and its default set is ASCII letters, digits and <c>-._@+</c> — so an
-    /// address as ordinary as <c>rené.dupont@example.com</c> yields a name <c>CreateAsync</c>
-    /// rejects outright, and the use case above it would report a refusal it could not explain. An
-    /// installation that narrowed the set further would break more addresses, not fewer, which is
-    /// why the allowed set is read from the options rather than assumed.
-    /// </para>
-    /// <para>
-    /// Returns <c>null</c> when nothing survives — an address written entirely in characters this
-    /// installation forbids — because a name invented out of nothing at all would be worse than a
-    /// refusal the operator can read in the allowed set they configured.
-    /// </para>
-    /// </summary>
+    /// <summary>A user name built from the address, kept inside
+    /// <c>IdentityOptions.User.AllowedUserNameCharacters</c> — not cosmetic: that setting is a hard
+    /// gate in ASP.NET Identity's own <c>UserValidator</c>, and its default set is ASCII letters,
+    /// digits and <c>-._@+</c>, so an address like <c>rené.dupont@example.com</c> would otherwise
+    /// yield a name <c>CreateAsync</c> rejects outright. The allowed set is read from the options
+    /// rather than assumed. Returns <c>null</c> when nothing survives — a name invented out of
+    /// nothing would be worse than a refusal the operator can read in the set they configured.</summary>
     private string? DeriveUserName(string email, int attempt)
     {
         string allowed = identityOptions.Value.User.AllowedUserNameCharacters;

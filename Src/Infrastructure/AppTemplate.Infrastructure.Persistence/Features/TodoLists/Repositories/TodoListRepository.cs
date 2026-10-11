@@ -9,22 +9,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Repositories;
 
-/// <summary>
-/// Loads and stages whole <see cref="TodoList"/> aggregates. Nothing here calls
-/// <c>SaveChangesAsync</c>: it borrows the context and never owns the transaction. Committing belongs
-/// to <c>IUnitOfWork</c>.
-/// <para>
-/// It is three lines longer than it was, and every one of them is the price of EF not mapping the
-/// domain. A load is now a query for rows plus a mapping plus a registration in the identity map; a
-/// stage is a mapping plus an <c>Add</c>. The alternative — handing EF the aggregate — is shorter, and
-/// costs the domain model its independence from the schema.
-/// </para>
-/// <para>
-/// Internal and sealed: it is an adapter for a port the application layer declares, and nothing outside
-/// this assembly has any business naming the type. Use cases depend on
-/// <see cref="ITodoListRepository"/>.
-/// </para>
-/// </summary>
+/// <summary>Loads and stages whole <see cref="TodoList"/> aggregates. Nothing here calls
+/// <c>SaveChangesAsync</c>: it borrows the context and never owns the transaction — committing belongs
+/// to <c>IUnitOfWork</c>. A load is a query for rows, a mapping and a registration in the identity
+/// map; a stage is a mapping plus an <c>Add</c> — the price of EF not mapping the domain, which the
+/// alternative (handing EF the aggregate) would have cost the domain its independence from the
+/// schema. Internal and sealed: an adapter for a port the application layer declares; use cases
+/// depend on <see cref="ITodoListRepository"/>.</summary>
 internal sealed class TodoListRepository(
     AppDbContext context,
     ITodoListMapper mapper,

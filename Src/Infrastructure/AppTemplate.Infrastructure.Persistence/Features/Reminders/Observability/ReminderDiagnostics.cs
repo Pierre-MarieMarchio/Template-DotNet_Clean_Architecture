@@ -3,22 +3,16 @@ using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Reminders.Observability;
 
-/// <summary>
-/// The adapter for <see cref="IReminderDiagnostics"/>: one counter,
+/// <summary>The adapter for <see cref="IReminderDiagnostics"/>: one counter,
 /// <c>reminders.missed_cancellations</c>, incremented once per call to
-/// <see cref="IReminderDiagnostics.RecordMissedCancellation"/>. Every increment is a completion (or
-/// deletion) whose cancellation never reached <c>CancelRemindersOnTodoItemCompletedConsumer</c>,
-/// and that count is what lets a deployment alert on the accepted gap in event delivery going
-/// non-zero instead of discovering it by reading logs after the fact. <c>SECURITY.md</c> cites this
-/// counter by name, so the instrument name below is not free to drift from it.
-/// </summary>
-/// <remarks>
-/// Static fields, the same shape as <c>MaintenanceInstruments</c> in <c>AppTemplate.Api</c>: a
-/// <see cref="Meter"/> is meant to be created once per process, not once per scope. Exported by the
-/// API's telemetry registration when its background jobs run — the only place that ever calls
+/// <see cref="IReminderDiagnostics.RecordMissedCancellation"/> — a completion (or deletion) whose
+/// cancellation never reached <c>CancelRemindersOnTodoItemCompletedConsumer</c>. The count is what
+/// lets a deployment alert on the accepted gap in event delivery; <c>SECURITY.md</c> cites the
+/// counter by name, so the instrument name is not free to drift from it.</summary>
+/// <remarks>Static fields, as a <see cref="Meter"/> is meant to be created once per process. Exported
+/// by the API's telemetry registration — the only place that calls
 /// <see cref="IReminderDiagnostics.RecordMissedCancellation"/> — under
-/// <see cref="PersistenceModule.RemindersMeterName"/>, the one constant both sides read.
-/// </remarks>
+/// <see cref="PersistenceModule.RemindersMeterName"/>, the one constant both sides read.</remarks>
 internal sealed class ReminderDiagnostics : IReminderDiagnostics
 {
     private static readonly Meter _meter = new(PersistenceModule.RemindersMeterName);

@@ -5,23 +5,14 @@ using Microsoft.AspNetCore.Identity;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Services;
 
-/// <summary>
-/// <see cref="IAccountAdministrationService"/> over <see cref="UserManager{TUser}"/>. Role names are
-/// passed through unexamined — this module knows no role names of its own.
-/// <para>
-/// <see cref="RoleManager{TRole}"/> is here only to guard <see cref="GrantRoleAsync"/> against a role
-/// that was never seeded. <c>UserManager.AddToRoleAsync</c> checks whether the user already carries
-/// the role, but not whether the role exists — the Entity Framework store throws
-/// <see cref="InvalidOperationException"/> for that case instead of returning a refusal.
-/// <c>RemoveFromRoleAsync</c> needs no such guard: removing a role nobody has is already a normal
-/// refusal.
-/// </para>
-/// <para>
-/// Deleting needs no stamp rotation and no grant revocation: the bearer handler looks the account up
-/// by id before it compares a stamp, and <c>RefreshTokens</c> carries a cascading foreign key to the
-/// account, so removing the row removes every grant with it.
-/// </para>
-/// </summary>
+/// <summary><see cref="IAccountAdministrationService"/> over <see cref="UserManager{TUser}"/>; role
+/// names pass through unexamined. <see cref="RoleManager{TRole}"/> guards <see cref="GrantRoleAsync"/>
+/// against a role that was never seeded — <c>AddToRoleAsync</c> checks whether the user carries the
+/// role but not whether it exists, which the Entity Framework store answers with
+/// <see cref="InvalidOperationException"/> rather than a refusal; <c>RemoveFromRoleAsync</c> needs no
+/// such guard. Deleting needs no stamp rotation and no grant revocation: the bearer handler looks the
+/// account up by id, and <c>RefreshTokens</c> cascades, so removing the row removes every
+/// grant.</summary>
 internal sealed class AccountAdministrationService(
     UserManager<AppUser> userManager,
     RoleManager<AppRole> roleManager,

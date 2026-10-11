@@ -6,22 +6,14 @@ using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Leases;
 
-/// <summary>
-/// Leadership by PostgreSQL advisory lock. <c>pg_try_advisory_lock</c> succeeds for exactly one
-/// session and returns <c>false</c> to every other one without waiting, so one host runs the work
-/// and the rest are standbys. The decisive property is that the lock belongs to the *session*:
-/// losing the process closes the session and releases the lock, rather than leaving a lease to
-/// expire on a timer nobody is holding.
-/// </summary>
-/// <remarks>
-/// Named for the store the lock is taken from, so that a lease held anywhere else — an in-memory
-/// one for a test host, another module's — can satisfy the same port beside it.
-/// <para>
-/// Holds no state between calls and must be registered as a singleton: the background services that
-/// use it are singletons, and a scoped dependency captured by one is exactly what the container's
-/// scope validation refuses.
-/// </para>
-/// </remarks>
+/// <summary>Leadership by PostgreSQL advisory lock: <c>pg_try_advisory_lock</c> succeeds for
+/// exactly one session and returns <c>false</c> to every other without waiting, so one host runs the
+/// work and the rest are standbys. The decisive property is that the lock belongs to the *session* —
+/// losing the process releases it, rather than leaving a lease to expire on a timer nobody holds.</summary>
+/// <remarks>Named for the store the lock is taken from, so a lease held anywhere else can satisfy the
+/// same port beside it. Holds no state between calls and must be a singleton: the background services
+/// using it are singletons, and a scoped dependency captured by one is what the container's scope
+/// validation refuses.</remarks>
 internal sealed class PostgresLeaderLease(IConfiguration configuration, ILogger<PostgresLeaderLease> logger)
     : ILeaderLease
 {
@@ -76,13 +68,10 @@ internal sealed class PostgresLeaderLease(IConfiguration configuration, ILogger<
     }
 
     /// <summary>Releases the lock, best effort, from a <c>finally</c>.</summary>
-    /// <remarks>
-    /// Deliberately not given the caller's token. The case that most needs releasing is the
-    /// cancelled one, and a cancelled token would make this throw before it did anything — replacing
-    /// the exception the caller is already being handed with one about the cleanup. Closing the
-    /// session releases the lock in any case, which is why a failure here is a log line and not an
-    /// exception: this call is what makes the lock go away *promptly*, not what makes it go away.
-    /// </remarks>
+    /// <remarks>Deliberately not given the caller's token: the case that most needs releasing is
+    /// the cancelled one, and a cancelled token would make this throw before doing anything. Closing
+    /// the session releases the lock in any case, so a failure here is a log line, not an exception —
+    /// this call makes the lock go away *promptly*, it is not what makes it go away.</remarks>
     private async Task ReleaseAsync(NpgsqlConnection connection, long key, string leaseName)
     {
         try
@@ -108,16 +97,12 @@ internal sealed class PostgresLeaderLease(IConfiguration configuration, ILogger<
         }
     }
 
-    /// <summary>
-    /// The same database, on a connection that is not pooled.
-    /// </summary>
-    /// <remarks>
-    /// A lease connection is checked out for the whole of the work it guards — minutes, where a pool
-    /// exists to amortise connections held for milliseconds — so pooling it would keep a slot of the
-    /// shared pool out of use for exactly as long as the loop runs. It would also put the session's
-    /// lifetime in the pool's hands, and the session's lifetime is the guarantee: the lock must
-    /// disappear when this process does, not when a pooled connection is next recycled.
-    /// </remarks>
+    /// <summary>The same database, on a connection that is not pooled.</summary>
+    /// <remarks>A lease connection is held for the whole of the work it guards — minutes, where a
+    /// pool exists to amortise milliseconds — so pooling it would keep a pool slot out of use for
+    /// exactly as long, and would put the session's lifetime in the pool's hands. The session's
+    /// lifetime is the guarantee: the lock must disappear when this process does, not when a pooled
+    /// connection is next recycled.</remarks>
     private static string LeaseConnectionString(string connectionString) =>
         new NpgsqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;
 }

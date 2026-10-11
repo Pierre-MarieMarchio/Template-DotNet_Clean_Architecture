@@ -2,25 +2,14 @@
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Tables;
 
-/// <summary>
-/// The storage half of session handling: one row per sign-in, holding what its owner lists it by.
-/// <para>
-/// A session is a refresh-token family — the chain of grants one sign-in starts — so what ends a
-/// session is the family row's revocation, and every rotation tests it. This table owns that
-/// lifecycle: the grant table (<see cref="IRefreshTokenTable"/>) creates its rows into a family
-/// this one started and cannot end.
-/// </para>
-/// <para>
-/// Ending a session is one conditional UPDATE on the family row, followed by one on the family's
-/// live grants. The two are separate statements and not atomic together; the order is deliberate.
-/// A process that dies between them leaves a family marked revoked with live grants still on
-/// disk — grants that are dead on arrival, because every rotation tests the family first. The
-/// safe direction is the only one the window allows.
-/// </para>
-/// <para>
-/// Public for the same reason <see cref="IRefreshTokenTable"/> is, and a table for the same one.
-/// </para>
-/// </summary>
+/// <summary>The storage half of session handling: one row per sign-in, holding what its owner lists
+/// it by. A session is a refresh-token family — the chain of grants one sign-in starts — so what ends
+/// a session is the family row's revocation, and every rotation tests it; the grant table
+/// (<see cref="IRefreshTokenTable"/>) creates its rows into a family this one started and cannot end.
+/// Ending a session is one conditional UPDATE on the family row, then one on its live grants —
+/// separate statements, not atomic, and deliberately in that order: a process dying between them
+/// leaves grants that are dead on arrival, because every rotation tests the family first. Public for
+/// the same reason <see cref="IRefreshTokenTable"/> is, and a table for the same one.</summary>
 public interface IRefreshTokenFamilyTable
 {
     /// <summary>
@@ -30,12 +19,9 @@ public interface IRefreshTokenFamilyTable
     /// </summary>
     Guid Start(Guid userId, DateTimeOffset createdAt, string? userAgent);
 
-    /// <summary>
-    /// Records a rotation as the session's latest use. Commits on its own and silently does nothing
-    /// to a session that was ended meanwhile: the family's <c>RevokedAt</c> travels in the UPDATE's
-    /// WHERE clause, so a revocation that commits first wins and leaves nothing for this to
-    /// resurrect.
-    /// </summary>
+    /// <summary>Records a rotation as the session's latest use. Commits on its own and silently
+    /// does nothing to a session ended meanwhile: the family's <c>RevokedAt</c> travels in the
+    /// UPDATE's WHERE clause, so a revocation that commits first wins.</summary>
     Task MarkUsedAsync(Guid familyId, string? userAgent, DateTimeOffset now, CancellationToken cancellationToken = default);
 
     /// <summary>Ends one of an account's sessions and revokes its live grants, committing on its

@@ -97,9 +97,13 @@ this repository:
 
 - An architecture rule can pass **vacuously** on an empty candidate set. Assert the set is non-empty
   *before* asserting the condition. `AggregateRoots_AreSealed` once matched zero types and passed.
+<!--#if (templateMaintenance)-->
 - A test project missing from `AppTemplate.sln` makes `dotnet test AppTemplate.sln` green with zero tests. CI asserts
-  every project under `Tests/` is in the solution<!--#if (templateMaintenance)-->, and that the run executed more than
-  zero tests<!--#endif-->.
+  every project under `Tests/` is in the solution, and that the run executed more than zero tests.
+<!--#else
+- A test project missing from `AppTemplate.sln` makes `dotnet test AppTemplate.sln` green with zero tests. CI asserts
+  every project under `Tests/` is in the solution.
+#endif-->
 - **A test that picks its own static type does not test the real path.** A unit test asserting the
   discriminator of a polymorphic response passed while the API served a body without one, because it
   called `JsonSerializer.Serialize<TBase>(…)` and named the base itself. MVC does not: `Ok(value)`
@@ -123,6 +127,7 @@ the delivery mechanism rather than a gap, and it is why there is no test-kit pro
 a kit could only hold the fixtures that name nothing of this product, which is the easy fifth of
 them, and the two a derived project actually wants could not go in it.
 
+<!--#if (localAuth)-->
 **Seven fixtures name no product type and can be leaned on as they are** — 356 lines between them.
 Under `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/`: `ApiJson`, the
 serialiser settings a raw response is read with; `CapturedLogs`, which makes an assertion about a
@@ -130,6 +135,13 @@ log entry possible; `SecurityHeaderAssertions`; and `TestClientAddressStartupFil
 lets a test choose the address the rate limiter partitions on. Under the identity project's
 `Fixtures/`: `DatabaseReadiness`, `Rendezvous`, which is how two concurrent contexts are made to
 race deliberately, and `AnonymousAuditActor`.
+<!--#else
+**Four fixtures name no product type and can be leaned on as they are.**
+Under `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/`: `ApiJson`, the
+serialiser settings a raw response is read with; `CapturedLogs`, which makes an assertion about a
+log entry possible; `SecurityHeaderAssertions`; and `TestClientAddressStartupFilter`, which is what
+lets a test choose the address the rate limiter partitions on.
+<!--#endif-->
 
 **Two name the product and have to be edited, and they are the two that matter.** `ApiFactory`
 names eleven product namespaces and `IntegrationTestBase` eight: the modules a test host replaces, the
@@ -184,10 +196,15 @@ Each of these has been paid for at least once in this repository.
   `Must` that dereferences needs `.Cascade(CascadeMode.Stop)` ahead of it.
 - **NSubstitute's `Arg.Is<T>` takes an expression tree**, which rejects pattern matching (CS8122).
   Compare a record by value instead of by predicate.
-- **The injectable clock controls neither JWT validation nor ASP.NET Identity**, both of which read
-  `TimeProvider.System`. Moving it forward and then signing in mints a token whose `nbf` is in the
+- **The injectable clock controls neither the token validation nor the account store**, both of
+  which read `TimeProvider.System`. Moving it forward and then signing in mints a token whose `nbf`
+  is in the
+<!--#if (localAuth)-->
   future, refused as `IDX10222` — not an expired one. It has no effect on lockout end dates or on
   confirmation and reset token lifetimes either.
+<!--#else
+  future, refused as a not-yet-valid one — not an expired one.
+<!--#endif-->
 - **The rate limiter's window advances on wall-clock time** and exposes no injectable clock;
   `AutoReplenishment = false` does not change that. The window itself is configurable
   (`RateLimiting:Window`) so a test host can widen it.

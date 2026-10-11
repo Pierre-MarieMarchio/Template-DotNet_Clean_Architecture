@@ -19,8 +19,8 @@ Sources, later overriding earlier:
 3. **User secrets** — local machine, never committed. `UserSecretsId` is already set
    in `AppTemplate.Api.csproj`.
 4. **Environment variables** — how deployed environments and `docker compose` supply
-   values. Nest sections with a double underscore: `Jwt:Key` becomes `Jwt__Key`,
-   `ConnectionStrings:Default` becomes `ConnectionStrings__Default`.
+   values. Nest sections with a double underscore: `ConnectionStrings:Default` becomes
+   `ConnectionStrings__Default`.
 
 ## Validation happens at startup, not on first use
 
@@ -28,6 +28,7 @@ Every section below binds to an options class with an `IValidateOptions<T>` vali
 registered with `.ValidateOnStart()`. A missing or
 out-of-range value **fails the host at startup** with a message naming the exact key.
 
+<!--#if (localAuth)-->
 Verified — blanking `EmailConfirmation:ConfirmEmailUrl` and shortening `Jwt:Key`:
 
 ```
@@ -36,6 +37,7 @@ System.AggregateException: One or more errors occurred.
   ('Jwt:Key' must be at least 32 bytes long to sign HS256 tokens.)
   ('EmailConfirmation:ConfirmEmailUrl' is required.)
 ```
+<!--#endif-->
 
 Every failing key is reported in one pass, before Kestrel binds a port. An empty
 string in `appsettings.json` therefore behaves as "you must supply this", not as a
@@ -51,23 +53,34 @@ be filled from user secrets or environment variables.
 >
 > | Section | Bound by | Declared in |
 > |---|---|---|
+<!--#if (localAuth)-->
 > | `Identity`, `IdentityTokens` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Common/Options/` |
-> | `Jwt`, `RefreshToken`, `SecurityEventLog`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `TwoFactor`, `ExternalIdentity` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Auth/Options/` |
+> | `Jwt`, `RefreshToken`, `SecurityEventLog`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `TwoFactor` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Auth/Options/` |
 > | `IdentitySeed` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Auth/Seeding/` |
+<!--#endif-->
+<!--#if (externalAuth)-->
+> | `Authentication:External` | `AddExternalAuthentication` | `AppTemplate.Api/Features/ExternalIdentity/Composition/` |
+<!--#endif-->
+> | `Database` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Core/Common/Options/` |
+<!--#if (localAuth)-->
 > | `Database` | `AddPersistenceModule` **and** `AddAuthModule` | `AppTemplate.Infrastructure.Core/Common/Options/` |
+<!--#endif-->
 > | `IdempotencyPurge` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Idempotency/` |
 > | `Email`, `Postmark` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Common/Smtp/` and `Common/Http/` |
+<!--#if (files)-->
 > | `Files` (its categories and `ApiUploadMaxBytes`) | `AddFiles`, the application's Files entry point; `AddStorageModule` adds the checks against scanning and the provider | `AppTemplate.Application/Features/Files/Options/` |
+<!--#endif-->
+<!--#if (files)-->
 > | `Files:Storage:S3` | `AddStorageModule`, when `Files:Storage:Provider` is `S3` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
 > | `Files:Storage`, `Files:Storage:FileSystem`, `Files:Scanning` | `AddStorageModule` (the `FileSystem` section only for that provider) | `AppTemplate.Infrastructure.Storage/Features/Files/Options/` |
+<!--#endif-->
 > | `BackgroundJobs` | `AddBackgroundJobs`, called from `AppTemplate.Api`'s `Program.cs` | `AppTemplate.Api/Common/Jobs/` |
 > | `Jobs:Enabled`, and each feature's own `Jobs:…` section | `AddBackgroundJobs`, and only when `Jobs:Enabled` is true | `AppTemplate.Api/Common/Jobs/` and `AppTemplate.Api/Features/<Feature>/Jobs/` |
 > | `OpenTelemetry` | `AddObservability`, through the API's `AddApiObservability` | `AppTemplate.Presentation.Core/Common/Observability/` |
 > | `Localization` | `AddLocalizationOptions`, through the API's `AddRequestLanguage` | `AppTemplate.Presentation.Core/Common/Localization/` |
 > | Everything else | `AppTemplate.Api`'s own `Program.cs`, through `AddHttpPipeline` | beside the middleware that reads it, under `AppTemplate.Api/Common/` |
 >
-> `IdentitySeed` sits with the seeder because seeding is a persistence concern, not an
-> authentication policy. **The configuration keys and their validation do not change** —
+> **The configuration keys and their validation do not change** —
 > only the file paths and which DI extension method binds them. Treat any path in this
 > document as indicative and the key names as authoritative.
 >
@@ -76,18 +89,33 @@ be filled from user secrets or environment variables.
 > `Microsoft.Extensions.Options.Options` for every file beneath it — so the short
 > `Options.Create(…)` stops resolving in the test project that mirrors it. The two projects
 > that meet this say so where they work around it: `StorageFixture` writes the fully
-> qualified `Microsoft.Extensions.Options.Options.Create`, and
-> `AccountEmailFactoryConfirmationTests` uses `OptionsWrapper<T>` instead.
+> qualified `Microsoft.Extensions.Options.Options.Create`,
+<!--#if (localAuth)-->
+> and `AccountEmailFactoryConfirmationTests` uses `OptionsWrapper<T>` instead
+<!--#endif-->
+> .
 
 ## One process: HTTP and the periodic jobs
 
-`AppTemplate.Api` serves HTTP and, by default, runs the periodic jobs in the same process: the two
-maintenance purges, the reminder pass and the three file passes. There is no second host and no
+`AppTemplate.Api` serves HTTP and, by default, runs the periodic jobs in the same process.
+<!--#if (accounts)-->
+ the two maintenance purges,
+<!--#endif-->
+<!--#if (reminders)-->
+ the reminder pass
+<!--#endif-->
+<!--#if (files)-->
+ and the three file passes
+<!--#endif-->
+. There is no second host and no
 second configuration schema — every section below is read by the one process, and `AddBackgroundJobs`
 (`Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`) is the
 single call that composes the jobs. The jobs call the same application-layer use cases the controllers
-do — `MaintenanceController` exposes the two purges over HTTP, for example — on a timer instead of a
-request, and a due reminder is rung through the same `IReminderNotifier` port.
+do — `MaintenanceController` exposes the purge over HTTP, for example — on a timer instead of a
+request.
+<!--#if (reminders)-->
+A due reminder is rung through the same `IReminderNotifier` port.
+<!--#endif-->
 
 **`Jobs:Enabled` is a deployment role, not a job setting.** It defaults to `true`, so a
 single instance does everything. Set it to `false` and the instance still serves every route, but
@@ -98,10 +126,17 @@ never quietly read as "disabled". A job is disabled only by its own `Enabled` fl
 counting and logging as disabled on every tick.
 
 **Several instances.** Set `Jobs__Enabled=false` on every instance that should only serve
-HTTP and leave it `true` on exactly one designated instance. That keeps the file passes — which walk
+HTTP and leave it `true` on exactly one designated instance.
+<!--#if (files)-->
+That keeps the file passes — which walk
 the object store — from being multiplied by the number of replicas, without a queue or a global
-scheduler. The protections underneath stay in place and are not a substitute for that choice: the
-reminder pass and the three file passes take the leader lease inside their use cases, the other
+scheduler.
+<!--#endif-->
+The protections underneath stay in place and are not a substitute for that choice:
+<!--#if (reminders || files)-->
+the reminder pass and the three file passes take the leader lease inside their use cases,
+<!--#endif-->
+the other
 passes are idempotent, and a rolling deployment, a manual `MaintenanceController` call or a mistaken
 double-enable can overlap without corrupting anything. They can still repeat work, and the lease is not a fencing token, so
 reminder delivery remains at-least-once. **`/health/ready` reports HTTP readiness** — the database
@@ -132,12 +167,16 @@ and mails them through `IReminderNotifier`, whose only adapter lives in
 `AppTemplate.Infrastructure.Email`, which cannot be composed without validating `Email` at startup.
 The API validates `Authentication:External` at startup, because it composes bearer validation with
 the mapping.
-#else
+<!--#elseif (localAuth)
 **What the jobs need from the other modules.** No job needs an authentication port of its own:
 `TheBackgroundOnlyContainer_BuildsWithoutAuthentication` holds that. A process that composes the
 identity module — the API does, for the account routes — validates the `Jwt`, `RefreshToken`,
 `EmailConfirmation`, `PasswordReset` and `EmailChange` sections as a whole, since composing that
 module composes ASP.NET Identity and bearer validation with no narrower call.
+#else
+**What the jobs need from the other modules.** No job needs an authentication port of its own:
+`TheBackgroundOnlyContainer_BuildsWithoutAuthentication` holds that. The API validates the sections of
+whatever module it composes at startup, as a whole.
 #endif-->
 
 <!--#if (localAuth)-->
@@ -170,13 +209,15 @@ files.
 ```bash
 cd Src/Presentation/AppTemplate.Api
 
-# The two things you actually need to run locally
+# The one thing you actually need to run locally
 dotnet user-secrets set "ConnectionStrings:Default" \
   "Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=<your password>"
+<!--#if (localAuth)-->
 dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)"
+<!--#endif-->
 
 dotnet user-secrets list      # show what is set
-dotnet user-secrets remove "Jwt:Key"
+dotnet user-secrets remove "ConnectionStrings:Default"
 dotnet user-secrets clear
 ```
 
@@ -192,30 +233,37 @@ they are **not** the values in `appsettings.Development.json`, which override th
 **Find your section.** The two entries at the end are the ones to read even when no key sends you
 there: what is deliberately not configurable, and how a key becomes an environment variable.
 
-<!--#if (reminders)-->
 | | Sections |
 |---|---|
+<!--#if (files)-->
 | Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Files`](#files) · [`Files:Storage`](#filesstorage) · [`Files:Storage:S3`](#filesstorages3) · [`Files:Storage:FileSystem`](#filesstoragefilesystem) · [`Files:Scanning`](#filesscanning) |
-| Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`SecurityEventLog`](#securityeventlog) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
-| Mail | [`Email:Transport`](#emailtransport--smtp-or-an-http-api) · [`Email`](#email) · [`Postmark`](#postmark) · [`EmailConfirmation`](#emailconfirmation) · [`PasswordReset`](#passwordreset) · [`EmailChange`](#emailchange) · [`Localization`](#localization) |
-| The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [`RateLimiting`](#ratelimiting) |
-| Correctness mechanisms | [`Concurrency`](#concurrency) · [`Idempotency`](#idempotency) · [`IdempotencyPurge`](#idempotencypurge) |
-| Lifecycle and observability | [`Shutdown`](#shutdown) · [`OpenTelemetry`](#opentelemetry) · [standard ASP.NET Core keys](#standard-aspnet-core-keys) |
-| Background jobs | [`Jobs`](#jobs) · [`Jobs:Files`](#jobsfiles) · [`Jobs:Maintenance`](#jobsmaintenance) · [`Jobs:Reminders`](#jobsreminders) |
-| Read these anyway | [not configurable, and why](#not-configurable--and-why-that-is-worth-knowing) · [outbound HTTP](#outbound-http--deliberately-not-configurable) · [environment-variable mapping](#environment-variable-mapping) |
-
 <!--#else
-| | Sections |
-|---|---|
-| Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) · [`Files`](#files) · [`Files:Storage`](#filesstorage) · [`Files:Storage:S3`](#filesstorages3) · [`Files:Storage:FileSystem`](#filesstoragefilesystem) · [`Files:Scanning`](#filesscanning) |
-| Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`SecurityEventLog`](#securityeventlog) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
+| Database and storage | [`ConnectionStrings`](#connectionstrings) · [`Database`](#database) |
+<!--#endif-->
+<!--#if (localAuth)-->
+| Identity and tokens | [`Jwt`](#jwt) · [`RefreshToken`](#refreshtoken) · [`SecurityEventLog`](#securityeventlog) · [`Identity`](#identity) · [`TwoFactor`](#twofactor) · [`Passkey`](#passkey) · [`IdentityTokens`](#identitytokens) · [`ExternalIdentity`](#externalidentity) · [`IdentitySeed`](#identityseed--development-only) |
+<!--#endif-->
+<!--#if (externalAuth)-->
+| External authentication | [`Authentication:External`](#authenticationexternal) |
+<!--#endif-->
+<!--#if (localAuth)-->
 | Mail | [`Email:Transport`](#emailtransport--smtp-or-an-http-api) · [`Email`](#email) · [`Postmark`](#postmark) · [`EmailConfirmation`](#emailconfirmation) · [`PasswordReset`](#passwordreset) · [`EmailChange`](#emailchange) · [`Localization`](#localization) |
+<!--#else
+| Mail | [`Email:Transport`](#emailtransport--smtp-or-an-http-api) · [`Email`](#email) · [`Postmark`](#postmark) · [`Localization`](#localization) |
+<!--#endif-->
 | The HTTP boundary | [`Cors`](#cors) · [`ReverseProxy`](#reverseproxy) · [`SecurityHeaders`](#securityheaders) · [`RequestLimits`](#requestlimits) · [`RequestTimeouts`](#requesttimeouts) · [`ProblemTypes`](#problemtypes) · [`RateLimiting`](#ratelimiting) |
 | Correctness mechanisms | [`Concurrency`](#concurrency) · [`Idempotency`](#idempotency) · [`IdempotencyPurge`](#idempotencypurge) |
 | Lifecycle and observability | [`Shutdown`](#shutdown) · [`OpenTelemetry`](#opentelemetry) · [standard ASP.NET Core keys](#standard-aspnet-core-keys) |
+<!--#if (files && reminders)-->
+| Background jobs | [`Jobs`](#jobs) · [`Jobs:Files`](#jobsfiles) · [`Jobs:Maintenance`](#jobsmaintenance) · [`Jobs:Reminders`](#jobsreminders) |
+<!--#elseif (files)-->
 | Background jobs | [`Jobs`](#jobs) · [`Jobs:Files`](#jobsfiles) · [`Jobs:Maintenance`](#jobsmaintenance) |
+<!--#elseif (reminders)-->
+| Background jobs | [`Jobs`](#jobs) · [`Jobs:Maintenance`](#jobsmaintenance) · [`Jobs:Reminders`](#jobsreminders) |
+<!--#else
+| Background jobs | [`Jobs`](#jobs) · [`Jobs:Maintenance`](#jobsmaintenance) |
+<!--#endif-->
 | Read these anyway | [not configurable, and why](#not-configurable--and-why-that-is-worth-knowing) · [outbound HTTP](#outbound-http--deliberately-not-configurable) · [environment-variable mapping](#environment-variable-mapping) |
-#endif-->
 
 ### `ConnectionStrings`
 
@@ -383,6 +431,7 @@ own, which must keep writing `Retry-After`.
 **Set `Window` or a limit outside its range** and the host fails `ValidateOnStart()` and does not
 boot.
 
+<!--#if (localAuth)-->
 ### `ExternalIdentity`
 
 Which providers a caller may present an `id_token` from. Bound by `AddAuthModule`, so both hosts
@@ -412,6 +461,7 @@ class. Apple's one real quirk (the address arrives only at the first authorisati
 it belongs, in the use case, because it is about linking rather than about verification.
 
 <!--#if (externalAuth)-->
+<!--#endif-->
 ### `Authentication:External`
 
 The external OpenID Connect provider (Keycloak, Entra ID, Auth0…) whose access tokens authenticate
@@ -473,6 +523,7 @@ pass logs that it stood by and reports zero. What each pass guarantees on retry:
   ⌈objects / 250,000⌉ + 1 passes, across restarts. With the `FileSystem` store it also deletes
   temporary files a crashed write left behind, once older than a day.
 
+<!--#if (files)-->
 ### `Files`
 
 The Files feature's application policy: the categories a file is registered under, and the ceiling
@@ -519,6 +570,7 @@ enabled, signature verified). No new file can be registered under it.
 **To scan a category**, enable [`Files:Scanning`](#filesscanning) first, then set its `Scan` to
 `true`; the order matters only because start-up refuses the second without the first.
 
+<!--#endif-->
 ### `Files:Storage`
 
 Which store holds the Files feature's bytes. One choice, read at start-up; the chosen provider's own
@@ -534,6 +586,7 @@ cannot sign: registering a direct upload answers `409` `storedFile.directUploadU
 `GET /files/{id}/content` streams the bytes from the API (`200`) instead of redirecting (`302`).
 With `FileSystem`, start-up refuses a category whose only upload mode is `Direct`.
 
+<!--#if (files)-->
 ### `Files:Storage:FileSystem`
 
 A directory on a local or mounted disk, when `Files:Storage:Provider` is `FileSystem`.
@@ -547,6 +600,7 @@ and a key that would resolve outside the root is refused. A write goes to a temp
 same directory while it is counted and hashed, and is published by a rename only when its size and
 SHA-256 match the declaration. Describing an object reads it whole to compute its digest.
 
+<!--#endif-->
 ### `Files:Storage:S3`
 
 The bucket, when `Files:Storage:Provider` is `S3`. Bound by `AddStorageModule` and validated at
@@ -600,6 +654,7 @@ rather than lengthen it, and see `SECURITY.md`.
 lists the bucket and deletes every object no row names — so anything else stored there is deleted on
 the next pass.
 
+<!--#if (files)-->
 ### `Files:Scanning`
 
 Whether deposited files are scanned for malware by a `clamd` daemon. Entirely optional: disabled,
@@ -623,6 +678,7 @@ that budget.
 That is why the two live under `Jobs:Files` with the sweeps but are documented as the opposite kind
 of switch.
 
+<!--#endif-->
 ### Outbound HTTP — deliberately not configurable
 
 There is no section for it, and that is a decision rather than an omission. There is one policy,
@@ -670,6 +726,7 @@ ordered by the already-indexed `ExpiresAt` column, and logs the total once the s
 Smaller batches mean more round trips and a shorter lock per trip; larger batches mean the
 opposite. 1000 is a starting point, not a measured optimum for your ingestion rate.
 
+<!--#if (localAuth)-->
 ### `Jwt`
 
 | Key | Type | Default | Notes |
@@ -680,6 +737,7 @@ opposite. 1000 is a starting point, not a measured optimum for your ingestion ra
 | `RequireHttpsMetadata` | bool | `true` | Only a local host has business setting `false`. |
 | `AccessTokenLifetimeInMinutes` | int | `15` | Range **1–1440**. Short on purpose: an access token cannot be revoked. |
 
+<!--#endif-->
 ### `RefreshToken`
 
 | Key | Type | Default | Notes |
@@ -687,6 +745,7 @@ opposite. 1000 is a starting point, not a measured optimum for your ingestion ra
 | `LifetimeInDays` | int | `7` | Range **1–90**. Token size (32 bytes) and hashing (SHA-256) are not configurable. |
 | `RetentionInDays` | int | `7` | Range **1–90**. How long an expired grant's row survives before `ISessionTokensService` deletes it — a retention window on rows, not a lifetime on tokens. Read by the sweep that runs in the maintenance job. |
 
+<!--#if (localAuth)-->
 ### `SecurityEventLog`
 
 How long the persisted security-event trail — every sign-in attempt, lockout, credential
@@ -699,6 +758,7 @@ administrator for any account.
 | `RetentionInDays` | int | `90` | Range **1–3650**. Days an event is kept before `PurgeExpiredSecurityEvents` deletes it — for every account, a deleted one included, whose rows are removed by this purge and nothing else. Events also survive the account itself: the table carries no foreign key, by design. |
 | `PurgeBatchSize` | int | `1000` | Range **1–100000**. Rows one delete statement removes; the purge repeats until a statement removes fewer, so a large backlog is cleared in short transactions rather than one long lock over the table. |
 
+<!--#endif-->
 ### `Identity`
 
 Password, lockout and sign-in policy. Every member has a safe default, so a
@@ -724,6 +784,7 @@ cause; `PasswordRequiredLength` may not exceed that ceiling.
 | `RequireConfirmedEmail` | bool | `true` | With this on, an unconfirmed account cannot log in — and the failure is indistinguishable from a wrong password (`auth.login.invalidCredentials`). |
 | `RequireUniqueEmail` | bool | `true` | **Cannot be `false`** — the user table has a unique index on the normalised email. |
 
+<!--#if (localAuth)-->
 ### `TwoFactor`
 
 The second factor's own settings. Every member has a safe default, so an absent section
@@ -745,6 +806,8 @@ address — per process, so times your replica count. Multiply the three before 
 what they bound together is how many six-digit codes somebody who already has the password may
 offer.
 
+<!--#endif-->
+<!--#if (localAuth)-->
 ### `Passkey`
 
 The relying-party side of the passkey ceremonies. The rest of the WebAuthn posture — user
@@ -754,6 +817,7 @@ own safe defaults, kept deliberately unconfigurable.
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `ServerDomain` | string | *(the request's host)* | The WebAuthn relying-party id: the effective domain of this API, which a browser's `navigator.credentials.*` calls require their origin to be a subdomain of. A bare domain — no scheme, port or path. **Changing it invalidates every passkey the accounts hold**, because a credential is scoped to the domain it was created under; set it once, before the first registration. |
+<!--#endif-->
 
 ### `ProblemTypes`
 
@@ -800,6 +864,7 @@ So there are three valid shapes:
 named boolean is the point: it is auditable in configuration and in a diff, whereas
 reaching for a permissive `Security` mode is not.
 
+<!--#if (localAuth)-->
 ### `EmailConfirmation`
 
 | Key | Type | Default | Notes |
@@ -812,6 +877,8 @@ headers and intermediary request history. The page reads the fragment and **POST
 to `/api/v1/auth/confirm-email` as a JSON body. Confirmation is not a GET with a query
 string, for the same reason.
 
+<!--#endif-->
+<!--#if (localAuth)-->
 ### `IdentityTokens`
 
 The lifespan of a token minted by ASP.NET Identity's **default** data-protector token
@@ -829,6 +896,8 @@ yet, so it is the one token whose window is bounded by how long a person takes t
 their mail. Shorten it if your users confirm promptly; the two shorter windows below are
 not evidence that this one was meant to match them.
 
+<!--#endif-->
+<!--#if (localAuth)-->
 ### `PasswordReset`
 
 | Key | Type | Default | Notes |
@@ -840,6 +909,8 @@ Same fragment-then-POST shape as `EmailConfirmation`, and for the same reason: t
 and single-use token are appended as a URL fragment, and the page **POSTs** them to
 `/api/v1/auth/reset-password` as a JSON body.
 
+<!--#endif-->
+<!--#if (localAuth)-->
 ### `EmailChange`
 
 | Key | Type | Default | Notes |
@@ -861,6 +932,7 @@ All three are bound by `AddAuthModule`, not by anything HTTP-specific, so a proc
 module — for the account routes and the refresh-token purge, see
 [above](#one-process-http-and-the-periodic-jobs) — requires all three URLs.
 
+<!--#endif-->
 ### `Localization`
 
 The language a mail is written in. Bound from the one options class in
@@ -905,6 +977,7 @@ job's mail, and ahead of the use case for the API's, where the request header ha
 stored preference would win. That is the one change that would make a reminder follow its reader
 rather than the deployment; nothing else here would move.
 
+<!--#if (localAuth)-->
 ### `IdentitySeed` — development only
 
 Creates an administrator account at startup.
@@ -926,6 +999,7 @@ Note that seeding only runs from the Development startup path
 (`MigrateAndSeedForDevelopmentAsync`), so setting `Enabled=true` in another
 environment fails at that call site rather than being quietly ignored.
 
+<!--#endif-->
 ### `Cors`
 
 | Key | Type | Default | Notes |
@@ -1229,7 +1303,12 @@ A role switch, read by `AddBackgroundJobs` before it registers anything, so it i
 
 Read by `AppTemplate.Api/Features/Maintenance/Jobs/JobsMaintenanceOptions.cs`, when
 `Jobs:Enabled` is true. Each task can be switched off independently — an operator running
-the idempotency purge here but one of authentication's some other way is not forced into the rest.
+<!--#if (localAuth)-->
+the idempotency purge here but one of authentication's some other way
+<!--#else
+the idempotency purge here
+<!--#endif-->
+is not forced into the rest.
 The two authentication switches are documented next, because they belong to authentication.
 
 - Every iteration resolves its use cases from one fresh background scope
@@ -1237,15 +1316,25 @@ The two authentication switches are documented next, because they belong to auth
   so no use case's scoped dependencies (a `DbContext`, a context factory) become an accidental
   singleton.
 - A task that throws is logged and retried at the next interval; it never stops the host, and it
-  never stops its sibling task in the same iteration. A permanently broken idempotency purge must not
+  never stops its sibling task in the same iteration. A permanently broken purge must not
+<!--#if (localAuth)-->
   also silence refresh-token cleanup.
+<!--#else
+  also silence any other cleanup.
+<!--#endif-->
 - The loop honours cancellation immediately rather than waiting out the current `Interval`, and
   does not treat a shutdown mid-iteration as a failure to log.
+<!--#if (localAuth)-->
 - `MaintenanceController` is a second, authorized entry point to the same two purges, and a purge is
   safe to run while the timer's own pass overlaps it.
+<!--#else
+- `MaintenanceController` is a second, authorized entry point to the same purge, and the purge is
+  safe to run while the timer's own pass overlaps it.
+<!--#endif-->
 - **Set outside 1 second – 1 day** and an instance that runs the jobs fails `ValidateOnStart()` and
   does not boot.
 
+<!--#if (localAuth)-->
 ### `Jobs:Maintenance:PurgeExpiredRefreshTokensEnabled`
 
 | Key | Type | Default | Notes |
@@ -1253,6 +1342,7 @@ The two authentication switches are documented next, because they belong to auth
 | `PurgeExpiredRefreshTokensEnabled` | bool | `true` | Runs `IPurgeExpiredRefreshTokensUseCase` each iteration when `true`. |
 
 <!--#if (anyFeature)-->
+<!--#endif-->
 ### `Jobs:Maintenance:SweepDeletedAccountsDataEnabled`
 
 | Key | Type | Default | Notes |
@@ -1274,6 +1364,7 @@ own that its composition binds to that section, so a project without authenticat
 with the purge. Off, rotated and expired grants accumulate: nothing else removes them, and the
 maintenance job says so at warning level on every skipped iteration.
 
+<!--#if (localAuth)-->
 ### `Jobs:Maintenance:PurgeExpiredSecurityEventsEnabled`
 
 | Key | Type | Default | Notes |
@@ -1288,6 +1379,7 @@ also an authorized endpoint, `DELETE /maintenance/security-events/expired`, for 
 the process.
 
 <!--#if (reminders)-->
+<!--#endif-->
 ### `Jobs:Reminders`
 
 | Key | Type | Default | Notes |
@@ -1374,13 +1466,20 @@ them to an options class with a validator — do not read them straight from
 | Configuration key | Environment variable |
 |---|---|
 | `ConnectionStrings:Default` | `ConnectionStrings__Default` |
+<!--#if (localAuth)-->
 | `Jwt:Key` | `Jwt__Key` |
 | `Identity:PasswordRequiredLength` | `Identity__PasswordRequiredLength` |
+<!--#endif-->
+<!--#if (externalAuth)-->
+| `Authentication:External:Authority` | `Authentication__External__Authority` |
+<!--#endif-->
 | `Email:AllowInsecureTransport` | `Email__AllowInsecureTransport` |
 | `Cors:AllowedOrigins[0]` | `Cors__AllowedOrigins__0` |
 | `Database:MaxPoolSize` | `Database__MaxPoolSize` |
 | `IdempotencyPurge:BatchSize` | `IdempotencyPurge__BatchSize` |
+<!--#if (files)-->
 | `Files:Storage:S3:BucketName` | `Files__Storage__S3__BucketName` |
+<!--#endif-->
 | `Jobs:Enabled` | `Jobs__Enabled` |
 | `Jobs:Maintenance:Interval` | `Jobs__Maintenance__Interval` |
 
@@ -1389,7 +1488,7 @@ underscore always does.
 
 `docker-compose.yml` deliberately has **no `env_file:`** on any service. Each variable
 is mapped explicitly under `environment:`, so a container holds only the keys it needs;
-`env_file: .env` would additionally push `POSTGRES_PASSWORD`, `JWT_KEY` and every other
+`env_file: .env` would additionally push `POSTGRES_PASSWORD` and every other
 raw variable into the API process, readable from `/proc/self/environ` and from any
 crash dump, for no benefit.
 

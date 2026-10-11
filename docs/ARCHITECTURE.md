@@ -43,11 +43,25 @@ one exists.
 | Domain | `AppTemplate.Domain` | aggregates, value objects, domain events, invariants | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application.Core` | the mechanisms a use case is written *from*: `Result`/`Error`, the `IUseCase` marker, validation, offset and cursor pagination, idempotency, optimistic concurrency, the cross-cutting ports | `AppTemplate.Domain.Core` |
 | Application | `AppTemplate.Application` | the business features' use cases, feature ports, DTOs, validators | `AppTemplate.Domain` + `AppTemplate.Application.Core` |
+<!--#if (localAuth)-->
 | Application | `AppTemplate.Application.Auth` | authentication and account administration as use cases, behind fourteen ports; it names no aggregate, and the one domain type it names is `UserId` | `AppTemplate.Application.Core` |
+<!--#endif-->
 | Infrastructure | `AppTemplate.Infrastructure.Core` | the mechanisms a module needs and no module owns: what a context saves through — the unit of work, the three interceptors, the aggregate tracker — plus the system clock, multilingual mail rendered from a module's own embedded templates, and a cache behind a port | `AppTemplate.Application.Core` |
+<!--#if (localAuth && files)-->
 | Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Auth`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
+<!--#elseif (localAuth)-->
+| Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Auth`, `.Email`, `.InMemory` | EF Core, PostgreSQL, ASP.NET Identity, JWT, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
+<!--#elseif (files)-->
+| Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Email`, `.Storage`, `.InMemory` | EF Core, PostgreSQL, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
+<!--#else
+| Infrastructure | `AppTemplate.Infrastructure.Persistence`, `.Email`, `.InMemory` | EF Core, PostgreSQL, SMTP | the application projects it needs (→ Domain) + `AppTemplate.Infrastructure.Core` |
+#endif-->
 | Presentation | `AppTemplate.Presentation.Core` | what any host needs whatever its transport: one outbound HTTP policy, the language a flow is written in, OTLP traces and metrics, the identity of a process with no caller — and no framework reference, deliberately | `AppTemplate.Application.Core` |
 | Presentation | `AppTemplate.Api` | controllers, the periodic background jobs, composition root, host concerns; the API also holds the HTTP mechanisms no feature owns under `Common/` — the whole pipeline behind one `UseHttpPipeline()`: problem details, ETags, idempotency, rate limiting, CORS, security headers, versioning, the health endpoints — and a `FrameworkReference` on ASP.NET Core | `AppTemplate.Presentation.Core` + the application projects it needs + the modules that host needs |
+
+The graph below is the template's own full shape, generated with every option on; this project's
+own composition is the list of calls further down, and the projects its solution actually holds are
+the ones `README.md` names.
 
 ```mermaid
 graph RL
@@ -98,12 +112,14 @@ graph RL
     Api --> Store
 ```
 
+<!--#if (localAuth)-->
 **Authentication is never carried transitively.** Nothing in `AppTemplate.Application.Core` and
 nothing in `AppTemplate.Application` names `AppTemplate.Application.Auth`, so a project that needs
 it declares it: the identity module, the email module (its reminder notifier resolves a user profile
 to find an address), the in-memory doubles, and the host. `AppTemplate.Infrastructure.Auth`
 declares no arrow to `AppTemplate.Application` at all — it implements ten Auth ports and nothing
 else.
+<!--#endif-->
 
 `AppTemplate.Application.Core` is drawn by twelve arrows rather than reached through one, and that
 is the point of it: nothing carries it transitively as a favour. Every project that names a
@@ -154,6 +170,7 @@ API's maintenance job, whose interval is configuration. There is deliberately no
 anything registers, and an umbrella call that registered nothing would read like the seam that
 makes the project work.
 
+<!--#if (localAuth)-->
 `AppTemplate.Application.Auth` is the layer's third project, and it is a vertical rather than a
 Core: authentication and account administration as use cases — sign-in, refresh-token rotation, the
 password and email lifecycle, two-factor enrolment, passkey ceremonies, external providers, roles and lockouts — under
@@ -169,6 +186,7 @@ identity provider, and that is only possible if nothing composes it on that appl
 hence one call, `AddAuthApplication()`, and no arrow to it from either of the other two application
 projects. It is shaped like the two `.Core` projects for the same reasons: `CS1591` re-enabled, and no
 version.
+<!--#endif-->
 
 `AppTemplate.Presentation.Core` is the presentation layer's fourth `.Core` and the outermost of
 them: what any host needs whatever its transport, and nothing that names one. Five subjects, one
@@ -221,10 +239,14 @@ So a host keeps a thin extension of its own over the shared one, and it holds ex
 that host can say. `AppTemplate.Api`'s `Common/Observability/ObservabilityExtensions.cs` adds the
 ASP.NET Core instrumentation, `AddNpgsql()`, the `Npgsql` and `Microsoft.AspNetCore.RateLimiting`
 meters, and the one request-log entry that ties a caller's `traceId` to a span. The jobs add their
-own to that same pipeline from `Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs`: the three
-jobs' sources and meters and the persistence project's reminder meter, by
-`PersistenceModule.RemindersMeterName`. Common may not name a feature, so that registration sits
-beside the jobs rather than in `Common/Observability/`, and it runs only when telemetry is enabled
+own to that same pipeline from `Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs`: each job's
+sources and meters.
+<!--#if (reminders)-->
+The reminder meter is named through `PersistenceModule.RemindersMeterName`, because Common may not
+name a feature, so that registration sits
+beside the jobs rather than in `Common/Observability/`.
+<!--#endif-->
+It runs only when telemetry is enabled
 and the jobs do. What is shared is the resource, the sampler, the outbound-HTTP instrumentation, the
 runtime meters and the exporter — every part of the registration where two hosts disagreeing would
 be a bug rather than a difference.
@@ -259,7 +281,15 @@ collection, a cap, a consistency between fields. The answer decides the shape, a
 
 | | Simple feature (no state to protect) | Rich feature (state to protect) |
 |---|---|---|
-| Example | `Notes` | `TodoLists`; `Reminders` and `Files` too |
+<!--#if (todoLists)-->
+| Example | `Notes` | `TodoLists` (and `Reminders`; `Files` too where kept) |
+<!--#elseif (notes)-->
+| Example | `Notes` | — |
+<!--#elseif (files)-->
+| Example | — | `Files` |
+<!--#else
+| Example | — none ships | — none ships |
+#endif-->
 | Domain | nothing | aggregate, value objects, events |
 | Application | one service (`INoteService`, one method per operation) over a store port and a queries port | one use case per operation, a repository port in the domain, a queries port |
 | Persistence | the EF record is the model; the store projects to DTOs | record, mapper and tracker, so the domain stays free of EF |
@@ -274,6 +304,7 @@ the way from the first to the second.
 
 What the simple shape keeps is everything that is not the aggregate:
 
+<!--#if (notes)-->
 - **CQS holds.** A service with separate read and write methods is sufficient: the reads stage and
   commit nothing, and two models are not required. `Notes` splits its storage into `INoteQueries`
   (the reads) and `INoteStore` (the writes) because a port is one capability and staging is not
@@ -291,6 +322,19 @@ What the simple shape keeps is everything that is not the aggregate:
   load and the commit matches no row, `EfUnitOfWork` reports the conflict and the API answers `409`
   `concurrency.conflict`. The database, not the earlier read, has the last word.
 - **The modular rule is unchanged.** `Notes` reaches no other feature and none reaches it.
+<!--#else
+- **CQS holds.** A service with separate read and write methods is sufficient: the reads stage and
+  commit nothing, and two models are not required. The store and queries ports are separate because
+  a port is one capability and staging is not reading.
+- **The commit is the same one.** A record is staged through its store and committed by
+  `IUnitOfWork`, with no mapper, no tracker and no domain-event source.
+- **The owner is the caller.** It comes from `ICurrentUser`, never from the body, and every store
+  and queries method names it, so somebody else's row and a missing one are the same answer.
+- **A stale write is refused by the database.** Where the feature keeps one, the record's `xmin` is
+  its concurrency token, read with the representation and published as the `ETag`, and a writer
+  that loses a race matches no row at commit: the database, not the earlier read, has the last word.
+- **The modular rule is unchanged.** A simple feature reaches no other feature and none reaches it.
+#endif-->
 
 `FeatureIsolationTests.AFeatureWithoutADomainFolder_IsAServiceOverAStore` is where the shape is
 held: a feature may omit its domain folder only while it is a service over its storage ports (a store
@@ -305,10 +349,13 @@ behaviour, and staged for a commit someone else owns — is declared in
 **`AppTemplate.Domain`**, under `Features/<Feature>/Repositories/`, because its
 signature names only domain types. **Every other port** — a read projected to DTOs, or
 a platform capability with no aggregate behind it — is declared in the application layer, and which
-of its three projects declares one follows how many features need it. A port **one feature** reaches
-for is declared in **`AppTemplate.Application`**, under `Features/<Feature>/Ports/<Port>/` — or in
-**`AppTemplate.Application.Auth`**, under `Features/Auth/Ports/<Port>/`, when that one feature is
-authentication. A **cross-cutting** one, that any feature may reach for, is declared in
+of its projects declares one follows how many features need it. A port **one feature** reaches
+for is declared in **`AppTemplate.Application`**, under `Features/<Feature>/Ports/<Port>/`.
+<!--#if (localAuth)-->
+A port of the authentication feature is declared in **`AppTemplate.Application.Auth`**, under
+`Features/Auth/Ports/<Port>/`.
+<!--#endif-->
+A **cross-cutting** one, that any feature may reach for, is declared in
 **`AppTemplate.Application.Core`** — in `Common/Ports/`, or beside its own subject when it has one,
 which is why `IIdempotencyStore` sits in `Common/Idempotency/` with the key, the claim and the
 status it speaks in. See the section above for why the
@@ -316,8 +363,20 @@ split runs there rather than putting every port in one layer:
 
 | Port | Declared in | Implementation (Infrastructure) |
 |---|---|---|
-| `ITodoListRepository`, `IReminderRepository` | `AppTemplate.Domain` | EF Core repositories over `AppDbContext` |
-| `ITodoListQueries`, `ITodoItemQueries`, `IReminderQueries` | `AppTemplate.Application` | EF Core projections to DTOs |
+<!--#if (todoLists || reminders)-->
+<!--#if (todoLists)-->
+| `ITodoListRepository` | `AppTemplate.Domain` | EF Core repositories over `AppDbContext` |
+<!--#endif-->
+<!--#if (reminders)-->
+| `IReminderRepository` | `AppTemplate.Domain` | EF Core repositories over `AppDbContext` |
+<!--#endif-->
+<!--#if (todoLists)-->
+| `ITodoListQueries`, `ITodoItemQueries` | `AppTemplate.Application` | EF Core projections to DTOs |
+<!--#endif-->
+<!--#if (reminders)-->
+| `IReminderQueries` | `AppTemplate.Application` | EF Core projections to DTOs |
+<!--#endif-->
+<!--#endif-->
 | `IUnitOfWork` | `AppTemplate.Application.Core` | one `SaveChangesAsync` on `AppDbContext` |
 | `IEmailSender` | `AppTemplate.Application.Core` | `MailKitEmailSender` |
 | `ICurrentUser` | `AppTemplate.Application.Core` | `CurrentUser`, reading `HttpContext` claims |
@@ -325,6 +384,7 @@ split runs there rather than putting every port in one layer:
 | `ILeaderLease` | `AppTemplate.Application.Core` | `PostgresLeaderLease`, a session-level advisory lock |
 | `IIdempotencyStore` | `AppTemplate.Application.Core` | `IdempotencyStore`, the claim/complete/release state machine over one table |
 | `ICacheStore` | `AppTemplate.Application.Core` | `HybridCacheStore`, in process until a deployment registers a distributed second level |
+<!--#if (localAuth)-->
 | `IAccountsService` | `AppTemplate.Application.Auth` | `UserManager` / `SignInManager`: create, verify a password, may-sign-in, change password, read the profile |
 | `IEmailTokensService` | `AppTemplate.Application.Auth` | ASP.NET Identity's token providers: confirmation, password reset, email change |
 | `ISessionTokensService` | `AppTemplate.Application.Auth` | signed JWT over the account's current claims, and opaque rotating grants over `IRefreshTokenTable`, one refresh-token family per session |
@@ -338,12 +398,14 @@ split runs there rather than putting every port in one layer:
 | `IAccountEmailFactory` | `AppTemplate.Application.Auth` | HTML templates plus each link's page |
 | `ISecurityEventLog` | `AppTemplate.Application.Auth` | structured log entries, plus the trail persisted in the identity schema and its retention purge |
 | `ISecurityEventQueries` | `AppTemplate.Application.Auth` | one account's persisted trail, read back a page at a time |
+<!--#endif-->
 
 There is no `IEfCoreRepository`, no `ISmtpClient`, no `IHttpContextWrapper`. The
 point of the seam is that the application layer can be read, and tested, without
-knowing that EF Core, MailKit or ASP.NET Identity exist. A port named after its
+knowing that EF Core, MailKit or an identity framework exist. A port named after its
 implementation has already given that away.
 
+<!--#if (localAuth)-->
 The authentication ports are the interesting ones. There are fourteen of them, one per
 intent, rather than one `IAuthService`, and the split is what keeps the
 *sequencing* in Application: `RegisterUseCase` creates the account, then mints a
@@ -358,6 +420,7 @@ sequencing back. Because those fourteen ports are all `AppTemplate.Application.A
 project names no aggregate: an account here is what its ports say about it. One of
 them, `ICurrentSession`, names which session a request is made from, and only the host
 can satisfy it — it sees the request — the same licence `ICurrentUser` has.
+<!--#endif-->
 
 ## Infrastructure is split per capability, with no per-technology sub-split
 
@@ -366,17 +429,31 @@ storage — one DbContext over the schemas it owns:
 
 | Module | Registers | Storage |
 |---|---|---|
-| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, `IUnitOfWork`, `ILeaderLease`, the aggregate repositories and read-side ports, the idempotency store | `AppDbContext` → `todo`, `reminders`, `files`, `platform` |
+| `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, `IUnitOfWork`, `ILeaderLease`, the aggregate repositories and read-side ports, the idempotency store | `AppDbContext` → one schema per business feature, plus `platform` |
+<!--#if (localAuth)-->
 | `AppTemplate.Infrastructure.Auth` | the authentication ports, ASP.NET Identity, JWT bearer, refresh-token rotation, `IRefreshTokenTable`, `IIdentitySeeder` | `AuthDbContext` → `identity` |
+<!--#endif-->
+<!--#if (reminders)-->
 | `AppTemplate.Infrastructure.Email` | `IEmailSender`, `IReminderNotifier`, email options | — |
+<!--#else
+| `AppTemplate.Infrastructure.Email` | `IEmailSender`, email options | — |
+#endif-->
+<!--#if (files)-->
 | `AppTemplate.Infrastructure.Storage` | `IFileContentStore`, `IFileDirectTransfer`, `IFileContentInventory`, `IFileContentScanner`, the `Files:Storage` and `Files:Scanning` options, and the checks of `Files:Categories` against them | an S3-compatible bucket or a local directory, chosen by `Files:Storage:Provider` |
+<!--#endif-->
 | `AppTemplate.Infrastructure.InMemory` | in-memory port implementations for tests and demos | — |
 
 **`AppTemplate.Infrastructure.Core` is not in that table, because it is not a capability.** It is
 the layer's agnostic half: the mechanisms a module needs and no module owns. A module may not
 reference a sibling, so without it two modules needing one mechanism have nowhere to put it and each
-keeps a copy. Multilingual mail rendering is the case that pays for the project: the identity module
-and the email module both send mail, so each would otherwise carry its own renderer.
+keeps a copy. Multilingual mail rendering is the case that pays for the project:
+<!--#if (localAuth)-->
+the identity module and the email module both send mail, so each would otherwise carry its own
+renderer.
+<!--#else
+the email module sends mail, and the renderer sits here so the next module that sends mail takes
+it rather than growing a copy of its own.
+#endif-->
 
 It holds three subjects. **What a context saves through** — `EfUnitOfWork` over whichever
 `DbContext` a module owns, three interceptors a context attaches as its rows need them (aggregates
@@ -408,6 +485,7 @@ Its `Common/` is held to the rule below by construction rather than by that rule
 may reference only SDK projects, so it cannot name `AppTemplate.Application` or
 `AppTemplate.Domain` at all, and a type there could not name a feature if it tried.
 
+<!--#if (localAuth)-->
 **How many features a module serves is not what distinguishes it.** Two modules serve
 several: `Persistence` carries `Auth`, `TodoLists`, `Reminders` and `Files`, and
 `InMemory` carries `Auth`, `Files` and `Reminders` — five ports under those three feature
@@ -415,7 +493,12 @@ folders, plus `IEmailSender` and `IDateTimeProvider` under its own `Common/`, an
 extension method per feature (`AddInMemoryExternalIdentities`,
 `AddInMemoryReminderNotifications`, `AddInMemoryFileContent`) on top of `AddInMemoryModule`
 itself. `Identity` serves `Auth` alone, `Email` serves the two ports that send mail, and
-`Storage` serves `Files` alone. What is uniform is the partition — `Common/` plus
+`Storage` serves `Files` alone.
+<!--#else
+**How many features a module serves is not what distinguishes it.** A module that serves several
+features keeps one partition, `Common/` plus `Features/<Feature>/`, whether it serves one or four,
+and a module that serves one keeps the same shape on purpose.
+#endif--> What is uniform is the partition — `Common/` plus
 `Features/<Feature>/`, whatever a module serves — which
 [`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md#inside-a-feature) states once, with the reason.
 
@@ -428,6 +511,7 @@ the other four, and both assert that nothing there depends on `AppTemplate.Domai
 therefore the model's composition root — and a second test asserts that it really does name a
 feature, so the exclusion stays a decision rather than a hole.
 
+<!--#if (localAuth)-->
 There is one other exclusion, in the identity module, and it is written as a list with a
 reason beside it rather than as a condition. `IAppUserDirectory` and its adapter name
 `AppUser`, the ASP.NET Identity row the persistence module maps. That is the permitted
@@ -435,56 +519,90 @@ direction — the rule above forbids only the reverse — and `AppUser` is a sto
 than a business entity, which is why the directory is shared machinery rather than a feature
 adapter in disguise. Adding a second name to that list is a line somebody has to justify in
 review.
+<!--#endif-->
 
 The forbidden list runs to four namespaces rather than one because an adapter can belong to a
 feature in its name, its counters and its prose while depending on none of that feature's
 types, and a rule that reads only dependencies cannot see it. An adapter that counts one
-feature therefore lives with that feature, as
-`Features/Reminders/Observability/ReminderDiagnostics.cs` does. See below for why one context
+feature therefore lives with that feature.
+<!--#if (reminders)-->
+`Features/Reminders/Observability/ReminderDiagnostics.cs` is the worked case.
+<!--#endif-->
+See below for why one context
 rather than two, and why EF maps rows rather than aggregates.
 
 **One DI module per project, and the application layer is composed a feature at a time.** The
-host's composition root starts with nine lines, in this order — `AddTodoLists()`,
-`AddReminders()`, `AddFiles(builder.Configuration)`, `AddNotes()`, then
-`AddPurgeExpiredIdempotencyKeys()`, then `AddCacheStore()`, then
-`AddPersistenceModule(builder.Configuration)`, `AddEmailModule` and `AddStorageModule`. Of the first
-six only `AddFiles` takes the configuration, because the Files categories are application policy a
-deployment declares (`Files:Categories`); the others bind nothing and the cache decides its lifetimes
-at each call site. The three modules each take one. Authentication is one more line,
+host's composition root is one line per capability, in this order:
+<!--#if (todoLists)-->
+`AddTodoLists()`,
+<!--#endif-->
+<!--#if (reminders)-->
+`AddReminders()`,
+<!--#endif-->
+<!--#if (files)-->
+`AddFiles(builder.Configuration)` — the one that takes the configuration, because the Files
+categories are application policy a deployment declares (`Files:Categories`),
+<!--#endif-->
+<!--#if (notes)-->
+`AddNotes()`,
+<!--#endif-->
+then `AddPurgeExpiredIdempotencyKeys()`, then `AddCacheStore()`, then
+`AddPersistenceModule(builder.Configuration)` and `AddEmailModule`
+<!--#if (files)-->
+and `AddStorageModule`
+<!--#endif-->
+.
+<!--#if (localAuth)-->
+Authentication is one more line,
 `AddAuthFeature(builder.Configuration)` from `Features/Auth/Composition/`, which composes its use
 cases, its module, its purge, its readiness check, the `Administrator` policy and its development
-migration and seed, so a host without local accounts deletes that line and that folder. Adding a
-capability adds one line there and touches nothing else; removing
+migration and seed, so a host without local accounts deletes that line and that folder.
+<!--#endif-->
+Adding a capability adds one line there and touches nothing else; removing
 one deletes a project and a line.
 
 Three further lines are not among the nine, because they compose host concerns rather than
 capabilities: `AddOutboundHttp()`, the localisation binding — reached through `AddRequestLanguage()`,
 which adds the request-header middleware around `AddLocalizationOptions()` — and the host's own thin
 observability extension over the shared `AddObservability`. All three come from
-`AppTemplate.Presentation.Core`. The periodic jobs add one call of their own, `AddBackgroundJobs()`,
-and `AddAuthFeature` follows it so the refresh-token purge joins that timer — see below.
+`AppTemplate.Presentation.Core`. The periodic jobs add one call of their own, `AddBackgroundJobs()`
+<!--#if (localAuth)-->
+, and `AddAuthFeature` follows it so the refresh-token purge joins that timer — see below
+<!--#endif-->
+.
 
 **There is deliberately no call that adds the whole layer.** That is what makes a feature
 removable: deleting its folder and its one line here is the whole operation, and nothing else claims
 to have registered it. One entry point scanning a layer's assembly would put every port every
 feature declares into every host's graph, which under `ValidateOnBuild` makes each of them mandatory
 in every host — which is precisely what a module being *optional* rules out.
+<!--#if (localAuth)-->
 `LayerDependencyTests.TheApplicationLayer_KnowsNothingOfAuthentication` is what turns that from a
 claim into an assertion, and it asserts the half that is true: read off the assembly manifests,
 neither `AppTemplate.Application` nor `AppTemplate.Application.Core` names anything in
 `AppTemplate.Application.Auth`.
+<!--#endif-->
 
+<!--#if (localAuth)-->
 The larger claim holds too: a container builds without authentication.
 `ContainerCompositionTests.TheApiContainer_BuildsWithoutAuthentication` composes every other module with
-no `AddAuthApplication()` and no identity module. The one place the two meet is the reminder's
+no `AddAuthApplication()` and no identity module.
+<!--#if (reminders)-->
+The one place the two meet is the reminder's
 recipient: `IReminderRecipientDirectory` is owned by Reminders, and the host supplies
 `AccountReminderRecipientDirectory`, which reads the local accounts. Neither feature names the other,
 and a host with another identity source supplies another directory.
+<!--#endif-->
+<!--#endif-->
+<!--#if (reminders)-->
 And `AddReminders()` is not independent of `AddTodoLists()`: scheduling a reminder reaches into the
 to-do list's read port, the only ownership check made before a reminder is created. The example
 features are not four symmetric modules, and saying so is cheaper than a start-up failure that does
-not explain itself. `AddNotes()` is the one with no such coupling: it needs none of the others and
-none needs it.
+not explain itself.
+<!--#endif-->
+<!--#if (notes)-->
+`AddNotes()` is the one with no such coupling: it needs none of the others and none needs it.
+<!--#endif-->
 
 `AddInMemoryModule` is the one module no host composes: it is registered by tests, over
 whichever real module they are replacing.
@@ -517,12 +635,15 @@ so it cannot go quiet.
 
 The reason is extraction. Every feature must be able to leave the shared projects later without
 the others being edited, and each reference that reaches past a port is a place where one would
-have to be. `Reminders` is the worked case: it needs to know that an item exists and who owns it,
+have to be.
+<!--#if (reminders)-->
+`Reminders` is the worked case: it needs to know that an item exists and who owns it,
 and whether it is done. It does not read `TodoLists`' rows to find out; it asks
 `ITodoItemQueries`, a port `TodoLists` declares and implements in its own persistence folder, and
 the day `Reminders` is extracted that port is the only thing to replace. The port is deliberately
 narrow — two questions, each answerable in one indexed query — because a wide one would be the
 records again with an interface in front of them.
+<!--#endif-->
 
 There is no exception today. If one is ever justified it is named in `FeatureIsolationTests`
 with its reason, not hidden by moving a type into a namespace the rule does not read.
@@ -536,25 +657,28 @@ cross-context write:
 1. **The account is deleted and the fact is published** — `UserAccountDeleted(UserId, OccurredAt)`,
    declared in `AppTemplate.Application.Core` beside the consumer contract so no feature names the
    module that deleted it. The publisher is `IDomainEventPublisher`, and the publication happens
-   after the deleting call has committed: the fact names what is already true. Three routes
-   publish it — the self-service one (`POST /api/v1/auth/delete-account`, which demands
+   after the deleting call has committed: the fact names what is already true.
+<!--#if (localAuth)-->
+   Two routes publish it: the self-service one (`POST /api/v1/auth/delete-account`, which demands
    re-authentication first: the password when one is set, a two-factor code when the factor is
-   armed, an access token issued under five minutes ago otherwise), the administrator's
-   (`DELETE /api/v1/auth/accounts/{userId}`), and, in the externally-authenticated template, the
-   administrative call on the mapping (`DELETE /api/v1/external-identities/{userId}`). A
-   provider-side deletion signal is that call's to wire; the template ships no endpoint for it.
-   That last trigger records no security event: the persisted trail is the Auth module's, and the
-   externally-authenticated template has no Auth module to write it — an operator auditing
-   deletions there reads the provider's own logs.
+   armed, an access token issued under five minutes ago otherwise), and the administrator's
+   (`DELETE /api/v1/auth/accounts/{userId}`).
+<!--#endif-->
+<!--#if (externalAuth)-->
+   One route publishes it: the administrative call on the mapping
+   (`DELETE /api/v1/external-identities/{userId}`). A provider-side deletion signal is that call's
+   to wire; the template ships no endpoint for it. That trigger records no security event: the
+   persisted trail belongs to the Auth module this template does not carry — an operator auditing
+   deletions here reads the provider's own logs.
+<!--#endif-->
 2. **Each feature decides the fate of its own data** and applies that policy in a consumer of the
    fact, which also implements `IDeletedAccountDataPolicy`: the consumer is the fast path, the
    policy face is what the sweep calls, and both re-derive the precondition through
    `IUserAccountDirectory` — the account must be gone — before writing anything, idempotently.
    The host supplies the directory adapter: over the local accounts
    (`AccountUserAccountDirectory`) or over the external-identity mapping
-   (`ExternalIdentityUserAccountDirectory`), the same way `ICurrentUser` is resolved. TodoLists,
-   Reminders, Notes and Files all delete; a feature that prefers anonymising implements the same
-   two faces and writes its own rows instead of removing them.
+   (`ExternalIdentityUserAccountDirectory`), the same way `ICurrentUser` is resolved. Every feature this template ships that owns user data deletes; a feature that prefers
+   anonymising implements the same two faces and writes its own rows instead of removing them.
 3. **A leased sweep is the guarantee** — `SweepDeletedAccountDataUseCase`, a maintenance task, asks
    each policy for the owner ids that still have data and applies it to each. The fact is only a
    fast path: in-process publication is at most once, so a consumer that never ran is caught by
@@ -579,18 +703,28 @@ where background work belongs, and the way out is kept short — see the end of 
 Three `BackgroundService`s, composed by the one call `AddBackgroundJobs()`
 (`Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`):
 
+<!--#if (accounts)-->
 - `MaintenanceBackgroundService` runs every registered `IMaintenanceTask` on one timer. The
-  idempotency-key purge is the maintenance feature's own; the refresh-token purge belongs to
+  idempotency-key purge is the maintenance feature's own, and it runs the exact same use case the
+  maintenance route exposes over HTTP: `MaintenanceController`.
+<!--#if (localAuth)-->
+  The refresh-token purge belongs to
   authentication and is registered by `AddAuthFeature()` from `Features/Auth/`, so the
   composition and the timer name nothing from authentication and a project built without it deletes
-  one call and one folder. Both tasks run the exact same use cases the maintenance routes expose over
-  HTTP: `MaintenanceController` for idempotency keys, and authentication's own
-  `RefreshTokenMaintenanceController`, under the same prefix and tag, for refresh-token grants.
+  one call and one folder. It runs the same use case authentication's own
+  `RefreshTokenMaintenanceController` exposes over HTTP, under the same prefix and tag.
+<!--#endif-->
+<!--#if (anyFeature)-->
   A third, the deleted-account data sweep, is registered from the background composition itself
   (`AddDeletedAccountSweepJobs`) because no single feature owns it: every feature that owns user
   data declares its policy, and one pass sweeps them all — see [When an account goes](#when-an-account-goes).
+<!--#endif-->
+<!--#endif-->
+<!--#if (reminders)-->
 - `ReminderBackgroundService` runs `IFireDueRemindersUseCase` on its own timer — the only caller that
   use case ever has, since firing a reminder must never run behind a request.
+<!--#endif-->
+<!--#if (files)-->
 - `FileBackgroundService` runs three passes on three separate timers, because their costs are three
   orders of magnitude apart: `IPurgeAbandonedRegistrationsUseCase` (one indexed query and a bounded
   batch of deletes), `IReclaimOrphanedContentUseCase` (a checkpointed walk of the object store, a
@@ -600,6 +734,7 @@ Three `BackgroundService`s, composed by the one call `AddBackgroundJobs()`
   that `ConfirmFileUploadUseCase` confirms, or `UploadFileUseCase`, which receives the bytes in a
   multipart request and writes them through `IFileContentStore` itself — and both confirm through
   `IStoredFileDepositService`, so the inspection never knows which path a file took.
+<!--#endif-->
 
 **`Jobs:Enabled` is the role of an instance, and it is the only host-level switch.** True by
 default; false makes the instance serve HTTP and start no loop, and binds no job section, so it is not
@@ -629,8 +764,11 @@ to whoever made them. In a background scope `ICurrentUser` is `NoCallerCurrentUs
 `UserId` — there is no request and no principal, so returning `null` as if the caller were merely
 anonymous would let a use case that needs an owner proceed as though one existed — and `IAuditActor`
 is `BackgroundAuditActor`, which records nobody, because nobody made the write.
+<!--#if (reminders)-->
 `IFireDueRemindersUseCase` takes that constraint furthest: it must not read `ICurrentUser` at all,
-since it acts on every user's due reminders in one pass rather than one caller's. An architecture
+since it acts on every user's due reminders in one pass rather than one caller's.
+<!--#endif-->
+An architecture
 rule holds that no background service opens a scope any other way. `AddNoCallerIdentity()` stays in
 `AppTemplate.Presentation.Core` for a process with no requests at all.
 
@@ -652,6 +790,7 @@ its own, the hosting adapters and their one composition call move into it, the A
 telemetry. Use cases, contracts and storage guarantees stay where they are: that is a deployment and
 presentation change, not a migration of the business model.
 
+<!--#if (reminders)-->
 **What the reminder pass guarantees.** Delivery is **at-least-once**, and what a failure costs is
 one reminder. `FireDueRemindersUseCase` notifies a reminder and then commits it, one at a time, so a
 commit that fails loses that reminder's outcome and no other: those before it are already `Fired` and
@@ -665,6 +804,7 @@ pass reads the reminder afresh. A failed notification is recorded on the reminde
 are taken in the order they became eligible, so one that always fails queues behind those that have
 waited longer and cannot fill every batch. It is retried for as long as its item is outstanding —
 there is no state in which it is abandoned, so an undeliverable one costs an attempt an hour.
+<!--#endif-->
 
 A future rich client is not exempt from the cost of a calling context either: it would still have to
 write a real `ICurrentUser` naming an actual caller, which is a port implementation, not just module
@@ -675,10 +815,15 @@ composition.
 A use case is a plain class with a constructor and one method, registered in DI and
 injected into a controller:
 
+<!--#if (todoLists)-->
 ```
 Src/Application/AppTemplate.Application/Features/TodoLists/UseCases/Commands/CreateTodoList/CreateTodoListUseCase.cs
 Src/Application/AppTemplate.Application/Features/TodoLists/UseCases/Commands/AddTodoItem/AddTodoItemUseCase.cs
 ```
+<!--#else
+A use case is a plain class with a constructor and one method, registered in DI and injected into a
+controller — open any feature's `UseCases/` folder for a real one.
+#endif-->
 
 MediatR would add a `Command` type, a `Handler` type, an `IRequest<>` marker and a
 runtime dispatch step to reach exactly the same method. What you get back is pipeline
@@ -700,20 +845,35 @@ two ports rather than two stacks:
 
 | Port | Purpose |
 |---|---|
-| `ITodoListRepository`, `IReminderRepository` | Write side. Load and stage whole aggregates. |
-| `ITodoListQueries`, `ITodoItemQueries`, `IReminderQueries` | Read side. Return DTOs or plain answers projected in SQL, no aggregate materialisation. |
+<!--#if (todoLists)-->
+| `ITodoListRepository` | Write side. Load and stage whole aggregates. |
+<!--#endif-->
+<!--#if (reminders)-->
+| `IReminderRepository` | Write side. Load and stage whole aggregates. |
+<!--#endif-->
+<!--#if (todoLists)-->
+| `ITodoListQueries`, `ITodoItemQueries` | Read side. Return DTOs or plain answers projected in SQL, no aggregate materialisation. |
+<!--#endif-->
+<!--#if (reminders)-->
+| `IReminderQueries` | Read side. Return DTOs or plain answers projected in SQL, no aggregate materialisation. |
+<!--#endif-->
+<!--#if (notes)-->
 | `INoteStore`, `INoteQueries` | The same split for a feature with no aggregate: the store stages a change to a note's text, the queries project it to DTOs. |
+<!--#endif-->
 
 Reads do not need invariants enforced, and loading a full aggregate to render a list
 view is pure waste. The reads a caller makes take the owner's id as a parameter, so
 "only the caller's own rows" is part of the port's signature rather than something a
-future implementation might forget; the one read that does not —
+future implementation might forget.
+<!--#if (todoLists && reminders)-->
+The one read that does not —
 `ITodoItemQueries.GetCompletionStatesAsync` — serves the firing pass, which acts for every owner.
+<!--#endif-->
 
 ## No generic repository
 
-There is no `IRepository<T>`. `ITodoListRepository` has exactly three members —
-`GetAsync`, `Add`, `Remove` — because a generic repository can only offer operations
+There is no `IRepository<T>`. A repository here has exactly three members — load,
+stage an add, stage a removal — because a generic repository can only offer operations
 that make sense for every entity, which in practice means CRUD, and CRUD is exactly
 what an aggregate is supposed to hide.
 
@@ -736,6 +896,7 @@ transactional boundary. An aggregate whose row carries audit columns and an opti
 token derives from `AuditableAggregateRoot<TId>` instead, which holds those five values and
 implements `IAuditable` and `IVersioned` explicitly — so the store writes them and application code
 holding the aggregate cannot, and a new aggregate declares none of it. **Only aggregate roots get a repository**; entities inside an aggregate are reached through their root.
+<!--#if (todoLists)-->
 `AppDbContext` exposes an `internal DbSet<TodoListRecord>` for that reason — an
 exposed `DbSet<TodoItemRecord>` would hand every caller a way around the invariants
 the root enforces. The HTTP surface mirrors it exactly: `/api/v1/todo-lists/{id}/items/{itemId}`
@@ -750,6 +911,14 @@ a hard bound on the cost of every single command.
 `TodoList.Version` is an optimistic concurrency token mapped to PostgreSQL's `xmin`
 system column, and it lives **on the root only** — the root is the consistency
 boundary, so a concurrent edit to any item is a conflict on the list.
+<!--#else
+Only aggregate roots get a repository, and a repository loads the *complete* aggregate: that is a
+correctness requirement, not an optimisation preference, because an invariant can only be checked
+against everything the root owns — and "a write always loads the whole aggregate" makes aggregate
+size a hard bound on the cost of every single command. A version, where a feature keeps one, lives
+**on the root only**, as PostgreSQL's `xmin`: the root is the consistency boundary, so a concurrent
+edit to anything inside is a conflict on the root.
+#endif-->
 
 Events are raised on the root (`RaiseDomainEvent`) and buffered, then collected by
 `DomainEventDispatchSaveChangesInterceptor` as the save of the context their rows are staged on
@@ -770,8 +939,8 @@ Cross-cutting save behaviour lives in `ISaveChangesInterceptor` implementations
 than a `SaveChangesAsync` override. Interceptors are separately testable, individually
 replaceable, and — unlike the override — also apply to the synchronous overload.
 
-Time is a parameter, not an ambient dependency: `TodoList.Create(ownerId, name, now)`
-takes `now`, so the aggregate's behaviour is reproducible in a test without freezing a
+Time is a parameter, not an ambient dependency: an aggregate's factory takes `now`
+alongside its data, so the aggregate's behaviour is reproducible in a test without freezing a
 clock.
 
 ## Errors: `Result` for expected failures, exceptions for bugs
@@ -790,11 +959,11 @@ instead of discoverable by reading its body. Throwing `InvalidOperationException
 "not found" instead would surface a routine answer as an unhandled fault, and leak the
 message to clients as an HTTP 500.
 
-`Error` carries a stable dotted `Code` (`todoList.notFound`,
-`auth.login.invalidCredentials`) and an `ErrorType` that says how the transport should
+`Error` carries a stable dotted `Code` (one dot-separated name per situation, such as
+`todoList.notFound`) and an `ErrorType` that says how the transport should
 render it. `ErrorMapping` is the single place where that becomes an HTTP status and a
 ProblemDetails body, so a given situation always produces the same status on every
-endpoint. Codes are grouped in one file per vertical — `TodoListErrors`, `AuthErrors` —
+endpoint. Codes are grouped in one file per vertical — one `…Errors` class per feature —
 which is what stops the same situation from acquiring two codes; a code no single
 vertical owns, such as the invariant one below, lives in `CommonErrors` instead.
 
@@ -828,19 +997,28 @@ The point of the indirection is not the one line of code in `UnitOfWork`. It is 
 use case cannot commit by accident: it depends on an interface with one method instead
 of on a repository that saved inside every write.
 
-**Where the boundary reaches now.** One save of one context instance. A refresh-token rotation
-commits through the identity context's own unit of work, and an idempotency claim through a second
-instance of the business context, so neither shares a transaction with a domain write — and
-neither flushes or publishes one. Versions are the store's `xmin`: a write staged against a stale
-one is rejected rather than retried. A note commits through the same unit of work as every other
+**Where the boundary reaches now.** One save of one context instance.
+<!--#if (localAuth)-->
+A refresh-token rotation commits through the identity context's own unit of work, so it shares no
+transaction with a domain write — and flushes or publishes none of its events.
+<!--#endif-->
+An idempotency claim commits through a second
+instance of the business context, so it shares a transaction with no domain write — and
+neither flushes nor publishes one. Versions are the store's `xmin`: a write staged against a stale
+one is rejected rather than retried.
+<!--#if (notes)-->
+A note commits through the same unit of work as every other
 business write, with nothing staged but its own row.
+<!--#endif-->
 
+<!--#if (localAuth)-->
 **Where it still does not reach.** ASP.NET Identity's own stores call
 `SaveChangesAsync` themselves: `UserManager.CreateAsync` commits before it returns, and
 that is framework behaviour rather than a choice. Registration is therefore explicitly
 not atomic — the account is committed before the confirmation email is handed to the
 relay, `RegisterResponse` reports `ConfirmationEmailSent = false` when delivery fails,
 and a resend endpoint exists so the user is not stuck. Verified by request.
+<!--#endif-->
 
 **Where a lost update becomes an HTTP response.** `EfUnitOfWork` is the one place a
 commit happens, so it is where EF's `DbUpdateConcurrencyException` is translated into
@@ -849,32 +1027,68 @@ answers that as `409` with the stable code `concurrency.conflict` in an
 `application/problem+json` body. Nothing is retried: re-applying a decision made against
 state that no longer exists is the lost update the token exists to prevent.
 
-## Two contexts, one database, six schemas
+<!--#if (localAuth)-->
+## Two contexts, one database
+<!--#else
+## One context, one database
+#endif-->
 
 | Schema | Tables |
 |---|---|
+<!--#if (todoLists)-->
 | `todo` | `TodoLists`, `TodoItems`, `TodoItemTags` |
+<!--#endif-->
+<!--#if (localAuth)-->
 | `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `RefreshTokenFamilies`, `SecurityEvents`, `DataProtectionKeys` |
+<!--#endif-->
+<!--#if (reminders)-->
 | `reminders` | `Reminders` |
+<!--#endif-->
+<!--#if (files)-->
 | `files` | `StoredFiles` |
+<!--#endif-->
+<!--#if (notes)-->
 | `notes` | `Notes` |
+<!--#endif-->
+<!--#if (externalAuth)-->
+| `external_identity` | `ExternalIdentities`, `RoleAssignments` |
+<!--#endif-->
 | `platform` | `IdempotencyKeys` |
 
-Five of those name a feature; `platform` is the one that does not, and it exists precisely so
+Every schema but `platform` names a feature, and `platform` exists precisely so
 that a table belonging to no feature — the idempotency key store is the first of them — is not
 filed under a feature that would be a lie. The business half's `__EFMigrationsHistory` sits in
 `public`, outside every module schema, for the same reason taken one step further: it describes the
-database rather than anything in it. The authentication half's carries the same name inside
+database rather than anything in it.
+<!--#if (localAuth)-->
+The authentication half's carries the same name inside
 `identity`, beside the tables it records, so the two histories on this database are told apart by
-the same thing that tells their tables apart. Each context declares the schema names it owns as
-constants — `TodoSchema`, `RemindersSchema`, `FilesSchema`, `NotesSchema`, `PlatformSchema` and
-`MigrationsHistorySchema` on `AppDbContext`, `IdentitySchema` on `AuthDbContext` — so a schema name
+the same thing that tells their tables apart.
+<!--#endif-->
+Each context declares the schema names it owns as
+constants — one `<Feature>Schema` per feature plus `PlatformSchema` and
+`MigrationsHistorySchema` on `AppDbContext`
+<!--#if (localAuth)-->
+, `IdentitySchema` on `AuthDbContext`
+<!--#endif-->
+ — so a schema name
 is spelled once.
 
+<!--#if (localAuth)-->
 There are two contexts, and the line between them is what the halves of this system are.
-`AppDbContext`, in `AppTemplate.Infrastructure.Persistence`, maps the to-do list, reminder, file and
-note features' rows and the idempotency table. `AuthDbContext`, in `AppTemplate.Infrastructure.Auth`,
-derives from `IdentityDbContext<AppUser, AppRole, Guid>` and maps everything in `identity`. Every
+`AppDbContext`, in `AppTemplate.Infrastructure.Persistence`, maps every business feature's rows and
+the idempotency table. `AuthDbContext`, in `AppTemplate.Infrastructure.Auth`,
+derives from `IdentityDbContext<AppUser, AppRole, Guid>` and maps everything in `identity`.
+<!--#else
+There is one business context: `AppDbContext`, in `AppTemplate.Infrastructure.Persistence`, maps
+every business feature's rows, the idempotency table and
+<!--#if (externalAuth)
+the mapping from the provider's subjects to internal owners.
+else
+nothing else.
+endif-->
+<!--#endif-->
+Every
 table names its own schema in its own `IEntityTypeConfiguration`, so no default schema is set and a
 mapping cannot drift into the wrong schema by omission.
 
@@ -882,6 +1096,7 @@ It resolves from the **single `ConnectionStrings:Default`**, and one key is what
 owed: a second key pointing at the same server is a second thing to keep in step, free to be
 configured inconsistently, and nothing notices until runtime.
 
+<!--#if (localAuth)-->
 **Why two contexts and not one.** Authentication is the part of this template a derived project is
 most likely to replace wholesale, and a module cannot be replaced while its tables are mapped by
 somebody else's model. Each context has its own migrations history — the business half's in `public`,
@@ -893,38 +1108,61 @@ transaction spans an identity write and a business write. Nothing needs one: no 
 both, which was measured before the split rather than hoped for. And two histories can disagree
 about what has been applied — the API's Development bootstrap applies both in one pass to keep that
 window as short as one process can make it, and a deployment applies each as its own explicit step.
+<!--#endif-->
 
-**The commit boundary is typed, because the untyped one cannot tell them apart.** A container
+**The commit boundary is typed, because the untyped one cannot tell contexts apart.** A container
 registers `IUnitOfWork` once; a module whose writes were staged on the second context would have
 them committed by the first, and `SaveChangesAsync` on a context with nothing tracked succeeds
 reporting zero rows. So a module that owns a context takes
 `IContextUnitOfWork<TContext>`, and the unnamed port a use case takes is registered by the module
-that owns the business context. That is the one failure this split could have introduced silently,
+that owns the business context.
+<!--#if (localAuth)-->
+That is the one failure the two-context split could have introduced silently,
 and it is designed out rather than tested for.
+<!--#endif-->
 
 **No foreign key crosses the line, and two things keep it that way.** The risk is a domain entity
-acquiring a navigation property to `AppUser` — a foreign key from the business to the identity
-provider, which is what makes swapping the provider later impossible. Separate contexts make it
-impossible to declare: EF cannot relate entities in two models. And it could not happen inside one
-either, because EF does not map the domain entities at all — `TodoListRecord.OwnerId` is a bare
-`Guid` column with no navigation, and `TodoList.OwnerId` is a `UserId`, an opaque owner in a project
-with no reference to EF Core or to ASP.NET Identity. The architecture tests assert both.
+acquiring a navigation property to a stored account — a foreign key from the business to the
+identity provider, which is what makes swapping the provider later impossible.
+<!--#if (localAuth)-->
+Separate contexts make it
+impossible to declare: EF cannot relate entities in two models.
+<!--#endif-->
+And it could not happen inside one
+either, because EF does not map the domain entities at all — every record's `OwnerId` is a bare
+`Guid` column with no navigation, and every aggregate's `OwnerId` is a `UserId`, an opaque owner in
+a project with no reference to EF Core or to
+<!--#if (localAuth)
+ASP.NET Identity.
+else
+an identity provider.
+endif-->
+The architecture tests assert both.
 
 **Why one database.** Two databases would mean two connection strings, two backup
 schedules, and no transaction spanning both. Separate *schemas* give the isolation that
 matters — no table-name collisions, grantable separately — at none of that cost.
 
-Each context has a design-time factory — `AppDbContextFactory` and `AuthDbContextFactory` — reading
+Each context has a design-time factory —
+<!--#if (localAuth)-->
+`AppDbContextFactory` and `AuthDbContextFactory`
+<!--#else
+`AppDbContextFactory`
+#endif-->
+— reading
 `ConnectionStrings__Default` from the environment with a visible localhost fallback, so `dotnet ef`
-works on either without booting a host. Each names its own history table there as well as at
+works on it without booting a host.
+<!--#if (localAuth)-->
+Each names its own history table there as well as at
 runtime: configured in only one of the two places, the tool would record a migration where the
 runtime does not look, which with two histories on one database means the other half's.
+<!--#endif-->
 
-**One connection string means one pool.** Npgsql pools per connection string, so both contexts
-building the identical string share a single pool bounded by `Database:MaxPoolSize`. That is why
-`DatabaseOptions` lives in `AppTemplate.Infrastructure.Core` and both modules bind the same section
-into it: two modules deriving the bound separately would give a deployment two pools of that size
-instead of one.
+**One connection string means one pool.** Npgsql pools per connection string, so every context
+building the identical string shares a single pool bounded by `Database:MaxPoolSize`. That is why
+`DatabaseOptions` lives in `AppTemplate.Infrastructure.Core` and the modules that own a context bind
+the same section into it: two modules deriving the bound separately would give a deployment two pools
+of that size instead of one.
 
 ### Why a separate row type at all
 
@@ -943,12 +1181,25 @@ change tracker useful without it ever seeing the aggregate.
 - `ApiControllerBase` turns a `Result` into `200` / `201 + Location` / `204`, or hands
   the `Error` to `ErrorMapping`. No business logic, no `try`/`catch`, no hand-rolled
   error shapes.
-- **Authorisation is default-deny.** `Program.cs` installs an authorization fallback
+- **Authorisation is default-deny.**
+<!--#if (accounts)-->
+  `Program.cs` installs an authorization fallback
   policy requiring an authenticated user, so an endpoint is protected unless it opts
-  out. Twelve of the twenty-eight authentication actions and the two health endpoints do —
-  and, in Development only, so do the two OpenAPI endpoints. One consequence: because
+  out. The two health endpoints do — and, in Development only, so do the two OpenAPI
+  endpoints. One consequence: because
   the fallback policy also applies when no endpoint matched, an unknown route answers
   401 to an anonymous caller rather than 404.
+<!--#if (localAuth)-->
+  Twelve of the twenty-eight authentication actions opt out too, each one a caller
+  holding no token of ours has to reach.
+<!--#endif-->
+<!--#else
+  `Program.cs` sets the fallback authorization policy to admit every caller: this API
+  authenticates nobody on purpose. An endpoint marked `[Authorize]` is refused at
+  start-up rather than left failing closed at request time, because no authentication
+  scheme exists to challenge with.
+<!--#endif-->
+<!--#if (localAuth)-->
 - **A provider name is a field, never a route segment.** `POST /auth/external` takes the provider
   in its body. Routing is the one layer that answers before any code does, so a provider in the path
   makes "is this provider configured?" a question the router can be made to answer — by a
@@ -957,12 +1208,17 @@ change tracker useful without it ever seeing the aggregate.
   nothing. It also keeps `SignInWithExternalProviderCommandValidator`'s presence rule reachable: a
   route segment can never bind empty, so a missing provider would be a 404 instead of the 400 every
   other required field produces.
+<!--#endif-->
 - **No HTTPS redirection.** TLS terminates upstream and the container listens on plain
   8080; redirection would 307 the orchestrator's health probe.
 - **Liveness has no dependency check**; readiness checks the database and whether the host
   has begun shutting down. An orchestrator must not restart a healthy process because the
   database blinked, nor kill one that is draining correctly.
-- **Rate limiting** is partitioned by client IP: 10/minute on auth, 300/minute
+- **Rate limiting** is partitioned by client IP:
+<!--#if (localAuth)-->
+  10/minute on auth,
+<!--#endif-->
+  300/minute
   globally, 429 with `Retry-After`. Both counters are per instance, so the limit a caller
   meets is multiplied by the replica count — see `docs/CONFIGURATION.md`. The health
   endpoints sit outside the limiter, so a traffic spike can never make a probe fail and
@@ -971,14 +1227,22 @@ change tracker useful without it ever seeing the aggregate.
   shipped, the trust list is what your topology has to supply.
 - **A wire contract is this layer's own type, never an application or port type reused.** Every
   feature projects onto its own records in `Contracts/`, by hand, through one `Mapping/` class.
-  Three of those projections are what the boundary is for, and the rest look like ceremony because
-  field-for-field is the common case: `ReminderResponseMapping` answers with a string status so no
-  client depends on the declaration order of a domain enum; `RegisterResponse` withholds the user id
+  The projections that are what the boundary is for are the ones a contract *is not* the application
+  type; field-for-field is the common case and looks like ceremony.
+<!--#if (reminders)-->
+  `ReminderResponseMapping` answers with a string status so no
+  client depends on the declaration order of a domain enum.
+<!--#endif-->
+<!--#if (localAuth)-->
+  `RegisterResponse` withholds the user id
   its application outcome carries, because nothing downstream of sign-up addresses the account by
-  id; and `StoredFileResponseMapping` republishes the content store's upload grant under a contract
+  id.
+<!--#endif-->
+<!--#if (files)-->
+  `StoredFileResponseMapping` republishes the content store's upload grant under a contract
   of this layer, so a field added to `IssuedUploadGrant` by the next object-store adapter is not
-  published to every client by that edit alone. None of the three survives a contract that *is* the
-  application type.
+  published to every client by that edit alone.
+<!--#endif-->
 - **Structured JSON logs.** `AddJsonConsole` replaces the default unstructured
   formatter, so production logs are queryable without taking on a third-party logging
   dependency the template would then have to maintain.
@@ -992,11 +1256,19 @@ change tracker useful without it ever seeing the aggregate.
 | A service layer above use cases | The use case *is* the application service. |
 | An abstraction over `DbContext` | `DbContext` is already a unit of work and a set of repositories. `IUnitOfWork` exists to own the *commit boundary*, not to hide EF Core. |
 | Swashbuckle | Replaced by the built-in `Microsoft.AspNetCore.OpenApi` plus Scalar for the UI (development only). |
+<!--#if (localAuth)-->
 | A refresh-token cookie | The refresh token is returned in the response body: opaque, rotated on every presentation, and stored only as a SHA-256 hash. |
+<!--#endif-->
 | Migrations at startup in production | Development only; a deployment applies them as an explicit step. |
-| An outbox | Domain-event handlers run in-process, after the commit, so delivery is at-most-once and there is no reliable integration with another system. What stands in for one here is a rule rather than a mechanism: **every consumer re-derives its own precondition**, so none of them is load-bearing. Deleting a stored file's bytes is a fast path over a sweep that lists the store and removes what no row names; cancelling a reminder on completion is re-checked by the firing pass itself, which its own documentation says is what keeps firing correct whether or not that delivery happened. A handler that cannot be written that way belongs behind an outbox — do not do the I/O inline. |
-| Permissions, policies, or tenants | Authorisation is one role. `AuthorizationPolicies.Administrator` requires the `Admin` role and is the only policy beside the default-deny fallback, and nothing anywhere carries a tenant. Policies extend where that one is registered, in `AppTemplate.Api/Common/Security/AuthorizationPolicies.cs`, or through ASP.NET Core's own `IAuthorizationPolicyProvider` for a permission set computed rather than listed. A tenant is not a policy, though: every owned aggregate holds a bare `Guid OwnerId`, and a tenant would be a second column beside it on every table and in every ownership check. |
+| An outbox | Domain-event handlers run in-process, after the commit, so delivery is at-most-once and there is no reliable integration with another system. What stands in for one here is a rule rather than a mechanism: **every consumer re-derives its own precondition**, so none of them is load-bearing — the shipped features state each sweep's retry guarantee in `DECISIONS.md`. A handler that cannot be written that way belongs behind an outbox — do not do the I/O inline. |
+<!--#if (accounts)-->
+| Permissions, policies, or tenants | Authorisation is one role. `AuthorizationPolicies.Administrator` requires the one role the deployment configures and is the only policy beside the default-deny fallback, and nothing anywhere carries a tenant. Policies extend where that one is registered, in `AppTemplate.Api/Common/Security/AuthorizationPolicies.cs`, or through ASP.NET Core's own `IAuthorizationPolicyProvider` for a permission set computed rather than listed. A tenant is not a policy, though: every owned aggregate holds a bare `Guid OwnerId`, and a tenant would be a second column beside it on every table and in every ownership check. |
+<!--#else
+| Permissions, policies, or tenants | This API authenticates nobody, so it carries no role and no policy at all, and nothing anywhere carries a tenant. Every owned aggregate holds a bare `Guid OwnerId`, and a tenant would be a second column beside it on every table and in every ownership check. |
+<!--#endif-->
+<!--#if (localAuth)-->
 | Machine-to-machine authentication | No API keys and no client-credentials flow: every token this template mints belongs to a person who signed in. The extension point is a second authentication scheme beside the bearer one `AddAuthModule` registers, and `IAccessTokenIssuer` is the port a client-credentials grant would mint through. |
+<!--#endif-->
 | A message bus or queue port | The background jobs poll the database on a timer, and the operations that must not run twice at once take `ILeaderLease` — a Postgres advisory lock — rather than relying on a single consumer. A broker would arrive the way every other capability does: a port in `AppTemplate.Application.Core/Common/Ports/`, an adapter in a module of its own, one line in each host's composition. |
 | Minimal APIs | Everything is MVC. The idempotency filter is an action filter, `ApiControllerBase` does the result-to-response mapping, and the ETag handling hangs off the same machinery — so a minimal endpoint mapped beside the controllers inherits none of it and is not supported. Nothing stops one being mapped; what it costs is those three, each of which would have to be re-expressed as an endpoint filter. |
 | SMS, push notifications, feature flags, a business audit log | `IEmailSender` is the only notification port, and a second channel is a second port beside it rather than a widening of that one. The audit columns are not a log: they record who last wrote a row, not what changed, so a history is a table of its own — the interceptor pipeline in `AppTemplate.Infrastructure.Core/Common/Saving/` is where one would be written. |

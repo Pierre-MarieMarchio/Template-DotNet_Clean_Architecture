@@ -25,11 +25,18 @@ A change is done when this passes, without overrides:
 dotnet run Tools/Tasks.cs verify
 ```
 
-That is the whole gate in CI's order — <!--#if (templateMaintenance)-->the four hygiene gates each
-after their own self-test<!--#else-->the `hygiene` task, running every carried gate's fixtures
-first<!--#endif-->, restore, formatting, build with warnings as errors, the tests, and migration
-drift for both contexts. The coverage floor is `dotnet run Tools/Tasks.cs coverage`, and
-`dotnet list package --vulnerable --include-transitive` has to report nothing.
+That is the whole gate in CI's order —
+<!--#if (templateMaintenance)-->
+the four hygiene gates each after their own self-test, restore, formatting, build with warnings as
+errors, the tests, and migration drift for both contexts. The coverage floor is
+`dotnet run Tools/Tasks.cs coverage`, and `dotnet list package --vulnerable --include-transitive`
+has to report nothing.
+<!--#else
+the `hygiene` task, running every carried gate's fixtures first, restore, formatting, build with
+warnings as errors, the tests, and migration drift for both contexts. The coverage floor is
+`dotnet run Tools/Tasks.cs coverage`, and `dotnet list package --vulnerable --include-transitive`
+has to report nothing.
+#endif-->
 
 Three things about it are worth knowing before they cost you time.
 
@@ -119,10 +126,12 @@ rather than a plausible-looking name.
 `Tools/CheckNarrativeComments.cs` holds the comment rule over `.cs` and `.md` alike, `CHANGELOG.md`
 excepted — narrating history is what a changelog is for.
 <!--#endif-->
-**Rationale belongs in `docs/`**, not in a
-paragraph above a method: measurements, rejected options and arbitrations go in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/DECISIONS.md`](docs/DECISIONS.md)<!--#if (templateMaintenance)--> or a
-plan of record under docs/plans/<!--#endif-->.
+**Rationale belongs in `docs/`**, not in a paragraph above a method: measurements, rejected
+options and arbitrations go in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) or
+[`docs/DECISIONS.md`](docs/DECISIONS.md).
+<!--#if (templateMaintenance)-->
+In this repository they can also go in a plan of record under docs/plans/.
+<!--#endif-->
 
 So: a change that moves a file updates the document that cites it, and a new architectural
 constraint becomes a section in the document that owns the subject *and* an executable rule in

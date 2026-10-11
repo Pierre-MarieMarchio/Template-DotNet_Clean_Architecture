@@ -9,31 +9,33 @@ repeats it.
 document is served at `/openapi/v1.json` in development with [Scalar](https://scalar.com) over it
 at `/scalar/v1`.
 
-<!--#if (todoLists)-->
+<!--#if (publicApi)-->
+This API ships no endpoint of its own: generated without accounts, examples and files, its whole
+surface is the two health probes, and every route below is one this project adds.
+<!--#endif-->
+
+<!--#if (localAuth)-->
 - [Authentication](#authentication--apiv1auth)
+- [Account administration](#account-administration--apiv1authaccounts)
+<!--#endif-->
+<!--#if (todoLists)-->
 - [To-do lists](#to-do-lists--apiv1todo-lists)
 - [Reminders](#reminders--apiv1reminders-and-apiv1reminders)
+<!--#endif-->
+<!--#if (files)-->
 - [Files](#files--apiv1files)
+<!--#endif-->
+<!--#if (notes)-->
 - [Notes](#notes--apiv1notes)
-- [Account administration](#account-administration--apiv1authaccounts)
+<!--#endif-->
+<!--#if (externalAuth)-->
+- [External identities](#external-identities--apiv1external-identities)
+<!--#endif-->
+<!--#if (accounts)-->
 - [Maintenance](#maintenance--apiv1maintenance)
 <!--#endif-->
-<!--#if (todoLists || !notes)-->
-<!--#else
-- [Authentication](#authentication--apiv1auth)
-- [Files](#files--apiv1files)
-- [Notes](#notes--apiv1notes)
-- [Account administration](#account-administration--apiv1authaccounts)
-- [Maintenance](#maintenance--apiv1maintenance)
-#endif-->
-<!--#if (todoLists || notes)-->
-<!--#else
-- [Authentication](#authentication--apiv1auth)
-- [Files](#files--apiv1files)
-- [Account administration](#account-administration--apiv1authaccounts)
-- [Maintenance](#maintenance--apiv1maintenance)
-#endif-->
 
+<!--#if (localAuth)-->
 ## Authentication — `api/v1/auth/*`
 
 Twelve of the twenty-eight actions here are explicitly `[AllowAnonymous]`; the
@@ -90,6 +92,7 @@ started; the access token issued beside its first grant carries a `sid` claim na
 it, and every refresh stays in the same session. A token of a session that was ended —
 signed out, revoked by its owner, or killed with the rest — is refused without the
 theft alarm: it is what a client still holding it sends next.
+<!--#endif-->
 
 <!--#if (todoLists)-->
 ## To-do lists — `api/v1/todo-lists/*`
@@ -134,6 +137,7 @@ go through the item, rescheduling and cancelling go through the reminder's own i
 | DELETE | `/api/v1/reminders/{reminderId}` | 204 — cancel |
 <!--#endif-->
 
+<!--#if (files)-->
 ## Files — `api/v1/files/*`
 
 Authentication required (no opt-out). A file is deposited in one of two ways, and both end in
@@ -270,6 +274,7 @@ signed-in user download an **available** file of it by its id. Its metadata, its
 confirmation and its deletion stay the owner's, and a non-owner asking for the content of such a
 file that is not available yet gets the same `404`. A file whose category was removed from
 configuration is treated as `Private`.
+<!--#endif-->
 
 <!--#if (notes)-->
 ## Notes — `api/v1/notes/*`
@@ -303,6 +308,7 @@ unchanged.
 | `DELETE` | One `DELETE` conditioned on the `xmin` it loaded | As `PUT` | The note is gone, so a repeat is `404` (`412` with `If-Match: *`) |
 <!--#endif-->
 
+<!--#if (localAuth)-->
 ## Account administration — `api/v1/auth/accounts/*`
 
 `{role}` is a **role name**, and one role ships: `Admin`. `Administrator` is the name of the
@@ -323,6 +329,7 @@ reading one's own events is exactly what `GET /auth/me/security-events` offers.
 | DELETE | `/api/v1/auth/accounts/{userId}/two-factor` | 204 — disarms the account's second factor and rotates its security stamp; the way back for a lost phone and lost recovery codes |
 | DELETE | `/api/v1/auth/accounts/{userId}` | 204 — deletes the account outright; what the other features hold under the id is removed through the account-deleted fact each consumes, not by this call |
 | GET | `/api/v1/auth/accounts/{userId}/security-events` | 200 — that account's security trail, newest first, offset-paged; **no 404 for an unknown id**: the trail is kept after an account is deleted until retention expires, so the rows an investigation needs are the ones that survive the account, and an id naming nothing answers an empty page |
+<!--#endif-->
 
 <!--#if (externalAuth)
 ## External identities — `api/v1/external-identities/*`
@@ -347,17 +354,26 @@ persisted trail is the Auth module's, and this template has no Auth module — a
 deletions here through the provider's own logs.
 
 #endif-->
+<!--#if (accounts)-->
 ## Maintenance — `api/v1/maintenance/*`
 
 | Method | Route | Success |
 |---|---|---|
 | DELETE | `/api/v1/maintenance/idempotency-keys/expired` | 200 — the number of rows removed |
+<!--#if (localAuth)-->
 | DELETE | `/api/v1/maintenance/refresh-tokens/expired` | 200 — the number of rows removed |
 | DELETE | `/api/v1/maintenance/security-events/expired` | 200 — the number of rows removed; "expired" is [`SecurityEventLog:RetentionInDays`](CONFIGURATION.md#securityeventlog), not a parameter |
+<!--#endif-->
 
+<!--#if (localAuth)-->
 Requires the `Administrator` policy — an authenticated non-admin gets `403`. Together
 with the seven `api/v1/auth/accounts/*` actions above, these are the ten endpoints
 whose authority is more than "authenticated plus ownership"; the three here exist
 because the idempotency store, the refresh-token table and the security-event trail
 each grow until something prunes them. Schedule all three.
-
+<!--#else
+Requires the `Administrator` policy — an authenticated non-admin gets `403`. The
+route here exists because the idempotency store grows until something prunes it.
+Schedule it.
+#endif-->
+<!--#endif-->

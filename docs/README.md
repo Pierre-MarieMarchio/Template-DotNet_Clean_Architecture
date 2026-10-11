@@ -19,7 +19,11 @@ Every document here has one subject. This page is how you find the one you need.
 
 | Document | Subject |
 |---|---|
+<!--#if (localAuth)-->
 | [`GETTING-STARTED.md`](GETTING-STARTED.md) | Compose, running on the host, and a register-to-first-request walkthrough |
+<!--#else
+| [`GETTING-STARTED.md`](GETTING-STARTED.md) | Compose, and running on the host |
+<!--#endif-->
 | [`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md) | `dotnet new`, what the project name substitutes into, and the one command that is not optional |
 | [`INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md`](INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md) | moving a generated project into a repository that already has a history |
 | [`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md) | choosing the examples at generation, and deleting the ones a project was generated with once you have read them |
@@ -46,7 +50,11 @@ Every document here has one subject. This page is how you find the one you need.
 |---|---|
 | [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md) | the vertical, end to end, with the real signatures at each step |
 | [`TESTING.md`](TESTING.md) | the test stack, how to run it, and the sharp edges that have cost time here |
+<!--#if (localAuth)-->
 | [`MIGRATIONS.md`](MIGRATIONS.md) | two contexts, two histories, and the commands for each |
+<!--#else
+| [`MIGRATIONS.md`](MIGRATIONS.md) | the context, its history, and the commands |
+<!--#endif-->
 | [`BUILD-AND-CI.md`](BUILD-AND-CI.md) | the gate, the tools under `Tools/`, the workflows, the container image, the supply chain |
 
 **Shipping it**

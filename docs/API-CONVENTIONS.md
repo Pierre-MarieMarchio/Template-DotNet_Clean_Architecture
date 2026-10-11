@@ -1,4 +1,4 @@
-# API conventions
+﻿# API conventions
 
 What holds for every endpoint, whatever feature it belongs to. The endpoints themselves are in
 [`API-REFERENCE.md`](API-REFERENCE.md); this page is what a client has to understand once and then
@@ -29,16 +29,28 @@ deleted the day a second version exists.
 
 ## Authorisation is default-deny
 
+<!--#if (accounts)-->
 `Program.cs` installs an authorization fallback policy requiring an authenticated
 user. An endpoint is protected **unless it explicitly opts out** with
-`[AllowAnonymous]`; twelve of the twenty-eight authentication actions and the two health
-endpoints do — and, in Development only, so do the two OpenAPI endpoints (see
-[`GETTING-STARTED.md`](GETTING-STARTED.md#with-compose)).
+`[AllowAnonymous]`; the two health endpoints do — and, in Development only, so do the
+two OpenAPI endpoints (see [`GETTING-STARTED.md`](GETTING-STARTED.md#with-compose)).
+<!--#if (localAuth)-->
+Twelve of the twenty-eight authentication actions opt out as well, each one a caller
+holding no token of ours has to reach.
+<!--#endif-->
 
 One consequence to know about: because the fallback policy also applies when no
 endpoint matched, an **unknown route returns 401 to an anonymous caller, not 404**.
 That is not a bug, but it will surprise a client developer, so say so in your API
 docs.
+<!--#else
+`Program.cs` sets the fallback authorization policy to admit every caller: this API
+authenticates nobody on purpose, and generating it without accounts made public access
+a written choice rather than the side effect of a missing scheme. An endpoint marked
+`[Authorize]` is refused at start-up rather than left failing closed at request time,
+because no authentication scheme exists to challenge with, and an operation that needs
+a caller still fails: `ICurrentUser` answers no one.
+#endif-->
 
 ## Errors are RFC 7807, and clients branch on `code`
 
@@ -56,12 +68,14 @@ of the contract.
 }
 ```
 
+<!--#if (accounts)-->
 **Authentication and authorisation**
 
 | `code` | Status |
 |---|---|
-| `auth.required` | 401 — no token, an expired one, a route that matched nothing, or a token whose account has since been deleted (`me`, `change-password`, `change-email`, `delete-account`, and the three `two-factor/*` actions) |
-| `auth.forbidden` | 403 — authenticated, but the endpoint's policy is not satisfied, or the action refuses to target the caller's own account |
+| `auth.required` | 401 — no token, an expired one, a route that matched nothing, or a token whose account has since been deleted |
+| `auth.forbidden` | 403 — authenticated, but the endpoint's policy is not satisfied |
+<!--#if (localAuth)-->
 | `auth.login.invalidCredentials` | 401 — one answer for unknown address, wrong password, unconfirmed email and lockout alike |
 | `auth.login.invalidTwoFactorChallenge` | 401 — the challenge token is unknown, spent or expired |
 | `auth.refreshToken.invalid` | 401 — unknown, expired, revoked or replayed |
@@ -73,27 +87,40 @@ of the contract.
 | `auth.account.cannotDeleteSelf` / `auth.lockout.cannotTargetSelf` / `auth.roles.cannotTargetSelf` / `auth.twoFactor.cannotTargetSelf` | 403 — an administrator may not aim these at their own account |
 | `auth.account.deletionRejected` / `auth.lockout.rejected` / `auth.twoFactor.administrativeDisableRejected` | 400 — the store refused the change |
 | `auth.account.reAuthenticationRequired` | 403 — deleting the caller's own account, or registering a passkey on an account that offers no credential its holder could present, demands a proof; when the proof falls back to the access token itself, the token making the call is older than the five-minute window. Sign in again and retry |
-<!--#if (externalAuth)
-| `externalIdentity.mapping.notFound` | 404 — an administrative deletion naming an owner id no provider mapping carries |
-#endif-->
 | `auth.twoFactor.setupRejected` / `auth.twoFactor.enableRejected` / `auth.twoFactor.disableRejected` | 400 — the store refused the change, so the second factor is as it was |
 | `auth.passkeySignIn.invalid` | 401 — one answer for a state string this API never issued, a ceremony that did not verify, and an account no longer allowed to sign in |
 | `auth.passkey.registrationInvalid` | 400 — the registration ceremony did not verify; attached to `credential` |
 | `auth.passkey.registrationRejected` | 400 — the ceremony verified, but the store refused to hold the credential |
 | `auth.passkey.notFound` | 404 — the passkey named is not one of the caller's, exactly as an unknown id; removing one already removed succeeds instead |
+<!--#endif-->
+<!--#if (externalAuth)
+| `externalIdentity.mapping.notFound` | 404 — an administrative deletion naming an owner id no provider mapping carries |
+#endif-->
+<!--#endif-->
 
 **Resources**
 
 | `code` | Status |
 |---|---|
-| `todoList.notFound` / `todoItem.notFound` / `storedFile.notFound` / `reminder.notFound` / `note.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated. The one exception is the content of an available file whose category is `Authenticated` |
+<!--#if (todoLists)-->
+| `todoList.notFound` / `todoItem.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated |
+<!--#endif-->
+<!--#if (reminders)-->
+| `reminder.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated |
 | `reminder.targetNotFound` | 404 — the item a reminder is about does not exist or is not the caller's |
+<!--#endif-->
+<!--#if (files)-->
+| `storedFile.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated. The one exception is the content of an available file whose category is `Authenticated` |
 | `storedFile.notAvailable` / `storedFile.quarantined` | 409 — the content has no verdict yet (or, for an available file, the store no longer holds it), or was examined and refused. The second never becomes available |
 | `storedFile.depositMissing` | 409 — `confirm` found nothing deposited against the registration |
 | `storedFile.quotaExceeded` | 409 — the caller's own pending, file-count or byte allowance |
 | `storedFile.quotaBusy` | 409 — in a `Strict` category, another registration of the caller in the same category held the quota lock for more than 10 seconds. Nothing was written; retry |
 | `storedFile.directUploadUnavailable` | 409 — registration for a direct upload against a store that cannot sign URLs (the file system store), or in a category configured for uploads through the API only |
 | `storedFile.apiUploadUnavailable` | 409 — an upload through the API (`POST /api/v1/files/uploads`) in a category configured for direct uploads only |
+<!--#endif-->
+<!--#if (notes)-->
+| `note.notFound` | 404 — a resource owned by somebody else is also 404, so ids cannot be enumerated |
+<!--#endif-->
 | `domain.invariantViolated` | 409 via `DomainGuard`; 400 if a use case's own catch is missing and `DomainException` reaches `GlobalExceptionHandler` |
 
 **The request itself**
@@ -116,7 +143,10 @@ of the contract.
 | `request.failed` | The fallback, for a status none of the above names. Seeing it means a producer answered a status this table has no entry for |
 | `request.methodNotAllowed` | 405 |
 | `request.notAcceptable` | 406 |
-| `request.tooLarge` | 413 — over `RequestLimits:MaxRequestBodyBytes`, or over `Files:ApiUploadMaxBytes` plus 16 KiB on the upload endpoint; refused before the body is read when it declares its length |
+| `request.tooLarge` | 413 — over `RequestLimits:MaxRequestBodyBytes`; refused before the body is read when it declares its length |
+<!--#if (files)
+| `request.tooLarge` | 413 — also over `Files:ApiUploadMaxBytes` plus 16 KiB on the upload endpoint; refused before the body is read when it declares its length |
+#endif-->
 | `request.unsupportedMediaType` | 415 |
 | `request.timeout` / `request.cancelled` | 408 / 499 |
 | `route.notFound` | 404 — an authenticated caller on a route that matched nothing; an anonymous one gets `auth.required` instead |
@@ -129,6 +159,7 @@ Every error response is served as `application/problem+json`.
 
 ## Request bodies — JSON, and one multipart upload
 
+<!--#if (files)-->
 Every request body is `application/json`, at most `RequestLimits:MaxRequestBodyBytes` (64 KiB by
 default), with one exception: `POST /api/v1/files/uploads` takes `multipart/form-data` and carries
 a file's bytes. Its limit is `Files:ApiUploadMaxBytes` (10 MiB by default, 30 MiB at most) plus
@@ -136,6 +167,10 @@ a file's bytes. Its limit is `Files:ApiUploadMaxBytes` (10 MiB by default, 30 Mi
 server's own limit and on the multipart body. Beyond it the answer is `413` `request.tooLarge`,
 like any other oversized body. Any other content type on an endpoint is `415`
 `request.unsupportedMediaType`.
+<!--#else
+Every request body is `application/json`, at most `RequestLimits:MaxRequestBodyBytes` (64 KiB by
+default). Any other content type on an endpoint is `415` `request.unsupportedMediaType`.
+#endif-->
 
 **A feature that chooses `PATCH` writes a JSON Merge Patch** (RFC 7396), which is the recommended
 default: a merge patch is applied onto the stored representation, and the merged result is what
@@ -149,15 +184,15 @@ none is recommended.
 ## Conditional requests — `ETag` and `If-Match`
 
 **This is a property of versioned resources, not of every resource.** A resource is versioned
-when its storage keeps a concurrency token, and a feature opts in by keeping one; the four examples
-do. A resource that keeps none publishes no `ETag`, honours no `If-Match`, and its writes are
+when its storage keeps a concurrency token, and a feature opts in by keeping one; each feature's
+section of [`API-REFERENCE.md`](API-REFERENCE.md) says whether it does. A resource that keeps
+none publishes no `ETag`, honours no `If-Match`, and its writes are
 last-write-wins — a feature added without a version column must not be documented as protected, so
 nothing here claims it is. A collection is never versioned: a page of summaries carries no `ETag`,
 and a create has no `If-Match`, because there is no resource yet to name.
 
-Every read of a single list, item, file or note publishes that
-resource's version as a strong, opaque `ETag`; every write of one — a reminder's
-reschedule and cancel, a file's confirm and delete, a note's update and delete included — honours
+Every read of a single versioned resource publishes that
+resource's version as a strong, opaque `ETag`; every write of one honours
 `If-Match`, so a
 stale edit, decided against a version somebody else has since changed, is refused with
 `412` instead of silently overwriting it. `If-Match: *` asserts that the resource
@@ -171,15 +206,28 @@ through the whole round trip.
 
 A client that retries a create through a flaky network must not create twice. Send an
 `Idempotency-Key` header (any opaque string up to 128 characters — a UUID is the obvious
-choice) on any of the five creates that carry `[Idempotent]`: `POST /api/v1/todo-lists`,
-`POST /api/v1/todo-lists/{id}/items`, `POST /api/v1/todo-lists/{id}/items/{id}/reminders`,
-`POST /api/v1/files` and `POST /api/v1/notes`.
+choice) on any create that carries `[Idempotent]`:
+<!--#if (todoLists)-->
+- `POST /api/v1/todo-lists`
+- `POST /api/v1/todo-lists/{id}/items`
+<!--#endif-->
+<!--#if (reminders)-->
+- `POST /api/v1/todo-lists/{id}/items/{id}/reminders`
+<!--#endif-->
+<!--#if (files)-->
+- `POST /api/v1/files`
+<!--#endif-->
+<!--#if (notes)-->
+- `POST /api/v1/notes`
+<!--#endif-->
 
+<!--#if (todoLists)-->
 ```bash
 curl -X POST "$API/todo-lists" -H "Authorization: Bearer $TOKEN" \
      -H 'Idempotency-Key: 9f1c7e2a-0c1b-4f0a-9a3e-2b6d5c4a8e10' \
      -H 'Content-Type: application/json' -d '{"name":"Groceries"}'
 ```
+<!--#endif-->
 
 | Situation | Answer |
 |---|---|
@@ -191,9 +239,15 @@ curl -X POST "$API/todo-lists" -H "Authorization: Bearer $TOKEN" \
 | No key at all | Runs normally; the header is available, not compulsory |
 
 Keys are scoped **per user**, so two callers may use the same key string without colliding.
-Only actions marked `[Idempotent]` participate — the auth endpoints deliberately do not,
-because replaying a login would mean storing a bearer token in the database, and neither does
-`POST /api/v1/files/uploads`, whose body is the file: a retried upload creates a second file.
+Only actions marked `[Idempotent]` participate.
+<!--#if (localAuth)-->
+The auth endpoints deliberately do not, because replaying a login would mean storing a bearer token
+in the database.
+<!--#endif-->
+<!--#if (files)-->
+Neither does `POST /api/v1/files/uploads`, whose body is the file: a retried upload creates a
+second file.
+<!--#endif-->
 
 A completed key stays replayable for `Idempotency:Retention`, but **nothing prunes the
 table for you**: schedule `DELETE /api/v1/maintenance/idempotency-keys/expired`. That
@@ -217,9 +271,14 @@ rather than a clamp, a guess or a 500.
 | `pageSize` | integer | `20` | 1…100 |
 | `cursor` | opaque token from `nextCursor` | none | cursor mode only, ≤ 512 characters |
 
-The examples below are the to-do lists'. `Notes` answers the same contract with `title` and
-`createdAt` as its sortable fields and no filter.
+<!--#if (todoLists)-->
+The examples below are the to-do lists'.
+<!--#endif-->
+<!--#if (notes && !todoLists)-->
+`Notes` answers this contract with `title` and `createdAt` as its sortable fields and no filter.
+<!--#endif-->
 
+<!--#if (todoLists)-->
 ```bash
 # newest first, then by name, second page of ten
 GET /api/v1/todo-lists?sort=createdAt:desc,name:asc&page=2&pageSize=10
@@ -231,9 +290,13 @@ GET /api/v1/todo-lists?search=grocer&createdAfter=2026-01-01T00:00:00Z
 GET /api/v1/todo-lists?paging=cursor&pageSize=10&sort=name:asc
 GET /api/v1/todo-lists?paging=cursor&pageSize=10&sort=name:asc&cursor=eyJmIjoibmFtZSI...
 ```
+<!--#endif-->
 
-**Sortable fields are a whitelist, per feature.** `name`, `createdAt` and
-`lastModifiedAt` — and nothing else. An unknown field, or one that exists on the row
+**Sortable fields are a whitelist, per feature.**
+<!--#if (todoLists)-->
+The to-do lists ship `name`, `createdAt` and `lastModifiedAt` — and nothing else.
+<!--#endif-->
+An unknown field, or one that exists on the row
 but is not on the list, is `400` `sort.invalid` with the legal names in the message. No
 caller string ever reaches a LINQ expression: the field name is canonicalised against
 the whitelist in the application layer, and the persistence layer turns it into a
@@ -246,12 +309,15 @@ always. Without it two rows with equal sort keys can swap places between two pag
 reads, so one row is served twice and another never — which is a silent wrong answer,
 not a slow one.
 
-**Search is bounded and happens in the database.** It is a case-insensitive contains
+**Search is bounded and happens in the database.**
+<!--#if (todoLists)-->
+For the to-do lists it is a case-insensitive contains
 on the list name, via PostgreSQL `ILIKE` with `%`, `_` and `\` escaped, so a caller
 sending `%` matches lists literally containing `%` rather than matching everything. It
 is **not** accent-insensitive: that needs the `unaccent` extension and a functional
 index, which is a deployment's decision, and doing it in memory instead would mean
 reading every row to filter a page of twenty.
+<!--#endif-->
 
 **Two paging modes, and the difference matters.**
 
@@ -293,7 +359,9 @@ language is that a grammar the client composes is a query planner you then own.
 
 | Scope | Limit | On rejection |
 |---|---|---|
+<!--#if (localAuth)-->
 | `api/v1/auth/*` | 10 requests/minute per IP (default) | 429 + `Retry-After: 60` + `code: rateLimit.exceeded` |
+<!--#endif-->
 | Everything else | 300 requests/minute per IP (default) | same |
 
 Fixed windows, partitioned by `RemoteIpAddress`. The numbers are the defaults of the `RateLimiting`
@@ -320,9 +388,9 @@ starts; a deployment that routes traffic through a readiness probe should use `/
 
 ## Mail is written in the reader's language
 
-Every mail this template sends — the three account mails and the reminder — ships one
-template per language, and the **subject is that template's `<title>`**, so a subject and
-a body can never end up in different languages. English and French ship.
+Every mail this project sends ships one template per language, and the **subject is that
+template's `<title>`**, so a subject and a body can never end up in different languages. English
+and French ship.
 
 | Where the language comes from | |
 |---|---|
@@ -331,12 +399,14 @@ a body can never end up in different languages. English and French ship.
 | A background job | `Localization:DefaultCulture`, always — a background pass has no request to read a preference from. |
 | A language with no template | English, which every mail must ship. `fr-CA` reaches the `fr` template before falling back. |
 
+<!--#if (localAuth)-->
 ```bash
 curl -s -X POST http://localhost:8080/api/v1/auth/register \
   -H 'Content-Type: application/json' -H 'Accept-Language: fr' \
   -d '{"userName":"alice","email":"alice@example.com","password":"Passw0rd!x"}'
 # the confirmation mail in mailpit now reads "Confirmez votre adresse e-mail"
 ```
+<!--#endif-->
 
 <!--#if (reminders && localAuth)-->
 **Adding a language is adding files.** Drop `<Mail>EmailTemplate.<tag>.html` beside the ones

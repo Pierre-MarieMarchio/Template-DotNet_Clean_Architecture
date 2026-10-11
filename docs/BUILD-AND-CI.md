@@ -32,7 +32,7 @@ the documentation:
 dotnet run Tools/Tasks.cs restore
 dotnet run Tools/Tasks.cs build
 dotnet run Tools/Tasks.cs test
-dotnet run Tools/Tasks.cs hygiene                <!--#if (templateMaintenance)--># doc paths, workflow structure, comment tense<!--#else--># the fixtures of every gate this tree carries<!--#endif-->
+dotnet run Tools/Tasks.cs hygiene                # every gate this tree carries, fixtures first
 dotnet run Tools/Tasks.cs verify                 # the whole gate, in CI's order
 ```
 
@@ -49,7 +49,7 @@ A change is done when all of these pass. `dotnet run Tools/Tasks.cs verify` runs
 order — formatting first, because it is the fastest to fail.
 
 ```bash
-dotnet run Tools/Tasks.cs hygiene                  <!--#if (templateMaintenance)--># four gates, each after its own self-test<!--#else--># the fixtures of every gate this tree carries<!--#endif-->
+dotnet run Tools/Tasks.cs hygiene                  # every gate this tree carries, fixtures first
 dotnet restore AppTemplate.sln
 dotnet format AppTemplate.sln --verify-no-changes  # clean
 dotnet build  AppTemplate.sln                      # 0 warnings, 0 errors
@@ -188,7 +188,11 @@ the meaning of a build** — in particular none relaxes `TreatWarningsAsErrors`.
 | Job | Does |
 |---|---|
 | Build & test | restore, `dotnet format --verify-no-changes`, build with warnings as errors, assert every test project is in the solution, run the tests with coverage, enforce the floor in `coverage.minimum` |
-| <!--#if (templateMaintenance)-->Docs and workflows | the four hygiene gates, each preceded by its own self-test<!--#else-->Gates | the `hygiene` task: the fixtures of the gates the tree carries<!--#endif--> |
+<!--#if (templateMaintenance)-->
+| Docs and workflows | the four hygiene gates, each preceded by its own self-test |
+<!--#else
+| Gates | the `hygiene` task: the fixtures of the gates the tree carries |
+#endif-->
 | Vulnerable packages | `dotnet list package --vulnerable --include-transitive`, failing on any hit |
 | Docker image | builds the image, then asserts it does not run as root and exposes only 8080 |
 <!--#if (templateMaintenance)-->

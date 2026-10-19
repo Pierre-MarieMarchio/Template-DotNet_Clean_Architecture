@@ -35,7 +35,7 @@
   <!-- Identity model: the modern JsonWebTokenHandler only. The legacy
        System.IdentityModel.Tokens.Jwt entry is gone along with its last consumer. -->
   <ItemGroup Label="Identity model">
-    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
+    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.23.0" />
   </ItemGroup>
 
   <!-- Outbound HTTP resilience. Ships from dotnet/extensions on its own 10.9.x band rather than

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Api.UnitTests.Features.Auth.Security;
+namespace AppTemplate.Api.UnitTests.Common.Security;
 
 public sealed class CurrentAccessTokenTests
 {

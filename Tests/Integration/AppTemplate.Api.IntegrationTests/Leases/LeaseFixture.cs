@@ -33,7 +33,7 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// </remarks>
 public sealed class LeaseFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(ApiFixture.PostgresImage)
         .WithDatabase("apptemplate_lease_tests")
         .WithUsername("apptemplate_tests")
         .WithPassword("apptemplate_tests")

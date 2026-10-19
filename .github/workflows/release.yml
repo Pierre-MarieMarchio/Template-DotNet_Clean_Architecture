@@ -201,11 +201,21 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
 
+      # The emulators are installed from an image, and the action's default is the floating
+      # `tonistiigi/binfmt:latest` — run privileged, on the runner that holds the push credentials.
+      # Pinned by digest; Dependabot does not read a `with:` input, so bump it by hand.
       - name: Set up QEMU
         uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+        with:
+          image: tonistiigi/binfmt:qemu-v10.2.3@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
 
+      # The BuildKit daemon this builder runs is an image too, and the action's default is the
+      # floating `moby/buildkit:buildx-stable-1`. Pinned by digest like every image in this
+      # repository; Dependabot does not read a `with:` input, so bump it by hand alongside the action.
       - name: Set up Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver-opts: image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
 
       - name: Log in to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -245,7 +255,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           # An SBOM and a provenance record travel with the image rather than in a
           # separate artifact nobody correlates afterwards.
-          sbom: true
+          # The SBOM is produced by a scanner image BuildKit runs over the build; `true` would
+          # select the floating `docker/buildkit-syft-scanner:stable-1`. Named and pinned instead,
+          # by hand like the two images above.
+          sbom: generator=docker/buildkit-syft-scanner:1.12.0@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max

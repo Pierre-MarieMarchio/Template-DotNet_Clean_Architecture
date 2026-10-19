@@ -425,7 +425,15 @@ says otherwise.
   `CentralPackageTransitivePinningEnabled` makes bind. Removing a load-bearing pin fails
   `dotnet restore` outright rather than passing quietly.
 - Every GitHub Action is pinned to a commit SHA, not a mutable tag.
-- Dependabot watches NuGet, Actions, the Dockerfile and `docker-compose.yml`. Note that neither
+- **Every container image is pinned by digest**, written `name:tag@sha256:…`: the services in
+  `docker-compose.yml`, the Dockerfiles' bases and their `# syntax=` frontend, the Testcontainers
+  fixtures, and the images the Docker actions pull for the workflows (binfmt, the BuildKit daemon,
+  the SBOM scanner). A tag can be re-pointed by whoever controls it on the registry; a digest
+  cannot. `ContainerImagePinningTests` holds the first three.
+  What this still trusts is the publisher at the moment the digest was taken — Microsoft, the
+  Docker official images, and each project's own image — and nothing that happens to its tag after.
+- Dependabot watches NuGet, Actions, the Dockerfiles and `docker-compose.yml`, and moves a tag and
+  its digest together. Note that neither
   Docker ecosystem supports Dependabot *security* updates — for container images, the weekly version
   bump is the whole mechanism.
 - **Every secret-shaped value in tracked configuration is an empty string**, and each section is

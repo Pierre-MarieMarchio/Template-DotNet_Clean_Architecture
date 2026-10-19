@@ -144,6 +144,22 @@ through its admin CLI before the first request, which is a one-shot service to m
 gain. Building MinIO from its source tag was the fallback, kept for the case where both failed.
 <!--#endif-->
 
+**Every container image is named by digest, with its tag beside it: `name:tag@sha256:…`.** A tag
+is a pointer the registry account can move; a digest is the bytes. The tag stays because a reader
+needs to know which release it is, and because Dependabot needs it to propose the next one — it
+rewrites tag and digest together, which is what stops a pin from becoming a freeze. Each digest is
+the multi-arch index, never one platform's manifest, so one line serves amd64 and arm64. The rule
+covers `docker-compose.yml`, the Dockerfiles' `FROM` lines and `# syntax=` frontend (written
+literally: Dependabot skips a `FROM` built from an `ARG`), the Testcontainers fixtures, which must
+run exactly an image the compose file runs, and the images the Docker actions pull in the workflows.
+`ContainerImagePinningTests` holds the first three.
+<!--#if (templateMaintenance)-->
+`Tools/CheckWorkflows.cs` holds the last, alongside the commit-SHA rule it already enforces for
+actions.
+<!--#endif-->
+The frontend, the action inputs and the fixtures are outside every Dependabot ecosystem and are
+bumped by hand; the test makes the fixtures fail rather than drift when the compose file moves.
+
 **Extract what two real cases prove identical, and nothing more.** A guessed abstraction is a worse
 defect than an assumed duplication: the duplication is visible and local, the wrong abstraction is
 neither. Measure first — `wc -l`, `diff` — and require two cases that do the same thing, not two

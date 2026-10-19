@@ -127,13 +127,27 @@ updates:
           - "*"
 
   # ---------------------------------------------------------------------------
-  # Container base images in the Dockerfile: the SDK and runtime bases.
+  # Container base images in the Dockerfiles: the SDK and runtime bases.
+  #
+  # Every image reference in this repository is `name:tag@sha256:digest`, and Dependabot
+  # rewrites the tag and the digest together — which is what keeps digest pinning from
+  # freezing an image at whatever it was the day it was pinned. It reads only a literal
+  # FROM, which is why the Dockerfiles write their bases out rather than through an ARG.
+  # What no ecosystem here reads, and is bumped by hand: the `# syntax=` frontend line,
+  # the images the Docker actions take as `with:` inputs in the workflows, and the
+  # Testcontainers fixtures (ContainerImagePinningTests makes those follow
+  # docker-compose.yml, so a compose bump that leaves them behind fails the build).
   #
   # `docker` and `docker-compose` are two distinct ecosystems in GitHub's supported list,
   # and `docker` does NOT read docker-compose.yml — so compose needs the separate block
   # below, and listing `/` here would watch nothing while looking like it watched something.
   - package-ecosystem: docker
-    directory: /Src/Presentation/AppTemplate.Api
+    directories:
+      - /Src/Presentation/AppTemplate.Api
+      #if (sonar)
+      # The analysis image, Tools/sonar-scanner.Dockerfile, on the same SDK as the API's.
+      - /Tools
+      #endif
     schedule:
       interval: weekly
       day: monday
@@ -152,7 +166,8 @@ updates:
           - "*"
 
   # ---------------------------------------------------------------------------
-  # docker-compose.yml: postgres and mailpit. Development dependencies, but an unpatched
+  # docker-compose.yml: postgres, mailpit, the object store and the SonarQube server, as the
+  # generation options include them. Development dependencies, but an unpatched
   # local database is still an unpatched database, and the compose file is where a
   # contributor's first `docker compose up` gets its images from.
   #

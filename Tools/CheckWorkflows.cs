@@ -7,6 +7,9 @@
 // Checks the failure modes that a YAML parse alone does not catch:
 //   - `needs:` naming a job that does not exist
 //   - a step referencing an action without a SHA pin
+//   - a container image named without a digest: a job's `container:` or `services:`, and the images
+//     the Docker actions pull on a step's behalf — the binfmt image, the BuildKit daemon, the SBOM
+//     scanner — whose defaults float when the step leaves them unnamed
 //   - `permissions:` missing at both workflow and job level
 //   - a `run:` block referencing an `env:` key that is defined nowhere
 //   - a referenced local file (script, Dockerfile, settings) that is absent from disk
@@ -52,6 +55,13 @@ internal static class WorkflowGate
     private static readonly string[] WorkflowSuffixes = [".yml", ".yaml"];
 
     private static readonly Regex ShaPin = new(@"^[\w\-./]+@[0-9a-f]{40}$", RegexOptions.Compiled);
+
+    /// <summary>`name:tag@sha256:digest` — the tag for the reader, the digest for the pull.</summary>
+    private static readonly Regex DigestPin = new(
+        @"^[a-z0-9][a-z0-9._/:-]*:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}$",
+        RegexOptions.Compiled);
+
+    private static readonly Regex DriverImage = new(@"(?:^|[\s,])image=(?<ref>[^\s,]+)", RegexOptions.Compiled);
 
     private static readonly Regex EnvRef = new(
         @"\$\{?\{?\s*env\.([A-Za-z_][A-Za-z0-9_]*)|\$([A-Z_][A-Z0-9_]*)|\$\{([A-Z_][A-Z0-9_]*)\}",
@@ -180,12 +190,25 @@ internal static class WorkflowGate
             knownEnv.UnionWith(Keys(Get(job, "env")));
             knownEnv.UnionWith(ShellBuiltins);
 
+            foreach (var (where, image) in JobImages(job))
+            {
+                if (!DigestPin.IsMatch(image))
+                {
+                    problems.Add($"{name}: job '{jobName}' runs {where} '{image}' without a digest pin");
+                }
+            }
+
             foreach (var step in Steps(job))
             {
                 var uses = Get(step, "uses") as YamlScalarNode;
                 if (!string.IsNullOrEmpty(uses?.Value) && !ShaPin.IsMatch(uses.Value.Trim()))
                 {
                     problems.Add($"{name}: job '{jobName}' uses '{uses.Value}' without a 40-char SHA pin");
+                }
+
+                foreach (var problem in ActionImageProblems(uses?.Value, Get(step, "with")))
+                {
+                    problems.Add($"{name}: job '{jobName}' step '{StepName(step)}' {problem}");
                 }
 
                 var stepEnv = new HashSet<string>(Keys(Get(step, "env")), StringComparer.Ordinal);
@@ -336,6 +359,10 @@ internal static class WorkflowGate
             timeout-minutes: 10
             steps:
               - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+              - name: Set up Buildx
+                uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
+                with:
+                  driver-opts: image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
               - name: Build
                 run: |
                   echo "$SOLUTION"
@@ -354,6 +381,37 @@ internal static class WorkflowGate
         (
             "an action without a SHA pin",
             CleanFixture.Replace("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "actions/checkout@v5")
+        ),
+        (
+            "a BuildKit image left to the action's floating default",
+            CleanFixture.Replace(
+                "        with:\n          driver-opts: image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea\n",
+                "")
+        ),
+        (
+            "a BuildKit image named by tag alone",
+            CleanFixture.Replace(
+                "moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea",
+                "moby/buildkit:v0.33.1")
+        ),
+        (
+            "a job container without a digest",
+            CleanFixture.Replace(
+                "    runs-on: ubuntu-latest",
+                "    runs-on: ubuntu-latest\n    container: node:22")
+        ),
+        (
+            "a service image without a digest",
+            CleanFixture.Replace(
+                "    runs-on: ubuntu-latest",
+                "    runs-on: ubuntu-latest\n    services:\n      db:\n        image: postgres:18")
+        ),
+        (
+            "an SBOM from the scanner's floating default",
+            CleanFixture.Replace(
+                "      - name: Build\n",
+                "      - name: Push\n        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a\n"
+                + "        with:\n          sbom: true\n      - name: Build\n")
         ),
         (
             "no permissions at either level",
@@ -392,6 +450,13 @@ internal static class WorkflowGate
     private static readonly (string Label, string Text)[] MustStaySilent =
     [
         ("a workflow with nothing wrong with it", CleanFixture),
+        (
+            "a service image pinned by digest",
+            CleanFixture.Replace(
+                "    runs-on: ubuntu-latest",
+                "    runs-on: ubuntu-latest\n    services:\n      db:\n        image: "
+                + "postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1")
+        ),
         (
             "permissions declared on the job rather than the workflow",
             CleanFixture
@@ -517,6 +582,74 @@ internal static class WorkflowGate
         Console.WriteLine(
             "The gate fires on every faulted workflow, on none of the sound ones, and reads both spellings.");
         return 0;
+    }
+
+    // --- Container images ------------------------------------------------------------------------
+
+    /// <summary>The images a job itself runs in or beside: `container:` and each of `services:`.</summary>
+    private static IEnumerable<(string Where, string Image)> JobImages(YamlMappingNode job)
+    {
+        var container = Get(job, "container");
+        var containerImage = container is YamlScalarNode ? container : Get(container, "image");
+        if (!IsNull(containerImage))
+        {
+            yield return ("in container", ScalarText(containerImage!).Trim());
+        }
+
+        if (Get(job, "services") is YamlMappingNode services)
+        {
+            foreach (var service in services.Children)
+            {
+                var image = service.Value is YamlScalarNode ? service.Value : Get(service.Value, "image");
+                if (!IsNull(image))
+                {
+                    yield return ($"service '{ScalarText(service.Key)}'", ScalarText(image!).Trim());
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// The images three Docker actions pull on the step's behalf. Each has a floating default, so an
+    /// input left out is as unpinned as a tag written out.
+    /// </summary>
+    private static IEnumerable<string> ActionImageProblems(string? uses, YamlNode? with)
+    {
+        string action = uses?.Split('@')[0].Trim() ?? "";
+        string Input(string key) => Get(with, key) is { } node && !IsNull(node) ? ScalarText(node).Trim() : "";
+
+        switch (action)
+        {
+            case "docker/setup-qemu-action":
+                if (!DigestPin.IsMatch(Input("image")))
+                {
+                    yield return "leaves the binfmt `image` input unpinned (the default is tonistiigi/binfmt:latest)";
+                }
+
+                break;
+
+            case "docker/setup-buildx-action":
+                var driver = DriverImage.Match(Input("driver-opts"));
+                if (Input("driver") is "" or "docker-container" && (!driver.Success || !DigestPin.IsMatch(driver.Groups["ref"].Value)))
+                {
+                    yield return "leaves the BuildKit image unpinned; set `driver-opts: image=name:tag@sha256:...`";
+                }
+
+                break;
+
+            case "docker/build-push-action":
+                string sbom = Input("sbom");
+                if (sbom.Length > 0 && sbom != "false")
+                {
+                    var generator = Regex.Match(sbom, @"generator=(?<ref>[^\s,]+)");
+                    if (!generator.Success || !DigestPin.IsMatch(generator.Groups["ref"].Value))
+                    {
+                        yield return "asks for an SBOM from an unpinned scanner; set `sbom: generator=name:tag@sha256:...`";
+                    }
+                }
+
+                break;
+        }
     }
 
     // --- YAML helpers ----------------------------------------------------------------------------

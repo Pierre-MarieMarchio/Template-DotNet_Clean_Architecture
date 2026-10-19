@@ -729,6 +729,16 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **Every container image is pinned by digest, as `name:tag@sha256:…`.** The compose services, the
+  Dockerfiles' bases and `# syntax=` frontend, the Testcontainers fixtures and the images the Docker
+  actions pull in the workflows (binfmt, the BuildKit daemon, the SBOM scanner, whose defaults
+  floated). The Dockerfiles write their bases in `FROM` rather than through the
+  `DOTNET_SDK_TAG`/`DOTNET_RUNTIME_TAG` arguments, which Dependabot could not update, and the
+  runtime image drops its `org.opencontainers.image.base.name` label, which release provenance
+  already records. The integration fixtures move from a floating `postgres:17-alpine` to the
+  compose file's PostgreSQL 18.6 image. `ContainerImagePinningTests` and the workflow gate fail on
+  an image without a digest, and on a fixture that runs anything the compose file does not.
+
 - **The local object store is SeaweedFS, from its own project's image, and MinIO is gone.** MinIO
   stopped publishing images when it went source-only, and the `coollabsio/minio` rebuild the stack
   ran was a third party between the template and the source. `docker-compose.yml` now runs one

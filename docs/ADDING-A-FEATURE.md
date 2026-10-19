@@ -129,6 +129,9 @@ in a migration or the snapshot, or use its types (confirmed), the lines that onl
 afterwards. Adding `--apply` deletes the generated files, the manifest and the folders left empty, but only when every file still
 hashes as written, nothing was added to the feature's folders, and none of the six edits above (nor any other use of the feature)
 exists yet. Otherwise it refuses before deleting anything and prints the same report. A migration is never touched.
+The first owner feature of a project generated with no feature also holds the account-deletion files every owner feature
+shares (below): `--apply` deletes them with it only when no other owner feature and none of the four registrations printed
+for them still use them, and refuses otherwise.
 
 **What it writes**, for the shape and operations chosen:
 
@@ -153,7 +156,13 @@ A project generated with no feature ships none of the account-deleted reaction, 
 feature brings the missing pieces with it: `IDeletedAccountDataPolicy` and `IUserAccountDirectory`
 in `Application.Core`, the sweep use case, the background registration of the sweep, and the
 account-directory adapter over the local accounts or the external-identity mapping. A project that
-already has a feature — or a tree without accounts, which is refused — gets none of those.
+already has a feature — or a tree without accounts, which is refused — gets none of those. Those
+files are listed in the first owner feature's manifest, so `remove-feature` refuses to remove that
+feature while a later owner feature, one composed by hand, or a registration of the sweep or of the
+adapter still uses them. There are two ways out: remove the other owner features first, after which
+the first one goes with the shared files and the project is back to the one generated with no
+feature; or remove the first one by hand and keep the seven files, which no manifest owns from then
+on.
 
 **It creates files and edits none**, because registration is opt-in per feature precisely so that a
 feature nobody composes is visibly registered nowhere. It prints the edits instead — the three in

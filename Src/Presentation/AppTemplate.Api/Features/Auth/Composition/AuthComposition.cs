@@ -7,7 +7,9 @@ using AppTemplate.Api.Features.Auth.Jobs;
 using AppTemplate.Api.Features.Auth.Providers;
 using AppTemplate.Api.Features.Auth.Security;
 using AppTemplate.Application.Auth;
+//#if (anyFeature)
 using AppTemplate.Application.Core.Common.Ports;
+//#endif
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Seeding;

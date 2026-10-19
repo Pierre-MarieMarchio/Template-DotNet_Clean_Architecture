@@ -618,9 +618,9 @@ public sealed class LayoutConventionTests
         // This rule asserts an emptiness, so a walk that found no folders at all passes it. Its two
         // siblings above establish their own candidate sets and would fail on a wrong root, but a
         // rule that leans on a neighbour to be non-vacuous is one that stops being a guarantee the
-        // day the neighbour moves.
+        // day the neighbour moves. The floor counts the smallest generated project.
         walked.Count.ShouldBeGreaterThanOrEqualTo(
-            101,
+            90,
             "Far fewer folders were found than this template holds, so the walk is not reading the " +
             "tree it is meant to describe and every folder in it would read as non-empty.");
 

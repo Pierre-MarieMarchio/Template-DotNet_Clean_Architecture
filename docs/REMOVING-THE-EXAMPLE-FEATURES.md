@@ -28,7 +28,8 @@ an example as their subject, rather than only deleting files. This document is t
 as a procedure.
 
 **A feature you generated is a different case.** `dotnet run Tools/Tasks.cs remove-feature <Features>` reports what
-removing it involves, and `--apply` deletes an untouched generated skeleton that was never composed (see
+removing it involves, and `--apply` deletes an untouched generated skeleton that was never composed, except
+while other owner features still use the shared account-deletion files it brought (see
 [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md)). It reads the manifest `new-feature` wrote, so it has nothing to say
 about the shipped examples: they have none, are composed, and are removed with the procedure below, which is
 also what follows once a generated feature has been edited or registered.

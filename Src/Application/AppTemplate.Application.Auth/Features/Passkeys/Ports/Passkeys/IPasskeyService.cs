@@ -33,9 +33,11 @@ public interface IPasskeyService
     Task<IReadOnlyList<PasskeyCredential>> ListAsync(Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Removes one of the account's passkeys. A credential already removed answers <c>false</c>
-    /// again, exactly as one the account never held — the caller is not told which. Commits before
-    /// it returns.
+    /// Removes one of the account's passkeys and rotates the security stamp, which invalidates every
+    /// access token already issued for the account, as <c>IAccountsService.ChangePasswordAsync</c>
+    /// does; refresh tokens are untouched and are the caller's to revoke. A credential already
+    /// removed answers <c>false</c> again, exactly as one the account never held — the caller is
+    /// not told which — and rotates nothing. Commits before it returns.
     /// </summary>
     Task<bool> RemoveAsync(
         Guid userId,

@@ -18,7 +18,8 @@ namespace AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.Compl
 /// a stolen session that could register one would hand its thief sign-in for ever after. The proof
 /// is the shape account deletion takes — the password, or for a provider-linked account an access
 /// token issued within <see cref="DeleteMyAccountUseCase.RecentAuthenticationWindow"/>. Registering
-/// a credential ends no session and rotates no stamp; removing one is the same.</summary>
+/// a credential ends no session and rotates no stamp; removing one ends every other session, as
+/// <c>RemovePasskeyUseCase</c> says.</summary>
 public sealed class CompletePasskeyRegistrationUseCase(
     IPasskeyService passkeys,
     IAccountsService accounts,

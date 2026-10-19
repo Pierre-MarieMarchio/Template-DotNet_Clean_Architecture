@@ -43,9 +43,9 @@ against your production system.
   exactly as an unknown id does, so the route cannot be used to learn which session ids exist.
   Deliberately stored about a client: its `User-Agent` string, truncated. Deliberately not stored:
   the address the request came from, which is personal data with no owner-facing use.
-- **A credential change ends every other session.** A password change from a signed-in session, and
-  arming or disarming the second factor, revoke every session of the account but the one the change
-  was made from — that session proved the new posture, and its access token still dies with the
+- **A credential change ends every other session.** A password change from a signed-in session,
+  arming or disarming the second factor, and removing a passkey revoke every session of the account
+  but the one the change was made from — that session proved the new posture, and its access token still dies with the
   rotated security stamp; its refresh token mints the replacement. A password reset through the
   mailed link, which is not made from any session, still revokes them all.
 - **Account lockout** and a configurable password policy with a floor that configuration cannot
@@ -112,6 +112,9 @@ against your production system.
   issued access token for an account that offers nothing its holder could present — because a
   passkey is a whole way in, not a second step on one; listing and removing one stay within the
   caller's own account, with the same 404 for somebody else's credential as for an unknown id.
+  Removing one is a credential change: it rotates the security stamp — Identity's own removal does
+  not, so the adapter does — and ends every other session, as a password change does, so a session
+  opened with the withdrawn passkey does not outlive it. Registering one ends no session.
   The credential rows live in the identity schema (`identity.UserPasskeys`), deleted with the
   account by cascade, and their payload — public key, counters, attestation — is one `jsonb`
   column the store reads whole and never queries field by field.

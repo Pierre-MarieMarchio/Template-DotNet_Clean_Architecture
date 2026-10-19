@@ -254,9 +254,12 @@ holds the whole sentence.
 could register its thief's passkey would hand over sign-in for ever after, so the completing call
 re-authenticates — the current password when one is set, and for an account holding nothing its
 holder could present (a provider-linked one) a recently issued access token, the same fallback and
-window account deletion takes. Registering or removing a passkey ends no session and rotates no
-stamp: a credential changes what future sign-ins can present, not what the sessions already open
-are worth, and ending a session is the sessions' own route.
+window account deletion takes. Registering a passkey ends no session and rotates no stamp: a new
+credential changes what future sign-ins can present, not what the sessions already open are
+worth. Removing one is the other direction, and is treated as a password change is: the stamp
+rotates (the adapter rotates it, since Identity's own removal does not) and every session but the
+caller's ends, so a session opened with a withdrawn passkey — a lost authenticator's — does not
+outlive the withdrawal. A token naming no session spares nothing, as for a password change.
 <!--#endif-->
 
 **No MediatR, no dispatcher, no pipeline behaviours.** A controller names the use case it calls, and

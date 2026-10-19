@@ -29,6 +29,7 @@ public sealed class PasskeyServiceTests
         [
             typeof(IUserStore<AppUser>),
             typeof(IUserPasskeyStore<AppUser>),
+            typeof(IUserSecurityStampStore<AppUser>),
         ],
         []);
 
@@ -215,6 +216,7 @@ public sealed class PasskeyServiceTests
 
         (await CreateService().RemoveAsync(_userId, [1, 2, 3], TestToken)).ShouldBeFalse();
         await Store.DidNotReceiveWithAnyArgs().RemovePasskeyAsync(default!, default!, TestToken);
+        await StampStore.DidNotReceiveWithAnyArgs().SetSecurityStampAsync(default!, default!, TestToken);
     }
 
     [Fact]
@@ -227,6 +229,29 @@ public sealed class PasskeyServiceTests
             .Returns(Task.CompletedTask);
 
         (await CreateService().RemoveAsync(_userId, [1, 2, 3], TestToken)).ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// Identity's own <c>RemovePasskeyAsync</c> leaves the stamp alone, so the rotation that ends
+    /// the access tokens in circulation is the adapter's to make — after the removal, never for a
+    /// credential it did not remove.
+    /// </summary>
+    [Fact]
+    public async Task RemoveAsync_ACredentialTheAccountHolds_RotatesTheSecurityStampAfterRemovingIt()
+    {
+        GivenTheAccountExists();
+        Store.FindPasskeyAsync(Arg.Any<AppUser>(), Arg.Any<byte[]>(), Arg.Any<CancellationToken>())
+            .Returns(APasskey("YubiKey 5", _now));
+        Store.RemovePasskeyAsync(Arg.Any<AppUser>(), Arg.Any<byte[]>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        await CreateService().RemoveAsync(_userId, [1, 2, 3], TestToken);
+
+        Received.InOrder(() =>
+        {
+            Store.RemovePasskeyAsync(Arg.Any<AppUser>(), Arg.Any<byte[]>(), Arg.Any<CancellationToken>());
+            StampStore.SetSecurityStampAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        });
     }
 
     [Fact]
@@ -293,6 +318,8 @@ public sealed class PasskeyServiceTests
     }
 
     private IUserPasskeyStore<AppUser> Store => (IUserPasskeyStore<AppUser>)_store;
+
+    private IUserSecurityStampStore<AppUser> StampStore => (IUserSecurityStampStore<AppUser>)_store;
 
     private static AppUser TheUser() => new()
     {

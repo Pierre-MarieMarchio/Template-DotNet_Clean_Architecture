@@ -151,7 +151,17 @@ internal sealed class PasskeyService(
             return false;
         }
 
-        return (await userManager.RemovePasskeyAsync(user, credentialId)).Succeeded;
+        if (!(await userManager.RemovePasskeyAsync(user, credentialId)).Succeeded)
+        {
+            return false;
+        }
+
+        // Identity does not treat removing a passkey as a credential change, unlike a password
+        // change, so without this the access tokens already in circulation keep validating until
+        // they expire.
+        await userManager.UpdateSecurityStampAsync(user);
+
+        return true;
     }
 
     /// <inheritdoc />

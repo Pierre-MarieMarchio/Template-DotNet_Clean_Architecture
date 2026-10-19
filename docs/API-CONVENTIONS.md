@@ -91,7 +91,7 @@ of the contract.
 | `auth.passkeySignIn.invalid` | 401 — one answer for a state string this API never issued, a ceremony that did not verify, and an account no longer allowed to sign in |
 | `auth.passkey.registrationInvalid` | 400 — the registration ceremony did not verify; attached to `credential` |
 | `auth.passkey.registrationRejected` | 400 — the ceremony verified, but the store refused to hold the credential |
-| `auth.passkey.notFound` | 404 — the passkey named is not one of the caller's, exactly as an unknown id; removing one already removed succeeds instead |
+| `auth.passkey.notFound` | 404 — the passkey named is not one of the caller's, exactly as an unknown id or one already removed |
 <!--#endif-->
 <!--#if (externalAuth)
 | `externalIdentity.mapping.notFound` | 404 — an administrative deletion naming an owner id no provider mapping carries |

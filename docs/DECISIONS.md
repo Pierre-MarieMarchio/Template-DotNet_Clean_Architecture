@@ -128,6 +128,22 @@ share one method so they cannot disagree about a month boundary and delete a liv
 every row.
 <!--#endif-->
 
+<!--#if (files)-->
+**The local object store is SeaweedFS, from the image its own project publishes.** It only ever
+stands in for S3 in development and CI — production talks to whatever S3 provider
+`Files:Storage:S3` names — but the image still runs code on every contributor's machine, so who
+built it matters. MinIO went source-only in October 2025; every MinIO image still on a registry is a
+third party's rebuild. SeaweedFS was taken over Garage, the next candidate, because it met every
+requirement without extra machinery: it passes the whole `Storage/` integration suite unchanged
+(SigV4 presigned PUT and GET, the signed `Content-Length`, `Content-Type` and
+`x-amz-checksum-sha256` headers verified at deposit and the SHA-256 returned by `HeadObject`,
+`ListObjectsV2` paging, a URL refused under a host it was not signed for), it creates the bucket
+idempotently from a start-up flag, it refuses every anonymous request once one identity exists,
+and its image carries `wget` for the healthcheck. Garage needs a layout, a key and a bucket assigned
+through its admin CLI before the first request, which is a one-shot service to maintain for no
+gain. Building MinIO from its source tag was the fallback, kept for the case where both failed.
+<!--#endif-->
+
 **Extract what two real cases prove identical, and nothing more.** A guessed abstraction is a worse
 defect than an assumed duplication: the duplication is visible and local, the wrong abstraction is
 neither. Measure first — `wc -l`, `diff` — and require two cases that do the same thing, not two

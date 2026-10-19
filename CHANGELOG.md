@@ -729,6 +729,19 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **The local object store is SeaweedFS, from its own project's image, and MinIO is gone.** MinIO
+  stopped publishing images when it went source-only, and the `coollabsio/minio` rebuild the stack
+  ran was a third party between the template and the source. `docker-compose.yml` now runs one
+  `objectstore` service (`chrislusf/seaweedfs`, pinned by digest) that creates the bucket itself on
+  start-up, so the `minio-bucket` one-shot service and the `9001` console are gone; the
+  `Storage/` integration suite runs the same image through the core `Testcontainers` package, which
+  replaces `Testcontainers.Minio`. Anonymous requests are still refused: the one S3 identity the
+  service is created with is what turns them off. **Migration for a derived project:** rename
+  `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` in `.env` to `STORAGE_ACCESS_KEY_ID` and
+  `STORAGE_SECRET_ACCESS_KEY`, point `STORAGE_ENDPOINT` at `http://objectstore:9000`, and replace
+  `minio minio-bucket` with `objectstore` in any `docker compose up` you script. Objects in the old
+  `minio-data` volume are not migrated.
+
 - **The background jobs' configuration speaks with one vocabulary, and `Worker` is gone from it.**
   The `MaintenanceWorker`, `ReminderWorker` and `FileWorker` sections become `Jobs:Maintenance`,
   `Jobs:Reminders` and `Jobs:Files`, and the deployment role `BackgroundJobs:Enabled` becomes

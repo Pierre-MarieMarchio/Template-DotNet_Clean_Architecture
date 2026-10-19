@@ -3,15 +3,15 @@
 #
 # Prerequisites
 #if (files)
-#   docker compose up -d db mailpit minio minio-bucket
+#   docker compose up -d db mailpit objectstore
 #else
 #   docker compose up -d db mailpit
 #endif
 #   dotnet run --project Src/Presentation/AppTemplate.Api
 #
 #if (files)
-# minio and minio-bucket are only needed from request 39 onwards: the Files feature signs URLs the
-# client sends bytes to, so there has to be an object store to send them to, with its bucket made.
+# objectstore is only needed from request 39 onwards: the Files feature signs URLs the client sends
+# bytes to, so there has to be an object store to send them to, with its bucket made.
 #
 #endif
 #if (localAuth)
@@ -880,7 +880,7 @@ Idempotency-Key: {{$guid}}
 @uploadUrl = {{registerFile.response.body.$.upload.url}}
 
 # 40. Step two happens OUTSIDE this file and outside the API: the client PUTs the bytes straight at
-#      {{uploadUrl}}. Against the docker-compose stack that is MinIO on http://localhost:9000, and
+#      {{uploadUrl}}. Against the docker-compose stack that is SeaweedFS on http://localhost:9000, and
 #      the API never sees a byte of it.
 #
 #      Send `upload.requiredHeaders` back verbatim. They are covered by the signature, so a deposit

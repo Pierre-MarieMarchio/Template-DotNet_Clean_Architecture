@@ -97,14 +97,14 @@ public sealed class BucketClientFactoryTests
     {
         var options = StorageFixture.Options(storage =>
         {
-            storage.Endpoint = "http://minio:9000";
+            storage.Endpoint = "http://objectstore:9000";
             storage.PublicEndpoint = "https://files.example";
         });
 
         using var talking = BucketClientFactory.Create(options);
         using var signing = BucketClientFactory.CreateForSigning(options);
 
-        ((AmazonS3Config)talking.Config).ServiceURL.ShouldBe("http://minio:9000/");
+        ((AmazonS3Config)talking.Config).ServiceURL.ShouldBe("http://objectstore:9000/");
         ((AmazonS3Config)signing.Config).ServiceURL.ShouldBe("https://files.example/");
     }
 

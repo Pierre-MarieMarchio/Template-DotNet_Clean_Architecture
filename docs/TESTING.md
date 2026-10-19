@@ -28,6 +28,11 @@ application hosting its own runner and the platform runs them in parallel.
 
 **Integration tests start a real PostgreSQL in Docker, so Docker must be running.** CI runs on
 `ubuntu-latest`, which provides a daemon; the hosted macOS and Windows runners do not.
+<!--#if (files)-->
+The `Storage/` suite of `AppTemplate.Api.IntegrationTests` also starts the object store the
+development stack runs — SeaweedFS, the same digest as `docker-compose.yml` — through the core
+`Testcontainers` package, since no Testcontainers module exists for it.
+<!--#endif-->
 
 Every test project is listed in `AppTemplate.sln`, and it has to stay that way: the platform runs
 the test modules the solution names, so a project on disk but absent from it is never run and

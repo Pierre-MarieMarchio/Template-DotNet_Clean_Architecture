@@ -156,11 +156,11 @@ public sealed class S3FileDirectTransferTests
     /// with the signature covering the host, no client could correct it.
     /// </remarks>
     [Theory]
-    [InlineData("http://minio:9000", "", "http")]
+    [InlineData("http://objectstore:9000", "", "http")]
     [InlineData("https://objects.example", "", "https")]
     [InlineData("", "", "https")]
-    [InlineData("http://minio:9000", "https://files.example", "https")]
-    [InlineData("https://minio.internal", "http://minio:9000", "http")]
+    [InlineData("http://objectstore:9000", "https://files.example", "https")]
+    [InlineData("https://objectstore.internal", "http://objectstore:9000", "http")]
     public async Task CreateDownloadGrantAsync_MintsAUrlOnTheSigningEndpointsOwnScheme(
         string endpoint,
         string publicEndpoint,
@@ -195,7 +195,7 @@ public sealed class S3FileDirectTransferTests
     {
         var options = StorageFixture.Options(storage =>
         {
-            storage.Endpoint = "http://minio:9000";
+            storage.Endpoint = "http://objectstore:9000";
             storage.PublicEndpoint = "https://files.example";
             storage.ForcePathStyle = true;
         });

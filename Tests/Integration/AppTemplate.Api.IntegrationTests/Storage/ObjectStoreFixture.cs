@@ -7,9 +7,10 @@ using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Infrastructure.Storage;
 using AppTemplate.Infrastructure.Storage.Common.Options;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.Minio;
 using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Storage;
@@ -30,7 +31,7 @@ namespace AppTemplate.Api.IntegrationTests.Storage;
 /// <para>
 /// <b>Presigning is arithmetic, and that is why the unit tests can assert the shape of a grant with
 /// no store at all.</b> Everything past the signature is a claim about a real store: that a URL this
-/// module signs is one MinIO accepts, that the headers named in the grant are the headers the
+/// module signs is one a real store accepts, that the headers named in the grant are the headers the
 /// signature covers, that a listing resumes after the key it was given. Nothing short of a store can
 /// answer those, and a stub would only agree with whatever this repository wrote it to say.
 /// </para>
@@ -39,27 +40,52 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
 {
     /// <summary>
     /// The same image the development stack runs (<c>docker-compose.yml</c>), pinned to the same
-    /// release rather than to the module's own default. What these tests exercise is then the store
-    /// a developer already has in front of them.
+    /// release and the same digest. What these tests exercise is then the store a developer already
+    /// has in front of them, and the digest means the bytes behind the tag cannot change under them.
     /// </summary>
     /// <remarks>
-    /// MinIO stopped publishing images when it went source-only (October 2025), and
-    /// <c>minio/minio</c> left Docker Hub with it. This is the community build of that same release
-    /// tag, produced from the official source; it ships the same <c>minio</c> and <c>mc</c> binaries
-    /// the official image did.
+    /// SeaweedFS, published by its own project. MinIO stopped publishing images when it went
+    /// source-only (October 2025); the community rebuilds that replaced them are a third party
+    /// between this suite and the source. See docs/DECISIONS.md.
     /// </remarks>
-    private const string _minioImage = "coollabsio/minio:RELEASE.2025-04-22T22-12-26Z";
+    private const string _storeImage =
+        "chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d";
 
-    /// <summary>
-    /// Long enough for MinIO, which refuses to start on a root password under eight characters.
-    /// </summary>
-    private const string _credential = "apptemplate_tests";
+    /// <summary>The S3 port, chosen to match the development stack's.</summary>
+    private const ushort _s3Port = 9000;
+
+    private const string _accessKeyId = "apptemplate-tests";
+
+    private const string _secretAccessKey = "apptemplate-tests-secret";
 
     private const string _bucketName = "apptemplate-storage-tests";
 
-    private readonly MinioContainer _container = new MinioBuilder(_minioImage)
-        .WithUsername(_credential)
-        .WithPassword(_credential)
+    /// <summary>
+    /// One process running every SeaweedFS component, with the S3 gateway on <see cref="_s3Port"/>.
+    /// </summary>
+    /// <remarks>
+    /// The credentials arrive as the two AWS variables, which SeaweedFS turns into its one admin
+    /// identity — and an identity existing is what makes the gateway refuse anonymous requests.
+    /// Everything this suite does not use is switched off, telemetry first: a test run has no
+    /// business reporting to anyone. The bucket is created by <see cref="InitializeAsync"/> through the
+    /// module's own client, not by the server, so a configuration these tests got wrong fails there.
+    /// </remarks>
+    private readonly IContainer _container = new ContainerBuilder(_storeImage)
+        .WithEnvironment("AWS_ACCESS_KEY_ID", _accessKeyId)
+        .WithEnvironment("AWS_SECRET_ACCESS_KEY", _secretAccessKey)
+        .WithCommand(
+            "mini",
+            "-dir=/data",
+            $"-s3.port={_s3Port}",
+            "-master.telemetry=false",
+            "-admin.ui=false",
+            "-webdav=false",
+            "-s3.port.iceberg=0",
+            "-s3.port.lance=0",
+            "-s3.autoCreateBucket=false")
+        .WithPortBinding(_s3Port, assignRandomHostPort: true)
+        .WithWaitStrategy(Wait.ForUnixContainer()
+            .UntilHttpRequestIsSucceeded(request => request.ForPort(_s3Port).ForPath("/healthz")))
         .Build();
 
     private ServiceProvider? _host;
@@ -275,12 +301,14 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
                 // DOCKER_HOST publishes it somewhere else and the suite would then fail on
                 // configuration validation instead of on anything it means to assert.
                 [$"{FilesStorageS3Options.SectionName}:AllowInsecureTransport"] = "true",
-                [$"{FilesStorageS3Options.SectionName}:AccessKeyId"] = _credential,
-                [$"{FilesStorageS3Options.SectionName}:SecretAccessKey"] = _credential,
+                [$"{FilesStorageS3Options.SectionName}:AccessKeyId"] = _accessKeyId,
+                [$"{FilesStorageS3Options.SectionName}:SecretAccessKey"] = _secretAccessKey,
             })
             .Build();
 
-    private string Endpoint => _container.GetConnectionString();
+    private string Endpoint =>
+        new UriBuilder(Uri.UriSchemeHttp, _container.Hostname, _container.GetMappedPublicPort(_s3Port)).Uri
+            .GetLeftPart(UriPartial.Authority);
 
     private TService Resolve<TService>()
         where TService : notnull =>
@@ -363,7 +391,7 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
 /// The one collection every class in <c>Storage/</c> joins.
 /// </summary>
 /// <remarks>
-/// One collection means one MinIO container for the whole suite. Eleven test projects already run
+/// One collection means one object-store container for the whole suite. Eleven test projects already run
 /// together here with a PostgreSQL among them, and a container per class would have added four more
 /// for guarantees that share a store perfectly well: every test addresses keys under a prefix of its
 /// own, so serialising the classes is not what keeps them apart.

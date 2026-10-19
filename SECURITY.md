@@ -337,12 +337,16 @@ says otherwise.
   confidential. Metadata, tags, confirmation and deletion stay owner-only, a file that is not
   available answers `404` to a non-owner exactly like a missing one, and there is no anonymous
   access. A file whose category was removed from configuration is treated as `Private`.
-- **The bucket must never allow anonymous reads.** `docker-compose.yml`'s bucket bootstrap sets
-  `anonymous none` explicitly. A readable bucket makes every grant in this template decoration.
-  The MinIO service in that file publishes both its ports on loopback — `127.0.0.1:9000` for the
-  S3 API and `127.0.0.1:9001` for the console — like every other published port in the stack, so a
-  development object store holding whatever was uploaded to it is not reachable from the network
-  the developer's machine happens to be on.
+- **The bucket must never allow anonymous reads.** A readable bucket makes every grant in this
+  template decoration. `docker-compose.yml`'s `objectstore` service (SeaweedFS) is given exactly one
+  S3 identity, and an identity existing is what makes its gateway answer every unsigned request —
+  read, list or write — with `403 AccessDenied`; with none configured it would serve anyone, so
+  never remove the key pair to "simplify" the stack. It publishes one port, the S3 API, on loopback
+  (`127.0.0.1:9000`) like every other published port in the stack, so a development object store
+  holding whatever was uploaded to it is not reachable from the network the developer's machine
+  happens to be on. Its other components (master, volume server, filer) listen inside the compose
+  network only, unauthenticated, as SeaweedFS ships them — acceptable for a development store whose
+  only neighbours are this stack's own containers, and one more reason it is not a production one.
 - **A file name is a label, never a path.** `StoredFileName` refuses separators, control characters
   and reserved device names, and the object key is generated independently of it — so nothing a
   client sends can steer where bytes land. The name never reaches a filesystem at all.

@@ -1,8 +1,8 @@
 ﻿using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Common.Directories;

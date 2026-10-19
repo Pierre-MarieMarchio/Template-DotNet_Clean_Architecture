@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Policies;
+﻿using AppTemplate.Application.Auth.Features.Accounts.Model.Policies;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Common.Options;

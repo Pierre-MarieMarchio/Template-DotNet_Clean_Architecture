@@ -1,5 +1,5 @@
 ﻿//#if (localAuth)
-using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
+using AppTemplate.Application.Auth.Features.ExternalLogins.Ports.ExternalIdentity;
 //#endif
 using AppTemplate.Application.Core.Common.Ports;
 //#if (files)
@@ -16,7 +16,7 @@ using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 using AppTemplate.Infrastructure.InMemory.Common.Time;
 //#if (localAuth)
-using AppTemplate.Infrastructure.InMemory.Features.Auth;
+using AppTemplate.Infrastructure.InMemory.Features.ExternalLogins;
 //#endif
 //#if (files)
 using AppTemplate.Infrastructure.InMemory.Features.Files;

@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Api.Features.Maintenance.Jobs;
-using AppTemplate.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;
+using AppTemplate.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Features.BackgroundJobs.Jobs;

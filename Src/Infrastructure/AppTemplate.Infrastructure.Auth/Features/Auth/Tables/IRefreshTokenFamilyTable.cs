@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Sessions;
+﻿using AppTemplate.Application.Auth.Features.Sessions.Ports.Sessions;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Tables;
 

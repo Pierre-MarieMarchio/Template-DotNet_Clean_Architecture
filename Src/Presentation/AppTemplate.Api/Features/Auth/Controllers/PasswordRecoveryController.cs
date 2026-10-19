@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RequestPasswordReset;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ResetPassword;
+using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.RequestPasswordReset;
+using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ResetPassword;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;

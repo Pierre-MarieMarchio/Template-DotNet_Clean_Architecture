@@ -53,9 +53,10 @@ AppTemplate.Application         Common/{Tagging}
                                 Features/<F>/{UseCases/{Commands,Queries}/<Operation>,
                                               Ports/<Port>,Consumers,Services,Policies,
                                               Options,Extensions,Mapping,Dtos,Errors,Validators}
-AppTemplate.Application.Auth    Features/Auth/{Errors,Policies,Ports/<Port>,
-                                               UseCases/{Commands,Queries}/<Operation>}
-                                no Common/: one feature, so nothing is shared between features
+AppTemplate.Application.Auth    Features/{Accounts,Sessions,TwoFactor,Passkeys,ExternalLogins,
+                                          SecurityEvents}/{UseCases/{Commands,Queries}/<Operation>,
+                                                           Ports/<Port>,Model/{Errors,Policies}}
+                                no Common/: nothing is shared between the six features yet
 AppTemplate.Infrastructure.Core Common/{Caching,Contexts,Options,
                                         Saving/{Auditing,DomainEvents,Tracking},Templating,Time}
                                 no Features/: a mechanism a module needs and no module owns
@@ -228,7 +229,8 @@ live in somebody else's store.
 <!--#endif-->
 
 <!--#if (localAuth)-->
-`AppTemplate.Application.Auth/Features/Auth/` is the one vertical with no aggregate at all. Nine
+`AppTemplate.Application.Auth/Features/` holds the six verticals with no aggregate at all —
+`Accounts`, `Sessions`, `TwoFactor`, `Passkeys`, `ExternalLogins`, `SecurityEvents`. Nine
 ports stand in for one `IAuthService`, one per intent — accounts, mailed tokens, session tokens,
 two-factor, administration, external identity, external logins, account mails, and the security
 event log. An account here is what its ports say about it.

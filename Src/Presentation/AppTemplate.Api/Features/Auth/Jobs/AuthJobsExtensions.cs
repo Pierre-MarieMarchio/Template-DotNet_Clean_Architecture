@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Api.Features.Maintenance.Jobs;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredSecurityEvents;
+using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Commands.PurgeExpiredSecurityEvents;
+using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.PurgeExpiredRefreshTokens;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Features.Auth.Jobs;

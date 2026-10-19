@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
-using AppTemplate.Application.Auth.Features.Auth.Ports.Passkeys;
+﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Passkeys.Ports.Passkeys;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
 using Microsoft.AspNetCore.Http;

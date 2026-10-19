@@ -2,7 +2,7 @@
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Application;
 //#if (localAuth)
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ChangePassword;
+using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ChangePassword;
 //#endif
 using AppTemplate.Application.Core.Common.Concurrency;
 //#if (todoLists)

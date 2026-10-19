@@ -2,7 +2,7 @@
 using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.UseCases;
 //#if (anyFeature)
-using AppTemplate.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;
+using AppTemplate.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
 //#endif
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using AppTemplate.Domain.Core.Common.Events;

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalIdentity;
+﻿using AppTemplate.Application.Auth.Features.ExternalLogins.Ports.ExternalIdentity;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Options;
 using Microsoft.Extensions.Options;

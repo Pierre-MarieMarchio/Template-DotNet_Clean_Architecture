@@ -51,7 +51,7 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
 
     /// <summary>
     /// A wrong code against a live challenge is refused with the same error an unknown or expired
-    /// challenge gets — see <c>AuthErrors.InvalidTwoFactorChallenge</c> — and the challenge survives
+    /// challenge gets — see <c>TwoFactorErrors.InvalidTwoFactorChallenge</c> — and the challenge survives
     /// the attempt, so a mistyped code does not force the caller back through <c>/login</c>.
     /// </summary>
     [Fact]

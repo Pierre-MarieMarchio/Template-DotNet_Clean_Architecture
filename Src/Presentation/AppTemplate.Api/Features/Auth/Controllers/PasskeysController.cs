@@ -5,13 +5,13 @@ using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.Features.Auth.Mapping;
-using AppTemplate.Application.Auth.Features.Auth.Errors;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.BeginPasskeyRegistration;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.BeginPasskeySignIn;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.CompletePasskeyRegistration;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.CompletePasskeySignIn;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RemovePasskey;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.ListPasskeys;
+using AppTemplate.Application.Auth.Features.Passkeys.Model.Errors;
+using AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.BeginPasskeyRegistration;
+using AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.BeginPasskeySignIn;
+using AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.CompletePasskeyRegistration;
+using AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.CompletePasskeySignIn;
+using AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.RemovePasskey;
+using AppTemplate.Application.Auth.Features.Passkeys.UseCases.Queries.ListPasskeys;
 using AppTemplate.Application.Core.Common.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -122,7 +122,7 @@ public sealed class PasskeysController(
         }
         catch (FormatException)
         {
-            return NoContentOrProblem(Result.Failure(AuthErrors.NoSuchPasskey));
+            return NoContentOrProblem(Result.Failure(PasskeysErrors.NoSuchPasskey));
         }
 
         var command = new RemovePasskeyCommand(credentialIdBytes);

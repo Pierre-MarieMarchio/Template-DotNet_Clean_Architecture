@@ -1,7 +1,7 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Policies;
-using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventQueries;
+﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.SecurityEvents.Model.Policies;
+using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventQueries;
 using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;

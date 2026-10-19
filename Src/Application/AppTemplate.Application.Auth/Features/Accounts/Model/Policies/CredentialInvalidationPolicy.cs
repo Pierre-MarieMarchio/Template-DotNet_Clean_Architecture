@@ -1,0 +1,54 @@
+﻿using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
+
+namespace AppTemplate.Application.Auth.Features.Accounts.Model.Policies;
+
+/// <summary>What a use case runs immediately after rotating a user's security stamp. The rotation
+/// already fails every access token in circulation; refresh tokens are issued by this codebase, not
+/// by Identity, and survive it untouched — so revoking every grant and recording the fact are two
+/// steps every stamp rotation owes, called here so a future feature cannot forget one. Two forms,
+/// chosen by who asked for the change: the owner's own change spares that session
+/// (<see cref="InvalidateOtherSessionsAsync"/>); everything else ends every session
+/// (<see cref="InvalidateAsync"/>).</summary>
+public static class CredentialInvalidationPolicy
+{
+    /// <summary>
+    /// Revokes every refresh-token grant the user holds and records the rotation, in that order.
+    /// Called after the stamp has already been rotated, never instead of rotating it.
+    /// </summary>
+    /// <param name="userId">The account whose stamp was just rotated.</param>
+    public static async Task InvalidateAsync(
+        ISessionTokensService sessionTokens,
+        ISecurityEventLog securityEventLog,
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(sessionTokens);
+        ArgumentNullException.ThrowIfNull(securityEventLog);
+
+        await sessionTokens.RevokeAllRefreshTokensAsync(userId, cancellationToken: cancellationToken);
+        securityEventLog.Record(SecurityEvent.SecurityStampRotated(userId));
+    }
+
+    /// <summary>
+    /// Revokes every refresh-token grant the user holds outside <paramref name="currentSessionId"/>,
+    /// and records the rotation. Called by the owner's own change, after the stamp was rotated.
+    /// </summary>
+    /// <param name="userId">The account whose stamp was just rotated.</param>
+    /// <param name="currentSessionId">The session the change was made from, read from the caller's
+    /// access token. <c>null</c> — a token issued before sessions were named in it — ends every
+    /// session: an unknown session is not one to spare.</param>
+    public static async Task InvalidateOtherSessionsAsync(
+        ISessionTokensService sessionTokens,
+        ISecurityEventLog securityEventLog,
+        Guid userId,
+        Guid? currentSessionId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(sessionTokens);
+        ArgumentNullException.ThrowIfNull(securityEventLog);
+
+        await sessionTokens.RevokeAllRefreshTokensAsync(userId, currentSessionId, cancellationToken);
+        securityEventLog.Record(SecurityEvent.SecurityStampRotated(userId));
+    }
+}

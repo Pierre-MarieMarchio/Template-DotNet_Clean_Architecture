@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.CurrentSession;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+﻿using AppTemplate.Application.Auth.Features.Sessions.Ports.CurrentSession;
+using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
 
 namespace AppTemplate.Application.Auth.UnitTests.TestDoubles;
 

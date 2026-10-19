@@ -1,16 +1,16 @@
 ﻿using System.Buffers.Text;
 using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
-using AppTemplate.Application.Auth.Features.Auth.Ports.Passkeys;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventQueries;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.ConfirmTwoFactorSetup;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.RefreshAccessToken;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Register;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SetUpTwoFactor;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.SignInWithExternalProvider;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.GetCurrentUser;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Queries.ListSessions;
+using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.Register;
+using AppTemplate.Application.Auth.Features.ExternalLogins.UseCases.Commands.SignInWithExternalProvider;
+using AppTemplate.Application.Auth.Features.Passkeys.Ports.Passkeys;
+using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventQueries;
+using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Login;
+using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.RefreshAccessToken;
+using AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.GetCurrentUser;
+using AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.ListSessions;
+using AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.ConfirmTwoFactorSetup;
+using AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.SetUpTwoFactor;
 using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Api.Features.Auth.Mapping;

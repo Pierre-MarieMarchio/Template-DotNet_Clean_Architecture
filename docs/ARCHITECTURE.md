@@ -93,7 +93,6 @@ graph RL
     Ident --> Pers
     Ident --> InfraCore
     Mail --> App
-    Mail --> Auth
     Mail --> AppCore
     Mail --> InfraCore
     Store --> App
@@ -115,8 +114,7 @@ graph RL
 <!--#if (localAuth)-->
 **Authentication is never carried transitively.** Nothing in `AppTemplate.Application.Core` and
 nothing in `AppTemplate.Application` names `AppTemplate.Application.Auth`, so a project that needs
-it declares it: the identity module, the email module (its reminder notifier resolves a user profile
-to find an address), the in-memory doubles, and the host. `AppTemplate.Infrastructure.Auth`
+it declares it: the identity module, the in-memory doubles, and the host. `AppTemplate.Infrastructure.Auth`
 declares no arrow to `AppTemplate.Application` at all — it implements ten Auth ports and nothing
 else.
 <!--#endif-->
@@ -159,11 +157,13 @@ that need a domain type, `IDomainEventConsumer` and `DomainGuard`, need only the
 this project knows no aggregate and cannot come to know one. It carries the same shape for the
 same reasons: `CS1591` re-enabled so every public member owes a sentence to the reader who reads
 signatures instead of code, and no version, because a project that needs a
-mechanism this one lacks copies it and tunes it. Its single use case,
-`Features/Maintenance/UseCases/Commands/PurgeExpiredIdempotencyKeys/`, is the idempotency
-mechanism's own housekeeping and names no business type; a host opts into it with
-`AddPurgeExpiredIdempotencyKeys()`, so one that has neither a maintenance endpoint nor a
-maintenance loop is not made to supply the two ports it resolves. Both purges are reachable two
+mechanism this one lacks copies it and tunes it. Its two use cases are
+`Features/Maintenance/UseCases/Commands/PurgeExpiredIdempotencyKeys/`, the idempotency
+mechanism's own housekeeping, which names no business type, and
+`Features/Accounts/UseCases/Commands/SweepDeletedAccountData/`, the leased sweep of the data of
+accounts that are gone; a host opts into them with `AddPurgeExpiredIdempotencyKeys()` and
+`AddDeletedAccountSweep()`, so one that has neither a maintenance endpoint nor a maintenance loop
+is not made to supply the ports they resolve. The idempotency purge is reachable two
 ways in this template: `MaintenanceController`, for a scheduler outside the process, and the
 API's maintenance job, whose interval is configuration. There is deliberately no
 `AddApplicationCore()` beside it: this project declares ports, results and markers, none of which
@@ -1267,7 +1267,7 @@ change tracker useful without it ever seeing the aggregate.
 | Permissions, policies, or tenants | This API authenticates nobody, so it carries no role and no policy at all, and nothing anywhere carries a tenant. Every owned aggregate holds a bare `Guid OwnerId`, and a tenant would be a second column beside it on every table and in every ownership check. |
 <!--#endif-->
 <!--#if (localAuth)-->
-| Machine-to-machine authentication | No API keys and no client-credentials flow: every token this template mints belongs to a person who signed in. The extension point is a second authentication scheme beside the bearer one `AddAuthModule` registers, and `IAccessTokenIssuer` is the port a client-credentials grant would mint through. |
+| Machine-to-machine authentication | No API keys and no client-credentials flow: every token this template mints belongs to a person who signed in. The extension point is a second authentication scheme beside the bearer one `AddAuthModule` registers, and `IssueAccessTokenAsync` on `ISessionTokensService` is the port a client-credentials grant would mint through. |
 <!--#endif-->
 | A message bus or queue port | The background jobs poll the database on a timer, and the operations that must not run twice at once take `ILeaderLease` — a Postgres advisory lock — rather than relying on a single consumer. A broker would arrive the way every other capability does: a port in `AppTemplate.Application.Core/Common/Ports/`, an adapter in a module of its own, one line in each host's composition. |
 | Minimal APIs | Everything is MVC. The idempotency filter is an action filter, `ApiControllerBase` does the result-to-response mapping, and the ETag handling hangs off the same machinery — so a minimal endpoint mapped beside the controllers inherits none of it and is not supported. Nothing stops one being mapped; what it costs is those three, each of which would have to be re-expressed as an endpoint filter. |

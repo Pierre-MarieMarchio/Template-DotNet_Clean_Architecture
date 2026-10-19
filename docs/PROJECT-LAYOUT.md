@@ -32,7 +32,7 @@ level puts the six files that implement one feature in six different directories
 ever local and no folder tells you what the application does. A responsibility folder is legitimate
 only *inside* a feature, where it partitions something already cohesive.
 
-`Features/` is the unit of vertical slicing. Four of the fifteen projects under `Src/` have no
+`Features/` is the unit of vertical slicing. Three of the thirteen projects under `Src/` have no
 `Features/` at all, and each for the same reason: what it holds belongs to no feature.
 
 ## The folder map

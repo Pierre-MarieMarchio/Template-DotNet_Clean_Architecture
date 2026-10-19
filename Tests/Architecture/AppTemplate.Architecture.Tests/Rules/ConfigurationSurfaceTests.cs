@@ -171,8 +171,11 @@ public sealed class ConfigurationSurfaceTests
             "Far fewer bound sections were found than this template has, so the source scan is not " +
             "reading the tree it is meant to describe.");
 
+        // Like the member floor below, this counts the smallest project the options can generate:
+        // its guide keeps only the sections every project binds, and the local-accounts guide this
+        // file lives beside holds more than twice as many.
         documented.Count.ShouldBeGreaterThanOrEqualTo(
-            25,
+            20,
             $"Far fewer sections were parsed out of '{_configurationGuide}' than it holds, so the " +
             "guide is being read with the wrong heading shape.");
 

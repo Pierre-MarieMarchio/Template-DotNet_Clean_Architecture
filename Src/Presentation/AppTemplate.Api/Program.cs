@@ -9,7 +9,7 @@ using AppTemplate.Api.Features.BackgroundJobs.Jobs;
 using AppTemplate.Api.Features.ExternalIdentity.Composition;
 #endif*/
 //#if (reminders)
-using AppTemplate.Api.Features.Reminders.Directories;
+using AppTemplate.Api.Features.Reminders.Composition;
 //#endif
 //#if (anyFeature)
 using AppTemplate.Application;

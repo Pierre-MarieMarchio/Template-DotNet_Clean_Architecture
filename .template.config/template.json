@@ -270,8 +270,8 @@
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RequestLogRedactionTests.cs",
             "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/EmailTemplateCoverageTests.cs",
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/SecurityStampRotationTests.cs",
-            "Src/Presentation/AppTemplate.Api/Features/Reminders/Directories/AccountReminderRecipientDirectory.cs",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Directories/AccountReminderRecipientDirectoryTests.cs"
+            "Src/Presentation/AppTemplate.Api/Features/Reminders/Composition/AccountReminderRecipientDirectory.cs",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Composition/AccountReminderRecipientDirectoryTests.cs"
           ]
         },
         {
@@ -279,8 +279,8 @@
           "exclude": [
             "Src/**/Features/ExternalIdentity/**",
             "Tests/**/Features/ExternalIdentity/**",
-            "Src/Presentation/AppTemplate.Api/Features/Reminders/Directories/ExternalIdentityReminderRecipientDirectory.cs",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Directories/ExternalIdentityReminderRecipientDirectoryTests.cs",
+            "Src/Presentation/AppTemplate.Api/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectory.cs",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectoryTests.cs",
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/ExternalProvider.cs"
           ]
         },
@@ -291,12 +291,12 @@
             "Src/Application/AppTemplate.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
             "Src/Application/AppTemplate.Application.Core/Features/DeletedAccounts/**",
             "Tests/Application/AppTemplate.Application.Core.UnitTests/Features/DeletedAccounts/**",
-            "Src/Presentation/AppTemplate.Api/Features/Auth/Directories/**",
-            "Src/Presentation/AppTemplate.Api/Features/ExternalIdentity/Directories/**",
+            "Src/Presentation/AppTemplate.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
+            "Src/Presentation/AppTemplate.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs",
             "Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
             "Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Auth/Directories/**",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/ExternalIdentity/Directories/**"
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Auth/Composition/AccountUserAccountDirectoryTests.cs",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectoryTests.cs"
           ]
         },
         {
@@ -307,8 +307,7 @@
             "Src/Presentation/AppTemplate.Api/Common/Security/AuthorizationPolicies.cs",
             "Src/Presentation/AppTemplate.Api/Features/Maintenance/Controllers/**",
             "Src/Presentation/AppTemplate.Api/Features/Maintenance/Contracts/**",
-            "Src/Presentation/AppTemplate.Api/Features/Maintenance/Mapping/**",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Maintenance/Mapping/**"
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Maintenance/Contracts/Mapping/**"
           ]
         },
         {

@@ -2,9 +2,9 @@
 using AppTemplate.Api.Common.Caching;
 using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Security;
+using AppTemplate.Api.Features.Auth.Contracts.Mapping;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
-using AppTemplate.Api.Features.Auth.Mapping;
 using AppTemplate.Application.Auth.Features.Passkeys.Model.Errors;
 using AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.BeginPasskeyRegistration;
 using AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.BeginPasskeySignIn;

@@ -112,8 +112,8 @@ whether or not you wanted to keep it.
 | The comment | Names | Breaks when you remove |
 |---|---|---|
 | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Rows/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
-| `Src/Presentation/AppTemplate.Api/Features/TodoLists/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
-| `Src/Presentation/AppTemplate.Api/Features/Files/Mapping/StoredFileResponseMapping.cs` | `TodoListResponseMapping` | `TodoLists` |
+| `Src/Presentation/AppTemplate.Api/Features/TodoLists/Contracts/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
+| `Src/Presentation/AppTemplate.Api/Features/Files/Contracts/Mapping/StoredFileResponseMapping.cs` | `TodoListResponseMapping` | `TodoLists` |
 
 <!--#else
 **Two `<see cref>` doc comments cross features, and a cref is code here.**
@@ -123,7 +123,7 @@ whether or not you wanted to keep it.
 | The comment | Names | Breaks when you remove |
 |---|---|---|
 | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Rows/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
-| `Src/Presentation/AppTemplate.Api/Features/TodoLists/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
+| `Src/Presentation/AppTemplate.Api/Features/TodoLists/Contracts/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
 #endif-->
 
 Each makes a point that survives its example: reword the sentence, do not just delete the tag. The
@@ -839,7 +839,7 @@ use, from its own identity provider.
 
 <!--#if (reminders)-->
 - **The reminder's recipient needs another source.** `AccountReminderRecipientDirectory`, under
-  `Src/Presentation/AppTemplate.Api/Features/Reminders/Directories/`, reads the owner's name and
+  `Src/Presentation/AppTemplate.Api/Features/Reminders/Composition/`, reads the owner's name and
   address from the local accounts. Replace it with an `IReminderRecipientDirectory` over your
   identity provider, or drop `Reminders` with authentication.
 <!--#endif-->

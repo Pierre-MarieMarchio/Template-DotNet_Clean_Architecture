@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Api.Common.Controllers;
+using AppTemplate.Api.Features.Files.Contracts.Mapping;
 using AppTemplate.Api.Features.Files.Contracts.Requests;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
-using AppTemplate.Api.Features.Files.Mapping;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReplaceStoredFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetUsedFileTags;
 using Microsoft.AspNetCore.Mvc;

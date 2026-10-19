@@ -22,7 +22,7 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppRole", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppRole", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -49,7 +49,7 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                     b.ToTable("Role", "identity");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppUser", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -118,7 +118,44 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                     b.ToTable("User", "identity");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.RefreshToken", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Rows.Models.SecurityEventRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt");
+
+                    b.HasIndex("UserId", "OccurredAt");
+
+                    b.ToTable("SecurityEvents", "identity");
+                });
+
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Sessions.Rows.Models.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -163,7 +200,7 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                     b.ToTable("RefreshTokens", "identity");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.RefreshTokenFamilyRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Sessions.Rows.Models.RefreshTokenFamilyRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -191,43 +228,6 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                     b.HasIndex("UserId", "RevokedAt");
 
                     b.ToTable("RefreshTokenFamilies", "identity");
-                });
-
-            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.SecurityEventRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Detail")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("IpAddress")
-                        .HasMaxLength(45)
-                        .HasColumnType("character varying(45)");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTimeOffset>("OccurredAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OccurredAt");
-
-                    b.HasIndex("UserId", "OccurredAt");
-
-                    b.ToTable("SecurityEvents", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
@@ -367,15 +367,15 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                     b.ToTable("UserTokens", "identity");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.RefreshToken", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Sessions.Rows.Models.RefreshToken", b =>
                 {
-                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.RefreshTokenFamilyRecord", "Family")
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Sessions.Rows.Models.RefreshTokenFamilyRecord", "Family")
                         .WithMany("Tokens")
                         .HasForeignKey("FamilyId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", "User")
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppUser", "User")
                         .WithMany("RefreshTokens")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -386,9 +386,9 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.RefreshTokenFamilyRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Sessions.Rows.Models.RefreshTokenFamilyRecord", b =>
                 {
-                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", "User")
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppUser", "User")
                         .WithMany("RefreshTokenFamilies")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -399,7 +399,7 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
-                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppRole", null)
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppRole", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -408,7 +408,7 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
-                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", null)
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -417,7 +417,7 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
                 {
-                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", null)
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -426,7 +426,7 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserPasskey<System.Guid>", b =>
                 {
-                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", null)
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -477,13 +477,13 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
                 {
-                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppRole", null)
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppRole", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", null)
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -492,21 +492,21 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
                 {
-                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", null)
+                    b.HasOne("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.AppUser", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models.AppUser", b =>
                 {
                     b.Navigation("RefreshTokenFamilies");
 
                     b.Navigation("RefreshTokens");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Auth.Models.RefreshTokenFamilyRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Sessions.Rows.Models.RefreshTokenFamilyRecord", b =>
                 {
                     b.Navigation("Tokens");
                 });

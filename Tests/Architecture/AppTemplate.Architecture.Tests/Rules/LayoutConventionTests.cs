@@ -104,13 +104,18 @@ public sealed class LayoutConventionTests
             ],
         //#if (localAuth)
 
-        // Every word here is the plural of a nature word the file names already carry — the rule the
-        // rest of the repository follows, where a …Repository is in Repositories/ and a …Tracker in
-        // Tracking/. Which is what makes a folder findable from a type name alone and back again: a
-        // …Service is in Services/ and nowhere else, and Services/ holds nothing that is not one.
+        // Five concepts, each answering one question — does it implement a port (Adapters), is it
+        // the shape of a stored row (Rows), is it one of the reserved ways to reach storage
+        // (Access), is it a setting (Configuration), is it an embedded file (Resources) — and under
+        // each the plural of a nature word the file names already carry. Which is what makes a
+        // folder findable from a type name alone and back again: a …Directory is in
+        // Adapters/Directories/ and nowhere else, and that folder holds nothing that is not one.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Auth"] =
-            ["Configurations", "Directories", "Factories", "Issuers", "Logs", "Models", "Options", "Providers",
-             "Queries", "Seeding", "Services", "Tables", "Templates", "Verifiers"],
+            ["Access/Queries", "Access/Tables",
+             "Adapters/Directories", "Adapters/Providers", "Adapters/Services",
+             "Configuration/Options", "Configuration/Seeding",
+             "Resources/Templates",
+             "Rows/Configurations", "Rows/Models"],
         //#endif
         //#if (files)
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
@@ -228,8 +233,10 @@ public sealed class LayoutConventionTests
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] =
             ["Email", "Time"],
         //#if (localAuth)
+        // What serves the module itself and names no feature: the context and the settings every
+        // feature's tokens share. Anything implementing a vertical's port files under that vertical.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Auth"] =
-            ["Contexts", "Directories", "Options"],
+            ["Contexts", "Options"],
         //#endif
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
             ["Contexts", "Idempotency", "Leases"],

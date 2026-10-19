@@ -161,14 +161,14 @@ dotnet_diagnostic.S3267.severity = none
 
 #endif
 #if (localAuth)
-[Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Providers/EmailChangeTokenProvider.cs]
+[Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Accounts/Adapters/Providers/EmailChangeTokenProvider.cs]
 # S6672 asks that an injected `ILogger<T>` name its enclosing type. The base class
 # `DataProtectorTokenProvider<AppUser>` declares its constructor parameter as
 # `ILogger<DataProtectorTokenProvider<AppUser>>` and accepts no other type, so the rule asks for a
 # signature ASP.NET Core Identity does not offer.
 dotnet_diagnostic.S6672.severity = none
 
-[Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Providers/PasswordResetTokenProvider.cs]
+[Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Accounts/Adapters/Providers/PasswordResetTokenProvider.cs]
 # S6672, and the same constraint as the provider beside it: the logger's type argument is fixed by
 # `DataProtectorTokenProvider<AppUser>`'s constructor, not chosen here.
 dotnet_diagnostic.S6672.severity = none

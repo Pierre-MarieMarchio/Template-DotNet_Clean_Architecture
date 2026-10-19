@@ -1,5 +1,11 @@
-﻿using AppTemplate.Infrastructure.Auth.Features.Auth.Configurations;
-using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
+﻿using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Configurations;
+using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
+using AppTemplate.Infrastructure.Auth.Features.Passkeys.Rows.Configurations;
+using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Rows.Configurations;
+using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Rows.Models;
+using AppTemplate.Infrastructure.Auth.Features.Sessions.Access.Tables;
+using AppTemplate.Infrastructure.Auth.Features.Sessions.Rows.Configurations;
+using AppTemplate.Infrastructure.Auth.Features.Sessions.Rows.Models;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +40,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 
     /// <summary>
     /// Refresh-token grants. Internal, like the row type itself: the table is reached only through
-    /// <see cref="Features.Auth.Tables.IRefreshTokenTable"/>, and the policy for how a grant is
+    /// <see cref="IRefreshTokenTable"/>, and the policy for how a grant is
     /// hashed, rotated and revoked lives in this module.
     /// </summary>
     internal DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
@@ -43,7 +49,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 
     /// <summary>
     /// Sessions: one row per sign-in, holding what its owner lists it by — see
-    /// <see cref="Features.Auth.Tables.IRefreshTokenFamilyTable"/> for the boundary the module
+    /// <see cref="IRefreshTokenFamilyTable"/> for the boundary the module
     /// reaches it through.
     /// </summary>
     internal DbSet<RefreshTokenFamilyRecord> RefreshTokenFamilies => Set<RefreshTokenFamilyRecord>();

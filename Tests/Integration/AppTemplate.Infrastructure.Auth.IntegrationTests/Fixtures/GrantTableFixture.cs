@@ -2,7 +2,7 @@
 using System.Data.Common;
 using System.Globalization;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
-using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
+using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Infrastructure.Auth.Features.Auth.Providers;
+﻿using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers;
 
 namespace AppTemplate.Api.Features.Auth.Providers;
 

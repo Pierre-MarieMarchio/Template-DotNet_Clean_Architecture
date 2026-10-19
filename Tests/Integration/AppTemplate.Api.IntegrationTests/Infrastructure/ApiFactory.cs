@@ -11,8 +11,9 @@ using AppTemplate.Domain.Features.TodoLists.Events;
 //#endif
 //#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Options;
-using AppTemplate.Infrastructure.Auth.Features.Auth.Options;
-using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
+using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Options;
+using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Seeding;
+using AppTemplate.Infrastructure.Auth.Features.Sessions.Configuration.Options;
 //#endif
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Email.Common.Smtp;

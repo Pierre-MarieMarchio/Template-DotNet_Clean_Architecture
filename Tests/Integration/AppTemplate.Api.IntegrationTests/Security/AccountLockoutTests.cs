@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
-using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
+using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;

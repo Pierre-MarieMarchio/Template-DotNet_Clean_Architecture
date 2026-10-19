@@ -38,7 +38,7 @@ public sealed class EmailTemplateCoverageTests
     /// </summary>
     private static readonly string[] _templateFolders =
     [
-        "Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates",
+        "Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Accounts/Resources/Templates",
         //#if (reminders)
         "Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders",
         //#endif

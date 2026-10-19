@@ -6,7 +6,7 @@ using AppTemplate.Domain.Features.TodoLists.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 //#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
-using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
+using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Core.Common.Saving;
 //#endif
 using Microsoft.Extensions.DependencyInjection;

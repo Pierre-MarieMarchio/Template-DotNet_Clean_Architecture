@@ -70,27 +70,27 @@ public sealed class ModuleDependencyTests
         ("AppTemplate.Infrastructure.InMemory", ArchitectureAssemblies.InMemoryInfrastructure),
     ];
 
-    //#if (localAuth)
     /// <summary>
-    /// The one documented exception, and the reason it is one rather than a defect. The identity
-    /// module reads accounts through <c>AppUser</c>, which is the shared ASP.NET Identity row that
-    /// the persistence module maps — not a business entity, and not a type any application port
-    /// exposes. Identity depending on persistence is the permitted direction: the rule above
-    /// forbids only the reverse, and the architecture describes this module as using the shared
-    /// context. So the directory names it, and nothing else in this module's <c>Common/</c> does.
-    /// <para>
-    /// It sits here rather than in the rule's condition so that adding a second one is a line in
-    /// this list with a reason beside it, which is a thing a reviewer sees.
-    /// </para>
+    /// The types under a module's <c>Common/</c> allowed to name a feature anyway, each with the
+    /// reason it belongs to no single subject beside it. Empty, and held empty by
+    /// <see cref="NoModuleCommon_CarriesAnException"/>: a type that implements a vertical's port or
+    /// names a vertical's types — an account directory, say — files under that vertical. It stays a
+    /// list rather than vanishing into the rule's condition so that adding an exception is a line a
+    /// reviewer sees, argued for in its pull request.
     /// </summary>
-    private static readonly string[] _commonTypesAllowedToNameAFeature =
-    [
-        "IAppUserDirectory",
-        "AppUserDirectory",
-    ];
-    /*#else
     private static readonly string[] _commonTypesAllowedToNameAFeature = [];
-    #endif*/
+
+    /// <summary>
+    /// A module's <c>Common/</c> holds what serves the module itself and names no feature, without
+    /// exception today. An entry appearing in the list above is an exception being argued for, and
+    /// this is where the argument has to be made: by changing this assertion in the same pull
+    /// request.
+    /// </summary>
+    [Fact]
+    public void NoModuleCommon_CarriesAnException() =>
+        _commonTypesAllowedToNameAFeature.ShouldBeEmpty(
+            "Every type that implements a vertical's port or names a vertical's types files under "
+            + "that vertical, not under the module's Common/.");
 
     /// <summary>
     /// The same rule the persistence mechanisms are held to, applied to the four other modules.

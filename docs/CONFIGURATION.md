@@ -3,8 +3,14 @@
 Every setting the application reads is listed here — this page, not a file, is the complete
 list. The tracked `Src/Presentation/AppTemplate.Api/appsettings.json` is the schema of record for
 everything the API host must be told, and contains **no secrets**: every secret-shaped value in it
-is an empty string. Five sections whose defaults are all safe are omitted from it and documented
+is an empty string.
+<!--#if (localAuth)-->
+Five sections whose defaults are all safe are omitted from it and documented
 here instead — `Database`, `IdempotencyPurge`, `IdentityTokens`, `ExternalIdentity` and `Postmark`
+<!--#else
+Three sections whose defaults are all safe are omitted from it and documented
+here instead — `Database`, `IdempotencyPurge` and `Postmark`
+<!--#endif-->
 — as is `Idempotency:ClaimLease`, whose four siblings are there. An absent section is not an absent
 key: each of them binds and validates exactly as the ones written out do.
 
@@ -48,7 +54,7 @@ be filled from user secrets or environment variables.
 
 > **Where the options classes live.** Each section is bound and validated by the module that
 > consumes it, and inside that module a transverse section sits under `Common/Options/` while
-> one that belongs to a single feature sits under `Features/<Feature>/Options/` — the same
+> one that belongs to a single feature sits under `Features/<Feature>/Configuration/Options/` — the same
 > partition every infrastructure module uses for everything else.
 >
 > | Section | Bound by | Declared in |
@@ -59,18 +65,17 @@ be filled from user secrets or environment variables.
 > | `IdentitySeed` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Accounts/Configuration/Seeding/` |
 <!--#endif-->
 <!--#if (externalAuth)-->
-> | `Authentication:External` | `AddExternalAuthentication` | `AppTemplate.Api/Features/ExternalIdentity/Composition/` |
+> | `Authentication:External` | `AddExternalAuthentication` | `AppTemplate.Api/Features/ExternalIdentity/Configuration/Options/` |
 <!--#endif-->
-> | `Database` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Core/Common/Options/` |
 <!--#if (localAuth)-->
 > | `Database` | `AddPersistenceModule` **and** `AddAuthModule` | `AppTemplate.Infrastructure.Core/Common/Options/` |
+<!--#else
+> | `Database` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Core/Common/Options/` |
 <!--#endif-->
 > | `IdempotencyPurge` | `AddPersistenceModule` | `AppTemplate.Infrastructure.Persistence/Common/Idempotency/` |
 > | `Email`, `Postmark` | `AddEmailModule` | `AppTemplate.Infrastructure.Email/Common/Smtp/` and `Common/Http/` |
 <!--#if (files)-->
-> | `Files` (its categories and `ApiUploadMaxBytes`) | `AddFiles`, the application's Files entry point; `AddStorageModule` adds the checks against scanning and the provider | `AppTemplate.Application/Features/Files/Options/` |
-<!--#endif-->
-<!--#if (files)-->
+> | `Files` (its categories and `ApiUploadMaxBytes`) | `AddFiles`, the application's Files entry point; `AddStorageModule` adds the checks against scanning and the provider | `AppTemplate.Application/Features/Files/Configuration/Options/` |
 > | `Files:Storage:S3` | `AddStorageModule`, when `Files:Storage:Provider` is `S3` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
 > | `Files:Storage`, `Files:Storage:FileSystem`, `Files:Scanning` | `AddStorageModule` (the `FileSystem` section only for that provider) | `AppTemplate.Infrastructure.Storage/Features/Files/Configuration/Options/` |
 <!--#endif-->
@@ -87,13 +92,21 @@ be filled from user secrets or environment variables.
 > One consequence of the `Options/` folder name is worth knowing before you add another: it
 > puts an `Options` namespace under the module's own root, which shadows
 > `Microsoft.Extensions.Options.Options` for every file beneath it — so the short
-> `Options.Create(…)` stops resolving in the test project that mirrors it. The two projects
+> `Options.Create(…)` stops resolving in the test project that mirrors it.
+<!--#if (files && localAuth)-->
+> The two projects
 > that meet this say so where they work around it: `StorageFixture` writes the fully
 > qualified `Microsoft.Extensions.Options.Options.Create`,
-<!--#if (localAuth)-->
-> and `AccountEmailFactoryConfirmationTests` uses `OptionsWrapper<T>` instead
+> and `AccountEmailFactoryConfirmationTests` uses `OptionsWrapper<T>` instead.
+<!--#elseif (files)-->
+> The project
+> that meets this says so where it works around it: `StorageFixture` writes the fully
+> qualified `Microsoft.Extensions.Options.Options.Create`.
+<!--#elseif (localAuth)-->
+> The project
+> that meets this says so where it works around it:
+> `AccountEmailFactoryConfirmationTests` uses `OptionsWrapper<T>` instead.
 <!--#endif-->
-> .
 
 ## One process: HTTP and the periodic jobs
 
@@ -133,8 +146,12 @@ the object store — from being multiplied by the number of replicas, without a 
 scheduler.
 <!--#endif-->
 The protections underneath stay in place and are not a substitute for that choice:
-<!--#if (reminders || files)-->
+<!--#if (reminders && files)-->
 the reminder pass and the three file passes take the leader lease inside their use cases,
+<!--#elseif (reminders)-->
+the reminder pass takes the leader lease inside its use case,
+<!--#elseif (files)-->
+the three file passes take the leader lease inside their use cases,
 <!--#endif-->
 the other
 passes are idempotent, and a rolling deployment, a manual `MaintenanceController` call or a mistaken
@@ -269,7 +286,11 @@ there: what is deliberately not configurable, and how a key becomes an environme
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
+<!--#if (localAuth)-->
 | `Default` | string | — | **Required.** The one and only connection string. Npgsql format. Both `DbContext`s use it, which is also what makes them share one pool; see [ARCHITECTURE.md](ARCHITECTURE.md#two-contexts-one-database-six-schemas). |
+<!--#else
+| `Default` | string | — | **Required.** The one and only connection string. Npgsql format. |
+<!--#endif-->
 
 Example: `Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=…`
 
@@ -291,11 +312,13 @@ else — a monitoring dashboard, a `psql` session, a second application — gets
 20 is deliberately conservative so that running several replicas of the API against one
 PostgreSQL instance does not by itself approach the server's ceiling.
 
+<!--#if (localAuth)-->
 **Bound once, for both contexts.** This section is bound by whichever modules own a context —
 `AddPersistenceModule` and `AddAuthModule` — into one options type in
 `AppTemplate.Infrastructure.Core`. Npgsql pools per connection string, so two contexts built on the
 identical string share **one** pool of `MaxPoolSize`, not one each. Deriving the bound separately in
 the two modules is what would turn it into two.
+<!--#endif-->
 
 **Sizing this against replica count and `max_connections`.** Every replica of every process that
 composes either module — each API instance, whether or not it runs the jobs — holds its own pool up
@@ -368,9 +391,12 @@ operator using Postmark has no SMTP server and should not have to invent a hostn
 of the transport.
 
 **There is no retry on a failed send, deliberately.** The outbound policy retries safe verbs only,
-and sending mail is a `POST`. That matches a decision this template already made: `RegisterUseCase`
+and sending mail is a `POST`.
+<!--#if (localAuth)-->
+That matches a decision this template already made: `RegisterUseCase`
 treats a delivery failure as a success carrying `confirmationEmailSent: false`, because the account
 was created and the caller can ask for the mail again.
+<!--#endif-->
 
 ### `Postmark`
 
@@ -460,8 +486,8 @@ behaviour — they all speak OIDC — so adding Okta or Keycloak is a configurat
 class. Apple's one real quirk (the address arrives only at the first authorisation) is handled where
 it belongs, in the use case, because it is about linking rather than about verification.
 
-<!--#if (externalAuth)-->
 <!--#endif-->
+<!--#if (externalAuth)-->
 ### `Authentication:External`
 
 The external OpenID Connect provider (Keycloak, Entra ID, Auth0…) whose access tokens authenticate
@@ -489,6 +515,7 @@ owners across a change of provider, and why a token that cannot be mapped is ref
 **`Local` roles have no API.** Assignments are rows of `(UserId, Role)` written by SQL or a seed.
 
 <!--#endif-->
+<!--#if (files)-->
 ### `Jobs:Files`
 
 The Files feature's two sweeps and its inspection pass. Bound by `AddBackgroundJobs`, and only when
@@ -523,7 +550,6 @@ pass logs that it stood by and reports zero. What each pass guarantees on retry:
   ⌈objects / 250,000⌉ + 1 passes, across restarts. With the `FileSystem` store it also deletes
   temporary files a crashed write left behind, once older than a day.
 
-<!--#if (files)-->
 ### `Files`
 
 The Files feature's application policy: the categories a file is registered under, and the ceiling
@@ -570,7 +596,6 @@ enabled, signature verified). No new file can be registered under it.
 **To scan a category**, enable [`Files:Scanning`](#filesscanning) first, then set its `Scan` to
 `true`; the order matters only because start-up refuses the second without the first.
 
-<!--#endif-->
 ### `Files:Storage`
 
 Which store holds the Files feature's bytes. One choice, read at start-up; the chosen provider's own
@@ -586,7 +611,6 @@ cannot sign: registering a direct upload answers `409` `storedFile.directUploadU
 `GET /files/{id}/content` streams the bytes from the API (`200`) instead of redirecting (`302`).
 With `FileSystem`, start-up refuses a category whose only upload mode is `Direct`.
 
-<!--#if (files)-->
 ### `Files:Storage:FileSystem`
 
 A directory on a local or mounted disk, when `Files:Storage:Provider` is `FileSystem`.
@@ -600,7 +624,6 @@ and a key that would resolve outside the root is refused. A write goes to a temp
 same directory while it is counted and hashed, and is published by a rename only when its size and
 SHA-256 match the declaration. Describing an object reads it whole to compute its digest.
 
-<!--#endif-->
 ### `Files:Storage:S3`
 
 The bucket, when `Files:Storage:Provider` is `S3`. Bound by `AddStorageModule` and validated at
@@ -654,7 +677,6 @@ rather than lengthen it, and see `SECURITY.md`.
 lists the bucket and deletes every object no row names — so anything else stored there is deleted on
 the next pass.
 
-<!--#if (files)-->
 ### `Files:Scanning`
 
 Whether deposited files are scanned for malware by a `clamd` daemon. Entirely optional: disabled,
@@ -737,7 +759,6 @@ opposite. 1000 is a starting point, not a measured optimum for your ingestion ra
 | `RequireHttpsMetadata` | bool | `true` | Only a local host has business setting `false`. |
 | `AccessTokenLifetimeInMinutes` | int | `15` | Range **1–1440**. Short on purpose: an access token cannot be revoked. |
 
-<!--#endif-->
 ### `RefreshToken`
 
 | Key | Type | Default | Notes |
@@ -745,7 +766,6 @@ opposite. 1000 is a starting point, not a measured optimum for your ingestion ra
 | `LifetimeInDays` | int | `7` | Range **1–90**. Token size (32 bytes) and hashing (SHA-256) are not configurable. |
 | `RetentionInDays` | int | `7` | Range **1–90**. How long an expired grant's row survives before `ISessionTokensService` deletes it — a retention window on rows, not a lifetime on tokens. Read by the sweep that runs in the maintenance job. |
 
-<!--#if (localAuth)-->
 ### `SecurityEventLog`
 
 How long the persisted security-event trail — every sign-in attempt, lockout, credential
@@ -758,7 +778,6 @@ administrator for any account.
 | `RetentionInDays` | int | `90` | Range **1–3650**. Days an event is kept before `PurgeExpiredSecurityEvents` deletes it — for every account, a deleted one included, whose rows are removed by this purge and nothing else. Events also survive the account itself: the table carries no foreign key, by design. |
 | `PurgeBatchSize` | int | `1000` | Range **1–100000**. Rows one delete statement removes; the purge repeats until a statement removes fewer, so a large backlog is cleared in short transactions rather than one long lock over the table. |
 
-<!--#endif-->
 ### `Identity`
 
 Password, lockout and sign-in policy. Every member has a safe default, so a
@@ -784,7 +803,6 @@ cause; `PasswordRequiredLength` may not exceed that ceiling.
 | `RequireConfirmedEmail` | bool | `true` | With this on, an unconfirmed account cannot log in — and the failure is indistinguishable from a wrong password (`auth.login.invalidCredentials`). |
 | `RequireUniqueEmail` | bool | `true` | **Cannot be `false`** — the user table has a unique index on the normalised email. |
 
-<!--#if (localAuth)-->
 ### `TwoFactor`
 
 The second factor's own settings. Every member has a safe default, so an absent section
@@ -806,8 +824,6 @@ address — per process, so times your replica count. Multiply the three before 
 what they bound together is how many six-digit codes somebody who already has the password may
 offer.
 
-<!--#endif-->
-<!--#if (localAuth)-->
 ### `Passkey`
 
 The relying-party side of the passkey ceremonies. The rest of the WebAuthn posture — user
@@ -877,8 +893,6 @@ headers and intermediary request history. The page reads the fragment and **POST
 to `/api/v1/auth/confirm-email` as a JSON body. Confirmation is not a GET with a query
 string, for the same reason.
 
-<!--#endif-->
-<!--#if (localAuth)-->
 ### `IdentityTokens`
 
 The lifespan of a token minted by ASP.NET Identity's **default** data-protector token
@@ -896,8 +910,6 @@ yet, so it is the one token whose window is bounded by how long a person takes t
 their mail. Shorten it if your users confirm promptly; the two shorter windows below are
 not evidence that this one was meant to match them.
 
-<!--#endif-->
-<!--#if (localAuth)-->
 ### `PasswordReset`
 
 | Key | Type | Default | Notes |
@@ -909,8 +921,6 @@ Same fragment-then-POST shape as `EmailConfirmation`, and for the same reason: t
 and single-use token are appended as a URL fragment, and the page **POSTs** them to
 `/api/v1/auth/reset-password` as a JSON body.
 
-<!--#endif-->
-<!--#if (localAuth)-->
 ### `EmailChange`
 
 | Key | Type | Default | Notes |
@@ -952,11 +962,22 @@ runs. A blank or malformed tag fails startup either way with the same message.
 
 **There is deliberately no list of supported languages.** What a mail can be written in is which
 templates are embedded, and a list here would be a second statement of that — free to name a
-language no template backs. Adding a language is adding
+language no template backs.
+<!--#if (localAuth && reminders)-->
+Adding a language is adding
 `<Mail>.<culture>.html` next to the ones that ship, in
 `AppTemplate.Infrastructure.Auth/Features/Accounts/Resources/Templates/` (the three account mails) and
-`AppTemplate.Infrastructure.Email/Features/Reminders/Templates/` (the reminder), and nothing else.
+`AppTemplate.Infrastructure.Email/Features/Reminders/` (the reminder), and nothing else.
 `EmailTemplateCoverageTests` refuses a language added to one of those folders and not the other.
+<!--#elseif (localAuth)-->
+Adding a language is adding
+`<Mail>.<culture>.html` next to the ones that ship, in
+`AppTemplate.Infrastructure.Auth/Features/Accounts/Resources/Templates/` (the three account mails), and nothing else.
+<!--#elseif (reminders)-->
+Adding a language is adding
+`<Mail>.<culture>.html` next to the ones that ship, in
+`AppTemplate.Infrastructure.Email/Features/Reminders/` (the reminder), and nothing else.
+<!--#endif-->
 
 **How a reader's language is chosen.**
 
@@ -1121,8 +1142,14 @@ exclusion of `/health*` from both traces and the request log, and what only this
 Together with the shared registration, traces cover ASP.NET Core, `HttpClient` and Npgsql, and
 metrics cover ASP.NET Core, `HttpClient`, the runtime, the connection pool and the rate limiter.
 `Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` adds the
-jobs' own sources and meters to that same pipeline — the three jobs' `ActivitySource`s and `Meter`s and
-the persistence project's reminder meter, by `PersistenceModule.RemindersMeterName` — through
+jobs' own sources and meters to that same pipeline —
+<!--#if (reminders)-->
+the three jobs' `ActivitySource`s and `Meter`s and
+the persistence project's reminder meter, by `PersistenceModule.RemindersMeterName` —
+<!--#else
+the jobs' `ActivitySource`s and `Meter`s —
+<!--#endif-->
+through
 callbacks that run only when telemetry is enabled and the jobs run, so an instance with no collector,
 or with `Jobs:Enabled=false`, registers nothing for them. `service.name` is `AppTemplate.Api`,
 read from its assembly, for the jobs as for requests.
@@ -1132,7 +1159,15 @@ read from its assembly, for the jobs as for requests.
 its `task`, whether or not it found anything, and writes a log line on start, stop and every skip; a
 flat `iterations` series is a loop that stopped, and `outcome != "disabled"` is what an alert on that
 should read. The meters are named after their section, one per loop —
+<!--#if (files && reminders)-->
 `AppTemplate.Jobs.Files`, `AppTemplate.Jobs.Maintenance` and `AppTemplate.Jobs.Reminders` —
+<!--#elseif (files)-->
+`AppTemplate.Jobs.Files` and `AppTemplate.Jobs.Maintenance` —
+<!--#elseif (reminders)-->
+`AppTemplate.Jobs.Maintenance` and `AppTemplate.Jobs.Reminders` —
+<!--#else
+`AppTemplate.Jobs.Maintenance` —
+<!--#endif-->
 and their counters sit under `apptemplate.jobs.*`.
 
 - **An unreachable collector is safe.** Startup succeeds and the failing export cycles produce
@@ -1222,9 +1257,11 @@ body is a few kilobytes.
   from the same value as the backstop for a chunked request that sends no `Content-Length`. The
   middleware exists because integration tests run on `TestServer`, where Kestrel limits do not
   apply — a Kestrel-only limit would be untestable and therefore unverified.
+<!--#if (files)-->
 - **One endpoint raises it**: `POST /api/v1/files/uploads` accepts `Files:ApiUploadMaxBytes` plus
   16 KiB, applied to the `Content-Length` check, to Kestrel's limit for that request and to the
   multipart body. Every other endpoint keeps this value.
+<!--#endif-->
 - **Set too low** and legitimate requests start failing with `413`; the validator's 1024-byte floor
   stops the value going so low that nothing works at all.
 - **Set outside the allowed range** and the host fails `ValidateOnStart()` and does not boot.
@@ -1309,7 +1346,9 @@ the idempotency purge here but one of authentication's some other way
 the idempotency purge here
 <!--#endif-->
 is not forced into the rest.
+<!--#if (localAuth)-->
 The two authentication switches are documented next, because they belong to authentication.
+<!--#endif-->
 
 - Every iteration resolves its use cases from one fresh background scope
   (`IServiceScopeFactory.CreateBackgroundScope()`), never from a scope held for the process lifetime,
@@ -1327,10 +1366,10 @@ The two authentication switches are documented next, because they belong to auth
 <!--#if (localAuth)-->
 - `MaintenanceController` is a second, authorized entry point to the same two purges, and a purge is
   safe to run while the timer's own pass overlaps it.
-<!--#else
+<!--#elseif (externalAuth)
 - `MaintenanceController` is a second, authorized entry point to the same purge, and the purge is
   safe to run while the timer's own pass overlaps it.
-<!--#endif-->
+#endif-->
 - **Set outside 1 second – 1 day** and an instance that runs the jobs fails `ValidateOnStart()` and
   does not boot.
 
@@ -1341,8 +1380,14 @@ The two authentication switches are documented next, because they belong to auth
 |---|---|---|---|
 | `PurgeExpiredRefreshTokensEnabled` | bool | `true` | Runs `IPurgeExpiredRefreshTokensUseCase` each iteration when `true`. |
 
-<!--#if (anyFeature)-->
+A key of the `Jobs:Maintenance` section above, read by
+`AppTemplate.Api/Features/Auth/Jobs/AuthPurgeOptions.cs` — a class of the authentication feature's
+own that its composition binds to that section, so a project without authentication loses the key
+with the purge. Off, rotated and expired grants accumulate: nothing else removes them, and the
+maintenance job says so at warning level on every skipped iteration.
+
 <!--#endif-->
+<!--#if (anyFeature)-->
 ### `Jobs:Maintenance:SweepDeletedAccountsDataEnabled`
 
 | Key | Type | Default | Notes |
@@ -1356,14 +1401,8 @@ whose data still names a deleted account, whether or not the fact reached the fe
 Off, rows owned by an id that names no account stay where they are — the deletion event is the fast
 path, and this switch is what makes it certain. See
 [`ARCHITECTURE.md`](ARCHITECTURE.md#when-an-account-goes).
+
 <!--#endif-->
-
-A key of the `Jobs:Maintenance` section above, read by
-`AppTemplate.Api/Features/Auth/Jobs/AuthPurgeOptions.cs` — a class of the authentication feature's
-own that its composition binds to that section, so a project without authentication loses the key
-with the purge. Off, rotated and expired grants accumulate: nothing else removes them, and the
-maintenance job says so at warning level on every skipped iteration.
-
 <!--#if (localAuth)-->
 ### `Jobs:Maintenance:PurgeExpiredSecurityEventsEnabled`
 
@@ -1378,8 +1417,8 @@ accumulate; the maintenance job says so at warning level on every skipped iterat
 also an authorized endpoint, `DELETE /maintenance/security-events/expired`, for a scheduler outside
 the process.
 
-<!--#if (reminders)-->
 <!--#endif-->
+<!--#if (reminders)-->
 ### `Jobs:Reminders`
 
 | Key | Type | Default | Notes |
@@ -1403,19 +1442,29 @@ stays at-least-once.
 
 | Behaviour | Value | Where |
 |---|---|---|
+<!--#if (localAuth)-->
 | Refresh token size / hash | 32 bytes CSPRNG / SHA-256 | `RefreshTokenGrants` |
+<!--#endif-->
+<!--#if (todoLists)-->
 | Aggregate item cap | 500 items per list | `TodoList.MaxItems` |
 | Tag cap | 20 tags per item | `TodoItem.MaxTags` |
+<!--#endif-->
 | Readiness checks | a DbContext check and a shutdown-state check, both tagged `ready` | `Program.cs`, `Common/Hosting/ShutdownHealthCheck.cs` |
+<!--#if (files)-->
 | Largest single file | 5 GiB | `FileSize.MaxBytes` |
+<!--#endif-->
+<!--#if (todoLists)-->
 | Max page size | 100 | `TodoListCollectionPolicy.MaxPageSize` |
 | Default page size | 20 | `TodoListCollectionPolicy.DefaultPageSize` |
 | Max sort terms | 3 | `TodoListCollectionPolicy.MaxSortTerms` |
 | Sortable fields | `name`, `createdAt`, `lastModifiedAt` | `TodoListCollectionPolicy.SortableFields` |
+<!--#endif-->
 | Max `search` length | 100 characters | `SearchTerm.MaxLength` |
 | Max cursor length | 512 characters | `Cursor.MaxEncodedLength` |
 | `Cache-Control` on reads | `private, no-cache` | `Src/Presentation/AppTemplate.Api/Common/Caching/CacheHeaderExtensions.cs` |
+<!--#if (tagging)-->
 | Used-tag list lifetime | 1 minute | `UsedTagsCache.Lifetime` |
+<!--#endif-->
 
 **The server-side cache has no configuration section, and that is a property of what it holds.**
 One read goes through it — the tags an owner has already used, for a picker — and its lifetime is a
@@ -1432,6 +1481,7 @@ without any caller changing. Output caching is deliberately absent — see
 authenticated response: caching here is revalidation, not storage. An endpoint whose response is identical for every
 caller may set its own header; the middleware never overwrites one already present.
 
+<!--#if (files)-->
 **The four file bounds are the anti-abuse rule of a feature that hands out signed write
 URLs**, and they measure three different costs: how many unexpired write rights one caller
 may be holding, how large that caller's listing may get, and how much of the bucket one
@@ -1439,6 +1489,7 @@ owner may fill. A caller that meets any of them gets `409` `storedFile.quotaExce
 pending bound is self-clearing — `Jobs:Files:PurgeAbandonedRegistrations*` removes
 registrations that were never deposited against — so a client that crashed mid-upload waits
 rather than being locked out.
+<!--#endif-->
 
 The collection bounds are per-feature by design: they live on that feature's
 `ICollectionPolicy`, not in configuration, because a deployment cannot know which of a

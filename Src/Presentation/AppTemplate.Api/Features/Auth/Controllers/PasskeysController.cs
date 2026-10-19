@@ -104,7 +104,8 @@ public sealed class PasskeysController(
 
     /// <summary>Removes one of the caller's passkeys by the id the passkey list names. A passkey
     /// that belongs to somebody else answers 404, exactly as an unknown id does, so the route cannot
-    /// be used to learn which credentials exist; removing one already removed succeeds again.</summary>
+    /// be used to learn which credentials exist; one already removed gets the same 404. Every other
+    /// session of the account ends with the removal, as with a password change.</summary>
     /// <remarks>An id that is not the base64url the list hands out gets the same 404: it names no
     /// passkey this account holds.</remarks>
     [HttpDelete("passkeys/{credentialId}")]

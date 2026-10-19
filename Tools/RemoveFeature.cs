@@ -76,7 +76,11 @@ internal static class RemoveFeature
 
     private sealed record Entry(string Path, string Sha256);
 
-    private sealed record Manifest(string Type, List<Entry> Files);
+    /// <param name="Files">Every file the manifest lists, the shared ones included.</param>
+    /// <param name="Shared">The files of <paramref name="Files"/> every owner feature shares.</param>
+    private sealed record Manifest(string Type, List<Entry> Files, List<string> Shared);
+
+    private sealed record Dependent(string Name, string How);
 
     private sealed record Analysis(
         string Features,
@@ -88,7 +92,37 @@ internal static class RemoveFeature
         List<string> Missing,
         List<string> Extra,
         List<Hit> Hits,
-        List<string> Blockers);
+        List<string> Blockers,
+        List<string> Shared,
+        List<Dependent> Dependents,
+        List<Hit> SharedUses);
+
+    /// <summary>
+    /// The account-deleted reaction the first owner feature of a tree generated with none brings
+    /// along. Mirrors the <c>spec.Reaction</c> branch of <c>NewFeature.Plan</c>; the generator's
+    /// self-test asserts that every path that branch emits matches one of these.
+    /// </summary>
+    private static readonly Regex[] SharedPaths =
+    [
+        Rx(@"^Src/Application/[^/]+\.Application\.Core/Common/Ports/(IDeletedAccountDataPolicy|IUserAccountDirectory)\.cs$"),
+        Rx(@"^Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/I?SweepDeletedAccountDataUseCase\.cs$"),
+        Rx(@"^Src/Presentation/[^/]+\.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweep(JobsExtensions|Options)\.cs$"),
+        Rx(@"^Src/Presentation/[^/]+\.Api/Features/Auth/Composition/AccountUserAccountDirectory\.cs$"),
+        Rx(@"^Src/Presentation/[^/]+\.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory\.cs$"),
+    ];
+
+    /// <summary>The folder of the sweep, which holds nothing but the shared files.</summary>
+    private static readonly Regex SharedFolder = Rx(@"^(Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts)/");
+
+    /// <summary>A use of the shared files: their types, their registrations, the sweep's namespace.</summary>
+    private static readonly Regex SharedUse = Rx(
+        @"\b(IDeletedAccountDataPolicy|IUserAccountDirectory|I?SweepDeletedAccountDataUseCase|AddDeletedAccountSweep(Jobs)?|DeletedAccountSweepOptions|AccountUserAccountDirectory|ExternalIdentityUserAccountDirectory)\b|\.Features\.DeletedAccounts\b");
+
+    /// <summary>The feature folders the shared files live in, or that compose them: a use there is a registration.</summary>
+    private static readonly HashSet<string> SharedHosts = new(StringComparer.Ordinal)
+    {
+        "DeletedAccounts", "Auth", "ExternalIdentity", "BackgroundJobs",
+    };
 
     private static int Main(string[] args)
     {
@@ -170,6 +204,11 @@ internal static class RemoveFeature
             error.WriteLine();
             error.WriteLine($"error: {features} was not removed, and nothing was deleted. Remove it by hand with the report above.");
 
+            if (analysis.Dependents.Count > 0)
+            {
+                error.WriteLine($"error: {features} holds the shared account-deletion files that {string.Join(", ", analysis.Dependents.Select(dependent => dependent.Name))} still depend on.");
+            }
+
             return 1;
         }
 
@@ -227,9 +266,22 @@ internal static class RemoveFeature
             owned.AddRange(manifest.Files.Select(entry => entry.Path));
         }
 
+        var shared = manifest?.Shared ?? [];
+
+        // A shared path holds no Features/<Features>/ segment to slice a folder out of.
         var folders = manifest is not null
-            ? FeatureFolders(owned, features)
+            ? FeatureFolders([.. owned.Except(shared, StringComparer.Ordinal)], features)
             : DiscoverFolders(root, features);
+
+        foreach (string path in shared)
+        {
+            var match = SharedFolder.Match(path);
+
+            if (match.Success && !folders.Contains(match.Groups[1].Value, StringComparer.Ordinal))
+            {
+                folders.Add(match.Groups[1].Value);
+            }
+        }
 
         var listed = owned.ToHashSet(StringComparer.Ordinal);
         var extra = new List<string>();
@@ -256,7 +308,7 @@ internal static class RemoveFeature
 
         extra.Sort(StringComparer.Ordinal);
 
-        var hits = Scan(root, features, manifest?.Type, folders, manifestPath);
+        var hits = Scan(root, features, manifest?.Type, folders, listed, manifestPath);
 
         if (modified.Count > 0)
         {
@@ -283,7 +335,112 @@ internal static class RemoveFeature
             blockers.Add("Auth is a module with its own projects, database context and host composition; it is never removed by this command.");
         }
 
-        return new Analysis(features, manifest?.Type, manifest is not null, folders, owned, modified, missing, extra, hits, blockers);
+        var dependents = new List<Dependent>();
+        var uses = new List<Hit>();
+
+        if (shared.Count > 0)
+        {
+            SharedDependents(root, features, listed, dependents, uses, blockers);
+        }
+
+        return new Analysis(features, manifest?.Type, manifest is not null, folders, owned, modified, missing, extra, hits, blockers, shared, dependents, uses);
+    }
+
+    /// <summary>
+    /// What still uses the shared files this feature's manifest brought: every other owner feature,
+    /// by its manifest or by a use in its folders, and every line elsewhere that registers them.
+    /// </summary>
+    private static void SharedDependents(string root, string features, HashSet<string> own, List<Dependent> dependents, List<Hit> uses, List<string> blockers)
+    {
+        string manifests = Path.Combine(root, ManifestFolder);
+
+        if (Directory.Exists(manifests))
+        {
+            foreach (string file in Directory.EnumerateFiles(manifests, "*.json").Order(StringComparer.Ordinal))
+            {
+                string other = Path.GetFileNameWithoutExtension(file);
+
+                if (other == features)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    using var document = JsonDocument.Parse(File.ReadAllBytes(file));
+
+                    if (document.RootElement.GetProperty("options").GetProperty("access").GetString() == "owner")
+                    {
+                        dependents.Add(new Dependent(other, "generated, --access owner"));
+                    }
+                }
+                catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException or IOException)
+                {
+                    blockers.Add($"'{ManifestFolder}/{other}.json' cannot be read ({exception.Message}), so nothing can tell whether {other} depends on the account-deletion files this manifest brought.");
+                }
+            }
+        }
+
+        foreach (string top in new[] { "Src", "Tests" })
+        {
+            string start = Path.Combine(root, top);
+
+            if (!Directory.Exists(start))
+            {
+                continue;
+            }
+
+            foreach (string file in Walk(start, "*.cs"))
+            {
+                string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
+
+                if (own.Contains(relative))
+                {
+                    continue;
+                }
+
+                string[] lines = File.ReadAllLines(file);
+
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string text = lines[i].Trim();
+
+                    if (text.StartsWith("//", StringComparison.Ordinal) || !SharedUse.IsMatch(text))
+                    {
+                        continue;
+                    }
+
+                    int at = relative.IndexOf("/Features/", StringComparison.Ordinal);
+                    string? folder = at < 0 ? null : relative[(at + "/Features/".Length)..].Split('/')[0];
+
+                    if (folder is null || SharedHosts.Contains(folder))
+                    {
+                        uses.Add(new Hit(Kind.Composition, relative, i + 1, text));
+                    }
+                    else if (folder != features && !dependents.Any(dependent => dependent.Name == folder))
+                    {
+                        // The feature's own folders are covered by the check on files added to them.
+                        dependents.Add(new Dependent(folder, "no manifest"));
+                    }
+                }
+            }
+        }
+
+        if (dependents.Count > 0)
+        {
+            blockers.Add(
+                "The account-deletion files this manifest brought (IDeletedAccountDataPolicy, IUserAccountDirectory, the sweep, its job and the account directory) "
+                + $"are still used by {string.Join(", ", dependents.Select(dependent => $"{dependent.Name} ({dependent.How})"))}. "
+                + $"Deleting them would break those features' build. Remove those features first, or remove {features} by hand and keep these files "
+                + "(docs/ADDING-A-FEATURE.md, \"Undoing it\").");
+        }
+
+        if (uses.Count > 0)
+        {
+            blockers.Add(
+                $"{uses.Count} line(s) still register the account-deletion files this manifest brought "
+                + "(AddDeletedAccountSweep, AddDeletedAccountSweepJobs, the IUserAccountDirectory adapter): undo them first.");
+        }
     }
 
     private static string Describe(Kind kind) => kind switch
@@ -318,21 +475,28 @@ internal static class RemoveFeature
 
             string type = top.GetProperty("type").GetString() ?? string.Empty;
             var files = new List<Entry>();
+            var shared = new List<string>();
             var pattern = new Regex($"^(Src|Tests)/(.+/)?Features/{features}/.+$", RegexOptions.None, Timeout);
 
             foreach (var file in top.GetProperty("files").EnumerateArray())
             {
                 string entry = file.GetProperty("path").GetString() ?? string.Empty;
                 string digest = file.GetProperty("sha256").GetString() ?? string.Empty;
+                bool isShared = SharedPaths.Any(sharedPath => sharedPath.IsMatch(entry));
 
-                if (entry.Contains("..", StringComparison.Ordinal) || entry.Contains('\\', StringComparison.Ordinal) || !pattern.IsMatch(entry) || digest.Length != 64)
+                if (entry.Contains("..", StringComparison.Ordinal) || entry.Contains('\\', StringComparison.Ordinal) || !(pattern.IsMatch(entry) || isShared) || digest.Length != 64)
                 {
-                    blockers.Add($"The manifest lists '{entry}', which is not a file under a Features/{features} folder of Src or Tests.");
+                    blockers.Add($"The manifest lists '{entry}', which is not a file under a Features/{features} folder of Src or Tests, nor one of the account-deletion files every owner feature shares.");
 
                     return null;
                 }
 
                 files.Add(new Entry(entry, digest));
+
+                if (isShared)
+                {
+                    shared.Add(entry);
+                }
             }
 
             if (type.Length == 0 || files.Count == 0)
@@ -342,7 +506,7 @@ internal static class RemoveFeature
                 return null;
             }
 
-            return new Manifest(type, files);
+            return new Manifest(type, files, shared);
         }
         catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or IOException)
         {
@@ -417,7 +581,7 @@ internal static class RemoveFeature
                 ? "_" + char.ToLowerInvariant(character)
                 : char.ToLowerInvariant(character).ToString()));
 
-    private static List<Hit> Scan(string root, string features, string? type, List<string> folders, string manifestPath)
+    private static List<Hit> Scan(string root, string features, string? type, List<string> folders, HashSet<string> ownFiles, string manifestPath)
     {
         var composition = new List<Regex>
         {
@@ -450,6 +614,7 @@ internal static class RemoveFeature
             string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
 
             if (relative == manifestPath
+                || ownFiles.Contains(relative)
                 || ownFolders.Any(folder => relative.StartsWith(folder, StringComparison.Ordinal))
                 || !TextExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)
                 || relative.StartsWith($"{ManifestFolder}/", StringComparison.Ordinal))
@@ -507,6 +672,29 @@ internal static class RemoveFeature
             PrintList(output, "Edited", analysis.Modified);
             PrintList(output, "Missing", analysis.Missing);
             PrintList(output, "Added", analysis.Extra);
+
+            if (analysis.Shared.Count > 0)
+            {
+                output.WriteLine();
+                output.WriteLine($"Shared by every owner feature (brought by this one into a tree generated with none): {analysis.Shared.Count} file(s)");
+
+                foreach (string file in analysis.Shared)
+                {
+                    output.WriteLine($"  {file}");
+                }
+
+                output.WriteLine(analysis.Dependents.Count + analysis.SharedUses.Count == 0 ? "Still used by: nothing." : "Still used by:");
+
+                foreach (var dependent in analysis.Dependents)
+                {
+                    output.WriteLine($"  {dependent.Name} ({dependent.How})");
+                }
+
+                foreach (var use in analysis.SharedUses)
+                {
+                    output.WriteLine($"  {use.Path}:{use.Line}  {use.Text}");
+                }
+            }
         }
         else
         {
@@ -590,6 +778,11 @@ internal static class RemoveFeature
                 RemoveEmpty(Path.Combine(root, folder));
             }
 
+            foreach (string file in analysis.Shared)
+            {
+                RemoveEmptyAncestors(root, file);
+            }
+
             File.Delete(Path.Combine(root, ManifestFolder, $"{analysis.Features}.json"));
             RemoveEmpty(Path.Combine(root, ManifestFolder));
         }
@@ -628,6 +821,32 @@ internal static class RemoveFeature
         }
     }
 
+    /// <summary>
+    /// Removes the folders above a deleted file that it leaves empty, up to the first that still holds
+    /// something, and never <c>Src</c>, <c>Tests</c> or the root.
+    /// </summary>
+    private static void RemoveEmptyAncestors(string root, string relative)
+    {
+        string? folder = Path.GetDirectoryName(relative)?.Replace('\\', '/');
+
+        while (!string.IsNullOrEmpty(folder) && folder is not ("Src" or "Tests"))
+        {
+            string full = Path.Combine(root, folder);
+
+            if (Directory.Exists(full))
+            {
+                if (Directory.EnumerateFileSystemEntries(full).Any())
+                {
+                    return;
+                }
+
+                Directory.Delete(full);
+            }
+
+            folder = Path.GetDirectoryName(folder)?.Replace('\\', '/');
+        }
+    }
+
     // ---- Self-test ------------------------------------------------------------------------------
 
     private static int SelfTest()
@@ -652,6 +871,7 @@ internal static class RemoveFeature
 
             HandWrittenCases(scratch, Expect);
             GeneratorCases(scratch, Expect);
+            SharedFilesCases(scratch, Expect);
         }
         finally
         {
@@ -878,6 +1098,188 @@ internal static class RemoveFeature
         process.WaitForExit();
 
         return process.ExitCode;
+    }
+
+    /// <summary>
+    /// A tree as the template generates it with no feature: none of the account-deleted reaction, the
+    /// account adapter's composition, the jobs module, and the event whose documentation names the
+    /// policy port in a comment.
+    /// </summary>
+    private static string BareTree(string scratch, string adapter = "Auth")
+    {
+        string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+
+        foreach (string directory in new[]
+        {
+            "Src/Domain/Acme.Domain", "Src/Application/Acme.Application", "Src/Infrastructure/Acme.Infrastructure.Persistence",
+            "Src/Presentation/Acme.Api", "Tests/Application/Acme.Application.UnitTests", "Tests/Domain/Acme.Domain.UnitTests",
+            "Tests/Infrastructure/Acme.Infrastructure.Persistence.UnitTests", "Tests/Presentation/Acme.Api.UnitTests",
+        })
+        {
+            Directory.CreateDirectory(Path.Combine(root, directory, "Features"));
+        }
+
+        Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
+        Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddPurgeExpiredIdempotencyKeys();\n");
+        Put(root, "Src/Application/Acme.Application.Core/Common/Ports/ICurrentUser.cs", "public interface ICurrentUser;\n");
+        Put(root, "Src/Application/Acme.Application.Core/ApplicationCoreModule.cs", "services.AddPurgeExpiredIdempotencyKeys();\n");
+        Put(root, "Src/Application/Acme.Application.Core/Common/Events/UserAccountDeleted.cs", "/// rather than trusting delivery, see <c>IDeletedAccountDataPolicy</c>;\npublic sealed record UserAccountDeleted;\n");
+        Put(root, "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs", "services.AddMaintenanceJobs(configuration);\n");
+        Put(
+            root,
+            adapter == "Auth"
+                ? "Src/Presentation/Acme.Api/Features/Auth/Composition/AuthComposition.cs"
+                : "Src/Presentation/Acme.Api/Features/ExternalIdentity/Composition/ExternalAuthenticationComposition.cs",
+            "services.AddScoped<ICurrentUser, CurrentUser>();\n");
+
+        return root;
+    }
+
+    private static readonly string[] SharedFiles =
+    [
+        "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
+        "Src/Application/Acme.Application.Core/Common/Ports/IUserAccountDirectory.cs",
+        "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs",
+        "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs",
+        "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
+        "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
+        "Src/Presentation/Acme.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
+    ];
+
+    /// <summary>
+    /// The first owner feature of a tree generated with none also brings the files every owner
+    /// feature shares: they go with it once nothing else uses them, and not before.
+    /// </summary>
+    private static void SharedFilesCases(string scratch, Action<bool, string> expect)
+    {
+        string[] widgets = ["Widgets", "Widget", "--access", "owner", "--deletion", "delete"];
+
+        // (a) The only owner feature: removed with the shared files, back to the tree generated with none.
+        string alone = BareTree(scratch);
+        var original = Snapshot(alone);
+
+        expect(Generate(alone, widgets) == 0, "The generator refused Widgets in a bare tree.");
+        expect(SharedFiles.All(file => File.Exists(Path.Combine(alone, file))), "The first owner feature did not bring the shared files.");
+
+        var report = Invoke(alone, "Widgets");
+
+        expect(report.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"(a) the report on the only owner feature found a blocker: {report.Output}");
+        expect(SharedFiles.All(file => report.Output.Contains(file, StringComparison.Ordinal)), "(a) the report does not list the shared files.");
+
+        var applied = Invoke(alone, "Widgets", "--apply");
+
+        expect(applied.Code == 0, $"(a) the only owner feature was refused: {applied.Output}{applied.Error}");
+        expect(Same(original, Snapshot(alone)), "(a) after removing the only owner feature the tree is not the bare one, or a folder was left empty.");
+
+        // A refusal leaves every byte as it was, and says why.
+        void Refused(string name, string tree, string features, params string[] expected)
+        {
+            var snapshot = Snapshot(tree);
+            var result = Invoke(tree, features, "--apply");
+
+            expect(result.Code == 1, $"{name}: --apply did not refuse.");
+            expect(Same(snapshot, Snapshot(tree)), $"{name}: a refusal changed the tree.");
+
+            foreach (string text in expected)
+            {
+                expect((result.Output + result.Error).Contains(text, StringComparison.Ordinal), $"{name}: the report does not say '{text}'.");
+            }
+        }
+
+        string WithWidgets(string adapter = "Auth")
+        {
+            string tree = BareTree(scratch, adapter);
+
+            expect(Generate(tree, widgets) == 0, "The generator refused Widgets in a bare tree.");
+
+            return tree;
+        }
+
+        // (b) A second owner feature uses the shared files: the first waits for it.
+        string two = BareTree(scratch);
+        var bare = Snapshot(two);
+
+        expect(Generate(two, widgets) == 0 && Generate(two, "Sprockets", "Sprocket", "--access", "owner", "--deletion", "anonymise") == 0, "(b) the generator refused a feature.");
+        Refused("(b) a second owner feature", two, "Widgets", "Sprockets (generated, --access owner)", "error: Widgets holds the shared account-deletion files that Sprockets still depend on.");
+        expect(Invoke(two, "Sprockets", "--apply").Code == 0, "(b) the second owner feature was refused.");
+        expect(Invoke(two, "Widgets", "--apply").Code == 0, "(b) the first owner feature was refused once it was the only one.");
+        expect(Same(bare, Snapshot(two)), "(b) after removing both owner features the tree is not the bare one.");
+
+        // (c) A shared feature owns no user data and does not hold the shared files back.
+        string notes = BareTree(scratch);
+        var beforeNotes = Snapshot(notes);
+
+        expect(Generate(notes, widgets) == 0 && Generate(notes, "Notes", "Note", "--access", "shared") == 0, "(c) the generator refused a feature.");
+
+        var withNotes = Snapshot(notes);
+
+        expect(Invoke(notes, "Widgets", "--apply").Code == 0, "(c) a shared feature held the owner feature back.");
+        expect(
+            withNotes.Where(pair => pair.Key.Contains("/Features/Notes", StringComparison.Ordinal) || pair.Key == $"{ManifestFolder}/Notes.json")
+                .All(pair => Snapshot(notes).TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
+            "(c) removing Widgets touched Notes.");
+        expect(Invoke(notes, "Notes", "--apply").Code == 0, "(c) Notes was refused.");
+        expect(Same(beforeNotes, Snapshot(notes)), "(c) after removing both features the tree is not the bare one.");
+
+        // (d) A feature composed by hand, with no manifest, that uses the ports.
+        string journal = WithWidgets();
+
+        Put(
+            journal,
+            "Src/Application/Acme.Application/Features/Journal/Services/Consumers/DeleteJournalOnAccountDeletedConsumer.cs",
+            "// Deletes a journal when its account is.\ninternal sealed class DeleteJournalOnAccountDeletedConsumer(IUserAccountDirectory accounts) : IDeletedAccountDataPolicy;\n");
+        Refused("(d) a hand-made owner feature", journal, "Widgets", "Journal (no manifest)");
+
+        // (e) Each of the four registrations of the shared files, alone.
+        string[] registrations =
+        [
+            "Src/Application/Acme.Application.Core/ApplicationCoreModule.cs|public static IServiceCollection AddDeletedAccountSweep(this IServiceCollection services)",
+            "Src/Presentation/Acme.Api/Program.cs|builder.Services.AddDeletedAccountSweep();",
+            "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs|services.AddDeletedAccountSweepJobs(configuration);",
+            "Src/Presentation/Acme.Api/Features/Auth/Composition/AuthComposition.cs|services.AddScoped<IUserAccountDirectory, AccountUserAccountDirectory>();",
+        ];
+
+        foreach (string registration in registrations)
+        {
+            string[] parts = registration.Split('|');
+            string tree = WithWidgets();
+
+            File.AppendAllText(Path.Combine(tree, parts[0]), parts[1] + "\n");
+            Refused($"(e) {parts[1]}", tree, "Widgets", "still register", $"{parts[0]}:2");
+        }
+
+        // (f) A shared file edited since it was written.
+        string edited = WithWidgets();
+
+        File.AppendAllText(Path.Combine(edited, SharedFiles[1]), "// edited\n");
+        Refused("(f) a shared file edited", edited, "Widgets", "edited since");
+
+        // (g) A file added beside the sweep.
+        string added = WithWidgets();
+
+        Put(added, "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/Extra.cs", "x\n");
+        Refused("(g) a file added beside the sweep", added, "Widgets", "added to the feature's generated folders");
+
+        // (h) The externally authenticated tree: its account directory goes the same way.
+        string external = BareTree(scratch, "ExternalIdentity");
+        var beforeExternal = Snapshot(external);
+
+        expect(Generate(external, widgets) == 0, "(h) the generator refused Widgets in an externally authenticated bare tree.");
+        expect(File.Exists(Path.Combine(external, "Src/Presentation/Acme.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs")), "(h) the external account directory was not written.");
+        expect(Invoke(external, "Widgets", "--apply").Code == 0, "(h) the only owner feature of an externally authenticated tree was refused.");
+        expect(Same(beforeExternal, Snapshot(external)), "(h) after removing it the tree is not the bare one.");
+
+        // (i) A stale manifest of an owner feature whose files are gone still holds the shared files back.
+        string stale = WithWidgets();
+
+        Put(stale, $"{ManifestFolder}/Gizmos.json", "{ \"schemaVersion\": 1, \"feature\": \"Gizmos\", \"type\": \"Gizmo\", \"options\": { \"access\": \"owner\" }, \"files\": [] }\n");
+        Refused("(i) a stale owner manifest", stale, "Widgets", "Gizmos (generated, --access owner)");
+
+        // An unreadable manifest cannot say whether its feature depends on them.
+        string unreadable = WithWidgets();
+
+        Put(unreadable, $"{ManifestFolder}/Gizmos.json", "{ not json\n");
+        Refused("an unreadable manifest", unreadable, "Widgets", "nothing can tell whether Gizmos depends");
     }
 
     private static void GeneratorCases(string scratch, Action<bool, string> expect)

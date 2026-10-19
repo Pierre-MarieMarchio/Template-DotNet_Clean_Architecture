@@ -678,8 +678,8 @@ internal static class NewFeature
         {
             Add(applicationCore, "Common/Ports/IDeletedAccountDataPolicy.cs", Templates.DeletedAccountDataPolicy);
             Add(applicationCore, "Common/Ports/IUserAccountDirectory.cs", Templates.UserAccountDirectory);
-            Add(applicationCore, "Features/Accounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs", Templates.SweepUseCasePort);
-            Add(applicationCore, "Features/Accounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs", Templates.SweepUseCase);
+            Add(applicationCore, "Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs", Templates.SweepUseCasePort);
+            Add(applicationCore, "Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs", Templates.SweepUseCase);
             Add(api, "Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs", Templates.DeletedAccountSweepJobs);
             Add(api, "Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs", Templates.DeletedAccountSweepOptions);
 
@@ -1290,7 +1290,7 @@ internal static class NewFeature
             output.WriteLine();
             output.WriteLine($"  7. Src/Application/{p}.Application.Core/ApplicationCoreModule.cs: the AddDeletedAccountSweep()");
             output.WriteLine("     method beside AddPurgeExpiredIdempotencyKeys, with using");
-            output.WriteLine($"     {p}.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;");
+            output.WriteLine($"     {p}.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;");
             output.WriteLine();
             output.WriteLine($"  8. Src/Presentation/{p}.Api/Program.cs: builder.Services.AddDeletedAccountSweep(); beside");
             output.WriteLine("     builder.Services.AddPurgeExpiredIdempotencyKeys();");
@@ -1962,8 +1962,8 @@ internal static class NewFeature
         [
             "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
             "Src/Application/Acme.Application.Core/Common/Ports/IUserAccountDirectory.cs",
-            "Src/Application/Acme.Application.Core/Features/Accounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs",
-            "Src/Application/Acme.Application.Core/Features/Accounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs",
+            "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs",
+            "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs",
             "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
             "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
             "Src/Presentation/Acme.Api/Features/Auth/Directories/AccountUserAccountDirectory.cs",
@@ -4535,7 +4535,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Results;
         using %P%.Application.Core.Common.UseCases;
 
-        namespace %P%.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;
+        namespace %P%.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
 
         /// <summary>
         /// Removes the data of accounts that are gone, whether or not the deletion event reached the
@@ -4552,7 +4552,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Results;
         using Microsoft.Extensions.Logging;
 
-        namespace %P%.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;
+        namespace %P%.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
 
         /// <summary>
         /// The guarantee behind <see cref="%P%.Application.Core.Common.Events.UserAccountDeleted"/>:
@@ -4651,7 +4651,7 @@ internal static class Templates
 
     internal const string DeletedAccountSweepJobs = """
         using %P%.Api.Features.Maintenance.Jobs;
-        using %P%.Application.Core.Features.Accounts.UseCases.Commands.SweepDeletedAccountData;
+        using %P%.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
         using Microsoft.Extensions.Options;
 
         namespace %P%.Api.Features.BackgroundJobs.Jobs;
@@ -4710,7 +4710,7 @@ internal static class Templates
         """;
 
     internal const string LocalUserAccountDirectory = """
-        using %P%.Application.Auth.Features.Auth.Ports.Accounts;
+        using %P%.Application.Auth.Features.Accounts.Ports.Accounts;
         using %P%.Application.Core.Common.Ports;
         using %P%.Domain.Core.Common.Primitives;
 

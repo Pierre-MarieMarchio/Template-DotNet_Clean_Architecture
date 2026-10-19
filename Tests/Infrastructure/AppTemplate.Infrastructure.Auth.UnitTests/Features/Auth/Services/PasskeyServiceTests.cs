@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Passkeys;
+﻿using AppTemplate.Application.Auth.Features.Passkeys.Ports.Passkeys;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Services;

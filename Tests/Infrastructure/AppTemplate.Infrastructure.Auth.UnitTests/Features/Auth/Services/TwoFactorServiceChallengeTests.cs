@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.TwoFactor;
+﻿using AppTemplate.Application.Auth.Features.TwoFactor.Ports.TwoFactor;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;

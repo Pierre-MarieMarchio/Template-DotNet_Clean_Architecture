@@ -121,7 +121,7 @@ dotnet_diagnostic.S4136.severity = none
 dotnet_diagnostic.CA1032.severity = none
 
 #if (localAuth)
-[Src/Application/AppTemplate.Application.Auth/Features/Auth/UseCases/Commands/SignInWithExternalProvider/SignInWithExternalProviderUseCase.cs]
+[Src/Application/AppTemplate.Application.Auth/Features/ExternalLogins/UseCases/Commands/SignInWithExternalProvider/SignInWithExternalProviderUseCase.cs]
 # S107 counts eight constructor parameters. They are eight distinct collaborators -- a token
 # verifier, the external-login store, accounts, access tokens, refresh grants, the two-factor
 # challenge, the security log and the validator -- and this use case needs each exactly once. A

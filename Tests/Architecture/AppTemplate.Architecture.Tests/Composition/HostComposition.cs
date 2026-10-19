@@ -3,8 +3,8 @@ using AppTemplate.Application;
 //#endif
 //#if (localAuth)
 using AppTemplate.Application.Auth;
-using AppTemplate.Application.Auth.Features.Auth.Ports.CurrentSession;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Sessions.Ports.CurrentSession;
+using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
 //#endif
 using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Ports;

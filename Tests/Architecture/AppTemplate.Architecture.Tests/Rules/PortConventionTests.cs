@@ -203,9 +203,11 @@ public sealed class PortConventionTests
                 .Where(port => string.Equals(VerticalOf(port), vertical, StringComparison.Ordinal))
                 .ToList();
 
-            // A vertical with one use case cannot exhibit the shape, and one with no port of its own
-            // has nothing to check.
-            if (useCases.Count < 2 || featurePorts.Count == 0)
+            // A vertical with one use case cannot exhibit the shape, and neither can one with a single
+            // port of its own: a feature cut around one capability — the passkeys — has every
+            // operation take that capability by construction, so the question left is the port's
+            // width, which the façade rule above already bounds.
+            if (useCases.Count < 2 || featurePorts.Count < 2)
             {
                 continue;
             }
@@ -222,7 +224,7 @@ public sealed class PortConventionTests
         //#if (localAuth)
         verticalsChecked.ShouldBeGreaterThan(
             0,
-            "No vertical had both several use cases and a port of its own, so the condition below " +
+            "No vertical had both several use cases and several ports of its own, so the condition below " +
             "was never evaluated.");
         //#endif
 
@@ -234,30 +236,51 @@ public sealed class PortConventionTests
     //#if (localAuth)
 
     /// <summary>
+    /// How many use cases each of the six authentication features holds, read from the tree. The
+    /// purges sit with what they delete: the expired grants with the sessions, the expired events
+    /// with the security trail.
+    /// </summary>
+    private static readonly string[] _authUseCasesPerFeature =
+    [
+        "Accounts: 14",
+        "ExternalLogins: 1",
+        "Passkeys: 6",
+        "SecurityEvents: 3",
+        "Sessions: 8",
+        "TwoFactor: 5",
+    ];
+
+    /// <summary>
     /// The point of splitting the façade, stated as a rule: a use case that takes one collaborator
     /// and hands the whole request to it decides nothing, and testing it tests the mock.
     /// <para>
-    /// Counted rather than named, and asserted over the authentication vertical because that is where
-    /// the shape was: several of its operations are genuinely one step — signing out revokes one
-    /// grant — so the rule is that <em>most</em> of a vertical's use cases sequence more than one
-    /// collaborator, not that all of them do.
+    /// Counted rather than named, and asserted over the six authentication features together
+    /// because that is where the shape was: several of their operations are genuinely one step —
+    /// signing out revokes one grant — so the rule is that <em>most</em> of the module's use cases
+    /// sequence more than one collaborator, not that all of them do.
     /// </para>
     /// </summary>
     [Fact]
     public void MostAuthUseCases_SequenceMoreThanOneCollaborator()
     {
         var authUseCases = UseCases
-            .Where(useCase => string.Equals(VerticalOf(useCase.Type), "Auth", StringComparison.Ordinal))
+            .Where(useCase => string.Equals(
+                useCase.Type.Assembly.GetName().Name,
+                "AppTemplate.Application.Auth",
+                StringComparison.Ordinal))
             .ToList();
 
-        authUseCases.Count.ShouldBe(
-            37,
-            "The authentication vertical has thirty-seven use cases — twenty-five account and " +
-            "session operations, the two the session list gives its owner, the two security-trail " +
-            "reads, the six passkey operations, and the expired-grant and expired-event purges, " +
-            "which belong to this vertical because a refresh token and a security event are the " +
-            "only things they delete. Finding another number means this rule is no longer " +
-            "describing it.");
+        authUseCases
+            .GroupBy(useCase => VerticalOf(useCase.Type) ?? "(outside Features/)", StringComparer.Ordinal)
+            .Select(feature => $"{feature.Key}: {feature.Count()}")
+            .Order(StringComparer.Ordinal)
+            .ShouldBe(
+                _authUseCasesPerFeature,
+                ignoreOrder: false,
+                "The authentication module's thirty-seven use cases are filed under six features — " +
+                "account lifecycle and administration, sessions, two-factor, passkeys, external " +
+                "sign-in and the security trail. Another distribution means an operation moved, " +
+                "appeared or vanished, and this rule is no longer describing the module.");
 
         // The validator every use case takes is not a collaborator it sequences.
         var orchestrating = authUseCases

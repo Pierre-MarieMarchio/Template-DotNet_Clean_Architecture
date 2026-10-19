@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountAdministration;
+﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountAdministration;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
 using Microsoft.AspNetCore.Identity;

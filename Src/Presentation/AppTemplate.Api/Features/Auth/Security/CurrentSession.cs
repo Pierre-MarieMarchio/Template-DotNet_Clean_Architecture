@@ -1,7 +1,7 @@
 ﻿using System.Security.Claims;
 using AppTemplate.Api.Common.Jobs;
-using AppTemplate.Application.Auth.Features.Auth.Ports.CurrentSession;
-using AppTemplate.Application.Auth.Features.Auth.Ports.SessionTokens;
+using AppTemplate.Application.Auth.Features.Sessions.Ports.CurrentSession;
+using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
 
 namespace AppTemplate.Api.Features.Auth.Security;
 

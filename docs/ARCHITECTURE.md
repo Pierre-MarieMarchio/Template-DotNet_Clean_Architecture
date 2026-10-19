@@ -174,9 +174,10 @@ makes the project work.
 `AppTemplate.Application.Auth` is the layer's third project, and it is a vertical rather than a
 Core: authentication and account administration as use cases — sign-in, refresh-token rotation, the
 password and email lifecycle, two-factor enrolment, passkey ceremonies, external providers, roles and lockouts — under
-`Features/Auth/{Errors,Policies,Ports,UseCases}`. It declares one project reference,
+six features — `Accounts`, `Sessions`, `TwoFactor`, `Passkeys`, `ExternalLogins`, `SecurityEvents` —
+each `Features/<Feature>/{UseCases,Ports,Model}`. It declares one project reference,
 `AppTemplate.Application.Core`, and it names **no aggregate**: the identity model is not one here,
-it lives behind the fourteen ports in `Features/Auth/Ports/`. The one domain type it names is
+it lives behind the fourteen ports in the features' `Ports/` folders. The one domain type it names is
 `UserId`, which arrives through `ICurrentUser` — and every one of its own fourteen ports takes the
 raw `Guid` inside it instead, because what an account is identified by here is the subject a token
 carries rather than the business's notion of an owner. That is why the unwrap is visible at each of
@@ -352,8 +353,8 @@ a platform capability with no aggregate behind it — is declared in the applica
 of its projects declares one follows how many features need it. A port **one feature** reaches
 for is declared in **`AppTemplate.Application`**, under `Features/<Feature>/Ports/<Port>/`.
 <!--#if (localAuth)-->
-A port of the authentication feature is declared in **`AppTemplate.Application.Auth`**, under
-`Features/Auth/Ports/<Port>/`.
+A port of the authentication features is declared in **`AppTemplate.Application.Auth`**, under
+`Features/<Feature>/Ports/<Port>/`.
 <!--#endif-->
 A **cross-cutting** one, that any feature may reach for, is declared in
 **`AppTemplate.Application.Core`** — in `Common/Ports/`, or beside its own subject when it has one,

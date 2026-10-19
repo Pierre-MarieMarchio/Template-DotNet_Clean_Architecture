@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+﻿using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Auth.Models;
 

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventQueries;
+﻿using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventQueries;
 using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;

@@ -198,7 +198,7 @@ public sealed class BackgroundWorkTests
     [Fact]
     public void TheAuthenticationRule_IsSensitive_AndSeesWhatItForbids()
     {
-        _authenticationReference.IsMatch("using AppTemplate.Application.Auth.Features.Auth.UseCases;")
+        _authenticationReference.IsMatch("using AppTemplate.Application.Auth.Features.Sessions.UseCases;")
             .ShouldBeTrue();
         _authenticationReference.IsMatch("using AppTemplate.Infrastructure.Auth;").ShouldBeTrue();
         _authenticationReference.IsMatch("using AppTemplate.Api.Features.Auth.Jobs;").ShouldBeTrue();

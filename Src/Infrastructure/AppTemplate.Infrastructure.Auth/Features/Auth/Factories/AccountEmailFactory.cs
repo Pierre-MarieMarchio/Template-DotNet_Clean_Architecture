@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.AccountEmails;
+﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountEmails;
 using AppTemplate.Application.Core.Common.Localization;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Options;
 using AppTemplate.Infrastructure.Core.Common.Templating;

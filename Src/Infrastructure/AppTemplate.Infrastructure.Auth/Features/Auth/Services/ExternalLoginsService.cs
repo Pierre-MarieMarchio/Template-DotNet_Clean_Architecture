@@ -1,5 +1,5 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
-using AppTemplate.Application.Auth.Features.Auth.Ports.ExternalLogins;
+﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.ExternalLogins.Ports.ExternalLogins;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;

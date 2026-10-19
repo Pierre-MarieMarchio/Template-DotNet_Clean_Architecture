@@ -1,6 +1,6 @@
 ﻿//#if (localAuth)
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredRefreshTokens;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredSecurityEvents;
+using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Commands.PurgeExpiredSecurityEvents;
+using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.PurgeExpiredRefreshTokens;
 //#endif
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;

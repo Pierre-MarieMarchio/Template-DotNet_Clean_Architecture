@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.Login;
+﻿using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Login;
 using AppTemplate.Application.Core;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,10 +10,10 @@ namespace AppTemplate.Application.Auth;
 /// has no authentication use cases registered at all — which is the point: this is the project a
 /// derived application is most likely to replace wholesale with its own identity provider, and it
 /// can only be dropped if nothing else composes it on its behalf. Dropping it is not free, and the
-/// cost is not in this project: an identity module has to satisfy the ports under
-/// <c>Features/Auth/Ports/</c> — all but <c>ICurrentSession</c>, which the host satisfies because
-/// only it sees the request — and the persistence context in this template derives from ASP.NET
-/// Identity's own.
+/// cost is not in this project: an identity module has to satisfy the ports under each of the six
+/// features' <c>Features/&lt;Feature&gt;/Ports/</c> — all but <c>ICurrentSession</c>, which the host
+/// satisfies because only it sees the request — and the persistence context in this template
+/// derives from ASP.NET Identity's own.
 /// </summary>
 public static class ApplicationAuthModule
 {

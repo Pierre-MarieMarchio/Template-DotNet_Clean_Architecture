@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Domain.Core.Common.Primitives;
 

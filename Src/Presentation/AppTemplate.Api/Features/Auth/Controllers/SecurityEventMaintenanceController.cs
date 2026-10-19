@@ -2,7 +2,7 @@
 using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Maintenance.Contracts.Responses;
 using AppTemplate.Api.Features.Maintenance.Mapping;
-using AppTemplate.Application.Auth.Features.Auth.UseCases.Commands.PurgeExpiredSecurityEvents;
+using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Commands.PurgeExpiredSecurityEvents;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

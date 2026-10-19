@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Api.Features.Auth.Directories;
-using AppTemplate.Application.Auth.Features.Auth.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
 using AppTemplate.Domain.Core.Common.Primitives;
 using NSubstitute;
 using Shouldly;

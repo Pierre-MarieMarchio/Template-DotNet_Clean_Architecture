@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.SecurityEventLog;
+﻿using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Logs;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Options;

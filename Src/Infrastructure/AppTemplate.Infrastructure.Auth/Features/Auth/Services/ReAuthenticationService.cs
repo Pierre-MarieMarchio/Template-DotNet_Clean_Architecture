@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Auth.Features.Auth.Ports.ReAuthentication;
+﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.ReAuthentication;
 using AppTemplate.Infrastructure.Auth.Common.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
 using Microsoft.AspNetCore.Identity;

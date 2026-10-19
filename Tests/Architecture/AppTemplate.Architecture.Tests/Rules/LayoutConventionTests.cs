@@ -48,11 +48,11 @@ public sealed class LayoutConventionTests
         ["Src/Application/AppTemplate.Application.Core"] = ["UseCases"],
         //#if (localAuth)
 
-        // Four words, and no Services/ or Consumers/: this feature registers no service and
-        // answers no domain event. What it offers is use cases over ports an identity module
-        // satisfies.
+        // Three concepts, and no Services/ or Consumers/: these six features register no service
+        // and answer no domain event. What they offer is use cases over ports an identity module
+        // satisfies, and under Model/ the failures they disclose and the rules they apply.
         ["Src/Application/AppTemplate.Application.Auth"] =
-            ["Errors", "Policies", "Ports", "UseCases"],
+            ["Model/Errors", "Model/Policies", "Ports", "UseCases"],
         //#endif
         ["Src/Domain/AppTemplate.Domain"] =
             ["Entities", "Events", "Repositories", "ValueObjects"],
@@ -211,9 +211,9 @@ public sealed class LayoutConventionTests
         #endif*/
 
         //#if (localAuth)
-        // One feature, so nothing is shared *between* features here. A Common/ would only mean
-        // this project had grown a second subject, which is the thing to argue about rather than
-        // the folder.
+        // Six features and nothing filed as shared between them. A Common/ opens the day a type
+        // two of them genuinely share appears — earned, not default — and that type is the thing
+        // to argue about rather than the folder.
         ["Src/Application/AppTemplate.Application.Auth"] = null,
         //#endif
 

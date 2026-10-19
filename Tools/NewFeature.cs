@@ -1190,6 +1190,12 @@ internal static class NewFeature
         output.WriteLine(spec.Reaction is null
             ? string.Empty
             : "generated with no feature that owns user data, so its account-deleted reaction ships with this one.");
+
+        if (spec.Reaction is not null)
+        {
+            output.WriteLine(RemovalRefusal);
+        }
+
         output.WriteLine();
         output.WriteLine($"  1. Src/Infrastructure/{p}.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs");
         output.WriteLine($"       public const string {f}Schema = \"{Snake(f)}\";");
@@ -1954,6 +1960,7 @@ internal static class NewFeature
         // A tree generated with no feature: the first owner feature brings the ports, the sweep and
         // the account directory with it, and the registrations are printed as edits, never written.
         string bare = NewTree(scratch, reaction: false);
+        var bareTree = Snapshot(bare);
 
         var first = Invoke(bare, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
 
@@ -1982,6 +1989,8 @@ internal static class NewFeature
 
         expect(first.Output.Contains("Ten edits", StringComparison.Ordinal), "The reaction's registrations were not printed as edits.");
         expect(first.Output.Contains("AddDeletedAccountSweep", StringComparison.Ordinal), "The sweep registration was not printed.");
+        expect(first.Output.Contains(RemovalRefusal, StringComparison.Ordinal), "The first owner feature did not say that remove-feature holds it back while another one uses the shared files.");
+        ExpectRemovable(bare, bareTree, "Widgets", 7, expect);
 
         // A second owner feature finds the reaction the first one brought: the ports are emitted
         // once, not per feature, and nothing of the first feature is touched.
@@ -1993,6 +2002,7 @@ internal static class NewFeature
                 .Contains("Sprockets", StringComparison.Ordinal),
             "The second owner feature rewrote a file the first one had created.");
         expect(second.Output.Contains("Six edits", StringComparison.Ordinal), "The second owner feature was told to edit more than six places.");
+        expect(!second.Output.Contains(RemovalRefusal, StringComparison.Ordinal), "A feature that brought no shared file was told that remove-feature holds it back.");
 
         // A shared feature into a bare tree brings none of it: it owns no user data.
         string other = NewTree(scratch, reaction: false);
@@ -2010,7 +2020,10 @@ internal static class NewFeature
         Directory.Delete(System.IO.Path.Combine(external, "Src/Presentation/Acme.Api/Features/Auth"));
         Directory.CreateDirectory(System.IO.Path.Combine(external, "Src/Presentation/Acme.Api/Features/ExternalIdentity"));
 
+        var externalTree = Snapshot(external);
         var mapped = Invoke(external, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
+
+        ExpectRemovable(external, externalTree, "Widgets", 7, expect);
 
         expect(mapped.Code == 0, $"An owner feature into an externally authenticated bare tree was refused: {mapped.Error.Split('\n')[0]}");
         expect(
@@ -2030,6 +2043,39 @@ internal static class NewFeature
         expect(refused.Code == 1, "An owner feature into a tree with no accounts was not refused.");
         expect(refused.Error.Contains("neither the local accounts", StringComparison.Ordinal), "The refusal did not name the missing account directory.");
         expect(Same(before, Snapshot(publicApi)), "The refused tree was written to.");
+    }
+
+    private const string RemovalRefusal = "remove-feature refuses to remove this feature while another owner feature still uses these files.";
+
+    /// <summary>
+    /// The paths <c>RemoveFeature.cs</c> accepts in a manifest besides the feature's own folders, a
+    /// copy of its <c>SharedPaths</c>: the two tools share no code, so this copy is what fails when the
+    /// reaction branch of <see cref="Plan"/> emits a file the remover would refuse.
+    /// </summary>
+    private static readonly Regex[] RemovableSharedPaths =
+    [
+        new(@"^Src/Application/[^/]+\.Application\.Core/Common/Ports/(IDeletedAccountDataPolicy|IUserAccountDirectory)\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
+        new(@"^Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/I?SweepDeletedAccountDataUseCase\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
+        new(@"^Src/Presentation/[^/]+\.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweep(JobsExtensions|Options)\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
+        new(@"^Src/Presentation/[^/]+\.Api/Features/Auth/Composition/AccountUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
+        new(@"^Src/Presentation/[^/]+\.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
+    ];
+
+    /// <summary>Every file the generation wrote outside the feature's own folders is one the remover accepts.</summary>
+    private static void ExpectRemovable(string root, Dictionary<string, string> before, string features, int count, Action<bool, string> expect)
+    {
+        var outside = Snapshot(root)
+            .Where(pair => pair.Value != "<directory>" && !before.ContainsKey(pair.Key))
+            .Select(pair => pair.Key)
+            .Where(path => !path.Contains($"/Features/{features}/", StringComparison.Ordinal) && !path.StartsWith(".feature-manifest/", StringComparison.Ordinal))
+            .ToList();
+
+        expect(outside.Count == count, $"The reaction wrote {outside.Count} file(s) outside {features}' folders, not {count}.");
+
+        foreach (string path in outside.Where(path => !RemovableSharedPaths.Any(pattern => pattern.IsMatch(path))))
+        {
+            expect(false, $"{path} is written with the first owner feature but RemoveFeature.cs's SharedPaths would refuse it.");
+        }
     }
 
     private static void TemplateGuardCases(Action<bool, string> expect)

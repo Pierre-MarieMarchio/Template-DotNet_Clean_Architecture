@@ -846,13 +846,22 @@ offer.
 
 ### `Passkey`
 
-The relying-party side of the passkey ceremonies. The rest of the WebAuthn posture — user
-verification required, the challenge size, the authenticator timeout — is ASP.NET Core Identity's
-own safe defaults, kept deliberately unconfigurable.
+The relying-party side of the passkey ceremonies, and how long a ceremony's state lives. The rest
+of the WebAuthn posture — user verification required, the challenge size, the authenticator
+timeout — is ASP.NET Core Identity's own safe defaults, kept deliberately unconfigurable.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `ServerDomain` | string | *(the request's host)* | The WebAuthn relying-party id: the effective domain of this API, which a browser's `navigator.credentials.*` calls require their origin to be a subdomain of. A bare domain — no scheme, port or path. **Changing it invalidates every passkey the accounts hold**, because a credential is scoped to the domain it was created under; set it once, before the first registration. |
+| `CeremonyLifetime` | timespan | `00:05:00` | How long the `registrationState` / `authenticationState` an options call hands out stays redeemable. Must be between **1 and 30 minutes**. The default is the authenticator timeout Identity writes into the options: shorter refuses a ceremony the browser may still finish, longer only widens the window for a captured state. |
+
+The state is sealed by ASP.NET Core data protection — the key ring the identity schema already
+persists, so every instance can open a state another issued — under a purpose per ceremony kind,
+and expires after `CeremonyLifetime`. Each state is spent on its first presentation: a row in
+`identity.SpentPasskeyCeremonies`, keyed by a hash of the state, kept until the state expires plus
+five minutes for clock skew between instances. There is no switch to purge that table: every
+options call deletes the rows past that point, so it holds a few minutes of ceremonies and needs no
+maintenance task.
 
 <!--#endif-->
 ### `ProblemTypes`

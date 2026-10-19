@@ -407,7 +407,7 @@ split runs there rather than putting every port in one layer:
 | `ISessionsService` | `AppTemplate.Application.Auth`, `Sessions` | a session list its owner reads and ends, over `IRefreshTokenFamilyTable` |
 | `ICurrentSession` | `AppTemplate.Application.Auth`, `Sessions` | `CurrentSession`, reading the token's `sid` claim and the request's `User-Agent` |
 | `ITwoFactorService` | `AppTemplate.Application.Auth`, `TwoFactor` | Identity's authenticator plumbing, and the sign-in challenge in its token store |
-| `IPasskeyService` | `AppTemplate.Application.Auth`, `Passkeys` | Identity's WebAuthn ceremonies over `IPasskeyHandler`, and the credential rows over `UserManager` |
+| `IPasskeyService` | `AppTemplate.Application.Auth`, `Passkeys` | Identity's WebAuthn ceremonies over `IPasskeyHandler`, the credential rows over `UserManager`, and the single use of each ceremony state over `ISpentPasskeyCeremonyTable` |
 | `IReAuthenticationService` | `AppTemplate.Application.Auth`, `Accounts` | `UserManager`: the account's password, or its armed second factor, checked again before an irreversible operation — no lockout counted, no stamp rotated |
 | `IAccountAdministrationService` | `AppTemplate.Application.Auth`, `Accounts` | lock, unlock, roles, two-factor removal and deletion, over `UserManager` |
 | `IExternalIdentityVerifier` | `AppTemplate.Application.Auth`, `ExternalLogins` | an `id_token` checked against a provider's JWKS |
@@ -1056,7 +1056,7 @@ state that no longer exists is the lost update the token exists to prevent.
 | `todo` | `TodoLists`, `TodoItems`, `TodoItemTags` |
 <!--#endif-->
 <!--#if (localAuth)-->
-| `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `RefreshTokenFamilies`, `SecurityEvents`, `DataProtectionKeys` |
+| `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `RefreshTokenFamilies`, `UserPasskeys`, `SpentPasskeyCeremonies`, `SecurityEvents`, `DataProtectionKeys` |
 <!--#endif-->
 <!--#if (reminders)-->
 | `reminders` | `Reminders` |

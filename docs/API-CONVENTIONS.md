@@ -88,7 +88,7 @@ of the contract.
 | `auth.account.deletionRejected` / `auth.lockout.rejected` / `auth.twoFactor.administrativeDisableRejected` | 400 — the store refused the change |
 | `auth.account.reAuthenticationRequired` | 403 — deleting the caller's own account, or registering a passkey on an account that offers no credential its holder could present, demands a proof; when the proof falls back to the access token itself, the token making the call is older than the five-minute window. Sign in again and retry |
 | `auth.twoFactor.setupRejected` / `auth.twoFactor.enableRejected` / `auth.twoFactor.disableRejected` | 400 — the store refused the change, so the second factor is as it was |
-| `auth.passkeySignIn.invalid` | 401 — one answer for a state string this API never issued, a ceremony that did not verify, and an account no longer allowed to sign in |
+| `auth.passkeySignIn.invalid` | 401 — one answer for a state string this API never issued, one expired or already used, a ceremony that did not verify, and an account no longer allowed to sign in |
 | `auth.passkey.registrationInvalid` | 400 — the registration ceremony did not verify; attached to `credential` |
 | `auth.passkey.registrationRejected` | 400 — the ceremony verified, but the store refused to hold the credential |
 | `auth.passkey.notFound` | 404 — the passkey named is not one of the caller's, exactly as an unknown id or one already removed |

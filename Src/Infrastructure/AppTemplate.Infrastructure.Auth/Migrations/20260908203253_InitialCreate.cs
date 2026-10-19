@@ -64,6 +64,19 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "SpentPasskeyCeremonies",
+                schema: "identity",
+                columns: table => new
+                {
+                    StateHash = table.Column<string>(type: "character(43)", fixedLength: true, maxLength: 43, nullable: false),
+                    ExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SpentPasskeyCeremonies", x => x.StateHash);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "User",
                 schema: "identity",
                 columns: table => new
@@ -348,6 +361,12 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                 columns: new[] { "UserId", "OccurredAt" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_SpentPasskeyCeremonies_ExpiresAt",
+                schema: "identity",
+                table: "SpentPasskeyCeremonies",
+                column: "ExpiresAt");
+
+            migrationBuilder.CreateIndex(
                 name: "EmailIndex",
                 schema: "identity",
                 table: "User",
@@ -403,6 +422,10 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
 
             migrationBuilder.DropTable(
                 name: "SecurityEvents",
+                schema: "identity");
+
+            migrationBuilder.DropTable(
+                name: "SpentPasskeyCeremonies",
                 schema: "identity");
 
             migrationBuilder.DropTable(

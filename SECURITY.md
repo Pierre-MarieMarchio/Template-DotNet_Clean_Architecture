@@ -98,9 +98,15 @@ against your production system.
 - **Passkeys (WebAuthn)**, built entirely on ASP.NET Core Identity's own support for .NET 10 — no
   hand-rolled CBOR, no third-party FIDO2 library. The ceremonies are over
   `IPasskeyHandler`, not `SignInManager`'s passkey methods: those park the ceremony state in a
-  cookie, and this API sets none. The state travels to the client as an opaque string and is
-  verified against what the client posts back — the challenge inside it is what the authenticator
-  must have signed, so a rewritten state only produces a ceremony that does not verify. Origin
+  cookie, and this API sets none. The state travels to the client as an opaque string sealed by
+  ASP.NET Core data protection — a time-limited protector, under a purpose per ceremony kind, the
+  registration one naming its account — so the client can neither read nor rewrite it, nor carry
+  a registration's into a sign-in. It expires after `Passkey:CeremonyLifetime` (five minutes) and
+  is single-use: its first presentation records a hash of it in `identity.SpentPasskeyCeremonies`,
+  one `INSERT` keyed on that hash and made before the ceremony is verified, so a replay — even
+  from a synced passkey whose signature counter never moves — and the loser of two simultaneous
+  presentations are refused, and a ceremony that fails still spends its state. Every such refusal
+  answers as a ceremony that does not verify. Origin
   validation is the framework's own: the client data's origin must equal the request's `Origin`
   header, and the relying-party id comes from `Passkey:ServerDomain` when set, else the request's
   host. User verification is `required` and not configurable, which is what lets a verified passkey

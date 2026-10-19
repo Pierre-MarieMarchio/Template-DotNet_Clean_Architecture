@@ -118,6 +118,23 @@ namespace AppTemplate.Infrastructure.Auth.Migrations
                     b.ToTable("User", "identity");
                 });
 
+            modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.Passkeys.Rows.Models.SpentPasskeyCeremonyRecord", b =>
+                {
+                    b.Property<string>("StateHash")
+                        .HasMaxLength(43)
+                        .HasColumnType("character(43)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("StateHash");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("SpentPasskeyCeremonies", "identity");
+                });
+
             modelBuilder.Entity("AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Rows.Models.SecurityEventRecord", b =>
                 {
                     b.Property<Guid>("Id")

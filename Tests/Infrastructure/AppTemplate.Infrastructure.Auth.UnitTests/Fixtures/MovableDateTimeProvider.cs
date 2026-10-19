@@ -16,8 +16,16 @@ namespace AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;
 /// </summary>
 internal sealed class MovableDateTimeProvider : IDateTimeProvider
 {
-    public DateTimeOffset UtcNow { get; private set; } =
-        new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+    internal MovableDateTimeProvider()
+        : this(new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero))
+    {
+    }
+
+    /// <summary>A clock parked at <paramref name="start"/>, for a test whose subject also reads the
+    /// machine's clock — a time-limited data protector — and must agree with it.</summary>
+    internal MovableDateTimeProvider(DateTimeOffset start) => UtcNow = start;
+
+    public DateTimeOffset UtcNow { get; private set; }
 
     internal void Advance(TimeSpan by) => UtcNow = UtcNow.Add(by);
 }

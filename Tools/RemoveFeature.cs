@@ -778,7 +778,7 @@ internal static class RemoveFeature
         Refused("extra file in a new subfolder", tree => Put(tree, "Tests/Application/Acme.Application.UnitTests/Features/Widgets/Sub/Extra.cs", "x\n"), "added to the feature's generated folders");
         Refused("outside reference", tree => Put(tree, "Tests/Other/Acme.Other.Tests/UsesIt.cs", "using Acme.Application.Features.Widgets.Services;\n"), "use(s) of the feature's types");
         Refused("outside use of a type", tree => Put(tree, "Src/Other/Uses.cs", "var s = new WidgetService();\n"), "use(s) of the feature's types");
-        Refused("a migration mentions it", tree => Put(tree, "Src/Infrastructure/Acme.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "b.ToTable(\"widgets\", \"widgets\");\nusing Acme.Persistence.Features.Widgets.Models;\n"), "migration or snapshot");
+        Refused("a migration mentions it", tree => Put(tree, "Src/Infrastructure/Acme.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "b.ToTable(\"widgets\", \"widgets\");\nusing Acme.Persistence.Features.Widgets.Rows.Models;\n"), "migration or snapshot");
         Refused("a snapshot mentions its record", tree => Put(tree, "Src/Infrastructure/Acme.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "modelBuilder.Entity(\"Acme.WidgetRecord\", b => { });\n"), "migration or snapshot");
         Refused("a manifest path leaves the feature", tree => Put(tree, ".feature-manifest/Widgets.json", File.ReadAllText(Path.Combine(tree, ".feature-manifest/Widgets.json")).Replace(SkeletonFiles[0], "Src/Domain/Acme.Domain/Features/Widgets/../../../../README.md", StringComparison.Ordinal)), "not a file under a Features/Widgets folder");
 

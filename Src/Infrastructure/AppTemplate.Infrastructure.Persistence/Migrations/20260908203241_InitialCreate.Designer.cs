@@ -80,7 +80,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                 });
 
             //#if (externalAuth)
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Models.ExternalIdentityRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Rows.Models.ExternalIdentityRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -124,7 +124,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("ExternalIdentities", "external_identity");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Models.RoleAssignmentRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Rows.Models.RoleAssignmentRecord", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -140,7 +140,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
 
             //#endif
             //#if (files)
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.ContentSweepCheckpointRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models.ContentSweepCheckpointRecord", b =>
                 {
                     b.Property<string>("Name")
                         .HasMaxLength(64)
@@ -158,7 +158,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("ContentSweepCheckpoints", "files");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models.StoredFileRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -257,7 +257,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("StoredFiles", "files");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileTagRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models.StoredFileTagRecord", b =>
                 {
                     b.Property<Guid>("StoredFileId")
                         .HasColumnType("uuid");
@@ -273,7 +273,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
 
             //#endif
             //#if (notes)
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Notes.Models.NoteRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Notes.Rows.Models.NoteRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -316,7 +316,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
 
             //#endif
             //#if (reminders)
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Reminders.Models.ReminderRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Models.ReminderRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -376,7 +376,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
 
             //#endif
             //#if (todoLists)
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models.TodoItemRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -403,7 +403,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("TodoItems", "todo");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemTagRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models.TodoItemTagRecord", b =>
                 {
                     b.Property<Guid>("TodoItemId")
                         .HasColumnType("uuid");
@@ -417,7 +417,7 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
                     b.ToTable("TodoItemTags", "todo");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoListRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models.TodoListRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -464,9 +464,9 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
 
             //#endif
             //#if (files)
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileTagRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models.StoredFileTagRecord", b =>
                 {
-                    b.HasOne("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileRecord", null)
+                    b.HasOne("AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models.StoredFileRecord", null)
                         .WithMany("Tags")
                         .HasForeignKey("StoredFileId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -475,18 +475,18 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
 
             //#endif
             //#if (todoLists)
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models.TodoItemRecord", b =>
                 {
-                    b.HasOne("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoListRecord", null)
+                    b.HasOne("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models.TodoListRecord", null)
                         .WithMany("Items")
                         .HasForeignKey("TodoListId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemTagRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models.TodoItemTagRecord", b =>
                 {
-                    b.HasOne("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", null)
+                    b.HasOne("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models.TodoItemRecord", null)
                         .WithMany("Tags")
                         .HasForeignKey("TodoItemId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -495,19 +495,19 @@ namespace AppTemplate.Infrastructure.Persistence.Migrations
 
             //#endif
             //#if (files)
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Models.StoredFileRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models.StoredFileRecord", b =>
                 {
                     b.Navigation("Tags");
                 });
 
             //#endif
             //#if (todoLists)
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoItemRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models.TodoItemRecord", b =>
                 {
                     b.Navigation("Tags");
                 });
 
-            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models.TodoListRecord", b =>
+            modelBuilder.Entity("AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models.TodoListRecord", b =>
                 {
                     b.Navigation("Items");
                 });

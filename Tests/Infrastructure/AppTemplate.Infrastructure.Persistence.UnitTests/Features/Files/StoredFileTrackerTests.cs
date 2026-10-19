@@ -1,9 +1,9 @@
 ﻿using AppTemplate.Domain.Features.Files.Model.Entities;
 using AppTemplate.Domain.Features.Files.Model.Events;
 using AppTemplate.Domain.Features.Files.Model.ValueObjects;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Tracking;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Tracking;
 using Shouldly;
 using Xunit;
 

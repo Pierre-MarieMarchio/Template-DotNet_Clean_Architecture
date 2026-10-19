@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Domain.Features.Files.Model.ValueObjects;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Mapping;
 using Shouldly;
 using Xunit;
 

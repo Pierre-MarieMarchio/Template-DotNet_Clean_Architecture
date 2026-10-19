@@ -45,33 +45,33 @@ using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
 //#if (externalAuth)
-using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Queries;
-using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Stores;
+using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Access.Queries;
+using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Access.Stores;
 //#endif
 //#if (files)
-using AppTemplate.Infrastructure.Persistence.Features.Files.Checkpoints;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Locks;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Repositories;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Tracking;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Access.Queries;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Access.Repositories;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Adapters.Checkpoints;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Adapters.Locks;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Tracking;
 //#endif
 //#if (notes)
-using AppTemplate.Infrastructure.Persistence.Features.Notes.Queries;
-using AppTemplate.Infrastructure.Persistence.Features.Notes.Stores;
+using AppTemplate.Infrastructure.Persistence.Features.Notes.Access.Queries;
+using AppTemplate.Infrastructure.Persistence.Features.Notes.Access.Stores;
 //#endif
 //#if (reminders)
-using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
-using AppTemplate.Infrastructure.Persistence.Features.Reminders.Observability;
-using AppTemplate.Infrastructure.Persistence.Features.Reminders.Queries;
-using AppTemplate.Infrastructure.Persistence.Features.Reminders.Repositories;
-using AppTemplate.Infrastructure.Persistence.Features.Reminders.Tracking;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Access.Queries;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Access.Repositories;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Adapters.Observability;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Tracking;
 //#endif
 //#if (todoLists)
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Queries;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Repositories;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Access.Queries;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Access.Repositories;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Tracking;
 //#endif
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

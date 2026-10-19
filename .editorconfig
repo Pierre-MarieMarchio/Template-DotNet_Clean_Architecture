@@ -193,14 +193,14 @@ dotnet_diagnostic.S2326.severity = none
 dotnet_diagnostic.S3267.severity = none
 
 #if (files)
-[Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Mapping/StoredFileMapper.cs]
+[Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Rows/Mapping/StoredFileMapper.cs]
 # S3267 suggests `Where`. Each iteration of the reconciliation removes a tag from a dictionary and
 # adds a row -- two side effects, which is what makes it a reconciliation rather than a filter.
 dotnet_diagnostic.S3267.severity = none
 
 #endif
 #if (todoLists)
-[Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Mapping/TodoListMapper.cs]
+[Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Rows/Mapping/TodoListMapper.cs]
 # S3267 suggests `Where` for the same two-sided reconciliation the file-store mapper runs: remove
 # from the dictionary, add a row, and record that the structure changed.
 dotnet_diagnostic.S3267.severity = none

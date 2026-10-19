@@ -72,7 +72,7 @@ be filled from user secrets or environment variables.
 <!--#endif-->
 <!--#if (files)-->
 > | `Files:Storage:S3` | `AddStorageModule`, when `Files:Storage:Provider` is `S3` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
-> | `Files:Storage`, `Files:Storage:FileSystem`, `Files:Scanning` | `AddStorageModule` (the `FileSystem` section only for that provider) | `AppTemplate.Infrastructure.Storage/Features/Files/Options/` |
+> | `Files:Storage`, `Files:Storage:FileSystem`, `Files:Scanning` | `AddStorageModule` (the `FileSystem` section only for that provider) | `AppTemplate.Infrastructure.Storage/Features/Files/Configuration/Options/` |
 <!--#endif-->
 > | `BackgroundJobs` | `AddBackgroundJobs`, called from `AppTemplate.Api`'s `Program.cs` | `AppTemplate.Api/Common/Jobs/` |
 > | `Jobs:Enabled`, and each feature's own `Jobs:…` section | `AddBackgroundJobs`, and only when `Jobs:Enabled` is true | `AppTemplate.Api/Common/Jobs/` and `AppTemplate.Api/Features/<Feature>/Jobs/` |

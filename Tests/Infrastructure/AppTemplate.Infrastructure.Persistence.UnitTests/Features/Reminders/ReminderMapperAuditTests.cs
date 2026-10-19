@@ -1,5 +1,5 @@
-﻿using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
-using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
+﻿using AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Models;
 using Shouldly;
 using Xunit;
 

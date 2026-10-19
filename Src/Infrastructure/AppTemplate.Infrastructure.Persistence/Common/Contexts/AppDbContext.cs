@@ -1,23 +1,23 @@
 ﻿using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 //#if (externalAuth)
-using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Configurations;
-using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Models;
+using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Rows.Configurations;
+using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Rows.Models;
 //#endif
 //#if (files)
-using AppTemplate.Infrastructure.Persistence.Features.Files.Configurations;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Configurations;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models;
 //#endif
 //#if (notes)
-using AppTemplate.Infrastructure.Persistence.Features.Notes.Configurations;
-using AppTemplate.Infrastructure.Persistence.Features.Notes.Models;
+using AppTemplate.Infrastructure.Persistence.Features.Notes.Rows.Configurations;
+using AppTemplate.Infrastructure.Persistence.Features.Notes.Rows.Models;
 //#endif
 //#if (reminders)
-using AppTemplate.Infrastructure.Persistence.Features.Reminders.Configurations;
-using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Configurations;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Models;
 //#endif
 //#if (todoLists)
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Configurations;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Configurations;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models;
 //#endif
 using Microsoft.EntityFrameworkCore;
 
@@ -87,7 +87,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     //#if (todoLists)
     /// <summary>The to-do list aggregate's root table — a <em>persistence model</em>, not the domain
-    /// aggregate, which <see cref="Features.TodoLists.Mapping.ITodoListMapper"/> maps onto it and EF
+    /// aggregate, which <see cref="Features.TodoLists.Rows.Mapping.ITodoListMapper"/> maps onto it and EF
     /// never tracks. Internal: nothing outside this assembly has any business naming a storage
     /// shape.</summary>
     internal DbSet<TodoListRecord> TodoLists => Set<TodoListRecord>();
@@ -96,7 +96,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     //#if (reminders)
     /// <summary>
     /// The reminder aggregate's table. Also a persistence model rather than the domain aggregate,
-    /// mapped by <see cref="Features.Reminders.Mapping.IReminderMapper"/> and never tracked by EF.
+    /// mapped by <see cref="Features.Reminders.Rows.Mapping.IReminderMapper"/> and never tracked by EF.
     /// </summary>
     internal DbSet<ReminderRecord> Reminders => Set<ReminderRecord>();
 
@@ -104,7 +104,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     //#if (files)
     /// <summary>The stored-file aggregate's table: everything about a file except its content,
     /// which never passes through this application. Also a persistence model, mapped by
-    /// <see cref="Features.Files.Mapping.IStoredFileMapper"/> and never tracked by EF.</summary>
+    /// <see cref="Features.Files.Rows.Mapping.IStoredFileMapper"/> and never tracked by EF.</summary>
     internal DbSet<StoredFileRecord> StoredFiles => Set<StoredFileRecord>();
 
     /// <summary>Where the orphan sweep's walk of the object store has reached.</summary>

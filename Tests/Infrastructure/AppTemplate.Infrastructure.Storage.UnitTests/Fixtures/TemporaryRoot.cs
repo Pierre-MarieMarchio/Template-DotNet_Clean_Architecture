@@ -1,4 +1,4 @@
-﻿using AppTemplate.Infrastructure.Storage.Features.Files.Options;
+﻿using AppTemplate.Infrastructure.Storage.Features.Files.Configuration.Options;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Fixtures;

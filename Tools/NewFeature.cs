@@ -82,9 +82,9 @@ internal static class NewFeature
     /// <summary>Folder names a feature cannot take: each is already a segment of every namespace.</summary>
     private static readonly string[] ReservedNames =
     [
-        "Api", "Application", "Auth", "Common", "Contracts", "Controllers", "Core", "Dtos", "Domain",
-        "Entities", "Errors", "Features", "Infrastructure", "Model", "Models", "Persistence", "Policies",
-        "Ports", "Presentation", "Services", "UseCases",
+        "Access", "Api", "Application", "Auth", "Common", "Contracts", "Controllers", "Core", "Dtos",
+        "Domain", "Entities", "Errors", "Features", "Infrastructure", "Model", "Models", "Persistence",
+        "Policies", "Ports", "Presentation", "Rows", "Services", "UseCases",
     ];
 
     /// <summary>
@@ -747,17 +747,17 @@ internal static class NewFeature
         Add(application, $"{feature}/Services/Consumers/%Verb%%A%OnAccountDeletedConsumer.cs", Templates.AccountDeletedConsumer, "owner");
 
         // Persistence.
-        Add(persistence, $"{feature}/Models/%A%Record.cs", Templates.RecordPlain, "rec");
-        Add(persistence, $"{feature}/Models/%A%Record.cs", Templates.RecordAudited, "agg");
-        Add(persistence, $"{feature}/Configurations/%A%RecordConfiguration.cs", Templates.Configuration);
-        Add(persistence, $"{feature}/Stores/%A%Store.cs", Templates.Store, "rec&stage");
-        Add(persistence, $"{feature}/Mapping/I%A%Mapper.cs", Templates.MapperPort, "agg");
-        Add(persistence, $"{feature}/Mapping/%A%Mapper.cs", Templates.Mapper, "agg");
-        Add(persistence, $"{feature}/Tracking/I%A%Tracker.cs", Templates.TrackerPort, "agg");
-        Add(persistence, $"{feature}/Tracking/%A%Tracker.cs", Templates.Tracker, "agg");
-        Add(persistence, $"{feature}/Repositories/%A%Repository.cs", Templates.Repository, "agg&wq");
-        Add(persistence, $"{feature}/Queries/%A%Queries.cs", Templates.Queries, "rq");
-        Add(persistence, $"{feature}/Queries/%A%SortMap.cs", Templates.SortMap, "list");
+        Add(persistence, $"{feature}/Rows/Models/%A%Record.cs", Templates.RecordPlain, "rec");
+        Add(persistence, $"{feature}/Rows/Models/%A%Record.cs", Templates.RecordAudited, "agg");
+        Add(persistence, $"{feature}/Rows/Configurations/%A%RecordConfiguration.cs", Templates.Configuration);
+        Add(persistence, $"{feature}/Access/Stores/%A%Store.cs", Templates.Store, "rec&stage");
+        Add(persistence, $"{feature}/Rows/Mapping/I%A%Mapper.cs", Templates.MapperPort, "agg");
+        Add(persistence, $"{feature}/Rows/Mapping/%A%Mapper.cs", Templates.Mapper, "agg");
+        Add(persistence, $"{feature}/Rows/Tracking/I%A%Tracker.cs", Templates.TrackerPort, "agg");
+        Add(persistence, $"{feature}/Rows/Tracking/%A%Tracker.cs", Templates.Tracker, "agg");
+        Add(persistence, $"{feature}/Access/Repositories/%A%Repository.cs", Templates.Repository, "agg&wq");
+        Add(persistence, $"{feature}/Access/Queries/%A%Queries.cs", Templates.Queries, "rq");
+        Add(persistence, $"{feature}/Access/Queries/%A%SortMap.cs", Templates.SortMap, "list");
 
         // Api.
         Add(api, $"{feature}/Contracts/Requests/Create%A%Request.cs", Templates.CreateRequest, "create");
@@ -786,7 +786,7 @@ internal static class NewFeature
             "agg&update",
             new() { ["Op"] = "Update", ["CommandNew"] = "new Update%A%Command(Guid.CreateVersion7(), name!, description!)" });
         AddTest(domainTests, $"{feature}/Model/Entities/%A%Tests.cs", Templates.AggregateTests, "agg");
-        AddTest(persistenceTests, $"{feature}/Configurations/%A%RecordConfigurationTests.cs", Templates.ConfigurationTests);
+        AddTest(persistenceTests, $"{feature}/Rows/Configurations/%A%RecordConfigurationTests.cs", Templates.ConfigurationTests);
         AddTest(persistenceTests, $"{feature}/%A%MapperFidelityTests.cs", Templates.MapperFidelityTests, "agg");
         AddTest(apiTests, $"{feature}/Mapping/%A%ResponseMappingTests.cs", Templates.ResponseMappingTests, "dto");
 
@@ -1195,7 +1195,7 @@ internal static class NewFeature
         output.WriteLine($"       public const string {f}Schema = \"{Snake(f)}\";");
         output.WriteLine($"       internal DbSet<{a}Record> {f} => Set<{a}Record>();");
         output.WriteLine($"       modelBuilder.ApplyConfiguration(new {a}RecordConfiguration());");
-        output.WriteLine($"     with the usings of {p}.Infrastructure.Persistence.Features.{f}.Configurations and .Models");
+        output.WriteLine($"     with the usings of {p}.Infrastructure.Persistence.Features.{f}.Rows.Configurations and .Rows.Models");
         output.WriteLine();
         output.WriteLine($"  2. Src/Application/{p}.Application/ApplicationModule.cs: an Add{f}() beside the others");
 
@@ -1556,7 +1556,7 @@ internal static class NewFeature
             "Src/Application/Acme.Application/Features/TodoLists/Services/ITodoListService.cs",
             "Src/Application/Acme.Application/Features/TodoLists/Ports/TodoListStore/ITodoListStore.cs",
             "Src/Application/Acme.Application/Features/TodoLists/Ports/TodoListQueries/ITodoListQueries.cs",
-            "Src/Infrastructure/Acme.Infrastructure.Persistence/Features/TodoLists/Models/TodoListRecord.cs",
+            "Src/Infrastructure/Acme.Infrastructure.Persistence/Features/TodoLists/Rows/Models/TodoListRecord.cs",
             "Src/Presentation/Acme.Api/Features/TodoLists/Controllers/TodoListsController.cs",
             "Tests/Application/Acme.Application.UnitTests/Features/TodoLists/Services/TodoListServiceTests.cs",
             ".feature-manifest/TodoLists.json",
@@ -3681,7 +3681,7 @@ internal static class Templates
     // ---- Persistence ----------------------------------------------------------------------------
 
     internal const string RecordPlain = """
-        namespace %P%.Infrastructure.Persistence.Features.%F%.Models;
+        namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
 
         /// <summary>
         /// How %a% %L% is stored, and the only model it has: there is no aggregate and no mapper, so the
@@ -3721,7 +3721,7 @@ internal static class Templates
     internal const string RecordAudited = """
         using %P%.Domain.Core.Common.Abstractions;
 
-        namespace %P%.Infrastructure.Persistence.Features.%F%.Models;
+        namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
 
         /// <summary>
         /// How %a% %L% is stored. This is not the aggregate: it is a row, with settable properties, no
@@ -3776,11 +3776,11 @@ internal static class Templates
         using %P%.Domain.Features.%F%.Model.Entities;
         %end%
         using %P%.Infrastructure.Persistence.Common.Contexts;
-        using %P%.Infrastructure.Persistence.Features.%F%.Models;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
         using Microsoft.EntityFrameworkCore;
         using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-        namespace %P%.Infrastructure.Persistence.Features.%F%.Configurations;
+        namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Configurations;
 
         /// <summary>
         /// Mapping for the %L% row: column lengths and what its reads and writes need of the table.
@@ -3865,10 +3865,10 @@ internal static class Templates
         using %P%.Application.Features.%F%.Ports.%A%Store;
         using %P%.Domain.Core.Common.Primitives; //?UserId
         using %P%.Infrastructure.Persistence.Common.Contexts;
-        using %P%.Infrastructure.Persistence.Features.%F%.Models;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
         using Microsoft.EntityFrameworkCore; //?SingleOrDefaultAsync|ToListAsync
 
-        namespace %P%.Infrastructure.Persistence.Features.%F%.Stores;
+        namespace %P%.Infrastructure.Persistence.Features.%F%.Access.Stores;
 
         /// <summary>
         /// The adapter for <see cref="I%A%Store"/>: it stages changes to <see cref="%A%Record"/> rows
@@ -4091,9 +4091,9 @@ internal static class Templates
 
     internal const string MapperPort = """
         using %P%.Domain.Features.%F%.Model.Entities;
-        using %P%.Infrastructure.Persistence.Features.%F%.Models;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
 
-        namespace %P%.Infrastructure.Persistence.Features.%F%.Mapping;
+        namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Mapping;
 
         internal interface I%A%Mapper
         {
@@ -4109,9 +4109,9 @@ internal static class Templates
         using %P%.Domain.Core.Common.Primitives; //?UserId
         using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Infrastructure.Core.Common.Saving.Tracking;
-        using %P%.Infrastructure.Persistence.Features.%F%.Models;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
 
-        namespace %P%.Infrastructure.Persistence.Features.%F%.Mapping;
+        namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Mapping;
 
         internal sealed class %A%Mapper : I%A%Mapper
         {
@@ -4172,9 +4172,9 @@ internal static class Templates
         using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Infrastructure.Core.Common.Saving.DomainEvents;
         using %P%.Infrastructure.Core.Common.Saving.Tracking;
-        using %P%.Infrastructure.Persistence.Features.%F%.Models;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
 
-        namespace %P%.Infrastructure.Persistence.Features.%F%.Tracking;
+        namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Tracking;
 
         internal interface I%A%Tracker : IAggregateFlusher, IDomainEventSource
         {
@@ -4191,11 +4191,11 @@ internal static class Templates
     internal const string Tracker = """
         using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Infrastructure.Core.Common.Saving.Tracking;
-        using %P%.Infrastructure.Persistence.Features.%F%.Mapping;
-        using %P%.Infrastructure.Persistence.Features.%F%.Models;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Mapping;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
         using Microsoft.EntityFrameworkCore;
 
-        namespace %P%.Infrastructure.Persistence.Features.%F%.Tracking;
+        namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Tracking;
 
         internal sealed class %A%Tracker(I%A%Mapper mapper)
             : AggregateTracker<%A%, %A%Record>(record => record.Version), I%A%Tracker
@@ -4233,12 +4233,12 @@ internal static class Templates
         using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Domain.Features.%F%.Repositories;
         using %P%.Infrastructure.Persistence.Common.Contexts;
-        using %P%.Infrastructure.Persistence.Features.%F%.Mapping;
-        using %P%.Infrastructure.Persistence.Features.%F%.Models; //?%A%Record
-        using %P%.Infrastructure.Persistence.Features.%F%.Tracking;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Mapping;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models; //?%A%Record
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Tracking;
         using Microsoft.EntityFrameworkCore; //?FirstOrDefaultAsync|ToListAsync
 
-        namespace %P%.Infrastructure.Persistence.Features.%F%.Repositories;
+        namespace %P%.Infrastructure.Persistence.Features.%F%.Access.Repositories;
 
         internal sealed class %A%Repository(
             AppDbContext context,
@@ -4765,10 +4765,10 @@ internal static class Templates
         using %P%.Application.Features.%F%.Ports.%A%Queries;
         using %P%.Domain.Core.Common.Primitives; //?UserId
         using %P%.Infrastructure.Persistence.Common.Contexts;
-        using %P%.Infrastructure.Persistence.Features.%F%.Models; //?%A%Record
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models; //?%A%Record
         using Microsoft.EntityFrameworkCore;
 
-        namespace %P%.Infrastructure.Persistence.Features.%F%.Queries;
+        namespace %P%.Infrastructure.Persistence.Features.%F%.Access.Queries;
 
         /// <summary>
         /// The read side: every method projects straight from <see cref="%A%Record"/> into a DTO, so the SQL
@@ -4926,9 +4926,9 @@ internal static class Templates
         using %P%.Application.Core.Common.Collections;
         using %P%.Application.Features.%F%.Model.Dtos;
         using %P%.Application.Features.%F%.Model.Policies;
-        using %P%.Infrastructure.Persistence.Features.%F%.Models;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
 
-        namespace %P%.Infrastructure.Persistence.Features.%F%.Queries;
+        namespace %P%.Infrastructure.Persistence.Features.%F%.Access.Queries;
 
         /// <summary>
         /// Where <see cref="%A%CollectionPolicy"/>'s whitelisted names become columns. No user string
@@ -5759,13 +5759,13 @@ internal static class Templates
         using %P%.Domain.Features.%F%.Model.Entities;
         %end%
         using %P%.Infrastructure.Persistence.Common.Contexts;
-        using %P%.Infrastructure.Persistence.Features.%F%.Models;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
         using Microsoft.EntityFrameworkCore;
         using Microsoft.EntityFrameworkCore.Metadata;
         using Shouldly;
         using Xunit;
 
-        namespace %P%.Infrastructure.Persistence.UnitTests.Features.%F%.Configurations;
+        namespace %P%.Infrastructure.Persistence.UnitTests.Features.%F%.Rows.Configurations;
 
         /// <summary>
         /// Assertions against the built EF model. No database is contacted: the provider is only there so the
@@ -5853,7 +5853,7 @@ internal static class Templates
         using %P%.Domain.Core.Common.Abstractions;
         using %P%.Domain.Core.Common.Primitives; //?UserId
         using %P%.Domain.Features.%F%.Model.Entities;
-        using %P%.Infrastructure.Persistence.Features.%F%.Mapping;
+        using %P%.Infrastructure.Persistence.Features.%F%.Rows.Mapping;
         using Shouldly;
         using Xunit;
 

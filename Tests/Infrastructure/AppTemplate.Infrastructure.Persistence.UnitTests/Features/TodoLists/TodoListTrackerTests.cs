@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Model.Events;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Tracking;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Tracking;
 using Shouldly;
 using Xunit;
 

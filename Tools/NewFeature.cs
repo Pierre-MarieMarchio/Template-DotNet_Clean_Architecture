@@ -4331,6 +4331,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Events; //?UserAccountDeleted
         using %P%.Application.Core.Common.Ports; //?IDeletedAccountDataPolicy|IUserAccountDirectory|IUnitOfWork
         using %P%.Domain.Core.Common.Primitives;
+        using %P%.Application.Features.%F%.Ports.%A%Queries;
         %if rec%
         using %P%.Application.Features.%F%.Ports.%A%Store;
         %end%

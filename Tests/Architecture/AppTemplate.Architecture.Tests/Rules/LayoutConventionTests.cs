@@ -364,8 +364,8 @@ public sealed class LayoutConventionTests
 
             //#if (todoLists && notes)
             // The other direction: a word no feature is filed under any more. Not every feature has
-            // every word — one having no Consumers/ is normal — so the claim is that *some* feature
-            // does. A word none does is a concept the vocabulary still offers and the tree stopped
+            // every word — one having no Services/Consumers/ is normal — so the claim is that *some*
+            // feature does. A word none does is a concept the vocabulary still offers and the tree stopped
             // having, which is how a list of words quietly stops being an index. Checked only where
             // every example is present: a project generated with fewer starts with words no feature
             // uses yet, and the scaffolded features still need them.

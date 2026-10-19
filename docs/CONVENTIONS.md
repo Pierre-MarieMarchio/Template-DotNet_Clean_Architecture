@@ -52,23 +52,27 @@ works proves nothing about a delta EF computed from a tracked row.
 **A type's name says what it is, not only what it is about.** Reading the file name alone has to
 answer "what nature of thing is this?", so the suffix is not decoration:
 
-| Suffix | What it names |
-|---|---|
-| `…UseCase`, `…Command`, `…Query` | one operation, its input, and its implementation |
-| `…Outcome` | the record an operation hands back — a use case's or a port's |
-| `…Status` | the closed enum of ways it went, carried by an `…Outcome` |
-| `…Repository`, `…Store`, `…Table`, `…Queries` | the four ways this template reaches storage — see [`DECISIONS.md`](DECISIONS.md) for which is which |
-| `…Service` | an injected implementation that has dependencies |
-| `…Mapper` / `…Mapping` | a mapping, injected / static — and named for what comes **out** of it |
-| `…Extensions` | a static class of extension methods, filed with the type it extends — `ResultExtensions` in `Common/Results/`, `CurrentUserExtensions` in `Common/Ports/`. In a host's `Common/` it is the composition class holding that folder's `AddX`/`UseX` |
-| `…BackgroundService`, `…Instruments` | a hosted loop and the counters and spans it emits, filed together under `Features/<F>/Jobs/` in the API |
-| `…Options`, `…Validator`, `…Policy`, `…Consumer`, `…Dto`, `…Controller`, `…Request`, `…Response` | as they read |
+| Suffix | What it names | Filed under |
+|---|---|---|
+| `…UseCase`, `…Command`, `…Query` | one operation, its input, and its implementation | `UseCases/{Commands,Queries}/<Operation>/` |
+| `…Outcome` | the record an operation hands back — a use case's or a port's | beside what returns it: the operation's folder, or `Ports/<Port>/` |
+| `…Status` | the closed enum of ways it went, carried by an `…Outcome` | beside that `…Outcome` |
+| `…Repository`, `…Store`, `…Table`, `…Queries` | the four ways this template reaches storage — see [`DECISIONS.md`](DECISIONS.md) for which is which | the adapter in `Access/`; a repository contract in the domain's `Repositories/`, any other contract in `Ports/<Port>/` |
+| `…Service` | an injected implementation that has dependencies | `Services/` in the application, `Adapters/Services/` in infrastructure |
+| `…Mapper` / `…Mapping` | a mapping, injected / static — and named for what comes **out** of it | `Rows/Mapping/` / `Model/Mapping/`, or `Contracts/Mapping/` for the wire |
+| `…Helpers`, `…Extensions` | a static class of pure functions, or of extension methods — within the bounds [below](#helpers-and-the-banned-words) | `Helpers/` in a feature; in a `Common/`, with the type it extends — `ResultExtensions` in `Common/Results/`, `CurrentUserExtensions` in `Common/Ports/`. In a host's `Common/` an `…Extensions` is the composition class holding that folder's `AddX`/`UseX` |
+| `…BackgroundService`, `…Instruments` | a hosted loop and the counters and spans it emits | together, under the API's `Features/<F>/Jobs/` |
+| `…Dto`, `…Validator` | a shape the application answers or is given, and the rules an input is checked against | `Model/Dtos/` — an operation's validator in that operation's folder |
+| `…Options`, `…Policy`, `…Consumer`, `…Controller`, `…Request`, `…Response` | as they read | `Configuration/Options/`, `Model/Policies/`, `Services/Consumers/`, `Controllers/`, `Contracts/Requests/`, `Contracts/Responses/` |
+
+The suffix is the first hop and the folder the second: the whole table, every concept and nature
+folder, is [`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md#the-suffix-gives-the-folder)'s.
 
 Two rules follow from having been broken:
 
 - **A word names one notion in this repository.** `Outcome` once named both a use case's return
   record and the enum inside a port's, and `Policies` named both a business rule under
-  `Features/<F>/Policies/` and the file holding an `AddApiX`. When a second meaning appears, one of
+  `Features/<F>/Model/Policies/` and the file holding an `AddApiX`. When a second meaning appears, one of
   the two is wrong — find which and rename it, do not document the ambiguity. Two more that were:
   `Access` named what `Service` already named, and `Verdict` named what `Decision` already named —
   a policy's chosen action, as opposed to the `Status` an observation reports.
@@ -86,21 +90,49 @@ Two rules follow from having been broken:
   `IVersioned` are opt-in contracts a persistence row satisfies, not capabilities the domain calls
   out for.
 - **The port carries the nature word, and the adapter is the port without its `I`.**
+<!--#if (localAuth)-->
   `IAccountsService` is implemented by `AccountsService`; `ISecurityEventLog` by
-  `SecurityEventLog`, because `Log` already says what it is. A qualifying prefix is right in two
+  `SecurityEventLog`, because `Log` already says what it is.
+<!--#else
+  `IIdempotencyStore` is implemented by `IdempotencyStore`, because `Store` already says what it is.
+#endif-->
+  A qualifying prefix is right in two
   cases. The first is a port several modules implement, where the prefix tells them apart:
   `MailKitEmailSender` and `InMemoryEmailSender` both satisfy `IEmailSender`. The second is a
   single adapter whose technology is visible at the call site — `EfUnitOfWork`, because saving is
   the one place the choice of Entity Framework shows, and `PostgresLeaderLease`, because which
   store the lock is taken in is a property a caller has to reason about.
-  A port's *folder* keeps the capability name — `Ports/Accounts/IAccountsService.cs` — and
+  A port's *folder* keeps the capability name — `Ports/<Capability>/I<Capability>Service.cs` — and
   that is not cosmetic: a folder named for the interface would put a namespace and a class of the
   same name in scope of each other, which is CS0118 at every consumer.
 
-Banned outright: `Manager`, `Helper`, `Utils`, `Processor`, a bare `Handler`, and `Composer`. Each
-of them names "code" rather than a thing, and each attracts whatever nobody could classify. There is
-no `Utils/` folder in this repository and there is not meant to be one; needing it means a name is
+### `Helpers` and the banned words
+
+Banned outright: `Manager`, `Utils`, `Processor`, a bare `Handler`, and `Composer`. Each of them
+names "code" rather than a thing, and each attracts whatever nobody could classify. There is no
+`Utils/` folder in this repository and there is not meant to be one; needing it means a name is
 missing, not a folder.
+
+`Helper` is the one such word allowed, on a mechanical bound instead of a ban:
+
+- **A Helper is a static class of pure functions** — formatting, computation, parsing, pure
+  conversions, convenience constants, extension methods — over domain types, Dtos or primitives.
+  Business or not: purity is the criterion, not the subject.
+- **It is never instantiated, never injected and never registered.** It holds no mutable state,
+  implements no interface and performs no I/O, no database and no HTTP — a type with a dependency
+  is a `Services/` collaborator in the application and an adapter in infrastructure.
+- **It is not something with a home of its own.** A rule that protects a state is a
+  `Model/Policies/` policy; a wire type belongs in `Contracts/`; the entity, value object or Dto
+  itself in `Model/`. A file with a more precise nature — a `…Mapper`, a `…Policy`, a `…SortMap` —
+  goes to that nature's folder: `Helpers/` is the last resort, never the first.
+- **One public static class per file, suffixed `…Helpers` or `…Extensions`**, named for what it
+  helps. `Helpers/` is the plural of that suffix, not a bucket, and the banned words above stay
+  banned inside it.
+- **There is no `Helpers/` in a `Common/`.** A helper of the shared half lives with its subject,
+  as `ResultExtensions` lives in `Common/Results/`.
+
+`FeatureFolderVocabularyTests` holds the bound: every type declared under a `Helpers/` folder is a
+static class, which also bars it from implementing an interface.
 
 ## Comments
 

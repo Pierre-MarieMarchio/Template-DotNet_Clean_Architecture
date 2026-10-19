@@ -157,15 +157,29 @@ that need a domain type, `IDomainEventConsumer` and `DomainGuard`, need only the
 this project knows no aggregate and cannot come to know one. It carries the same shape for the
 same reasons: `CS1591` re-enabled so every public member owes a sentence to the reader who reads
 signatures instead of code, and no version, because a project that needs a
-mechanism this one lacks copies it and tunes it. Its two use cases are
+mechanism this one lacks copies it and tunes it.
+<!--#if (anyFeature)-->
+Its two use cases are
 `Features/Maintenance/UseCases/Commands/PurgeExpiredIdempotencyKeys/`, the idempotency
 mechanism's own housekeeping, which names no business type, and
-`Features/Accounts/UseCases/Commands/SweepDeletedAccountData/`, the leased sweep of the data of
+`Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/`, the leased sweep of the data of
 accounts that are gone; a host opts into them with `AddPurgeExpiredIdempotencyKeys()` and
 `AddDeletedAccountSweep()`, so one that has neither a maintenance endpoint nor a maintenance loop
-is not made to supply the ports they resolve. The idempotency purge is reachable two
+is not made to supply the ports they resolve.
+<!--#else
+Its use case is `Features/Maintenance/UseCases/Commands/PurgeExpiredIdempotencyKeys/`, the
+idempotency mechanism's own housekeeping, which names no business type; a host opts into it with
+`AddPurgeExpiredIdempotencyKeys()`, so one that has neither a maintenance endpoint nor a
+maintenance loop is not made to supply the ports it resolves.
+#endif-->
+<!--#if (publicApi)-->
+The idempotency purge is reached through the API's maintenance job, whose interval is
+configuration. There is deliberately no
+<!--#else-->
+The idempotency purge is reachable two
 ways in this template: `MaintenanceController`, for a scheduler outside the process, and the
 API's maintenance job, whose interval is configuration. There is deliberately no
+<!--#endif-->
 `AddApplicationCore()` beside it: this project declares ports, results and markers, none of which
 anything registers, and an umbrella call that registered nothing would read like the seam that
 makes the project work.
@@ -354,7 +368,8 @@ of its projects declares one follows how many features need it. A port **one fea
 for is declared in **`AppTemplate.Application`**, under `Features/<Feature>/Ports/<Port>/`.
 <!--#if (localAuth)-->
 A port of the authentication features is declared in **`AppTemplate.Application.Auth`**, under
-`Features/<Feature>/Ports/<Port>/`.
+`Features/<Feature>/Ports/<Port>/` of the one of its six features that owns the intent — the table
+names it beside the project.
 <!--#endif-->
 A **cross-cutting** one, that any feature may reach for, is declared in
 **`AppTemplate.Application.Core`** — in `Common/Ports/`, or beside its own subject when it has one,
@@ -386,19 +401,20 @@ split runs there rather than putting every port in one layer:
 | `IIdempotencyStore` | `AppTemplate.Application.Core` | `IdempotencyStore`, the claim/complete/release state machine over one table |
 | `ICacheStore` | `AppTemplate.Application.Core` | `HybridCacheStore`, in process until a deployment registers a distributed second level |
 <!--#if (localAuth)-->
-| `IAccountsService` | `AppTemplate.Application.Auth` | `UserManager` / `SignInManager`: create, verify a password, may-sign-in, change password, read the profile |
-| `IEmailTokensService` | `AppTemplate.Application.Auth` | ASP.NET Identity's token providers: confirmation, password reset, email change |
-| `ISessionTokensService` | `AppTemplate.Application.Auth` | signed JWT over the account's current claims, and opaque rotating grants over `IRefreshTokenTable`, one refresh-token family per session |
-| `ISessionsService` | `AppTemplate.Application.Auth` | a session list its owner reads and ends, over `IRefreshTokenFamilyTable` |
-| `ICurrentSession` | `AppTemplate.Application.Auth` | `CurrentSession`, reading the token's `sid` claim and the request's `User-Agent` |
-| `ITwoFactorService` | `AppTemplate.Application.Auth` | Identity's authenticator plumbing, and the sign-in challenge in its token store |
-| `IPasskeyService` | `AppTemplate.Application.Auth` | Identity's WebAuthn ceremonies over `IPasskeyHandler`, and the credential rows over `UserManager` |
-| `IAccountAdministrationService` | `AppTemplate.Application.Auth` | lock, unlock, roles, two-factor removal and deletion, over `UserManager` |
-| `IExternalIdentityVerifier` | `AppTemplate.Application.Auth` | an `id_token` checked against a provider's JWKS |
-| `IExternalLoginsService` | `AppTemplate.Application.Auth` | the `(provider, subject)` link, over ASP.NET Identity |
-| `IAccountEmailFactory` | `AppTemplate.Application.Auth` | HTML templates plus each link's page |
-| `ISecurityEventLog` | `AppTemplate.Application.Auth` | structured log entries, plus the trail persisted in the identity schema and its retention purge |
-| `ISecurityEventQueries` | `AppTemplate.Application.Auth` | one account's persisted trail, read back a page at a time |
+| `IAccountsService` | `AppTemplate.Application.Auth`, `Accounts` | `UserManager` / `SignInManager`: create, verify a password, may-sign-in, change password, read the profile |
+| `IEmailTokensService` | `AppTemplate.Application.Auth`, `Accounts` | ASP.NET Identity's token providers: confirmation, password reset, email change |
+| `ISessionTokensService` | `AppTemplate.Application.Auth`, `Sessions` | signed JWT over the account's current claims, and opaque rotating grants over `IRefreshTokenTable`, one refresh-token family per session |
+| `ISessionsService` | `AppTemplate.Application.Auth`, `Sessions` | a session list its owner reads and ends, over `IRefreshTokenFamilyTable` |
+| `ICurrentSession` | `AppTemplate.Application.Auth`, `Sessions` | `CurrentSession`, reading the token's `sid` claim and the request's `User-Agent` |
+| `ITwoFactorService` | `AppTemplate.Application.Auth`, `TwoFactor` | Identity's authenticator plumbing, and the sign-in challenge in its token store |
+| `IPasskeyService` | `AppTemplate.Application.Auth`, `Passkeys` | Identity's WebAuthn ceremonies over `IPasskeyHandler`, and the credential rows over `UserManager` |
+| `IReAuthenticationService` | `AppTemplate.Application.Auth`, `Accounts` | `UserManager`: the account's password, or its armed second factor, checked again before an irreversible operation — no lockout counted, no stamp rotated |
+| `IAccountAdministrationService` | `AppTemplate.Application.Auth`, `Accounts` | lock, unlock, roles, two-factor removal and deletion, over `UserManager` |
+| `IExternalIdentityVerifier` | `AppTemplate.Application.Auth`, `ExternalLogins` | an `id_token` checked against a provider's JWKS |
+| `IExternalLoginsService` | `AppTemplate.Application.Auth`, `ExternalLogins` | the `(provider, subject)` link, over ASP.NET Identity |
+| `IAccountEmailFactory` | `AppTemplate.Application.Auth`, `Accounts` | HTML templates plus each link's page |
+| `ISecurityEventLog` | `AppTemplate.Application.Auth`, `SecurityEvents` | structured log entries, plus the trail persisted in the identity schema and its retention purge |
+| `ISecurityEventQueries` | `AppTemplate.Application.Auth`, `SecurityEvents` | one account's persisted trail, read back a page at a time |
 <!--#endif-->
 
 There is no `IEfCoreRepository`, no `ISmtpClient`, no `IHttpContextWrapper`. The
@@ -487,14 +503,14 @@ may reference only SDK projects, so it cannot name `AppTemplate.Application` or
 `AppTemplate.Domain` at all, and a type there could not name a feature if it tried.
 
 <!--#if (localAuth)-->
-**How many features a module serves is not what distinguishes it.** Two modules serve
-several: `Persistence` carries `Auth`, `TodoLists`, `Reminders` and `Files`, and
-`InMemory` carries `Auth`, `Files` and `Reminders` — five ports under those three feature
-folders, plus `IEmailSender` and `IDateTimeProvider` under its own `Common/`, and one opt-in
-extension method per feature (`AddInMemoryExternalIdentities`,
-`AddInMemoryReminderNotifications`, `AddInMemoryFileContent`) on top of `AddInMemoryModule`
-itself. `Identity` serves `Auth` alone, `Email` serves the two ports that send mail, and
+**How many features a module serves is not what distinguishes it.** `Auth` serves the six
+authentication features, `Persistence` the business ones, and `InMemory` one double per feature it
+stands in for — each under that feature's folder, beside `IEmailSender` and `IDateTimeProvider`
+under its own `Common/`, and each composed by an opt-in extension method such as
+`AddInMemoryExternalIdentities` on top of `AddInMemoryModule` itself.
+<!--#if (files)-->
 `Storage` serves `Files` alone.
+<!--#endif-->
 <!--#else
 **How many features a module serves is not what distinguishes it.** A module that serves several
 features keeps one partition, `Common/` plus `Features/<Feature>/`, whether it serves one or four,
@@ -512,14 +528,13 @@ the other four, and both assert that nothing there depends on `AppTemplate.Domai
 therefore the model's composition root — and a second test asserts that it really does name a
 feature, so the exclusion stays a decision rather than a hole.
 
+There is no other exclusion. The list that would hold one is written as a list rather than as a
+condition, and asserted empty, so adding a name to it is a line somebody has to justify in review.
 <!--#if (localAuth)-->
-There is one other exclusion, in the identity module, and it is written as a list with a
-reason beside it rather than as a condition. `IAppUserDirectory` and its adapter name
-`AppUser`, the ASP.NET Identity row the persistence module maps. That is the permitted
-direction — the rule above forbids only the reverse — and `AppUser` is a stored account rather
-than a business entity, which is why the directory is shared machinery rather than a feature
-adapter in disguise. Adding a second name to that list is a line somebody has to justify in
-review.
+The identity module shows what the empty list costs: the account directory every authentication
+feature reads names `AppUser`, the account row, so it files under the feature that owns that row —
+`Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Accounts/Adapters/Directories/` — and
+the module's `Common/` keeps its context and its shared token settings, which name no feature.
 <!--#endif-->
 
 The forbidden list runs to four namespaces rather than one because an adapter can belong to a
@@ -527,7 +542,8 @@ feature in its name, its counters and its prose while depending on none of that 
 types, and a rule that reads only dependencies cannot see it. An adapter that counts one
 feature therefore lives with that feature.
 <!--#if (reminders)-->
-`Features/Reminders/Observability/ReminderDiagnostics.cs` is the worked case.
+`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/Adapters/Observability/ReminderDiagnostics.cs`
+is the worked case.
 <!--#endif-->
 See below for why one context
 rather than two, and why EF maps rows rather than aggregates.
@@ -630,7 +646,7 @@ guessing at that shape.
 **A feature uses another feature only through that feature's public application port or its
 domain events — never through its records, its EF configurations, its `DbSet`s or its tables.**
 The surface of a feature is two namespaces: `Application/Features/<F>/Ports/` and
-`Domain/Features/<F>/Events/`. Everything else of it is its own, and `FeatureIsolationTests`
+`Domain/Features/<F>/Model/Events/`. Everything else of it is its own, and `FeatureIsolationTests`
 reads both the application and the persistence project to hold the line, with a sensitivity check
 so it cannot go quiet.
 
@@ -1227,7 +1243,8 @@ change tracker useful without it ever seeing the aggregate.
   key is only correct once `ReverseProxy:Enabled` is turned on — see below; the mechanism is
   shipped, the trust list is what your topology has to supply.
 - **A wire contract is this layer's own type, never an application or port type reused.** Every
-  feature projects onto its own records in `Contracts/`, by hand, through one `Mapping/` class.
+  feature projects onto its own records in `Contracts/`, by hand, through one class in
+  `Contracts/Mapping/`.
   The projections that are what the boundary is for are the ones a contract *is not* the application
   type; field-for-field is the common case and looks like ceremony.
 <!--#if (reminders)-->

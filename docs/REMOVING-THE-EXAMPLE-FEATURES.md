@@ -165,10 +165,16 @@ there is no `Domain` row to delete and no tracker, mapper or event behind it.
   the two port substitutes and the call in `ComposeEveryFeature`.
 - `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/TestDatabase.cs`: the
   `NotesSchema` in the list of schemas it truncates.
-- `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`: `Validators`
-  and `Stores` leave the two vocabularies, because they are used by `Notes` alone and the rule that
-  every word has a folder fails otherwise. `Validators` leaves `FeatureFolderVocabularyTests` too.
-  `FeatureIsolationTests.AFeatureWithoutADomainFolder_IsAServiceOverAStore` stays: with no feature
+<!--#if (externalAuth)-->
+- `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs` keeps
+  `Access/Stores` in the persistence vocabulary: `ExternalIdentity` is filed under it too, so the
+  rule that every word has a folder still finds one.
+<!--#else
+- `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`:
+  `Access/Stores` leaves the persistence vocabulary, because `Notes` is the one feature filed under
+  it and the rule that every word has a folder fails otherwise.
+#endif-->
+- `FeatureIsolationTests.AFeatureWithoutADomainFolder_IsAServiceOverAStore` stays: with no feature
   of that shape it has nothing to read, which is deliberate, and it is the rule a later simple
   feature meets.
 
@@ -369,7 +375,7 @@ Remove the feature's one composition line — `AddTodoLists()` **(T)**, `AddRemi
 AppTemplate.Infrastructure.Storage;`. The persistence side needs no line here: it cascades through
 `AddPersistenceModule`. **Do not remove `AddEmailModule` or `AddAuthModule` with `Reminders`.**
 `AddAuthApplication()` registers every use case `AppTemplate.Application.Auth` declares, and
-`ValidateOnBuild` then requires all nine of that project's ports to resolve — four of the use cases
+`ValidateOnBuild` then requires all fourteen of that project's ports to resolve — four of the use cases
 take `IEmailSender` — so dropping either module leaves a build that is perfectly green and an API
 that will not start. Dropping authentication itself is a different operation: see
 [Removing authentication](#removing-authentication).
@@ -515,8 +521,8 @@ all fourteen ports `AppTemplate.Application.Auth` declares to resolve — not on
 reach. That is why `AppTemplate.Infrastructure.Auth` and `AppTemplate.Infrastructure.Email` both stay
 composed after `Reminders` goes: the authentication use cases take its ports and `IEmailSender`, and
 they are registered whether or not anything calls them. Removing `Reminders` also removes the line
-in `Program.cs` that registers `AccountReminderRecipientDirectory`, and its folder
-`Features/Reminders/Directories/`. `AppTemplate.Infrastructure.Storage` is the
+in `Program.cs` that registers `AccountReminderRecipientDirectory`, and that adapter with the rest
+of the API's `Features/Reminders/`. `AppTemplate.Infrastructure.Storage` is the
 one module that leaves with a business feature, and only with `Files`.
 
 Either way the process still shows the template's actual claim: the same application layer answering

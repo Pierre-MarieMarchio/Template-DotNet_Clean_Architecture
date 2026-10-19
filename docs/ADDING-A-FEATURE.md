@@ -33,7 +33,7 @@ Two placeholders run through the whole document. **`<Feature>` is the folder, in
 plural** — `TodoLists`, `Reminders`, `Files` — and **`<Aggregate>` is the type, in the
 singular** — `TodoList`, `Reminder`, `StoredFile`. Folders under `Features/` carry the
 feature; file and type names carry the aggregate. `TodoListErrors` lives in
-`Features/TodoLists/Errors/`, and nothing in the tree is called `TodoListsErrors`.
+`Features/TodoLists/Model/Errors/`, and nothing in the tree is called `TodoListsErrors`.
 
 ## Choose the shape first
 
@@ -211,9 +211,9 @@ The sections below describe what to put in what it wrote.
 `Src/Domain/AppTemplate.Domain/Features/<Feature>/`
 
 ```
-Entities/<Aggregate>.cs         the aggregate root
-ValueObjects/<Name>.cs          validated primitives (record types)
-Events/<Thing>DomainEvent.cs    what the aggregate raised
+Model/Entities/<Aggregate>.cs         the aggregate root
+Model/ValueObjects/<Name>.cs          validated primitives (record types)
+Model/Events/<Thing>DomainEvent.cs    what the aggregate raised
 Repositories/I<Aggregate>Repository.cs   the repository contract, in domain types only
 ```
 
@@ -228,7 +228,7 @@ the shared ownership gate below check it. A feature adds nothing to that project
 published — it references nothing at all, and every public member of it is documented — so the primitives are something you read the signatures of and build on, not
 something a new feature negotiates with.
 
-`TodoList` (`Entities/TodoList.cs`) is the reference: a private list of items, a
+`TodoList` (`Model/Entities/TodoList.cs`) is the reference: a private list of items, a
 factory (`Create`) and a rehydration path (`Rehydrate`) that both run the same
 invariants — unique titles, an item cap, a non-empty owner — so a row loaded from
 the database can never produce an aggregate that breaks its own rules. Put every
@@ -253,7 +253,7 @@ aggregate root: `DomainModelTests.AggregateRoots_AreSealed` requires it.
 
 <!--#if (aggregates)-->
 **An event nothing listens to has to be a decision, not an oversight.** The first
-`Events/<Thing>DomainEvent.cs` you add turns
+`Model/Events/<Thing>DomainEvent.cs` you add turns
 `DomainEventTests.EveryDomainEvent_IsEitherConsumedOrListedAsUnconsumed` red until one
 of two things is true: some `IDomainEventConsumer<T>` in the application layer handles
 it, or its type name is written into the `_deliberatelyUnconsumed` array at the top of
@@ -291,18 +291,19 @@ UseCases/Commands|Queries/<Operation>/         one folder per operation:
   <Operation>CommandValidator.cs               FluentValidation, scoped to this operation
   <types used only by this one operation>      e.g. a response record no other operation returns
 Ports/<Port>/                  a port interface, together with the messages that cross it
-Consumers/<Event>/             domain-event consumers, if the feature has any
-Services/                      internal collaborators shared by more than one use case
-Policies/                      the collection whitelist, and every other rule the feature
+Model/Dtos/<Name>Dto.cs        read models more than one operation shares
+Model/Errors/<Aggregate>Errors.cs    the feature's Error catalogue
+Model/Mapping/                 aggregate -> DTO projections
+Model/Policies/                the collection whitelist, and every other rule the feature
                                enforces; each one named ...Policy
-Extensions/                    small helpers scoped to this feature
-Mapping/                       aggregate -> DTO projections
-Dtos/<Name>Dto.cs              read models more than one operation shares
-Errors/<Aggregate>Errors.cs    the feature's Error catalogue
+Services/                      internal collaborators shared by more than one use case
+Services/Consumers/<Event>/    domain-event consumers, if the feature has any
+Helpers/                       pure static functions with no more precise nature, if any
 ```
 
 A folder is only present when it has content — a feature with no domain-event consumer
-has no `Consumers/`. `Dtos/` holds only shapes more than one operation returns; a
+has no `Services/Consumers/`, and one whose only consumer is one file keeps it flat there rather
+than in an `<Event>/` folder. `Model/Dtos/` holds only shapes more than one operation returns; a
 response type only one operation produces stays in that operation's own folder instead.
 A type that appears in a port's signature never moves into a use case's folder, however
 many use cases call that port — otherwise `Ports/` would depend on `UseCases/`.
@@ -407,7 +408,7 @@ Sorting, filtering and paging are already built, once, in
 **declares what it allows**:
 
 ```
-Policies/<Aggregate>CollectionPolicy.cs              the sortable whitelist and the bounds
+Model/Policies/<Aggregate>CollectionPolicy.cs        the sortable whitelist and the bounds
 Ports/<Aggregate>Queries/<Aggregate>Filter.cs       the typed filter surface + its validation
 ```
 
@@ -418,7 +419,7 @@ not one use case's private concern. **There is no per-feature page-request type*
 skipped validation cannot exist. The feature's query record declares `ICollectionQuery` — its five
 paging members, and so the OpenAPI parameters it publishes, are unchanged by doing so.
 
-The policy is the whitelist, and it lives in the feature's own `Policies/` folder rather than
+The policy is the whitelist, and it lives in the feature's own `Model/Policies/` folder rather than
 beside `ICollectionPolicy` in `AppTemplate.Application.Core/Common/Policies/`, because only the
 feature knows which of its columns are cheap to order by:
 
@@ -493,7 +494,7 @@ Task<PagedResult<TodoListSummaryDto>> GetForOwnerAsync(
 ```
 
 The translation to SQL is the persistence half, in
-`Features/<Feature>/Queries/<Aggregate>SortMap.cs`: an exhaustive `switch` on the
+`Features/<Feature>/Access/Queries/<Aggregate>SortMap.cs`: an exhaustive `switch` on the
 canonical field name returning a typed key selector, a `default` arm that throws
 because the use case should already have refused, and a mandatory
 `.ThenBy(record => record.Id)` on every order. Copy `TodoListSortMap` — the shape
@@ -505,12 +506,12 @@ checked mechanically.
 `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/<Feature>/`
 
 ```
-Models/<Aggregate>Record.cs                  the EF row — no behaviour, no invariants
-Configurations/<Aggregate>RecordConfiguration.cs   IEntityTypeConfiguration<T>
-Mapping/I<Aggregate>Mapper.cs / <Aggregate>Mapper.cs
-Tracking/I<Aggregate>Tracker.cs / <Aggregate>Tracker.cs
-Repositories/<Aggregate>Repository.cs        implements the domain's repository contract
-Queries/<Aggregate>Queries.cs                read-side projections, if the feature has any
+Rows/Models/<Aggregate>Record.cs             the EF row — no behaviour, no invariants
+Rows/Configurations/<Aggregate>RecordConfiguration.cs   IEntityTypeConfiguration<T>
+Rows/Mapping/I<Aggregate>Mapper.cs / <Aggregate>Mapper.cs
+Rows/Tracking/I<Aggregate>Tracker.cs / <Aggregate>Tracker.cs
+Access/Repositories/<Aggregate>Repository.cs implements the domain's repository contract
+Access/Queries/<Aggregate>Queries.cs         read-side projections, if the feature has any
 ```
 
 **The record is not the aggregate.** `TodoListRecord` is a settable class with no
@@ -519,24 +520,24 @@ the subject of [`CONVENTIONS.md`](CONVENTIONS.md#design-conventions)'s Persisten
 it before changing any of the four pieces below,
 because they exist specifically to keep the split intact:
 
-1. **Record** (`Models/`) — implements `IAuditable`; carries the EF-visible shape
+1. **Record** (`Rows/Models/`) — implements `IAuditable`; carries the EF-visible shape
    (foreign keys, the `xmin`-backed `Version` column, audit stamps) and nothing the
    domain does not also need to persist.
-2. **Configuration** (`Configurations/`) — `ToTable`, keys, indexes, string lengths
+2. **Configuration** (`Rows/Configurations/`) — `ToTable`, keys, indexes, string lengths
    read from the domain's own constants (e.g. `TodoListName.MaxLength`) so the
    column and the invariant cannot drift apart.
-3. **Mapper** (`Mapping/`) — the one place that knows both shapes: `ToAggregate`
+3. **Mapper** (`Rows/Mapping/`) — the one place that knows both shapes: `ToAggregate`
    (row → domain, total), `ToNewRecord` (domain → row, total, exercised by a
    round-trip fidelity test), and `WriteTo` (domain → row, deliberately *partial* —
    it never touches the columns the store owns: audit stamps, the concurrency
    token). Stateless, EF-free, registered as a singleton.
-4. **Tracker** (`Tracking/`) — the identity map EF is not maintaining, because EF
+4. **Tracker** (`Rows/Tracking/`) — the identity map EF is not maintaining, because EF
    only sees records, not aggregates. One instance per request resolved under
    **three** contracts (`I<Aggregate>Tracker` for the repository,
    `IAggregateFlusher` for the flush interceptor, `IDomainEventSource` for the
    dispatch interceptor) — see the registration note below, it is the single most
    common way to get this feature wrong.
-5. **Repository** (`Repositories/`) — implements the domain's `I<Aggregate>Repository`.
+5. **Repository** (`Access/Repositories/`) — implements the domain's `I<Aggregate>Repository`.
    Consults the tracker first (identity map), then queries with
    `.Include(...).AsSplitQuery()` for anything with child collections, maps, and
    registers the result with the tracker. Never calls `SaveChangesAsync` — that is
@@ -610,7 +611,7 @@ configuration you forgot; skip it and you will find out from a `500`.
 Controllers/<Feature>Controller.cs
 Contracts/Requests/<Verb><Aggregate>Request.cs    request records the controller binds
 Contracts/Responses/<Verb><Aggregate>Response.cs  response records the controller returns
-Mapping/<Feature>Mapping.cs                       request/response <-> application DTO
+Contracts/Mapping/<Aggregate>ResponseMapping.cs   application DTO -> response records
 ```
 
 The controller depends on named use-case interfaces only, maps requests to
@@ -723,11 +724,11 @@ aggregate, and it is the closer comparison for most new features: read it to see
 of the pieces above you actually need.
 
 What it does not have is the point. The domain side is four files —
-`Entities/Reminder.cs`, `ValueObjects/ReminderState.cs`,
-`Events/ReminderFiredDomainEvent.cs`, `Repositories/IReminderRepository.cs` — with no
+`Model/Entities/Reminder.cs`, `Model/ValueObjects/ReminderState.cs`,
+`Model/Events/ReminderFiredDomainEvent.cs`, `Repositories/IReminderRepository.cs` — with no
 child collection, so `ReminderRepository` loads a row and maps it, where
 `TodoListRepository` needs `.Include(list => list.Items).ThenInclude(item => item.Tags)`
-and `.AsSplitQuery()`. There is no `Policies/` folder either: reminders are read one
+and `.AsSplitQuery()`. There is no `Model/Policies/` folder either: reminders are read one
 item's worth at a time, so the feature has no collection endpoint, and therefore no
 `CollectionPolicy`, no `Filter`, no request binder and no `SortMap`. Section 2b simply
 does not apply to it. Skipping all of that is the default, not a shortcut — build the
@@ -813,7 +814,7 @@ application tests under `Tests/Application/AppTemplate.Application.UnitTests/`, 
 on. The mirror is exact down to `Features/<Feature>/`; below that it is followed only
 where a feature has enough tests of one nature to be worth separating. In the
 persistence mirror, for instance, the mapper and tracker tests sit directly under
-`Features/<Feature>/` while `Queries/` has a folder of its own. Match the neighbouring
+`Features/<Feature>/` while `Access/Queries/` has a folder of its own. Match the neighbouring
 feature rather than the source tree when the two disagree. Add:
 
 - Domain: the aggregate's invariants, from the constructor, the factory, and
@@ -911,13 +912,14 @@ input is validation, not state to protect, so the feature is a service over stor
 `Src/Application/AppTemplate.Application/Features/Notes/`
 
 ```
-Dtos/                   NoteDto, NoteSummaryDto (what is read); NoteContentDto, NoteListQueryDto (what the service is given)
-Errors/                 NoteErrors — note.notFound
-Policies/               NoteInputPolicy (the length limits), NoteCollectionPolicy (the sort whitelist)
+Model/Dtos/             NoteDto, NoteSummaryDto (what is read); NoteContentDto, NoteListQueryDto (what the
+                        service is given); NoteContentDtoValidator, beside the Dto it validates
+Model/Errors/           NoteErrors — note.notFound
+Model/Policies/         NoteInputPolicy (the length limits), NoteCollectionPolicy (the sort whitelist)
 Ports/NoteQueries/      INoteQueries, NoteFilter — the reads, projected to DTOs
 Ports/NoteStore/        INoteStore, NoteChangeStatus — the writes, which only stage
 Services/               INoteService, NoteService — one method per operation
-Validators/             NoteContentDtoValidator
+Services/Consumers/     DeleteNotesOnAccountDeletedConsumer — a note leaves with its owner
 ```
 
 - **One service, one method per operation** — `ListAsync`, `GetAsync`, `CreateAsync`, `UpdateAsync`,
@@ -939,10 +941,10 @@ Validators/             NoteContentDtoValidator
 `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Notes/`
 
 ```
-Models/NoteRecord.cs                 the row, and the only model there is
-Configurations/NoteRecordConfiguration.cs
-Queries/NoteQueries.cs, NoteSortMap.cs
-Stores/NoteStore.cs
+Rows/Models/NoteRecord.cs            the row, and the only model there is
+Rows/Configurations/NoteRecordConfiguration.cs
+Access/Queries/NoteQueries.cs, NoteSortMap.cs
+Access/Stores/NoteStore.cs
 ```
 
 `NoteRecord` is not `IAuditable`: the service sets the two instants, so the business context's audit
@@ -972,9 +974,11 @@ the create only, and the complete `ProducesResponseType` set for the OpenAPI doc
 and `Tests/Presentation/AppTemplate.Api.UnitTests/Composition/SqliteSavingHost.cs`, which compose the
 host the way `Program.cs` does.
 
-**Two words are new to the vocabulary.** `Validators/` (application) and `Stores/` (persistence) are
-the folders this shape needs and the other does not, so they sit in both closed vocabularies in
-`Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`. The rule that
+**One word is this shape's own.** `Access/Stores/` (persistence) is the folder this shape needs and
+the rich one does not, so it sits in the closed vocabulary in
+`Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`; the validator
+needs no word of its own, because with no operation folder to hold it, it files beside the Dto it
+validates in `Model/Dtos/`. The rule that
 every feature has a domain folder became
 `FeatureIsolationTests.AFeatureWithoutADomainFolder_IsAServiceOverAStore`: the exemption exists only
 for a service over its storage ports, a store to write and queries to read, that declares no use cases.
@@ -1000,8 +1004,8 @@ stale and competing writes and the idempotent create through the real API agains
 This project was generated without the `Notes` example (`--examples none`). The simple shape is a
 service over two storage ports: one service with a method per operation, a write port
 (`I<Feature>Store`) and a read port (`I<Feature>Queries`) in the application layer, an EF record that
-is the whole model in persistence, no domain folder, and the `Validators/` and `Stores/` folders in
-the two closed vocabularies of `LayoutConventionTests`. `new-feature <Features> <Type> --model record`
+is the whole model in persistence, no domain folder, its input's validator beside that Dto in
+`Model/Dtos/`, and its store adapter in `Access/Stores/`. `new-feature <Features> <Type> --model record`
 writes it; a project generated with `--examples notes` or `all` holds the worked example this section
 walks through.
 
@@ -1012,7 +1016,7 @@ A note that acquires a rule — at most a hundred notes per owner, or a note tha
 archived — now has a state to protect. The way across is the only bridge between the shapes, and it
 changes the inside of the feature, not its surface:
 
-1. **Extract the aggregate.** `Note` in the domain's `Entities/`, with a factory and a rehydration
+1. **Extract the aggregate.** `Note` in the domain's `Model/Entities/`, with a factory and a rehydration
    path that run the same invariants, its value objects, and `INoteRepository` in `Repositories/`
    (section 1).
 2. **Replace the store by a repository.** `NoteRecord` stays, since it is already the row; add the

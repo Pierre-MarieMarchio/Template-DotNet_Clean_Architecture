@@ -245,7 +245,7 @@ cd Src/Presentation/AppTemplate.Api
 
 # The one thing you actually need to run locally
 dotnet user-secrets set "ConnectionStrings:Default" \
-  "Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=<your password>"
+  "Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=<your password>;Gss Encryption Mode=Disable"
 <!--#if (localAuth)-->
 dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)"
 <!--#endif-->
@@ -309,7 +309,9 @@ there: what is deliberately not configurable, and how a key becomes an environme
 | `Default` | string | — | **Required.** The one and only connection string. Npgsql format. |
 <!--#endif-->
 
-Example: `Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=…`
+Example: `Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=…;Gss Encryption Mode=Disable`
+
+The shipped connection strings set `Gss Encryption Mode=Disable` because Npgsql otherwise probes for Kerberos (GSSAPI) encryption first, which logs a missing `libgssapi_krb5` error on Alpine images before falling back. It leaves TLS (`SSL Mode`) and password authentication untouched; a Kerberos deployment removes it.
 
 A missing or blank value throws `InvalidOperationException` from the DI registration
 itself — before options validation runs — with the message

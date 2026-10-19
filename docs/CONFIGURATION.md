@@ -55,8 +55,8 @@ be filled from user secrets or environment variables.
 > |---|---|---|
 <!--#if (localAuth)-->
 > | `Identity`, `IdentityTokens` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Common/Options/` |
-> | `Jwt`, `RefreshToken`, `SecurityEventLog`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `TwoFactor` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Auth/Options/` |
-> | `IdentitySeed` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Auth/Seeding/` |
+> | `Jwt`, `RefreshToken`, `SecurityEventLog`, `EmailConfirmation`, `PasswordReset`, `EmailChange`, `TwoFactor` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/<Feature>/Configuration/Options/` |
+> | `IdentitySeed` | `AddAuthModule` | `AppTemplate.Infrastructure.Auth/Features/Accounts/Configuration/Seeding/` |
 <!--#endif-->
 <!--#if (externalAuth)-->
 > | `Authentication:External` | `AddExternalAuthentication` | `AppTemplate.Api/Features/ExternalIdentity/Composition/` |
@@ -954,7 +954,7 @@ runs. A blank or malformed tag fails startup either way with the same message.
 templates are embedded, and a list here would be a second statement of that — free to name a
 language no template backs. Adding a language is adding
 `<Mail>.<culture>.html` next to the ones that ship, in
-`AppTemplate.Infrastructure.Auth/Features/Auth/Templates/` (the three account mails) and
+`AppTemplate.Infrastructure.Auth/Features/Accounts/Resources/Templates/` (the three account mails) and
 `AppTemplate.Infrastructure.Email/Features/Reminders/Templates/` (the reminder), and nothing else.
 `EmailTemplateCoverageTests` refuses a language added to one of those folders and not the other.
 

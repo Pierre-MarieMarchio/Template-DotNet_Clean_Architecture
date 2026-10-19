@@ -35,7 +35,7 @@
          build stays green and GetManifestResourceNames() returns nothing, so every mail throws at
          the first send. Forward slashes matter too: a wildcard written with backslashes does not
          expand on Linux or macOS. -->
-    <EmbeddedResource Include="Features/Auth/Templates/*.html" WithCulture="false" />
+    <EmbeddedResource Include="Features/Accounts/Resources/Templates/*.html" WithCulture="false" />
   </ItemGroup>
 
   <ItemGroup>

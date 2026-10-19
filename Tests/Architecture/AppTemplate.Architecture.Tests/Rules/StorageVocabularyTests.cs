@@ -14,8 +14,8 @@ namespace AppTemplate.Architecture.Tests.Rules;
 /// <item><c>Queries</c> projects rows onto a DTO without materialising an aggregate.</item>
 /// <item><c>Store</c> is an application port for storage with no aggregate behind it — an
 /// idempotency claim.</item>
-/// <item><c>Table</c> is row access to one table, declared inside the persistence project and
-/// reached only inside its own infrastructure module — a refresh-token grant.</item>
+/// <item><c>Table</c> is row access to one table, declared inside the module that owns the rows and
+/// reached only inside that module — a refresh-token grant.</item>
 /// </list>
 /// <para>
 /// The last two are one word apart and nothing but a rule keeps them apart, since the distinction

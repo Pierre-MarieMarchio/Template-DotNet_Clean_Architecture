@@ -410,14 +410,14 @@ curl -s -X POST http://localhost:8080/api/v1/auth/register \
 
 <!--#if (reminders && localAuth)-->
 **Adding a language is adding files.** Drop `<Mail>EmailTemplate.<tag>.html` beside the ones
-in `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates/` and
+in `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Accounts/Resources/Templates/` and
 `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/`, and that language
 is available — there is no list to update, because a list could name a language no template
 backs. `EmailTemplateCoverageTests` refuses a language added to one folder and not the other,
 and refuses two languages of one mail sharing a subject.
 <!--#elseif (localAuth)
 **Adding a language is adding files.** Drop `<Mail>EmailTemplate.<tag>.html` beside the ones
-in `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Auth/Templates/`, and that language
+in `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Accounts/Resources/Templates/`, and that language
 is available — there is no list to update, because a list could name a language no template
 backs. `EmailTemplateCoverageTests` refuses a language added to one mail folder and not to every
 other, and refuses two languages of one mail sharing a subject.

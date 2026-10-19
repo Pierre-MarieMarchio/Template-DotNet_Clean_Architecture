@@ -55,13 +55,10 @@ public sealed class FeatureFolderVocabularyTests
         ["Errors"] = ["Errors"],
         ["Events"] = ["Event"],
         ["Extensions"] = ["Extensions"],
-        ["Factories"] = ["Factory"],
         ["Helpers"] = ["Helpers", "Extensions"],
         ["Inventories"] = ["Inventory"],
-        ["Issuers"] = ["Issuer"],
         ["Jobs"] = ["BackgroundService", "Extensions", "Instruments", "Module", "Options", "Task", "Telemetry"],
         ["Locks"] = ["Lock"],
-        ["Logs"] = ["Log"],
         ["Mapping"] = ["Mapper", "Mapping"],
         ["Models"] = ["Record"],
         ["Observability"] = ["Instruments", "Diagnostics"],
@@ -83,7 +80,6 @@ public sealed class FeatureFolderVocabularyTests
         ["UseCases"] = [],
         ["Validators"] = ["Validator"],
         ["ValueObjects"] = [],
-        ["Verifiers"] = ["Verifier"],
     };
 
     /// <summary>

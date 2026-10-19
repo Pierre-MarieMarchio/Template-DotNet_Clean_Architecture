@@ -10,8 +10,8 @@ using AppTemplate.Application.Auth;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
-using AppTemplate.Infrastructure.Auth.Features.Auth.Providers;
-using AppTemplate.Infrastructure.Auth.Features.Auth.Seeding;
+using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Seeding;
+using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Api.Features.Auth.Composition;

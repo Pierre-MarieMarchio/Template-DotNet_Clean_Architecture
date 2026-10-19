@@ -1,4 +1,4 @@
-﻿using AppTemplate.Infrastructure.Auth.Features.Auth.Models;
+﻿using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using Microsoft.AspNetCore.Identity;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;

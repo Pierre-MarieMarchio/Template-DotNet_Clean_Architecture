@@ -1,4 +1,5 @@
-﻿using AppTemplate.Infrastructure.Auth.Features.Passkeys.Configuration.Options;
+﻿using System.Globalization;
+using AppTemplate.Infrastructure.Auth.Features.Passkeys.Configuration.Options;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
@@ -36,6 +37,30 @@ public sealed class PasskeyOptionsValidatorTests
 
         result.Succeeded.ShouldBeFalse();
         result.FailureMessage!.ShouldContain("Passkey:ServerDomain");
+    }
+
+    [Theory]
+    [InlineData("00:01:00")]
+    [InlineData("00:05:00")]
+    [InlineData("00:30:00")]
+    public void ACeremonyLifetimeWithinItsBounds_IsAccepted(string lifetime)
+    {
+        Validate(new PasskeyOptions { CeremonyLifetime = TimeSpan.Parse(lifetime, CultureInfo.InvariantCulture) })
+            .Succeeded.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("00:00:00")]
+    [InlineData("00:00:59")]
+    [InlineData("00:30:01")]
+    [InlineData("01:00:00")]
+    public void ACeremonyLifetimeOutsideItsBounds_IsRefused(string lifetime)
+    {
+        var result = Validate(
+            new PasskeyOptions { CeremonyLifetime = TimeSpan.Parse(lifetime, CultureInfo.InvariantCulture) });
+
+        result.Succeeded.ShouldBeFalse();
+        result.FailureMessage!.ShouldContain("Passkey:CeremonyLifetime");
     }
 
     private ValidateOptionsResult Validate(PasskeyOptions options) =>

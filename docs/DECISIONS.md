@@ -234,9 +234,19 @@ flight without holding a lock across the two.
 `SignInManager` passkey methods park the ceremony state in the two-factor-user-id cookie; this API
 sets no cookie and keeps no session between the two calls of a sign-in, so the adapter hands the
 state to the client as an opaque string and verifies it against what the client posts back — the
-same shape the two-factor challenge token has. The state is not tamper-proofed and does not need to
-be: it carries the challenge the authenticator must have signed, so a rewritten state only produces
-a ceremony that does not verify.
+same shape the two-factor challenge token has. Carrying the challenge the authenticator must sign
+is not enough on its own: WebAuthn requires a challenge to be answered once and soon, and a state
+the client could keep and present again would let one captured state and credential sign in
+indefinitely from an authenticator that keeps no signature counter, as synced passkeys do. So the
+state is sealed by a time-limited data protector — under a purpose per ceremony kind, a
+registration's naming its account too — and lives `Passkey:CeremonyLifetime` (five minutes), and
+it is spent on its first presentation, before the handler verifies anything: one `INSERT` keyed on
+a hash of the state into `identity.SpentPasskeyCeremonies`, so the database decides which of two
+presentations, on one instance or several, wins, and a ceremony that fails still uses its state
+up. A rewritten, expired, wrong-kind or spent state is refused exactly as a ceremony that does not
+verify. The rows live minutes, so the options calls purge the expired ones as they go rather than a
+maintenance task: the purge would otherwise have needed a seventh operation on `IPasskeyService`,
+past the six a port may declare, for a table no use case knows exists.
 <!--#endif-->
 
 <!--#if (localAuth)-->

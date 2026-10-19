@@ -1,6 +1,8 @@
 ﻿using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Configurations;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
+using AppTemplate.Infrastructure.Auth.Features.Passkeys.Access.Tables;
 using AppTemplate.Infrastructure.Auth.Features.Passkeys.Rows.Configurations;
+using AppTemplate.Infrastructure.Auth.Features.Passkeys.Rows.Models;
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Rows.Configurations;
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Rows.Models;
 using AppTemplate.Infrastructure.Auth.Features.Sessions.Access.Tables;
@@ -12,8 +14,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Auth.Common.Contexts;
 
-/// <summary>Everything this module stores: ASP.NET Identity's tables, the refresh-token grants and
-/// the data protection key ring, in the <see cref="IdentitySchema"/> schema with a migrations
+/// <summary>Everything this module stores: ASP.NET Identity's tables, the refresh-token grants, the
+/// spent passkey ceremonies and the data protection key ring, in the <see cref="IdentitySchema"/> schema with a migrations
 /// history of its own (docs/ARCHITECTURE.md argues why two contexts on one database). <b>This class
 /// is the module's model composition root</b>, the one type in its <c>Common/</c> allowed to name a
 /// feature. A context instance is a unit of work, scoped to one request and disposed by the
@@ -55,13 +57,19 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     internal DbSet<RefreshTokenFamilyRecord> RefreshTokenFamilies => Set<RefreshTokenFamilyRecord>();
 
     /// <summary>
+    /// The passkey ceremonies whose state has been presented, kept until the state expires — see
+    /// <see cref="ISpentPasskeyCeremonyTable"/>, the only thing that reaches it.
+    /// </summary>
+    internal DbSet<SpentPasskeyCeremonyRecord> SpentPasskeyCeremonies => Set<SpentPasskeyCeremonyRecord>();
+
+    /// <summary>
     /// The key ring <see cref="IDataProtectionKeyContext"/> requires. Public, unlike the set above:
     /// the ASP.NET Core data-protection system reads and writes it directly through that interface,
     /// so nothing about it can be internal to this assembly.
     /// </summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
-    /// <summary>Applies this module's twelve configurations.</summary>
+    /// <summary>Applies this module's thirteen configurations.</summary>
     /// <param name="builder">The model being built.</param>
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -69,7 +77,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 
         base.OnModelCreating(builder);
 
-        // Named one by one rather than discovered by scanning the assembly: twelve lines the compiler
+        // Named one by one rather than discovered by scanning the assembly: thirteen lines the compiler
         // checks, instead of a reflection call that silently maps nothing when a configuration class
         // is renamed or moved. No default schema is set — every table names its own.
         builder.ApplyConfiguration(new AppUserConfiguration());
@@ -78,6 +86,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
         builder.ApplyConfiguration(new RefreshTokenFamilyConfiguration());
         builder.ApplyConfiguration(new SecurityEventConfiguration());
         builder.ApplyConfiguration(new UserPasskeyConfiguration());
+        builder.ApplyConfiguration(new SpentPasskeyCeremonyConfiguration());
         builder.ApplyConfiguration(new UserRoleConfiguration());
         builder.ApplyConfiguration(new UserClaimConfiguration());
         builder.ApplyConfiguration(new UserLoginConfiguration());

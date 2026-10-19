@@ -3,9 +3,10 @@
 /// <summary>An account's passkeys: the ceremonies that register one, the list its owner reads, and
 /// the one a sign-in presents. The WebAuthn arithmetic is the adapter's behind this port; the
 /// decisions — what a refusal answers, whether the account may still sign in — live in the use
-/// cases. A ceremony is two calls joined by an opaque state string handed back to the caller; none
-/// is held server-side. Every write commits on its own, and the sign-in step updates the
-/// credential's signature counter <em>before</em> it returns.</summary>
+/// cases. A ceremony is two calls joined by an opaque state string handed back to the caller, which
+/// the adapter seals, lets expire, and accepts once: a second presentation of the same state is
+/// refused as a ceremony that does not verify. Every write commits on its own, and the sign-in step
+/// updates the credential's signature counter <em>before</em> it returns.</summary>
 public interface IPasskeyService
 {
     /// <summary>Starts a registration: the creation options the client feeds to

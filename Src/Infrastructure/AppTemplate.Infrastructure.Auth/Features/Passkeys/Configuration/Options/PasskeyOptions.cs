@@ -7,7 +7,7 @@ namespace AppTemplate.Infrastructure.Auth.Features.Passkeys.Configuration.Option
 /// user verification required, the challenge size, the authenticator timeout — is
 /// <see cref="Microsoft.AspNetCore.Identity.IdentityPasskeyOptions"/>'s own safe defaults, kept
 /// rather than re-declared: what a deployment must be able to set is the domain a credential is
-/// scoped to, and that is the one member here.
+/// scoped to, and how long a ceremony's state may travel before it is refused.
 /// </summary>
 public sealed class PasskeyOptions
 {
@@ -25,15 +25,32 @@ public sealed class PasskeyOptions
     /// </para>
     /// </summary>
     public string? ServerDomain { get; set; }
+
+    /// <summary>
+    /// How long the state string a ceremony's first call hands out stays redeemable. The state is
+    /// sealed by a time-limited data protector and spent on its first presentation, so this bounds
+    /// how long a captured one is worth anything, and how long its spent record is kept.
+    /// <para>
+    /// Five minutes, the authenticator timeout Identity writes into the options it builds: a shorter
+    /// lifetime would refuse a ceremony the browser is still allowed to finish, and a longer one
+    /// only widens the window for a state nobody is still using.
+    /// </para>
+    /// </summary>
+    public TimeSpan CeremonyLifetime { get; set; } = TimeSpan.FromMinutes(5);
 }
 
 /// <summary>
 /// Refuses a <see cref="PasskeyOptions.ServerDomain"/> that is not a bare domain: a WebAuthn
 /// relying-party id is one, and anything else — a scheme, a port, a path — would fail every
 /// ceremony at the client, after the account holder had already been asked for their fingerprint.
+/// Bounds <see cref="PasskeyOptions.CeremonyLifetime"/> as the two-factor challenge's lifetime is
+/// bounded.
 /// </summary>
 internal sealed class PasskeyOptionsValidator : IValidateOptions<PasskeyOptions>
 {
+    private static readonly TimeSpan _minimumCeremonyLifetime = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan _maximumCeremonyLifetime = TimeSpan.FromMinutes(30);
+
     public ValidateOptionsResult Validate(string? name, PasskeyOptions options)
     {
         var failures = new List<string>();
@@ -48,6 +65,13 @@ internal sealed class PasskeyOptionsValidator : IValidateOptions<PasskeyOptions>
             failures.Add(
                 $"'{PasskeyOptions.SectionName}:ServerDomain' must be a bare domain such as 'api.example.org' " +
                 "— the WebAuthn relying-party id — with no scheme, port or path.");
+        }
+
+        if (options.CeremonyLifetime < _minimumCeremonyLifetime || options.CeremonyLifetime > _maximumCeremonyLifetime)
+        {
+            failures.Add(
+                $"'{PasskeyOptions.SectionName}:CeremonyLifetime' must be between " +
+                $"{_minimumCeremonyLifetime} and {_maximumCeremonyLifetime}.");
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

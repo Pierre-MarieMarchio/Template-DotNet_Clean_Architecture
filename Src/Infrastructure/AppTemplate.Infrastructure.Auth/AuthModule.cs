@@ -22,6 +22,7 @@ using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Seeding;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Auth.Features.ExternalLogins.Adapters.Services;
 using AppTemplate.Infrastructure.Auth.Features.ExternalLogins.Configuration.Options;
+using AppTemplate.Infrastructure.Auth.Features.Passkeys.Access.Tables;
 using AppTemplate.Infrastructure.Auth.Features.Passkeys.Adapters.Services;
 using AppTemplate.Infrastructure.Auth.Features.Passkeys.Configuration.Options;
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Access.Queries;
@@ -96,6 +97,7 @@ public static class AuthModule
 
         services.TryAddScoped<IRefreshTokenTable, RefreshTokenTable>();
         services.TryAddScoped<IRefreshTokenFamilyTable, RefreshTokenFamilyTable>();
+        services.TryAddScoped<ISpentPasskeyCeremonyTable, SpentPasskeyCeremonyTable>();
 
         // Constructible only once ASP.NET Identity is composed below: seeding hashes a password and
         // generates a security stamp rather than writing a row.
@@ -326,7 +328,8 @@ public static class AuthModule
     /// local, ephemeral one: <c>AddDefaultTokenProviders</c> mints its tokens through
     /// <c>DataProtectorTokenProvider</c>, which without this keys itself from whatever the container
     /// offers — nothing shared between replicas, so a token issued by one process would be rejected by
-    /// another and every redeploy invalidates every link already sent.</summary>
+    /// another and every redeploy invalidates every link already sent. A passkey ceremony's state is
+    /// sealed with the same ring, so it opens on whichever instance the completing call reaches.</summary>
     private static void AddDataProtection(IServiceCollection services)
     {
         services.AddDataProtection()

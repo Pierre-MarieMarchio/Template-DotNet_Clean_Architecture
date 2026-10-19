@@ -17,7 +17,7 @@ test in `Tests/Architecture/AppTemplate.Architecture.Tests` rather than by revie
 ```
 Src/<Layer>/<Project>/
   Common/<Responsibility>/
-  Features/<Feature>/<Responsibility>/
+  Features/<Feature>/<Concept>/<Nature>/<Subject>/
 ```
 
 Changing layer does not mean learning a new filing system. The directory under `Src/` names the
@@ -29,8 +29,9 @@ code grouped by what it does. In `AppTemplate.Domain`, `AppTemplate.Application`
 `AppTemplate.Api` there is deliberately **no `Services/`, `Interfaces/`, `DTOs/`, `Helpers/`,
 `Managers/` or `Factories/` folder at the project root**: grouping by technical type at the top
 level puts the six files that implement one feature in six different directories, so no change is
-ever local and no folder tells you what the application does. A responsibility folder is legitimate
-only *inside* a feature, where it partitions something already cohesive.
+ever local and no folder tells you what the application does. A concept or nature folder is
+legitimate only *inside* a feature, where it partitions something already cohesive —
+[below](#inside-a-feature) is the closed set of them.
 
 `Features/` is the unit of vertical slicing. Three of the thirteen projects under `Src/` have no
 `Features/` at all, and each for the same reason: what it holds belongs to no feature.
@@ -45,14 +46,17 @@ project was generated with.
 AppTemplate.Domain.Core         Common/{Abstractions,Events,Exceptions,Primitives}
                                 no Features/: a primitive belongs to no feature
 AppTemplate.Domain              Common/{Tagging}
-                                Features/<F>/{Entities,Events,ValueObjects,Repositories}
+                                Features/<F>/{Model/{Entities,Events,ValueObjects},Repositories}
 AppTemplate.Application.Core    Common/{Collections,Concurrency,Events,Idempotency,Localization,
                                         Ownership,Policies,Ports,Results,UseCases,Validation}
-                                Features/Maintenance/UseCases/Commands/<Operation>
+                                Features/{Maintenance,DeletedAccounts}/UseCases/Commands/<Operation>
 AppTemplate.Application         Common/{Tagging}
                                 Features/<F>/{UseCases/{Commands,Queries}/<Operation>,
-                                              Ports/<Port>,Consumers,Services,Policies,
-                                              Options,Extensions,Mapping,Dtos,Errors,Validators}
+                                              Ports/<Port>,
+                                              Model/{Dtos,Errors,Mapping,Policies},
+                                              Services/Consumers/<Event>,
+                                              Configuration/Options,
+                                              Helpers}
 AppTemplate.Application.Auth    Features/{Accounts,Sessions,TwoFactor,Passkeys,ExternalLogins,
                                           SecurityEvents}/{UseCases/{Commands,Queries}/<Operation>,
                                                            Ports/<Port>,Model/{Errors,Policies}}
@@ -62,18 +66,23 @@ AppTemplate.Infrastructure.Core Common/{Caching,Contexts,Options,
                                 no Features/: a mechanism a module needs and no module owns
 AppTemplate.Infrastructure.Persistence
                                 Common/{Contexts,Idempotency,Leases}
-                                Features/<F>/{Models,Configurations,Mapping,Tracking,
-                                              Repositories,Queries,Stores,Locks,Checkpoints,
-                                              Observability}
+                                Features/<F>/{Access/{Repositories,Stores,Queries},
+                                              Rows/{Models,Configurations,Mapping,Tracking},
+                                              Adapters/{Locks,Checkpoints,Observability}}
                                 Migrations/   the business half's history
-AppTemplate.Infrastructure.Auth Common/{Contexts,Directories,Options}
-                                Features/Auth/{Configurations,Directories,Factories,Issuers,Logs,
-                                               Models,Options,Providers,Seeding,Services,Tables,
-                                               Templates,Verifiers}
+AppTemplate.Infrastructure.Auth Common/{Contexts,Options}
+                                Features/{Accounts,Sessions,TwoFactor,Passkeys,ExternalLogins,
+                                          SecurityEvents}/{Adapters/{Services,Providers,Directories},
+                                                           Access/{Queries,Tables},
+                                                           Rows/{Models,Configurations},
+                                                           Configuration/{Options,Seeding},
+                                                           Resources/Templates}
                                 Migrations/   its own history, over the identity schema
 AppTemplate.Infrastructure.Email     Common/{Http,Smtp}          Features/<F>/
 AppTemplate.Infrastructure.Storage   Common/{Budgets,Factories,Options}
-                                     Features/Files/{Inventories,Options,Scanners,Stores,Transfers}
+                                     Features/Files/{Access/Stores,
+                                                     Adapters/{Inventories,Scanners,Transfers},
+                                                     Configuration/Options}
 AppTemplate.Infrastructure.InMemory  Common/{Email,Time}         Features/<F>/
 AppTemplate.Presentation.Core   Common/{Jobs,Localization,Observability,Outbound,Security}
                                 no Features/: what any host needs whatever its transport
@@ -81,33 +90,35 @@ AppTemplate.Api                 Common/{Caching,Concurrency,Contracts,Controller
                                         Idempotency,Jobs,Localization,Observability,OpenApi,Security}
                                 Common/ names no feature: the HTTP mechanisms and the job
                                 mechanisms (the role switch, the background scope) every feature shares
-                                Features/<F>/{Composition,Controllers,Contracts/{Requests,Responses},
-                                              Directories,Jobs,Mapping,Options}
-                                Jobs/ holds what a feature runs on a timer: its BackgroundService, its
-                                options, its instruments, and the extension that registers them;
-                                Directories/ an adapter the host supplies because it joins two
-                                features that may not name each other; Composition/ a feature's one
-                                entry point when it composes more than use cases; Options/ the
-                                settings a feature binds, and the framework options built from them
+                                Features/<F>/{Composition,Configuration/Options,Controllers,
+                                              Contracts/{Requests,Responses,Mapping},Jobs}
+                                Features/Auth/  one host feature over the six auth features
                                 Features/BackgroundJobs/Jobs/  the one composition call, AddBackgroundJobs
 Tests/                          a 1:1 mirror of Src/
 ```
 
-<!--#if (!externalAuth)-->
+A brace lists every word the project's vocabulary allows; a feature holds only the ones it has
+content for. What each word means is [below](#inside-a-feature), once for every project.
+
+<!--#if (localAuth)-->
 **Two of those projects own storage, and each owns a migration history.**
 `AppTemplate.Infrastructure.Persistence` holds `AppDbContext` over one schema per business feature
 (`todo`, `reminders`, `files` and `notes` as the template ships) and `platform`; `AppTemplate.Infrastructure.Auth` holds `AuthDbContext` over `identity`.
 [`MIGRATIONS.md`](MIGRATIONS.md) is the commands for both.
-<!--#else
+<!--#elseif (externalAuth)-->
 **One project owns storage, and its migration history.** `AppTemplate.Infrastructure.Persistence`
 holds `AppDbContext` over one schema per business feature, `external_identity` (the mapping from the
 identity provider's subjects to internal owners) and `platform`. [`MIGRATIONS.md`](MIGRATIONS.md) is
 the commands.
+<!--#else
+**One project owns storage, and its migration history.** `AppTemplate.Infrastructure.Persistence`
+holds `AppDbContext` over one schema per business feature and `platform`.
+[`MIGRATIONS.md`](MIGRATIONS.md) is the commands.
 #endif-->
 
 ## Two folders called `Common/`
 
-The difference is the whole point of the split, and there are three kinds in the tree.
+The difference is the whole point of the split, and there are four kinds in the tree.
 
 **`<Layer>.Core/Common/` is agnostic of the business.** `Result`, `Error`, `PageRequest`,
 `SortOrder`, `IUnitOfWork`, `ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`, `UserId`. Nothing
@@ -143,98 +154,239 @@ read every feature exposes are both duplicated and both agnostic — they name n
 would — so they live one project inwards. A folder in the business `Common/` is earned by naming a
 business type, not by being repeated.
 
+**An infrastructure module's `Common/` is the fourth:** what serves the module itself and names no
+feature — its context, the settings every one of its features shares. Everything that implements a
+port of a vertical, or names a vertical's types, files under that vertical, in a module serving one
+feature no less than in one serving several.
+<!--#if (localAuth)-->
+That is why `AppTemplate.Infrastructure.Auth`'s `Common/` is `Contexts/` and `Options/` and nothing
+else, and why the account directory every auth feature reads sits under
+`Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Accounts/Adapters/Directories/`.
+<!--#endif-->
+`ModuleDependencyTests` holds it: nothing under a module's `Common/` may depend on a feature —
+`AppDbContext`, [below](#the-rules-the-tests-hold), is the one exception the rule is written
+around — and its list of further exceptions is empty and asserted empty, so the first one is argued
+for in the pull request that adds it.
+
 ## Inside a feature
 
-**A folder under `Features/<F>/` is the plural of the nature word its files carry.** A
-`…Repository` is in `Repositories/`, a `…Mapper` in `Mapping/`, a `…Tracker` in `Tracking/`, a
-`…Service` in `Services/` — and `Services/` holds nothing that is not one. That is what makes the
-tree navigable in both directions: a type name tells you its folder, and a folder tells you what
-nature of thing is in it.
-
-A folder is only present when it has content: a feature with no read-side projection has no
-`Queries/`, one with no domain-event consumer has no `Consumers/`.
-
-<!--#if (todoLists)-->
-`AppTemplate.Application/Features/TodoLists/` is the worked example:
+### Four levels, one question each
 
 ```
-Errors/                   TodoListErrors.cs — the feature's failure vocabulary
-Policies/                 TodoListCollectionPolicy — the sortable whitelist
-Ports/TodoListQueries/    ITodoListQueries and TodoListFilter — a port's interface together with
-                          the messages that cross it
-Services/                 ITodoListService — the one gate every command loads its aggregate through
-Extensions/               TodoListItemExtensions — a known-item id turned into the same 404 everywhere
-Mapping/                  TodoListDtoMapping — the aggregate a write just staged, read back as a DTO
-Consumers/TodoItemCompleted/    a worked example of a domain-event consumer
-UseCases/Commands/<Operation>/  one folder per operation, each holding its command, its named
-                          interface, the use case and its FluentValidation validator
-UseCases/Queries/<Operation>/   the same shape on the read side
-Dtos/                     read models more than one operation returns
+Level 1 — the partition   Common/ or Features/<F>/              does it know a feature?
+Level 2 — the concept     one of the closed set below            what role does it play?
+Level 3 — the nature      the plural of the type's suffix        what is it?
+Level 4 — the subject     Ports/<Port>/ · UseCases/Commands/<Operation>/ · Consumers/<Event>/
 ```
-<!--#else
-A rich feature's application folder, `AppTemplate.Application/Features/<Feature>/`:
+
+A concept folder exists only when it has content: a feature with no read-side projection has no
+`Access/Queries/`, one with no domain-event consumer has no `Services/Consumers/`. A nature folder
+is always present under its concept — a folder even for a single file. `Ports/` and `UseCases/`
+always open one folder per port and per operation, because that folder is the signature's
+namespace; any other nature opens subject folders only once it holds several subjects.
+<!--#if (notes && todoLists)-->
+`Notes`' one consumer sits flat in `Services/Consumers/`, where `TodoLists`' two each have a
+folder named for the event they answer.
+<!--#endif-->
+
+### The concepts
+
+Every feature folder is readable in one sentence per concept, and each concept answers one
+mechanical question:
+
+| Concept | The question | What it holds (its natures) | Layer |
+|---|---|---|---|
+| `UseCases/` | is it an operation? | `Commands/<Operation>/` and `Queries/<Operation>/`, each holding the command or query, the named interface, the use case and its validator | Application |
+| `Ports/` | is it a contract something else implements? | `<Port>/`, holding the interface and the messages that cross it | Application |
+| `Model/` | does the feature *say* it? | `Entities/`, `ValueObjects/`, `Events/` (Domain); `Dtos/` with the validator of an input Dto, `Mapping/` (aggregate to Dto), `Policies/` (its declared rules), `Errors/` (its failure catalogue) (Application) | Domain, Application |
+| `Services/` | is it an internal collaborator with dependencies? | the gate every command loads its aggregate through, or a simple feature's one service; `Consumers/` | Application |
+| `Repositories/` | is it the aggregate's access contract? | the `I…Repository`, in domain types only | Domain |
+| `Adapters/` | does it implement a port or a framework seam, outside storage? | `Services/` (a `…Service`, `…Factory`, `…Issuer`, `…Log` or `…Verifier`), `Providers/`, `Directories/`, `Scanners/`, `Inventories/`, `Transfers/`, `Locks/`, `Checkpoints/`, `Observability/` | Infrastructure |
+| `Rows/` | is it the *shape* of what is stored? | `Models/` (the `…Record` rows), `Configurations/`, `Mapping/` (aggregate to row), `Tracking/` | Infrastructure |
+| `Access/` | is it one of the four ways this template reaches storage? | `Repositories/`, `Stores/`, `Queries/`, `Tables/` | Infrastructure |
+| `Configuration/` | is it a setting? | `Options/`, `Seeding/` | Application, Infrastructure, Api |
+| `Resources/` | is it an embedded file? | `Templates/` | Infrastructure |
+| `Contracts/` | is it a wire type? | `Requests/`, `Responses/`, and `Mapping/` that projects onto them — never an application type reused | Api |
+| `Controllers/` | is it an HTTP entry point? | the controllers, flat | Api |
+| `Jobs/` | is it a loop on a timer? | the `…BackgroundService`, its options, its instruments, the extension that registers them | Api |
+| `Composition/` | is it what the host supplies to the feature? | the feature's `AddX` entry point and the adapters only the host can provide — a directory joining two features that may not name each other, a provider reading the request, the caller's session | Api |
+| `Helpers/` | is it a pure static function with no more precise nature? | the `…Helpers` and `…Extensions` classes, flat | Application, Infrastructure, Api |
+
+Fifteen concepts in all, and two to five present in any one feature. A word with several meanings
+across scopes keeps one definition per scope in this table, which is how `Services/` (an
+application collaborator, and under `Adapters/` an infrastructure port adapter) and `Mapping/`
+(`Model/Mapping/`, `Rows/Mapping/`, `Contracts/Mapping/`) stay unambiguous.
+
+**`Model/` is not `Rows/Models/`.** `Model/` is a concept of the inner layers: what the feature
+says — its aggregate, its value objects, its events, the Dtos it answers with. `Rows/Models/` is a
+nature of the persistence rows: the `…Record` a table is mapped to, which is never the aggregate.
+The two never meet in one project, and the singular and the plural are kept apart on purpose.
+
+### The suffix gives the folder
+
+A type's name gives its folder in at most two hops — its suffix names the nature, and the nature
+belongs to one concept per layer:
+
+| Suffix of the type | Folder |
+|---|---|
+| `…UseCase`, `…Command`, `…Query`, and an operation's `…Validator` | `UseCases/{Commands,Queries}/<Operation>/` |
+| a port's interface, and the messages that cross it | `Ports/<Port>/` |
+| `…Repository` — the contract / the adapter | `Repositories/` (Domain) / `Access/Repositories/` |
+| an entity, a value object, an `…Event` | `Model/Entities/`, `Model/ValueObjects/`, `Model/Events/` |
+| `…Dto`, and the `…Validator` of an input Dto | `Model/Dtos/` |
+| `…Mapping` (aggregate to Dto) | `Model/Mapping/` |
+| `…Policy` | `Model/Policies/` |
+| `…Errors` | `Model/Errors/` |
+| `…Service` (application) | `Services/` |
+| `…Consumer` | `Services/Consumers/` |
+| `…Helpers`, `…Extensions` | `Helpers/` |
+| `…Store`, `…Queries` (with its `…SortMap`), `…Table` (with its `…Grant`) | `Access/Stores/`, `Access/Queries/`, `Access/Tables/` |
+| `…Record`, `…Configuration`, `…Mapper`, `…Tracker` | `Rows/Models/`, `Rows/Configurations/`, `Rows/Mapping/`, `Rows/Tracking/` |
+| `…Service`, `…Factory`, `…Issuer`, `…Log`, `…Verifier` (infrastructure) | `Adapters/Services/` |
+| `…Provider`, `…Directory` | `Adapters/Providers/`, `Adapters/Directories/` — in the Api, `Composition/` |
+| `…Scanner`, `…Inventory`, `…Transfer`, `…Lock`, `…Checkpoint` | the matching folder under `Adapters/` |
+| `…Diagnostics`, `…Instruments` | `Adapters/Observability/` — in the Api, `Jobs/` |
+| `…Options` | `Configuration/Options/` — a job's own, `Jobs/` |
+| `…Seeder` | `Configuration/Seeding/` |
+| `…Request`, `…Response`, `…Mapping` (wire) | `Contracts/Requests/`, `Contracts/Responses/`, `Contracts/Mapping/` |
+| `…Controller` | `Controllers/` |
+| `…BackgroundService`, `…Task`, `…Telemetry` | `Jobs/` |
+| `…Composition`, `…Session` | `Composition/` |
+
+`FeatureFolderVocabularyTests` holds that table from the file side — a file whose suffix is not its
+folder's fails, a folder no entry describes fails, and every exemption is named with its reason and
+must still name a file — and `LayoutConventionTests` from the folder side, per project.
+
+### Co-localisation
 
 ```
-Errors/                   <Aggregate>Errors.cs — the feature's failure vocabulary
-Policies/                 <Aggregate>CollectionPolicy — the sortable whitelist
-Ports/<Aggregate>Queries/ I<Aggregate>Queries and <Aggregate>Filter — a port's interface together with
-                          the messages that cross it
-Services/                 I<Aggregate>Service — the one gate every command loads its aggregate through
-Extensions/               <Aggregate>…Extensions — a known-item id turned into the same 404 everywhere
-Mapping/                  <Aggregate>DtoMapping — the aggregate a write just staged, read back as a DTO
-Consumers/<Event>/        one folder per domain event the feature answers
-UseCases/Commands/<Operation>/  one folder per operation, each holding its command, its named
-                          interface, the use case and its FluentValidation validator
-UseCases/Queries/<Operation>/   the same shape on the read side
-Dtos/                     read models more than one operation returns
+What serves ONE operation      → in the operation's folder         UseCases/{Commands,Queries}/<Operation>/
+What serves ONE port           → with the port                    Ports/<Port>/
+What serves SEVERAL operations → promoted to the concept folders  Model/, Services/, …
+What has a more precise nature → that nature's folder             a mapper is Model/Mapping/, not Helpers/
 ```
-#endif-->
 
 **A command or query record lives in the same folder as the one use case that accepts it**,
 alongside that use case's named interface, its class and its validator, because together they are
 that operation's signature. A response type only that one operation returns stays there too; a read
-model more than one operation shares is promoted to `Dtos/`; and a type that is a *port's* own
-parameter — not one use case's — lives beside that port in `Ports/<Port>/` instead, however many
-use cases call it. Otherwise `Ports/` would depend on `UseCases/`.
+model more than one operation shares is promoted to `Model/Dtos/`; and a type that is a *port's*
+own parameter — not one use case's — lives beside that port in `Ports/<Port>/` instead, however
+many use cases call it. Otherwise `Ports/` would depend on `UseCases/`.
 
-The simple shape, a feature with no domain model (`Notes` in the template as shipped), needs two
-words the rich one does not. `Validators/` and `Stores/` are the two words only it uses: a feature with use cases validates in a command's own
-folder, and one without them files its validator by the nature word it carries; `Stores/` in the
-persistence project is the adapter of an application `…Store` port, the way `Repositories/` is the
-adapter of a domain `…Repository`.
+**`Helpers/` is the last resort, never the first.** It holds a pure static function — formatting,
+computation, parsing, an extension method — that has no more precise nature; a file that has one
+goes to that nature's folder. The bounds, and why `Helpers` is the one such word allowed, are
+[`CONVENTIONS.md`](CONVENTIONS.md#helpers-and-the-banned-words)'s, and so is why a `Common/` has
+none.
+
+<!--#if (todoLists)-->
+### The worked example
+
+`AppTemplate.Application/Features/TodoLists/`:
+
+```
+UseCases/Commands/<Operation>/  one folder per operation, each holding its command, its named
+                                interface, the use case and its FluentValidation validator
+UseCases/Queries/<Operation>/   the same shape on the read side
+Ports/TodoListQueries/          ITodoListQueries and TodoListFilter — a port's interface together
+                                with the messages that cross it
+Model/Dtos/                     read models more than one operation returns
+Model/Errors/                   TodoListErrors — the feature's failure vocabulary
+Model/Mapping/                  TodoListDtoMapping — the aggregate a write just staged, read back
+                                as a Dto
+Model/Policies/                 TodoListCollectionPolicy — the sortable whitelist
+Services/                       ITodoListService — the one gate every command loads its aggregate
+                                through
+Services/Consumers/<Event>/     one folder per domain event the feature answers —
+                                TodoItemCompleted, AccountDeleted
+Helpers/                        TodoListItemExtensions — a known-item id turned into the same 404
+                                everywhere
+```
+<!--#else
+### The rich shape
+
+A rich feature's application folder, `AppTemplate.Application/Features/<Feature>/`:
+
+```
+UseCases/Commands/<Operation>/  one folder per operation, each holding its command, its named
+                                interface, the use case and its FluentValidation validator
+UseCases/Queries/<Operation>/   the same shape on the read side
+Ports/<Aggregate>Queries/       I<Aggregate>Queries and <Aggregate>Filter — a port's interface
+                                together with the messages that cross it
+Model/Dtos/                     read models more than one operation returns
+Model/Errors/                   <Aggregate>Errors — the feature's failure vocabulary
+Model/Mapping/                  <Aggregate>DtoMapping — the aggregate a write just staged, read
+                                back as a Dto
+Model/Policies/                 <Aggregate>CollectionPolicy — the sortable whitelist
+Services/                       I<Aggregate>Service — the one gate every command loads its
+                                aggregate through
+Services/Consumers/<Event>/     one folder per domain event the feature answers
+Helpers/                        <Aggregate>…Extensions — a pure function several operations need
+```
+#endif-->
+
+### The simple shape
+
+The simple shape, a feature with no domain model, has no operation folders: its one service holds
+one method per operation, so the validator of an input Dto files beside that Dto in `Model/Dtos/`.
+Its persistence half uses the one word the rich shape does not: `Access/Stores/` is the adapter of
+an application `…Store` port, the way `Access/Repositories/` is the adapter of a domain
+`…Repository`.
 
 <!--#if (notes)-->
 ```
 Application/Features/Notes/
-  Dtos/                   NoteDto, NoteSummaryDto, and the service's input, NoteContentDto and NoteListQueryDto
-  Errors/                 NoteErrors
-  Policies/               NoteInputPolicy (the length limits), NoteCollectionPolicy (the sortable whitelist)
+  Model/Dtos/             NoteDto, NoteSummaryDto, the service's input NoteContentDto and
+                          NoteListQueryDto, and NoteContentDtoValidator beside the Dto it validates
+  Model/Errors/           NoteErrors
+  Model/Policies/         NoteInputPolicy (the length limits), NoteCollectionPolicy (the sortable
+                          whitelist)
   Ports/NoteQueries/      INoteQueries and NoteFilter — the reads
   Ports/NoteStore/        INoteStore and NoteChangeStatus — the writes, which only stage
   Services/               INoteService and NoteService — one method per operation
-  Validators/             NoteContentDtoValidator
+  Services/Consumers/     DeleteNotesOnAccountDeletedConsumer, flat: the one consumer there is
 Infrastructure.Persistence/Features/Notes/
-  Models/                 NoteRecord — the row, and the only model there is
-  Configurations/         NoteRecordConfiguration
-  Queries/                NoteQueries and NoteSortMap
-  Stores/                 NoteStore
+  Rows/Models/            NoteRecord — the row, and the only model there is
+  Rows/Configurations/    NoteRecordConfiguration
+  Access/Queries/         NoteQueries and NoteSortMap
+  Access/Stores/          NoteStore
 ```
 <!--#endif-->
 
 <!--#if (todoLists)-->
 The other two examples are the same shape as `TodoLists` with pieces added or missing, and what each one changes
 is the subject of [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md): `Reminders` is flat, with no child
-entities and so no tag folder; `Files` has four ports where `TodoLists` has one, because the bytes
-live in somebody else's store.
+entities and so no tag folder; `Files` adds four ports over its bytes — a store, a direct
+transfer, an inventory and a scanner — because the bytes live in somebody else's store.
 <!--#endif-->
 
 <!--#if (localAuth)-->
-`AppTemplate.Application.Auth/Features/` holds the six verticals with no aggregate at all —
-`Accounts`, `Sessions`, `TwoFactor`, `Passkeys`, `ExternalLogins`, `SecurityEvents`. Nine
-ports stand in for one `IAuthService`, one per intent — accounts, mailed tokens, session tokens,
-two-factor, administration, external identity, external logins, account mails, and the security
-event log. An account here is what its ports say about it.
+### The authentication features
+
+`AppTemplate.Application.Auth/Features/` holds six features with no aggregate at all —
+`Accounts`, `Sessions`, `TwoFactor`, `Passkeys`, `ExternalLogins`, `SecurityEvents` — each
+`UseCases/`, `Ports/` and `Model/`. Fourteen ports stand in for one `IAuthService`, one per intent:
+accounts, mailed tokens, re-authentication, administration and account mails under `Accounts`;
+session tokens, sessions and the current session under `Sessions`; two-factor; passkeys; external
+identity and external logins under `ExternalLogins`; the security event log and its queries under
+`SecurityEvents`. An account here is what its ports say about it. Five of the six have an error
+catalogue; the failures several features answer with — re-authentication required, a missing or
+incorrect current password — are declared once, in `AccountsErrors`, and the others name them
+there. `AppTemplate.Infrastructure.Auth/Features/` repeats the six names, each feature holding the
+adapters of its own ports.
+
+### The host mapping
+
+One Api feature maps to one application feature everywhere except the authentication surface:
+`Src/Presentation/AppTemplate.Api/Features/Auth/` is one host feature whose controllers answer use
+cases of all six auth features — one `/auth` route tree, one composition entry
+(`AddAuthFeature`), one folder for a host without local accounts to delete. A controller crosses
+the six — `SessionsController` signs in through `Sessions`, completes a two-factor challenge
+through `TwoFactor` and accepts an external provider's token through `ExternalLogins` — and those
+are one route tree's actions, not three surfaces'.
 <!--#endif-->
+
+### Every module keeps the shape
 
 <!--#if (reminders)-->
 **Every infrastructure module is partitioned `Common/` plus `Features/<Feature>/`**, whether or not
@@ -246,15 +398,11 @@ says which of their files leave with a feature.
 **Every infrastructure module is partitioned `Common/` plus `Features/<Feature>/`**, whether or not
 it serves more than one feature, so a reader who has learned one module does not learn a second
 filing system for the next.
-<!--#endif-->
-<!--#if (localAuth)-->
-`Auth` serves one feature
-<!--#endif-->
+#endif-->
 <!--#if (files)-->
-and `Storage` serves one feature,
+`Storage` serves one feature, `Files`, and keeps the shape anyway.
 <!--#endif-->
-and
-a module that serves one keeps the shape anyway. Local logic loses to uniformity here on purpose.
+Local logic loses to uniformity here on purpose.
 
 ## The rules the tests hold
 
@@ -265,14 +413,20 @@ a module that serves one keeps the shape anyway. Local logic loses to uniformity
 - **Namespaces follow folders.** No exceptions.
 - **Never name a folder after the type it contains.** A namespace and a type sharing a name make
   name resolution ambiguous for consumers (CS0118), because lookup walks the enclosing namespaces.
-  A port's folder therefore keeps the capability name — `Ports/Accounts/IAccountsService.cs`.
-- **The vocabulary under `Features/<F>/` is closed, per project**, and so is the first level of
-  `Common/`. How a `Common/` folder partitions itself below that first level is its own business,
-  which is why `Saving/` may hold `Auditing/`, `DomainEvents/` and `Tracking/`.
-- **The files are held to it too, not only the folder names.** A file under
-  `Features/<F>/<Word>/` is named for that word. Three kinds of file are exempt, each named with
-  its reason in the test: a type in another thing's signature, a name a framework imposes
-  (`AppUser`, `AppRole`), and the state an adapter holds.
+  A port's folder therefore keeps the capability name — `Ports/<Capability>/I<Capability>Service.cs`,
+  never `Ports/I<Capability>Service/`.
+- **The vocabulary under `Features/<F>/` is closed, per project, and two-tier**: the concepts a
+  project's features may hold at level 2, and under each concept the natures it may hold at
+  level 3. Both are checked in both directions — a folder outside the list fails, and, over the
+  template's full tree, so does a word no feature is filed under any more. The first level of `Common/` is closed too; how a
+  `Common/` folder partitions itself below that is its own business, which is why `Saving/` may
+  hold `Auditing/`, `DomainEvents/` and `Tracking/`.
+- **The files are held to it too, not only the folder names.** A file under a nature folder is
+  named for that nature, [as tabled above](#the-suffix-gives-the-folder). Three kinds of file are
+  exempt, each named with its reason in the test: a type in another thing's signature, a name a
+  framework imposes, and the state an adapter holds.
+- **Every type under a `Helpers/` folder is a static class**, which also bars it from implementing
+  an interface, so it can be neither injected nor a contract.
 - **`Tests/` mirrors `Src/`** one directory for one directory.
 - **Nothing under `AppTemplate.Infrastructure.Persistence`'s `Common/` may depend on a feature's
   domain or persistence types.** `AppDbContext` is the one documented exception: it applies every

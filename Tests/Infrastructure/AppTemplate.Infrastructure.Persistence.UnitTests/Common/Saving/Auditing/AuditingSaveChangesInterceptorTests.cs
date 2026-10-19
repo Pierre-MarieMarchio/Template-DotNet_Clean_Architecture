@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Shouldly;

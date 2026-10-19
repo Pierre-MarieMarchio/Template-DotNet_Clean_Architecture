@@ -111,7 +111,7 @@ whether or not you wanted to keep it.
 
 | The comment | Names | Breaks when you remove |
 |---|---|---|
-| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
+| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Rows/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
 | `Src/Presentation/AppTemplate.Api/Features/TodoLists/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
 | `Src/Presentation/AppTemplate.Api/Features/Files/Mapping/StoredFileResponseMapping.cs` | `TodoListResponseMapping` | `TodoLists` |
 
@@ -122,7 +122,7 @@ whether or not you wanted to keep it.
 
 | The comment | Names | Breaks when you remove |
 |---|---|---|
-| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
+| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Rows/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
 | `Src/Presentation/AppTemplate.Api/Features/TodoLists/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
 #endif-->
 
@@ -297,7 +297,7 @@ Plus, outside a `Features/` folder:
 One source file is easy to miss because it sits in the persistence layer without touching the
 database: `ReminderDiagnostics`, the adapter behind `IReminderDiagnostics`, an OpenTelemetry counter
 filed under
-`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/Observability/`. It
+`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/Adapters/Observability/`. It
 goes with the rest of that folder.
 
 After deleting a feature's directories, **delete the parent directory too if it is now empty.** The
@@ -477,9 +477,9 @@ drop the `EnsureSchema`, `CreateTable` and `CreateIndex` calls for what went and
 `DropTable` in `Down`; in the snapshot, take out the `modelBuilder.Entity("…")` blocks for the same
 entities in all three passes of the file — the entity definitions, the relationship blocks and the
 navigation blocks. The blocks are named by their persistence model's full type name, so
-`…Features.TodoLists.Models.TodoListRecord` and its two siblings go with `TodoLists`,
-`…Features.Reminders.Models.ReminderRecord` with `Reminders`, and
-`…Features.Files.Models.StoredFileRecord` with `Files`.
+`…Features.TodoLists.Rows.Models.TodoListRecord` and its two siblings go with `TodoLists`,
+`…Features.Reminders.Rows.Models.ReminderRecord` with `Reminders`, and
+`…Features.Files.Rows.Models.StoredFileRecord` with `Files`.
 
 ## Configuration, deployment and the sample requests
 
@@ -558,7 +558,7 @@ Everything else keeps a live example, because `Files` is one:
 | Mechanism | Where it stays demonstrated |
 |---|---|
 | `IUnitOfWork` | use cases and services under `Src/Application/AppTemplate.Application/Features/Files/` |
-| The aggregate tracker / identity map, registered under three contracts | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Tracking/StoredFileTracker.cs` |
+| The aggregate tracker / identity map, registered under three contracts | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Rows/Tracking/StoredFileTracker.cs` |
 | The default-deny fallback authorisation policy | both `Src/Presentation/AppTemplate.Api/Features/Files/Controllers/FilesController.cs` and `Src/Presentation/AppTemplate.Api/Features/Files/Controllers/FileTagsController.cs` carry no `[Authorize]` and no `[AllowAnonymous]`, on the class or on any action |
 | Domain events at all | three under `Src/Domain/AppTemplate.Domain/Features/Files/Model/Events/`, one with a consumer |
 | `ICollectionPolicy` | `Src/Application/AppTemplate.Application/Features/Files/Model/Policies/StoredFileCollectionPolicy.cs` |

@@ -69,14 +69,12 @@ public sealed class LayoutConventionTests
         ["Src/Domain/AppTemplate.Domain.Core"] = null,
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
             [
+                "Access/Queries", "Access/Repositories", "Access/Stores",
                 //#if (files)
-                "Checkpoints",
+                "Adapters/Checkpoints", "Adapters/Locks",
                 //#endif
-                "Configurations",
-                //#if (files)
-                "Locks",
-                //#endif
-                "Mapping", "Models", "Observability", "Queries", "Repositories", "Stores", "Tracking",
+                "Adapters/Observability",
+                "Rows/Configurations", "Rows/Mapping", "Rows/Models", "Rows/Tracking",
             ],
         // Jobs/ holds what a feature runs on a timer: the hosted service, its options and its
         // instruments, side by side — the nature word for them, as Controllers/ is for the HTTP half.
@@ -124,7 +122,9 @@ public sealed class LayoutConventionTests
         //#endif
         //#if (files)
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
-            ["Inventories", "Options", "Scanners", "Stores", "Transfers"],
+            ["Access/Stores",
+             "Adapters/Inventories", "Adapters/Scanners", "Adapters/Transfers",
+             "Configuration/Options"],
         //#endif
 
         // Null, not empty: this project has no Features/ and may not grow one. What is here

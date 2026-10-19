@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Domain.Core.Common.Exceptions;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models;
 using Shouldly;
 using Xunit;
 

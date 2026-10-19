@@ -1,5 +1,5 @@
-﻿using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;
-using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
+﻿using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models;
 using Shouldly;
 using Xunit;
 

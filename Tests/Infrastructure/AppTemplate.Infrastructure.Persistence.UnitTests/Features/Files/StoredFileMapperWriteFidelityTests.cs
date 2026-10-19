@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using AppTemplate.Domain.Features.Files.Model.Entities;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
-using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models;
 using Shouldly;
 using Xunit;
 

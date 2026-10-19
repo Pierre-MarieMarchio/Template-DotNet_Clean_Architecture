@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Domain.Features.Reminders.Model.Entities;
 using AppTemplate.Domain.Features.Reminders.Model.Events;
-using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
-using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
-using AppTemplate.Infrastructure.Persistence.Features.Reminders.Tracking;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Mapping;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Models;
+using AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Tracking;
 using Shouldly;
 using Xunit;
 

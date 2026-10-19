@@ -1,6 +1,6 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
-using AppTemplate.Application.Features.Files.Policies;
+using AppTemplate.Application.Features.Files.Model.Policies;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Infrastructure.Storage.Common.Factories;
 using AppTemplate.Infrastructure.Storage.Common.Options;

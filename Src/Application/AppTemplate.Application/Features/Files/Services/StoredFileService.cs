@@ -2,11 +2,11 @@
 using AppTemplate.Application.Core.Common.Ownership;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Files.Errors;
-using AppTemplate.Application.Features.Files.Options;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Application.Features.Files.Configuration.Options;
+using AppTemplate.Application.Features.Files.Model.Errors;
+using AppTemplate.Domain.Features.Files.Model.Entities;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Domain.Features.Files.Repositories;
-using AppTemplate.Domain.Features.Files.ValueObjects;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application.Features.Files.Services;

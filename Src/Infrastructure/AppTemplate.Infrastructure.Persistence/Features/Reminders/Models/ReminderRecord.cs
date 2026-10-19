@@ -1,11 +1,11 @@
 ﻿using AppTemplate.Domain.Core.Common.Abstractions;
-using AppTemplate.Domain.Features.Reminders.ValueObjects;
+using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
 
 /// <summary>
 /// How a reminder is stored: a row, with settable properties, no behaviour and no invariants. The
-/// aggregate that owns the rules is <see cref="Domain.Features.Reminders.Entities.Reminder"/>; this type
+/// aggregate that owns the rules is <see cref="Domain.Features.Reminders.Model.Entities.Reminder"/>; this type
 /// answers only to the schema.
 /// <para>
 /// <see cref="ReminderState"/> is reused as-is rather than given a persistence-side twin: it is a plain

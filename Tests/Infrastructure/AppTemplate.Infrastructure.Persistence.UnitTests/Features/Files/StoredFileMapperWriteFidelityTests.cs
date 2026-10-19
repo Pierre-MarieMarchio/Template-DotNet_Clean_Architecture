@@ -1,5 +1,5 @@
 ﻿using System.Reflection;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Domain.Features.Files.Model.Entities;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 using Shouldly;

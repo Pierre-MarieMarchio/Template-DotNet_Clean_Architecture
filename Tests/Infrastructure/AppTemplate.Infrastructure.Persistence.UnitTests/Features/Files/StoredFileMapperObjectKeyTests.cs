@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Features.Files.ValueObjects;
+﻿using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using Shouldly;
 using Xunit;

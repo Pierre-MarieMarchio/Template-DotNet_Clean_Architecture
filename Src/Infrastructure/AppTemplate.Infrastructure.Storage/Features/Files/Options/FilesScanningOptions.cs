@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Files.Options;
+﻿using AppTemplate.Application.Features.Files.Configuration.Options;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Options;

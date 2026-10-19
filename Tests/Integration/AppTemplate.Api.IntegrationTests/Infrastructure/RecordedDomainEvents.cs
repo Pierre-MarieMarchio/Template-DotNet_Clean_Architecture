@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Events;
-using AppTemplate.Domain.Features.TodoLists.Events;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 

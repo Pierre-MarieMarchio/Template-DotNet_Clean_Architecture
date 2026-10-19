@@ -4,7 +4,7 @@ using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Core.Common.Collections;
-using AppTemplate.Application.Features.TodoLists.Policies;
+using AppTemplate.Application.Features.TodoLists.Model.Policies;
 using Shouldly;
 using Xunit;
 

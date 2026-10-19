@@ -2,7 +2,7 @@
 using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
 //#if (files)
-using AppTemplate.Application.Features.Files.Options;
+using AppTemplate.Application.Features.Files.Configuration.Options;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
@@ -14,7 +14,7 @@ using AppTemplate.Application.Features.Files.Ports.StoredFileTagQueries;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 //#endif
 //#if (notes)
-using AppTemplate.Application.Features.Notes.Dtos;
+using AppTemplate.Application.Features.Notes.Model.Dtos;
 using AppTemplate.Application.Features.Notes.Ports.NoteQueries;
 using AppTemplate.Application.Features.Notes.Ports.NoteStore;
 using AppTemplate.Application.Features.Notes.Services;

@@ -2,7 +2,7 @@
 using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Notes.Dtos;
+using AppTemplate.Application.Features.Notes.Model.Dtos;
 using AppTemplate.Application.Features.Notes.Ports.NoteQueries;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;

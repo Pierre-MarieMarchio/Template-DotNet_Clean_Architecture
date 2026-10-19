@@ -1,6 +1,6 @@
-﻿using AppTemplate.Application.Features.Files.Options;
-using AppTemplate.Application.Features.Files.Policies;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+﻿using AppTemplate.Application.Features.Files.Configuration.Options;
+using AppTemplate.Application.Features.Files.Model.Policies;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using FluentValidation;
 using Microsoft.Extensions.Options;
 

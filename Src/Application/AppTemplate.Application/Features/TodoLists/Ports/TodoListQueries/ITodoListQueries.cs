@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.TodoLists.Dtos;
-using AppTemplate.Application.Features.TodoLists.Policies;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
+using AppTemplate.Application.Features.TodoLists.Model.Policies;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 

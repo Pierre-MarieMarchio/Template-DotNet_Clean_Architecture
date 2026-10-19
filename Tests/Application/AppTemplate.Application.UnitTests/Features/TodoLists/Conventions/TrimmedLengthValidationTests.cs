@@ -5,8 +5,8 @@ using AppTemplate.Application.Features.TodoLists.UseCases.Commands.RenameTodoLis
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.ReplaceTodoItemTags;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.UpdateTodoItem;
 using AppTemplate.Domain.Common.Tagging;
-using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Domain.Features.TodoLists.ValueObjects;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.ValueObjects;
 using Shouldly;
 using Xunit;
 

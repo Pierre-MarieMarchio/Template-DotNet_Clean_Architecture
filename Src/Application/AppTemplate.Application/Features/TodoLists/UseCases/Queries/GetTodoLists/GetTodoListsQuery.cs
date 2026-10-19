@@ -4,7 +4,7 @@ namespace AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLis
 
 /// <param name="Paging">"offset" (the default) or "cursor". Blank means offset.</param>
 /// <param name="Page">1-based page number. Offset mode only.</param>
-/// <param name="PageSize">Defaults to <see cref="Policies.TodoListCollectionPolicy.Instance"/>'s own
+/// <param name="PageSize">Defaults to <see cref="Model.Policies.TodoListCollectionPolicy.Instance"/>'s own
 /// default page size; must not exceed its ceiling.</param>
 /// <param name="Cursor">Opaque, minted by a previous page's <c>nextCursor</c>. Cursor mode only.</param>
 /// <param name="Sort">Comma-separated sort terms, e.g. <c>name:asc,createdAt:desc</c>; cursor mode

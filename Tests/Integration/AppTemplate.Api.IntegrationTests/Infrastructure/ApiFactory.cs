@@ -7,7 +7,7 @@ using AppTemplate.Api.Common.Security;
 using AppTemplate.Application.Core;
 //#endif
 //#if (todoLists)
-using AppTemplate.Domain.Features.TodoLists.Events;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
 //#endif
 //#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Options;

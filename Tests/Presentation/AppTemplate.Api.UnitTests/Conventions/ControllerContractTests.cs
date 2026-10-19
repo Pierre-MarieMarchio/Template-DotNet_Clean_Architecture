@@ -6,7 +6,7 @@ using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ChangePas
 //#endif
 using AppTemplate.Application.Core.Common.Concurrency;
 //#if (todoLists)
-using AppTemplate.Application.Features.TodoLists.Dtos;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
 //#endif
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

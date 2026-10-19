@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Reminders.Entities;
-using AppTemplate.Domain.Features.Reminders.ValueObjects;
+using AppTemplate.Domain.Features.Reminders.Model.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Reminders;
 

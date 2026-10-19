@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.TodoLists.Dtos;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;
 using AppTemplate.Application.UnitTests.TestDoubles;

@@ -1,5 +1,5 @@
-﻿using AppTemplate.Domain.Features.Reminders.Entities;
-using AppTemplate.Domain.Features.Reminders.Events;
+﻿using AppTemplate.Domain.Features.Reminders.Model.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.Events;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Tracking;

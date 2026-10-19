@@ -1,5 +1,5 @@
 ﻿using System.Reflection;
-using AppTemplate.Domain.Features.Reminders.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.Entities;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
 using Shouldly;

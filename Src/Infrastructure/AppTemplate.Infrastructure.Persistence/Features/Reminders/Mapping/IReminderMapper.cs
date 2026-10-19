@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Features.Reminders.Entities;
+﻿using AppTemplate.Domain.Features.Reminders.Model.Entities;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;

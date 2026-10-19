@@ -1,5 +1,5 @@
 ﻿using Amazon.S3;
-using AppTemplate.Application.Features.Files.Options;
+using AppTemplate.Application.Features.Files.Configuration.Options;
 using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;

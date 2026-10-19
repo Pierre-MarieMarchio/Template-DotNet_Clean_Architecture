@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using Shouldly;
 using Xunit;
 

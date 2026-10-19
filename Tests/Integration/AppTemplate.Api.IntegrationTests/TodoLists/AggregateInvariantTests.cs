@@ -2,7 +2,7 @@
 using System.Net.Http.Json;
 using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Domain.Features.TodoLists.ValueObjects;
+using AppTemplate.Domain.Features.TodoLists.Model.ValueObjects;
 using Shouldly;
 using Xunit;
 

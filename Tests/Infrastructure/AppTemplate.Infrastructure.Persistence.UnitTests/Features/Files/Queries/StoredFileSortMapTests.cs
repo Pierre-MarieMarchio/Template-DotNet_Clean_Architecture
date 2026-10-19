@@ -1,9 +1,9 @@
 ﻿using System.Globalization;
 using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Policies;
-using AppTemplate.Application.Features.Files.Dtos;
-using AppTemplate.Application.Features.Files.Policies;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+using AppTemplate.Application.Features.Files.Model.Dtos;
+using AppTemplate.Application.Features.Files.Model.Policies;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Queries;
 using Microsoft.EntityFrameworkCore;

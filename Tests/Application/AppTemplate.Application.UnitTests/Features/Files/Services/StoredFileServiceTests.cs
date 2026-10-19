@@ -3,7 +3,7 @@ using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Domain.Features.Files.Model.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using NSubstitute;
 using Shouldly;

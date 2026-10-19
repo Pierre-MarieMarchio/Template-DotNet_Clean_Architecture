@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
 using Microsoft.Extensions.Logging;
 using Npgsql;

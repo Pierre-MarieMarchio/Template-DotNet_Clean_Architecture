@@ -1,12 +1,12 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Application.Features.Files.Options;
+using AppTemplate.Application.Features.Files.Configuration.Options;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Domain.Features.Files.Model.Entities;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Domain.Features.Files.Repositories;
-using AppTemplate.Domain.Features.Files.ValueObjects;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Shouldly;

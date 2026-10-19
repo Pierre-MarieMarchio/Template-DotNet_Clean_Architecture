@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Common.Tagging;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Domain.Features.Files.Model.Entities;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.ReplaceStoredFileTags;

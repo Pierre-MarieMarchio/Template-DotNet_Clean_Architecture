@@ -2,7 +2,7 @@
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.TodoLists.Dtos;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
 
 namespace AppTemplate.Api.Features.TodoLists.Mapping;
 

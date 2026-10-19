@@ -560,8 +560,8 @@ Everything else keeps a live example, because `Files` is one:
 | `IUnitOfWork` | use cases and services under `Src/Application/AppTemplate.Application/Features/Files/` |
 | The aggregate tracker / identity map, registered under three contracts | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Tracking/StoredFileTracker.cs` |
 | The default-deny fallback authorisation policy | both `Src/Presentation/AppTemplate.Api/Features/Files/Controllers/FilesController.cs` and `Src/Presentation/AppTemplate.Api/Features/Files/Controllers/FileTagsController.cs` carry no `[Authorize]` and no `[AllowAnonymous]`, on the class or on any action |
-| Domain events at all | three under `Src/Domain/AppTemplate.Domain/Features/Files/Events/`, one with a consumer |
-| `ICollectionPolicy` | `Src/Application/AppTemplate.Application/Features/Files/Policies/StoredFileCollectionPolicy.cs` |
+| Domain events at all | three under `Src/Domain/AppTemplate.Domain/Features/Files/Model/Events/`, one with a consumer |
+| `ICollectionPolicy` | `Src/Application/AppTemplate.Application/Features/Files/Model/Policies/StoredFileCollectionPolicy.cs` |
 | Ownership isolation for a resource addressed by id | the `{fileId:guid}` routes of `FilesController` and the tag replacement on `FileTagsController` |
 | `[Idempotent]` | `FilesController`'s registration action; the count drops from four to three |
 

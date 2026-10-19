@@ -2,8 +2,8 @@
 using AppTemplate.Application.Core.Common.Ownership;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Reminders.Errors;
-using AppTemplate.Domain.Features.Reminders.Entities;
+using AppTemplate.Application.Features.Reminders.Model.Errors;
+using AppTemplate.Domain.Features.Reminders.Model.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 
 namespace AppTemplate.Application.Features.Reminders.Services;

@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Domain.Core.Common.Events;
-using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Domain.Features.TodoLists.Events;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
 using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;

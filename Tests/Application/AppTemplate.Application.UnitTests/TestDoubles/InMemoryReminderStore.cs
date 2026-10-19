@@ -2,9 +2,9 @@
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Reminders.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 using AppTemplate.Domain.Features.Reminders.Repositories;
-using AppTemplate.Domain.Features.Reminders.ValueObjects;
 
 namespace AppTemplate.Application.UnitTests.TestDoubles;
 

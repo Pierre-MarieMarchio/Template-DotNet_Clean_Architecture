@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Features.Reminders.Entities;
+﻿using AppTemplate.Domain.Features.Reminders.Model.Entities;
 using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;

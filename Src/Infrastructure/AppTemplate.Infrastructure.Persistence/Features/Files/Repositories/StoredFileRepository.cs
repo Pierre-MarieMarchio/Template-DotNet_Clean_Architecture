@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Domain.Features.Files.Model.Entities;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Domain.Features.Files.Repositories;
-using AppTemplate.Domain.Features.Files.ValueObjects;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;

@@ -83,8 +83,8 @@ internal static class NewFeature
     private static readonly string[] ReservedNames =
     [
         "Api", "Application", "Auth", "Common", "Contracts", "Controllers", "Core", "Dtos", "Domain",
-        "Entities", "Errors", "Features", "Infrastructure", "Models", "Persistence", "Policies", "Ports",
-        "Presentation", "Services", "UseCases", "Validators",
+        "Entities", "Errors", "Features", "Infrastructure", "Model", "Models", "Persistence", "Policies",
+        "Ports", "Presentation", "Services", "UseCases",
     ];
 
     /// <summary>
@@ -694,17 +694,17 @@ internal static class NewFeature
         }
 
         // Domain, aggregate only.
-        Add(domain, $"{feature}/Entities/%A%.cs", Templates.Aggregate, "agg");
+        Add(domain, $"{feature}/Model/Entities/%A%.cs", Templates.Aggregate, "agg");
         Add(domain, $"{feature}/Repositories/I%A%Repository.cs", Templates.RepositoryPort, "agg&wq");
 
         // Application, both shapes.
-        Add(application, $"{feature}/Dtos/%A%ContentDto.cs", Templates.ContentDto, "rec&content");
-        Add(application, $"{feature}/Dtos/%A%Dto.cs", Templates.Dto, "dto");
-        Add(application, $"{feature}/Dtos/%A%SummaryDto.cs", Templates.SummaryDto, "list");
-        Add(application, $"{feature}/Dtos/%A%ListQueryDto.cs", Templates.ListQuery, "rec&list");
-        Add(application, $"{feature}/Errors/%A%Errors.cs", Templates.Errors, "notfound");
-        Add(application, $"{feature}/Policies/%A%CollectionPolicy.cs", Templates.CollectionPolicy, "list");
-        Add(application, $"{feature}/Policies/%A%InputPolicy.cs", Templates.InputPolicy, "rec");
+        Add(application, $"{feature}/Model/Dtos/%A%ContentDto.cs", Templates.ContentDto, "rec&content");
+        Add(application, $"{feature}/Model/Dtos/%A%Dto.cs", Templates.Dto, "dto");
+        Add(application, $"{feature}/Model/Dtos/%A%SummaryDto.cs", Templates.SummaryDto, "list");
+        Add(application, $"{feature}/Model/Dtos/%A%ListQueryDto.cs", Templates.ListQuery, "rec&list");
+        Add(application, $"{feature}/Model/Errors/%A%Errors.cs", Templates.Errors, "notfound");
+        Add(application, $"{feature}/Model/Policies/%A%CollectionPolicy.cs", Templates.CollectionPolicy, "list");
+        Add(application, $"{feature}/Model/Policies/%A%InputPolicy.cs", Templates.InputPolicy, "rec");
         Add(application, $"{feature}/Ports/%A%Queries/I%A%Queries.cs", Templates.QueriesPort, "rq");
         Add(application, $"{feature}/Ports/%A%Queries/%A%Filter.cs", Templates.Filter, "list");
         Add(application, $"{feature}/Ports/%A%Store/I%A%Store.cs", Templates.StorePort, "rec&stage");
@@ -713,10 +713,10 @@ internal static class NewFeature
         // Application, the service shape: one service holds every operation.
         Add(application, $"{feature}/Services/I%A%Service.cs", Templates.ServicePort, "rec");
         Add(application, $"{feature}/Services/%A%Service.cs", Templates.Service, "rec");
-        Add(application, $"{feature}/Validators/%A%ContentDtoValidator.cs", Templates.ContentValidator, "rec&content");
+        Add(application, $"{feature}/Model/Dtos/%A%ContentDtoValidator.cs", Templates.ContentValidator, "rec&content");
 
         // Application, the use-case shape: one use case per operation.
-        Add(application, $"{feature}/Mapping/%A%DtoMapping.cs", Templates.DtoMapping, "agg&content");
+        Add(application, $"{feature}/Model/Mapping/%A%DtoMapping.cs", Templates.DtoMapping, "agg&content");
         Add(application, $"{feature}/Services/I%A%Service.cs", Templates.AccessServicePort, "agg&change");
         Add(application, $"{feature}/Services/%A%Service.cs", Templates.AccessService, "agg&change");
         string queries = $"{feature}/UseCases/Queries";
@@ -744,7 +744,7 @@ internal static class NewFeature
 
         // Application, the account-deleted reaction of a feature that owns user data: one consumer
         // of the fact, both faces in one class, the same pattern the four shipped features use.
-        Add(application, $"{feature}/Consumers/AccountDeleted/%Verb%%A%OnAccountDeletedConsumer.cs", Templates.AccountDeletedConsumer, "owner");
+        Add(application, $"{feature}/Services/Consumers/%Verb%%A%OnAccountDeletedConsumer.cs", Templates.AccountDeletedConsumer, "owner");
 
         // Persistence.
         Add(persistence, $"{feature}/Models/%A%Record.cs", Templates.RecordPlain, "rec");
@@ -770,8 +770,8 @@ internal static class NewFeature
 
         // Tests: the ones whose assertions hold for any feature of the chosen shape. A skeleton that
         // asserts nothing is not written, because it would pass for any code.
-        AddTest(applicationTests, $"{feature}/Errors/%A%ErrorsTests.cs", Templates.ErrorsTests, "notfound");
-        AddTest(applicationTests, $"{feature}/Validators/%A%ContentDtoValidatorTests.cs", Templates.ContentValidatorTests, "rec&content");
+        AddTest(applicationTests, $"{feature}/Model/Errors/%A%ErrorsTests.cs", Templates.ErrorsTests, "notfound");
+        AddTest(applicationTests, $"{feature}/Model/Dtos/%A%ContentDtoValidatorTests.cs", Templates.ContentValidatorTests, "rec&content");
         AddTest(applicationTests, $"{feature}/Services/%A%ServiceTests.cs", Templates.ServiceTests, "rec");
         AddTest(
             applicationTests,
@@ -785,7 +785,7 @@ internal static class NewFeature
             Templates.CommandValidatorTests,
             "agg&update",
             new() { ["Op"] = "Update", ["CommandNew"] = "new Update%A%Command(Guid.CreateVersion7(), name!, description!)" });
-        AddTest(domainTests, $"{feature}/Entities/%A%Tests.cs", Templates.AggregateTests, "agg");
+        AddTest(domainTests, $"{feature}/Model/Entities/%A%Tests.cs", Templates.AggregateTests, "agg");
         AddTest(persistenceTests, $"{feature}/Configurations/%A%RecordConfigurationTests.cs", Templates.ConfigurationTests);
         AddTest(persistenceTests, $"{feature}/%A%MapperFidelityTests.cs", Templates.MapperFidelityTests, "agg");
         AddTest(apiTests, $"{feature}/Mapping/%A%ResponseMappingTests.cs", Templates.ResponseMappingTests, "dto");
@@ -877,7 +877,7 @@ internal static class NewFeature
             ["ListQuery"] = owner ? "GetForOwnerAsync" : "GetPageAsync",
             ["ListInput"] = record ? $"{a}ListQueryDto" : $"Get{f}Query",
             ["ListInputNamespace"] = record
-                ? $"{spec.Prefix}.Application.Features.{f}.Dtos"
+                ? $"{spec.Prefix}.Application.Features.{f}.Model.Dtos"
                 : $"{spec.Prefix}.Application.Features.{f}.UseCases.Queries.Get{f}",
             ["SvcOwner"] = owner ? "userId.Value, " : string.Empty,
             ["Implements"] = owner ? ", IOwnedAggregate" : string.Empty,
@@ -1699,12 +1699,12 @@ internal static class NewFeature
         Present(record && changes, $"Ports/{type}Store/{type}ChangeStatus.cs");
         Present(record && (writes || owner), $"Stores/{type}Store.cs");
         Present(Has("get") || Has("list") || owner || (record && (Has("create") || Has("update"))), $"Ports/{type}Queries/I{type}Queries.cs");
-        Present(owner, $"Consumers/AccountDeleted/{verb}{type}OnAccountDeletedConsumer.cs");
-        Present(Has("list"), $"Dtos/{type}SummaryDto.cs");
-        Present(Has("list"), $"Policies/{type}CollectionPolicy.cs");
+        Present(owner, $"Services/Consumers/{verb}{type}OnAccountDeletedConsumer.cs");
+        Present(Has("list"), $"Model/Dtos/{type}SummaryDto.cs");
+        Present(Has("list"), $"Model/Policies/{type}CollectionPolicy.cs");
         Present(Has("list"), $"Queries/{type}SortMap.cs");
         Present(Has("list"), $"Contracts/Requests/Get{features}Request.cs");
-        Present(Has("get") || Has("create") || Has("update"), $"Dtos/{type}Dto.cs");
+        Present(Has("get") || Has("create") || Has("update"), $"Model/Dtos/{type}Dto.cs");
         Present(Has("get") || Has("create") || Has("update"), $"Contracts/Responses/{type}Response.cs");
         Present(Has("create"), $"Contracts/Requests/Create{type}Request.cs");
         Present(Has("update"), $"Contracts/Requests/Update{type}Request.cs");
@@ -1712,7 +1712,7 @@ internal static class NewFeature
         Present(true, $"Models/{type}Record.cs");
         Present(true, $"Configurations/{type}RecordConfiguration.cs");
 
-        Present(!record, $"Entities/{type}.cs");
+        Present(!record, $"Model/Entities/{type}.cs");
         Present(!record, $"Mapping/{type}Mapper.cs");
         Present(!record, $"Tracking/{type}Tracker.cs");
         Present(!record, $"Repositories/{type}Repository.cs");
@@ -1779,7 +1779,7 @@ internal static class NewFeature
 
         // The account-deleted reaction: one consumer whatever the operations, written to the declared
         // fate, with the queries port answering the sweep.
-        string consumer = Text($"Consumers/AccountDeleted/{verb}{type}OnAccountDeletedConsumer.cs");
+        string consumer = Text($"Services/Consumers/{verb}{type}OnAccountDeletedConsumer.cs");
         string queriesPort = Text($"Ports/{type}Queries/I{type}Queries.cs");
 
         Contains(consumer, "IUserAccountDirectory", owner, "the consumer");
@@ -1790,7 +1790,7 @@ internal static class NewFeature
 
         if (owner && !record && deletion == "anonymise")
         {
-            Contains(Text($"Entities/{type}.cs"), "public void Anonymise()", true, "the aggregate");
+            Contains(Text($"Model/Entities/{type}.cs"), "public void Anonymise()", true, "the aggregate");
         }
 
         // A persisted version exists exactly when concurrency asks for one, and the owner exactly when
@@ -1838,7 +1838,7 @@ internal static class NewFeature
 
         // A single file in the way, with its feature folder absent from every other project.
         string other = NewTree(scratch);
-        string inTheWay = System.IO.Path.Combine(other, "Tests/Application/Acme.Application.UnitTests/Features/Widgets/Errors/WidgetErrorsTests.cs");
+        string inTheWay = System.IO.Path.Combine(other, "Tests/Application/Acme.Application.UnitTests/Features/Widgets/Model/Errors/WidgetErrorsTests.cs");
 
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(inTheWay)!);
         File.WriteAllText(inTheWay, "// somebody's own test\n");
@@ -2310,7 +2310,7 @@ internal static class Templates
         using %P%.Domain.Core.Common.Exceptions; //?DomainException
         using %P%.Domain.Core.Common.Primitives;
 
-        namespace %P%.Domain.Features.%F%.Entities;
+        namespace %P%.Domain.Features.%F%.Model.Entities;
 
         /// <summary>
         /// The aggregate root of the %F% feature and its consistency boundary: what protects the state of
@@ -2460,7 +2460,7 @@ internal static class Templates
 
     internal const string RepositoryPort = """
         using %P%.Domain.Core.Common.Primitives; //?UserId
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
 
         namespace %P%.Domain.Features.%F%.Repositories;
 
@@ -2495,7 +2495,7 @@ internal static class Templates
     // ---- Application, shared by both shapes -----------------------------------------------------
 
     internal const string ContentDto = """
-        namespace %P%.Application.Features.%F%.Dtos;
+        namespace %P%.Application.Features.%F%.Model.Dtos;
 
         /// <summary>
         /// What a caller may write: the text, and nothing else. The id comes from the route,
@@ -2509,7 +2509,7 @@ internal static class Templates
         """;
 
     internal const string Dto = """
-        namespace %P%.Application.Features.%F%.Dtos;
+        namespace %P%.Application.Features.%F%.Model.Dtos;
 
         /// <summary>
         /// One %L% as a caller reads it.
@@ -2526,7 +2526,7 @@ internal static class Templates
         """;
 
     internal const string SummaryDto = """
-        namespace %P%.Application.Features.%F%.Dtos;
+        namespace %P%.Application.Features.%F%.Model.Dtos;
 
         /// <summary>%An% %L% inside a page: no description, so a page does not grow with the text of what is on it.</summary>
         public sealed record %A%SummaryDto(
@@ -2561,7 +2561,7 @@ internal static class Templates
     internal const string Errors = """
         using %P%.Application.Core.Common.Results;
 
-        namespace %P%.Application.Features.%F%.Errors;
+        namespace %P%.Application.Features.%F%.Model.Errors;
 
         public static class %A%Errors
         {
@@ -2583,7 +2583,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Collections;
         using %P%.Application.Core.Common.Policies;
 
-        namespace %P%.Application.Features.%F%.Policies;
+        namespace %P%.Application.Features.%F%.Model.Policies;
 
         /// <summary>The feature's own collection whitelist: both fields are non-null and indexed.</summary>
         public sealed class %A%CollectionPolicy : ICollectionPolicy
@@ -2611,7 +2611,7 @@ internal static class Templates
         """;
 
     internal const string InputPolicy = """
-        namespace %P%.Application.Features.%F%.Policies;
+        namespace %P%.Application.Features.%F%.Model.Policies;
 
         /// <summary>
         /// The size limits on %a% %L%'s text. With no domain model to hold them they are declared here once
@@ -2644,7 +2644,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Collections; //?FeaturePageRequest
         using %P%.Application.Core.Common.Concurrency; //?Versioned
         using %P%.Application.Core.Common.Results; //?PagedResult
-        using %P%.Application.Features.%F%.Dtos; //?%A%SummaryDto|%A%Dto
+        using %P%.Application.Features.%F%.Model.Dtos; //?%A%SummaryDto|%A%Dto
         using %P%.Domain.Core.Common.Primitives; //?UserId
 
         namespace %P%.Application.Features.%F%.Ports.%A%Queries;
@@ -2699,7 +2699,7 @@ internal static class Templates
 
     internal const string StorePort = """
         using %P%.Application.Core.Common.Concurrency; //?VersionPrecondition
-        using %P%.Application.Features.%F%.Dtos; //?%A%ContentDto
+        using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto
         using %P%.Domain.Core.Common.Primitives; //?UserId
 
         namespace %P%.Application.Features.%F%.Ports.%A%Store;
@@ -2815,8 +2815,8 @@ internal static class Templates
     internal const string ServicePort = """
         using %P%.Application.Core.Common.Concurrency; //?Versioned|VersionPrecondition|ConcurrencyErrors
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Features.%F%.Dtos; //?%A%ContentDto|%A%Dto|%A%SummaryDto|%A%ListQueryDto
-        using %P%.Application.Features.%F%.Errors; //?%A%Errors
+        using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto|%A%Dto|%A%SummaryDto|%A%ListQueryDto
+        using %P%.Application.Features.%F%.Model.Errors; //?%A%Errors
 
         namespace %P%.Application.Features.%F%.Services;
 
@@ -2910,9 +2910,9 @@ internal static class Templates
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
         using %P%.Application.Core.Common.Validation; //?EnsureValidAsync
-        using %P%.Application.Features.%F%.Dtos; //?%A%ContentDto|%A%Dto|%A%SummaryDto|%A%ListQueryDto
-        using %P%.Application.Features.%F%.Errors; //?%A%Errors
-        using %P%.Application.Features.%F%.Policies; //?%A%CollectionPolicy
+        using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto|%A%Dto|%A%SummaryDto|%A%ListQueryDto
+        using %P%.Application.Features.%F%.Model.Errors; //?%A%Errors
+        using %P%.Application.Features.%F%.Model.Policies; //?%A%CollectionPolicy
         using %P%.Application.Features.%F%.Ports.%A%Queries; //?I%A%Queries|%A%Filter
         using %P%.Application.Features.%F%.Ports.%A%Store; //?I%A%Store|%A%ChangeStatus
         using %P%.Domain.Core.Common.Primitives; //?UserId
@@ -3132,11 +3132,10 @@ internal static class Templates
         """;
 
     internal const string ContentValidator = """
-        using %P%.Application.Features.%F%.Dtos;
-        using %P%.Application.Features.%F%.Policies;
+        using %P%.Application.Features.%F%.Model.Policies;
         using FluentValidation;
 
-        namespace %P%.Application.Features.%F%.Validators;
+        namespace %P%.Application.Features.%F%.Model.Dtos;
 
         public sealed class %A%ContentDtoValidator : AbstractValidator<%A%ContentDto>
         {
@@ -3163,10 +3162,10 @@ internal static class Templates
 
     internal const string DtoMapping = """
         using %P%.Application.Core.Common.Concurrency;
-        using %P%.Application.Features.%F%.Dtos;
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Application.Features.%F%.Model.Dtos;
+        using %P%.Domain.Features.%F%.Model.Entities;
 
-        namespace %P%.Application.Features.%F%.Mapping;
+        namespace %P%.Application.Features.%F%.Model.Mapping;
 
         /// <summary>
         /// Turns the aggregate a command just wrote into the DTO a read would have produced, without a
@@ -3194,8 +3193,8 @@ internal static class Templates
     internal const string AccessServicePort = """
         using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Features.%F%.Errors;
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Application.Features.%F%.Model.Errors;
+        using %P%.Domain.Features.%F%.Model.Entities;
 
         namespace %P%.Application.Features.%F%.Services;
 
@@ -3228,8 +3227,8 @@ internal static class Templates
         using %P%.Application.Core.Common.Ownership; //?OwnedAggregate
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Features.%F%.Errors;
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Application.Features.%F%.Model.Errors;
+        using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Domain.Features.%F%.Repositories;
 
         namespace %P%.Application.Features.%F%.Services;
@@ -3295,7 +3294,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Core.Common.Results;
         using %P%.Application.Core.Common.UseCases;
-        using %P%.Application.Features.%F%.Dtos;
+        using %P%.Application.Features.%F%.Model.Dtos;
 
         namespace %P%.Application.Features.%F%.UseCases.Queries.Get%A%;
 
@@ -3307,8 +3306,8 @@ internal static class Templates
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
         using %P%.Application.Core.Common.Validation;
-        using %P%.Application.Features.%F%.Dtos;
-        using %P%.Application.Features.%F%.Errors;
+        using %P%.Application.Features.%F%.Model.Dtos;
+        using %P%.Application.Features.%F%.Model.Errors;
         using %P%.Application.Features.%F%.Ports.%A%Queries;
         using FluentValidation;
 
@@ -3355,7 +3354,7 @@ internal static class Templates
     internal const string ListUseCasePort = """
         using %P%.Application.Core.Common.Results;
         using %P%.Application.Core.Common.UseCases;
-        using %P%.Application.Features.%F%.Dtos;
+        using %P%.Application.Features.%F%.Model.Dtos;
 
         namespace %P%.Application.Features.%F%.UseCases.Queries.Get%F%;
 
@@ -3366,8 +3365,8 @@ internal static class Templates
         using %P%.Application.Core.Common.Collections;
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Features.%F%.Dtos;
-        using %P%.Application.Features.%F%.Policies;
+        using %P%.Application.Features.%F%.Model.Dtos;
+        using %P%.Application.Features.%F%.Model.Policies;
         using %P%.Application.Features.%F%.Ports.%A%Queries;
 
         namespace %P%.Application.Features.%F%.UseCases.Queries.Get%F%;
@@ -3410,7 +3409,7 @@ internal static class Templates
         """;
 
     internal const string CreateCommandValidator = """
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
         using FluentValidation;
 
         namespace %P%.Application.Features.%F%.UseCases.Commands.Create%A%;
@@ -3440,7 +3439,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Core.Common.Results;
         using %P%.Application.Core.Common.UseCases;
-        using %P%.Application.Features.%F%.Dtos;
+        using %P%.Application.Features.%F%.Model.Dtos;
 
         namespace %P%.Application.Features.%F%.UseCases.Commands.Create%A%;
 
@@ -3452,9 +3451,9 @@ internal static class Templates
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
         using %P%.Application.Core.Common.Validation;
-        using %P%.Application.Features.%F%.Dtos;
-        using %P%.Application.Features.%F%.Mapping;
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Application.Features.%F%.Model.Dtos;
+        using %P%.Application.Features.%F%.Model.Mapping;
+        using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Domain.Features.%F%.Repositories;
         using FluentValidation;
 
@@ -3512,7 +3511,7 @@ internal static class Templates
         """;
 
     internal const string UpdateCommandValidator = """
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
         using FluentValidation;
 
         namespace %P%.Application.Features.%F%.UseCases.Commands.Update%A%;
@@ -3544,7 +3543,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Core.Common.Results;
         using %P%.Application.Core.Common.UseCases;
-        using %P%.Application.Features.%F%.Dtos;
+        using %P%.Application.Features.%F%.Model.Dtos;
 
         namespace %P%.Application.Features.%F%.UseCases.Commands.Update%A%;
 
@@ -3556,8 +3555,8 @@ internal static class Templates
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
         using %P%.Application.Core.Common.Validation;
-        using %P%.Application.Features.%F%.Dtos;
-        using %P%.Application.Features.%F%.Mapping;
+        using %P%.Application.Features.%F%.Model.Dtos;
+        using %P%.Application.Features.%F%.Model.Mapping;
         using %P%.Application.Features.%F%.Services;
         using FluentValidation;
 
@@ -3772,9 +3771,9 @@ internal static class Templates
 
     internal const string Configuration = """
         %if rec%
-        using %P%.Application.Features.%F%.Policies;
+        using %P%.Application.Features.%F%.Model.Policies;
         %else%
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
         %end%
         using %P%.Infrastructure.Persistence.Common.Contexts;
         using %P%.Infrastructure.Persistence.Features.%F%.Models;
@@ -3862,7 +3861,7 @@ internal static class Templates
 
     internal const string Store = """
         using %P%.Application.Core.Common.Concurrency; //?VersionPrecondition
-        using %P%.Application.Features.%F%.Dtos; //?%A%ContentDto
+        using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto
         using %P%.Application.Features.%F%.Ports.%A%Store;
         using %P%.Domain.Core.Common.Primitives; //?UserId
         using %P%.Infrastructure.Persistence.Common.Contexts;
@@ -4091,7 +4090,7 @@ internal static class Templates
         """;
 
     internal const string MapperPort = """
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Infrastructure.Persistence.Features.%F%.Models;
 
         namespace %P%.Infrastructure.Persistence.Features.%F%.Mapping;
@@ -4108,7 +4107,7 @@ internal static class Templates
 
     internal const string Mapper = """
         using %P%.Domain.Core.Common.Primitives; //?UserId
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Infrastructure.Core.Common.Saving.Tracking;
         using %P%.Infrastructure.Persistence.Features.%F%.Models;
 
@@ -4170,7 +4169,7 @@ internal static class Templates
         """;
 
     internal const string TrackerPort = """
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Infrastructure.Core.Common.Saving.DomainEvents;
         using %P%.Infrastructure.Core.Common.Saving.Tracking;
         using %P%.Infrastructure.Persistence.Features.%F%.Models;
@@ -4190,7 +4189,7 @@ internal static class Templates
         """;
 
     internal const string Tracker = """
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Infrastructure.Core.Common.Saving.Tracking;
         using %P%.Infrastructure.Persistence.Features.%F%.Mapping;
         using %P%.Infrastructure.Persistence.Features.%F%.Models;
@@ -4231,7 +4230,7 @@ internal static class Templates
 
     internal const string Repository = """
         using %P%.Domain.Core.Common.Primitives; //?UserId
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Domain.Features.%F%.Repositories;
         using %P%.Infrastructure.Persistence.Common.Contexts;
         using %P%.Infrastructure.Persistence.Features.%F%.Mapping;
@@ -4339,7 +4338,7 @@ internal static class Templates
         using %P%.Domain.Features.%F%.Repositories;
         %end%
 
-        namespace %P%.Application.Features.%F%.Consumers.AccountDeleted;
+        namespace %P%.Application.Features.%F%.Services.Consumers;
 
         /// <summary>
         /// The %F%' declared fate for the data of a deleted account: <b>%Fate%</b>. The rows are this
@@ -4761,7 +4760,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Collections; //?FeaturePageRequest
         using %P%.Application.Core.Common.Concurrency; //?Versioned
         using %P%.Application.Core.Common.Results; //?PagedResult
-        using %P%.Application.Features.%F%.Dtos; //?%A%SummaryDto|%A%Dto
+        using %P%.Application.Features.%F%.Model.Dtos; //?%A%SummaryDto|%A%Dto
         using %P%.Application.Features.%F%.Ports.%A%Queries;
         using %P%.Domain.Core.Common.Primitives; //?UserId
         using %P%.Infrastructure.Persistence.Common.Contexts;
@@ -4924,8 +4923,8 @@ internal static class Templates
     internal const string SortMap = """
         using System.Globalization;
         using %P%.Application.Core.Common.Collections;
-        using %P%.Application.Features.%F%.Dtos;
-        using %P%.Application.Features.%F%.Policies;
+        using %P%.Application.Features.%F%.Model.Dtos;
+        using %P%.Application.Features.%F%.Model.Policies;
         using %P%.Infrastructure.Persistence.Features.%F%.Models;
 
         namespace %P%.Infrastructure.Persistence.Features.%F%.Queries;
@@ -5136,7 +5135,7 @@ internal static class Templates
         using %P%.Api.Features.%F%.Contracts.Responses;
         using %P%.Application.Core.Common.Concurrency; //?Versioned
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Features.%F%.Dtos;
+        using %P%.Application.Features.%F%.Model.Dtos;
 
         namespace %P%.Api.Features.%F%.Mapping;
 
@@ -5189,7 +5188,7 @@ internal static class Templates
         using %P%.Api.Features.%F%.Contracts.Responses; //?%A%Response|%A%SummaryResponse
         using %P%.Api.Features.%F%.Mapping; //?%A%ResponseMapping
         %if rec%
-        using %P%.Application.Features.%F%.Dtos; //?%A%ContentDto|%A%ListQueryDto
+        using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto|%A%ListQueryDto
         using %P%.Application.Features.%F%.Services;
         %else%
         %if create%
@@ -5409,11 +5408,11 @@ internal static class Templates
 
     internal const string ErrorsTests = """
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Features.%F%.Errors;
+        using %P%.Application.Features.%F%.Model.Errors;
         using Shouldly;
         using Xunit;
 
-        namespace %P%.Application.UnitTests.Features.%F%.Errors;
+        namespace %P%.Application.UnitTests.Features.%F%.Model.Errors;
 
         public sealed class %A%ErrorsTests
         {
@@ -5432,13 +5431,12 @@ internal static class Templates
         """;
 
     internal const string ContentValidatorTests = """
-        using %P%.Application.Features.%F%.Dtos;
-        using %P%.Application.Features.%F%.Policies;
-        using %P%.Application.Features.%F%.Validators;
+        using %P%.Application.Features.%F%.Model.Dtos;
+        using %P%.Application.Features.%F%.Model.Policies;
         using Shouldly;
         using Xunit;
 
-        namespace %P%.Application.UnitTests.Features.%F%.Validators;
+        namespace %P%.Application.UnitTests.Features.%F%.Model.Dtos;
 
         public sealed class %A%ContentDtoValidatorTests
         {
@@ -5524,11 +5522,11 @@ internal static class Templates
         using %P%.Application.Core.Common.Concurrency; //?Versioned|VersionPrecondition
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Features.%F%.Dtos; //?%A%ContentDto|%A%Dto|%A%ListQueryDto
+        using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto|%A%Dto|%A%ListQueryDto
         using %P%.Application.Features.%F%.Ports.%A%Queries; //?I%A%Queries|%A%Filter
         using %P%.Application.Features.%F%.Ports.%A%Store; //?I%A%Store|%A%ChangeStatus
         using %P%.Application.Features.%F%.Services;
-        using %P%.Application.Features.%F%.Validators; //?%A%ContentDtoValidator
+        using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDtoValidator
         using %P%.Application.UnitTests.TestDoubles;
         using %P%.Domain.Core.Common.Primitives;
         using NSubstitute;
@@ -5678,11 +5676,11 @@ internal static class Templates
     internal const string AggregateTests = """
         using %P%.Domain.Core.Common.Exceptions;
         using %P%.Domain.Core.Common.Primitives; //?UserId
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
         using Shouldly;
         using Xunit;
 
-        namespace %P%.Domain.UnitTests.Features.%F%.Entities;
+        namespace %P%.Domain.UnitTests.Features.%F%.Model.Entities;
 
         public sealed class %A%Tests
         {
@@ -5755,9 +5753,9 @@ internal static class Templates
         """;
 
     internal const string ConfigurationTests = """
-        using %P%.Application.Features.%F%.Policies; //?%A%InputPolicy|%A%CollectionPolicy
+        using %P%.Application.Features.%F%.Model.Policies; //?%A%InputPolicy|%A%CollectionPolicy
         %if agg%
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
         %end%
         using %P%.Infrastructure.Persistence.Common.Contexts;
         using %P%.Infrastructure.Persistence.Features.%F%.Models;
@@ -5853,7 +5851,7 @@ internal static class Templates
     internal const string MapperFidelityTests = """
         using %P%.Domain.Core.Common.Abstractions;
         using %P%.Domain.Core.Common.Primitives; //?UserId
-        using %P%.Domain.Features.%F%.Entities;
+        using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Infrastructure.Persistence.Features.%F%.Mapping;
         using Shouldly;
         using Xunit;
@@ -5913,7 +5911,7 @@ internal static class Templates
         using %P%.Api.Features.%F%.Mapping;
         using %P%.Application.Core.Common.Concurrency; //?Versioned
         using %P%.Application.Core.Common.Results; //?Result\.
-        using %P%.Application.Features.%F%.Dtos;
+        using %P%.Application.Features.%F%.Model.Dtos;
         using Shouldly;
         using Xunit;
 

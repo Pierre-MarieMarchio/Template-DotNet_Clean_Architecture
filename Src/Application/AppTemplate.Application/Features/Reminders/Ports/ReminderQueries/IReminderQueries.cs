@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Reminders.Dtos;
+﻿using AppTemplate.Application.Features.Reminders.Model.Dtos;
 using AppTemplate.Domain.Core.Common.Primitives;
 
 namespace AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;

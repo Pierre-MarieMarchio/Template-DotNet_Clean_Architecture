@@ -1,15 +1,15 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
-using AppTemplate.Application.Features.Files.Errors;
-using AppTemplate.Application.Features.Files.Options;
-using AppTemplate.Application.Features.Files.Policies;
+using AppTemplate.Application.Features.Files.Configuration.Options;
+using AppTemplate.Application.Features.Files.Model.Errors;
+using AppTemplate.Application.Features.Files.Model.Policies;
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Domain.Features.Files.Model.Entities;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Domain.Features.Files.Repositories;
-using AppTemplate.Domain.Features.Files.ValueObjects;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application.Features.Files.Services;

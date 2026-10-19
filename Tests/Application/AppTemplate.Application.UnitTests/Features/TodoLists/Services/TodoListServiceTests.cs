@@ -1,10 +1,10 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.TodoLists.Errors;
+using AppTemplate.Application.Features.TodoLists.Model.Errors;
 using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.TodoLists.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using NSubstitute;
 using Shouldly;

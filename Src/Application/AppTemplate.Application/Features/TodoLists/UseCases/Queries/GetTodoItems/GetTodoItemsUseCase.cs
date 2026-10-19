@@ -2,8 +2,8 @@
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
-using AppTemplate.Application.Features.TodoLists.Dtos;
-using AppTemplate.Application.Features.TodoLists.Errors;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
+using AppTemplate.Application.Features.TodoLists.Model.Errors;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using FluentValidation;
 

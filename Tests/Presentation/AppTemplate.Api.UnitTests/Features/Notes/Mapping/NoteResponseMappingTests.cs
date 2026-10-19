@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Api.Features.Notes.Mapping;
 using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Notes.Dtos;
-using AppTemplate.Application.Features.Notes.Errors;
+using AppTemplate.Application.Features.Notes.Model.Dtos;
+using AppTemplate.Application.Features.Notes.Model.Errors;
 using Shouldly;
 using Xunit;
 

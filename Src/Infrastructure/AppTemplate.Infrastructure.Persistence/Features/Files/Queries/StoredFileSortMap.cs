@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using AppTemplate.Application.Core.Common.Collections;
-using AppTemplate.Application.Features.Files.Dtos;
-using AppTemplate.Application.Features.Files.Policies;
+using AppTemplate.Application.Features.Files.Model.Dtos;
+using AppTemplate.Application.Features.Files.Model.Policies;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Queries;

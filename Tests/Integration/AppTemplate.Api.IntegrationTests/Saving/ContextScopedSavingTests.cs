@@ -2,7 +2,7 @@
 using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.TodoLists.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 //#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Contexts;

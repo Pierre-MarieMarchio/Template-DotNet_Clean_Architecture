@@ -1,7 +1,7 @@
 ﻿using System.Security.Claims;
 using AppTemplate.Api.Features.ExternalIdentity.Options;
-using AppTemplate.Application.Features.ExternalIdentity.Dtos;
-using AppTemplate.Application.Features.ExternalIdentity.Policies;
+using AppTemplate.Application.Features.ExternalIdentity.Model.Dtos;
+using AppTemplate.Application.Features.ExternalIdentity.Model.Policies;
 using AppTemplate.Application.Features.ExternalIdentity.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;

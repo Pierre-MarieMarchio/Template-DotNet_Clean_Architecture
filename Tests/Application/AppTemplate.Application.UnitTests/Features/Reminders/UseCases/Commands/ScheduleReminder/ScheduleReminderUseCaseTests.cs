@@ -4,7 +4,7 @@ using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleRemin
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Reminders.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using NSubstitute;
 using Shouldly;

@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using AppTemplate.Api.Features.Files.Contracts.Requests;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Domain.Features.Files.Model.Entities;
 using Shouldly;
 using Xunit;
 

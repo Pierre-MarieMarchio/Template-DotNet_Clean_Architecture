@@ -1,12 +1,12 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Files.Dtos;
+using AppTemplate.Application.Features.Files.Model.Dtos;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using NSubstitute;
 using Shouldly;
 using Xunit;

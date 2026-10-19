@@ -9,7 +9,7 @@ using AppTemplate.Application.Features.TodoLists.UseCases.Commands.RemoveTodoIte
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.RenameTodoList;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.TodoLists.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using NSubstitute;
 using Shouldly;

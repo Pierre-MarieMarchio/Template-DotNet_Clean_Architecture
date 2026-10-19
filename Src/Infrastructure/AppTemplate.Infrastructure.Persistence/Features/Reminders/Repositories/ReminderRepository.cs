@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Reminders.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 using AppTemplate.Domain.Features.Reminders.Repositories;
-using AppTemplate.Domain.Features.Reminders.ValueObjects;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Models;

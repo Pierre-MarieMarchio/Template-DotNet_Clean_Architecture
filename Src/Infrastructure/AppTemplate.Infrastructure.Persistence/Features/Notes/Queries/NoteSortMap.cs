@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using AppTemplate.Application.Core.Common.Collections;
-using AppTemplate.Application.Features.Notes.Dtos;
-using AppTemplate.Application.Features.Notes.Policies;
+using AppTemplate.Application.Features.Notes.Model.Dtos;
+using AppTemplate.Application.Features.Notes.Model.Policies;
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Notes.Queries;

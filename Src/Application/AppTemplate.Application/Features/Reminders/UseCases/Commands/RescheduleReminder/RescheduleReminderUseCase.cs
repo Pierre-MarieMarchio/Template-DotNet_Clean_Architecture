@@ -2,8 +2,8 @@
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
-using AppTemplate.Application.Features.Reminders.Dtos;
-using AppTemplate.Application.Features.Reminders.Mapping;
+using AppTemplate.Application.Features.Reminders.Model.Dtos;
+using AppTemplate.Application.Features.Reminders.Model.Mapping;
 using AppTemplate.Application.Features.Reminders.Services;
 using FluentValidation;
 

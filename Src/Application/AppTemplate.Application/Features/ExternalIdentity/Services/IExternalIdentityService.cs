@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.ExternalIdentity.Dtos;
+using AppTemplate.Application.Features.ExternalIdentity.Model.Dtos;
 using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityQueries;
 using AppTemplate.Domain.Core.Common.Primitives;
 
@@ -30,7 +30,7 @@ public interface IExternalIdentityService
     /// trigger the template wires is an administrative call — a provider-side deletion signal has no
     /// endpoint here, deliberately (see <c>docs/ARCHITECTURE.md</c>).</summary>
     /// <remarks>The store commits before this returns, in a transaction of its own; a second call
-    /// answers <see cref="Errors.ExternalIdentityErrors.MappingNotFound"/>. A caller that signs in
+    /// answers <see cref="Model.Errors.ExternalIdentityErrors.MappingNotFound"/>. A caller that signs in
     /// again is provisioned afresh, under a new owner id with none of the old one's data. A transient
     /// failure is retried by replaying the whole transaction; anything else propagates and nothing is
     /// removed.</remarks>

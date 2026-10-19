@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 

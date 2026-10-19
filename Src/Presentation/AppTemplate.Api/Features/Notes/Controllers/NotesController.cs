@@ -4,7 +4,7 @@ using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Features.Notes.Contracts.Requests;
 using AppTemplate.Api.Features.Notes.Contracts.Responses;
 using AppTemplate.Api.Features.Notes.Mapping;
-using AppTemplate.Application.Features.Notes.Dtos;
+using AppTemplate.Application.Features.Notes.Model.Dtos;
 using AppTemplate.Application.Features.Notes.Services;
 using Microsoft.AspNetCore.Mvc;
 

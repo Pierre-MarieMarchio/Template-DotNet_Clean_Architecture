@@ -2,7 +2,7 @@
 using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.TodoLists.Dtos;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;

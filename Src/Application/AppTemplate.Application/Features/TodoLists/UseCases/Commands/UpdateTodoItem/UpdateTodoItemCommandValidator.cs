@@ -1,5 +1,5 @@
-﻿using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Domain.Features.TodoLists.ValueObjects;
+﻿using AppTemplate.Domain.Features.TodoLists.Model.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.ValueObjects;
 using FluentValidation;
 
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands.UpdateTodoItem;

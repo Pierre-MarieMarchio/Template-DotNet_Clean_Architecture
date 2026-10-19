@@ -5,7 +5,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Application.Features.Files.Options;
+using AppTemplate.Application.Features.Files.Configuration.Options;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Domain.Features.Files.Repositories;
 using Microsoft.Extensions.DependencyInjection;

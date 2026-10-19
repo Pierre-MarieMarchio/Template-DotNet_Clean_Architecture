@@ -704,7 +704,7 @@ internal static class RemoveFeature
 
     private static readonly string[] SkeletonFiles =
     [
-        "Src/Domain/Acme.Domain/Features/Widgets/Entities/Widget.cs",
+        "Src/Domain/Acme.Domain/Features/Widgets/Model/Entities/Widget.cs",
         "Src/Application/Acme.Application/Features/Widgets/Services/WidgetService.cs",
         "Src/Application/Acme.Application/Features/Widgets/UseCases/Queries/GetWidget/GetWidgetQuery.cs",
         "Tests/Application/Acme.Application.UnitTests/Features/Widgets/WidgetServiceTests.cs",
@@ -774,7 +774,7 @@ internal static class RemoveFeature
 
         Refused("modified file", tree => File.AppendAllText(Path.Combine(tree, SkeletonFiles[1]), "// edited\n"), "edited since");
         Refused("missing file", tree => File.Delete(Path.Combine(tree, SkeletonFiles[0])), "are gone");
-        Refused("extra file", tree => Put(tree, "Src/Domain/Acme.Domain/Features/Widgets/Entities/Extra.cs", "x\n"), "added to the feature's generated folders");
+        Refused("extra file", tree => Put(tree, "Src/Domain/Acme.Domain/Features/Widgets/Model/Entities/Extra.cs", "x\n"), "added to the feature's generated folders");
         Refused("extra file in a new subfolder", tree => Put(tree, "Tests/Application/Acme.Application.UnitTests/Features/Widgets/Sub/Extra.cs", "x\n"), "added to the feature's generated folders");
         Refused("outside reference", tree => Put(tree, "Tests/Other/Acme.Other.Tests/UsesIt.cs", "using Acme.Application.Features.Widgets.Services;\n"), "use(s) of the feature's types");
         Refused("outside use of a type", tree => Put(tree, "Src/Other/Uses.cs", "var s = new WidgetService();\n"), "use(s) of the feature's types");

@@ -63,7 +63,7 @@ public sealed class FilesStorageS3OptionsValidatorTests
         Failures(storage => storage.Region = " ").ShouldContain(failure => failure.Contains("Region"));
 
     [Theory]
-    [InlineData("minio:9000")]
+    [InlineData("objectstore:9000")]
     [InlineData("ftp://objects.example")]
     [InlineData("/objects")]
     public void AnEndpointThatIsNotAnHttpUrl_IsRefused(string endpoint) =>
@@ -72,7 +72,7 @@ public sealed class FilesStorageS3OptionsValidatorTests
     [Fact]
     public void APlaintextEndpointAgainstAHostThatIsNotLoopback_IsRefused()
     {
-        Failures(storage => storage.Endpoint = "http://minio:9000")
+        Failures(storage => storage.Endpoint = "http://objectstore:9000")
             .ShouldContain(failure => failure.Contains("clear text"));
     }
 
@@ -93,7 +93,7 @@ public sealed class FilesStorageS3OptionsValidatorTests
     {
         var options = StorageFixture.Options(storage =>
         {
-            storage.Endpoint = "http://minio:9000";
+            storage.Endpoint = "http://objectstore:9000";
             storage.AllowInsecureTransport = true;
         });
 
@@ -108,7 +108,7 @@ public sealed class FilesStorageS3OptionsValidatorTests
     }
 
     [Theory]
-    [InlineData("minio:9000")]
+    [InlineData("objectstore:9000")]
     [InlineData("ftp://objects.example")]
     [InlineData("/objects")]
     public void APublicEndpointThatIsNotAnHttpUrl_IsRefused(string publicEndpoint)
@@ -127,7 +127,7 @@ public sealed class FilesStorageS3OptionsValidatorTests
     {
         var failures = Failures(storage =>
         {
-            storage.Endpoint = "https://minio.internal";
+            storage.Endpoint = "https://objectstore.internal";
             storage.PublicEndpoint = "http://files.example";
         });
 
@@ -148,7 +148,7 @@ public sealed class FilesStorageS3OptionsValidatorTests
     {
         var options = StorageFixture.Options(storage =>
         {
-            storage.Endpoint = "http://minio:9000";
+            storage.Endpoint = "http://objectstore:9000";
             storage.PublicEndpoint = "https://files.example";
         });
 
@@ -160,7 +160,7 @@ public sealed class FilesStorageS3OptionsValidatorTests
     {
         var options = StorageFixture.Options(storage =>
         {
-            storage.Endpoint = "https://minio.internal";
+            storage.Endpoint = "https://objectstore.internal";
             storage.PublicEndpoint = "http://files.example";
             storage.AllowInsecureTransport = true;
         });
@@ -173,7 +173,7 @@ public sealed class FilesStorageS3OptionsValidatorTests
     {
         var options = StorageFixture.Options(storage =>
         {
-            storage.Endpoint = "http://minio:9000";
+            storage.Endpoint = "http://objectstore:9000";
             storage.PublicEndpoint = "http://localhost:9000";
         });
 
@@ -188,12 +188,12 @@ public sealed class FilesStorageS3OptionsValidatorTests
     [Fact]
     public void TheClearTextFailure_NamesTheKeyThatCarriesTheEndpointItIsAbout()
     {
-        Failures(storage => storage.Endpoint = "http://minio:9000")
+        Failures(storage => storage.Endpoint = "http://objectstore:9000")
             .ShouldContain(failure => failure.Contains($"'{FilesStorageS3Options.SectionName}:Endpoint' is an http URL"));
 
         Failures(storage =>
             {
-                storage.Endpoint = "http://minio:9000";
+                storage.Endpoint = "http://objectstore:9000";
                 storage.PublicEndpoint = "http://files.example";
             })
             .ShouldContain(failure =>
@@ -206,8 +206,8 @@ public sealed class FilesStorageS3OptionsValidatorTests
     /// states. That is the compatibility promise, and it is a rule rather than a coincidence.
     /// </summary>
     [Theory]
-    [InlineData("http://minio:9000", false, false)]
-    [InlineData("http://minio:9000", true, true)]
+    [InlineData("http://objectstore:9000", false, false)]
+    [InlineData("http://objectstore:9000", true, true)]
     [InlineData("http://localhost:9000", false, true)]
     [InlineData("https://objects.example", false, true)]
     [InlineData("", false, true)]

@@ -36,13 +36,10 @@ docker compose up --build
 | OpenAPI document — development only | <http://localhost:8080/openapi/v1.json> |
 | OpenAPI UI — [Scalar](https://scalar.com), development only | <http://localhost:8080/scalar/v1> |
 | Mailpit — mails land here | <http://localhost:8025> |
-<!--#if (files)-->
-| MinIO console — uploaded files land here | <http://localhost:9001> |
-<!--#endif-->
 | PostgreSQL | `127.0.0.1:5432` |
 | Mailpit SMTP | `127.0.0.1:1025` |
 <!--#if (files)-->
-| MinIO S3 API | `127.0.0.1:9000` |
+| Object store (SeaweedFS) S3 API — uploaded files land here; no console, browse with any S3 client | `127.0.0.1:9000` |
 <!--#endif-->
 
 ```bash
@@ -75,7 +72,7 @@ You supply a PostgreSQL instance and an SMTP sink. The easiest is the pair from 
 <!--#if (files)-->
 ```bash
 cp .env.example .env
-docker compose up -d db mailpit minio minio-bucket
+docker compose up -d db mailpit objectstore
 ```
 <!--#else
 ```bash

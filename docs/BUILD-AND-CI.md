@@ -333,7 +333,7 @@ dotnet run Tools/Tasks.cs sonar
 ```
 
 The profile matters: `compose-up` gives you the application stack, and a 3 GB JVM that only the
-analysis needs has no business in it. Port 9111 and not 9000 because MinIO already publishes 9000.
+analysis needs has no business in it. Port 9111 and not 9000 because the object store already publishes 9000.
 
 **The scanner needs Java, and you do not.** SonarScanner for .NET is a .NET tool that shells out to
 a JRE, so `Tools/sonar-scanner.Dockerfile` supplies one. The prerequisites at the top of this page

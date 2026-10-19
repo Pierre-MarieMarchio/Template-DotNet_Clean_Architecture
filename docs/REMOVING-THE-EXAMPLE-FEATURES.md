@@ -499,8 +499,8 @@ None of this breaks a build, and all of it goes stale silently.
 - **`docker-compose.yml`** and **`.env.example`**: the `Jobs__Reminders__*` block and the
   `JOBS_REMINDERS_*` variables **(R)**; the `Jobs__Files__*` block and the `JOBS_FILES_*` variables
   **(F)**.
-- **`docker-compose.yml`** **(F)**: the `Files__Storage__S3__*` environment block, the `minio` and `minio-bucket`
-  services, and the `minio-data` volume.
+- **`docker-compose.yml`** **(F)**: the `Files__Storage__S3__*` environment block, the `objectstore`
+  service, and the `objectstore-data` volume.
 - **`AppTemplate.Api.http`**: the numbered request blocks for the feature you removed. They are the
   file's whole point, so they are worth replacing with your own rather than only deleting.
 - **`Tests/Architecture/AppTemplate.Architecture.Tests/Rules/ConfigurationSurfaceTests.cs`** names
@@ -747,7 +747,7 @@ And the fixture and helper code, which the compiler finds for you:
 
 **Removing `Files`, keeping the rest.** Independent in both directions, and the only one whose
 removal takes a whole infrastructure project, two `Dockerfile` lines, two solution entries and the
-`minio` half of `docker-compose.yml` with it. Nothing outside `Files` names a `Files` type. Weigh it
+`objectstore` half of `docker-compose.yml` with it. Nothing outside `Files` names a `Files` type. Weigh it
 against what the [table above](#with-todolists-and-reminders-gone-files-kept) says it is carrying:
 if your project stores anything at all in an object store, re-pointing `StoredFile` at your own
 metadata is less work than removing it and adding a second store back later.

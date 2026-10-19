@@ -840,7 +840,7 @@ feature rather than the source tree when the two disagree. Add:
   the real thing too. A signature is computed locally, so a wrong one is
   indistinguishable from a right one until something checks it —
   `Tests/Integration/AppTemplate.Api.IntegrationTests/Storage/` is the worked example,
-  against MinIO under Testcontainers.
+  against SeaweedFS under Testcontainers.
   <!--#endif-->
 
 The round-trip fidelity test deserves a second mention when a feature has a second

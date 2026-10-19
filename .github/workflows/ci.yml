@@ -406,7 +406,7 @@ jobs:
           cp .env.example .env
           services="api db mailpit"
           #if (files)
-          services="$services minio minio-bucket"
+          services="$services objectstore"
           #endif
           docker compose up -d --build $services
 

@@ -117,11 +117,12 @@
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <!--#if (files)-->
-    <!-- Kept on the same version as Testcontainers.PostgreSql, and it has to be: both are thin
-         modules over the same Testcontainers core package, which each one pins to its own version.
-         Two different bands would resolve one core for both and leave one module compiled against
-         a different one. -->
-    <PackageVersion Include="Testcontainers.Minio" Version="4.15.0" />
+    <!-- The core package, for the object store the Storage/ suite runs as a plain container: no
+         Testcontainers module exists for SeaweedFS, and the MinIO one assumed an image MinIO no
+         longer publishes. Kept on the same version as Testcontainers.PostgreSql, and it has to be:
+         that module pins this core exactly, and two bands would leave one compiled against the
+         other's core. -->
+    <PackageVersion Include="Testcontainers" Version="4.15.0" />
     <!--#endif-->
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.0" />

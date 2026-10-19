@@ -185,13 +185,13 @@ public sealed class StorageModuleTests
     {
         var published = new Dictionary<string, string?>(_configured, StringComparer.Ordinal)
         {
-            ["Files:Storage:S3:Endpoint"] = "http://minio:9000",
+            ["Files:Storage:S3:Endpoint"] = "http://objectstore:9000",
             ["Files:Storage:S3:PublicEndpoint"] = "https://files.example",
         };
 
         using var provider = Compose(published);
 
-        ServiceUrlOf(provider.GetRequiredService<IAmazonS3>()).ShouldBe("http://minio:9000/");
+        ServiceUrlOf(provider.GetRequiredService<IAmazonS3>()).ShouldBe("http://objectstore:9000/");
         ServiceUrlOf(provider.GetRequiredKeyedService<IAmazonS3>(BucketClientFactory.SigningClientKey))
             .ShouldBe("https://files.example/");
     }

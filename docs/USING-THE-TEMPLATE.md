@@ -95,7 +95,7 @@ feature of its own gives them a subject.
 
 | Option | Leaves out when `false` |
 |---|---|
-| `--files` | the `Files` feature in every layer, the storage module and its unit-test project, the MinIO services in Compose, the `Files` and `Jobs:Files` settings, the `files` schema of the business migration and the tests that name any of it |
+| `--files` | the `Files` feature in every layer, the storage module and its unit-test project, the object-store service in Compose, the `Files` and `Jobs:Files` settings, the `files` schema of the business migration and the tests that name any of it |
 | `--ci` | the GitHub Actions build and release workflows |
 | `--sonar` | the local SonarQube profile in Compose, the scanner image and its task, the scanner tool in the local tool manifest, and the SonarQube Cloud workflow (generated only when `--ci` is also true) |
 

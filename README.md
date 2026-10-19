@@ -111,7 +111,7 @@ docker compose up --build
 | OpenAPI UI — Scalar, development only | <http://localhost:8080/scalar/v1> |
 | Mailpit — mails land here | <http://localhost:8025> |
 <!--#if (files)-->
-| MinIO console — uploaded files land here | <http://localhost:9001> |
+| Object store (SeaweedFS) — S3 API, uploaded files land here; no console | <http://localhost:9000> |
 <!--#endif-->
 
 Every published port binds to `127.0.0.1`, so nothing is reachable from your local network. TLS is

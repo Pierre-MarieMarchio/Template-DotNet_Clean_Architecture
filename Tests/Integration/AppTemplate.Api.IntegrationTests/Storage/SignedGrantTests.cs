@@ -224,8 +224,9 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
     /// </summary>
     /// <remarks>
     /// A publicly readable bucket would make every signed URL in this template decoration — the
-    /// deployment guidance says so and <c>docker-compose.yml</c>'s <c>mc anonymous set none</c> is
-    /// the development stack acting on it. Nothing in-process can check that; this can.
+    /// deployment guidance says so, and the one S3 identity <c>docker-compose.yml</c> gives its store
+    /// — which is what turns anonymous access off there — is the development stack acting on it.
+    /// Nothing in-process can check that; this can.
     /// </remarks>
     [Fact]
     public async Task TheSameObjectWithoutASignature_IsRefused()

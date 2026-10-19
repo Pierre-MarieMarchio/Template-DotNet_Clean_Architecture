@@ -654,9 +654,9 @@ failing on the first upload.
 |---|---|---|---|
 | `BucketName` | string | `""` | **Required.** One bucket, exclusive to this feature — the orphan sweep deletes anything in it that no row references. |
 | `Region` | string | `us-east-1` | |
-| `Endpoint` | string | `""` | Empty means AWS S3 itself. Set it for MinIO, R2, or any S3-compatible store. |
+| `Endpoint` | string | `""` | Empty means AWS S3 itself. Set it for SeaweedFS, MinIO, R2, or any S3-compatible store. |
 | `PublicEndpoint` | string | `Endpoint` | The name a **client** resolves, when it is not the one this process uses. |
-| `ForcePathStyle` | bool | `false` | Required for MinIO: virtual-host addressing would resolve `<bucket>.minio`, which nothing serves. |
+| `ForcePathStyle` | bool | `false` | Required for a store addressed by host and port, like the local SeaweedFS: virtual-host addressing would resolve `<bucket>.objectstore`, which nothing serves. |
 | `AccessKeyId` | string | `""` | Leave **empty in production** — see below. |
 | `SecretAccessKey` | string | `""` | Same. Supplying exactly one of the pair is refused. |
 | `AllowInsecureTransport` | bool | `false` | Only a plain-HTTP local endpoint has business setting this. |
@@ -668,8 +668,8 @@ same port, same server — and the store answers `403 SignatureDoesNotMatch`. So
 can rewrite the host: not the API, not a proxy, not the client. The name has to be right at signing
 time, which is what this key is.
 
-It matters wherever the store has two names. In `docker-compose.yml` the API reaches MinIO at
-`minio:9000` on the Docker network while a browser reaches it at `localhost:9000`; behind a
+It matters wherever the store has two names. In `docker-compose.yml` the API reaches the store at
+`objectstore:9000` on the Docker network while a browser reaches it at `localhost:9000`; behind a
 private service or a self-hosted gateway it is the same shape. The case where the need disappears
 is AWS S3 itself, where `Endpoint` is empty. Left unset it defaults to `Endpoint`, so a deployment
 that never knew the key behaves exactly as before.
@@ -687,7 +687,9 @@ though it does carry the bytes the inspection pass reads, inside the network the
 
 **Leave the two credentials empty.** Empty is not "unconfigured", it is the intended production
 shape: the AWS SDK's own credential chain resolves an instance role, and no long-lived key pair
-exists to leak. Set them only for a local MinIO, where `docker-compose.yml` already does it.
+exists to leak. Set them only for a local store, where `docker-compose.yml` already does it: `STORAGE_ACCESS_KEY_ID` and
+`STORAGE_SECRET_ACCESS_KEY` in `.env` are both the identity the `objectstore` service is created with
+and the pair the API signs with, so the two cannot disagree.
 
 **`MaxGrantLifetime` is a security setting wearing a duration.** A signed URL is a bearer right for
 as long as it lives — anyone who has it can read the object, with no further check. Shorten it

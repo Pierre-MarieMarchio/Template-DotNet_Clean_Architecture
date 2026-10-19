@@ -91,7 +91,7 @@
       "type": "parameter",
       "datatype": "bool",
       "defaultValue": "true",
-      "description": "Include the Files module: stored files, their storage adapters, the MinIO containers and the Files tables of the business migration."
+      "description": "Include the Files module: stored files, their storage adapters, the object-store container and the Files tables of the business migration."
     },
     "examples": {
       "type": "parameter",

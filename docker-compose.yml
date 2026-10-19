@@ -206,19 +206,19 @@ services:
       # The endpoint is the compose service, but the SIGNED URLs this host mints have to be
       # reachable by whoever follows them — a browser on the host, not a container on this
       # network. STORAGE_PUBLIC_ENDPOINT is what a client sees; leave it at localhost:9000 for
-      # the stack as shipped. ForcePathStyle is required for MinIO: virtual-host addressing
-      # would resolve <bucket>.minio, which nothing here serves.
+      # the stack as shipped. ForcePathStyle is required for this store: virtual-host addressing
+      # would resolve <bucket>.objectstore, which nothing here serves.
       Files__Storage__S3__BucketName: ${STORAGE_BUCKET_NAME:-app-files}
-      Files__Storage__S3__Endpoint: ${STORAGE_ENDPOINT:-http://minio:9000}
-      # The name a client OUTSIDE the Docker network resolves. The API reaches MinIO at
-      # minio:9000 here, and a presigned URL covers the host it was signed for — so nothing
+      Files__Storage__S3__Endpoint: ${STORAGE_ENDPOINT:-http://objectstore:9000}
+      # The name a client OUTSIDE the Docker network resolves. The API reaches the store at
+      # objectstore:9000 here, and a presigned URL covers the host it was signed for — so nothing
       # downstream can rewrite it, and left unset this stack would mint URLs only a container
       # could follow. See docs/CONFIGURATION.md.
       Files__Storage__S3__PublicEndpoint: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
       Files__Storage__S3__ForcePathStyle: ${STORAGE_FORCE_PATH_STYLE:-true}
       Files__Storage__S3__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
-      Files__Storage__S3__AccessKeyId: ${MINIO_ROOT_USER:-minioadmin}
-      Files__Storage__S3__SecretAccessKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      Files__Storage__S3__AccessKeyId: ${STORAGE_ACCESS_KEY_ID:-app-template-dev}
+      Files__Storage__S3__SecretAccessKey: ${STORAGE_SECRET_ACCESS_KEY:-app-template-dev-secret}
       #endif
       # --- Email (SMTP) ------------------------------------------------------
       Email__Host: ${EMAIL_HOST:-mailpit}
@@ -269,9 +269,10 @@ services:
       #if (files)
       # This host signs URLs against the bucket, so the bucket has to exist. Readiness does not
       # probe storage — it answers for the database — so without this the stack reports itself
-      # healthy while the first file registration still has nowhere to go.
-      minio-bucket:
-        condition: service_completed_successfully
+      # healthy while the first file registration still has nowhere to go. The store's own
+      # healthcheck is what answers for the bucket, so healthy is the condition that means it.
+      objectstore:
+        condition: service_healthy
       #endif
     healthcheck:
       test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
@@ -284,53 +285,60 @@ services:
 
   #if (files)
   # The object store the Files feature writes to. In production this is S3 (or R2, or Azure Blob
-  # behind an S3 gateway); here it is MinIO, addressed through Files__Storage__S3__Endpoint. With
+  # behind an S3 gateway); here it is SeaweedFS, addressed through Files__Storage__S3__Endpoint. With
   # this provider the API signs a URL and the client transfers bytes with this service directly,
   # which is why an endpoint the browser can reach has to be published on the host. Loopback all
   # the same, like every other port here: the browser that follows the signed URL runs on this
   # machine — Files__Storage__S3__PublicEndpoint says so, it is localhost:9000 — so 127.0.0.1
-  # costs that browser nothing, and the alternative is MINIO_ROOT_USER's minioadmin/minioadmin
-  # default offered to the local network.
-  minio:
-    # MinIO went source-only in October 2025 and left Docker Hub, so this is the community build
-    # of that same release tag, produced from the official source and shipping the same minio and
-    # mc binaries the official image did — which the healthcheck below relies on. Still an exact
-    # release pin, never a floating tag.
-    image: coollabsio/minio:RELEASE.2025-04-22T22-12-26Z
-    command: server /data --console-address ":9001"
+  # costs that browser nothing, and the alternative is a development key pair offered to the
+  # local network.
+  objectstore:
+    # Published by the SeaweedFS project itself, and pinned by digest as well as by release: the tag
+    # says which release, the digest says which bytes, and a registry can move a tag but not a
+    # digest. Not MinIO: MinIO went source-only in October 2025, and every image of it still on a
+    # registry is a third party's rebuild. docs/DECISIONS.md has the comparison.
+    image: chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
+    # `mini` is every SeaweedFS component in one process. Each flag below narrows it to what this
+    # stack uses:
+    #   -s3.port=9000              the S3 port the rest of this file and the docs name.
+    #   -bucket=...                creates the bucket on startup, or logs that it already exists —
+    #                              idempotent, so a repeated `compose up` is harmless and no
+    #                              one-shot service is needed.
+    #   -s3.autoCreateBucket=false a typo in STORAGE_BUCKET_NAME fails the first upload loudly
+    #                              rather than quietly creating a second bucket.
+    #   -master.telemetry=false    SeaweedFS reports cluster statistics to its project by default.
+    #   -admin.ui=false, -webdav=false, -s3.port.iceberg=0, -s3.port.lance=0
+    #                              no console, no WebDAV, no table catalogs: nothing here reads them,
+    #                              and none is published.
+    command: >
+      mini -dir=/data -s3.port=9000 -bucket=${STORAGE_BUCKET_NAME:-app-files}
+      -s3.autoCreateBucket=false -master.telemetry=false
+      -admin.ui=false -webdav=false -s3.port.iceberg=0 -s3.port.lance=0
     restart: unless-stopped
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      # The one S3 identity, read by SeaweedFS from the standard AWS variable names. An identity
+      # existing is also what turns anonymous access OFF: with none configured the gateway would
+      # serve anyone, and with this one it answers an unsigned request with 403 AccessDenied. That
+      # is the whole point — a publicly readable bucket would make every signed URL in this
+      # template decoration. The download grant is the only way in.
+      AWS_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID:-app-template-dev}
+      AWS_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY:-app-template-dev-secret}
     ports:
-      - "127.0.0.1:9000:9000"   # the S3 API — what Files__Storage__S3__Endpoint points at
-      - "127.0.0.1:9001:9001"   # the web console, for looking at what landed
+      # The S3 API — what Files__Storage__S3__Endpoint points at, and the only port published.
+      # The image has no console to publish: browse what landed with any S3 client against it.
+      - "127.0.0.1:9000:9000"
     volumes:
-      - minio-data:/data
+      - objectstore-data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      # Two probes, both with the image's own busybox wget. /healthz answers once the S3 gateway
+      # serves; the second asks the filer, on its in-container port, whether the bucket's directory
+      # exists — because the bucket is created a moment AFTER the gateway comes up, and the api
+      # service waits on this check to mean "the bucket is there".
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9000/healthz && wget -q -O /dev/null http://127.0.0.1:8888/buckets/${STORAGE_BUCKET_NAME:-app-files}/"]
       interval: 5s
       timeout: 3s
       retries: 20
-    networks: [backend]
-
-  # Creates the bucket once and exits. A throwaway container rather than an entrypoint script:
-  # `mc mb --ignore-existing` is idempotent, so a repeated `compose up` is harmless. It runs the
-  # server's own image rather than the retired `minio/mc`: that image bundles the same `mc`
-  # binary, so one pinned release serves both services.
-  minio-bucket:
-    image: coollabsio/minio:RELEASE.2025-04-22T22-12-26Z
-    depends_on:
-      minio:
-        condition: service_healthy
-    # `anonymous set none` is deliberate and is the whole point: a publicly readable bucket would
-    # make every signed URL in this template decoration. The download grant is the only way in.
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin} &&
-      mc mb --ignore-existing local/${STORAGE_BUCKET_NAME:-app-files} &&
-      mc anonymous set none local/${STORAGE_BUCKET_NAME:-app-files}
-      "
+      start_period: 10s
     networks: [backend]
 
   #endif
@@ -357,7 +365,7 @@ services:
       # writes to.
       SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
     ports:
-      # Not 9000: minio above already publishes it for its S3 API, and two services cannot share a
+      # Not 9000: objectstore above already publishes it for its S3 API, and two services cannot share a
       # host port. Not 9100 either, which looks like the obvious neighbour and is a poor choice --
       # it is the JetDirect printing port, reserved on a stock Windows box, where Docker refuses the
       # binding with a 500 from its forwarder rather than with anything that mentions a port.
@@ -386,8 +394,7 @@ services:
       start_period: 60s
     networks: [backend]
 
-  # The analysis itself, as a one-shot container: it runs the scan and exits, like minio-bucket
-  # above. `dotnet run Tools/Tasks.cs sonar` is the supported way to invoke it.
+  # The analysis itself, as a one-shot container: it runs the scan and exits. `dotnet run Tools/Tasks.cs sonar` is the supported way to invoke it.
   sonar-scanner:
     profiles: [sonar]
     build:
@@ -417,7 +424,7 @@ services:
 volumes:
   db-data:
   #if (files)
-  minio-data:
+  objectstore-data:
   #endif
   #if (sonar)
   sonarqube-data:

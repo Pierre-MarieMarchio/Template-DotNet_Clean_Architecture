@@ -15,7 +15,7 @@
        No network is opened and none is simulated. Everything past the signature — whether the store
        records a SHA-256 at deposit time, whether a listing resumes where the token said — is a
        claim about a real S3-compatible store, and a stub answering it would only prove that the stub
-       agrees with this repository. That belongs in an integration suite against MinIO, which is
+       agrees with this repository. That belongs in an integration suite against a real store, which is
        deliberately not here.
 
        Internals are shared from AppTemplate.Infrastructure.Storage for the validator and the client

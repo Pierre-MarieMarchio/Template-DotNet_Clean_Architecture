@@ -12,7 +12,7 @@
        Of the two integration projects this is the one that already references
        AppTemplate.Infrastructure.Storage, and the one whose name promises a layer rather than a
        single module — so the S3 adapters are exercised through their ports here, against a real
-       MinIO, with no reference added anywhere that would make a project name a lie. -->
+       S3 store, with no reference added anywhere that would make a project name a lie. -->
   <!--#endif-->
 
 
@@ -27,9 +27,9 @@
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <PackageReference Include="Shouldly" />
     <!--#if (files)-->
-    <!-- The object store the Storage/ suite talks to. Same MinIO the development stack runs, so
-         what those tests exercise is the store a developer already has in front of them. -->
-    <PackageReference Include="Testcontainers.Minio" />
+    <!-- The object store the Storage/ suite talks to. Same SeaweedFS image the development stack
+         runs, so what those tests exercise is the store a developer already has in front of them. -->
+    <PackageReference Include="Testcontainers" />
     <!--#endif-->
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="xunit.v3" />

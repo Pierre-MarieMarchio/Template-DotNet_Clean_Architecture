@@ -23,6 +23,13 @@ public sealed class LayoutConventionTests
     /// do not use is how a layout stops being an index. Adding a word is an edit to
     /// docs/PROJECT-LAYOUT.md's folder map and to this list, argued for in the pull request — not a
     /// mkdir.
+    /// <para>
+    /// Two tiers. A word is either flat — <c>Dtos</c>, a nature directly under the feature — or a
+    /// concept and one of its natures — <c>Model/Dtos</c>. A concept is the level-2 folder, and
+    /// below it only the natures listed for it are allowed; a flat word's contents are its own
+    /// (subjects such as <c>Ports/&lt;Port&gt;/</c>, or files). Both forms are valid, so a project
+    /// moves from one to the other entry by entry.
+    /// </para>
     /// </summary>
     private static readonly Dictionary<string, string[]?> _vocabulary = new(StringComparer.Ordinal)
     {
@@ -328,13 +335,32 @@ public sealed class LayoutConventionTests
             }
 
             string features = Path.Combine(ProjectReferenceGraph.RepositoryRoot, project, "Features");
+            var levelTwo = allowed!.Select(ConceptOf).ToHashSet(StringComparer.Ordinal);
+            var natures = allowed!
+                .Where(word => word.Contains('/', StringComparison.Ordinal))
+                .GroupBy(ConceptOf, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
 
-            offenders.AddRange(Directory
+            var folders = Directory
                 .EnumerateDirectories(features)
                 .SelectMany(feature => Directory.EnumerateDirectories(feature))
-                .Where(folder => !allowed!.Contains(Path.GetFileName(folder), StringComparer.Ordinal))
+                .ToList();
+
+            offenders.AddRange(folders
+                .Where(folder => !levelTwo.Contains(Path.GetFileName(folder)))
                 .Select(folder => $"{project}: '{Path.GetRelativePath(features, folder)}' is not one of " +
-                    $"[{string.Join(", ", allowed!)}]"));
+                    $"[{string.Join(", ", levelTwo.Order(StringComparer.Ordinal))}]"));
+
+            // Under a concept, the third level is its natures and nothing else.
+            var natureFolders = folders
+                .Where(folder => natures.ContainsKey(Path.GetFileName(folder)))
+                .SelectMany(concept => Directory.EnumerateDirectories(concept))
+                .ToList();
+
+            offenders.AddRange(natureFolders
+                .Where(folder => !allowed!.Contains(WordOf(folder), StringComparer.Ordinal))
+                .Select(folder => $"{project}: '{Path.GetRelativePath(features, folder)}' is not one of " +
+                    $"[{string.Join(", ", natures[ConceptOf(WordOf(folder))])}]"));
 
             //#if (todoLists && notes)
             // The other direction: a word no feature is filed under any more. Not every feature has
@@ -343,10 +369,9 @@ public sealed class LayoutConventionTests
             // having, which is how a list of words quietly stops being an index. Checked only where
             // every example is present: a project generated with fewer starts with words no feature
             // uses yet, and the scaffolded features still need them.
-            var used = Directory
-                .EnumerateDirectories(features)
-                .SelectMany(feature => Directory.EnumerateDirectories(feature))
+            var used = folders
                 .Select(Path.GetFileName)
+                .Concat(natureFolders.Select(WordOf))
                 .ToHashSet(StringComparer.Ordinal);
 
             offenders.AddRange(allowed!
@@ -770,6 +795,14 @@ public sealed class LayoutConventionTests
     private static string QualifiedModuleFileName(string projectName) =>
         $"{projectName.Replace($"{_productPrefix}.", string.Empty, StringComparison.Ordinal)
             .Replace(".", string.Empty, StringComparison.Ordinal)}Module.cs";
+
+    /// <summary>The level-2 folder a vocabulary word names: the word itself, or its concept.</summary>
+    private static string ConceptOf(string word) =>
+        word.Split('/')[0];
+
+    /// <summary>A nature folder as the vocabulary writes it: <c>Concept/Nature</c>.</summary>
+    private static string WordOf(string natureFolder) =>
+        $"{Path.GetFileName(Path.GetDirectoryName(natureFolder))}/{Path.GetFileName(natureFolder)}";
 
     private static bool IsCompositionFile(string projectName, string fileName) =>
         fileName is "Program.cs"

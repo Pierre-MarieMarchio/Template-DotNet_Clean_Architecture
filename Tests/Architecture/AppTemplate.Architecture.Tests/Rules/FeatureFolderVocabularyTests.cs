@@ -1,4 +1,6 @@
-﻿using AppTemplate.Architecture.Tests.Fixtures;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
+using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
 
@@ -23,24 +25,38 @@ namespace AppTemplate.Architecture.Tests.Rules;
 public sealed class FeatureFolderVocabularyTests
 {
     /// <summary>
-    /// The suffix each feature folder's files carry. A folder absent from here is one no rule
+    /// The concepts whose subfolders are natures: under <c>Features/&lt;F&gt;/Model/Dtos/</c> the
+    /// nature is <c>Dtos</c>, read at level 3. Every other level-2 folder is its own nature. A file
+    /// directly under one of these is read against the concept itself, which only <c>Services</c>
+    /// has suffixes for — under the others it is reported as undescribed.
+    /// </summary>
+    private static readonly HashSet<string> _concepts = new(StringComparer.Ordinal)
+    {
+        "Access", "Adapters", "Configuration", "Model", "Resources", "Rows", "Services",
+    };
+
+    /// <summary>
+    /// The suffix each nature folder's files carry, keyed by the nature, or by
+    /// <c>Concept/Nature</c> where one concept widens it. A folder absent from here is one no rule
     /// checks, which <see cref="EveryFeatureFolder_IsCovered"/> refuses.
     /// </summary>
     private static readonly Dictionary<string, string[]> _suffixes = new(StringComparer.Ordinal)
     {
+        ["Adapters/Services"] = ["Service", "Factory", "Issuer", "Log", "Verifier"],
         ["Checkpoints"] = ["Checkpoint"],
-        ["Composition"] = ["Composition"],
+        ["Composition"] = ["Composition", "Directory", "Provider", "Session", "Mapper", "Mapping"],
         ["Configurations"] = ["Configuration"],
         ["Consumers"] = ["Consumer"],
-        ["Contracts"] = ["Request", "Response"],
+        ["Contracts"] = ["Request", "Response", "Mapping"],
         ["Controllers"] = ["Controller"],
         ["Directories"] = ["Directory"],
-        ["Dtos"] = ["Dto"],
+        ["Dtos"] = ["Dto", "Validator"],
         ["Entities"] = [],
         ["Errors"] = ["Errors"],
         ["Events"] = ["Event"],
         ["Extensions"] = ["Extensions"],
         ["Factories"] = ["Factory"],
+        ["Helpers"] = ["Helpers", "Extensions"],
         ["Inventories"] = ["Inventory"],
         ["Issuers"] = ["Issuer"],
         ["Jobs"] = ["BackgroundService", "Extensions", "Instruments", "Module", "Options", "Task", "Telemetry"],
@@ -112,7 +128,7 @@ public sealed class FeatureFolderVocabularyTests
 
         foreach ((string folder, string relative, string file) in FeatureFiles())
         {
-            if (!_suffixes.TryGetValue(folder, out string[]? suffixes))
+            if (!TrySuffixesOf(folder, out string[]? suffixes))
             {
                 // Reported by EveryFeatureFolder_IsCovered, and reporting it twice would make one
                 // omission look like two.
@@ -157,7 +173,7 @@ public sealed class FeatureFolderVocabularyTests
     {
         var undescribed = FeatureFiles()
             .Select(found => found.Folder)
-            .Where(folder => !_suffixes.ContainsKey(folder))
+            .Where(folder => !TrySuffixesOf(folder, out _))
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .ToList();
@@ -184,6 +200,88 @@ public sealed class FeatureFolderVocabularyTests
         stale.ShouldBeEmpty("These exemptions name files that are no longer under Features/.");
     }
 
+    /// <summary>
+    /// A top-level type declaration, any accessibility, up to its name. Top-level types sit at
+    /// column zero, the namespaces being file-scoped; the modifiers are captured to tell a static
+    /// class apart.
+    /// </summary>
+    private static readonly Regex _topLevelTypeDeclaration = new(
+        @"^((?:(?:public|internal|file|sealed|abstract|static|partial|readonly|ref|unsafe)\s+)*)(class|record|struct|interface|enum|delegate)\b[^\r\n:{;(]*",
+        RegexOptions.Multiline,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>
+    /// <c>Helpers/</c> holds pure static functions and nothing else: every type declared under one
+    /// is a static class, which also bars it from implementing an interface (CS0714) — so it can be
+    /// neither injected nor a contract.
+    /// </summary>
+    [Fact]
+    public void EveryTypeUnderAHelpersFolder_IsAStaticClass()
+    {
+        string source = Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src");
+
+        var offenders = Directory
+            .EnumerateDirectories(source, "Helpers", SearchOption.AllDirectories)
+            .SelectMany(folder => Directory.EnumerateFiles(folder, "*.cs", SearchOption.AllDirectories))
+            .SelectMany(file => NonStaticDeclarationsIn(File.ReadAllText(file))
+                .Select(declaration =>
+                    $"{Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file)}: '{declaration}'"))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        offenders.ShouldBeEmpty(
+            "A type under Helpers/ is a static class of pure functions, never injected and never a "
+            + "contract. One with state or a dependency belongs in Services/ or an adapter, a rule "
+            + "that protects a state in Model/Policies/, and one with a more precise nature in that "
+            + "nature's folder.");
+    }
+
+    /// <summary>
+    /// Proves the Helpers rule can fail. A walk over no <c>Helpers/</c> folder passes, so the
+    /// predicate is run over declarations written to break it.
+    /// </summary>
+    [Fact]
+    public void TheHelpersRule_IsSensitive_AndSeesAnyTypeButAStaticClass()
+    {
+        string probe = """
+            namespace Probe;
+
+            public static class TagHelpers
+            {
+                public sealed class Nested;
+            }
+
+            internal static partial class TodoItemExtensions;
+
+            public sealed class TagFormatter : ITagFormatter;
+
+            public record TagSummary(string Value);
+
+            public interface ITagFormatter;
+            """;
+
+        NonStaticDeclarationsIn(probe).ShouldBe(
+            ["public sealed class TagFormatter", "public record TagSummary", "public interface ITagFormatter"],
+            ignoreOrder: true,
+            "The predicate must flag every top-level type that is not a static class, and neither the "
+            + "static classes nor the type nested in one.");
+    }
+
+    private static IEnumerable<string> NonStaticDeclarationsIn(string text) =>
+        _topLevelTypeDeclaration
+            .Matches(text)
+            .Where(match => match.Groups[2].Value is not "class"
+                || !match.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains("static"))
+            .Select(match => match.Value.Trim());
+
+    /// <summary>
+    /// The suffixes of a folder as <see cref="FeatureFiles"/> names it: the concept-qualified entry
+    /// first, then the nature alone.
+    /// </summary>
+    private static bool TrySuffixesOf(string folder, [NotNullWhen(true)] out string[]? suffixes) =>
+        _suffixes.TryGetValue(folder, out suffixes)
+        || _suffixes.TryGetValue(folder[(folder.IndexOf('/', StringComparison.Ordinal) + 1)..], out suffixes);
+
     private static IEnumerable<(string Folder, string Relative, string File)> FeatureFiles()
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
@@ -205,7 +303,12 @@ public sealed class FeatureFolderVocabularyTests
                     continue;
                 }
 
-                yield return (parts[1], Path.GetRelativePath(root, file), Path.GetFileName(file));
+                // Features/<F>/<Concept>/<Nature>/… — the nature is the folder one level down.
+                string folder = parts.Length >= 4 && _concepts.Contains(parts[1])
+                    ? $"{parts[1]}/{parts[2]}"
+                    : parts[1];
+
+                yield return (folder, Path.GetRelativePath(root, file), Path.GetFileName(file));
             }
         }
     }

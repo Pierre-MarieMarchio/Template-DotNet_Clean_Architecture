@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Application.Features.Notes.Dtos;
+using AppTemplate.Application.Features.Notes.Model.Dtos;
 using AppTemplate.Application.Features.Notes.Ports.NoteQueries;
 using AppTemplate.Application.Features.Notes.Ports.NoteStore;
 using AppTemplate.Application.Features.Notes.Services;

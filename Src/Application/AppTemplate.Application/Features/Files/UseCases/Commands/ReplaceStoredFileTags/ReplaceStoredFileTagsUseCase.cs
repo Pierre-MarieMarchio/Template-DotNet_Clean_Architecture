@@ -3,8 +3,8 @@ using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
-using AppTemplate.Application.Features.Files.Dtos;
-using AppTemplate.Application.Features.Files.Mapping;
+using AppTemplate.Application.Features.Files.Model.Dtos;
+using AppTemplate.Application.Features.Files.Model.Mapping;
 using AppTemplate.Application.Features.Files.Services;
 using FluentValidation;
 

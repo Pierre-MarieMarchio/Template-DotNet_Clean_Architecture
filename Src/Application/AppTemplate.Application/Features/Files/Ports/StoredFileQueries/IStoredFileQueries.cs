@@ -1,11 +1,11 @@
 ﻿using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Files.Dtos;
-using AppTemplate.Application.Features.Files.Policies;
+using AppTemplate.Application.Features.Files.Model.Dtos;
+using AppTemplate.Application.Features.Files.Model.Policies;
 using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Domain.Features.Files.Repositories;
-using AppTemplate.Domain.Features.Files.ValueObjects;
 
 namespace AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 

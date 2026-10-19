@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.ExternalIdentity.Policies;
+﻿using AppTemplate.Application.Features.ExternalIdentity.Model.Policies;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Models;
 using Microsoft.EntityFrameworkCore;

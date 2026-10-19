@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Reminders.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.Entities;
 
 namespace AppTemplate.Domain.Features.Reminders.Repositories;
 

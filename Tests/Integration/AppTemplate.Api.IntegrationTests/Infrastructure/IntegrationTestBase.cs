@@ -20,11 +20,11 @@ using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 //#endif
 /*#if (externalAuth)
-using AppTemplate.Application.Features.ExternalIdentity.Dtos;
+using AppTemplate.Application.Features.ExternalIdentity.Model.Dtos;
 using AppTemplate.Application.Features.ExternalIdentity.Services;
 #endif*/
 //#if (todoLists)
-using AppTemplate.Domain.Features.TodoLists.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 //#endif
 using AppTemplate.Infrastructure.InMemory.Common.Email;

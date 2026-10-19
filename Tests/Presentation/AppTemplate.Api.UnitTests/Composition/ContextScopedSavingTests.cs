@@ -2,11 +2,11 @@
 using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Reminders.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 using AppTemplate.Domain.Features.Reminders.Repositories;
-using AppTemplate.Domain.Features.Reminders.ValueObjects;
-using AppTemplate.Domain.Features.TodoLists.Entities;
-using AppTemplate.Domain.Features.TodoLists.Events;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 //#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Contexts;

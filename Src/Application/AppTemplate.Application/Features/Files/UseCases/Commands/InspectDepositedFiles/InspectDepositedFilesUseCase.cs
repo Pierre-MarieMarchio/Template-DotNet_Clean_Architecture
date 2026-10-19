@@ -1,11 +1,11 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Files.Options;
-using AppTemplate.Application.Features.Files.Policies;
+using AppTemplate.Application.Features.Files.Configuration.Options;
+using AppTemplate.Application.Features.Files.Model.Policies;
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Domain.Features.Files.Model.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

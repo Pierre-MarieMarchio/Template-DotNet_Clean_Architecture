@@ -33,13 +33,18 @@ public sealed class LayoutConventionTests
     /// </summary>
     private static readonly Dictionary<string, string[]?> _vocabulary = new(StringComparer.Ordinal)
     {
+        // What the feature says (Model), what something else implements (Ports), its operations
+        // (UseCases), its collaborators with dependencies and the events it answers (Services), a
+        // pure static function with no more precise nature (Helpers), and a setting it binds
+        // (Configuration). A validator files beside the DTO it validates.
         ["Src/Application/AppTemplate.Application"] =
             [
-                "Consumers", "Dtos", "Errors", "Extensions", "Mapping",
                 //#if (files)
-                "Options",
+                "Configuration/Options",
                 //#endif
-                "Policies", "Ports", "Services", "UseCases", "Validators",
+                "Helpers",
+                "Model/Dtos", "Model/Errors", "Model/Mapping", "Model/Policies",
+                "Ports", "Services/Consumers", "UseCases",
             ],
 
         // One vertical, holding one operation. A mechanism project earns a Features/ folder only for
@@ -55,7 +60,7 @@ public sealed class LayoutConventionTests
             ["Model/Errors", "Model/Policies", "Ports", "UseCases"],
         //#endif
         ["Src/Domain/AppTemplate.Domain"] =
-            ["Entities", "Events", "Repositories", "ValueObjects"],
+            ["Model/Entities", "Model/Events", "Model/ValueObjects", "Repositories"],
 
         // Null, not empty, and the difference is the point: this project has no Features/ folder to
         // hold a word, and it may not grow one. What is here is agnostic of every feature — that is

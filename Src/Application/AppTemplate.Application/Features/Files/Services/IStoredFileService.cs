@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Files.Errors;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Application.Features.Files.Model.Errors;
+using AppTemplate.Domain.Features.Files.Model.Entities;
 
 namespace AppTemplate.Application.Features.Files.Services;
 

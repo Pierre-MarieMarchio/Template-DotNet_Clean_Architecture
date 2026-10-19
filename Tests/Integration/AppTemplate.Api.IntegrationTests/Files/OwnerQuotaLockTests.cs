@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using Shouldly;
 using Xunit;
 

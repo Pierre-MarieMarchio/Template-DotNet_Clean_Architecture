@@ -6,7 +6,7 @@ using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Domain.Features.Files.Model.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;

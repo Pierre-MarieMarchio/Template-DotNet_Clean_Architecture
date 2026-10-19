@@ -147,14 +147,14 @@ dotnet_diagnostic.S107.severity = none
 # aggregate derives from, so sealing it is not available.
 dotnet_diagnostic.S4035.severity = none
 
-[Src/Domain/AppTemplate.Domain/Features/Files/ValueObjects/Sha256Checksum.cs]
+[Src/Domain/AppTemplate.Domain/Features/Files/Model/ValueObjects/Sha256Checksum.cs]
 # S3267 suggests `Where`. The loop it names throws on the first character that is not a lowercase
 # hexadecimal digit; `Where` collects rather than refuses, and this value object stays off
 # `IEnumerable<char>` deliberately -- the file beside it uses `AsSpan().ContainsAny`.
 dotnet_diagnostic.S3267.severity = none
 
 #if (files)
-[Src/Domain/AppTemplate.Domain/Features/Files/ValueObjects/StoredFileName.cs]
+[Src/Domain/AppTemplate.Domain/Features/Files/Model/ValueObjects/StoredFileName.cs]
 # S3267 suggests `Where` for a loop that throws on the first control character. A query would
 # collect them; nothing here wants the set, only the refusal.
 dotnet_diagnostic.S3267.severity = none

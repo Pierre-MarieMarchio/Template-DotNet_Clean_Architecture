@@ -347,7 +347,7 @@ says otherwise.
   no antivirus has seen. A file whose category was removed from configuration is inspected with both
   checks, the scan running when scanning is enabled. **Markup is refused outright, whatever it was declared as** — an SVG
   is a script container, and there is no version of "serve it inline" that is safe. Two checks in
-  `Src/Application/AppTemplate.Application/Features/Files/Policies/MediaTypeSignatures.cs` do
+  `Src/Application/AppTemplate.Application/Features/Files/Model/Policies/MediaTypeSignatures.cs` do
   that, and the second is the one that cannot be walked past: the first searches the inspected
   prefix for `<svg`, `<html`, `<script` and a doctype, which an author can evade by padding with a
   kibibyte of XML comment, and the second refuses any document whose *first* meaningful byte is

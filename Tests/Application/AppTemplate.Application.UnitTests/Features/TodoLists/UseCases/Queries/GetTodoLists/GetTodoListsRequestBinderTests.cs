@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Collections;
-using AppTemplate.Application.Features.TodoLists.Policies;
+using AppTemplate.Application.Features.TodoLists.Model.Policies;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;
 using Shouldly;
 using Xunit;

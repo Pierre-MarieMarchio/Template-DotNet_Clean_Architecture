@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.TodoLists.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 
 namespace AppTemplate.Domain.Features.TodoLists.Repositories;
 

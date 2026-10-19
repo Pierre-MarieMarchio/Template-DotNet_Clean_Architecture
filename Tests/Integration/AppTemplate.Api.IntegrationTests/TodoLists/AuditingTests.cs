@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Api.IntegrationTests.Infrastructure;
-using AppTemplate.Domain.Features.TodoLists.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;

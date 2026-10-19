@@ -1,4 +1,4 @@
-﻿using AppTemplate.Application.Features.Notes.Policies;
+﻿using AppTemplate.Application.Features.Notes.Model.Policies;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Models;
 using Microsoft.EntityFrameworkCore;

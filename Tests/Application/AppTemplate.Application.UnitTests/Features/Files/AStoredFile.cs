@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.Entities;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+using AppTemplate.Domain.Features.Files.Model.Entities;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 
 namespace AppTemplate.Application.UnitTests.Features.Files;
 

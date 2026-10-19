@@ -1,11 +1,11 @@
 ﻿using AppTemplate.Domain.Core.Common.Abstractions;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 
 /// <summary>
 /// How a stored file is stored: a row with no behaviour and no invariants; the rules are
-/// <see cref="Domain.Features.Files.Entities.StoredFile"/>'s.
+/// <see cref="Domain.Features.Files.Model.Entities.StoredFile"/>'s.
 /// <para>
 /// <see cref="StoredFileState"/> is reused as its integer value: members may be reordered, never
 /// renumbered. No column means "deleted" or says why a file was quarantined, deliberately.

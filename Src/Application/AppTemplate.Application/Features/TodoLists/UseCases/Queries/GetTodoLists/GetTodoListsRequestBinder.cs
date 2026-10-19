@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.TodoLists.Policies;
+using AppTemplate.Application.Features.TodoLists.Model.Policies;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;

@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Features.Files.Entities;
+﻿using AppTemplate.Domain.Features.Files.Model.Entities;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;

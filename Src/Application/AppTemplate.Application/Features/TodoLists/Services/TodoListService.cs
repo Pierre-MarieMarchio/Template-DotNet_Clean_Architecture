@@ -2,8 +2,8 @@
 using AppTemplate.Application.Core.Common.Ownership;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.TodoLists.Errors;
-using AppTemplate.Domain.Features.TodoLists.Entities;
+using AppTemplate.Application.Features.TodoLists.Model.Errors;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 
 namespace AppTemplate.Application.Features.TodoLists.Services;

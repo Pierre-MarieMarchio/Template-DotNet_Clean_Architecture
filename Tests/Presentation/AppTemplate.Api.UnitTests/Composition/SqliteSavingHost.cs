@@ -11,7 +11,7 @@ using AppTemplate.Application.Core;
 using AppTemplate.Application.Core.Common.Events;
 //#endif
 //#if (todoLists)
-using AppTemplate.Domain.Features.TodoLists.Events;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
 //#endif
 //#if (localAuth)
 using AppTemplate.Infrastructure.Auth;

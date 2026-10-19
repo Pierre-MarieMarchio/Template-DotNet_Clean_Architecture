@@ -54,7 +54,6 @@ public sealed class FeatureFolderVocabularyTests
         ["Entities"] = [],
         ["Errors"] = ["Errors"],
         ["Events"] = ["Event"],
-        ["Extensions"] = ["Extensions"],
         ["Helpers"] = ["Helpers", "Extensions"],
         ["Inventories"] = ["Inventory"],
         ["Jobs"] = ["BackgroundService", "Extensions", "Instruments", "Module", "Options", "Task", "Telemetry"],
@@ -78,7 +77,6 @@ public sealed class FeatureFolderVocabularyTests
         ["Tracking"] = ["Tracker"],
         ["Transfers"] = ["Transfer"],
         ["UseCases"] = [],
-        ["Validators"] = ["Validator"],
         ["ValueObjects"] = [],
     };
 

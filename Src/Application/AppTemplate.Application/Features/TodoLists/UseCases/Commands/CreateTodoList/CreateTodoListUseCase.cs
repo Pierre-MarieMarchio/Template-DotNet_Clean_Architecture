@@ -2,9 +2,9 @@
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
-using AppTemplate.Application.Features.TodoLists.Dtos;
-using AppTemplate.Application.Features.TodoLists.Mapping;
-using AppTemplate.Domain.Features.TodoLists.Entities;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
+using AppTemplate.Application.Features.TodoLists.Model.Mapping;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using FluentValidation;
 

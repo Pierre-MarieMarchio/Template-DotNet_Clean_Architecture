@@ -2,9 +2,9 @@
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Files.Entities;
+using AppTemplate.Domain.Features.Files.Model.Entities;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Domain.Features.Files.Repositories;
-using AppTemplate.Domain.Features.Files.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;

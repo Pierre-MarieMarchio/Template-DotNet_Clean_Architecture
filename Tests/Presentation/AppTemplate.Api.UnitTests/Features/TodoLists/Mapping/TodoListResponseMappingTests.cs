@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Api.Features.TodoLists.Mapping;
 using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.TodoLists.Dtos;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
 using Shouldly;
 using Xunit;
 

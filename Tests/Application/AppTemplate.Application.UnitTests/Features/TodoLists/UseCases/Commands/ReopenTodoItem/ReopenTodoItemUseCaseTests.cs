@@ -4,7 +4,7 @@ using AppTemplate.Application.Features.TodoLists.Services;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.ReopenTodoItem;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.TodoLists.Events;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using NSubstitute;
 using Shouldly;

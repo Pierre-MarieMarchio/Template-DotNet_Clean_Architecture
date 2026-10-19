@@ -1,6 +1,6 @@
-﻿using AppTemplate.Domain.Features.Files.Entities;
-using AppTemplate.Domain.Features.Files.Events;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+﻿using AppTemplate.Domain.Features.Files.Model.Entities;
+using AppTemplate.Domain.Features.Files.Model.Events;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Models;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Tracking;

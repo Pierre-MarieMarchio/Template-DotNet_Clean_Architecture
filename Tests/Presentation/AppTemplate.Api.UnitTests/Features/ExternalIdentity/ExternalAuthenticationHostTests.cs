@@ -9,7 +9,7 @@ using AppTemplate.Application;
 //#endif
 using AppTemplate.Application.Core.Common.Ports;
 //#if (notes)
-using AppTemplate.Application.Features.Notes.Dtos;
+using AppTemplate.Application.Features.Notes.Model.Dtos;
 using AppTemplate.Application.Features.Notes.Services;
 //#endif
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;

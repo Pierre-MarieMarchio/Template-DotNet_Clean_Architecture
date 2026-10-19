@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using AppTemplate.Application.Core.Common.Collections;
-using AppTemplate.Application.Features.TodoLists.Dtos;
-using AppTemplate.Application.Features.TodoLists.Policies;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
+using AppTemplate.Application.Features.TodoLists.Model.Policies;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Queries;

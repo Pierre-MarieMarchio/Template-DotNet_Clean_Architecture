@@ -1,10 +1,10 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
-using AppTemplate.Application.Features.Files.Errors;
+using AppTemplate.Application.Features.Files.Model.Errors;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
-using AppTemplate.Domain.Features.Files.Entities;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+using AppTemplate.Domain.Features.Files.Model.Entities;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 
 namespace AppTemplate.Application.Features.Files.Services;
 

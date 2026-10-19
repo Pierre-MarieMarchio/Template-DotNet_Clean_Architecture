@@ -9,30 +9,30 @@ using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.ExternalIdentity.Services;
 //#endif
 //#if (files)
-using AppTemplate.Application.Features.Files.Consumers.AccountDeleted;
-using AppTemplate.Application.Features.Files.Consumers.StoredFileDeleted;
-using AppTemplate.Application.Features.Files.Options;
+using AppTemplate.Application.Features.Files.Configuration.Options;
 using AppTemplate.Application.Features.Files.Services;
+using AppTemplate.Application.Features.Files.Services.Consumers.AccountDeleted;
+using AppTemplate.Application.Features.Files.Services.Consumers.StoredFileDeleted;
 //#endif
 //#if (notes)
-using AppTemplate.Application.Features.Notes.Consumers.AccountDeleted;
 using AppTemplate.Application.Features.Notes.Services;
+using AppTemplate.Application.Features.Notes.Services.Consumers;
 //#endif
 //#if (reminders)
-using AppTemplate.Application.Features.Reminders.Consumers.AccountDeleted;
-using AppTemplate.Application.Features.Reminders.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.Reminders.Services;
+using AppTemplate.Application.Features.Reminders.Services.Consumers.AccountDeleted;
+using AppTemplate.Application.Features.Reminders.Services.Consumers.TodoItemCompleted;
 //#endif
 //#if (todoLists)
-using AppTemplate.Application.Features.TodoLists.Consumers.AccountDeleted;
-using AppTemplate.Application.Features.TodoLists.Consumers.TodoItemCompleted;
 using AppTemplate.Application.Features.TodoLists.Services;
+using AppTemplate.Application.Features.TodoLists.Services.Consumers.AccountDeleted;
+using AppTemplate.Application.Features.TodoLists.Services.Consumers.TodoItemCompleted;
 //#endif
 //#if (files)
-using AppTemplate.Domain.Features.Files.Events;
+using AppTemplate.Domain.Features.Files.Model.Events;
 //#endif
 //#if (todoLists)
-using AppTemplate.Domain.Features.TodoLists.Events;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
 //#endif
 //#if (canAddFeature)
 using FluentValidation;

@@ -1,0 +1,177 @@
+﻿using AppTemplate.Domain.Common.Tagging;
+using AppTemplate.Domain.Core.Common.Abstractions;
+using AppTemplate.Domain.Core.Common.Exceptions;
+using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
+using AppTemplate.Domain.Features.TodoLists.Model.ValueObjects;
+
+namespace AppTemplate.Domain.Features.TodoLists.Model.Entities;
+
+/// <summary>A to-do list with its items and their tags: the module's only aggregate root and only
+/// type with a repository — items and tags have no existence apart from the list that holds them.</summary>
+public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
+{
+    /// <summary>A write loads the whole aggregate, so this cap is the only bound on a command's cost;
+    /// a workload needing more wants a different aggregate boundary.</summary>
+    public const int MaxItems = 500;
+
+    private readonly List<TodoItem> _items = [];
+
+    private TodoList(Guid id, UserId ownerId, TodoListName name) : base(id)
+    {
+        OwnerId = ownerId;
+        Name = name;
+    }
+
+    /// <summary>Assigned at creation and never changed; every authorisation check rests on
+    /// ownership, so a setter would make those checks racy.</summary>
+    public UserId OwnerId { get; private set; }
+
+    public TodoListName Name { get; private set; }
+
+    public IReadOnlyCollection<TodoItem> Items => _items.AsReadOnly();
+
+    /// <param name="now">Injected rather than read from the clock, so the aggregate has
+    /// no ambient dependency and its behaviour is reproducible in a test.</param>
+    public static TodoList Create(UserId ownerId, string name, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+        var list = new TodoList(Guid.CreateVersion7(), ownerId, TodoListName.Create(name));
+        list.RaiseDomainEvent(new TodoListCreatedDomainEvent(list.Id, ownerId, list.Name.Value, now));
+
+        return list;
+    }
+
+    /// <summary>Rebuilds a stored aggregate — the persistence seam, declared here so the compiler
+    /// checks the signature. Unlike <see cref="Create"/> it raises no event and accepts the id; stored
+    /// values still pass a live aggregate's checks, and version and audit go through
+    /// <see cref="IVersioned"/> and <see cref="IAuditable"/>.</summary>
+    /// <param name="id">The stored identifier. Never generated here.</param>
+    /// <param name="ownerId">The stored owner.</param>
+    /// <param name="name">The stored name, re-validated.</param>
+    /// <param name="items">The stored items, in any order, each re-checked against the item set.</param>
+    public static TodoList Rehydrate(Guid id, UserId ownerId, string name, IEnumerable<TodoItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+        if (id == Guid.Empty)
+        {
+            throw new DomainException("A stored to-do list must have an id.");
+        }
+
+        var list = new TodoList(id, ownerId, TodoListName.Create(name));
+
+        foreach (var item in items)
+        {
+            list.Accept(item);
+        }
+
+        return list;
+    }
+
+    public void Rename(string name) => Name = TodoListName.Create(name);
+
+    /// <returns>The id of the item that was added.</returns>
+    public Guid AddItem(string title, string? description)
+    {
+        var item = new TodoItem(Guid.CreateVersion7(), Id, title, description);
+        Accept(item);
+
+        return item.Id;
+    }
+
+    public void RemoveItem(Guid itemId) => _items.Remove(RequireItem(itemId));
+
+    public void CompleteItem(Guid itemId, DateTimeOffset completedAt)
+    {
+        var item = RequireItem(itemId);
+        item.Complete(completedAt);
+        RaiseDomainEvent(new TodoItemCompletedDomainEvent(Id, item.Id, item.Title.Value, completedAt));
+    }
+
+    /// <param name="reopenedAt">Injected rather than read from the clock, so the event's instant
+    /// is reproducible in a test, not stamped by an ambient <c>DateTime.UtcNow</c>.</param>
+    public void ReopenItem(Guid itemId, DateTimeOffset reopenedAt)
+    {
+        var item = RequireItem(itemId);
+
+        if (item.Reopen())
+        {
+            RaiseDomainEvent(new TodoItemReopenedDomainEvent(Id, item.Id, item.Title.Value, reopenedAt));
+        }
+    }
+
+    /// <summary>Renames and/or redescribes an existing item in one step, so one round trip and
+    /// one version bump; uniqueness is checked on the normalised title.</summary>
+    public void UpdateItem(Guid itemId, string title, string? description)
+    {
+        var item = RequireItem(itemId);
+        var newTitle = TodoItemTitle.Create(title);
+        EnsureTitleIsFree(newTitle.Value, itemId);
+        item.Update(newTitle, description);
+    }
+
+    /// <summary>Total replacement, not a merge — see <see cref="TagSet.Replace"/> for what that
+    /// means for the cap.</summary>
+    public void SetItemTags(Guid itemId, IEnumerable<string> tags)
+    {
+        ArgumentNullException.ThrowIfNull(tags);
+
+        RequireItem(itemId).ReplaceTags(tags.Select(Tag.Create));
+    }
+
+    public void AddTagToItem(Guid itemId, string tag) => RequireItem(itemId).AddTag(Tag.Create(tag));
+
+    public void RemoveTagFromItem(Guid itemId, string tag) => RequireItem(itemId).RemoveTag(Tag.Create(tag));
+
+    /// <summary>
+    /// The single gate into the item set, used by both <see cref="AddItem"/> and
+    /// <see cref="Rehydrate"/>: a stored row and a fresh command are checked by the same code.
+    /// </summary>
+    private void Accept(TodoItem item)
+    {
+        // Not a DomainException: a null item is a broken call, not a caller driving the aggregate
+        // into a forbidden state, and nothing a request can send reaches this line.
+        ArgumentNullException.ThrowIfNull(item);
+
+        if (item.TodoListId != Id)
+        {
+            throw new DomainException(
+                $"Item '{item.Id}' belongs to list '{item.TodoListId}', not to list '{Id}'.");
+        }
+
+        EnsureTitleIsFree(item.Title.Value, item.Id);
+
+        if (_items.Count >= MaxItems)
+        {
+            throw new DomainException($"A to-do list cannot hold more than {MaxItems} items.");
+        }
+
+        _items.Add(item);
+    }
+
+    /// <summary>
+    /// Case-insensitive: "Buy milk" and "buy milk" are the same entry to whoever reads them.
+    /// <paramref name="exceptItemId"/> excludes the item being renamed from the comparison, so
+    /// renaming an item to its own title does not collide with itself.
+    /// </summary>
+    private void EnsureTitleIsFree(string title, Guid exceptItemId)
+    {
+        if (_items.Exists(existing =>
+            existing.Id != exceptItemId &&
+            string.Equals(existing.Title.Value, title, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new DomainException($"This list already contains an item titled '{title}'.");
+        }
+    }
+
+    /// <summary>
+    /// Every item operation goes through here, so an unknown id can never silently do nothing;
+    /// callers treating a missing item as expected look in <see cref="Items"/> first.
+    /// </summary>
+    private TodoItem RequireItem(Guid itemId) =>
+        _items.Find(i => i.Id == itemId)
+        ?? throw new DomainException($"This list contains no item with id '{itemId}'.");
+}

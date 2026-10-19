@@ -182,7 +182,7 @@ public sealed class DomainModelTests
     {
         var events = Types.InAssembly(ArchitectureAssemblies.Domain)
             .That()
-            .ResideInNamespaceMatching(@"^AppTemplate\.Domain\.Features\.[A-Za-z]+\.Events$")
+            .ResideInNamespaceMatching(@"^AppTemplate\.Domain\.Features\.[A-Za-z]+\.Model\.Events$")
             .And()
             .AreClasses();
 

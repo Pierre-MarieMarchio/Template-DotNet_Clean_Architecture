@@ -3,7 +3,7 @@ using AppTemplate.Api.UnitTests.Composition;
 using AppTemplate.Application;
 using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Application.Features.ExternalIdentity.Dtos;
+using AppTemplate.Application.Features.ExternalIdentity.Model.Dtos;
 using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityStore;
 using AppTemplate.Application.Features.ExternalIdentity.Services;
 using AppTemplate.Domain.Core.Common.Events;

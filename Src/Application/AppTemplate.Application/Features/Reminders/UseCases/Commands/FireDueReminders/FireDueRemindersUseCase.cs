@@ -5,7 +5,7 @@ using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
-using AppTemplate.Domain.Features.Reminders.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using Microsoft.Extensions.Logging;
 

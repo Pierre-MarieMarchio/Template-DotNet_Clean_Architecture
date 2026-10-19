@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Reminders.Dtos;
-using AppTemplate.Application.Features.Reminders.Mapping;
+using AppTemplate.Application.Features.Reminders.Model.Dtos;
+using AppTemplate.Application.Features.Reminders.Model.Mapping;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;
 using AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminders;
 using AppTemplate.Application.UnitTests.TestDoubles;

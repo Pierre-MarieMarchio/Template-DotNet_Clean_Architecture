@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 
 namespace AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 

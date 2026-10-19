@@ -2,7 +2,7 @@
 using AppTemplate.Api.Features.Notes.Contracts.Responses;
 using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Notes.Dtos;
+using AppTemplate.Application.Features.Notes.Model.Dtos;
 
 namespace AppTemplate.Api.Features.Notes.Mapping;
 

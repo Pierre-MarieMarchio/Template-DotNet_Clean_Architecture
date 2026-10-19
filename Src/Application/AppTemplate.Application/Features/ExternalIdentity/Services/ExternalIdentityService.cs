@@ -1,9 +1,9 @@
 ﻿using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.ExternalIdentity.Dtos;
-using AppTemplate.Application.Features.ExternalIdentity.Errors;
-using AppTemplate.Application.Features.ExternalIdentity.Policies;
+using AppTemplate.Application.Features.ExternalIdentity.Model.Dtos;
+using AppTemplate.Application.Features.ExternalIdentity.Model.Errors;
+using AppTemplate.Application.Features.ExternalIdentity.Model.Policies;
 using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityQueries;
 using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentityStore;
 using AppTemplate.Application.Features.ExternalIdentity.Ports.RoleAssignmentQueries;

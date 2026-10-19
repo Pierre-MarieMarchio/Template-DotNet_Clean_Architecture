@@ -4,7 +4,7 @@ using AppTemplate.Application.Features.Files.Ports.FileContentInventory;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
 using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
-using AppTemplate.Domain.Features.Files.ValueObjects;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;

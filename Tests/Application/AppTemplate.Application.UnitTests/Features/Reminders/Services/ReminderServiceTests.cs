@@ -1,11 +1,11 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Reminders.Errors;
+using AppTemplate.Application.Features.Reminders.Model.Errors;
 using AppTemplate.Application.Features.Reminders.Services;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
-using AppTemplate.Domain.Features.Reminders.Entities;
+using AppTemplate.Domain.Features.Reminders.Model.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using NSubstitute;
 using Shouldly;

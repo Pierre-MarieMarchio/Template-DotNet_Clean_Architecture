@@ -1,4 +1,4 @@
-﻿using AppTemplate.Domain.Features.TodoLists.Entities;
+﻿using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Mapping;

@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
-using AppTemplate.Application.Features.Notes.Dtos;
+using AppTemplate.Application.Features.Notes.Model.Dtos;
 using AppTemplate.Domain.Core.Common.Primitives;
 
 namespace AppTemplate.Application.Features.Notes.Ports.NoteStore;

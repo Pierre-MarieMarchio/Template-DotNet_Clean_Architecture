@@ -60,12 +60,12 @@ all.
 
 ```bash
 # bash
-export ConnectionStrings__Default="Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=appuser_local_dev"
+export ConnectionStrings__Default="Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=appuser_local_dev;Gss Encryption Mode=Disable"
 ```
 
 ```powershell
 # PowerShell
-$env:ConnectionStrings__Default = "Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=appuser_local_dev"
+$env:ConnectionStrings__Default = "Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=appuser_local_dev;Gss Encryption Mode=Disable"
 ```
 
 ## Adding a migration

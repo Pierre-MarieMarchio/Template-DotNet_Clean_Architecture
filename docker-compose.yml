@@ -98,7 +98,7 @@ services:
       # --- The single connection string. `db` is the compose service name. ----
       # Its absence is what made the previous compose file unable to reach its
       # own database.
-      ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true"
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true;Gss Encryption Mode=Disable"
 
       # --- Database: connection-pool bound and command timeout. See -----------
       # docs/CONFIGURATION.md for how DATABASE_MAX_POOL_SIZE must be sized

@@ -51,7 +51,7 @@ in each feature's `IEntityTypeConfiguration` — not by a context each.
 
 ```bash
 dotnet tool restore
-dotnet ef --version      # 10.0.11
+dotnet ef --version      # 10.0.13
 ```
 
 Both design-time factories read `ConnectionStrings__Default` from the **environment**, with a

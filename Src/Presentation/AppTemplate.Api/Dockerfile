@@ -13,9 +13,9 @@
 # `10.0` silently change the contents of a "reproducible" build, and make it
 # impossible to tell from the Dockerfile whether a CVE has been picked up yet.
 # Bump these two ARGs deliberately; keep DOTNET_RUNTIME_TAG's patch level aligned
-# with the Microsoft.* package band in Directory.Packages.props (currently 10.0.11).
+# with the Microsoft.* package band in Directory.Packages.props (currently 10.0.13).
 ARG DOTNET_SDK_TAG=10.0.302-noble
-ARG DOTNET_RUNTIME_TAG=10.0.11-alpine3.23
+ARG DOTNET_RUNTIME_TAG=10.0.13-alpine3.24
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +121,7 @@ RUN dotnet publish "Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj" \
 #   Trade-off a reviewer may raise: alpine keeps a package manager (apk) in the
 #   image, which chiseled does not. If you would rather have the smaller attack
 #   surface than the built-in healthcheck, switch DOTNET_RUNTIME_TAG to
-#   10.0.10-noble-chiseled and drop the HEALTHCHECK stanza.
+#   10.0.13-noble-chiseled and drop the HEALTHCHECK stanza.
 # ---------------------------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_RUNTIME_TAG} AS final
 

@@ -138,7 +138,7 @@ an app.
 | [`Tools/NewFeature.cs`](../Tools/NewFeature.cs) | the feature generator — the skeleton of one feature in the shape, operations and concurrency chosen, plus a creation manifest, so `ADDING-A-FEATURE.md` can be about the thinking. Its `--self-test` runs the real command against throwaway trees |
 | [`Tools/RemoveFeature.cs`](../Tools/RemoveFeature.cs) | the report of what removing a feature involves, and with `--apply` the undo of a generated skeleton whose manifest hashes, folders and surroundings are all untouched. Its `--self-test` generates features with the real generator and removes them |
 | [`Tools/CheckDocPaths.cs`](../Tools/CheckDocPaths.cs) | every repository path cited in a Markdown code span resolves on disk |
-| [`Tools/CheckWorkflows.cs`](../Tools/CheckWorkflows.cs) | what a YAML parse does not catch: a dangling `needs:`, an action on a mutable tag, a missing `permissions:`, a `$VAR` in no `env:`, a script named in a `run:` and absent from disk |
+| [`Tools/CheckWorkflows.cs`](../Tools/CheckWorkflows.cs) | what a YAML parse does not catch: a dangling `needs:`, an action on a mutable tag, a container image without a digest, a missing `permissions:`, a `$VAR` in no `env:`, a script named in a `run:` and absent from disk |
 | [`Tools/CoverageGate.cs`](../Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |
 | [`Tools/CheckNarrativeComments.cs`](../Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
 | [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
@@ -229,7 +229,8 @@ The legs live in `.github/workflows/template-acceptance.yml`, a workflow a gener
 not receive: `dotnet new install .` of a generated project is a sentence that cannot be true.
 <!--#endif-->
 
-All actions are pinned to a commit SHA, `permissions:` is `contents: read`, and a concurrency group
+All actions are pinned to a commit SHA, every container image to a digest (see
+[`DECISIONS.md`](DECISIONS.md)), `permissions:` is `contents: read`, and a concurrency group
 supersedes superseded runs. **No CI step passes a flag that would turn warnings back into
 warnings:** `TreatWarningsAsErrors=true` lives in `Directory.Build.props` and must stay
 authoritative.
@@ -271,7 +272,8 @@ The build context is the **repository root**, not the project directory — `Dir
 `Directory.Build.targets`, `Directory.Packages.props` and `global.json` must be copied before
 `dotnet restore` or Central Package Management fails.
 
-- Multi-stage: an SDK image builds, an ASP.NET Alpine image runs. Both pinned to a patch version.
+- Multi-stage: an SDK image builds, an ASP.NET Alpine image runs. Both pinned to a patch version
+  and a digest (`name:tag@sha256:…`), and so is the `# syntax=` frontend.
 - Runs as **non-root** (`USER $APP_UID`). The Alpine variant does not set `User` itself, so that
   line is load-bearing.
 - Publishes portable IL on the build machine's architecture, so one build serves every target. For

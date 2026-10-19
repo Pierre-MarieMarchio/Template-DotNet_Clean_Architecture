@@ -23,7 +23,15 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// </remarks>
 public sealed class ApiFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine")
+    /// <summary>
+    /// The image <c>docker-compose.yml</c>'s <c>db</c> service runs, tag and digest alike, so the
+    /// database these suites test against is the one a developer runs. <c>ContainerImagePinningTests</c>
+    /// fails when the two part.
+    /// </summary>
+    internal const string PostgresImage =
+        "postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1";
+
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(PostgresImage)
         .WithDatabase("apptemplate_integration_tests")
         .WithUsername("apptemplate_tests")
         .WithPassword("apptemplate_tests")

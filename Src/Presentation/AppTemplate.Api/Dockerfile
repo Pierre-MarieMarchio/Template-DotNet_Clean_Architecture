@@ -1,21 +1,28 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.27.1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 #
-# The syntax directive floats on purpose: it selects the BuildKit *frontend*,
-# which parses this file and is never part of the produced image. Only the base
-# images below — which do ship in the image — are pinned to a patch version.
+# The syntax directive selects the BuildKit *frontend*: an image BuildKit pulls
+# and runs to turn this file into build steps. It ships no layer of its own, but
+# it decides every layer that does ship, so it is pinned by digest like the base
+# images below. Bump it by hand: Dependabot does not read this line.
 #
 # Build context is the REPOSITORY ROOT, not this directory.
 # (Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj sets <DockerfileContext>..\..\..</DockerfileContext>.)
 #
 #   docker build -f Src/Presentation/AppTemplate.Api/Dockerfile -t app-template-api:local .
 #
-# Base image tags are pinned to a patch version on purpose. Floating tags such as
-# `10.0` silently change the contents of a "reproducible" build, and make it
-# impossible to tell from the Dockerfile whether a CVE has been picked up yet.
-# Bump these two ARGs deliberately; keep DOTNET_RUNTIME_TAG's patch level aligned
-# with the Microsoft.* package band in Directory.Packages.props (currently 10.0.13).
-ARG DOTNET_SDK_TAG=10.0.302-noble
-ARG DOTNET_RUNTIME_TAG=10.0.13-alpine3.24
+# Base images are pinned to a patch version AND a digest, written as
+# `name:tag@sha256:...`. Floating tags such as `10.0` silently change the contents
+# of a "reproducible" build and make it impossible to tell from the Dockerfile
+# whether a CVE has been picked up yet; a pinned tag can still be re-pointed by
+# the registry, a digest cannot. The tag stays for the reader — the digest is
+# what is pulled. The digests are multi-arch index digests, so one line serves
+# amd64 and arm64.
+#
+# Written literally in each FROM rather than through an ARG: Dependabot's docker
+# ecosystem rewrites a literal FROM, tag and digest together, and skips one built
+# from a variable. Keep the runtime's patch level aligned with the Microsoft.*
+# package band in Directory.Packages.props (currently 10.0.13), and the SDK with
+# Tools/sonar-scanner.Dockerfile's.
 
 
 # ---------------------------------------------------------------------------
@@ -25,7 +32,7 @@ ARG DOTNET_RUNTIME_TAG=10.0.13-alpine3.24
 # build serves every target architecture; only the runtime image below is
 # architecture-specific, and its tag is a multi-arch manifest.
 # ---------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${DOTNET_SDK_TAG} AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.302-noble@sha256:72dd743782f2ae7e5476fd64f6a460045e3998dc862218b80e6944cba79a01b0 AS build
 
 ARG BUILD_CONFIGURATION=Release
 
@@ -120,23 +127,21 @@ RUN dotnet publish "Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj" \
 #     InvariantGlobalization=true, so the missing ICU is not a factor.
 #   Trade-off a reviewer may raise: alpine keeps a package manager (apk) in the
 #   image, which chiseled does not. If you would rather have the smaller attack
-#   surface than the built-in healthcheck, switch DOTNET_RUNTIME_TAG to
-#   10.0.13-noble-chiseled and drop the HEALTHCHECK stanza.
+#   surface than the built-in healthcheck, switch the FROM below to
+#   aspnet:10.0.13-noble-chiseled (and its digest) and drop the HEALTHCHECK stanza.
 # ---------------------------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_RUNTIME_TAG} AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-alpine3.24@sha256:819bd3649d8bf53f35527c68d62e17b348ef6f24ae73073f497f00a878348062 AS final
 
-# A global ARG declared before the first FROM is NOT visible inside a stage body
-# unless it is re-declared here — otherwise ${DOTNET_RUNTIME_TAG} below would
-# silently expand to an empty string. TARGETARCH/TARGETPLATFORM are supplied by
-# BuildKit and recorded so an image can be traced to what it was built for.
-ARG DOTNET_RUNTIME_TAG
+# TARGETARCH/TARGETPLATFORM are supplied by BuildKit and recorded so an image can
+# be traced to what it was built for. No base-image label: a label copied from
+# the FROM above is a second copy Dependabot would not rewrite, and the release
+# build's provenance (mode=max) already records the base image by digest.
 ARG TARGETARCH
 ARG TARGETPLATFORM
 
 LABEL org.opencontainers.image.title="AppTemplate.Api" \
       org.opencontainers.image.description="Clean Architecture .NET template — HTTP API" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.base.name="mcr.microsoft.com/dotnet/aspnet:${DOTNET_RUNTIME_TAG}" \
       io.apptemplate.target-platform="${TARGETPLATFORM}" \
       io.apptemplate.target-arch="${TARGETARCH}"
 

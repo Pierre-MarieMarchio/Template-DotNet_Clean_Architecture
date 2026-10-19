@@ -30,7 +30,14 @@ namespace AppTemplate.Infrastructure.Auth.IntegrationTests.Fixtures;
 /// </remarks>
 public sealed class GrantTableFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine")
+    /// <summary>
+    /// The image <c>docker-compose.yml</c>'s <c>db</c> service runs, tag and digest alike.
+    /// <c>ContainerImagePinningTests</c> fails when the two part.
+    /// </summary>
+    private const string _postgresImage =
+        "postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1";
+
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(_postgresImage)
         .WithDatabase("apptemplate_identity_unit_tests")
         .WithUsername("apptemplate_tests")
         .WithPassword("apptemplate_tests")

@@ -332,8 +332,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # The BuildKit daemon this builder runs is an image too, and the action's default is the
+      # floating `moby/buildkit:buildx-stable-1`. Pinned by digest like every image in this
+      # repository; Dependabot does not read a `with:` input, so bump it by hand alongside the action.
       - name: Set up Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver-opts: image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
 
       # Proves the image builds from a clean checkout. This is the job that catches
       # a stale COPY list in the Dockerfile: it names each .csproj explicitly, so

@@ -43,8 +43,8 @@ System.AggregateException: One or more errors occurred.
   ('Jwt:Key' must be at least 32 bytes long to sign HS256 tokens.)
   ('EmailConfirmation:ConfirmEmailUrl' is required.)
 ```
-<!--#endif-->
 
+<!--#endif-->
 Every failing key is reported in one pass, before Kestrel binds a port. An empty
 string in `appsettings.json` therefore behaves as "you must supply this", not as a
 value that silently works.
@@ -79,7 +79,6 @@ be filled from user secrets or environment variables.
 > | `Files:Storage:S3` | `AddStorageModule`, when `Files:Storage:Provider` is `S3` | `AppTemplate.Infrastructure.Storage/Common/Options/` |
 > | `Files:Storage`, `Files:Storage:FileSystem`, `Files:Scanning` | `AddStorageModule` (the `FileSystem` section only for that provider) | `AppTemplate.Infrastructure.Storage/Features/Files/Configuration/Options/` |
 <!--#endif-->
-> | `BackgroundJobs` | `AddBackgroundJobs`, called from `AppTemplate.Api`'s `Program.cs` | `AppTemplate.Api/Common/Jobs/` |
 > | `Jobs:Enabled`, and each feature's own `Jobs:…` section | `AddBackgroundJobs`, and only when `Jobs:Enabled` is true | `AppTemplate.Api/Common/Jobs/` and `AppTemplate.Api/Features/<Feature>/Jobs/` |
 > | `OpenTelemetry` | `AddObservability`, through the API's `AddApiObservability` | `AppTemplate.Presentation.Core/Common/Observability/` |
 > | `Localization` | `AddLocalizationOptions`, through the API's `AddRequestLanguage` | `AppTemplate.Presentation.Core/Common/Localization/` |
@@ -110,29 +109,37 @@ be filled from user secrets or environment variables.
 
 ## One process: HTTP and the periodic jobs
 
-`AppTemplate.Api` serves HTTP and, by default, runs the periodic jobs in the same process.
-<!--#if (accounts)-->
- the two maintenance purges,
+<!--#if (reminders && files)-->
+`AppTemplate.Api` serves HTTP and, by default, runs the periodic jobs in the same process: the
+maintenance job, the reminder pass and the three file passes.
+<!--#elseif (reminders)-->
+`AppTemplate.Api` serves HTTP and, by default, runs the periodic jobs in the same process: the
+maintenance job and the reminder pass.
+<!--#elseif (files)-->
+`AppTemplate.Api` serves HTTP and, by default, runs the periodic jobs in the same process: the
+maintenance job and the three file passes.
+<!--#else-->
+`AppTemplate.Api` serves HTTP and, by default, runs the periodic jobs in the same process: the
+maintenance job.
 <!--#endif-->
-<!--#if (reminders)-->
- the reminder pass
-<!--#endif-->
-<!--#if (files)-->
- and the three file passes
-<!--#endif-->
-. There is no second host and no
+There is no second host and no
 second configuration schema — every section below is read by the one process, and `AddBackgroundJobs`
 (`Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`) is the
-single call that composes the jobs. The jobs call the same application-layer use cases the controllers
-do — `MaintenanceController` exposes the purge over HTTP, for example — on a timer instead of a
+single call that composes the jobs.
+<!--#if (accounts)-->
+The jobs call the same application-layer use cases the controllers
+do — `MaintenanceController` exposes the idempotency purge over HTTP, for example — on a timer instead of a
 request.
+<!--#else-->
+The jobs call application-layer use cases, as a controller does, on a timer instead of a request.
+<!--#endif-->
 <!--#if (reminders)-->
 A due reminder is rung through the same `IReminderNotifier` port.
 <!--#endif-->
 
 **`Jobs:Enabled` is a deployment role, not a job setting.** It defaults to `true`, so a
 single instance does everything. Set it to `false` and the instance still serves every route, but
-starts no periodic pass — and binds none of the three job sections, so it is not made to supply or
+starts no periodic pass — and binds none of the job sections, so it is not made to supply or
 validate settings it never reads. When it is `true`, each job's section is bound and validated at
 startup like any other: an invalid interval fails the host with a message naming the key, and is
 never quietly read as "disabled". A job is disabled only by its own `Enabled` flag, which keeps
@@ -147,16 +154,27 @@ scheduler.
 <!--#endif-->
 The protections underneath stay in place and are not a substitute for that choice:
 <!--#if (reminders && files)-->
-the reminder pass and the three file passes take the leader lease inside their use cases,
+the reminder pass and the three file passes take the leader lease inside their use cases, and the
+other passes are idempotent.
 <!--#elseif (reminders)-->
-the reminder pass takes the leader lease inside its use case,
+the reminder pass takes the leader lease inside its use case, and the other passes are idempotent.
 <!--#elseif (files)-->
-the three file passes take the leader lease inside their use cases,
+the three file passes take the leader lease inside their use cases, and the other passes are
+idempotent.
+<!--#else-->
+every pass is idempotent.
 <!--#endif-->
-the other
-passes are idempotent, and a rolling deployment, a manual `MaintenanceController` call or a mistaken
-double-enable can overlap without corrupting anything. They can still repeat work, and the lease is not a fencing token, so
-reminder delivery remains at-least-once. **`/health/ready` reports HTTP readiness** — the database
+<!--#if (accounts)-->
+A rolling deployment, a manual `MaintenanceController` call or a mistaken double-enable can overlap
+without corrupting anything.
+<!--#else-->
+A rolling deployment or a mistaken double-enable can overlap without corrupting anything.
+<!--#endif-->
+They can still repeat work.
+<!--#if (reminders)-->
+The lease is not a fencing token, so reminder delivery remains at-least-once.
+<!--#endif-->
+**`/health/ready` reports HTTP readiness** — the database
 checks and the shutdown state — and says nothing about whether the jobs run: watch the designated
 instance's job heartbeats (the `iterations` counters under [`OpenTelemetry`](#opentelemetry)) for that.
 
@@ -191,9 +209,8 @@ identity module — the API does, for the account routes — validates the `Jwt`
 `EmailConfirmation`, `PasswordReset` and `EmailChange` sections as a whole, since composing that
 module composes ASP.NET Identity and bearer validation with no narrower call.
 #else
-**What the jobs need from the other modules.** No job needs an authentication port of its own:
-`TheBackgroundOnlyContainer_BuildsWithoutAuthentication` holds that. The API validates the sections of
-whatever module it composes at startup, as a whole.
+**What the jobs need from the other modules.** No job needs an authentication port of its own. The
+API validates the sections of whatever module it composes at startup, as a whole.
 #endif-->
 
 <!--#if (localAuth)-->
@@ -206,8 +223,8 @@ and
 are read by an options class that lives beside them. A project built without authentication deletes that
 call and that folder and edits nothing in the composition — `BackgroundWorkTests` fails the build if
 the composition ever names authentication.
-<!--#endif-->
 
+<!--#endif-->
 **`ICurrentUser` and the audit actor in a job.** One container serves both, so the caller and the
 audit actor are registered once and answer by the kind of scope they are resolved in. A request keeps
 its principal and its audit attribution, an anonymous request included. A job opens every pass
@@ -318,8 +335,8 @@ PostgreSQL instance does not by itself approach the server's ceiling.
 `AppTemplate.Infrastructure.Core`. Npgsql pools per connection string, so two contexts built on the
 identical string share **one** pool of `MaxPoolSize`, not one each. Deriving the bound separately in
 the two modules is what would turn it into two.
-<!--#endif-->
 
+<!--#endif-->
 **Sizing this against replica count and `max_connections`.** Every replica of every process that
 composes either module — each API instance, whether or not it runs the jobs — holds its own pool up
 to `MaxPoolSize`. Budget:
@@ -350,13 +367,14 @@ than building a second one, specifically so both draw from the one pool this set
 instead of a second, unbounded one.
 
 **The jobs draw from the same pool as requests.** An instance with `Jobs:Enabled=true`
-runs its passes — the reminder pass, the purges, the file passes — on connections from its own
+runs its passes on connections from its own
 `Database:MaxPoolSize`, beside the requests it is serving. Leave headroom for a pass running during
 load rather than sizing the pool for requests alone.
 
+<!--#if (reminders || files)-->
 **The leader lease sits outside the pool, and that is deliberate.** `PostgresLeaderLease` opens its
 own `NpgsqlConnection` with `Pooling=false` for the duration of one guarded run, so a host running
-the reminder pass holds `MaxPoolSize + 1` connections rather than borrowing a pooled one. A pooled
+a leased pass holds `MaxPoolSize + 1` connections rather than borrowing a pooled one. A pooled
 connection would be the wrong instrument twice over: the pool exists to amortise connections held
 for milliseconds, where a lease is held for as long as the work takes, and the lock's guarantee
 *is* the session's lifetime — it must disappear when the process does, not when a pooled connection
@@ -368,6 +386,7 @@ backend per transaction — so the lock would be taken on one backend and looked
 every host would believe it is the leader, and nothing would fail. Nothing in this repository interposes
 a pooler today. If you add one, give this connection a `session`-mode route or a direct one.
 
+<!--#endif-->
 ### `Email:Transport` — SMTP or an HTTP API
 
 `Email:Transport` picks which adapter satisfies `IEmailSender`. It defaults to `Smtp`, which is what
@@ -492,8 +511,7 @@ it belongs, in the use case, because it is about linking rather than about verif
 
 The external OpenID Connect provider (Keycloak, Entra ID, Auth0…) whose access tokens authenticate
 callers in place of the local accounts. Bound by `AddExternalAuthentication`, the API's entry point
-for that mode; a host with local accounts never reads it. Not to be confused with `ExternalIdentity`
-above, which is the local accounts' *sign-in with* Google and the like.
+for that mode; a host with local accounts never reads it.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
@@ -833,8 +851,8 @@ own safe defaults, kept deliberately unconfigurable.
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `ServerDomain` | string | *(the request's host)* | The WebAuthn relying-party id: the effective domain of this API, which a browser's `navigator.credentials.*` calls require their origin to be a subdomain of. A bare domain — no scheme, port or path. **Changing it invalidates every passkey the accounts hold**, because a credential is scoped to the domain it was created under; set it once, before the first registration. |
-<!--#endif-->
 
+<!--#endif-->
 ### `ProblemTypes`
 
 | Key | Type | Default | Notes |
@@ -946,8 +964,13 @@ module — for the account routes and the refresh-token purge, see
 ### `Localization`
 
 The language a mail is written in. Bound from the one options class in
+<!--#if (localAuth && reminders)-->
 `Src/Presentation/AppTemplate.Presentation.Core/Common/Localization/LocalizationOptions.cs`, so a
 deployment cannot write a password reset in one language and a reminder in another.
+<!--#else-->
+`Src/Presentation/AppTemplate.Presentation.Core/Common/Localization/LocalizationOptions.cs`, so a
+deployment has one default language for every mail it writes.
+<!--#endif-->
 
 `AddLocalizationOptions()` binds and validates the section and does nothing else. Reading the value
 into `CurrentLanguage.Default` is the host's own call, because *when* that has to happen is a host's
@@ -992,12 +1015,24 @@ Adding a language is adding
   `DefaultCulture`. A job serves no request, so it has no reader to ask.
 - A language with no template falls back to English, which every template family must ship.
 
+<!--#if (localAuth && reminders)-->
 **To follow a stored per-account preference instead**, add the column to `AppUser`, carry it on
 `UserProfile`, and set `CurrentLanguage.Tag` from it — in `EmailReminderNotifier` for the reminder
 job's mail, and ahead of the use case for the API's, where the request header has already set it and the
 stored preference would win. That is the one change that would make a reminder follow its reader
 rather than the deployment; nothing else here would move.
 
+<!--#elseif (localAuth)-->
+**To follow a stored per-account preference instead**, add the column to `AppUser`, carry it on
+`UserProfile`, and set `CurrentLanguage.Tag` from it ahead of the use case, where the request header
+has already set it and the stored preference would win.
+
+<!--#elseif (reminders)-->
+**To follow a stored per-account preference instead**, keep it where the reminder's recipient is
+resolved and set `CurrentLanguage.Tag` from it in `EmailReminderNotifier`. That is the one change that
+would make a reminder follow its reader rather than the deployment; nothing else here would move.
+
+<!--#endif-->
 <!--#if (localAuth)-->
 ### `IdentitySeed` — development only
 
@@ -1039,9 +1074,14 @@ without any error. A lone `*` is accepted and means any origin.
   `Retry-After`, `ETag`, `Location` and `Idempotency-Replayed`, and caches preflight for
   10 minutes. Those four are exactly the response headers this API's contracts ask a client
   to read, and a browser cannot see one that is not exposed.
+<!--#if (accounts)-->
 - `AllowCredentials` is deliberately **not** set: tokens travel in the `Authorization`
   header, not a cookie. It is the wildcard-origin-plus-credentials combination that
   turns a permissive policy into a vulnerability.
+<!--#else-->
+- `AllowCredentials` is deliberately **not** set. It is the wildcard-origin-plus-credentials
+  combination that turns a permissive policy into a vulnerability.
+<!--#endif-->
 
 `appsettings.Development.json` ships `http://localhost:4200` and
 `http://localhost:5173`.
@@ -1058,8 +1098,13 @@ without any error. A lone `*` is accepted and means any origin.
 Read by `Src/Presentation/AppTemplate.Api/Common/Security/ForwardedHeadersExtensions.cs`. This is the
 section that decides whether rate limiting works, so it is worth reading twice.
 
+<!--#if (localAuth)-->
 - **Leave it off and the rate limiter partitions on the proxy's address**, which means every
   caller on earth shares one 10-request window and the brute-force protection does nothing.
+<!--#else-->
+- **Leave it off and the rate limiter partitions on the proxy's address**, which means every
+  caller on earth shares one `GlobalPermitLimit` window and the limiter protects nothing.
+<!--#endif-->
 - **Turning it on with both lists empty is worse, not a shortcut.** ASP.NET Core only verifies
   the peer when at least one proxy or network is known; with both lists empty it accepts
   `X-Forwarded-For` from anybody, so a caller can forge its own partition key and bypass the
@@ -1144,7 +1189,7 @@ metrics cover ASP.NET Core, `HttpClient`, the runtime, the connection pool and t
 `Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` adds the
 jobs' own sources and meters to that same pipeline —
 <!--#if (reminders)-->
-the three jobs' `ActivitySource`s and `Meter`s and
+the jobs' `ActivitySource`s and `Meter`s and
 the persistence project's reminder meter, by `PersistenceModule.RemindersMeterName` —
 <!--#else
 the jobs' `ActivitySource`s and `Meter`s —
@@ -1178,9 +1223,14 @@ and their counters sit under `apptemplate.jobs.*`.
   a caller's `traceId` joins to the log entry and the log entry joins to the trace — from either
   end.
 - **The request log never enumerates headers, reads cookies, touches the body, or logs the query
+<!--#if (localAuth)-->
   string.** It writes a fixed field list. The auth endpoints carry passwords and refresh tokens
   in their bodies, so body logging is not merely disabled but absent. If you add logging of your
   own, this guarantee does not extend to it.
+<!--#else-->
+  string.** It writes a fixed field list, so body logging is not merely disabled but absent. If you
+  add logging of your own, this guarantee does not extend to it.
+<!--#endif-->
 
 ### `Concurrency`
 
@@ -1188,8 +1238,8 @@ and their counters sit under `apptemplate.jobs.*`.
 |---|---|---|---|
 | `IfMatch` | `Optional` \| `Required` | `Optional` | `Required` refuses a mutating request with no `If-Match` header with `428`. |
 
-Read by `Src/Presentation/AppTemplate.Api/Common/Concurrency/ConcurrencyExtensions.cs`. Every read of a
-`TodoList` or `TodoItem` publishes a strong `ETag` regardless of this setting, and every write
+Read by `Src/Presentation/AppTemplate.Api/Common/Concurrency/ConcurrencyExtensions.cs`. Every read that
+names one versioned resource publishes a strong `ETag` regardless of this setting, and every write
 already honours `If-Match` when one is sent — a stale, malformed or unrecognised version is
 refused with `412` either way. This setting only decides what happens when a write names **no**
 version at all.
@@ -1214,18 +1264,41 @@ version at all.
 | `MaxStoredResponseBytes` | int | `8192` | Must be ≥ 1. A larger response is stored without its body, and a replay then answers `409` `idempotency.notReplayable` rather than a truncated body. |
 
 Read by `Src/Presentation/AppTemplate.Api/Common/Idempotency/IdempotencyExtensions.cs`. The filter is
-registered globally but is **inert unless the action carries `[Idempotent]`** — four actions do:
-`POST /api/v1/todo-lists`, `POST /api/v1/todo-lists/{id}/items`,
-`POST /api/v1/todo-lists/{id}/items/{id}/reminders` and `POST /api/v1/files`. Sending no
-`Idempotency-Key` is always allowed: the capability is available, not compulsory.
+<!--#if (anyFeature)-->
+registered globally but is **inert unless the action carries `[Idempotent]`** — these do:
+
+<!--#if (todoLists)-->
+- `POST /api/v1/todo-lists`
+- `POST /api/v1/todo-lists/{id}/items`
+<!--#endif-->
+<!--#if (reminders)-->
+- `POST /api/v1/todo-lists/{id}/items/{id}/reminders`
+<!--#endif-->
+<!--#if (notes)-->
+- `POST /api/v1/notes`
+<!--#endif-->
+<!--#if (files)-->
+- `POST /api/v1/files`
+<!--#endif-->
+
+Sending no `Idempotency-Key` is always allowed: the capability is available, not compulsory.
+<!--#else-->
+registered globally but is **inert unless the action carries `[Idempotent]`**, and no action of this
+project carries it yet: a feature marks its own creating routes. Sending no `Idempotency-Key` is
+always allowed: the capability is available, not compulsory.
+<!--#endif-->
 
 What each setting does when it is wrong:
 
 - **`Retention` is a stamp, not a timer.** It only decides the `ExpiresAt` written on each row.
-  Expiry is enforced by `DELETE /api/v1/maintenance/idempotency-keys/expired`, which requires the
-  `Administrator` policy and which **nothing calls for you** — schedule it. Until a purge runs, a
-  completed key stays replayable past its retention, and the table grows. That endpoint is also the
-  template's worked example of policy-based authorisation.
+  Expiry is enforced by the maintenance job's idempotency purge
+  (`Jobs:Maintenance:PurgeExpiredIdempotencyKeysEnabled`), on the instance that runs the jobs.
+<!--#if (accounts)-->
+  `DELETE /api/v1/maintenance/idempotency-keys/expired` runs the same purge for a scheduler outside
+  the process; it requires the `Administrator` policy, and is the template's worked example of
+  policy-based authorisation.
+<!--#endif-->
+  Until a purge runs, a completed key stays replayable past its retention, and the table grows.
 - **`Retention` too short** (with purging in place) — a client retrying after a network stall past
   the window creates a second resource, which is the exact failure the feature exists to prevent.
 - **`ClaimLease` is unrelated to `Retention`.** `Retention` governs how long a *completed* response
@@ -1364,8 +1437,9 @@ The two authentication switches are documented next, because they belong to auth
 - The loop honours cancellation immediately rather than waiting out the current `Interval`, and
   does not treat a shutdown mid-iteration as a failure to log.
 <!--#if (localAuth)-->
-- `MaintenanceController` is a second, authorized entry point to the same two purges, and a purge is
-  safe to run while the timer's own pass overlaps it.
+- `MaintenanceController`, `RefreshTokenMaintenanceController` and
+  `SecurityEventMaintenanceController` are a second, authorized entry point to the same three purges,
+  and a purge is safe to run while the timer's own pass overlaps it.
 <!--#elseif (externalAuth)
 - `MaintenanceController` is a second, authorized entry point to the same purge, and the purge is
   safe to run while the timer's own pass overlaps it.
@@ -1443,7 +1517,7 @@ stays at-least-once.
 | Behaviour | Value | Where |
 |---|---|---|
 <!--#if (localAuth)-->
-| Refresh token size / hash | 32 bytes CSPRNG / SHA-256 | `RefreshTokenGrants` |
+| Refresh token size / hash | 32 bytes CSPRNG / SHA-256 | `SessionTokensService` |
 <!--#endif-->
 <!--#if (todoLists)-->
 | Aggregate item cap | 500 items per list | `TodoList.MaxItems` |
@@ -1466,11 +1540,19 @@ stays at-least-once.
 | Used-tag list lifetime | 1 minute | `UsedTagsCache.Lifetime` |
 <!--#endif-->
 
+<!--#if (tagging)-->
 **The server-side cache has no configuration section, and that is a property of what it holds.**
 One read goes through it — the tags an owner has already used, for a picker — and its lifetime is a
 decision about that answer rather than about a deployment: short, because the list is also what a
 client sees immediately after tagging something in another tab. `ICacheStore` takes the lifetime as
-an argument, so a second cached read states its own; there is no global default to configure and no
+an argument, so a second cached read states its own;
+<!--#else-->
+**The server-side cache has no configuration section.**
+No read goes through it yet, and the lifetime of one that does is a decision about that answer
+rather than about a deployment. `ICacheStore` takes the lifetime as an argument, so each cached
+read states its own;
+<!--#endif-->
+there is no global default to configure and no
 key naming one. Where the cache lives is a deployment's choice and it is made in code, not here:
 `AddCacheStore()` in `AppTemplate.Infrastructure.Core` registers `HybridCache` in process, and a
 deployment that wants a shared second level registers an `IDistributedCache` beside that call
@@ -1489,8 +1571,8 @@ owner may fill. A caller that meets any of them gets `409` `storedFile.quotaExce
 pending bound is self-clearing — `Jobs:Files:PurgeAbandonedRegistrations*` removes
 registrations that were never deposited against — so a client that crashed mid-upload waits
 rather than being locked out.
-<!--#endif-->
 
+<!--#endif-->
 The collection bounds are per-feature by design: they live on that feature's
 `ICollectionPolicy`, not in configuration, because a deployment cannot know which of a
 feature's columns are indexed. Raising `MaxPageSize` without measuring the query behind it
@@ -1507,7 +1589,11 @@ them to an options class with a validator — do not read them straight from
 |---|---|
 | `Logging:LogLevel:*` | Standard. The provider is `AddJsonConsole`, so output is structured JSON, not the default console format. |
 | `AllowedHosts` | Host filtering. `*` in the tracked defaults. |
+<!--#if (localAuth)-->
 | `ASPNETCORE_ENVIRONMENT` | `Development`, `Staging`, `Production`. Gates `appsettings.Development.json`, OpenAPI/Scalar, startup migrations and identity seeding. |
+<!--#else-->
+| `ASPNETCORE_ENVIRONMENT` | `Development`, `Staging`, `Production`. Gates `appsettings.Development.json`, OpenAPI/Scalar and startup migrations. |
+<!--#endif-->
 | `ASPNETCORE_HTTP_PORTS` | `8080` in the container. Do **not** also set `ASPNETCORE_URLS`; it takes precedence and would silently ignore this. |
 
 ## Environment-variable mapping

@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Idempotency;
+using AppTemplate.Api.Features.Reminders.Contracts.Mapping;
 using AppTemplate.Api.Features.Reminders.Contracts.Requests;
 using AppTemplate.Api.Features.Reminders.Contracts.Responses;
-using AppTemplate.Api.Features.Reminders.Mapping;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.CancelReminder;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.RescheduleReminder;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;

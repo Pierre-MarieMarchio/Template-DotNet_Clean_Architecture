@@ -24,11 +24,10 @@ public sealed class LayoutConventionTests
     /// docs/PROJECT-LAYOUT.md's folder map and to this list, argued for in the pull request — not a
     /// mkdir.
     /// <para>
-    /// Two tiers. A word is either flat — <c>Dtos</c>, a nature directly under the feature — or a
-    /// concept and one of its natures — <c>Model/Dtos</c>. A concept is the level-2 folder, and
-    /// below it only the natures listed for it are allowed; a flat word's contents are its own
-    /// (subjects such as <c>Ports/&lt;Port&gt;/</c>, or files). Both forms are valid, so a project
-    /// moves from one to the other entry by entry.
+    /// Two tiers. A word is either a concept and one of its natures — <c>Model/Dtos</c> — or a
+    /// concept alone — <c>Ports</c>, <c>Controllers</c>. A concept is the level-2 folder; below one
+    /// written with natures only the natures listed for it are allowed, and a concept written alone
+    /// holds its own contents (subjects such as <c>Ports/&lt;Port&gt;/</c>, or files).
     /// </para>
     /// </summary>
     private static readonly Dictionary<string, string[]?> _vocabulary = new(StringComparer.Ordinal)
@@ -76,34 +75,23 @@ public sealed class LayoutConventionTests
                 "Adapters/Observability",
                 "Rows/Configurations", "Rows/Mapping", "Rows/Models", "Rows/Tracking",
             ],
-        // Jobs/ holds what a feature runs on a timer: the hosted service, its options and its
-        // instruments, side by side — the nature word for them, as Controllers/ is for the HTTP half.
-        // Directories/ holds an adapter the host supplies because it joins two features that may
-        // not name each other. Composition/ holds a feature's one entry point when it composes more
-        // than use cases — a module, a readiness check, a policy — so a host can leave it out whole.
-        // Security/ holds what a feature reads off the request itself — the caller's session, say —
-        // which only the host can supply and the feature cannot ask the pipeline for.
+        // Is it an HTTP entry point (Controllers), a loop on a timer with its options and its
+        // instruments (Jobs), a wire type and the projection onto it (Contracts), or what the host
+        // supplies to the feature (Composition) — the feature's one entry point, and the adapters
+        // only the host can provide: a directory joining two features that may not name each other,
+        // a provider answering from the request, the caller's session.
         //#if (externalAuth)
-        // Options/ holds the settings a feature binds and the framework options it configures from
-        // them, when they are not a job's.
+        // Configuration/ holds the settings a feature binds and the framework options it configures
+        // from them, when they are not a job's.
         //#endif
         ["Src/Presentation/AppTemplate.Api"] =
             [
-                "Composition", "Contracts", "Controllers", "Directories", "Jobs", "Mapping",
-                //#if (localAuth)
-                "Security",
-                //#endif
+                "Composition",
                 //#if (externalAuth)
-                "Options",
+                "Configuration/Options",
                 //#endif
-                // Providers/ holds an adapter the host supplies to a module for something only a
-                // request can answer — where an event came from — as Directories/ holds the ones
-                // that join two features. Only the local accounts file one today, so the word
-                // travels with them: without it the unused-word pass below would report a word no
-                // feature of the tree files under.
-                //#if (localAuth)
-                "Providers",
-                //#endif
+                "Contracts/Mapping", "Contracts/Requests", "Contracts/Responses",
+                "Controllers", "Jobs",
             ],
         //#if (localAuth)
 

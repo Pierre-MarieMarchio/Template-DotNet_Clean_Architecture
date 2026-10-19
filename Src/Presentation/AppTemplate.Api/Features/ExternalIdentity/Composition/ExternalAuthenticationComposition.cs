@@ -1,9 +1,5 @@
 ﻿using AppTemplate.Api.Common.Security;
-//#if (anyFeature)
-using AppTemplate.Api.Features.ExternalIdentity.Directories;
-//#endif
-using AppTemplate.Api.Features.ExternalIdentity.Mapping;
-using AppTemplate.Api.Features.ExternalIdentity.Options;
+using AppTemplate.Api.Features.ExternalIdentity.Configuration.Options;
 using AppTemplate.Application;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Persistence;

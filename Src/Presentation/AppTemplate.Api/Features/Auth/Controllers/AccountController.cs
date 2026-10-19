@@ -1,9 +1,9 @@
 ﻿using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Security;
+using AppTemplate.Api.Features.Auth.Contracts.Mapping;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
-using AppTemplate.Api.Features.Auth.Mapping;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ChangePassword;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ConfirmEmailChange;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.DeleteMyAccount;

@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Security;
+using AppTemplate.Api.Features.Auth.Contracts.Mapping;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
-using AppTemplate.Api.Features.Auth.Mapping;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ConfirmEmail;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.Register;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ResendConfirmationEmail;

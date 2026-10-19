@@ -685,11 +685,11 @@ internal static class NewFeature
 
             if (adapter == "Auth")
             {
-                Add(api, "Features/Auth/Directories/AccountUserAccountDirectory.cs", Templates.LocalUserAccountDirectory);
+                Add(api, "Features/Auth/Composition/AccountUserAccountDirectory.cs", Templates.LocalUserAccountDirectory);
             }
             else
             {
-                Add(api, "Features/ExternalIdentity/Directories/ExternalIdentityUserAccountDirectory.cs", Templates.ExternalUserAccountDirectory);
+                Add(api, "Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs", Templates.ExternalUserAccountDirectory);
             }
         }
 
@@ -766,7 +766,7 @@ internal static class NewFeature
         Add(api, $"{feature}/Contracts/Responses/%A%Response.cs", Templates.Response, "dto");
         Add(api, $"{feature}/Contracts/Responses/%A%SummaryResponse.cs", Templates.SummaryResponse, "list");
         Add(api, $"{feature}/Controllers/%F%Controller.cs", Templates.Controller);
-        Add(api, $"{feature}/Mapping/%A%ResponseMapping.cs", Templates.ResponseMapping, "dto|list");
+        Add(api, $"{feature}/Contracts/Mapping/%A%ResponseMapping.cs", Templates.ResponseMapping, "dto|list");
 
         // Tests: the ones whose assertions hold for any feature of the chosen shape. A skeleton that
         // asserts nothing is not written, because it would pass for any code.
@@ -788,7 +788,7 @@ internal static class NewFeature
         AddTest(domainTests, $"{feature}/Model/Entities/%A%Tests.cs", Templates.AggregateTests, "agg");
         AddTest(persistenceTests, $"{feature}/Rows/Configurations/%A%RecordConfigurationTests.cs", Templates.ConfigurationTests);
         AddTest(persistenceTests, $"{feature}/%A%MapperFidelityTests.cs", Templates.MapperFidelityTests, "agg");
-        AddTest(apiTests, $"{feature}/Mapping/%A%ResponseMappingTests.cs", Templates.ResponseMappingTests, "dto");
+        AddTest(apiTests, $"{feature}/Contracts/Mapping/%A%ResponseMappingTests.cs", Templates.ResponseMappingTests, "dto");
 
         skippedTestProjects = skipped;
 
@@ -1299,7 +1299,7 @@ internal static class NewFeature
             output.WriteLine("     services.AddDeletedAccountSweepJobs(configuration); after services.AddMaintenanceJobs(configuration);");
             output.WriteLine();
             output.WriteLine($" 10. {composition}: services.AddScoped<IUserAccountDirectory, {directory}>();");
-            output.WriteLine("     with the usings of the directory's namespace and Application.Core's ports");
+            output.WriteLine("     with the using of Application.Core's ports; the directory shares the composition's namespace");
         }
 
         output.WriteLine();
@@ -1708,6 +1708,7 @@ internal static class NewFeature
         Present(Has("get") || Has("create") || Has("update"), $"Contracts/Responses/{type}Response.cs");
         Present(Has("create"), $"Contracts/Requests/Create{type}Request.cs");
         Present(Has("update"), $"Contracts/Requests/Update{type}Request.cs");
+        Present(Has("get") || Has("create") || Has("update") || Has("list"), $"Contracts/Mapping/{type}ResponseMapping.cs");
         Present(true, $"Controllers/{features}Controller.cs");
         Present(true, $"Models/{type}Record.cs");
         Present(true, $"Configurations/{type}RecordConfiguration.cs");
@@ -1966,7 +1967,7 @@ internal static class NewFeature
             "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs",
             "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
             "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
-            "Src/Presentation/Acme.Api/Features/Auth/Directories/AccountUserAccountDirectory.cs",
+            "Src/Presentation/Acme.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
         ];
 
         foreach (string path in reaction)
@@ -2013,7 +2014,7 @@ internal static class NewFeature
 
         expect(mapped.Code == 0, $"An owner feature into an externally authenticated bare tree was refused: {mapped.Error.Split('\n')[0]}");
         expect(
-            File.Exists(System.IO.Path.Combine(external, "Src/Presentation/Acme.Api/Features/ExternalIdentity/Directories/ExternalIdentityUserAccountDirectory.cs")),
+            File.Exists(System.IO.Path.Combine(external, "Src/Presentation/Acme.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs")),
             "The external-identity account directory was not written.");
         expect(mapped.Output.Contains("ExternalAuthenticationComposition", StringComparison.Ordinal), "The external composition was not named for the registration.");
 
@@ -4714,7 +4715,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Ports;
         using %P%.Domain.Core.Common.Primitives;
 
-        namespace %P%.Api.Features.Auth.Directories;
+        namespace %P%.Api.Features.Auth.Composition;
 
         /// <summary>
         /// <see cref="IUserAccountDirectory"/> over the local accounts: an id names an account exactly
@@ -4737,7 +4738,7 @@ internal static class Templates
         using %P%.Application.Features.ExternalIdentity.Services;
         using %P%.Domain.Core.Common.Primitives;
 
-        namespace %P%.Api.Features.ExternalIdentity.Directories;
+        namespace %P%.Api.Features.ExternalIdentity.Composition;
 
         /// <summary>
         /// <see cref="IUserAccountDirectory"/> over the external-identity mapping: an id names an account
@@ -5138,7 +5139,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Results;
         using %P%.Application.Features.%F%.Model.Dtos;
 
-        namespace %P%.Api.Features.%F%.Mapping;
+        namespace %P%.Api.Features.%F%.Contracts.Mapping;
 
         /// <summary>
         /// Projects the feature's application DTOs onto its wire contracts. Positional records plus
@@ -5185,9 +5186,9 @@ internal static class Templates
         using %P%.Api.Common.Controllers;
         using %P%.Api.Common.Errors; //?ToActionResult
         using %P%.Api.Common.Idempotency; //?Idempotent
+        using %P%.Api.Features.%F%.Contracts.Mapping; //?%A%ResponseMapping
         using %P%.Api.Features.%F%.Contracts.Requests; //?Create%A%Request|Update%A%Request|Get%F%Request
         using %P%.Api.Features.%F%.Contracts.Responses; //?%A%Response|%A%SummaryResponse
-        using %P%.Api.Features.%F%.Mapping; //?%A%ResponseMapping
         %if rec%
         using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto|%A%ListQueryDto
         using %P%.Application.Features.%F%.Services;
@@ -5909,14 +5910,14 @@ internal static class Templates
         """;
 
     internal const string ResponseMappingTests = """
-        using %P%.Api.Features.%F%.Mapping;
+        using %P%.Api.Features.%F%.Contracts.Mapping;
         using %P%.Application.Core.Common.Concurrency; //?Versioned
         using %P%.Application.Core.Common.Results; //?Result\.
         using %P%.Application.Features.%F%.Model.Dtos;
         using Shouldly;
         using Xunit;
 
-        namespace %P%.Api.UnitTests.Features.%F%.Mapping;
+        namespace %P%.Api.UnitTests.Features.%F%.Contracts.Mapping;
 
         public sealed class %A%ResponseMappingTests
         {

@@ -1,11 +1,6 @@
 ﻿using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Api.Common.Security;
-//#if (anyFeature)
-using AppTemplate.Api.Features.Auth.Directories;
-//#endif
 using AppTemplate.Api.Features.Auth.Jobs;
-using AppTemplate.Api.Features.Auth.Providers;
-using AppTemplate.Api.Features.Auth.Security;
 using AppTemplate.Application.Auth;
 //#if (anyFeature)
 using AppTemplate.Application.Core.Common.Ports;

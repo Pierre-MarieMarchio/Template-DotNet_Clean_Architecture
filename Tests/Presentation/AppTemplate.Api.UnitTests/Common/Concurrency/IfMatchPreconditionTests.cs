@@ -60,11 +60,6 @@ public sealed class IfMatchPreconditionTests
         precondition.State.ShouldBe(IfMatchState.Malformed);
     }
 
-    /// <summary>
-    /// Well-formed but naming no version this API could have issued — a failed precondition, not a
-    /// malformed request, because ignoring it would turn a conditional write into an unconditional
-    /// one.
-    /// </summary>
     [Fact]
     public void Read_IsTagsWithAnEmptyAcceptableSet_ForAWeakEntityTag()
     {

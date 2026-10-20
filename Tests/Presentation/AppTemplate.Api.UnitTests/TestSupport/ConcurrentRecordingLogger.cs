@@ -3,10 +3,6 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Api.UnitTests.TestSupport;
 
-/// <summary>
-/// Keeps every formatted line a service logged, so a test can assert on one. Concurrent because a
-/// host with several loops logs from several threads.
-/// </summary>
 internal sealed class ConcurrentRecordingLogger<T> : ILogger<T>
 {
     private readonly ConcurrentQueue<(LogLevel Level, string Message)> _lines = new();

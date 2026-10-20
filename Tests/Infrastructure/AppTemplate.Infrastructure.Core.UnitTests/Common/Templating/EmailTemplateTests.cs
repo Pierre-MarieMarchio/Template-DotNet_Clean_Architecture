@@ -5,11 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Core.UnitTests.Common.Templating;
 
-/// <summary>
-/// Which language a mail comes out in, where its subject comes from, and what happens to a
-/// substituted value. Exercised against this project's own embedded templates, so nothing here
-/// depends on what any module happens to ship.
-/// </summary>
 public sealed class EmailTemplateTests
 {
     private static readonly Assembly _resources = typeof(EmailTemplateTests).Assembly;
@@ -44,11 +39,6 @@ public sealed class EmailTemplateTests
             "a French subject over an English body is the defect this arrangement exists to prevent");
     }
 
-    /// <summary>
-    /// A regional tag reaches its language's template rather than the fallback: a reader whose
-    /// browser says <c>fr-CA</c> is a French reader, and one template per region is not something
-    /// this template asks of anybody.
-    /// </summary>
     [Theory]
     [InlineData("fr-CA")]
     [InlineData("fr-BE")]
@@ -61,10 +51,6 @@ public sealed class EmailTemplateTests
     public void ALanguageWithNoTemplate_FallsBackToEnglish(string tag) =>
         _sut.Render(tag, _placeholders).Subject.ShouldBe("Test subject");
 
-    /// <summary>
-    /// A tag that is not a tag at all — an <c>Accept-Language</c> of <c>*</c>, a truncated header,
-    /// nothing — is not an error. It is a reader whose language is unknown.
-    /// </summary>
     [Theory]
     [InlineData("")]
     [InlineData("*")]
@@ -86,10 +72,6 @@ public sealed class EmailTemplateTests
         mail.Body.ShouldContain("&lt;script&gt;");
     }
 
-    /// <summary>
-    /// Substitution touches the body alone. A mail header is not HTML, so the body's encoding would
-    /// be the wrong one there, and an unencoded value carrying a newline would be header injection.
-    /// </summary>
     [Fact]
     public void TheSubject_TakesNoSubstitution()
     {
@@ -115,10 +97,6 @@ public sealed class EmailTemplateTests
         exception.Message.ShouldContain(_resources.GetName().Name!);
     }
 
-    /// <summary>
-    /// The assembly is a parameter so that a module renders its own mail: reading this class's own
-    /// assembly would make every module's templates unreachable from here.
-    /// </summary>
     [Fact]
     public void TheTemplatesAreReadFromTheAssemblyItIsGiven()
     {

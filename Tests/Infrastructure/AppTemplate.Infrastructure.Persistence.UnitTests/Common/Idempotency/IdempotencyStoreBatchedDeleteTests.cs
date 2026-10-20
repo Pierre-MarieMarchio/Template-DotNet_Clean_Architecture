@@ -4,13 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Idempotency;
 
-/// <summary>
-/// <see cref="IdempotencyStore.RunBatchedDeleteAsync"/> is the looping and summing rule behind the
-/// batched purge, pulled out of the EF-backed method so it can be exercised without a database.
-/// Whether EF actually translates <c>Where().OrderBy().Take().ExecuteDeleteAsync()</c> into the
-/// intended SQL is not covered here — that needs a real PostgreSQL and belongs to the integration
-/// suite.
-/// </summary>
 public sealed class IdempotencyStoreBatchedDeleteTests
 {
     [Fact]
@@ -34,24 +27,25 @@ public sealed class IdempotencyStoreBatchedDeleteTests
     [Fact]
     public async Task RunBatchedDeleteAsync_KeepsGoing_WhileEveryBatchIsFull()
     {
+        const int batchSize = 100;
+        const int lastPartialBatch = 42;
         int remainingFullBatches = 3;
 
         int total = await IdempotencyStore.RunBatchedDeleteAsync(
-            batchSize: 100,
+            batchSize: batchSize,
             deleteBatchAsync: _ =>
             {
                 if (remainingFullBatches > 0)
                 {
                     remainingFullBatches--;
-                    return Task.FromResult(100);
+                    return Task.FromResult(batchSize);
                 }
 
-                return Task.FromResult(42);
+                return Task.FromResult(lastPartialBatch);
             },
             ct: TestContext.Current.CancellationToken);
 
-        // Three full batches of 100 plus one partial batch of 42.
-        total.ShouldBe(342);
+        total.ShouldBe(3 * batchSize + lastPartialBatch);
     }
 
     [Fact]
@@ -83,11 +77,6 @@ public sealed class IdempotencyStoreBatchedDeleteTests
         observed.ShouldBe(cancellation.Token);
     }
 
-    /// <summary>
-    /// A batch exactly equal to the batch size looks the same to this rule as "there might be
-    /// more" — it cannot distinguish "exactly one page left" from "at least one more page", and it
-    /// must not guess. One extra, empty-returning call is the price of never leaving rows behind.
-    /// </summary>
     [Fact]
     public async Task RunBatchedDeleteAsync_MakesOneMoreCall_WhenTheLastBatchExactlyFillsTheBatchSize()
     {

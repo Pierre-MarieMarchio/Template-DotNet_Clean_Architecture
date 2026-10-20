@@ -10,24 +10,12 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// <see cref="EmailTokensService.ConfirmEmailAsync"/> over a real <see cref="UserManager{TUser}"/>, standing in
-/// for the "Default" provider with a fake that mimics the one property of
-/// <c>DataProtectorTokenProvider</c> this suite cares about: a token embeds the security stamp at
-/// generation time and is rejected once the stamp no longer matches.
-/// </summary>
 public sealed class EmailTokensServiceConfirmationTests
 {
     private const string _knownEmail = "someone@example.test";
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// Proves the single-use claim <c>ConfirmEmailCommand</c> documents. Before
-    /// <c>ConfirmEmailAsync</c> rotated the security stamp on success, the stub's <c>ValidateAsync</c>
-    /// kept accepting the first token forever, and this test failed with <c>true</c> instead of
-    /// <c>false</c> on the replay.
-    /// </summary>
     [Fact]
     public async Task ARedeemedToken_CannotBeReplayed()
     {
@@ -70,9 +58,6 @@ public sealed class EmailTokensServiceConfirmationTests
         user.SecurityStamp.ShouldBe(stampBeforeConfirmation);
     }
 
-    /// <summary>
-    /// Refused exactly as a wrong token is: the port no longer tells an unknown address apart.
-    /// </summary>
     [Fact]
     public async Task AnUnknownAddress_IsRefusedLikeAWrongToken()
     {
@@ -127,19 +112,11 @@ public sealed class EmailTokensServiceConfirmationTests
             Substitute.For<IServiceProvider>(),
             NullLogger<UserManager<AppUser>>.Instance);
 
-        // Stands in for the "Default" DataProtectorTokenProvider that ASP.NET Identity's own
-        // AddDefaultTokenProviders registers and email confirmation resolves to: a token is only as
-        // good as the security stamp it was minted against.
         userManager.RegisterTokenProvider("Default", new StampBoundTokenProvider());
 
         return new EmailTokensService(userManager, Substitute.For<IAppUserDirectory>());
     }
 
-    /// <summary>
-    /// A minimal stand-in for <c>DataProtectorTokenProvider</c>'s one relevant property: the token
-    /// it hands out is only valid against the security stamp the user carried at the moment it was
-    /// generated.
-    /// </summary>
     private sealed class StampBoundTokenProvider : IUserTwoFactorTokenProvider<AppUser>
     {
         public async Task<string> GenerateAsync(string purpose, UserManager<AppUser> manager, AppUser user) =>

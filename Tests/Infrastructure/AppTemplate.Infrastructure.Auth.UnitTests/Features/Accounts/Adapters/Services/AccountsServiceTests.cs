@@ -15,14 +15,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// What the credential check costs, and which of ASP.NET Identity's refusals is reported as what.
-/// </summary>
-/// <remarks>
-/// The cost matters as much as the answer. An unknown address that returns before doing any key
-/// derivation answers in a fraction of the time a wrong password takes, and that difference is a
-/// user-enumeration oracle no uniform error message hides.
-/// </remarks>
 public sealed class AccountsServiceTests : IDisposable
 {
     private const string _password = "correct horse battery";
@@ -60,11 +52,6 @@ public sealed class AccountsServiceTests : IDisposable
 
     public void Dispose() => _userManager.Dispose();
 
-    /// <summary>
-    /// Asserted through the hasher the container configured, not a fresh one, so the decoy and the
-    /// real verification derive a key the same number of times whatever the iteration count is set
-    /// to. Deleting the decoy leaves every uniformity test green and this one red.
-    /// </summary>
     [Fact]
     public async Task AnUnknownAddress_StillCostsOnePasswordVerificationFromTheConfiguredHasher()
     {
@@ -83,10 +70,6 @@ public sealed class AccountsServiceTests : IDisposable
         _passwordHasher.LastVerifiedHash.ShouldBe(RecordingPasswordHasher.Hash);
     }
 
-    /// <summary>
-    /// A refusal must not carry an account: a caller that got one could act on it whatever the
-    /// outcome said.
-    /// </summary>
     [Fact]
     public async Task AnUnknownAddress_NamesNoAccount()
     {
@@ -97,10 +80,6 @@ public sealed class AccountsServiceTests : IDisposable
         check.Account.ShouldBeNull();
     }
 
-    /// <summary>
-    /// <see cref="SignInManager{TUser}.CheckPasswordSignInAsync"/> refuses a locked-out account
-    /// before deriving a key at all, which would otherwise answer faster than a wrong password does.
-    /// </summary>
     [Fact]
     public async Task ALockedOutAccount_StillCostsOnePasswordVerificationFromTheConfiguredHasher()
     {
@@ -116,7 +95,6 @@ public sealed class AccountsServiceTests : IDisposable
             "explicitly or it answers faster than a wrong password does.");
     }
 
-    /// <summary>Same oracle, for the other refusal <c>PreSignInCheckAsync</c> can return early.</summary>
     [Fact]
     public async Task AnUnconfirmedEmailAccount_StillCostsOnePasswordVerificationFromTheConfiguredHasher()
     {
@@ -129,12 +107,6 @@ public sealed class AccountsServiceTests : IDisposable
         _passwordHasher.Verifications.ShouldBe(1);
     }
 
-    /// <summary>
-    /// A plain wrong password derives a key inside the mocked <c>CheckPasswordSignInAsync</c> call
-    /// itself in production; this substitute never calls the real hasher, so the only thing worth
-    /// asserting here is that this refusal does not also trigger the extra derivation added for
-    /// <see cref="CredentialCheckStatus.LockedOut"/> and <see cref="CredentialCheckStatus.EmailNotConfirmed"/>.
-    /// </summary>
     [Fact]
     public async Task AnIncorrectPassword_DoesNotTriggerTheExtraDerivation()
     {
@@ -154,8 +126,6 @@ public sealed class AccountsServiceTests : IDisposable
     {
         var user = new AppUser { Id = Guid.CreateVersion7(), UserName = "known", Email = "known@identity.test" };
 
-        // UserManager.FindByEmailAsync normalizes before calling the store, so the substitute must
-        // match on any address rather than the one the test passes in.
         _store.FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(user);
 
         return user;

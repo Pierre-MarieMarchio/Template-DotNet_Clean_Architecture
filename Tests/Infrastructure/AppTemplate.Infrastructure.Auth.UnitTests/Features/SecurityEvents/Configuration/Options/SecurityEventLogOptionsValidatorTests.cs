@@ -4,11 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.SecurityEvents.Configuration.Options;
 
-/// <summary>
-/// The validator runs under <c>ValidateOnStart</c>, so what it rejects is what stops the process
-/// from booting rather than surfacing as a trail that keeps everything, or purges too eagerly,
-/// the first time the maintenance timer fires.
-/// </summary>
 public sealed class SecurityEventLogOptionsValidatorTests
 {
     private static readonly SecurityEventLogOptionsValidator _validator = new();

@@ -4,20 +4,10 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.ExternalLogins.Configuration.Options;
 
-/// <summary>
-/// The validator runs under <c>ValidateOnStart</c>, so what it rejects is what stops the process
-/// from booting — and, just as importantly here, what it accepts is what lets a deployment that does
-/// not use external sign-in start at all.
-/// </summary>
 public sealed class ExternalIdentityOptionsValidatorTests
 {
     private static readonly ExternalIdentityOptionsValidator _validator = new();
 
-    /// <summary>
-    /// The case that matters most to every project that never turns this feature on. An optional
-    /// feature whose absent configuration stops the host is a regression for everyone who does not
-    /// use it.
-    /// </summary>
     [Fact]
     public void Validate_AcceptsADeploymentWithNoProviderAtAll() =>
         _validator.Validate(name: null, new ExternalIdentityOptions()).Succeeded.ShouldBeTrue();
@@ -45,10 +35,6 @@ public sealed class ExternalIdentityOptionsValidatorTests
         FailureOf(With(provider)).ShouldContain("Name");
     }
 
-    /// <summary>
-    /// Two entries under one name means one of them is unreachable, and which one is an accident of
-    /// ordering rather than a decision.
-    /// </summary>
     [Fact]
     public void Validate_RejectsTwoProvidersSharingAName()
     {
@@ -76,10 +62,6 @@ public sealed class ExternalIdentityOptionsValidatorTests
         FailureOf(With(provider)).ShouldContain("Audiences");
     }
 
-    /// <summary>
-    /// A blank entry inside an otherwise populated list is worse than an empty list: it reads as
-    /// configured and matches a token whose claim is also blank.
-    /// </summary>
     [Fact]
     public void Validate_RejectsABlankEntryInsideAPopulatedList()
     {
@@ -107,10 +89,6 @@ public sealed class ExternalIdentityOptionsValidatorTests
         FailureOf(With(provider)).ShouldContain("not both");
     }
 
-    /// <summary>
-    /// The key set is the only thing standing between a forged token and an account, so fetching it
-    /// over plaintext would put that decision in the hands of whoever is between the two hosts.
-    /// </summary>
     [Theory]
     [InlineData("http://www.googleapis.com/oauth2/v3/certs")]
     [InlineData("/oauth2/v3/certs")]
@@ -134,10 +112,6 @@ public sealed class ExternalIdentityOptionsValidatorTests
         FailureOf(options).ShouldContain("KeySetLifetime");
     }
 
-    /// <summary>
-    /// The message a failure carries, asserted to exist before it is read: a validator that failed
-    /// with nothing to say would satisfy every assertion below by accident.
-    /// </summary>
     private static string FailureOf(ExternalIdentityOptions options)
     {
         var result = _validator.Validate(name: null, options);
@@ -147,11 +121,6 @@ public sealed class ExternalIdentityOptionsValidatorTests
         return result.FailureMessage.ShouldNotBeNull();
     }
 
-    /// <summary>
-    /// Google mints both forms of its issuer, so an installation has to be able to accept both — and
-    /// several client identifiers, because one product routinely registers a web, an iOS and an
-    /// Android client against the same API.
-    /// </summary>
     private static ExternalIdentityProviderOptions Google()
     {
         var provider = new ExternalIdentityProviderOptions

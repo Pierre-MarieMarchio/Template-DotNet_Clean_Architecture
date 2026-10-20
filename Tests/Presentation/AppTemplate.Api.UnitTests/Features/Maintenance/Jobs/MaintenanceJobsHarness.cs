@@ -19,12 +19,6 @@ namespace AppTemplate.Api.UnitTests.Features.Maintenance.Jobs;
 
 internal static class MaintenanceJobsHarness
 {
-    /// <summary>
-    /// The real registration — the idempotency purge from the maintenance feature and, with the
-    /// supplied accounts, authentication's two purges — over fake use cases, with the option
-    /// objects replaced so the interval can be shorter than the validator allows a deployment to
-    /// choose.
-    /// </summary>
     internal static MaintenanceBackgroundService Create(
         IPurgeExpiredIdempotencyKeysUseCase idempotency,
         //#if (localAuth)

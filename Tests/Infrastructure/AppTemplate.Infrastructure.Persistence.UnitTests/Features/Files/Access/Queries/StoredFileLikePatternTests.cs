@@ -8,8 +8,6 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Files.Access
 
 public sealed class StoredFileLikePatternTests
 {
-    #region Pattern escaping
-
     [Fact]
     public void Contains_WrapsThePatternInWildcards() =>
         StoredFileLikePattern.Contains("report").ShouldBe("%report%");
@@ -30,15 +28,6 @@ public sealed class StoredFileLikePatternTests
     public void Contains_Rejects_ANullTerm() =>
         Should.Throw<ArgumentNullException>(() => StoredFileLikePattern.Contains(null!));
 
-    #endregion
-
-    #region SQL shape
-
-    /// <summary>
-    /// The same call <c>StoredFileQueries</c> makes: <see cref="StoredFileLikePattern.Contains"/> feeding
-    /// <c>EF.Functions.ILike</c>. Proves the escape character reaches PostgreSQL as <c>ESCAPE '\'</c> and
-    /// that a caller's own <c>%</c> travels only inside the parameter, never into the SQL text.
-    /// </summary>
     [Fact]
     public void ILikeWithTheEscapedPattern_ProducesEscapeInTheSql()
     {
@@ -55,6 +44,4 @@ public sealed class StoredFileLikePatternTests
         sql.ShouldContain("ILIKE @pattern ESCAPE '\\'");
         sql.ShouldContain("@pattern='%50\\% off\\_thing%'");
     }
-
-    #endregion
 }

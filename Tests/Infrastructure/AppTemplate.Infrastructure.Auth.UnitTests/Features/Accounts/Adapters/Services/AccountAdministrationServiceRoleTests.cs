@@ -11,11 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// <see cref="AccountAdministrationService.GrantRoleAsync"/> and <see cref="AccountAdministrationService.RevokeRoleAsync"/> over a real <see cref="UserManager{TUser}"/> and
-/// <see cref="RoleManager{TRole}"/>: the gap this type exists to close is that neither
-/// <c>AddToRoleAsync</c> nor <c>RemoveFromRoleAsync</c> rotates the security stamp on its own.
-/// </summary>
 public sealed class AccountAdministrationServiceRoleTests
 {
     private const string _role = "Admin";
@@ -63,10 +58,6 @@ public sealed class AccountAdministrationServiceRoleTests
         change.Status.ShouldBe(AccountAdministrationStatus.Applied);
     }
 
-    /// <summary>
-    /// The gap this port exists to close: without this, a role granted just now has no effect on the
-    /// account's access until its current access token expires and it signs in again.
-    /// </summary>
     [Fact]
     public async Task AddingASeededRole_RotatesTheSecurityStamp()
     {
@@ -111,11 +102,6 @@ public sealed class AccountAdministrationServiceRoleTests
         change.Status.ShouldBe(AccountAdministrationStatus.Applied);
     }
 
-    /// <summary>
-    /// The gap this port exists to close, in the other direction: without this, a role just revoked
-    /// keeps authorising whatever it granted for as long as the account's current access token
-    /// remains valid.
-    /// </summary>
     [Fact]
     public async Task RemovingARoleTheAccountCarries_RotatesTheSecurityStamp()
     {
@@ -139,15 +125,11 @@ public sealed class AccountAdministrationServiceRoleTests
 
         _directory.FindByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(user);
 
-        // NSubstitute defaults an unconfigured Task<IdentityResult> member to a null result, and
-        // UserManager reads .Succeeded off it without a null check.
         _userStore.UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>())
             .Returns(IdentityResult.Success);
 
         var roleStore = (IUserRoleStore<AppUser>)_userStore;
 
-        // Backed by a set on the user rather than a fixed answer, so IsInRoleAsync reflects whatever
-        // GivenTheAccountCarries set up and AddToRoleAsync/RemoveFromRoleAsync actually change it.
         roleStore.IsInRoleAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => Task.FromResult(_carriedRoles.Contains((string)callInfo[1]!)));
         roleStore.AddToRoleAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -178,12 +160,6 @@ public sealed class AccountAdministrationServiceRoleTests
 
     private readonly HashSet<string> _carriedRoles = [];
 
-    /// <summary>
-    /// Stored upper-invariant: <see cref="UserManager{TUser}"/> normalises a role name before it ever
-    /// reaches the store, through the same <see cref="UpperInvariantLookupNormalizer"/>
-    /// <see cref="CreateAdministration"/> configures, so seeding the raw, mixed-case name here would
-    /// never match what <c>IsInRoleAsync</c> is actually asked about.
-    /// </summary>
     private void GivenTheAccountCarries(string role) => _carriedRoles.Add(role.ToUpperInvariant());
 
     private void GivenTheRoleIsSeeded(bool exists) =>

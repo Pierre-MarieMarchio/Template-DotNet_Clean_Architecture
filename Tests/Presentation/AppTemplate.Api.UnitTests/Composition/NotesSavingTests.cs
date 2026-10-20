@@ -12,15 +12,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Composition;
 
-/// <summary>
-/// A note commits through the unit of work alone, and a stale write is refused by the write itself.
-/// </summary>
-/// <remarks>
-/// Real module composition, real context, real commits: see <see cref="SqliteSavingHost"/> for what
-/// stands in for PostgreSQL. SQLite has no <c>xmin</c>, so the host makes it an integer column the
-/// database does not move by itself; a test moves it with SQL to play the competing writer. The same
-/// races run against PostgreSQL in <c>AppTemplate.Api.IntegrationTests</c>.
-/// </remarks>
 public sealed class NotesSavingTests
 {
     private static readonly Guid _caller = Guid.CreateVersion7();
@@ -28,10 +19,6 @@ public sealed class NotesSavingTests
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// The adapters take the context and nothing else: no mapper to write a model onto rows, no tracker
-    /// to flush, no event source to publish from. What commits the note is the unit of work.
-    /// </summary>
     [Fact]
     public async Task TheNoteAdapters_DependOnTheContextAlone()
     {
@@ -72,11 +59,6 @@ public sealed class NotesSavingTests
         host.Published.All.ShouldBeEmpty("a note raises no domain event, and nothing is published for it");
     }
 
-    /// <summary>
-    /// The version the caller names matches when the write is staged, and the row moves before the
-    /// commit. The <c>UPDATE</c> carries the version it loaded, finds no such row and is refused, so the
-    /// competing writer's change survives. The refusal comes from the write, not from the earlier read.
-    /// </summary>
     [Fact]
     public async Task AnUpdate_WhoseRowMovedBetweenTheReadAndTheWrite_IsRefusedAtTheWrite()
     {
@@ -162,10 +144,6 @@ public sealed class NotesSavingTests
         result.Value.Value.LastModifiedAt.ShouldNotBeNull();
     }
 
-    /// <summary>
-    /// Somebody else's note is a note that does not exist: not found on every write, and the row is
-    /// never touched.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersNote_CannotBeChangedOrDeleted_AndIsNotFound()
     {

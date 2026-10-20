@@ -7,7 +7,6 @@ using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeE
 
 namespace AppTemplate.Api.UnitTests.Features.Maintenance.Jobs;
 
-/// <summary>Counts calls and always succeeds with a fixed count, unless told to throw.</summary>
 internal sealed class FakeIdempotencyPurge : IPurgeExpiredIdempotencyKeysUseCase
 {
     private readonly Exception? _failure;
@@ -35,7 +34,6 @@ internal sealed class FakeIdempotencyPurge : IPurgeExpiredIdempotencyKeysUseCase
 }
 
 //#if (localAuth)
-/// <summary>Counts calls and always succeeds with a fixed count, unless told to throw.</summary>
 internal sealed class FakeRefreshTokenPurge : IPurgeExpiredRefreshTokensUseCase
 {
     private readonly Exception? _failure;
@@ -63,15 +61,10 @@ internal sealed class FakeRefreshTokenPurge : IPurgeExpiredRefreshTokensUseCase
 }
 
 //#endif
-/// <summary>
-/// Never completes on its own: it only ever returns by observing the cancellation token, so it
-/// can stand in for "a use case that is mid-flight when the host is asked to stop".
-/// </summary>
 internal sealed class HangingUseCase : IPurgeExpiredIdempotencyKeysUseCase
 {
     private volatile bool _hasEntered;
 
-    /// <summary>True from the moment the pass starts, before it blocks.</summary>
     public bool HasEntered => _hasEntered;
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
@@ -87,7 +80,6 @@ internal sealed class HangingUseCase : IPurgeExpiredIdempotencyKeysUseCase
 }
 
 //#if (localAuth)
-/// <summary>Counts calls and always succeeds with a fixed count, unless told to throw.</summary>
 internal sealed class FakeSecurityEventPurge : IPurgeExpiredSecurityEventsUseCase
 {
     private readonly Exception? _failure;

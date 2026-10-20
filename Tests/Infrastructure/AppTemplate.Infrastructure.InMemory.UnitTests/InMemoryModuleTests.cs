@@ -15,17 +15,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests;
 
-/// <summary>
-/// Replacement, not addition. The module removes what the real modules registered before re-adding
-/// its own doubles, and the difference only shows up under a resolution that does not pick the last
-/// registration — <c>GetServices</c>, a container with a different tie-break, a future
-/// <c>TryAdd</c>. A double that won by being registered last is a silent dependency on composition
-/// order whose failure mode is a test quietly talking to a real SMTP relay.
-/// <para>
-/// The real modules are stood in for by substitutes. What is under test is that a prior registration
-/// is displaced, and any prior registration demonstrates that.
-/// </para>
-/// </summary>
 public sealed class InMemoryModuleTests
 {
     [Fact]
@@ -63,10 +52,6 @@ public sealed class InMemoryModuleTests
     }
     //#if (localAuth)
 
-    /// <summary>
-    /// The identity verifier gets the same treatment for the same reason: its real adapter fetches a
-    /// provider's key set over HTTP, so a test host that kept it would be reaching out to Google.
-    /// </summary>
     [Fact]
     public void AddInMemoryModule_ReplacesAnExternalIdentityVerifierThatWasAlreadyRegistered()
     {
@@ -80,10 +65,6 @@ public sealed class InMemoryModuleTests
             .ShouldNotBeSameAs(real);
     }
 
-    /// <summary>
-    /// The arrangements are per host and not per scope: a use case arranges nothing itself, so a
-    /// second instance would refuse every token a test had just accepted.
-    /// </summary>
     [Fact]
     public void AddInMemoryModule_ServesOneSetOfArrangedIdentitiesForEveryScope()
     {
@@ -95,10 +76,6 @@ public sealed class InMemoryModuleTests
     }
     //#endif
 
-    /// <summary>
-    /// One registration per contract afterwards, however many there were before. Counting is the only
-    /// way to tell removal from a double that merely happens to be resolved first.
-    /// </summary>
     [Fact]
     public void AddInMemoryModule_LeavesOneRegistrationPerContractHoweverManyThereWere()
     {
@@ -116,11 +93,6 @@ public sealed class InMemoryModuleTests
         scope.ServiceProvider.GetServices<IEmailSender>().ShouldHaveSingleItem();
     }
 
-    /// <summary>
-    /// The clock is registered under two contracts and has to be one object behind both: production
-    /// code resolves the port, the test moves the concrete type, and a second instance would leave the
-    /// test moving a clock nothing else reads.
-    /// </summary>
     [Fact]
     public void AddInMemoryModule_ServesOneClockForEveryContractItIsRegisteredUnder()
     {
@@ -134,10 +106,6 @@ public sealed class InMemoryModuleTests
         port.UtcNow.ShouldBe(FixedDateTimeProvider.DefaultInstant.AddHours(1));
     }
 
-    /// <summary>
-    /// The sender is per scope and the mailbox is not, so mail sent from several requests accumulates
-    /// in one place — which is what an assertion made after those requests depends on.
-    /// </summary>
     [Fact]
     public async Task AddInMemoryModule_ServesOneMailboxForEveryScope()
     {
@@ -152,10 +120,6 @@ public sealed class InMemoryModuleTests
         InMemoryHost.MailboxOf(provider).Snapshot().Count.ShouldBe(2);
     }
 
-    /// <summary>
-    /// Composed first, it replaces nothing and is then replaced itself. This is why the host documents
-    /// the call order, and pinning it here is what stops the order from being rearranged as cosmetic.
-    /// </summary>
     [Fact]
     public void AddInMemoryModule_ReplacesNothingWhenComposedBeforeTheRealModules()
     {

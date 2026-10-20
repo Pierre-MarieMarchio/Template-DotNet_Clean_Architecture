@@ -7,36 +7,16 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Adapters.Transfers;
 
-/// <summary>
-/// What a grant this adapter mints actually authorises, and what it says it authorises. The two are
-/// separate assertions on purpose: a grant that told a client to send headers the signature does not
-/// cover, or covered headers it did not mention, would fail every upload with a signature error that
-/// names none of them.
-/// </summary>
 public sealed class S3FileDirectTransferTests
 {
     private const string _mediaType = "image/png";
 
     private const long _size = 4096;
 
-    /// <summary>
-    /// A well-formed SHA-256 in hexadecimal. The grant binds it, so the shape matters here and the
-    /// value does not: nothing in this file deposits bytes for it to be compared against.
-    /// </summary>
     private const string _checksum = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
 
-    /// <summary>
-    /// The signer reads the clock again after the adapter did and rounds to the second, so a lifetime
-    /// holds to the clock's precision, not exactly: the margin absorbs a loaded runner and a clock
-    /// stepping back between two reads, and still tells the ceiling from the requested lifetime.
-    /// </summary>
     private static readonly TimeSpan _clockSlack = TimeSpan.FromSeconds(5);
 
-    /// <summary>
-    /// The property the whole upload path rests on: the grant's <c>RequiredHeaders</c> is exactly the
-    /// signed set, minus <c>host</c>, which the client does not choose. Read off the URL rather than
-    /// off the request, because the signature is the only thing the store will consult.
-    /// </summary>
     [Fact]
     public async Task CreateUploadGrantAsync_RequiresExactlyTheHeadersItsSignatureCovers()
     {
@@ -50,11 +30,6 @@ public sealed class S3FileDirectTransferTests
             .ShouldBe(grant.RequiredHeaders.Keys.Select(header => header.ToLowerInvariant()).Order(StringComparer.Ordinal));
     }
 
-    /// <summary>
-    /// The two facts the client declared are bound into the signature, so a deposit that changes
-    /// either is refused by the store with nothing written — rather than at confirmation, with the
-    /// wrong bytes already there.
-    /// </summary>
     [Fact]
     public async Task CreateUploadGrantAsync_BindsTheDeclaredTypeAndSizeIntoTheGrant()
     {
@@ -65,21 +40,6 @@ public sealed class S3FileDirectTransferTests
         grant.RequiredHeaders["Content-Length"].ShouldBe("4096");
     }
 
-    /// <summary>
-    /// The grant carries the digest itself, base64-encoded, and not merely the name of an algorithm.
-    /// </summary>
-    /// <remarks>
-    /// <c>x-amz-sdk-checksum-algorithm: SHA256</c> would not do here, and that is the point: this
-    /// header names an algorithm and supplies nothing to check against, so the store accepts the
-    /// deposit and records no digest — after which <c>DescribeAsync</c> has nothing to read, and every
-    /// file deposited through the two-step upload becomes unconfirmable.
-    /// <para>
-    /// Carrying the value buys the other half for free: the store refuses content whose digest
-    /// disagrees, so the grant authorises one body rather than any body of the right length and cannot
-    /// be replayed to swap content after a file has been inspected and released. <c>StoredObjectTests</c>
-    /// holds the same property against a real store.
-    /// </para>
-    /// </remarks>
     [Fact]
     public async Task CreateUploadGrantAsync_BindsTheDigestItselfRatherThanTheAlgorithmsName()
     {
@@ -96,11 +56,6 @@ public sealed class S3FileDirectTransferTests
             "honest deposit can satisfy.");
     }
 
-    /// <summary>
-    /// A lifetime longer than the operator's ceiling is shortened, and the grant says so: the instant
-    /// handed back is computed from what was signed, so a caller is never told a URL works for longer
-    /// than the store will honour it.
-    /// </summary>
     [Fact]
     public async Task CreateUploadGrantAsync_ClampsALifetimeLongerThanTheConfiguredCeiling()
     {
@@ -129,11 +84,6 @@ public sealed class S3FileDirectTransferTests
         new SignedUrl(grant.Url).Lifetime.ShouldBeInRange(granted - _clockSlack, granted + _clockSlack);
     }
 
-    /// <summary>
-    /// The download is offered as an attachment under the name the user chose, twice: a quoted ASCII
-    /// form and the RFC 6266 <c>filename*</c> that carries the real one. The overrides are signed
-    /// query parameters, so the client cannot turn the attachment into something the browser renders.
-    /// </summary>
     [Fact]
     public async Task CreateDownloadGrantAsync_OffersTheFileAsAnAttachmentUnderItsOwnName()
     {
@@ -152,18 +102,6 @@ public sealed class S3FileDirectTransferTests
         disposition.ShouldContain("filename*=UTF-8''rapport%20%C3%A9t%C3%A9.png");
     }
 
-    /// <summary>
-    /// The scheme follows the endpoint URLs are signed for, and it has to be made to: the SDK signs an
-    /// HTTPS URL whatever the endpoint says, so a development store reached over plain HTTP would be
-    /// handed addresses it does not answer on — and the signature covers the host, so no client could
-    /// correct it.
-    /// </summary>
-    /// <remarks>
-    /// The last two rows are the two deployments where the internal endpoint and the public one
-    /// diverge: plain HTTP inside a mesh with TLS at the ingress mints <c>https</c>, and its reverse
-    /// mints <c>http</c>. Reading the internal endpoint would give the wrong answer in both cases, and
-    /// with the signature covering the host, no client could correct it.
-    /// </remarks>
     [Theory]
     [InlineData("http://objectstore:9000", "", "http")]
     [InlineData("https://objects.example", "", "https")]
@@ -192,11 +130,6 @@ public sealed class S3FileDirectTransferTests
         new SignedUrl(grant.Url).Uri.Scheme.ShouldBe(expected);
     }
 
-    /// <summary>
-    /// The host in a grant is the public one, because it is the only one the client following it can
-    /// resolve — and the signature covers <c>host</c>, so it cannot be corrected downstream by the
-    /// API, by a proxy or by the client.
-    /// </summary>
     [Theory]
     [InlineData("upload")]
     [InlineData("download")]
@@ -234,11 +167,6 @@ public sealed class S3FileDirectTransferTests
             "is not an option anyone has.");
     }
 
-    /// <summary>
-    /// No public endpoint is the configuration every deployment predating this setting has, and it
-    /// signs for exactly what it signed for before — the same host, the same scheme, the same
-    /// address style.
-    /// </summary>
     [Fact]
     public async Task AGrant_NamesTheEndpointItselfWhenNoPublicOneIsConfigured()
     {

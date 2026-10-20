@@ -20,17 +20,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Composition;
 
-/// <summary>
-/// A save commits, stamps, flushes and publishes the work staged on the context instance being
-/// saved, and nothing staged on another. The business context is created a second time per request
-/// for idempotency claims, and the local accounts have a context of their own; each of those saves
-/// is its own transaction.
-/// </summary>
-/// <remarks>
-/// Real module composition, real contexts, real commits: see <see cref="SqliteSavingHost"/> for what
-/// stands in for PostgreSQL. The same two isolation scenarios run against PostgreSQL in
-/// <c>AppTemplate.Api.IntegrationTests</c>.
-/// </remarks>
 public sealed class ContextScopedSavingTests
 {
     private static readonly Guid _caller = Guid.CreateVersion7();
@@ -38,11 +27,6 @@ public sealed class ContextScopedSavingTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
     //#if (localAuth)
 
-    /// <summary>
-    /// An account write and a business write staged in one request are two commits. The account's
-    /// must neither map the business aggregate onto rows its model does not have, nor take the event
-    /// the business write raised.
-    /// </summary>
     [Fact]
     public async Task SavingTheAuthContext_NeitherFlushesNorPublishesAPendingBusinessWrite()
     {
@@ -66,11 +50,6 @@ public sealed class ContextScopedSavingTests
     }
     //#endif
 
-    /// <summary>
-    /// The idempotency store commits its claim through a second <see cref="AppDbContext"/> in the
-    /// same request. That commit is not the business one, so the event a staged business write raised
-    /// must wait for the business commit.
-    /// </summary>
     [Fact]
     public async Task SavingAnIdempotencyClaim_DoesNotPublishAPendingBusinessEvent()
     {
@@ -97,10 +76,6 @@ public sealed class ContextScopedSavingTests
         publication.ListWasCommitted.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// A consumer runs after the commit and may save again through the same scoped context, from
-    /// inside that commit's callback. That nested save flushes, commits and publishes its own work.
-    /// </summary>
     [Fact]
     public async Task AConsumerThatSavesAfterTheCommit_CommitsItsOwnWrite()
     {
@@ -128,10 +103,6 @@ public sealed class ContextScopedSavingTests
             "the reminders consumer saved from inside the completion's commit callback");
     }
 
-    /// <summary>
-    /// A rejected save publishes nothing and keeps its events; the retry on the same context publishes
-    /// them once, after its own commit.
-    /// </summary>
     [Fact]
     public async Task AConflictingSave_PublishesNothing_AndItsRetryPublishesOnce()
     {
@@ -168,10 +139,6 @@ public sealed class ContextScopedSavingTests
         host.Published.All.ShouldHaveSingleItem().ListWasCommitted.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// The audit stamps name the caller of a request and nobody for a background pass, and the
-    /// aggregate a use case still holds carries the token the store just assigned.
-    /// </summary>
     [Fact]
     public async Task ABusinessSave_StampsTheScopesActor_AndReadsTheStoresVersionBack()
     {

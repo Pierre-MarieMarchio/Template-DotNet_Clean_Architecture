@@ -11,11 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Notes.Access.Queries;
 
-/// <summary>
-/// SQL-shape assertions against <c>ToQueryString()</c>. No database is contacted: the context is
-/// configured against PostgreSQL only so EF has a provider and a model to translate against. Sorts
-/// and cursors are built through the real <see cref="SortOrder.Parse"/> and <see cref="Cursor.After"/>.
-/// </summary>
 public sealed class NoteSortMapTests
 {
     private static readonly NoteCollectionPolicy _policy = NoteCollectionPolicy.Instance;
@@ -41,10 +36,6 @@ public sealed class NoteSortMapTests
         sql.TrimEnd().ShouldEndWith($"ORDER BY n.\"{ColumnOf(field)}\", n.\"Id\"");
     }
 
-    /// <summary>
-    /// The tiebreaker runs the same way as the last term: a descending order with an ascending
-    /// tiebreaker would walk tied rows one way while the keyset comparison walks them the other.
-    /// </summary>
     [Theory]
     [MemberData(nameof(WhitelistedFieldNames))]
     public void ApplyOrder_Descending_RunsTheTiebreakerDescendingToo(string field)
@@ -103,7 +94,6 @@ public sealed class NoteSortMapTests
     public void KeyOf_Title_ReadsTheTitleVerbatim() =>
         NoteSortMap.KeyOf(ASummary(title: "Groceries"), NoteCollectionPolicy.TitleField).ShouldBe("Groceries");
 
-    /// <summary>A key that lost precision would place the cursor before rows already served.</summary>
     [Fact]
     public void KeyOf_CreatedAt_FormatsRoundTrippably()
     {

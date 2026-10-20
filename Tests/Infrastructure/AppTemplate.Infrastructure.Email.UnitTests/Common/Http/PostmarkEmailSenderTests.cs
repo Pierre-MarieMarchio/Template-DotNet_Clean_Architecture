@@ -11,22 +11,8 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Email.UnitTests.Common.Http;
 
-/// <summary>
-/// What the HTTP transport puts on the wire, and what it does with a refusal.
-/// <para>
-/// No socket is opened. The adapter takes an <see cref="HttpClient"/> rather than making one — which
-/// is what puts it inside each host's outbound budget in production — so a test handler underneath it
-/// observes the real request the real code composed. Building the client here is the one place doing
-/// so is right: <c>NoType_ConstructsItsOwnHttpClient</c> is a rule about <c>Src/</c>, where a client
-/// built by hand escapes that budget.
-/// </para>
-/// </summary>
 public sealed class PostmarkEmailSenderTests : IDisposable
 {
-    /// <summary>
-    /// Distinctive on purpose. Several assertions below are "this string appears nowhere", and a
-    /// token that looked like anything else could be present and unnoticed.
-    /// </summary>
     private const string _serverToken = "postmark-server-token-3f9c1a7e-do-not-log-me";
 
     private readonly RecordingPostmarkEndpoint _endpoint = new();
@@ -72,11 +58,6 @@ public sealed class PostmarkEmailSenderTests : IDisposable
         body.GetProperty("MessageStream").GetString().ShouldBe("outbound");
     }
 
-    /// <summary>
-    /// The sender identity comes from the <c>Email</c> section, not from the transport's own. That is
-    /// what makes changing transport a change of transport: the address recipients see does not move
-    /// with it.
-    /// </summary>
     [Fact]
     public async Task SendAsync_TakesTheSenderIdentityFromTheModulesOwnSettings()
     {
@@ -89,10 +70,6 @@ public sealed class PostmarkEmailSenderTests : IDisposable
         Sent().GetProperty("From").GetString().ShouldBe("\"AppTemplate Alerts\" <alerts@example.invalid>");
     }
 
-    /// <summary>
-    /// The provider reads <c>To</c> as a comma-separated list. A display name holding a comma has to
-    /// reach it quoted, or one recipient becomes two — one of which is not an address at all.
-    /// </summary>
     [Fact]
     public async Task SendAsync_QuotesADisplayNameThatWouldOtherwiseReadAsTwoRecipients()
     {
@@ -112,10 +89,6 @@ public sealed class PostmarkEmailSenderTests : IDisposable
         _endpoint.ServerTokens.ShouldHaveSingleItem().ShouldBe(_serverToken);
     }
 
-    /// <summary>
-    /// Read per send rather than captured when the client was configured, so a rotated token takes
-    /// effect on the next message instead of on the next deployment.
-    /// </summary>
     [Fact]
     public async Task SendAsync_ReadsTheServerTokenAgainForEveryMessage()
     {
@@ -145,10 +118,6 @@ public sealed class PostmarkEmailSenderTests : IDisposable
         refusal.Message.ShouldContain("marked as inactive");
     }
 
-    /// <summary>
-    /// Not every refusal comes from the provider. A proxy in between answers in HTML, and a send that
-    /// failed must be reported as a send that failed rather than as a parse error in the adapter.
-    /// </summary>
     [Theory]
     [InlineData("<html>502 Bad Gateway</html>")]
     [InlineData("")]
@@ -162,12 +131,6 @@ public sealed class PostmarkEmailSenderTests : IDisposable
         refusal.Message.ShouldContain("502");
     }
 
-    /// <summary>
-    /// The decision this adapter is built around. The hosts' outbound policy replays only the safe
-    /// verbs, so a send is attempted once — and nothing here adds a retry of its own, because the
-    /// provider's endpoint takes no idempotency key and a replay is a second delivery a recipient can
-    /// see. A failed send travels out as an exception, for the caller to recover from.
-    /// </summary>
     [Fact]
     public async Task SendAsync_AttemptsARefusedSendExactlyOnce()
     {
@@ -178,11 +141,6 @@ public sealed class PostmarkEmailSenderTests : IDisposable
         _endpoint.RequestCount.ShouldBe(1);
     }
 
-    /// <summary>
-    /// The whole credential is one header value, so anything that renders it — a log line, an
-    /// exception a problem document is built from, a stack trace in a bug report — hands it over. The
-    /// refusal path is where it would happen, because that is the only path that formats anything.
-    /// </summary>
     [Fact]
     public async Task SendAsync_LeaksTheServerTokenIntoNeitherTheLogNorTheException()
     {
@@ -197,7 +155,6 @@ public sealed class PostmarkEmailSenderTests : IDisposable
         _logger.Records.ShouldAllBe(record => !record.Contains(_serverToken, StringComparison.Ordinal));
     }
 
-    /// <summary>The recipient is what the message is worth spending a request on; a blank one is not.</summary>
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -229,7 +186,6 @@ public sealed class PostmarkEmailSenderTests : IDisposable
     private PostmarkEmailSender SenderWith(EmailOptions email, IOptions<PostmarkOptions> postmark) =>
         new(_httpClient, postmark, new OptionsWrapper<EmailOptions>(email), _logger);
 
-    /// <summary>The document the adapter actually sent, parsed rather than string-matched.</summary>
     private JsonElement Sent()
     {
         _endpoint.Body.ShouldNotBeNull();
@@ -247,7 +203,6 @@ public sealed class PostmarkEmailSenderTests : IDisposable
     private static PostmarkOptions ValidPostmark() => new() { ServerToken = _serverToken };
 }
 
-/// <summary>Records what the adapter logged, so an assertion can be made about what it did not.</summary>
 internal sealed class RecordingLogger : ILogger<PostmarkEmailSender>
 {
     private readonly List<string> _records = [];
@@ -272,10 +227,6 @@ internal sealed class RecordingLogger : ILogger<PostmarkEmailSender>
     }
 }
 
-/// <summary>
-/// Stands in for the provider. It keeps the request rather than answering from it, because every
-/// assertion in this file is about what the adapter composed.
-/// </summary>
 internal sealed class RecordingPostmarkEndpoint : HttpMessageHandler
 {
     private Func<HttpResponseMessage> _answer = Accepted;

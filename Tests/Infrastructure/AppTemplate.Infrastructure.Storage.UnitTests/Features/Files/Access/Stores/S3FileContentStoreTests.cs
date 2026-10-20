@@ -15,10 +15,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Access.Stores;
 
-/// <summary>
-/// The calls this process makes to the bucket itself: write, read, describe, delete. The store is a
-/// substitute; what a real S3-compatible store does with them is the integration suite's.
-/// </summary>
 public sealed class S3FileContentStoreTests
 {
     private const string _mediaType = "image/png";
@@ -27,10 +23,6 @@ public sealed class S3FileContentStoreTests
 
     private static readonly string _bytesChecksum = Convert.ToHexStringLower(SHA256.HashData(_bytes));
 
-    /// <summary>
-    /// One request carrying the length and the digest, so the store itself verifies both and either
-    /// keeps the whole object or nothing.
-    /// </summary>
     [Fact]
     public async Task WriteAsync_PutsTheBytesWithTheirLengthAndDigest()
     {
@@ -58,7 +50,6 @@ public sealed class S3FileContentStoreTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>A length known to be wrong is refused before anything is sent.</summary>
     [Fact]
     public async Task WriteAsync_RefusesASeekableBodyOfTheWrongLengthWithoutCallingTheStore()
     {
@@ -76,10 +67,6 @@ public sealed class S3FileContentStoreTests
         await client.DidNotReceive().PutObjectAsync(Arg.Any<PutObjectRequest>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The store's own refusal of a body that disagrees with its digest or length is an answer, not
-    /// a fault: nothing was written.
-    /// </summary>
     [Theory]
     [InlineData("BadDigest")]
     [InlineData("XAmzContentChecksumMismatch")]
@@ -102,7 +89,6 @@ public sealed class S3FileContentStoreTests
         outcome.ShouldBe(ContentWriteOutcome.ContentMismatch);
     }
 
-    /// <summary>Any other failure is a fault and propagates.</summary>
     [Fact]
     public async Task WriteAsync_LetsAnyOtherFailurePropagate()
     {
@@ -161,11 +147,6 @@ public sealed class S3FileContentStoreTests
         description.ShouldBeNull();
     }
 
-    /// <summary>
-    /// The store reports its digest in base64 and the port asks for lower-case hexadecimal. They are
-    /// the same 32 bytes written differently, and comparing the two encodings as strings would fail
-    /// every confirmation with a mismatch that explains nothing.
-    /// </summary>
     [Fact]
     public async Task DescribeAsync_ReportsTheStoresOwnDigestAsHexadecimal()
     {
@@ -186,11 +167,6 @@ public sealed class S3FileContentStoreTests
         description.ShouldBe(new StoredObjectDescription(19, Convert.ToHexStringLower(digest)));
     }
 
-    /// <summary>
-    /// An object with no recorded digest is a fault and is reported as one. Answering with an entity
-    /// tag — which is an MD5, or a digest of digests, or opaque — would fail confirmation for a
-    /// reason no message could name.
-    /// </summary>
     [Fact]
     public async Task DescribeAsync_RefusesAnObjectTheStoreRecordedNoDigestFor()
     {
@@ -227,15 +203,6 @@ public sealed class S3FileContentStoreTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The calls this process makes itself go over the endpoint this process can reach, never over
-    /// the public one.
-    /// </summary>
-    /// <remarks>
-    /// The two clients differ by host name alone, so wiring the wrong one in compiles, passes every
-    /// assertion about a grant, and fails only in a deployment where the public name does not resolve
-    /// from inside — which is the deployment <c>Files:Storage:S3:PublicEndpoint</c> exists for.
-    /// </remarks>
     [Fact]
     public void TheStore_TakesOnlyTheClientThisProcessTalksToTheStoreWith()
     {
@@ -248,10 +215,6 @@ public sealed class S3FileContentStoreTests
             "the presigning client is registered under a key; the store's own calls must not go through it.");
     }
 
-    /// <summary>
-    /// Both the reaction to a deletion and the orphan sweep reach the same key, and neither is
-    /// coordinated with the other — so the second one must not fail.
-    /// </summary>
     [Fact]
     public async Task DeleteAsync_SucceedsWhenTheObjectIsAlreadyGone()
     {

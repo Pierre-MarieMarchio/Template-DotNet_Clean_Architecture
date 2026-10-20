@@ -6,11 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Auth.Composition;
 
-/// <summary>
-/// The origin a security event is stamped with is whatever the request carried, and nothing when
-/// there was no request — the maintenance timer's case — because an absent origin is the truthful
-/// answer rather than a failure worth throwing on.
-/// </summary>
 public sealed class HttpContextSecurityEventOriginProviderTests
 {
     [Fact]
@@ -38,7 +33,6 @@ public sealed class HttpContextSecurityEventOriginProviderTests
         provider.UserAgent.ShouldBeNull();
     }
 
-    /// <summary>The background scope's case: no request behind the origin at all.</summary>
     [Fact]
     public void WithoutARequest_TheOriginIsUnknown()
     {

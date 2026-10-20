@@ -12,14 +12,8 @@ using Xunit;
 
 namespace AppTemplate.Presentation.Core.UnitTests.Common.Observability;
 
-/// <summary>
-/// That the telemetry section decides whether a host exports anything, that the pipeline it builds
-/// when told to actually builds, and that the process announces itself under the name of the
-/// assembly the caller named.
-/// </summary>
 public sealed class ObservabilityExtensionsTests
 {
-    /// <summary>The endpoint shape the options validator accepts — absolute, http or https.</summary>
     private const string _collector = "http://localhost:4317";
 
     private const string _serviceNameAttribute = "service.name";
@@ -29,13 +23,9 @@ public sealed class ObservabilityExtensionsTests
     {
         using ServiceProvider provider = Compose(enabled: false);
 
-        // The options and their validator are registered either way: the section has to be readable
-        // and rejectable before anything decides what to do with it.
         provider.GetRequiredService<IOptions<TelemetryOptions>>().Value.Enabled.ShouldBeFalse();
         provider.GetServices<IValidateOptions<TelemetryOptions>>().ShouldNotBeEmpty();
 
-        // No collector, no exporter — the early return, which is what keeps a default deployment from
-        // spending anything on telemetry it has nowhere to send.
         provider.GetService<MeterProvider>().ShouldBeNull();
         provider.GetService<TracerProvider>().ShouldBeNull();
     }
@@ -45,18 +35,10 @@ public sealed class ObservabilityExtensionsTests
     {
         using ServiceProvider provider = Compose(enabled: true);
 
-        // Resolving is what constructs them, so this is the assertion: an exporter given an endpoint
-        // it cannot parse, or instrumentation that fails to install, throws here rather than at the
-        // first measurement in production.
         provider.GetRequiredService<MeterProvider>().ShouldNotBeNull();
         provider.GetRequiredService<TracerProvider>().ShouldNotBeNull();
     }
 
-    /// <summary>
-    /// The registration takes an assembly precisely so that two hosts do not report under one name.
-    /// Two different assemblies, two different <c>service.name</c> values, read off the resource the
-    /// tracer was built with.
-    /// </summary>
     [Fact]
     public void TheServiceName_IsTheNameOfTheAssemblyTheCallerNamed()
     {
@@ -70,10 +52,6 @@ public sealed class ObservabilityExtensionsTests
         ServiceNameOf(otherProvider).ShouldBe(other.GetName().Name);
     }
 
-    /// <summary>
-    /// The override is what several deployments sharing one collector need, so it has to win over
-    /// the assembly rather than sit alongside it.
-    /// </summary>
     [Fact]
     public void TheConfiguredServiceName_OverridesTheAssemblyName()
     {
@@ -87,10 +65,6 @@ public sealed class ObservabilityExtensionsTests
         ServiceNameOf(provider).ShouldBe(configured);
     }
 
-    /// <summary>
-    /// The resource of the tracer the container hands out — the value that reaches a collector, not
-    /// a re-reading of the options the test itself supplied.
-    /// </summary>
     private static object? ServiceNameOf(ServiceProvider provider)
     {
         Resource resource = provider.GetRequiredService<TracerProvider>().GetResource();

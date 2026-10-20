@@ -10,14 +10,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests;
 
-/// <summary>
-/// The scoped <see cref="AppDbContext"/> and the one the <see cref="IDbContextFactory{TContext}"/>
-/// creates carry the same connection string, with <c>Database:MaxPoolSize</c> applied. Npgsql pools per
-/// connection string, so two strings would mean two pools, each bounded by the configured size.
-/// </summary>
-/// <remarks>
-/// The string is read from the built context; no connection is opened, so the host need not exist.
-/// </remarks>
 public sealed class PersistenceModuleConnectionStringTests
 {
     private const int _configuredMaxPoolSize = 37;

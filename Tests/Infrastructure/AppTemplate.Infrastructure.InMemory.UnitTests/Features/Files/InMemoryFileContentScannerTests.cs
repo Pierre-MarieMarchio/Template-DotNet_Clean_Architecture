@@ -5,10 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Features.Files;
 
-/// <summary>
-/// The scanner double, reached through its port out of a composed scope: it answers what
-/// <c>ArrangedScans</c> holds for a key, and clean when nothing is arranged.
-/// </summary>
 public sealed class InMemoryFileContentScannerTests
 {
     private const string _key = "t0/202608/0123456789abcdef0123456789abcdef";
@@ -17,7 +13,6 @@ public sealed class InMemoryFileContentScannerTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>The default a deployment without a scanner stands for.</summary>
     [Fact]
     public async Task NothingArranged_IsClean()
     {
@@ -56,9 +51,6 @@ public sealed class InMemoryFileContentScannerTests
         (await ScanAsync(host)).Status.ShouldBe(FileScanStatus.Unavailable);
     }
 
-    /// <summary>
-    /// Arrangements are per key, so a test that infects one object cannot refuse every other.
-    /// </summary>
     [Fact]
     public async Task AnArrangementReachesOnlyTheKeyItNames()
     {
@@ -84,7 +76,6 @@ public sealed class InMemoryFileContentScannerTests
         (await ScanAsync(host)).ShouldBe(FileScanOutcome.Clean);
     }
 
-    /// <summary>Like a real scanner, the double reads what it is handed to the end.</summary>
     [Fact]
     public async Task TheContent_IsReadToTheEnd()
     {

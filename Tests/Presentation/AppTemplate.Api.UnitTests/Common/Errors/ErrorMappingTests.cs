@@ -38,10 +38,6 @@ public sealed class ErrorMappingTests
         problem.Extensions["traceId"].ShouldBe(httpContext.TraceIdentifier);
     }
 
-    /// <summary>
-    /// Without a request to normalise against, there is no traceId to read — the contextless overload
-    /// exists only for callers this pass could not migrate, and must not throw for lack of one.
-    /// </summary>
     [Fact]
     public void ToActionResult_WithoutAnHttpContext_CarriesNoTraceIdButStillCarriesACode()
     {
@@ -52,10 +48,6 @@ public sealed class ErrorMappingTests
         problem.Extensions["code"].ShouldBe("todoList.notFound");
     }
 
-    /// <summary>
-    /// The one distinction a client should never have to make: a validation failure answers exactly
-    /// the same graph whether the application authored it or MVC's own model binder did.
-    /// </summary>
     [Fact]
     public void ToActionResult_ProducesAValidationProblemDetails_WhenTheErrorCarriesFieldDetails()
     {

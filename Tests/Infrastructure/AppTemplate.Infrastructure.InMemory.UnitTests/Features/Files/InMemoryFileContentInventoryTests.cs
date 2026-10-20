@@ -4,11 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Features.Files;
 
-/// <summary>
-/// The listing the orphan sweep walks. It pages, and it has to: the sweep loops until the cursor is
-/// null and deletes what no row names, so a double that answered every listing in one page would
-/// leave the loop — the part that can spin for ever or skip a page — exercised by nothing at all.
-/// </summary>
 public sealed class InMemoryFileContentInventoryTests
 {
     private const string _mediaType = "image/png";
@@ -40,10 +35,6 @@ public sealed class InMemoryFileContentInventoryTests
         pages.ShouldBe(3);
     }
 
-    /// <summary>
-    /// The token stops on the last page. One handed back when the walk is finished is a sweep that
-    /// re-reads the same tail for ever.
-    /// </summary>
     [Fact]
     public async Task ListKeysAsync_EndsTheWalkOnTheLastPage()
     {
@@ -59,11 +50,6 @@ public sealed class InMemoryFileContentInventoryTests
         page.HasNextPage.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// A prefix is how a caller pays for one slice of the store rather than all of it, so a key
-    /// outside it must not appear — a sweep given one prefix and answered about another would delete
-    /// objects it never listed.
-    /// </summary>
     [Fact]
     public async Task ListKeysAsync_AnswersOnlyAboutThePrefixItWasGiven()
     {
@@ -77,10 +63,6 @@ public sealed class InMemoryFileContentInventoryTests
         page.Items.ShouldBe(["t1/202601/b"]);
     }
 
-    /// <summary>
-    /// No store counts its own contents to answer a listing, so the offset half of the page stays
-    /// empty here as it does over a real one.
-    /// </summary>
     [Fact]
     public async Task ListKeysAsync_ReportsNoPageNumberAndNoTotal()
     {
@@ -110,10 +92,6 @@ public sealed class InMemoryFileContentInventoryTests
         page.Items.ShouldBe(["t0/202601/b"]);
     }
 
-    /// <summary>
-    /// A walk resumes from the last key it saw, whatever produced that key — a previous page, or a
-    /// checkpoint saved before a restart.
-    /// </summary>
     [Fact]
     public async Task ListKeysAsync_ResumesStrictlyAfterTheKeyItIsGiven()
     {

@@ -6,13 +6,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.UnitTests.TestSupport;
 
-/// <summary>
-/// A minimal <see cref="HttpContext"/> wired with just enough <c>RequestServices</c> for the code
-/// under test — <c>ProblemDetailsNormaliser.Normalise</c> resolves
-/// <see cref="IOptions{TOptions}"/> of <see cref="ProblemTypeOptions"/>, and
-/// <c>ApiControllerBase.ReadPrecondition</c> resolves <see cref="IOptions{TOptions}"/> of
-/// <see cref="ConcurrencyOptions"/> — without starting a real host for either.
-/// </summary>
 internal static class HttpContextFactory
 {
     public static DefaultHttpContext Create(

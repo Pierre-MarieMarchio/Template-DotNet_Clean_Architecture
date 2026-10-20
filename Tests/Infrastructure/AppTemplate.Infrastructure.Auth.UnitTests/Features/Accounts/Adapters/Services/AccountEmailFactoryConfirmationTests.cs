@@ -6,10 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// The factory's job is to put a user-supplied address into an HTML document. That makes it an
-/// injection site, and the encoding is the whole defence.
-/// </summary>
 public sealed class AccountEmailFactoryConfirmationTests
 {
     private const string _confirmationPage = "https://localhost:5001/confirm-email";
@@ -29,10 +25,6 @@ public sealed class AccountEmailFactoryConfirmationTests
         message.HtmlBody.ShouldNotContain("<a href=\"https://evil.test\"");
     }
 
-    /// <summary>
-    /// The token travels in the link's fragment, which browsers never send to a server, so it stays
-    /// out of access logs and <c>Referer</c> headers.
-    /// </summary>
     [Fact]
     public async Task CreateConfirmation_PutsTheTokenInTheLinkFragment()
     {
@@ -45,10 +37,6 @@ public sealed class AccountEmailFactoryConfirmationTests
         message.HtmlBody.ShouldNotContain("a+token/with=reserved characters");
     }
 
-    /// <summary>
-    /// The subject comes from configuration and is handed back rather than applied by the factory,
-    /// because the caller is what sends the message.
-    /// </summary>
     [Fact]
     public async Task CreateConfirmation_TakesItsSubjectFromTheTemplate()
     {
@@ -60,10 +48,6 @@ public sealed class AccountEmailFactoryConfirmationTests
         message.Subject.ShouldBe("Confirm your email address");
     }
 
-    /// <summary>
-    /// <c>OptionsWrapper</c> rather than <c>Options.Create</c>: this project mirrors <c>Src/</c>, so it
-    /// has an <c>Options</c> folder of its own and the short name resolves to that namespace.
-    /// </summary>
     private static AccountEmailFactory CreateFactory() =>
         new(
             new OptionsWrapper<EmailConfirmationOptions>(new EmailConfirmationOptions

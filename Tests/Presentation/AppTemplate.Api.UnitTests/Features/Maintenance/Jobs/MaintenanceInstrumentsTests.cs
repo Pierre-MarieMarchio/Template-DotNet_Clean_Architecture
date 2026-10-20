@@ -7,12 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Maintenance.Jobs;
 
-/// <summary>
-/// Proves the metric the maintenance loop emits carries the case that would otherwise stay
-/// invisible: a task that purged nothing. The log line in <c>MaintenanceBackgroundService</c> is
-/// unconditional for the same reason, but is not asserted here — <see cref="MaintenanceInstruments"/>
-/// is the signal an alert would actually watch.
-/// </summary>
 public sealed class MaintenanceInstrumentsTests
 {
     private static readonly TimeSpan _tinyInterval = TimeSpan.FromMilliseconds(20);
@@ -26,12 +20,6 @@ public sealed class MaintenanceInstrumentsTests
         var securityEvents = new FakeSecurityEventPurge(count: 0);
         //#endif
 
-        // Concurrent, not a List, for the reason FileInstrumentsTests already records: the listener
-        // below is enabled on a static meter, so it receives every measurement any thread in this
-        // assembly records to it — and MaintenanceBackgroundServiceTests runs the same loop in
-        // parallel, recording to these same two counters every 20 ms. A List<T>.Add from two threads
-        // can drop an item, and the one dropped here is this test's own zero, which reads as "the
-        // metric never carried the case that would otherwise stay invisible".
         var purgedMeasurements = new ConcurrentQueue<(long Value, string? Task)>();
         var iterationMeasurements = new ConcurrentQueue<(long Value, string? Task, string? Outcome)>();
 
@@ -83,17 +71,10 @@ public sealed class MaintenanceInstrumentsTests
         #endif*/
         await service.StopAsync(TestContext.Current.CancellationToken);
 
-        // No other fake in this project reports a success with zero purged, so a zero here can only
-        // have come from this test's own iteration, even if other tests share the static meter.
         purgedMeasurements.ShouldContain(m => m.Value == 0);
         iterationMeasurements.ShouldContain(m => m.Outcome == "success" && m.Value == 1);
     }
 
-    /// <summary>
-    /// A task switched off by configuration still records an iteration, tagged as such: a flat
-    /// series must not be the only thing an alert sees, because a purge switched off and a purge
-    /// that died look identical from there.
-    /// </summary>
     [Fact]
     public async Task DisabledTask_RecordsAnIteration_TaggedDisabled()
     {
@@ -154,8 +135,6 @@ public sealed class MaintenanceInstrumentsTests
         iterationMeasurements.ShouldContain(m =>
             m.Task == "expired security events" && m.Outcome == "disabled" && m.Value == 1);
         /*#else
-        // The one task this project has, switched off: nothing runs, so what the loop records is
-        // the only sign it is alive.
         var options = new JobsMaintenanceOptions
         {
             Interval = _tinyInterval,

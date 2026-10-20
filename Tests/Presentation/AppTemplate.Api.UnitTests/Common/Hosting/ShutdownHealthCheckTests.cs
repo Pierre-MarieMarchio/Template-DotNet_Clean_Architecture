@@ -10,12 +10,6 @@ namespace AppTemplate.Api.UnitTests.Common.Hosting;
 
 public sealed class ShutdownHealthCheckTests
 {
-    /// <summary>
-    /// <see cref="ShutdownHealthCheck"/> is the first <c>IHealthCheck</c> in this codebase that
-    /// takes a constructor dependency, so it is worth proving — not just assuming — that
-    /// <c>AddCheck&lt;T&gt;</c> (exactly how <c>Program.cs</c> registers it) resolves that
-    /// dependency through DI rather than requiring a parameterless constructor.
-    /// </summary>
     [Fact]
     public async Task RegisteredViaAddCheckOfT_ResolvesItsConstructorDependencyThroughDI()
     {

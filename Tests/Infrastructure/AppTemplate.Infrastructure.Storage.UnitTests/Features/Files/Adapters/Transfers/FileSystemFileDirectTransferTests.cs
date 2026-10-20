@@ -4,7 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Adapters.Transfers;
 
-/// <summary>A disk cannot sign a URL: the capability says so, and asking anyway is a programming error.</summary>
 public sealed class FileSystemFileDirectTransferTests
 {
     [Fact]

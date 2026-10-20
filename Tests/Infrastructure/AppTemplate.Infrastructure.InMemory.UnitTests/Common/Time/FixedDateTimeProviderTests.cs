@@ -4,11 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Common.Time;
 
-/// <summary>
-/// A clock whose only job is not to move. Every expiry assertion in the suite is arithmetic on this
-/// value, so the properties worth pinning are the ones a clock reading the machine's time would also
-/// satisfy — a stable read is the whole contract, and it is invisible until something drifts.
-/// </summary>
 public sealed class FixedDateTimeProviderTests
 {
     [Fact]
@@ -19,11 +14,6 @@ public sealed class FixedDateTimeProviderTests
     public void DefaultInstant_IsExpressedInUtc() =>
         FixedDateTimeProvider.DefaultInstant.Offset.ShouldBe(TimeSpan.Zero);
 
-    /// <summary>
-    /// The read is stable while real time passes underneath it. The wall clock is watched until it
-    /// actually ticks first, so this cannot pass by being fast: an implementation returning
-    /// <see cref="DateTimeOffset.UtcNow"/> would give two different values here.
-    /// </summary>
     [Fact]
     public void UtcNow_DoesNotMoveWhileTheWallClockDoes()
     {
@@ -59,7 +49,6 @@ public sealed class FixedDateTimeProviderTests
         clock.UtcNow.ShouldBe(FixedDateTimeProvider.DefaultInstant.AddMinutes(15));
     }
 
-    /// <summary>Relative to where the clock is, not to where it started.</summary>
     [Fact]
     public void Advance_AccumulatesAcrossCalls()
     {
@@ -81,11 +70,6 @@ public sealed class FixedDateTimeProviderTests
         clock.UtcNow.ShouldBe(FixedDateTimeProvider.DefaultInstant);
     }
 
-    /// <summary>
-    /// Rewinding would let an expiry check pass on both sides of the same instant, which is a test
-    /// that proves nothing. Placing the clock earlier is <see cref="FixedDateTimeProvider.Set"/>'s
-    /// job, where it is deliberate and visible.
-    /// </summary>
     [Fact]
     public void Advance_RejectsANegativeDeltaAndLeavesTheClockWhereItWas()
     {

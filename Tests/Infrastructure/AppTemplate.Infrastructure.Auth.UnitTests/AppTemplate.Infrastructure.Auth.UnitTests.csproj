@@ -1,26 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Tests for the identity module's own decisions: how a refresh token is rotated, what a failure
-       is allowed to disclose, how an account email is encoded, and what the options validators
-       refuse.
-
-       Everything here runs without infrastructure: the collaborators are ports and the decisions are
-       the module's own. What needs a database — single-use rotation under concurrency, which is a
-       guarantee the database makes rather than this module — lives in
-       Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests, so that running this
-       project needs no container.
-
-       The identity module's types are internal apart from AuthModule, so this project holds
-       InternalsVisibleTo from it. -->
-
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
-  <!-- The module composes ASP.NET Core Identity, so the tests need the same shared framework the
-       host runs on. It also supplies the configuration, options, logging and DI abstractions used
-       here, which is why there is no PackageReference for any of them — NuGet rejects one as
-       redundant (NU1510). -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
@@ -28,8 +11,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
-    <!-- A provider, so EF builds the same relational mapping the real context has: column
-         types are part of what a model snapshot records. No database is reached. -->
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <PackageReference Include="NSubstitute" />

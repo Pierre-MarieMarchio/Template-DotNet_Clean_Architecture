@@ -1,30 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Unit tests for the API host's own logic: the cross-cutting HTTP mechanisms under Common —
-       ProblemDetails normalisation, ETag encoding, If-Match parsing, the ApiControllerBase
-       primitives, the option validators and the rate-limit counters — and the feature mappings and
-       controllers. All pure or near-pure decisions that run in microseconds and do not need a live
-       HTTP pipeline to verify. The one assembly the API's internals are granted to. -->
-
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Not Sdk="Microsoft.NET.Sdk.Web": this project asserts on types, not on a running server, so
-         it only needs the ASP.NET Core types themselves, not the hosting model. -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- For Composition/: the host composes both persistence contexts, so whether a save on one can
-         flush or publish the other's work is checked here, against real contexts and real commits.
-         SQLite rather than PostgreSQL because these must run where no container runtime does; the
-         same scenarios run against PostgreSQL in AppTemplate.Api.IntegrationTests. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <!--#if (externalAuth)-->
-    <!-- For Features/ExternalIdentity: its in-process test serves real bearer validation over the
-         test server this package brings, with no port, no container and no provider to reach. -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <!--#endif-->
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />

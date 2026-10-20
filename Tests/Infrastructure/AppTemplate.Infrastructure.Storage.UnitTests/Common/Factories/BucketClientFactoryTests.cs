@@ -10,16 +10,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Common.Factories;
 
-/// <summary>
-/// The budget the SDK is built with, asserted because nothing else can see it.
-/// <para>
-/// The hosts install one outbound HTTP policy on <c>IHttpClientFactory</c>'s defaults and every typed
-/// client inherits it without asking. The AWS SDK builds its own <c>HttpClient</c> and never meets
-/// the factory, so it inherits nothing — and a call to the object store with no timeout and no retry
-/// bound would look exactly like a working one until the day the store is slow. These numbers are
-/// the policy's, restated, and this is what stops them from drifting apart silently.
-/// </para>
-/// </summary>
 public sealed class BucketClientFactoryTests
 {
     [Fact]
@@ -34,11 +24,6 @@ public sealed class BucketClientFactoryTests
         configuration.RetryMode.ShouldBe(RequestRetryMode.Standard);
     }
 
-    /// <summary>
-    /// A named endpoint carries no region, and the region is half the signing key — so it has to be
-    /// stated separately or every request is signed for one the store did not expect, which presents
-    /// as a rejected signature and mentions no region at all.
-    /// </summary>
     [Fact]
     public void Create_SignsForTheConfiguredRegionWhenTheEndpointIsACompatibleStore()
     {
@@ -50,7 +35,6 @@ public sealed class BucketClientFactoryTests
 
         var configuration = (AmazonS3Config)client.Config;
 
-        // The SDK normalises the endpoint it was given by appending a trailing slash.
         configuration.ServiceURL.ShouldBe("https://objects.example/");
         configuration.AuthenticationRegion.ShouldBe(StorageFixture.Region);
         configuration.ForcePathStyle.ShouldBeTrue();
@@ -64,12 +48,6 @@ public sealed class BucketClientFactoryTests
         client.Config.RegionEndpoint.ShouldNotBeNull().SystemName.ShouldBe(StorageFixture.Region);
     }
 
-    /// <summary>
-    /// Static credentials are the exception, not the rule: a deployment with an instance role leaves
-    /// both keys empty and the SDK's own chain supplies short-lived ones. What is asserted is that
-    /// the two paths build a client at all — which credentials were resolved is the chain's business
-    /// and is not observable here.
-    /// </summary>
     [Fact]
     public void Create_BuildsAClientFromStaticCredentialsWhenTheyAreConfigured()
     {
@@ -86,12 +64,6 @@ public sealed class BucketClientFactoryTests
     public void CreateForSigning_RefusesToBuildAClientFromNothing() =>
         Should.Throw<ArgumentNullException>(() => BucketClientFactory.CreateForSigning(options: null!));
 
-    /// <summary>
-    /// The presigning client is built on the name a client outside this process can resolve, and the
-    /// other one on the name this process reaches the store by. They differ in every self-hosted
-    /// deployment, and a signature covers the host, so getting this wrong cannot be corrected
-    /// anywhere downstream.
-    /// </summary>
     [Fact]
     public void CreateForSigning_BuildsOnThePublicEndpointWhileCreateBuildsOnTheInternalOne()
     {
@@ -108,11 +80,6 @@ public sealed class BucketClientFactoryTests
         ((AmazonS3Config)signing.Config).ServiceURL.ShouldBe("https://files.example/");
     }
 
-    /// <summary>
-    /// A configuration that never heard of <c>Files:Storage:S3:PublicEndpoint</c> signs for exactly what it
-    /// signed for before the setting existed. This is the whole of the compatibility promise at the
-    /// factory: the two clients are then built from the same endpoint.
-    /// </summary>
     [Theory]
     [InlineData("https://objects.example")]
     [InlineData("")]
@@ -128,18 +95,6 @@ public sealed class BucketClientFactoryTests
         signing.Config.AuthenticationRegion.ShouldBe(talking.Config.AuthenticationRegion);
     }
 
-    /// <summary>
-    /// <b>Why a second client costs nothing.</b> A presigned URL is a keyed hash of a string this
-    /// process assembles locally; no request is sent and no socket is opened, so the second client
-    /// doubles neither the connection pool nor the retry schedule that make a second client a defect
-    /// everywhere else in this module.
-    /// </summary>
-    /// <remarks>
-    /// Measured rather than asserted from the SDK's documentation: the endpoint below is a listening
-    /// socket on this machine that accepts nothing, and what is checked is that nothing ever arrived
-    /// at it. A store is not needed and none is running — a client that did connect would show up
-    /// here as a pending connection, whatever answered it.
-    /// </remarks>
     [Fact]
     public async Task CreateForSigning_OpensNoConnectionToTheEndpointItSignsFor()
     {

@@ -4,10 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.TwoFactor.Configuration.Options;
 
-/// <summary>
-/// The validator runs under <c>ValidateOnStart</c>, so what it rejects is what stops the process from
-/// booting rather than surfacing as a broken login flow the first time someone tries it.
-/// </summary>
 public sealed class TwoFactorOptionsValidatorTests
 {
     private static readonly TwoFactorOptionsValidator _validator = new();

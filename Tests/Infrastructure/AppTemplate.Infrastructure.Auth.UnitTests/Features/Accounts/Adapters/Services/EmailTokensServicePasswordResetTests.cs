@@ -11,11 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// <see cref="EmailTokensService.IssuePasswordResetAsync"/> and <see cref="EmailTokensService.ResetPasswordAsync"/> over a real <see cref="UserManager{TUser}"/>, standing in for the
-/// named <c>PasswordResetTokenProvider</c> with a trivial fake: what is under test is the adapter's
-/// translation of ASP.NET Identity's outcomes, not the token provider itself.
-/// </summary>
 public sealed class EmailTokensServicePasswordResetTests
 {
     private const string _knownEmail = "someone@example.test";
@@ -27,8 +22,6 @@ public sealed class EmailTokensServicePasswordResetTests
     public async Task AnUnknownAddress_IssuesNothing()
     {
         var store = Substitute.For<IUserEmailStore<AppUser>, IUserPasswordStore<AppUser>>();
-        // UserManager normalizes the address before it reaches the store, so the stub matches on any
-        // string rather than the literal the adapter was given.
         store.FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((AppUser?)null);
 
         var pending = await CreateTokens(store, out _).IssuePasswordResetAsync(_knownEmail, TestToken);
@@ -48,15 +41,10 @@ public sealed class EmailTokensServicePasswordResetTests
         token.ShouldBe(StubTokenProvider.Token);
     }
 
-    /// <summary>
-    /// Refused as an invalid token: the port no longer tells an unknown address apart from a bad link.
-    /// </summary>
     [Fact]
     public async Task AnUnknownAddress_IsRefusedOnRedeemAsAnInvalidToken()
     {
         var store = Substitute.For<IUserEmailStore<AppUser>, IUserPasswordStore<AppUser>>();
-        // UserManager normalizes the address before it reaches the store, so the stub matches on any
-        // string rather than the literal the adapter was given.
         store.FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((AppUser?)null);
 
         var reset = await CreateTokens(store, out _).ResetPasswordAsync(_knownEmail, "any-token", _newPassword, TestToken);
@@ -129,8 +117,6 @@ public sealed class EmailTokensServicePasswordResetTests
             Substitute.For<IServiceProvider>(),
             NullLogger<UserManager<AppUser>>.Instance);
 
-        // Stands in for the module's named "PasswordReset" provider, registered under the same
-        // "Default" name IdentityOptions.Tokens.PasswordResetTokenProvider defaults to.
         userManager.RegisterTokenProvider("Default", new StubTokenProvider());
 
         return new EmailTokensService(userManager, Substitute.For<IAppUserDirectory>());

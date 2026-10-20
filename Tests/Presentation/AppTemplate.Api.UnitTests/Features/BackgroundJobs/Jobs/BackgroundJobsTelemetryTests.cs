@@ -18,20 +18,8 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
 
-/// <summary>
-/// The sources and meters the jobs add to the API's telemetry registration, and that the pipeline
-/// still builds with them in it.
-/// <para>
-/// <c>ObservabilityRegistrationTests</c> in the architecture project reads the registration calls
-/// out of the source and holds every instrument the jobs declare against them. What it cannot do
-/// is resolve the result: an <c>AddMeter</c> naming a meter that exists, in a pipeline that throws
-/// on construction, satisfies the text and exports nothing. This resolves it, and asks the runtime
-/// whether anything now listens to each job's <see cref="System.Diagnostics.ActivitySource"/>.
-/// </para>
-/// </summary>
 public sealed class BackgroundJobsTelemetryTests
 {
-    /// <summary>The endpoint shape the options validator accepts — absolute, http or https.</summary>
     private const string _collector = "http://localhost:4317";
 
     [Fact]
@@ -39,9 +27,6 @@ public sealed class BackgroundJobsTelemetryTests
     {
         using ServiceProvider provider = Compose(telemetryEnabled: true, jobsEnabled: true);
 
-        // Resolving is what constructs them, so this is the assertion: an AddSource or AddMeter
-        // naming something unresolvable, or AddNpgsql against a driver that is not there, throws
-        // here rather than at the first measurement in production.
         provider.GetRequiredService<TracerProvider>().ShouldNotBeNull();
         provider.GetRequiredService<MeterProvider>().ShouldNotBeNull();
 

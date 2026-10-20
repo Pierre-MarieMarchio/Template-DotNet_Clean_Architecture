@@ -10,16 +10,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Common.Security;
 
-/// <summary>
-/// One container, two kinds of scope, and the caller each is allowed to see. A request keeps its
-/// principal and its audit attribution, anonymous included; a scope a background job opened has no
-/// caller, refuses the question, and records nobody.
-/// <para>
-/// Through the real registration and both kinds of scope, because the failure this guards is not in
-/// either class: it is a job that resolves the request's registrations and is taken for an
-/// anonymous request.
-/// </para>
-/// </summary>
 public sealed class CallerIdentityTests
 {
     private static readonly Guid _caller = Guid.CreateVersion7();
@@ -69,11 +59,6 @@ public sealed class CallerIdentityTests
         scope.ServiceProvider.GetRequiredService<IAuditActor>().UserId.ShouldBeNull();
     }
 
-    /// <summary>
-    /// The ambient request must not leak in. A job started from inside a request's execution
-    /// context would see that request's principal through the accessor, and attributing its writes to
-    /// that user is exactly what this scope exists to prevent.
-    /// </summary>
     [Fact]
     public async Task ABackgroundScope_IgnoresWhateverRequestIsAmbient()
     {
@@ -87,10 +72,6 @@ public sealed class CallerIdentityTests
             () => scope.ServiceProvider.GetRequiredService<ICurrentUser>().UserId);
     }
 
-    /// <summary>
-    /// The mark belongs to the scope that was opened for the job, not to the container: the next
-    /// request is a request.
-    /// </summary>
     [Fact]
     public async Task ARequestScope_OpenedAfterABackgroundOne_StillSeesItsCaller()
     {

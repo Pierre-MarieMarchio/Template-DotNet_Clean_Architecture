@@ -6,14 +6,8 @@ using Microsoft.Data.Sqlite;
 
 namespace AppTemplate.Api.UnitTests.Composition;
 
-/// <summary>One delivery: the event, and whether its list was committed when it arrived.</summary>
 internal sealed record Publication(IDomainEvent Event, bool ListWasCommitted);
 
-/// <summary>
-/// What the consumers of <see cref="SqliteSavingHost"/> received. Whether the list was committed is
-/// read over a connection of its own, so it sees only what some transaction has actually committed,
-/// not what a context has staged.
-/// </summary>
 internal sealed class PublishedEvents(string businessDatabase)
 {
     private readonly Lock _gate = new();
@@ -45,7 +39,6 @@ internal sealed class PublishedEvents(string businessDatabase)
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM \"TodoLists\" WHERE \"Id\" = $id";
 
-        // EF stores a Guid as upper-case text on SQLite.
         command.Parameters.AddWithValue("$id", todoListId.ToString().ToUpperInvariant());
 
         object? count = await command.ExecuteScalarAsync(cancellationToken);

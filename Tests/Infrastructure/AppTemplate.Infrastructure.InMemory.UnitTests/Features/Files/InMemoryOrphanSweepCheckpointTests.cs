@@ -6,7 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Features.Files;
 
-/// <summary>The in-process checkpoint, reached through its port as <c>AddInMemoryOrphanSweepCheckpoint</c> registers it.</summary>
 public sealed class InMemoryOrphanSweepCheckpointTests
 {
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -15,7 +14,6 @@ public sealed class InMemoryOrphanSweepCheckpointTests
     public async Task ANewCheckpoint_StartsTheWalkFromTheBeginning() =>
         (await Compose().GetAsync(TestToken)).ShouldBeNull();
 
-    /// <summary>A singleton, so every pass's scope reads what the previous one saved.</summary>
     [Fact]
     public async Task ASavedKey_IsReadBackAcrossScopes()
     {

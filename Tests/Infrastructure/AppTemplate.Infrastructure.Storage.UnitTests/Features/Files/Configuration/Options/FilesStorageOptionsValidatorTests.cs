@@ -47,10 +47,6 @@ public sealed class FilesStorageOptionsValidatorTests
         result.FailureMessage.ShouldContain("Files:Storage:FileSystem:RootPath");
     }
 
-    /// <summary>
-    /// A relative root resolves against the working directory, so the store would move whenever the
-    /// process is started from somewhere else.
-    /// </summary>
     [Theory]
     [InlineData("files")]
     [InlineData("./files")]

@@ -12,14 +12,6 @@ namespace AppTemplate.Api.UnitTests.Common.Errors;
 
 public sealed class GlobalExceptionHandlerTests
 {
-    /// <summary>
-    /// ExceptionHandlerMiddleware always puts 500 on the response before invoking a registered
-    /// <see cref="Microsoft.AspNetCore.Diagnostics.IExceptionHandler"/> — that is the value this test
-    /// guards. A regression that
-    /// returns early without writing 499 would pass every other assertion in this suite while
-    /// silently reporting a client hangup as a server error to both the request log and the
-    /// request-duration metric.
-    /// </summary>
     [Fact]
     public async Task TryHandleAsync_ClientCancellation_OverwritesTheFrameworksDefaultFiveHundred_WithFourNinetyNine()
     {
@@ -46,11 +38,6 @@ public sealed class GlobalExceptionHandlerTests
         body.Length.ShouldBe(0);
     }
 
-    /// <summary>
-    /// A status already sent on the wire cannot be changed; asserting only <c>HasStarted</c> keeps
-    /// this test from depending on which fake <see cref="IHttpResponseFeature"/> members happen to
-    /// be exercised.
-    /// </summary>
     [Fact]
     public async Task TryHandleAsync_ClientCancellation_WhenResponseAlreadyStarted_DoesNotThrow()
     {
@@ -63,13 +50,6 @@ public sealed class GlobalExceptionHandlerTests
         handled.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// AddRequestTimeouts cancels the same <see cref="HttpContext.RequestAborted"/> token a client
-    /// disconnect cancels, so <see cref="IHttpRequestTimeoutFeature"/> is the only thing that tells
-    /// the two apart. Without this branch a server missing its own deadline would be logged at
-    /// Information and reported as 499 — indistinguishable from a caller hanging up, and nothing an
-    /// operator could alert on.
-    /// </summary>
     [Fact]
     public async Task TryHandleAsync_OperationCanceledException_WithTimeoutFeature_Answers504NotFourNinetyNine()
     {
@@ -109,7 +89,6 @@ public sealed class GlobalExceptionHandlerTests
         }
     }
 
-    /// <summary>Only <see cref="IHttpResponseFeature.HasStarted"/> is exercised by the code under test.</summary>
     private sealed class StartedResponseFeature : IHttpResponseFeature
     {
         public int StatusCode { get; set; }

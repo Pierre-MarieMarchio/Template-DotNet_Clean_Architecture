@@ -6,12 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// What this module's three account mails actually say, in each language it ships. The rendering
-/// mechanics belong to <see cref="EmailTemplate"/> and are exercised in its own mirror; what is
-/// asserted here is that these templates carry a subject in every language, and that the subject
-/// and the body never come from different ones.
-/// </summary>
 public sealed class AccountEmailTemplatesTests
 {
     private static readonly Assembly _module = typeof(AccountEmailFactory).Assembly;

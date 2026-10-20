@@ -11,11 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// <see cref="AccountAdministrationService.DeleteAsync"/> over a real <see cref="UserManager{TUser}"/>. Unlike
-/// <see cref="AccountAdministrationServiceLockoutTests"/> and <see cref="AccountAdministrationServiceRoleTests"/>, there is no
-/// security stamp to assert on: see <see cref="AccountAdministrationService"/> for why deleting the row needs none.
-/// </summary>
 public sealed class AccountAdministrationServiceDeletionTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();

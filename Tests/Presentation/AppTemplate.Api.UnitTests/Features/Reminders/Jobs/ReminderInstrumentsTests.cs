@@ -12,12 +12,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Reminders.Jobs;
 
-/// <summary>
-/// Proves the reminder loop's iteration counter carries the two cases its log line could only
-/// describe: a pass that notified nobody, and a pass that did not happen because firing is switched
-/// off. Both read as silence on any counter gated on volume, and the loop's own documentation says
-/// they must not.
-/// </summary>
 public sealed class ReminderInstrumentsTests
 {
     private static readonly TimeSpan _tinyInterval = TimeSpan.FromMilliseconds(20);
@@ -32,9 +26,6 @@ public sealed class ReminderInstrumentsTests
 
         await RunAsync(useCase, enabled: true, () => useCase.CallCount >= 1, "one reminder pass");
 
-        // No other fake in this project reports a success having notified zero, so a zero here can
-        // only be this test's own pass — the static meter is shared with every other test in the
-        // assembly, which is why the queue is concurrent and the assertion is a ShouldContain.
         iterations.ShouldContain(m => m.Outcome == "success" && m.Value == 1);
     }
 
@@ -52,8 +43,6 @@ public sealed class ReminderInstrumentsTests
             () => iterations.Any(m => m.Outcome == "disabled"),
             "a disabled pass to be counted");
 
-        // The distinction this counter exists for: a loop switched off reports iterations tagged
-        // disabled, where a loop that died reports nothing at all.
         iterations.ShouldContain(m => m.Outcome == "disabled" && m.Value == 1);
         useCase.CallCount.ShouldBe(0);
     }

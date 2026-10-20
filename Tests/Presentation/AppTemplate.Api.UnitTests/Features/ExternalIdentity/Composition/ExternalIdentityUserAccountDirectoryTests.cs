@@ -28,10 +28,6 @@ public sealed class ExternalIdentityUserAccountDirectoryTests
         exists.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// The whole contract: what the consumers of the account-deleted fact re-derive their
-    /// precondition through. An owner no mapping names is an account that is gone.
-    /// </summary>
     [Fact]
     public async Task AnOwnerNoMappingNames_IsNotAnAccount()
     {

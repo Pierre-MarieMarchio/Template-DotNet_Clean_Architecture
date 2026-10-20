@@ -35,14 +35,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Files.Controllers;
 
-/// <summary>
-/// The transport decisions this controller makes, each one asserted where it is actually taken.
-/// </summary>
-/// <remarks>
-/// The use cases are substituted: what they decide is theirs to test. What is left here is the part
-/// no other layer can be asked about — the status a redirect really carries, the entity tag a read
-/// publishes, which header reaches which command, and which action opted into idempotency.
-/// </remarks>
 public sealed class FilesControllerTests
 {
     private static readonly DateTimeOffset _registeredAt = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
@@ -56,13 +48,6 @@ public sealed class FilesControllerTests
 
     private readonly IDeleteStoredFileUseCase _deleteStoredFile = Substitute.For<IDeleteStoredFileUseCase>();
 
-    #region Listing
-
-    /// <summary>
-    /// Both records are seven positional members of two types, so swapping <c>Search</c> and
-    /// <c>State</c> — or <c>Page</c> and <c>PageSize</c> — compiles and ships. Every value here is
-    /// distinct so that a permutation cannot pass.
-    /// </summary>
     [Fact]
     public async Task GetAll_HandsEveryQueryStringParameter_ToTheUseCase()
     {
@@ -93,10 +78,6 @@ public sealed class FilesControllerTests
         captured.State.ShouldBe("pending");
     }
 
-    /// <summary>
-    /// A page of files is not one aggregate, so there is no single version describing it — and a
-    /// validator published over one would be a promise about rows a later page has never seen.
-    /// </summary>
     [Fact]
     public async Task GetAll_PublishesNoEntityTag()
     {
@@ -117,17 +98,6 @@ public sealed class FilesControllerTests
         httpContext.Response.Headers.ETag.Count.ShouldBe(0);
     }
 
-    #endregion
-
-    #region Reading content is a redirect, and the redirect is not cacheable
-
-    /// <summary>
-    /// Executed through MVC's own <see cref="RedirectResultExecutor"/> rather than asserted on the
-    /// <see cref="RedirectResult"/>'s properties: 302 versus 307 is a decision the executor makes
-    /// from <see cref="RedirectResult.Permanent"/> and <see cref="RedirectResult.PreserveMethod"/>
-    /// together, so a test naming the status itself would be asserting its own arithmetic rather than
-    /// the framework's.
-    /// </summary>
     [Fact]
     public async Task GetContent_AnswersA302_WhoseLocationIsTheSignedUrl()
     {
@@ -149,11 +119,6 @@ public sealed class FilesControllerTests
         httpContext.Response.Headers.Location.ToString().ShouldBe(url);
     }
 
-    /// <summary>
-    /// A store that cannot sign: the bytes come back as the body, offered as an attachment under the
-    /// file's own name, with the declared type and <c>nosniff</c> — a browser never renders what the
-    /// uploader chose.
-    /// </summary>
     [Fact]
     public async Task GetContent_StreamsTheBytesAsAnAttachment_WhenTheStoreCannotSign()
     {
@@ -176,13 +141,6 @@ public sealed class FilesControllerTests
         httpContext.Response.Headers.XContentTypeOptions.ToString().ShouldBe("nosniff");
     }
 
-    /// <summary>
-    /// The <c>Location</c> is a bearer credential with minutes to live, so the response must not be
-    /// storable. The attribute is what <c>CacheHeaderExtensions</c> reads to write
-    /// <c>Cache-Control: no-store</c> instead of the <c>private, no-cache</c> every other read gets —
-    /// and <c>no-cache</c> permits storage, which is exactly the failure: a stored redirect outlives
-    /// the grant it names.
-    /// </summary>
     [Fact]
     public void EveryActionCarryingACredential_IsNoStore()
     {
@@ -223,10 +181,6 @@ public sealed class FilesControllerTests
         StatusOf(action).ShouldBe(StatusCodes.Status409Conflict);
     }
 
-    #endregion
-
-    #region Reads that name one file publish its version
-
     [Fact]
     public async Task GetById_PublishesTheVersionAsAStrongEntityTag()
     {
@@ -241,22 +195,16 @@ public sealed class FilesControllerTests
 
         string tag = httpContext.Response.Headers.ETag.ToString();
 
-        // Strong, which is what If-Match compares under: quoted, and never the W/ prefix. What is
-        // inside the quotes is opaque on purpose, so nothing here reads it.
         tag.ShouldNotBeNullOrEmpty();
         tag.ShouldStartWith("\"");
         tag.ShouldEndWith("\"");
 
-        // And it names that version rather than the resource: a different version publishes a
-        // different tag, which is the whole point of sending one.
         tag.ShouldNotBe(await APublishedEntityTagAsync(1235u));
     }
 
     [Fact]
     public async Task GetById_Answers304_WhenTheCallerAlreadyNamesThatVersion()
     {
-        // The tag comes from a response, the way a client's would, so this also proves the round
-        // trip: what the API published is what it accepts back.
         string published = await APublishedEntityTagAsync(1234u);
 
         var httpContext = AContext();
@@ -272,10 +220,6 @@ public sealed class FilesControllerTests
             published,
             "RFC 9110 requires a 304 to carry the validator it is refusing to resend the body for.");
     }
-
-    #endregion
-
-    #region Writes on one file are conditional; creating one is not
 
     [Fact]
     public async Task Confirm_HandsTheVersionsFromIfMatch_ToTheUseCase()
@@ -298,11 +242,6 @@ public sealed class FilesControllerTests
         captured.Precondition.ShouldNotBeNull().AcceptableVersions.ShouldBe([77u]);
     }
 
-    /// <summary>
-    /// <c>If-Match: *</c> asserts the registration still exists, which is the question a client
-    /// resuming a long upload is really asking — the abandonment sweep removes registrations nobody
-    /// deposited against. A 404 would read as "wrong id"; 412 says "it was there and is not".
-    /// </summary>
     [Fact]
     public async Task Confirm_Answers412_WhenIfMatchStarNamesARegistrationThatIsGone()
     {
@@ -364,10 +303,6 @@ public sealed class FilesControllerTests
             + "caller last saw as pending destroys content that arrived in between.");
     }
 
-    #endregion
-
-    #region Registering
-
     [Fact]
     public async Task Register_Answers201_LocatingTheFileItCreated()
     {
@@ -398,12 +333,6 @@ public sealed class FilesControllerTests
         StatusOf(action.Result!).ShouldBe(StatusCodes.Status409Conflict);
     }
 
-    /// <summary>
-    /// Creating a file names no existing resource, so there is no version for a condition to be about
-    /// — not even where a deployment requires <c>If-Match</c> on every write. A registration that
-    /// answered 428 would be unreachable: the only endpoint that publishes a file's entity tag is the
-    /// read of a file that does not exist yet.
-    /// </summary>
     [Fact]
     public async Task Register_IsUnconditional_EvenWhereTheDeploymentRequiresAPrecondition()
     {
@@ -435,10 +364,6 @@ public sealed class FilesControllerTests
         captured.SizeInBytes.ShouldBe(1024L);
         captured.Checksum.ShouldBe(new string('a', 64));
     }
-
-    #endregion
-
-    #region Uploading through the API
 
     [Fact]
     public async Task Upload_Answers201_LocatingTheFileWithItsEntityTag()
@@ -548,25 +473,10 @@ public sealed class FilesControllerTests
         StatusOf(action.Result!).ShouldBe(StatusCodes.Status409Conflict);
     }
 
-    #endregion
-
-    #region What the surface deliberately does not do
-
-    /// <summary>
-    /// Registering is unaddressed creation, so a retry is indistinguishable from a second request and
-    /// replaying it mints a second file and a second signed grant. Confirming names the file in its
-    /// route and can only ever happen once, so the resource's own identity already carries what a key
-    /// would buy.
-    /// </summary>
     [Fact]
     public void RegisteringIsTheOnlyIdempotentAction() =>
         ActionsWith<IdempotentAttribute>().ShouldBe([nameof(FilesController.Register)]);
 
-    /// <summary>
-    /// The upload is the one action whose body carries a file, so it is the one action that raises
-    /// the inbound cap — and from configuration, through the attribute the request-limit middleware
-    /// reads, not through MVC's constant-valued attributes, which the middleware would never see.
-    /// </summary>
     [Fact]
     public void OnlyTheUpload_WidensTheInboundBodyLimit()
     {
@@ -595,18 +505,11 @@ public sealed class FilesControllerTests
         limit.MaxRequestBodyBytes(services).ShouldBe((2 * 1024 * 1024) + (16 * 1024));
     }
 
-    /// <summary>
-    /// The idempotency filter buffers and hashes the whole body, which for an upload is the file.
-    /// </summary>
     [Fact]
     public void TheUpload_IsNotIdempotent() =>
         typeof(FilesController).GetMethod(nameof(FilesController.Upload))!
             .GetCustomAttribute<IdempotentAttribute>()
             .ShouldBeNull();
-
-    #endregion
-
-    #region Fixture
 
     private static RegisterFileRequest ARequest() =>
         new("document", "quarterly-report.pdf", "application/pdf", 1024, new string('a', 64));
@@ -619,7 +522,6 @@ public sealed class FilesControllerTests
             Headers = new HeaderDictionary { ["Content-Type"] = "application/pdf" },
         };
 
-    /// <summary>The bound request and the form it came from, as model binding leaves them.</summary>
     private static UploadFileRequest AnUploadRequest(
         HttpContext httpContext,
         IFormFile? file,
@@ -675,11 +577,6 @@ public sealed class FilesControllerTests
             state == StoredFileState.Available ? _registeredAt.AddMinutes(1) : null,
             Tags: []);
 
-    /// <summary>
-    /// Not <c>HttpContextFactory</c>: this class runs an <see cref="ActionResult"/> through MVC's own
-    /// executor, which resolves <see cref="IActionResultExecutor{TResult}"/> from the request's
-    /// services, and no other test in this project needs that.
-    /// </summary>
     private static DefaultHttpContext AContext(IfMatchRequirement ifMatch = IfMatchRequirement.Optional)
     {
         var services = new ServiceCollection();
@@ -697,16 +594,6 @@ public sealed class FilesControllerTests
         };
     }
 
-    /// <summary>
-    /// The entity tag this API publishes for a version, obtained the way a caller obtains one — by
-    /// reading it off a response.
-    /// </summary>
-    /// <remarks>
-    /// Deliberately not minted here. The encoding is internal to the API, and a test that reproduced
-    /// it would both duplicate the code under test and pin a layout the mapping documents as free to
-    /// change. Reading it back instead is what a client does, and it makes every use below assert a
-    /// round trip rather than a restatement.
-    /// </remarks>
     private async Task<string> APublishedEntityTagAsync(uint version)
     {
         var httpContext = AContext();
@@ -745,10 +632,6 @@ public sealed class FilesControllerTests
 
     private static IReadOnlyList<string> ActionsWith<TAttribute>() where TAttribute : Attribute
     {
-        // Both controllers, because every rule in this class is a claim about the file surface rather
-        // than about one class of it: the caching contract, the idempotent action and the inbound
-        // body limit are properties a caller meets at a URL, and the tags live under the same route
-        // prefix. Splitting the surface across two types must not quietly halve what is checked.
         var actions = new[] { typeof(FilesController), typeof(FileTagsController) }
             .SelectMany(controller => controller
                 .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
@@ -768,6 +651,4 @@ public sealed class FilesControllerTests
                 .Order(StringComparer.Ordinal),
         ];
     }
-
-    #endregion
 }

@@ -7,17 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Core.UnitTests.Common.Saving;
 
-/// <summary>
-/// The one place a commit happens is the one place EF's vocabulary stops. Everything above this type
-/// speaks of a concurrency conflict; nothing above it should have to name <c>DbUpdateConcurrencyException</c>
-/// or reach into its <c>Entries</c>.
-/// </summary>
-/// <remarks>
-/// No database, and no product context. EF needs a provider before it will build a context at all, so
-/// one is configured and never connected to: an interceptor throws before a connection is opened, and
-/// the translation under test happens in the <c>catch</c> rather than in the driver. The context holds
-/// no entities, because nothing here depends on a model.
-/// </remarks>
 public sealed class EfUnitOfWorkTests
 {
     private const string _neverOpened = "Host=localhost;Database=never-opened;Username=none;Password=none";
@@ -38,11 +27,6 @@ public sealed class EfUnitOfWorkTests
             "the log still has to say which rows lost, and only EF's exception knows.");
     }
 
-    /// <summary>
-    /// Only the conflict is translated. A unique-index violation is also a <c>DbUpdateException</c>, and
-    /// answering it as 409 <c>concurrency.conflict</c> would tell a client to retry a write that will
-    /// never succeed.
-    /// </summary>
     [Fact]
     public async Task SaveChangesAsync_LeavesEveryOtherUpdateFailureAlone()
     {
@@ -57,10 +41,6 @@ public sealed class EfUnitOfWorkTests
         failure.ShouldBeSameAs(violation);
     }
 
-    /// <summary>
-    /// The commit boundary is all a context needs to commit. A feature that stores plain records, with
-    /// no aggregate tracker, mapper or event source, composes this call and nothing else.
-    /// </summary>
     [Fact]
     public async Task AddContextUnitOfWork_CommitsOnItsOwn_WithNoSavingMechanismRegistered()
     {
@@ -89,6 +69,5 @@ public sealed class EfUnitOfWorkTests
         return new EmptyContext(options);
     }
 
-    /// <summary>A context with a provider and nothing in it, which is all a save has to reach.</summary>
     private sealed class EmptyContext(DbContextOptions<EmptyContext> options) : DbContext(options);
 }

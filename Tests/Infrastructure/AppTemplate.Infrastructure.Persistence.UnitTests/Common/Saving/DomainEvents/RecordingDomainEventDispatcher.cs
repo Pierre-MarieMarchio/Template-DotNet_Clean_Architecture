@@ -3,14 +3,6 @@ using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Saving.DomainEvents;
 
-/// <summary>
-/// Records what it was asked to publish, and throws for the events a test tells it to.
-/// </summary>
-/// <remarks>
-/// Hand-written rather than substituted, because <c>IDomainEventDispatcher</c> is internal to the
-/// persistence assembly: a dynamic proxy would need that assembly to trust the proxy generator, which is
-/// a wider grant than one test double is worth.
-/// </remarks>
 internal sealed class RecordingDomainEventDispatcher : IDomainEventDispatcher
 {
     private readonly Func<IDomainEvent, Exception?> _failure;

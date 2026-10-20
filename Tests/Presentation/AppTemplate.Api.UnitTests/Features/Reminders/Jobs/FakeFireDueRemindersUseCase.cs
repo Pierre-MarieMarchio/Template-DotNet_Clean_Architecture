@@ -3,7 +3,6 @@ using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueRemind
 
 namespace AppTemplate.Api.UnitTests.Features.Reminders.Jobs;
 
-/// <summary>Counts calls and always succeeds with a fixed count, unless told to throw.</summary>
 internal sealed class FakeFireDueRemindersUseCase : IFireDueRemindersUseCase
 {
     private readonly Exception? _failure;
@@ -30,15 +29,10 @@ internal sealed class FakeFireDueRemindersUseCase : IFireDueRemindersUseCase
     }
 }
 
-/// <summary>
-/// Never completes on its own: it only ever returns by observing the cancellation token, so it can
-/// stand in for "a use case that is mid-flight when the host is asked to stop".
-/// </summary>
 internal sealed class HangingFireDueRemindersUseCase : IFireDueRemindersUseCase
 {
     private volatile bool _hasEntered;
 
-    /// <summary>True from the moment the pass starts, before it blocks.</summary>
     public bool HasEntered => _hasEntered;
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)

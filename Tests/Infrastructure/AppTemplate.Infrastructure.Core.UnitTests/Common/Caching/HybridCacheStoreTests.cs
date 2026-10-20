@@ -5,10 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Core.UnitTests.Common.Caching;
 
-/// <summary>
-/// The three things a caller depends on: a second read is served without running the factory, a
-/// removal makes the next read run it again, and concurrent misses on one key run it once.
-/// </summary>
 public sealed class HybridCacheStoreTests
 {
     private static readonly TimeSpan _lifetime = TimeSpan.FromMinutes(5);
@@ -50,10 +46,6 @@ public sealed class HybridCacheStoreTests
         Task<string> Factory(CancellationToken _) => Task.FromResult($"value {++factoryRuns}");
     }
 
-    /// <summary>
-    /// The stampede this exists to prevent: twenty callers arriving together on a cold key must not
-    /// become twenty database reads.
-    /// </summary>
     [Fact]
     public async Task ConcurrentMissesOnOneKey_RunTheFactoryOnce()
     {
@@ -83,9 +75,6 @@ public sealed class HybridCacheStoreTests
         await Should.ThrowAsync<ArgumentNullException>(
             () => Store.GetOrCreateAsync<string>(NewKey(), null!, _lifetime, TestToken));
 
-    /// <summary>
-    /// A key per test: the store is a real one, and two tests sharing a key would share an answer.
-    /// </summary>
     private static string NewKey() => $"test:{Guid.CreateVersion7()}";
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

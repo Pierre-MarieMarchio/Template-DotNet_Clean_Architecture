@@ -13,10 +13,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Common.Errors;
 
-/// <summary>
-/// Exercises the same factory <c>Program.cs</c> wires into <c>ApiBehaviorOptions</c>, so a test here
-/// is a statement about exactly what a caller who sends a malformed body receives.
-/// </summary>
 public sealed class ModelStateProblemExtensionsTests
 {
     [Fact]
@@ -76,16 +72,6 @@ public sealed class ModelStateProblemExtensionsTests
         result.ContentTypes.ShouldContain("application/problem+json");
     }
 
-    /// <summary>
-    /// The branch every other test here misses. MVC records a deserialisation failure by handing the
-    /// exception to the model state with no text of its own, and the three tests above all use the
-    /// string overload, which fills the text in and never reaches this path.
-    /// </summary>
-    /// <remarks>
-    /// A JsonException's message names the CLR type being bound and the byte offset the parser
-    /// stopped at. CONTRIBUTING states that no exception message ever reaches a client, and that
-    /// promise is worth exactly as much as the one branch nobody exercised.
-    /// </remarks>
     [Fact]
     public void InvalidModelStateResponseFactory_DoesNotPutAnExceptionMessageInTheResponse()
     {
@@ -93,8 +79,6 @@ public sealed class ModelStateProblemExtensionsTests
 
         var httpContext = HttpContextFactory.Create();
         var modelState = new ModelStateDictionary();
-        // TryAddModelException is the overload that records an exception without metadata, which is
-        // the shape MVC's input formatter produces: an entry carrying the failure and no text.
         modelState.TryAddModelException("TodoListId", new InvalidOperationException(leaked));
 
         ObjectResult result = CreateResponse(httpContext, modelState);

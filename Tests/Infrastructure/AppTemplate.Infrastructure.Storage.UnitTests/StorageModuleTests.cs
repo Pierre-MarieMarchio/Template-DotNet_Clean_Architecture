@@ -18,11 +18,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests;
 
-/// <summary>
-/// The module composed the way a host composes it, and reached the way a request reaches it: the
-/// adapters are resolved from a scope, never from the root. Scope validation is on, so a lifetime
-/// mistake fails here rather than in the first host that composes it.
-/// </summary>
 public sealed class StorageModuleTests
 {
     private static readonly Dictionary<string, string?> _configured = new(StringComparer.Ordinal)
@@ -36,7 +31,6 @@ public sealed class StorageModuleTests
         ["Files:Storage:S3:MaxGrantLifetime"] = "00:20:00",
     };
 
-    /// <summary>S3 is the provider a configuration that names none gets.</summary>
     [Fact]
     public void AddStorageModule_ServesTheS3AdaptersByDefault()
     {
@@ -61,10 +55,6 @@ public sealed class StorageModuleTests
             .IsSupported.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// Only the chosen provider's section is validated: a file system deployment has no bucket, and
-    /// demanding one would fail its boot over a store it does not use.
-    /// </summary>
     [Fact]
     public void AddStorageModule_NeitherValidatesNorBuildsS3ForTheFileSystemProvider()
     {
@@ -86,7 +76,6 @@ public sealed class StorageModuleTests
             () => provider.GetRequiredService<IOptions<FilesStorageFileSystemOptions>>().Value);
     }
 
-    /// <summary>An unknown provider is refused at start-up rather than quietly served by another.</summary>
     [Fact]
     public void AddStorageModule_RefusesAnUnknownProvider()
     {
@@ -119,7 +108,6 @@ public sealed class StorageModuleTests
             ["Files:Scanning:Host"] = "clamav",
         };
 
-        // The adapter logs; a host always has logging, this bare composition does not.
         using var provider = new ServiceCollection()
             .AddLogging()
             .AddStorageModule(new ConfigurationBuilder().AddInMemoryCollection(settings).Build())
@@ -143,10 +131,6 @@ public sealed class StorageModuleTests
             () => provider.GetRequiredService<IOptions<FilesScanningOptions>>().Value);
     }
 
-    /// <summary>
-    /// One client for the process. It owns a connection pool and a retry schedule, and a second one
-    /// would silently double both.
-    /// </summary>
     [Fact]
     public void AddStorageModule_ServesOneClientForEveryScope()
     {
@@ -158,11 +142,6 @@ public sealed class StorageModuleTests
             .ShouldBeSameAs(second.ServiceProvider.GetRequiredService<IAmazonS3>());
     }
 
-    /// <summary>
-    /// The presigning client is a singleton too, and a second registration of the same interface does
-    /// not disturb the first: what asks for <see cref="IAmazonS3"/> without a key still gets the one
-    /// this process talks to the store with.
-    /// </summary>
     [Fact]
     public void AddStorageModule_ServesOneSigningClientForEveryScope()
     {
@@ -175,11 +154,6 @@ public sealed class StorageModuleTests
                 second.ServiceProvider.GetRequiredKeyedService<IAmazonS3>(BucketClientFactory.SigningClientKey));
     }
 
-    /// <summary>
-    /// Two clients, one endpoint each, and the right one under each name. They differ by host alone,
-    /// so swapping them compiles and fails only where the public name does not resolve from inside —
-    /// which is every deployment this setting exists for.
-    /// </summary>
     [Fact]
     public void AddStorageModule_BuildsThePresigningClientOnThePublicEndpoint()
     {
@@ -196,11 +170,6 @@ public sealed class StorageModuleTests
             .ShouldBe("https://files.example/");
     }
 
-    /// <summary>
-    /// <b>The compatibility promise, composed the way a host composes it.</b> A configuration with no
-    /// <c>Files:Storage:S3:PublicEndpoint</c> key at all — which is every deployment that predates the setting
-    /// — signs for the endpoint it always signed for.
-    /// </summary>
     [Fact]
     public void AddStorageModule_SignsForTheEndpointItselfWhenTheConfigurationNamesNoPublicOne()
     {
@@ -233,11 +202,6 @@ public sealed class StorageModuleTests
         options.MaxGrantLifetime.ShouldBe(TimeSpan.FromMinutes(20));
     }
 
-    /// <summary>
-    /// The validator is wired to the options, not merely registered: an incomplete configuration has
-    /// to be refused where it is read, which under <c>ValidateOnStart</c> is before the host serves
-    /// anything.
-    /// </summary>
     [Fact]
     public void AddStorageModule_RefusesAConfigurationWithNoBucket()
     {

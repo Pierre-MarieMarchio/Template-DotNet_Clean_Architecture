@@ -34,15 +34,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
 
-/// <summary>
-/// The composition call itself, through a real container and a real host: which services it
-/// starts when the role switch is on, that it starts none and requires nothing when it is off, and
-/// that an enabled instance refuses to start on a job setting it cannot honour.
-/// <para>
-/// The loops' own behaviour is covered beside each of them; this is the part no single loop can
-/// show — that what the host composes is what runs.
-/// </para>
-/// </summary>
 public sealed class BackgroundJobsModuleTests
 {
     private static readonly ServiceProviderOptions _strict = new() { ValidateOnBuild = true, ValidateScopes = true };

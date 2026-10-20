@@ -73,7 +73,6 @@ internal sealed class StoredFileRegistrationService(
             return room.To<StoredFile>();
         }
 
-        // The value objects refuse what a validator cannot state without restating their rules.
         var registration = DomainGuard.Try(() => StoredFile.Register(
             owner,
             category,

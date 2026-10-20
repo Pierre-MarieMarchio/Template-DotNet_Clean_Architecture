@@ -8,7 +8,6 @@ using AppTemplate.Domain.Features.TodoLists.Repositories;
 
 namespace AppTemplate.Application.Features.TodoLists.Services;
 
-
 internal sealed class TodoListService(ITodoListRepository repository, ICurrentUser currentUser) : ITodoListService
 {
     public async Task<Result<TodoList>> LoadOwnedAsync(

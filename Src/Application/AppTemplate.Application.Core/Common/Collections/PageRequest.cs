@@ -3,7 +3,6 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Core.Common.Collections;
 
-/// <summary>A validated paging request, in either mode.</summary>
 public sealed record PageRequest
 {
     private PageRequest(PagingMode mode, int pageSize, int? page, Cursor? cursor)
@@ -14,25 +13,14 @@ public sealed record PageRequest
         Cursor = cursor;
     }
 
-    /// <summary>
-    /// Which of the two shapes this request is, since <see cref="Page"/> and <see cref="Cursor"/> are
-    /// each set in one of them only.
-    /// </summary>
     public PagingMode Mode { get; }
 
-    /// <summary>
-    /// Always resolved: a caller who sent none gets the policy's default. Never above the policy's
-    /// maximum, which is refused rather than clamped, so a caller is told their number was ignored.
-    /// </summary>
     public int PageSize { get; }
 
-    /// <summary>1-based. Set only in <see cref="PagingMode.Offset"/>.</summary>
     public int? Page { get; }
 
-    /// <summary><c>null</c> means the first page. Set only in <see cref="PagingMode.Cursor"/>.</summary>
     public Cursor? Cursor { get; }
 
-    /// <summary>Parses the <c>paging</c> query parameter. Blank means <see cref="PagingMode.Offset"/>.</summary>
     public static Result<PagingMode> ParseMode(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
@@ -54,11 +42,6 @@ public sealed record PageRequest
             $"'{raw}' is not a valid paging mode. Use 'offset' or 'cursor'."));
     }
 
-    /// <summary>
-    /// The one place the two modes are checked against each other, so a request carrying both a page
-    /// number and a cursor is refused instead of resolved by silently preferring one of them.
-    /// </summary>
-    /// <returns>A failure rather than an exception: bad paging is an answer the layer above turns into a 400.</returns>
     public static Result<PageRequest> Create(
         PagingMode mode,
         int? page,

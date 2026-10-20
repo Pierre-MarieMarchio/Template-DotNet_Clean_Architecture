@@ -46,7 +46,6 @@ public sealed class AddTagToTodoItemUseCase(
             return found.To<Versioned<TodoItemDto>>();
         }
 
-        // Caught: the tag cap depends on how many tags the item already carries.
         var addition = DomainGuard.Try(() => todoList.AddTagToItem(command.TodoItemId, command.Tag));
 
         if (addition.IsFailure)

@@ -14,10 +14,6 @@ public sealed class GetTodoListUseCase(
     ICurrentUser currentUser,
     IValidator<GetTodoListQuery> validator) : IGetTodoListUseCase
 {
-    /// <returns>
-    /// The list, and the version a caller has to name to change it. Nothing here decides how that
-    /// version is published — the transport does, and it is the only layer that should.
-    /// </returns>
     public async Task<Result<Versioned<TodoListDetailDto>>> ExecuteAsync(
         GetTodoListQuery query,
         CancellationToken cancellationToken = default)
@@ -38,8 +34,6 @@ public sealed class GetTodoListUseCase(
             return userId.To<Versioned<TodoListDetailDto>>();
         }
 
-        // Ownership goes into the query, not a check afterwards: fetching first would already have
-        // pulled another user's data into memory.
         var detail = await queries.GetDetailAsync(query.TodoListId, userId.Value, cancellationToken);
 
         return detail is null

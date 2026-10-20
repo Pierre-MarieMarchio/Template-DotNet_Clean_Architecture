@@ -45,7 +45,6 @@ public sealed class ReopenTodoItemUseCase(
             return found.To<Versioned<TodoItemDto>>();
         }
 
-        // No try/catch: reopening is idempotent, so ReopenItem never rejects.
         todoList.ReopenItem(command.TodoItemId, dateTimeProvider.UtcNow);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

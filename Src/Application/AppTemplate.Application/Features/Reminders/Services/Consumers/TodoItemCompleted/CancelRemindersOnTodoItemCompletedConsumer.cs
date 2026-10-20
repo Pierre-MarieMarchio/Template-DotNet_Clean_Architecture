@@ -1,19 +1,11 @@
 ﻿using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Application.Features.Reminders.Ports.ReminderDiagnostics;
 using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 using AppTemplate.Domain.Features.Reminders.Repositories;
 using AppTemplate.Domain.Features.TodoLists.Model.Events;
 
 namespace AppTemplate.Application.Features.Reminders.Services.Consumers.TodoItemCompleted;
 
-/// <summary>Cancels every still-pending reminder on an item once it is completed, so a reminder does
-/// not fire for something already done. Runs after the completing transaction has committed (see
-/// <c>DomainEventDispatchSaveChangesInterceptor</c>), so it owns its own commit through
-/// <see cref="IUnitOfWork"/>. <b>A fast path, not the correctness guarantee:</b>
-/// <c>FireDueRemindersUseCase</c> re-checks completion at firing time, and a missed cancellation
-/// shows up as <see cref="IReminderDiagnostics.RecordMissedCancellation"/>, not as a wrong
-/// notification.</summary>
 internal sealed class CancelRemindersOnTodoItemCompletedConsumer(
     IReminderRepository reminders,
     IUnitOfWork unitOfWork) : IDomainEventConsumer<TodoItemCompletedDomainEvent>
@@ -29,8 +21,6 @@ internal sealed class CancelRemindersOnTodoItemCompletedConsumer(
 
         if (pending.Length == 0)
         {
-            // Also what a redelivery of this event finds: Cancel() is idempotent by shape, but
-            // there is no point loading and saving nothing to prove it.
             return;
         }
 

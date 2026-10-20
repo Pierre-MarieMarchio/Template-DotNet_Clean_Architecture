@@ -36,8 +36,6 @@ public sealed class RenameTodoListUseCase(
 
         var todoList = access.Value;
 
-        // No try/catch: Rename only rejects names the validator above already rejected, so a
-        // DomainException here means the two disagree — a bug to surface, not a user failure.
         todoList.Rename(command.Name);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

@@ -46,7 +46,6 @@ public sealed class ReplaceTodoItemTagsUseCase(
             return found.To<Versioned<TodoItemDto>>();
         }
 
-        // Caught: adding a tag not already present can still hit the per-item cap.
         var replacement = DomainGuard.Try(() => todoList.SetItemTags(command.TodoItemId, command.Tags));
 
         if (replacement.IsFailure)

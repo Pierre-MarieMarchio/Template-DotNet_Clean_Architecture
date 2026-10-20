@@ -361,3 +361,245 @@ the HSTS attributes are commitments over a whole domain that only the component 
 **A port never exposes `IQueryable`.** A contract that hands out a query tree has not abstracted the
 database, it has published it — and every caller becomes a place where a lazy load can happen.
 `NoApplicationPort_ExposesAQueryable` holds it.
+
+## Domain and application
+
+**A non-owner is answered exactly as an absent aggregate.** An endpoint that takes an id and tells
+"not yours" from "not there" becomes a way to ask whether an id belongs to somebody. `OwnedAggregate`
+therefore answers both with the same error, and which error says "absent" is the feature's to
+choose, so it is passed in rather than minted in the core. Ownership goes into the query, not into a
+check after it: fetching first would already have pulled another user's data into memory. The
+precondition on a write is compared against the aggregate the use case just loaded, because only the
+use case holds it, so nothing can commit between the comparison and the write; the check runs after
+the existence check, so a stale caller sees `412` before `404`, which RFC 9110 allows and which
+confirms nothing about an item to a caller working from an outdated list. An empty precondition set
+is one nothing can satisfy, the right answer for a validator this application never issued.
+
+**The version token travels beside the value, and comes from the query that read the value.** A
+caller that publishes a validator has it, one that only needs the representation ignores it, and the
+DTO stays a description of the resource with no field a client could mistake for domain data. Reading
+the version in a second query would leave a window in which it and the body disagree, and a validator
+that does not describe the body it was sent with is worse than none.
+<!--#if (todoLists)-->
+The one place a write answers without a read-back is the to-do list mapping, and it is sound only
+because the tracker writes the store-assigned version and audit timestamps onto the aggregate inside
+`SaveChangesAsync`, and because nothing between the write and the projection mutates the aggregate
+again: a consumer running inside the save must not reach back into the aggregate it was raised
+from. The items in that projection are ordered exactly as the detail query orders them, so a list reads
+the same whether it comes back from a write or from a query.
+<!--#endif-->
+
+**Collection requests are bound in two steps, and the cursor is resolved last.** Sort and paging mode
+are parsed first, the feature builds its own filter second, and the cursor is decoded last against the
+order it was minted under, so each refusal comes from the party that owns the rule: the core refuses
+what is wrong with the order, the feature what is wrong with its filter. A cursor sent under another
+sort is refused, not ignored or re-minted: the read side compares the cursor's key through the
+request's sort term, so resuming under a different sort would parse a name as a date and throw, ignoring
+the sort would serve an order nobody asked for, and re-minting would skip or repeat rows. A combination
+the template's keyset does not implement (more than one key plus the tiebreaker, or an offset-only field
+under a cursor) is refused whether or not a cursor was sent, so a caller is not let through on page 1
+and refused on page 2. A cursor sent with offset paging fails rather than being silently ignored.
+`FeaturePageRequest` can only be made by the binder, after every one of these checks has answered, so
+the read side never re-validates what already cleared the whitelist and there is no second way in.
+
+**A cursor is opaque, not authenticated.** It carries only values the caller was already served on a row
+they were allowed to see, and the resuming query still filters by owner whatever the cursor claims, so
+tampering can only change which of the caller's own rows come next. What a signature would otherwise
+catch is a key edited into a value the field cannot parse, so the feature names its date fields and
+the check runs before the request reaches the port: a tampered cursor lands where every malformed
+request does, a `400` with `cursor.invalid`, not a `500` out of the keyset predicate.
+
+**A sort field is a declaration, and declarations are constructible.** The whitelist is safe because
+the policy handed to `SortOrder.Parse` is fixed at compile time, so building a `SortableField` grants
+nothing to anybody; `SortTerm` is the one type that carries caller input, and it is made only by the
+parser after the whitelist has answered, so its field is always the whitelist's own spelling and every
+downstream switch can compare it ordinally. The factories stay public so a fitness test can declare a
+policy naming a field no translator handles and prove that the translator's `default` arm throws: a guard
+nothing can construct a case for is a guard nobody has checked. A blank sort parses the policy's own
+default through the same code path, which is why a blank default is a programming error in the policy
+and not a request to reject. Collection policies are plain classes with a parameterless constructor so
+an architecture rule can discover and check every one without a container.
+
+**The validating factories of the core are internal, and granted to exactly one test assembly.**
+`Cursor.Decode`, the cursor keys and the sort term factories must not be constructible by anything
+that skipped validation. A test restricted to the public surface reaches their failure branches only
+through a use case, which proves a request is refused without showing which of a dozen branches refused
+it, so the application core grants its internals to its own mirror test project alone. The persistence
+unit tests are deliberately not granted: a test that could build an unvalidated sort or cursor would
+assert on SQL no request can produce, and uses the public `Cursor.After` and `SortOrder.Parse` instead.
+The application project does the same for its mappers, its media-type signature table and its password
+policy, each a decision one feature owns and reaches only through the use case above it.
+
+**The cache is for answers whose staleness is harmless.** `ICacheStore` holds nothing that decides an
+authorisation, enforces a bound, becomes an `ETag` or tells something else what to delete: a cached bound
+is a bound multiplied by the number of processes holding a copy, and a cached version is a precondition
+that no longer describes what it guards. An entry may vanish before its lifetime ends, so a caller is
+correct when it does; the port promises to be faster, never to remember.
+<!--#if (tagging)-->
+The used-tags list qualifies, being a suggestion in a picker or a filter, and a list a minute out of date
+costs a tag typed in full. The entry is dropped by whatever changes an owner's tags, so the lifetime is
+only the ceiling on how long a change made elsewhere stays unseen.
+<!--#endif-->
+
+**A lease takes work as a delegate, and an exception is never read as "somebody else has it".** The
+exclusion lasts exactly as long as the work, and an exception from it, cancellation included, reaches
+the caller with the lease already released instead of coming back as `false`: a caller that could not
+tell "it failed" from "standby" would log a failed pass as a quiet one. The fencing limit is stated
+under the lease decision above.
+
+**A domain event is published by the operation that made it true, after the write commits.** A fact no
+aggregate carries is published by the use case or service, never before the commit, which would hand a
+consumer a fact the store can still deny. Publication is in-process with no retry, so a consumer that
+throws is logged and skipped; the guarantee behind a fact that must not be lost is the sweep, as above.
+Consumers live in the application layer on purpose: deciding what happens next is application
+behaviour, and a consumer then needs nothing from any infrastructure module. The abstraction is named
+consumer, not handler, because CA1711 reserves the `EventHandler` suffix for delegates and a reader who
+sees it on a public type is entitled to expect the .NET event pattern. The typed bridge cannot be
+inherited twice, the call being ambiguous: a consumer of two event types implements the untyped
+interface and switches, or is split in two. A mis-registered consumer fails with a message naming the
+consumer and the event, the one thing needed to find the registration that caused it.
+
+**A consumer of a deletion re-derives its precondition and is idempotent by shape.** Each one asks the
+account directory whether the account is really gone, so an account that exists again, or never left,
+keeps its data whatever the call was told, and an owner with nothing left is a finished owner, which is
+also what a redelivery finds, so nothing is loaded and saved to prove it. One call is one transaction of
+the feature's own, committed before it returns: the account's deletion has already committed and a
+failure here is never reported as a failure of it; a failure propagates and the next attempt starts
+from the precondition, never from a partial run. Shutdown ends a sweep pass quietly instead of being
+logged as a failed owner.
+
+**A use case catches only what the caller could not have avoided.** The validator is the first line, so
+a `DomainException` that reaches a use case from something the validator already refused means the two
+disagree, which is a bug to surface and not an outcome to map. Where the aggregate refuses on its
+current contents (a duplicate title, a full list, a tag cap, a reminder no longer pending, a due date
+measured against the clock at the moment of the call) the use case catches it and answers with an error
+result, because no better input would have avoided it. Where the operation is idempotent by shape, or
+rejects only what was already checked, there is no `try`. A null argument is a broken call and not a
+caller driving the aggregate into a forbidden state, so it raises the guard exception, not the domain
+one. The validators measure strings after trimming, as the domain does, so a name the domain accepts is
+one the validator accepts too.
+
+**An error compares structurally, and a result is unwrapped by failure first.** The generated equality
+of `Error` would compare the details dictionary by reference, so two errors built from separate
+dictionaries with equal contents would differ; equality and the hash are written by hand, and they agree.
+`Result<TValue>.Value` throws on a failure, so a property pattern that reads it throws instead of failing
+to match: the failure is answered before the value is read, and a result over an interface type is built
+with `Result.Success` because C# applies no user-defined conversion from or to an interface.
+
+**The current language is a tag, and it is ambient.** The repository builds with invariant globalization,
+so at run time only the invariant culture exists and getting a named culture throws; a language tag lets
+the template choose a language without asking a deployment to add ICU. It is ambient because the
+language is a property of the exchange and not of one call, and it lives in the application layer
+because two infrastructure modules read it and a module may not reference a sibling. A null tag is
+refused outside the iterator that enumerates the candidates, since an iterator runs nothing until it is
+enumerated and the refusal would otherwise surface several frames from the caller that passed it.
+
+**Idempotency is keyed by user and fingerprint.** The user keeps two callers from colliding over the same
+key string, and the fingerprint tells a genuine retry from a different request that reuses the key.
+
+<!--#if (tagging)-->
+**A tag set is the aggregate's, its rules are shared.** The aggregate chooses the cap and the subject, and
+the set enforces them together, so the cap cannot be bypassed by reaching the collection another way. A
+duplicate is a no-op, not an error, so a retried request cannot fail spuriously, and the cap is checked
+only for a tag that is actually new for the same reason. A replacement is total, not a merge, and removals
+happen first: twenty tags swapped for twenty others is not a request for forty, and a refused replacement
+leaves the set as it was. The validation in the application layer restates the domain's rules from its
+constants, so a caller gets one `400` naming every field it got wrong instead of a `500` from the first
+exception; an absent set is refused and an empty one is not, because answering them alike would make
+clearing a set impossible to express.
+<!--#endif-->
+
+<!--#if (files)-->
+**Names, keys and media types are refused on the character, not sanitised.** A stored file name
+refuses path separators and the characters Windows refuses, because without a separator no arrangement of
+dots can leave a directory: an embedded `..` is allowed, and a stem that is a Windows device name is
+refused with or without an extension, since the device resolves before the directory is consulted.
+Trailing dots go with trailing whitespace, which Windows strips, and NUL and newline are refused because
+NUL truncates the name for C APIs and a newline would inject a header line into `Content-Disposition`. An
+object key is narrower than the store accepts, because it is pasted into a signed URL path where every
+character a URL parser, shell or filesystem treats specially is a place for components to disagree, and it
+is lower case only so case-insensitive tooling cannot see two keys as one; it is not trimmed, unlike the
+other text value objects, and its parser accepts two segments though new keys have three, so a key minted
+under another scheme still loads, while empty segments and dot segments are refused as traversal that
+proxies and signers do not resolve alike. A declared media type is compared case-insensitively per RFC
+9110, refuses parameters rather than stripping them, and treats the wildcard as its own rule, because it
+states what a client accepts, not what a file is. A checksum is normalised and not required to arrive in
+one case, as the client and the store compute the two digests. Loading goes through the same factory as
+minting, so the two cannot disagree about what is valid, and the aggregate's shared invariants live in one
+place so registering and rehydrating add only their own checks.
+
+**The content policy decides what the head of a file shows, and no more.** An outage of the inspector is
+never read as a pass, so it is checked before anything else, and a file too large for the scanner is
+permanently not inspectable: retrying would park it for ever and releasing it would make an oversized upload
+the way to skip the scan. Script containers are refused first whatever the declared type, because
+nothing sanitises an SVG; the markup is looked for in the prefix because it has no byte signature, and in
+two places because markup can be pushed past the prefix but not away from the start. A byte-order mark is
+stripped from the bytes, not from a decoded string, as an ASCII decode would turn a UTF-8 mark into
+placeholders the scan stops on and every marked document would pass as not markup; UTF-16 is matched
+with padding. When the content names itself the match is exact, so `image/jpg` for a JPEG is refused and
+not guessed at. The signature table holds only signatures that identify exactly one type: the ZIP
+header also opens every Office, OpenDocument, EPUB and JAR file, so reading it as ZIP would falsely
+refuse an honest `.docx`, while a container declared as an image is still refused for lacking an image
+signature. A declared type with no signature (CSV, JSON, text, ZIP-based documents) is released: the limit of
+what a head decides. A stream is read until the head is full, because one read of a network stream returns
+whatever has arrived, and the inspector records the reason a file was refused while keeping the malware
+signature away from the uploader.
+
+**A file's states are related by an equivalence over the whole enum.** The aggregate states the
+correspondence between its states and its stored form once, over every value rather than a rule per
+state, so a new state cannot be exempt. A tag replacement goes through the tag set, so too many tags or a
+duplicate refuse the row, and the use case catches that refusal as the second line behind the validator. A
+zero-byte object, which an interrupted deposit leaves, is refused by the size value object inside the same
+guard, and a deposit is offered again at least hourly. The id travels in URLs, so answering a non-owner as
+absent matters here in particular. A download answers "not available" as the only outcome worth retrying,
+and a store fault the caller cannot act on is reported and answered the same way. Reclaiming the bytes of a
+deleted file swallows a store failure, because the deletion has committed and the sweep reclaims the
+bytes: propagating would report a store outage as a failed deletion.
+<!--#endif-->
+
+<!--#if (reminders)-->
+**The reminder pass never claims more than the lease gives.** The lock key is derived from the use case's name
+string, so during a rolling deploy every host must spell it identically: renaming it would give two releases
+different keys, each uncontended, and both would fire the same batch believing itself the leader. The
+lease runs work that returns nothing, so the count of fired reminders comes back through a local the
+delegate closes over, still zero on the standby path because the delegate never ran, which is why a
+standby pass is logged apart from a pass with nothing due. The completion of each item is read in one
+query for the whole batch. A reminder is built before its due date is checked, so the constructor's
+invariants are what an ill-formed call meets, and being due in the future is a precondition of scheduling
+that the load path must not re-check. Rescheduling gives the reminder a new moment, and the failures
+counted so far were against a moment that no longer applies. A cancelled run is not a failed notification.
+
+**Listing the reminders of an item does not check that the item exists.** The route answers `200` with an
+empty list where every other route into an item answers `404`: removing an item cancels its reminders and
+does not delete them, so a `404` would make a cancelled reminder unreachable. Nothing leaks either way,
+since the owner filter shows a stranger an empty list whether the item is theirs, somebody else's or
+nobody's.
+<!--#endif-->
+
+<!--#if (todoLists)-->
+**A to-do item cannot be completed at the default instant.** The default `DateTimeOffset` is what an
+uninitialised caller passes, and accepting it would complete the item at year 1, which no reader could tell
+from a real value. An item is read through its list's projection, with no port of its own, so the query that
+finds an item is the one that enforces ownership.
+<!--#endif-->
+
+<!--#if (notes)-->
+**A note is a feature without a domain model.** A note without rules to protect needs no aggregate, so
+its service is the whole application layer of it: reads stage and commit nothing, which is the only
+separation CQS asks for, and every failure for a note the caller cannot see is the same not-found,
+whether the note is missing or somebody else's. The version is assigned by the database, so a write's
+answer is read back and not assembled. An empty body is a note with a title only; a missing one is a
+malformed request.
+<!--#endif-->
+
+<!--#if (externalAuth)-->
+**External identity mappings are written in transactions of their own.** Each write is independent of
+the request's unit of work. Two first requests from the same caller race on the unique index over issuer and
+subject: the loser's insert is refused and it reads the winner's row, so both answer the same owner, as
+does a retry of an insert that had in fact committed. A transient failure is retried by the execution
+strategy by replaying the whole transaction, and anything else propagates, because there is no fallback
+owner. Removing a mapping commits before it returns and a second call answers that the mapping is not found;
+a caller that signs in again is provisioned afresh, under a new owner id with none of the old one's data.
+The facts about a mapping are published after the store has committed, in the same request, and the
+features holding data under that id hear them from their own consumers.
+<!--#endif-->

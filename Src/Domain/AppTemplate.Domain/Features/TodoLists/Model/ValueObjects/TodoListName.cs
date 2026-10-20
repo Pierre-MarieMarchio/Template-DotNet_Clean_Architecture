@@ -2,10 +2,6 @@
 
 namespace AppTemplate.Domain.Features.TodoLists.Model.ValueObjects;
 
-/// <summary>
-/// The name of a <see cref="Entities.TodoList"/>, non-empty, trimmed, at most 200 characters. A
-/// type rather than a bare string, because the rule must hold everywhere a name appears.
-/// </summary>
 public sealed record TodoListName
 {
     public const int MaxLength = 200;

@@ -18,15 +18,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.UploadFile;
 
-/// <summary>
-/// Uploads a file through the API: registers it, writes its bytes and confirms the deposit, leaving
-/// it <see cref="StoredFileState.Deposited"/> for the background inspection as a direct upload does.
-/// <para>
-/// Each step is its own commit or write; the bytes are written outside any lock. When the write or
-/// the confirmation fails, the registration is removed at once to free its quota slot, and if that
-/// fails too the purge and the orphan sweep reclaim the row and the bytes.
-/// </para>
-/// </summary>
 public sealed class UploadFileUseCase(
     IStoredFileRegistrationService registrations,
     IStoredFileDepositService deposits,
@@ -59,7 +50,6 @@ public sealed class UploadFileUseCase(
             return validation.To<Versioned<StoredFileDto>>();
         }
 
-        // The validator has refused an unknown category, so this names a declared one.
         var category = FileCategory.Create(command.Category);
 
         if (!options.Value.Find(category)!.AllowsApiUpload)
@@ -67,7 +57,6 @@ public sealed class UploadFileUseCase(
             return Result.Failure<Versioned<StoredFileDto>>(StoredFileErrors.ApiUploadNotAllowed(category.Value));
         }
 
-        // Before the registration, which commits the digest, hence before any lock is taken.
         string checksum = await HashAsync(command.Content, cancellationToken);
 
         var registration = await registrations.RegisterAsync(
@@ -97,7 +86,6 @@ public sealed class UploadFileUseCase(
                 storedFile.Checksum.Value,
                 cancellationToken);
 
-            // The digest was computed here from the same bytes, so a refusal is this process's fault.
             if (written != ContentWriteOutcome.Written)
             {
                 throw new InvalidOperationException(
@@ -130,7 +118,6 @@ public sealed class UploadFileUseCase(
         return Convert.ToHexStringLower(digest);
     }
 
-    /// <summary>Best effort and never cancelled, as the request may be gone; the deletion event reclaims written bytes.</summary>
     private async Task RemoveRegistrationAsync(StoredFile storedFile)
     {
         try

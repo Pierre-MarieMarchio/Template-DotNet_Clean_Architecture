@@ -4,11 +4,6 @@ using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 
 namespace AppTemplate.Application.Features.TodoLists.Helpers;
 
-/// <summary>
-/// Existence, and nothing else: a use case that needs the item itself still reads it from
-/// <see cref="TodoList.Items"/>, and a use case that mutates it still goes through the
-/// aggregate's own methods. This only turns an unknown id into the same 404 every command uses.
-/// </summary>
 public static class TodoListItemExtensions
 {
     public static Result RequireItem(this TodoList todoList, Guid todoItemId)

@@ -6,10 +6,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.UploadFile;
 
-/// <summary>
-/// The category's rules as for a direct registration, plus the API upload ceiling. Errors about the
-/// content are reported on <c>file</c>, the form field that carries it.
-/// </summary>
 public sealed class UploadFileCommandValidator : AbstractValidator<UploadFileCommand>
 {
     private const string _file = "File";

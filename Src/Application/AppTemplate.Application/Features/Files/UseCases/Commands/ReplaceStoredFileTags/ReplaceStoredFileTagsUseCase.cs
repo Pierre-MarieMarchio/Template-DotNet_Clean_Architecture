@@ -10,9 +10,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.ReplaceStoredFileTags;
 
-/// <summary>
-/// Labels a file: loads, delegates to the domain's <c>TagSet</c> rules and commits.
-/// </summary>
 public sealed class ReplaceStoredFileTagsUseCase(
     IStoredFileService files,
     IUnitOfWork unitOfWork,
@@ -41,7 +38,6 @@ public sealed class ReplaceStoredFileTagsUseCase(
 
         var file = access.Value;
 
-        // Caught: the domain refuses a set over the cap, the second line behind the validator.
         var replacement = DomainGuard.Try(() => file.SetTags(command.Tags));
 
         if (replacement.IsFailure)

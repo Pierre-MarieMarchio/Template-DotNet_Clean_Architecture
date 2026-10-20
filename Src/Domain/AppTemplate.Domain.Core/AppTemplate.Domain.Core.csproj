@@ -1,20 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The primitives an aggregate is built from. This project references no project and no runtime
-       package at all, and an architecture rule holds that: it is the innermost thing in the tree,
-       and anything it learned would be learned by everything. -->
-
-  <!-- One of the vendored SDK projects: a derived repository copies it and is free to tune it. The
-       marker below is what the architecture rules read to hold it to the SDK boundary. -->
   <PropertyGroup>
     <IsSdkProject>true</IsSdkProject>
-  </PropertyGroup>
-
-  <!-- CS1591 is suppressed repository-wide, and re-enabled here: this is a deliberate public
-       surface that a derived project reads instead of reading the code, so every public member
-       owes it a sentence. -->
-  <PropertyGroup>
-    <NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>
   </PropertyGroup>
 
 </Project>

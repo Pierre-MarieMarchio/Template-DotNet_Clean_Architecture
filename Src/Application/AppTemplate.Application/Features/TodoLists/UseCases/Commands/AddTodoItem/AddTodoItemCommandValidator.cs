@@ -15,7 +15,6 @@ public sealed class AddTodoItemCommandValidator : AbstractValidator<AddTodoItemC
         RuleFor(command => command.Title)
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("An item title is required.")
-            // Measured after trimming, like the domain measures it.
             .Must(title => title.Trim().Length <= TodoItemTitle.MaxLength)
             .WithMessage($"An item title cannot exceed {TodoItemTitle.MaxLength} characters.");
 
@@ -23,8 +22,6 @@ public sealed class AddTodoItemCommandValidator : AbstractValidator<AddTodoItemC
             .Must(description => description is null || description.Trim().Length <= TodoItem.MaxDescriptionLength)
             .WithMessage($"An item description cannot exceed {TodoItem.MaxDescriptionLength} characters.");
 
-        // Bounds the collection itself, not just each element: the use case adds tags one at a
-        // time, and each add is linear in the tags already on the item.
         RuleFor(command => command.Tags)
             .Must(tags => tags is null || tags.Count <= TodoItem.MaxTags)
             .WithMessage($"An item cannot carry more than {TodoItem.MaxTags} tags.");

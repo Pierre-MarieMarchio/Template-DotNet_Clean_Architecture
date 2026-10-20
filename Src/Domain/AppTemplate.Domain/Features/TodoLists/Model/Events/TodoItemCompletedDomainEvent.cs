@@ -2,8 +2,6 @@
 
 namespace AppTemplate.Domain.Features.TodoLists.Model.Events;
 
-/// <summary>Raised by the list, not the item, because the list is the consistency boundary —
-/// so the event has to identify both.</summary>
 public sealed record TodoItemCompletedDomainEvent(
     Guid TodoListId,
     Guid TodoItemId,

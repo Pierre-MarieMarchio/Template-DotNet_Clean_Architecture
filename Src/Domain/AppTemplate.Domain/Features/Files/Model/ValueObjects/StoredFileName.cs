@@ -4,25 +4,12 @@ using AppTemplate.Domain.Core.Common.Exceptions;
 
 namespace AppTemplate.Domain.Features.Files.Model.ValueObjects;
 
-/// <summary>The name a client gave a file, kept to be shown back and offered as a download name. A
-/// label: it never reaches a filesystem — bytes are addressed by <see cref="ObjectKey"/>, minted
-/// independently. The rules exist because the value ends up in a <c>Content-Disposition</c> header,
-/// where a refusal is visible and a truncation is not.</summary>
 public sealed record StoredFileName
 {
-    /// <summary>
-    /// Essentially every filesystem caps a path component at 255; a longer name is silently
-    /// truncated by whatever saves it, and two files then collide.
-    /// </summary>
     public const int MaxLength = 255;
 
-    // The path separators plus the characters Windows refuses. Separators are the load-bearing entries: without one
-    // no arrangement of dots can leave a directory, so an embedded .. is not itself forbidden
-    // (archive..2026.zip is fine).
     private static readonly SearchValues<char> _forbiddenCharacters = SearchValues.Create("/\\:*?\"<>|");
 
-    // Windows device names resolve before the directory is consulted, with or without an extension (NUL.txt
-    // writes to the null device). Matched on the stem, case-insensitively.
     private static readonly FrozenSet<string> _reservedStems = new[]
     {
         "CON", "PRN", "AUX", "NUL",
@@ -34,8 +21,6 @@ public sealed record StoredFileName
 
     public string Value { get; }
 
-    /// <exception cref="DomainException">The value is blank, too long, or unsafe to offer as a
-    /// filename.</exception>
     public static StoredFileName Create(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -43,7 +28,6 @@ public sealed record StoredFileName
             throw new DomainException("A file name cannot be empty.");
         }
 
-        // Trailing dots go with the whitespace: Windows strips both, and nothing is left of "." or "..".
         string normalised = value.Trim().TrimEnd(' ', '.');
 
         if (normalised.Length == 0)
@@ -63,7 +47,6 @@ public sealed record StoredFileName
 
         foreach (char character in normalised)
         {
-            // NUL truncates the name for C APIs; a newline would inject a Content-Disposition header line.
             if (char.IsControl(character))
             {
                 throw new DomainException("A file name cannot contain a control character.");

@@ -18,11 +18,6 @@ internal sealed class ExternalIdentityService(
     IDomainEventPublisher domainEvents,
     IDateTimeProvider dateTimeProvider) : IExternalIdentityService
 {
-    /// <summary>
-    /// How stale the last-seen instant may get before a request rewrites it. Without it every
-    /// authenticated request would be a write; an hour is precise enough to tell an active owner
-    /// from a departed one.
-    /// </summary>
     internal static readonly TimeSpan LastSeenGranularity = TimeSpan.FromHours(1);
 
     public async Task<UserId> ResolveAsync(ExternalCallerDto caller, CancellationToken cancellationToken = default)
@@ -54,7 +49,6 @@ internal sealed class ExternalIdentityService(
                 return created.UserId;
             }
 
-            // Lost the race to a concurrent first request: the winner's owner is the caller's owner.
             existing = await store.FindAsync(caller.Issuer, caller.Subject, cancellationToken)
                 ?? throw new InvalidOperationException(
                     "The mapping insert was refused as a duplicate, yet no mapping for the pair can be read.");
@@ -98,8 +92,6 @@ internal sealed class ExternalIdentityService(
             return Result.Failure(ExternalIdentityErrors.MappingNotFound);
         }
 
-        // After the store has committed, in the same request: the fact names what is already true,
-        // and the features holding data under this id hear it from their own consumers.
         await domainEvents.PublishAsync(
             new UserAccountDeleted(userId, dateTimeProvider.UtcNow),
             cancellationToken);
@@ -107,7 +99,6 @@ internal sealed class ExternalIdentityService(
         return Result.Success();
     }
 
-    /// <summary>An address too long for the column is dropped: half an address would reach somebody else.</summary>
     private static string? KeptEmail(string? email)
     {
         string? trimmed = email?.Trim();

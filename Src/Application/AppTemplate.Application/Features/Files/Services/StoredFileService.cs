@@ -28,7 +28,6 @@ internal sealed class StoredFileService(
             return userId.To<StoredFile>();
         }
 
-        // The id travels in URLs, so answering a non-owner as absent matters here in particular.
         return OwnedAggregate.Require(
             await repository.GetAsync(storedFileId, cancellationToken),
             userId.Value,

@@ -12,13 +12,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
 
-/// <summary>Reads the content of confirmed deposits and releases or quarantines each file: the head
-/// decides what it is, the scanner whether it is malware, <see cref="StoredFileContentPolicy"/> what
-/// that means; the file's category chooses the checks, an unconfigured one gets both. Background
-/// job: must not read <see cref="ICurrentUser"/>. One host at a time, each file committed on its own;
-/// a file with no verdict is deferred with backoff, never released or refused (see
-/// <c>docs/DECISIONS.md</c>). A concurrency conflict ends the pass; the next one reads the rest
-/// afresh.</summary>
 public sealed class InspectDepositedFilesUseCase(
     IStoredFileRepository repository,
     IFileContentStore content,
@@ -29,10 +22,8 @@ public sealed class InspectDepositedFilesUseCase(
     IOptions<FilesOptions> options,
     ILogger<InspectDepositedFilesUseCase> logger) : IInspectDepositedFilesUseCase
 {
-    /// <summary>Files per pass. Small, because each one is read end to end.</summary>
     internal const int BatchSize = 20;
 
-    /// <summary>The lock key derives from this name: a cross-release contract, renaming it lets two releases both run the pass.</summary>
     private const string _leaseName = "apptemplate.files.inspect-deposited";
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
@@ -98,7 +89,6 @@ public sealed class InspectDepositedFilesUseCase(
         return decided;
     }
 
-    /// <returns><c>false</c> when somebody else changed the file first; the failed write stays staged, so the pass stops.</returns>
     private async Task<bool> TryCommitAsync(StoredFile storedFile, CancellationToken cancellationToken)
     {
         try
@@ -119,10 +109,6 @@ public sealed class InspectDepositedFilesUseCase(
         }
     }
 
-    /// <summary>
-    /// Reads the head, then streams the whole content to the scanner. An unreadable store is no
-    /// verdict, never a refusal: it must not quarantine a file over somebody else's outage.
-    /// </summary>
     private async Task<(ContentDecision Verdict, FileScanOutcome? Scan)> InspectAsync(
         StoredFile storedFile,
         CancellationToken cancellationToken)
@@ -148,7 +134,6 @@ public sealed class InspectDepositedFilesUseCase(
 
             byte[] head = new byte[StoredFileContentPolicy.MaxHeadBytes];
 
-            // ReadAtLeastAsync: a single read of a network stream returns whatever has arrived.
             int read = await stream.ReadAtLeastAsync(head, head.Length, throwOnEndOfStream: false, cancellationToken);
 
             FileScanOutcome? scan = null;
@@ -190,7 +175,6 @@ public sealed class InspectDepositedFilesUseCase(
 
         storedFile.Quarantine(now);
 
-        // The only record of why: the malware signature must not reach the uploader.
         logger.LogError(
             "Stored file {StoredFileId} was quarantined. Category {Category}, declared " +
             "{DeclaredMediaType}, scan {ScanStatus}, signature {MalwareSignature}.",
@@ -201,7 +185,6 @@ public sealed class InspectDepositedFilesUseCase(
             scan?.MalwareSignature ?? "none");
     }
 
-    /// <summary>Makes a scanner unreachable for a day visible instead of looking like an empty queue.</summary>
     private void ReportDeferrals(int deferred)
     {
         if (deferred > 0)

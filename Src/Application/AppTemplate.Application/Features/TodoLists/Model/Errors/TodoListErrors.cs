@@ -4,10 +4,6 @@ namespace AppTemplate.Application.Features.TodoLists.Model.Errors;
 
 public static class TodoListErrors
 {
-    /// <summary>
-    /// Also returned when the list belongs to somebody else: distinguishing the two would let a
-    /// caller enumerate other users' list ids by comparing 403 against 404.
-    /// </summary>
     public static Error ListNotFound(Guid todoListId) => Error.NotFound(
         "todoList.notFound",
         $"No to-do list with id '{todoListId}' was found.");

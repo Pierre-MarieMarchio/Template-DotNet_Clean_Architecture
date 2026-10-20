@@ -3,13 +3,8 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Core.Common.Validation;
 
-/// <summary>
-/// The one line a use case writes to run its validator, so no use case assembles a validation
-/// <see cref="Error"/> of its own.
-/// </summary>
 public static class ValidationExtensions
 {
-    /// <summary>Runs <paramref name="validator"/> and turns a failure into a <see cref="ValidationError"/>.</summary>
     public static async Task<Result> EnsureValidAsync<TRequest>(
         this IValidator<TRequest> validator,
         TRequest request,

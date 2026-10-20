@@ -31,7 +31,6 @@ public sealed class DeleteTodoListUseCase(
             return access;
         }
 
-        // No projection to return: the resource is gone, so there is nothing left to describe.
         repository.Remove(access.Value);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -4,11 +4,6 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Features.TodoLists.Ports.TodoListQueries;
 
-/// <summary>
-/// The to-do list feature's own filter. <see cref="Search"/> matches against the list's <c>name</c>
-/// only, case-insensitively, as a contains — and not accent-insensitively: that would need a
-/// collation decision this schema does not make.
-/// </summary>
 public sealed record TodoListFilter
 {
     public static readonly TodoListFilter None = new(null, null, null);
@@ -76,8 +71,6 @@ public sealed record TodoListFilter
             before = parsed;
         }
 
-        // An empty window is a caller mistake, not an empty page: answering zero rows for it would
-        // look identical to a window that legitimately matched nothing.
         if (after is { } lower && before is { } upper && lower > upper)
         {
             return Result.Failure<TodoListFilter>(

@@ -37,8 +37,6 @@ public sealed class RescheduleReminderUseCase(
 
         var reminder = access.Value;
 
-        // Caught: a reminder no longer Pending, or a due date in the past, both depend on state
-        // the validator above has no way to check.
         var reschedule = DomainGuard.Try(() => reminder.Reschedule(command.DueAt, dateTimeProvider.UtcNow));
 
         if (reschedule.IsFailure)

@@ -3,7 +3,6 @@ using AppTemplate.Application.Core.Common.Policies;
 
 namespace AppTemplate.Application.Features.Notes.Model.Policies;
 
-/// <summary>The notes feature's own collection whitelist: both fields are non-null and indexed.</summary>
 public sealed class NoteCollectionPolicy : ICollectionPolicy
 {
     public const string TitleField = "title";

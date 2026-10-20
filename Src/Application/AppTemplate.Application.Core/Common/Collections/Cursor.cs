@@ -6,24 +6,10 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Core.Common.Collections;
 
-/// <summary>
-/// A keyset bookmark: the sort field and direction it was minted under, the value the sort key held
-/// on the last row of the page it was minted from, and that row's id as a tiebreaker.
-/// </summary>
-/// <remarks><b>Opaque, but not authenticated.</b> A cursor carries only values the caller was
-/// already served on a row they were allowed to see, and the resuming query still filters by owner
-/// regardless of what the cursor claims — tampering can only change which of the caller's own rows
-/// show up next, or produce a cursor this type refuses to decode.</remarks>
 public sealed record Cursor
 {
-    /// <summary>Comfortably above any real encoded cursor, and small enough to reject abuse outright.</summary>
     public const int MaxEncodedLength = 512;
 
-    /// <summary>
-    /// A cursor's key is a value read out of one row; nothing legitimate produces one longer than
-    /// this. Enforced here, the layer that owns <c>cursor.invalid</c>, rather than in the
-    /// persistence layer that only finds out a key is unreasonable once it fails to parse.
-    /// </summary>
     private const int _maxKeyLength = 128;
 
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = null };
@@ -36,22 +22,14 @@ public sealed record Cursor
         Id = id;
     }
 
-    /// <summary>The whitelist's canonical spelling of the field this cursor was minted under.</summary>
     public string Field { get; }
 
-    /// <summary>
-    /// The direction this cursor was minted under; resuming under the opposite one is refused
-    /// rather than reinterpreted, because either reading skips or repeats rows.
-    /// </summary>
     public SortDirection Direction { get; }
 
-    /// <summary>The sort field's value on the row the cursor was minted from, in its wire form.</summary>
     public string Key { get; }
 
-    /// <summary>The tiebreaker: that row's id.</summary>
     public Guid Id { get; }
 
-    /// <summary>Mints the cursor a caller sends back to resume after the given row.</summary>
     public static Cursor After(SortTerm term, string key, Guid id)
     {
         ArgumentNullException.ThrowIfNull(term);
@@ -64,7 +42,6 @@ public sealed record Cursor
         return new Cursor(term.Field, term.Direction, key, id);
     }
 
-    /// <summary>Base64Url (no padding) of a small deterministic JSON object.</summary>
     public string Encode()
     {
         var payload = new CursorPayload(Field, Direction == SortDirection.Ascending ? "asc" : "desc", Key, Id.ToString());
@@ -73,11 +50,6 @@ public sealed record Cursor
         return Base64Url.EncodeToString(json);
     }
 
-    /// <summary>
-    /// Every failure here is <c>cursor.invalid</c>, and none of them echo <paramref name="raw"/>
-    /// back in the message: it is caller input that ends up in logs, not a value this API should
-    /// promise to repeat.
-    /// </summary>
     internal static Result<Cursor> Decode(string raw, ICollectionPolicy policy)
     {
         ArgumentNullException.ThrowIfNull(raw);

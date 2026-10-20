@@ -10,12 +10,6 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 
-/// <summary>Turns "this caller may read this file" into a short-lived signed URL or, when the store
-/// cannot sign, into the opened content. The read check lives here because a signed URL is a bearer
-/// right with no identity attached: the owner reads, another user only under <c>Authenticated</c>
-/// visibility (<see cref="IStoredFileService.LoadReadableAsync"/>). Only
-/// <see cref="StoredFileState.Available"/> is served, by name, so a state added later is refused by
-/// default.</summary>
 public sealed class IssueFileDownloadUseCase(
     IStoredFileService files,
     IFileDirectTransfer transfer,
@@ -23,7 +17,6 @@ public sealed class IssueFileDownloadUseCase(
     IValidator<IssueFileDownloadQuery> validator,
     ILogger<IssueFileDownloadUseCase> logger) : IIssueFileDownloadUseCase
 {
-    /// <summary>Minutes: the URL goes into a <c>Location</c> header, so into histories and proxy logs that cannot be revoked.</summary>
     private static readonly TimeSpan _downloadWindow = TimeSpan.FromMinutes(5);
 
     public async Task<Result<FileDownload>> ExecuteAsync(
@@ -50,7 +43,6 @@ public sealed class IssueFileDownloadUseCase(
 
         if (storedFile.State != StoredFileState.Available)
         {
-            // Two answers: only "not available" is worth retrying.
             return Result.Failure<FileDownload>(
                 storedFile.State == StoredFileState.Quarantined
                     ? StoredFileErrors.FileQuarantined(storedFile.Id)
@@ -77,7 +69,6 @@ public sealed class IssueFileDownloadUseCase(
 
         if (stream is null)
         {
-            // A store fault the caller cannot act on: answered as "not available", reported here.
             logger.LogWarning(
                 "Stored file {StoredFileId} is available but nothing is stored under '{ObjectKey}'.",
                 storedFile.Id,

@@ -5,17 +5,8 @@ using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
 
 namespace AppTemplate.Application.Features.Files.Model.Policies;
 
-/// <summary>
-/// What one owner may hold in one category and how many deposits they may have in flight; without it, registering is
-/// a free way to mint signed upload URLs.
-/// </summary>
 public static class StoredFileQuotaPolicy
 {
-    /// <summary>
-    /// Whether one more file of <paramref name="declaredSizeInBytes"/> fits in <paramref name="quota"/>, given the
-    /// owner's <paramref name="usage"/>. Promised bytes count as stored. A check, not a reservation: it holds under
-    /// concurrency only under the owner's quota lock (<see cref="FileCategoryQuotaOptions.StrictMode"/>).
-    /// </summary>
     public static Result EnsureRoomFor(
         OwnerStorageUsage usage,
         FileCategoryQuotaOptions quota,

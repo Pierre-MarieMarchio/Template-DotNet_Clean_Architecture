@@ -38,9 +38,6 @@ public sealed class CompleteTodoItemUseCase(
 
         var todoList = access.Value;
 
-        // Checked here so an unknown id answers 404 rather than the aggregate's own throw. After the
-        // precondition, so a stale caller sees 412 before 404: correct under RFC 9110, and it does
-        // not confirm an item's existence to a caller working from an outdated list.
         var found = todoList.RequireItem(command.TodoItemId);
 
         if (found.IsFailure)

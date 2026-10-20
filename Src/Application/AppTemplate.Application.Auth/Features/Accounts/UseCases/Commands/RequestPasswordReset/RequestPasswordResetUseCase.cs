@@ -8,10 +8,6 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.RequestPasswordReset;
 
-/// <summary>
-/// Mints a reset token where there is an account to mint one for, and mails it. Succeeds either
-/// way, and a delivery failure is logged without the address it was bound for.
-/// </summary>
 public sealed class RequestPasswordResetUseCase(
     IEmailTokensService emailTokens,
     IAccountEmailFactory emailFactory,
@@ -19,7 +15,6 @@ public sealed class RequestPasswordResetUseCase(
     IValidator<RequestPasswordResetCommand> validator,
     ILogger<RequestPasswordResetUseCase> logger) : IRequestPasswordResetUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(
         RequestPasswordResetCommand request,
         CancellationToken cancellationToken = default)
@@ -40,7 +35,6 @@ public sealed class RequestPasswordResetUseCase(
             await TrySendAsync(request.Email, token, cancellationToken);
         }
 
-        // Always success. The answer must not differ between "sent" and "no such account".
         return Result.Success();
     }
 
@@ -57,7 +51,6 @@ public sealed class RequestPasswordResetUseCase(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // The address is not logged, for the reason ResendConfirmationEmailUseCase gives.
             logger.LogError(exception, "Failed to send a password reset email.");
         }
     }

@@ -5,17 +5,11 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.LogoutEverywhere;
 
-/// <summary>
-/// Revokes every grant the caller holds, this request's own included: the access token in hand
-/// keeps working until it expires, but nothing can be minted against the account again without a
-/// fresh sign-in.
-/// </summary>
 public sealed class LogoutEverywhereUseCase(
     ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser) : ILogoutEverywhereUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         var userId = currentUser.RequireUserId();
@@ -25,8 +19,6 @@ public sealed class LogoutEverywhereUseCase(
             return userId;
         }
 
-        // Revocation only: rotating the security stamp here would also kill the access token the
-        // caller just used to ask for this, signing out the very session that made the request.
         await sessionTokens.RevokeAllRefreshTokensAsync(userId.Value.Value, cancellationToken: cancellationToken);
         securityEventLog.Record(SecurityEvent.RefreshTokenRevoked(userId.Value.Value));
 

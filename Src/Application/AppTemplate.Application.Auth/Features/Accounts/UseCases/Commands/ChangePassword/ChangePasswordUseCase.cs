@@ -11,13 +11,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ChangePassword;
 
-/// <summary>
-/// Replaces the password, then invalidates every credential issued under the old one through
-/// <c>CredentialInvalidationPolicy</c> — in that order, so nothing is revoked for a change the
-/// store refused. The session the change is made from survives it: whoever just proved the current
-/// password is the one session that need not prove it again. A caller whose token names no session
-/// loses every session, its own included.
-/// </summary>
 public sealed class ChangePasswordUseCase(
     IAccountsService accounts,
     ISessionTokensService sessionTokens,
@@ -26,7 +19,6 @@ public sealed class ChangePasswordUseCase(
     ICurrentSession currentSession,
     IValidator<ChangePasswordCommand> validator) : IChangePasswordUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(ChangePasswordCommand request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -51,7 +43,6 @@ public sealed class ChangePasswordUseCase(
             request.NewPassword,
             cancellationToken);
 
-        // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
         if (change.Status is PasswordChangeStatus.NoSuchAccount)
         {
             return Result.Failure(CommonErrors.NotAuthenticated);

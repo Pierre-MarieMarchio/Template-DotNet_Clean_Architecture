@@ -951,7 +951,7 @@ not evidence that this one was meant to match them.
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `ResetPasswordUrl` | URI | — | **Required.** Absolute `http`/`https` URL of the page that completes the reset, with **no fragment**. Must be browser-reachable, not a container name. |
-| `TokenLifespan` | timespan | `01:00:00` | Must be between **5 minutes and 1 day**. Its own value, deliberately not shared with `EmailConfirmation`'s token lifespan — see the XML doc on `PasswordResetOptions` for why one shared lifespan across every token provider would be wrong here. |
+| `TokenLifespan` | timespan | `01:00:00` | Must be between **5 minutes and 1 day**. Its own value, deliberately not shared with `EmailConfirmation`'s token lifespan — [`DECISIONS.md`](DECISIONS.md#authentication) says why one shared lifespan across every token provider would be wrong here. |
 
 Same fragment-then-POST shape as `EmailConfirmation`, and for the same reason: the email
 and single-use token are appended as a URL fragment, and the page **POSTs** them to

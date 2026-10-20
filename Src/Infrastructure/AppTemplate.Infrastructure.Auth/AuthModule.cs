@@ -11,7 +11,6 @@ using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventQu
 using AppTemplate.Application.Auth.Features.Sessions.Ports.Sessions;
 using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.TwoFactor.Ports.TwoFactor;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Common.Options;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
@@ -50,31 +49,10 @@ using Npgsql;
 
 namespace AppTemplate.Infrastructure.Auth;
 
-/// <summary>Composes the authentication module: who a caller is, how that is proved, how long the
-/// proof lasts, and the tables that record it. <b>It owns its store:</b> the account, role and grant
-/// tables, the key ring and the <see cref="AuthDbContext"/> that maps them, with their own migrations
-/// history in their own schema; beside that sits everything that talks to ASP.NET Identity. It names
-/// no other module — the unit of work and the clock come from
-/// <c>AppTemplate.Infrastructure.Core</c> — and its context attaches no save interceptor. It sends no
-/// mail (<see cref="AccountEmailFactory"/> renders, the host delivers through
-/// <see cref="IEmailSender"/>) and makes no authentication decision: the sequencing belongs to the
-/// use cases in <c>AppTemplate.Application.Auth</c>.</summary>
 public static class AuthModule
 {
-    /// <summary>
-    /// The key ring's isolation namespace, shared between every <c>AddDataProtection</c> call this
-    /// process makes, so a second one — a test host, say — cannot end up unkeyed by naming a
-    /// different string.
-    /// </summary>
     internal const string DataProtectionApplicationName = "AppTemplate";
 
-    /// <summary>Registers ASP.NET Identity itself, bearer validation, and an adapter for each
-    /// authentication port. Every configuration section is bound to an options type with a
-    /// start-up validator, so the process refuses to boot on a missing signing key or a too-weak
-    /// password policy. Idempotent, like <c>AddPersistenceModule</c>.</summary>
-    /// <param name="services">The container being composed.</param>
-    /// <param name="configuration">Must supply the <c>Default</c> connection string, which this module
-    /// forwards to the persistence module rather than opening a connection of its own.</param>
     public static IServiceCollection AddAuthModule(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -99,8 +77,6 @@ public static class AuthModule
         services.TryAddScoped<IRefreshTokenFamilyTable, RefreshTokenFamilyTable>();
         services.TryAddScoped<ISpentPasskeyCeremonyTable, SpentPasskeyCeremonyTable>();
 
-        // Constructible only once ASP.NET Identity is composed below: seeding hashes a password and
-        // generates a security stamp rather than writing a row.
         services.TryAddScoped<IIdentitySeeder, IdentitySeeder>();
 
         services.AddScoped<IAccountsService, AccountsService>();
@@ -117,12 +93,8 @@ public static class AuthModule
         services.AddScoped<ISecurityEventLog, SecurityEventLog>();
         services.AddScoped<ISecurityEventQueries, SecurityEventQueries>();
 
-        // A default, unlike IAuditActor: an event with no known origin is still worth keeping, so a
-        // host without requests composes as it is. The API replaces it with the current request's.
         services.TryAddScoped<ISecurityEventOriginProvider, UnknownSecurityEventOriginProvider>();
 
-        // Not ports: the account lookup and claim generation the adapters above share, and the
-        // access-token signer SessionTokensService delegates to.
         services.AddScoped<IAppUserDirectory, AppUserDirectory>();
         services.AddScoped<AccessTokenIssuer>();
 
@@ -134,10 +106,6 @@ public static class AuthModule
         return services;
     }
 
-    /// <summary>
-    /// <c>AddIdentity</c> and <c>AddAuthentication</c> have no <c>Try</c> form, so a second call
-    /// would duplicate a scheme and a whole store.
-    /// </summary>
     private static bool AlreadyComposed(IServiceCollection services) =>
         services.Any(descriptor => descriptor.ServiceType == typeof(IAccountsService));
 
@@ -149,9 +117,6 @@ public static class AuthModule
         services.TryAddSingleton<IValidateOptions<IdentitySeedOptions>, IdentitySeedOptionsValidator>();
     }
 
-    /// <summary>Binds the pooling and command-timeout policy this context shares with every other
-    /// one: Npgsql pools per connection string, so two contexts deriving the bound separately would
-    /// give a deployment two pools of that size instead of one.</summary>
     private static void AddDatabaseOptions(IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<DatabaseOptions>()
@@ -180,10 +145,6 @@ public static class AuthModule
         });
     }
 
-    /// <summary>Applies the pool bound to the connection string rather than appending it as text,
-    /// so a value already set in <c>ConnectionStrings:Default</c> is overridden consistently; the
-    /// business half applies the same value the same way, which is what makes the two contexts share
-    /// one pool.</summary>
     private static string WithMaxPoolSize(string connectionString, int maxPoolSize) =>
         new NpgsqlConnectionStringBuilder(connectionString) { MaxPoolSize = maxPoolSize }.ConnectionString;
 
@@ -239,8 +200,6 @@ public static class AuthModule
             .ValidateOnStart();
         services.TryAddSingleton<IValidateOptions<PasskeyOptions>, PasskeyOptionsValidator>();
 
-        // The one section allowed to be absent: a deployment offering no external sign-in boots with
-        // no providers and refuses every attempt.
         services.AddOptions<ExternalIdentityOptions>()
             .Bind(configuration.GetSection(ExternalIdentityOptions.SectionName))
             .ValidateOnStart();
@@ -248,13 +207,6 @@ public static class AuthModule
 
     }
 
-    /// <summary>The one place this module reaches out over HTTP, and the whole reason it is a typed
-    /// client: <c>AddHttpClient</c> puts <see cref="SigningKeyDirectory"/> inside the outbound budget
-    /// each host installs on <c>IHttpClientFactory</c>'s defaults. The alternative shapes all escape
-    /// it — <c>ConfigurationManager&lt;OpenIdConnectConfiguration&gt;</c> and
-    /// <c>JwtBearerOptions.Backchannel</c> both build an <c>HttpClient</c> of their own unless handed
-    /// one. The cache is separate and a singleton because the client is transient: a cache living on
-    /// it would be a cache that never hit.</summary>
     private static void AddExternalIdentityKeys(IServiceCollection services)
     {
         services.AddSingleton<CachedSigningKeys>();
@@ -266,13 +218,9 @@ public static class AuthModule
         services.AddIdentity<AppUser, AppRole>()
             .AddEntityFrameworkStores<AuthDbContext>()
             .AddDefaultTokenProviders()
-            // Providers of their own, not the "Default" one email confirmation resolves to: sharing
-            // it would tie their lifespans together.
             .AddTokenProvider<PasswordResetTokenProvider>(PasswordResetTokenProviderName.Value)
             .AddTokenProvider<EmailChangeTokenProvider>(EmailChangeTokenProviderName.Value);
 
-        // After AddIdentity's own defaults, and from validated options rather than a section read
-        // eagerly at composition time.
         services.AddOptions<IdentityOptions>()
             .Configure<IOptions<IdentityPolicyOptions>>((identity, policyAccessor) =>
             {
@@ -294,43 +242,28 @@ public static class AuthModule
                 identity.Lockout.MaxFailedAccessAttempts = policy.LockoutMaxFailedAccessAttempts;
                 identity.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(policy.LockoutDurationInMinutes);
 
-                // Without these two, ResetPasswordAsync and ChangeEmailAsync resolve "Default" and
-                // inherit email confirmation's one-day lifespan instead of their own.
                 identity.Tokens.PasswordResetTokenProvider = PasswordResetTokenProviderName.Value;
 
                 identity.Tokens.ChangeEmailTokenProvider = EmailChangeTokenProviderName.Value;
             });
 
-        // Every provider AddDefaultTokenProviders registered shares this options type, so it is one
-        // lifespan for all of them.
         services.AddOptions<DataProtectionTokenProviderOptions>()
             .Configure<IOptions<IdentityTokenOptions>>(
                 (tokenOptions, identityTokenOptions) => tokenOptions.TokenLifespan = identityTokenOptions.Value.Lifespan);
 
-        // The password-reset provider's own lifespan, independent of the one just above.
         services.AddOptions<PasswordResetTokenProviderOptions>()
             .Configure<IOptions<PasswordResetOptions>>(
                 (tokenOptions, passwordResetOptions) => tokenOptions.TokenLifespan = passwordResetOptions.Value.TokenLifespan);
 
-        // The email-change provider's own lifespan, independent of both of the above.
         services.AddOptions<EmailChangeTokenProviderOptions>()
             .Configure<IOptions<EmailChangeOptions>>(
                 (tokenOptions, emailChangeOptions) => tokenOptions.TokenLifespan = emailChangeOptions.Value.TokenLifespan);
 
-        // The one member of the WebAuthn posture a deployment sets; the rest of
-        // IdentityPasskeyOptions keeps its own safe defaults — user verification required among
-        // them, which is what lets a passkey stand in for the whole of a sign-in.
         services.AddOptions<IdentityPasskeyOptions>()
             .Configure<IOptions<PasskeyOptions>>(
                 (identityPasskeys, passkeys) => identityPasskeys.ServerDomain = passkeys.Value.ServerDomain);
     }
 
-    /// <summary>Points the data-protection key ring at the shared database instead of the process's
-    /// local, ephemeral one: <c>AddDefaultTokenProviders</c> mints its tokens through
-    /// <c>DataProtectorTokenProvider</c>, which without this keys itself from whatever the container
-    /// offers — nothing shared between replicas, so a token issued by one process would be rejected by
-    /// another and every redeploy invalidates every link already sent. A passkey ceremony's state is
-    /// sealed with the same ring, so it opens on whichever instance the completing call reaches.</summary>
     private static void AddDataProtection(IServiceCollection services)
     {
         services.AddDataProtection()

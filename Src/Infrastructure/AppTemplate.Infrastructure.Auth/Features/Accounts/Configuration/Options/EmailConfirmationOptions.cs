@@ -2,20 +2,10 @@
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Options;
 
-/// <summary>
-/// Where the confirmation link points. Replaces the undocumented, null-forgiven
-/// <c>configuration["AppSettings:BaseUrl"]!</c>.
-/// </summary>
 public sealed class EmailConfirmationOptions
 {
     public const string SectionName = "EmailConfirmation";
 
-    /// <summary>
-    /// Absolute URL of the page that completes confirmation. The email address and the single-use
-    /// token are appended as a URL <em>fragment</em>, which browsers never send to a server: the
-    /// secret therefore stays out of access logs, out of <c>Referer</c> headers and out of any
-    /// intermediary's request history. That page reads the fragment and POSTs it to the API.
-    /// </summary>
     public Uri? ConfirmEmailUrl { get; set; }
 }
 

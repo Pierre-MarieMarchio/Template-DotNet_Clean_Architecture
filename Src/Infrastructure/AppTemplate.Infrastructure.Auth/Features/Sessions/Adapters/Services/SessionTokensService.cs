@@ -15,18 +15,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Sessions.Adapters.Services;
 
-/// <summary><see cref="ISessionTokensService"/>: signs access tokens through
-/// <see cref="AccessTokenIssuer"/>, and issues, rotates, revokes and purges refresh tokens, one
-/// family per session. A refresh token is 32 CSPRNG bytes, base64url-encoded — not a JWT, so a
-/// stolen one is not also a bearer token; only its SHA-256 hash is persisted, and every presentation
-/// rotates the grant — presenting one already rotated means replay or leak, so every session of that
-/// user is revoked, while presenting one of an ended session is merely refused, without the alarm.
-/// Rows are staged through <see cref="IRefreshTokenTable"/> and
-/// <see cref="IRefreshTokenFamilyTable"/> and committed through
-/// <see cref="IContextUnitOfWork{TContext}"/>. A rotation is one transaction of its own: the
-/// conditional UPDATE that consumes the presented grant — the single-use decision,
-/// <see cref="IRefreshTokenTable.TryRotateAsync"/> says why — commits with its successor or not
-/// at all.</summary>
 internal sealed class SessionTokensService(
     AccessTokenIssuer accessTokenIssuer,
     IRefreshTokenTable table,
@@ -39,13 +27,8 @@ internal sealed class SessionTokensService(
     ISecurityEventLog securityEventLog,
     ILogger<SessionTokensService> logger) : ISessionTokensService
 {
-    /// <summary>256 bits of entropy: the token is the credential, so it must not be guessable.</summary>
     private const int _tokenSizeInBytes = 32;
 
-    /// <summary>
-    /// A plain SHA-256, deliberately: unlike a password this is high-entropy random data, so there
-    /// is nothing to brute-force and a deliberately slow KDF would only add latency to every refresh.
-    /// </summary>
     internal static string ComputeHash(string token) =>
         Base64Url.EncodeToString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
@@ -63,7 +46,6 @@ internal sealed class SessionTokensService(
         var now = dateTimeProvider.UtcNow;
         var (value, expiresAt) = CreateSecret(now);
 
-        // The family first, so the grant is staged into a session the context already knows about.
         Guid familyId = families.Start(userId, now, client.UserAgent);
         table.Add(userId, familyId, ComputeHash(value), now, expiresAt);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -89,9 +71,6 @@ internal sealed class SessionTokensService(
             return RefreshTokenRotation.Rejected;
         }
 
-        // A session that was ended refuses quietly: the client still holding its token has done nothing suspicious,
-        // so nothing is revoked beyond what already was. This precedes the replay test, because a grant revoked by
-        // its session's ending is not evidence of one.
         if (grant.FamilyRevokedAt is not null)
         {
             return RefreshTokenRotation.Rejected;
@@ -107,7 +86,6 @@ internal sealed class SessionTokensService(
             return RefreshTokenRotation.Rejected;
         }
 
-        // A grant outliving its account is not a grant.
         var user = await directory.FindByIdAsync(grant.UserId, cancellationToken);
 
         if (user is null)
@@ -118,16 +96,11 @@ internal sealed class SessionTokensService(
         var (replacementValue, replacementExpiresAt) = CreateSecret(dateTimeProvider.UtcNow);
         string replacementHash = ComputeHash(replacementValue);
 
-        // One transaction, replayed whole on a transient failure: committed apart, a grant spent by
-        // a failed attempt would read as a replay on the next presentation or the retry. A commit
-        // whose acknowledgement was lost is recognised by the successor it wrote.
         bool rotated = await context.Database.CreateExecutionStrategy().ExecuteInTransactionAsync(
             async ct => await RotateAsync(presentedHash, replacementHash, replacementExpiresAt, grant.FamilyId, client, ct),
             async ct => await table.FindAsync(replacementHash, ct) is not null,
             cancellationToken);
 
-        // The grant was live when read, so a refusal means something consumed it in between —
-        // indistinguishable from a stolen copy being redeemed, and answered as one.
         if (!rotated)
         {
             return await RespondToReplayAsync(grant.UserId, cancellationToken);
@@ -152,8 +125,6 @@ internal sealed class SessionTokensService(
             return null;
         }
 
-        // Signing out ends the session, not the one grant the caller happens to present: the
-        // session is the unit the owner lists and ends.
         await families.EndAsync(grant.UserId, grant.FamilyId, dateTimeProvider.UtcNow, cancellationToken);
 
         return grant.UserId;
@@ -176,7 +147,6 @@ internal sealed class SessionTokensService(
         return purged;
     }
 
-    /// <summary>The writes of one rotation, run inside its transaction.</summary>
     private async Task<bool> RotateAsync(
         string presentedHash,
         string replacementHash,
@@ -185,8 +155,6 @@ internal sealed class SessionTokensService(
         SessionClient client,
         CancellationToken cancellationToken)
     {
-        // A single conditional UPDATE, so of two simultaneous presentations exactly one is told it
-        // rotated: the row stays locked by the winner until its transaction ends.
         if (!await table.TryRotateAsync(
             presentedHash,
             replacementHash,
@@ -197,19 +165,12 @@ internal sealed class SessionTokensService(
             return false;
         }
 
-        // A session ended between the read and this write gets its successor — and a successor is
-        // all it gets, because MarkUsedAsync and every later presentation test the family's
-        // revocation. That is how ending a session wins its race with a rotation in flight.
         await families.MarkUsedAsync(familyId, client.UserAgent, dateTimeProvider.UtcNow, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    /// <summary>
-    /// A grant presented after it was consumed. Either the legitimate holder replayed it or somebody
-    /// else has a copy; both mean the chain can no longer be trusted.
-    /// </summary>
     private async Task<RefreshTokenRotation> RespondToReplayAsync(Guid userId, CancellationToken cancellationToken)
     {
         logger.LogWarning(

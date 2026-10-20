@@ -6,12 +6,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// Renders the account mails and hands them back for the caller to deliver. What each names
-/// is all that distinguishes it: its template, its placeholders and the page its link points at —
-/// see <see cref="EmailTemplate"/> for the encoding those go through. Each page address is
-/// guaranteed by its options validator at startup.
-/// </summary>
 internal sealed class AccountEmailFactory(
     IOptions<EmailConfirmationOptions> confirmationOptions,
     IOptions<PasswordResetOptions> passwordResetOptions,

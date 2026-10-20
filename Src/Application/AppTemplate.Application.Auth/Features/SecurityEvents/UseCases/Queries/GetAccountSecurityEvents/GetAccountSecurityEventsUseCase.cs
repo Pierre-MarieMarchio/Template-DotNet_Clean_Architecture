@@ -7,20 +7,10 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Queries.GetAccountSecurityEvents;
 
-/// <summary>
-/// Reads one account's trail on an administrator's authority, which the transport enforces before
-/// this runs.
-/// <para>
-/// <b>No 404 for an account that does not exist.</b> The trail is retained after an account is
-/// deleted — that is half of why it is kept — so "no such account" is exactly the case an
-/// investigation needs answered with the rows that remain. An id naming nothing answers an empty page.
-/// </para>
-/// </summary>
 public sealed class GetAccountSecurityEventsUseCase(
     ISecurityEventQueries queries,
     IValidator<GetAccountSecurityEventsQuery> validator) : IGetAccountSecurityEventsUseCase
 {
-    /// <inheritdoc />
     public async Task<Result<PagedResult<SecurityEventEntry>>> ExecuteAsync(
         GetAccountSecurityEventsQuery query,
         CancellationToken cancellationToken = default)

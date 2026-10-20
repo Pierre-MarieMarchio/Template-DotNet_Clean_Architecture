@@ -10,11 +10,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.RemoveRole;
 
-/// <summary>The self-guard here is not "an administrator may not remove their own
-/// <c>Administrator</c> role" — this layer has no reference to that literal, which lives in the
-/// persistence module's <c>IdentityRoles</c> spelled exactly once. The guard is broader: an
-/// administrator may not remove <em>any</em> role from their own account through this capability,
-/// which stays correct even if a derived project seeds a role whose removal is harmless.</summary>
 public sealed class RemoveRoleUseCase(
     IAccountAdministrationService administration,
     ISessionTokensService sessionTokens,
@@ -22,7 +17,6 @@ public sealed class RemoveRoleUseCase(
     ICurrentUser currentUser,
     IValidator<RemoveRoleCommand> validator) : IRemoveRoleUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(RemoveRoleCommand request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);

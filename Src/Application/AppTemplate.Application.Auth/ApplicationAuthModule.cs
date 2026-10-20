@@ -5,25 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AppTemplate.Application.Auth;
 
-/// <summary>
-/// What a host composes to offer accounts and sign-in. One call, and a host that does not make it
-/// has no authentication use cases registered at all — which is the point: this is the project a
-/// derived application is most likely to replace wholesale with its own identity provider, and it
-/// can only be dropped if nothing else composes it on its behalf. Dropping it is not free, and the
-/// cost is not in this project: an identity module has to satisfy the ports under each of the six
-/// features' <c>Features/&lt;Feature&gt;/Ports/</c> — all but <c>ICurrentSession</c>, which the host
-/// satisfies because only it sees the request — and the persistence context in this template
-/// derives from ASP.NET Identity's own.
-/// </summary>
 public static class ApplicationAuthModule
 {
-    /// <summary>
-    /// Registers every use case and every validator this project declares, discovered from this
-    /// assembly rather than listed: the assembly holds nothing but authentication, so its own
-    /// boundary is the filter.
-    /// </summary>
-    /// <param name="services">The container being built.</param>
-    /// <returns>The same collection, for chaining.</returns>
     public static IServiceCollection AddAuthApplication(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);

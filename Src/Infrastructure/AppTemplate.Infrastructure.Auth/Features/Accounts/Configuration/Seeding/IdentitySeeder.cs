@@ -7,18 +7,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Seeding;
 
-/// <summary>Creates the <c>Admin</c> role and, in Development only, one administrator account.
-/// Three guarantees: it is opt-in (<c>IdentitySeed:Enabled</c>); it is refused outside Development,
-/// loudly, rather than shipping a known superuser to production; and a failed create throws, so a
-/// password the hasher rejected cannot pass for a clean start-up.
-/// <para>
-/// It writes through <see cref="UserManager{TUser}"/> rather than through the context, because an
-/// account is not just a row: the password has to be hashed with the configured hasher and the
-/// security stamp has to be generated. That does mean this type is only constructible once ASP.NET
-/// Identity has been composed, which the identity module does; nothing else in this assembly has that
-/// dependency.
-/// </para>
-/// </summary>
 internal sealed class IdentitySeeder(
     UserManager<AppUser> userManager,
     RoleManager<AppRole> roleManager,
@@ -27,17 +15,8 @@ internal sealed class IdentitySeeder(
     IDateTimeProvider dateTimeProvider,
     ILogger<IdentitySeeder> logger) : IIdentitySeeder
 {
-    /// <summary>
-    /// Read from <see cref="IdentityRoles"/> rather than spelled again here, so the role this
-    /// creates and the role the API's administrator policy requires cannot drift apart.
-    /// </summary>
     public const string AdminRoleName = IdentityRoles.Administrator;
 
-    /// <summary>
-    /// The setting that turns seeding on, named once. The disabled message and the refusal outside
-    /// Development both quote it back to the reader, and one constant keeps those two spellings from
-    /// drifting apart.
-    /// </summary>
     private const string _enabledSettingKey = IdentitySeedOptions.SectionName + ":Enabled";
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
@@ -76,8 +55,6 @@ internal sealed class IdentitySeeder(
 
     private async Task EnsureAdminRoleAsync()
     {
-        // Asks whether this role exists, not whether any role does: a guard on the emptiness of the
-        // whole table would stop creating Admin as soon as some other role was seeded.
         if (await roleManager.RoleExistsAsync(AdminRoleName))
         {
             return;
@@ -132,7 +109,6 @@ internal sealed class IdentitySeeder(
         }
     }
 
-    /// <summary>Includes the <see cref="IdentityResult.Errors"/> so a failure is diagnosable.</summary>
     private static string Describe(IdentityResult result) =>
         string.Join("; ", result.Errors.Select(error => $"{error.Code}: {error.Description}"));
 }

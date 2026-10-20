@@ -6,16 +6,11 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Logout;
 
-/// <summary>
-/// Revokes the presented grant and succeeds either way, so a caller cannot use sign-out to find
-/// out whether a token was live.
-/// </summary>
 public sealed class LogoutUseCase(
     ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     IValidator<LogoutCommand> validator) : ILogoutUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(LogoutCommand request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -34,7 +29,6 @@ public sealed class LogoutUseCase(
             securityEventLog.Record(SecurityEvent.LoggedOut(id));
         }
 
-        // Success even for a token nobody was issued, so signing out cannot be used to test one.
         return Result.Success();
     }
 }

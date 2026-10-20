@@ -1,29 +1,13 @@
-﻿using AppTemplate.Infrastructure.Auth.Common.Options;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Options;
 
-/// <summary>
-/// Where the reset link points, and how long the token behind it stays valid.
-/// <para>
-/// Deliberately its own section rather than a second knob on <see cref="IdentityTokenOptions"/>: that
-/// class's one lifespan is shared by every provider <c>AddDefaultTokenProviders</c> registers, and a
-/// reset link has to live for far less than the one-day default a confirmation link is comfortable
-/// with. <c>PasswordResetTokenProvider</c> is the named provider that keeps the two independent.
-/// </para>
-/// </summary>
 public sealed class PasswordResetOptions
 {
     public const string SectionName = "PasswordReset";
 
-    /// <summary>
-    /// Absolute URL of the page that completes the reset. The email address and the single-use token
-    /// are appended as a URL fragment, for the reason <see cref="EmailConfirmationOptions.ConfirmEmailUrl"/>
-    /// gives.
-    /// </summary>
     public Uri? ResetPasswordUrl { get; set; }
 
-    /// <summary>An hour: long enough to receive and act on the mail, short enough to limit a leaked link's reach.</summary>
     public TimeSpan TokenLifespan { get; set; } = TimeSpan.FromHours(1);
 }
 

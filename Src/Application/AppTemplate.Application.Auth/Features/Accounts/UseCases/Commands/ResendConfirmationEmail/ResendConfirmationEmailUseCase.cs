@@ -8,10 +8,6 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ResendConfirmationEmail;
 
-/// <summary>
-/// Mints another confirmation token where one is owed and mails it. Succeeds for every address,
-/// registered or not, already confirmed or not, delivered or not.
-/// </summary>
 public sealed class ResendConfirmationEmailUseCase(
     IEmailTokensService emailTokens,
     IAccountEmailFactory emailFactory,
@@ -19,7 +15,6 @@ public sealed class ResendConfirmationEmailUseCase(
     IValidator<ResendConfirmationEmailCommand> validator,
     ILogger<ResendConfirmationEmailUseCase> logger) : IResendConfirmationEmailUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(
         ResendConfirmationEmailCommand request,
         CancellationToken cancellationToken = default)
@@ -40,8 +35,6 @@ public sealed class ResendConfirmationEmailUseCase(
             await TrySendAsync(request.Email, token, cancellationToken);
         }
 
-        // Always success. The answer must not differ between "sent", "already confirmed" and "no
-        // such account", including when delivery itself failed.
         return Result.Success();
     }
 
@@ -58,8 +51,6 @@ public sealed class ResendConfirmationEmailUseCase(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // The address is not logged: this endpoint answers identically for every address, and a
-            // log entry naming the ones that reached the relay would undo that.
             logger.LogError(exception, "Failed to resend a confirmation email.");
         }
     }

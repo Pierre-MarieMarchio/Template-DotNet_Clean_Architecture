@@ -11,19 +11,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.RemovePasskey;
 
-/// <summary>
-/// Removes one of the caller's own passkeys. Somebody else's passkey, an unknown id and one
-/// already removed are the same 404, so the route cannot be used to learn which credential ids
-/// exist.
-/// <para>
-/// A removal is a credential change, and it ends every other session as a password change does:
-/// a session opened with the passkey just withdrawn — a stolen authenticator's, say — must not
-/// outlive it. The adapter has already rotated the security stamp, which takes every access token
-/// with it; the refresh tokens are revoked here through <c>CredentialInvalidationPolicy</c>. The
-/// session the removal is made from is spared and refreshes into the new posture; a token naming
-/// no session spares nothing. Nothing is revoked for a removal the store refused.
-/// </para>
-/// </summary>
 public sealed class RemovePasskeyUseCase(
     IPasskeyService passkeys,
     ISessionTokensService sessionTokens,
@@ -32,7 +19,6 @@ public sealed class RemovePasskeyUseCase(
     ICurrentSession currentSession,
     IValidator<RemovePasskeyCommand> validator) : IRemovePasskeyUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(RemovePasskeyCommand request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);

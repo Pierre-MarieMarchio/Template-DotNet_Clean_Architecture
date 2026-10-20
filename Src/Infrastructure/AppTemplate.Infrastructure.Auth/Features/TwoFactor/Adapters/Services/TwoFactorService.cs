@@ -6,7 +6,6 @@ using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.TwoFactor.Ports.TwoFactor;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
-using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Services;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Auth.Features.TwoFactor.Configuration.Options;
 using Microsoft.AspNetCore.Identity;
@@ -14,17 +13,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.TwoFactor.Adapters.Services;
 
-/// <summary><see cref="ITwoFactorService"/> over <see cref="UserManager{TUser}"/>. Enrollment uses
-/// ASP.NET Identity's own authenticator plumbing rather than RFC 6238 by hand — the shared secret,
-/// the 30-second step and the SHA-1 HMAC are what
-/// <see cref="TokenOptions.DefaultAuthenticatorProvider"/> already does. <b>The sign-in challenge is
-/// server-held state, and has to stay that way:</b> it proves only that a password was verified a
-/// moment ago and can be revoked on use, which a self-describing bearer token could not be. The row
-/// lives in the same <c>AspNetUserTokens</c> table Identity uses for the authenticator key, under a
-/// login provider name of this module's own, so it survives a redeploy and is visible to every
-/// replica. The token handed to the caller is <c>{userId}.{secret}</c> — a login is anonymous, so the
-/// account is self-describing — and only <c>SHA-256(secret)</c> is stored; issuing a new challenge
-/// supersedes the previous one in place.</summary>
 internal sealed class TwoFactorService(
     UserManager<AppUser> userManager,
     IAppUserDirectory directory,
@@ -34,7 +22,6 @@ internal sealed class TwoFactorService(
     private const string _loginProvider = "TwoFactorChallenge";
     private const string _tokenName = "PendingLogin";
 
-    /// <summary>256 bits of entropy, for the reason <c>SessionTokensService</c> gives for its own secret.</summary>
     private const int _secretSizeInBytes = 32;
 
     public async Task<TwoFactorSetupOutcome> BeginSetupAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -57,10 +44,8 @@ internal sealed class TwoFactorService(
 
         if (string.IsNullOrEmpty(key))
         {
-            // Rotates the security stamp, as ASP.NET Identity's own implementation does.
             var provisioned = await userManager.ResetAuthenticatorKeyAsync(user);
 
-            // A key the store did not keep would fail every code the caller's app then produces.
             if (!provisioned.Succeeded)
             {
                 return TwoFactorSetupOutcome.Rejected;
@@ -89,16 +74,11 @@ internal sealed class TwoFactorService(
             return TwoFactorConfirmationOutcome.NoSuchAccount;
         }
 
-        // Confirming again would replace the codes the caller holds before writing the switch-on,
-        // and a refused write would leave codes nobody was shown.
         if (await userManager.GetTwoFactorEnabledAsync(user))
         {
             return TwoFactorConfirmationOutcome.AlreadyEnabled;
         }
 
-        // Not CheckPasswordAsync: a rehash-needed result rotates the security stamp, which would
-        // cost the caller every session it holds except the one it is calling from. VerifyHashedPassword
-        // has no such side effect.
         if (user.PasswordHash is not { } hash ||
             userManager.PasswordHasher.VerifyHashedPassword(user, hash, currentPassword)
                 is PasswordVerificationResult.Failed)
@@ -116,8 +96,6 @@ internal sealed class TwoFactorService(
             return TwoFactorConfirmationOutcome.InvalidCode;
         }
 
-        // Codes before arming: a refusal at either step then leaves the factor off, never armed with
-        // no codes to recover by. Both fail only on a store-level conflict, never on the caller's input.
         var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(
             user,
             options.Value.RecoveryCodeCount);
@@ -127,7 +105,6 @@ internal sealed class TwoFactorService(
             return TwoFactorConfirmationOutcome.Rejected;
         }
 
-        // Rotates the security stamp.
         var enabled = await userManager.SetTwoFactorEnabledAsync(user, true);
 
         if (!enabled.Succeeded)
@@ -152,8 +129,6 @@ internal sealed class TwoFactorService(
             return TwoFactorDisableStatus.NoSuchAccount;
         }
 
-        // Verified through the hasher, as ConfirmSetupAsync above is, to avoid CheckPasswordAsync's stamp
-        // rotation on the way to refusing the request.
         if (userManager.PasswordHasher.VerifyHashedPassword(
                 user, user.PasswordHash ?? string.Empty, currentPassword) == PasswordVerificationResult.Failed)
         {
@@ -165,10 +140,6 @@ internal sealed class TwoFactorService(
             : TwoFactorDisableStatus.Rejected;
     }
 
-    /// <summary>Turns the second factor off and discards its secret: the one sequence both this
-    /// service and <see cref="AccountAdministrationService"/> run once their own proof is settled.
-    /// On success the security stamp has rotated, armed or not.</summary>
-    /// <returns><c>false</c> when the store refused to turn the factor off, which leaves it on.</returns>
     internal static async Task<bool> TurnOffAsync(UserManager<AppUser> userManager, AppUser user)
     {
         var disabled = await userManager.SetTwoFactorEnabledAsync(user, false);
@@ -178,9 +149,6 @@ internal sealed class TwoFactorService(
             return false;
         }
 
-        // Invalidates the secret, so a later re-enrollment does not reuse the key every authenticator
-        // app on file already knows. Its refusal is not reported: the factor is already off, and the
-        // caller must still revoke the sessions that change outdates.
         await userManager.ResetAuthenticatorKeyAsync(user);
 
         return true;
@@ -236,8 +204,6 @@ internal sealed class TwoFactorService(
             return TwoFactorRedemptionOutcome.InvalidChallenge;
         }
 
-        // Not the primary bound: the write below removes a challenge as it reaches the ceiling, so a
-        // maxed-out count means that removal did not happen. Refused without looking at the code.
         if (attempts >= options.Value.MaxChallengeAttempts)
         {
             await userManager.RemoveAuthenticationTokenAsync(user, _loginProvider, _tokenName);
@@ -262,9 +228,6 @@ internal sealed class TwoFactorService(
 
         if (!recovery.Succeeded)
         {
-            // The challenge survives a mistyped code, a bounded number of times. Account lockout
-            // counts failed password checks and a code is not one, so this counter is the only thing
-            // between somebody holding the password and the whole six-digit space.
             int spent = attempts + 1;
 
             if (spent >= options.Value.MaxChallengeAttempts)
@@ -273,9 +236,6 @@ internal sealed class TwoFactorService(
             }
             else
             {
-                // SetAuthenticationTokenAsync overwrites, so the expiry and hash are carried over
-                // verbatim: spending an attempt must not extend the challenge or change what it
-                // authorises.
                 await userManager.SetAuthenticationTokenAsync(
                     user,
                     _loginProvider,
@@ -309,19 +269,11 @@ internal sealed class TwoFactorService(
         return secret.Length > 0;
     }
 
-    /// <summary>
-    /// <c>{expiry}:{hash}:{attempts}</c>. The count is stored beside the hash rather than in a column
-    /// of its own because this row is ASP.NET Identity's token store, whose shape is not this
-    /// module's to change.
-    /// </summary>
     private static string Encode(DateTimeOffset expiresAt, byte[] hash, int attempts) =>
         string.Create(
             CultureInfo.InvariantCulture,
             $"{expiresAt.ToUnixTimeSeconds()}:{Base64Url.EncodeToString(hash)}:{attempts}");
 
-    /// <summary>Reads either shape. A two-part value predates the attempt counter and is read as
-    /// having spent none: a challenge live across the deploy that added this is worth honouring, and
-    /// treating it as unparseable would sign out everybody mid-login for no security gain.</summary>
     private static bool TryDecode(string stored, out DateTimeOffset expiresAt, out byte[] hash, out int attempts)
     {
         expiresAt = default;
@@ -337,8 +289,6 @@ internal sealed class TwoFactorService(
             return false;
         }
 
-        // An unparseable or negative count reads as the ceiling, never as zero: a corrupted counter
-        // must not hand back unlimited guesses.
         if (parts.Length == 3
             && (!int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out attempts) || attempts < 0))
         {
@@ -352,10 +302,6 @@ internal sealed class TwoFactorService(
 
     private static byte[] ComputeHash(string secret) => SHA256.HashData(Encoding.UTF8.GetBytes(secret));
 
-    /// <summary>
-    /// The <c>otpauth://</c> URI a QR code encodes. The secret needs no escaping: Identity's
-    /// authenticator key is base32, whose alphabet (<c>A-Z2-7</c>) is already URI-safe.
-    /// </summary>
     private string BuildAuthenticatorUri(string email, string sharedKey)
     {
         string issuer = Uri.EscapeDataString(options.Value.Issuer);

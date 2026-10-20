@@ -2,22 +2,12 @@
 
 namespace AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Configuration.Options;
 
-/// <summary>How long the security-event trail is kept, and how the purge removes what has aged out.</summary>
 public sealed class SecurityEventLogOptions
 {
     public const string SectionName = "SecurityEventLog";
 
-    /// <summary>
-    /// Days an event is kept before the purge deletes it — for every account, a deleted one included.
-    /// Long enough to investigate a compromise reported weeks after it happened; short enough that the
-    /// IP addresses and user agents it holds are not kept indefinitely.
-    /// </summary>
     public int RetentionInDays { get; set; } = 90;
 
-    /// <summary>
-    /// Rows one delete statement removes. The purge repeats until a statement removes fewer, so a
-    /// backlog is cleared in short transactions rather than one long lock over the whole table.
-    /// </summary>
     public int PurgeBatchSize { get; set; } = 1000;
 }
 

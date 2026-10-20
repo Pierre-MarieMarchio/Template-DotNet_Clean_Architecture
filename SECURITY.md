@@ -36,7 +36,12 @@ against your production system.
   usable rather than spent, and a retry is never mistaken for a replay. A token of a
   session that was ended — signed out, revoked by its owner, or killed by a credential change — is
   refused without that alarm: it is what a client still holding it sends next, and the revocation
-  commits before or during a rotation always wins.
+  commits before or during a rotation always wins. A token is 256 random bits, hashed with a plain
+  SHA-256: a slow key derivation protects a guessable secret and would only add latency to this one.
+  An expired grant is kept for `RefreshToken:RetentionInDays` before the purge deletes it, so a
+  stale token is still recognised as a replay rather than as unknown. A refresh rotates first and
+  asks second whether the account may still sign in, so a replay is refused before anything else
+  and a suspended account cannot refresh its way onwards.
 - **Sessions an owner can see and end.** One sign-in is one session: a refresh-token family, with
   its creation time, its last use and the client's `User-Agent` as of that use. The access token
   carries a `sid` claim naming the session it was issued in. `GET /auth/sessions` lists the caller's
@@ -69,13 +74,20 @@ against your production system.
   once and send one mail inline; two simultaneous registrations of one address are settled by the
   unique index, the loser answering as for a taken address. Login does not distinguish an unknown
   user from a wrong password, *including in timing* — `AccountsService` runs a deliberate
-  decoy-hash path built from the configured hasher, so both branches cost the same. Confirm-email
-  answers identically for an unknown address and a bad token. Resend-confirmation answers
-  identically whether or not the address exists. An email change naming an address another account
-  holds answers as one naming a free address does, and mails that address the same notice instead
-  of a link. Passkey sign-in takes no address: its options name no credential.
+  decoy-hash path built from the configured hasher, so both branches cost the same; a locked-out or
+  unconfirmed account, which Identity refuses before deriving any key, derives the decoy anyway.
+  Confirm-email answers identically for an unknown address and a bad token, and does not
+  short-circuit an already-confirmed address to success, which would answer the question for anyone
+  holding a junk token. Resend-confirmation answers identically whether or not the address exists,
+  and a failed delivery is logged without the address. An email change naming an address another
+  account holds answers as one naming a free address does, and mails that address the same notice
+  instead of a link. Passkey sign-in takes no address: its options name no credential. Signing out
+  succeeds for any token, issued or not. Registration aside, whose refusals concern only the values
+  submitted, the anonymous endpoints validate presence only, never an address's format or a token's
+  shape, because a malformed value refused early would answer differently from an unknown one.
 - **Email confirmation is a POST with a JSON body**, not a GET with a query string, to keep a
-  single-use token out of access logs, browser history and the `Referer` header.
+  single-use token out of access logs, browser history and the `Referer` header. The mailed link
+  carries it in the URL fragment, which a browser never sends, for the same reason.
 - **Two-factor sign-in via an authenticator app (TOTP)**, built entirely on ASP.NET Core Identity's
   own primitives — no hand-rolled RFC 6238. A confirmed second factor mints ten single-use recovery
   codes, shown once. A password that matches a two-factor account still does not sign in on its own:
@@ -91,14 +103,20 @@ against your production system.
   account lockout counts failed *password* checks and presenting a code is not one — and without it
   a caller who already had the password could offer codes for the whole challenge lifetime, stopped
   only by a rate limiter that is per process and therefore per replica. Spending an attempt rewrites
-  the challenge without moving its deadline, so guessing cannot keep one alive. The challenge is
+  the challenge without moving its deadline, so guessing cannot keep one alive, and a count that
+  cannot be read back reads as exhausted, never as zero. Issuing a challenge supersedes the
+  account's previous one, so retrying `/login` never leaves two live. The challenge is
   never a bearer credential by itself and is stored server-side, keyed by
   account, so it is redeemable by any replica behind the load balancer and survives a redeploy.
   Enabling or disabling the second factor rotates the security stamp and ends every session of the
   account but the one the change is made from, exactly like a password change — **and requires the
   current password on both sides of that symmetry**: arming the second factor is a
   security-posture change that costs the caller every other session, exactly as disarming it does,
-  so a stolen access token alone can do neither.
+  so a stolen access token alone can do neither. Setting up a factor already armed is refused
+  rather than handing back a new secret the enrolled apps were not built from, and confirming one
+  already armed is refused so the recovery codes its holder was shown stay the valid ones; codes are
+  written before the factor is armed, so a refused write never leaves it armed with none.
+  Disarming discards the secret, so a later enrollment never reuses a key the old apps hold.
 - **An administrative escape hatch for a second factor nobody can prove possession of any more**: an
   account that has lost the authenticator app *and* its recovery codes cannot complete `/login` at
   all, and had no recourse short of deleting the account outright. An administrator can strip that
@@ -243,8 +261,10 @@ untouched — which is what makes the same endpoint work for a SPA, a mobile app
 
 - **Verification is complete or it is a refusal.** Signature against the provider's JWKS, `iss`,
   `aud` (the configured client id), `exp` and `nbf`. There is no configuration that turns any of
-  those off. Key sets are cached and refreshed, so a provider's key rotation does not lock everyone
-  out and does not make the provider a dependency on every sign-in.
+  those off. The algorithms are pinned to RS256 and ES256, so a token cannot have itself checked as
+  HS256 with the provider's public key for a secret, and the clock skew is thirty seconds. Key sets
+  are cached and refreshed, so a provider's key rotation does not lock everyone out and does not
+  make the provider a dependency on every sign-in.
 - **A link is keyed on `(provider, subject)`, never on the email address.** Apple returns the address
   only at the first authorisation, so resolving by address would break the second Apple sign-in —
   silently, and only in production.
@@ -254,7 +274,10 @@ untouched — which is what makes the same endpoint work for a SPA, a mobile app
   rather than made — otherwise registering `victim@example.com` and never confirming it would hand
   the attacker the account the victim later creates by signing in with Google.
 - **An account provisioned this way has no password and a confirmed address.** The provider vouched
-  for it; asking the user to confirm an address they just proved would be theatre.
+  for it; asking the user to confirm an address they just proved would be theatre. An absent
+  `email_verified` reads as `false`. Creating the account and attaching the identity are two
+  writes with no transaction across them, so a refused attachment deletes the account it just
+  created, rather than leaving a passwordless one nobody can sign into holding the address.
 - **The second factor is not bypassed.** External sign-in runs the same tail as local sign-in: an
   account with two-factor enabled gets a challenge, not a token pair. Without this, linking a Google
   identity would have been the way around 2FA.

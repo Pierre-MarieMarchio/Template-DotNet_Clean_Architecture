@@ -3,5 +3,4 @@ using AppTemplate.Application.Core.Common.UseCases;
 
 namespace AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.GetCurrentUser;
 
-/// <summary>Whole input is ambient: the caller's own id, taken from the request's principal.</summary>
 public interface IGetCurrentUserUseCase : IUseCase<Result<GetCurrentUserOutcome>>;

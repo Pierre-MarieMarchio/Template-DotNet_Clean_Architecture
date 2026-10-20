@@ -3,5 +3,4 @@ using AppTemplate.Application.Core.Common.UseCases;
 
 namespace AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.ListSessions;
 
-/// <summary>Whole input is ambient: the caller's own id and session, taken from the request's principal.</summary>
 public interface IListSessionsUseCase : IUseCase<Result<IReadOnlyList<ListSessionsItem>>>;

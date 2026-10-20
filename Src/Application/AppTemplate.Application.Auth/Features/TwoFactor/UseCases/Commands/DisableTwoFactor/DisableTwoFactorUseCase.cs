@@ -12,12 +12,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.DisableTwoFactor;
 
-/// <summary>
-/// Turns the caller's own second factor off once the password is proven, then revokes every other
-/// session: dropping a factor is the same posture change as arming one, so the tokens issued
-/// under the stronger one do not survive it. The caller's own session, which just proved the
-/// password, is spared; a token naming no session spares nothing.
-/// </summary>
 public sealed class DisableTwoFactorUseCase(
     ITwoFactorService twoFactor,
     ISessionTokensService sessionTokens,
@@ -26,7 +20,6 @@ public sealed class DisableTwoFactorUseCase(
     ICurrentSession currentSession,
     IValidator<DisableTwoFactorCommand> validator) : IDisableTwoFactorUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(DisableTwoFactorCommand request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -47,7 +40,6 @@ public sealed class DisableTwoFactorUseCase(
 
         var disabled = await twoFactor.DisableAsync(userId.Value.Value, request.CurrentPassword, cancellationToken);
 
-        // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
         if (disabled is TwoFactorDisableStatus.NoSuchAccount)
         {
             return Result.Failure(CommonErrors.NotAuthenticated);
@@ -58,7 +50,6 @@ public sealed class DisableTwoFactorUseCase(
             return Result.Failure(AccountsErrors.IncorrectCurrentPassword);
         }
 
-        // Nothing changed, so there is no posture change to record or revoke for.
         if (disabled is TwoFactorDisableStatus.Rejected)
         {
             return Result.Failure(TwoFactorErrors.TwoFactorDisableRejected);

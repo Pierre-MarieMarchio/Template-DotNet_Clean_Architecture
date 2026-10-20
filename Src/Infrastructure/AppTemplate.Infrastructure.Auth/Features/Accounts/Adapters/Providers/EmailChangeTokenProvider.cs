@@ -6,20 +6,11 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Providers;
 
-/// <summary>
-/// A distinct <see cref="DataProtectionTokenProviderOptions"/> subtype, for the reason given on
-/// <see cref="PasswordResetTokenProviderOptions"/>.
-/// </summary>
 internal sealed class EmailChangeTokenProviderOptions : DataProtectionTokenProviderOptions
 {
     public EmailChangeTokenProviderOptions() => Name = "EmailChangeTokenProvider";
 }
 
-/// <summary>
-/// <see cref="DataProtectorTokenProvider{TUser}"/> registered under <see cref="EmailChangeTokenProviderName"/>,
-/// configured from <see cref="EmailChangeTokenProviderOptions"/> rather than the unnamed
-/// <see cref="DataProtectionTokenProviderOptions"/> every other default provider shares.
-/// </summary>
 internal sealed class EmailChangeTokenProvider : DataProtectorTokenProvider<AppUser>
 {
     public EmailChangeTokenProvider(

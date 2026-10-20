@@ -13,8 +13,6 @@ internal sealed class AppUserDirectory(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // "D" rather than the default, so the format is stated: UserManager parses the string with
-        // the key type's own converter, and a Guid round-trips through both forms.
         return await userManager.FindByIdAsync(userId.ToString("D", CultureInfo.InvariantCulture));
     }
 

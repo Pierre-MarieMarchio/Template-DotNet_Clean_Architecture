@@ -2,27 +2,14 @@
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Seeding;
 
-/// <summary>
-/// Development-only seeding of an administrator account. Off unless switched on explicitly, and the
-/// password has no default: <see cref="IdentitySeedOptionsValidator"/> requires it once seeding is
-/// enabled, so a deployment cannot end up with a known, guessable administrator credential by
-/// omission.
-/// <para>
-/// It lives beside the seeder rather than with the identity module's other options, because it configures
-/// seeding — which is a persistence concern — and not authentication policy. The section name is
-/// unchanged, so no configuration file, environment variable or deployment moves.
-/// </para>
-/// </summary>
 public sealed class IdentitySeedOptions
 {
     public const string SectionName = "IdentitySeed";
 
-    /// <summary>Opt-in. Combined with a Development-only guard in <c>IdentitySeeder</c>.</summary>
     public bool Enabled { get; set; }
 
     public string AdminEmail { get; set; } = string.Empty;
 
-    /// <summary>No default, by design. Supply it through user secrets or an environment variable.</summary>
     public string AdminPassword { get; set; } = string.Empty;
 }
 

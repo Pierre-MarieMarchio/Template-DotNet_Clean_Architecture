@@ -10,10 +10,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.LockAccount;
 
-/// <summary>
-/// Suspends sign-in indefinitely and then cuts the account's live sessions: a lockout that left
-/// refresh tokens alone would suspend nothing the holder is already using.
-/// </summary>
 public sealed class LockAccountUseCase(
     IAccountAdministrationService administration,
     ISessionTokensService sessionTokens,
@@ -21,7 +17,6 @@ public sealed class LockAccountUseCase(
     ICurrentUser currentUser,
     IValidator<LockAccountCommand> validator) : ILockAccountUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(LockAccountCommand request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);

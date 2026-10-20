@@ -1,11 +1,3 @@
 ﻿namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ChangePassword;
 
-/// <summary>Carries no identity: the account is the authenticated caller's own.</summary>
-/// <param name="CurrentPassword">
-/// Proof the request comes from the holder and not merely from a live session, which is what stops
-/// a stolen token from taking the account over outright.
-/// </param>
-/// <param name="NewPassword">
-/// Checked against <c>PasswordInputPolicy</c> here; the password policy is the store's to apply.
-/// </param>
 public sealed record ChangePasswordCommand(string CurrentPassword, string NewPassword);

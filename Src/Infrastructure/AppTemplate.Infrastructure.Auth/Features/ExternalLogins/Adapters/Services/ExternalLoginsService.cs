@@ -7,10 +7,6 @@ using Microsoft.AspNetCore.Identity;
 
 namespace AppTemplate.Infrastructure.Auth.Features.ExternalLogins.Adapters.Services;
 
-/// <summary><see cref="IExternalLoginsService"/> over ASP.NET Identity's <c>UserLogins</c> table.
-/// It translates and decides nothing: which of these four operations a sign-in calls is
-/// <c>ExternalAccountLinkPolicy</c>'s decision, and every refusal here is reported as the store's
-/// refusal rather than interpreted into one.</summary>
 internal sealed class ExternalLoginsService(
     UserManager<AppUser> userManager,
     IAppUserDirectory directory,
@@ -80,10 +76,6 @@ internal sealed class ExternalLoginsService(
         return created.Succeeded ? await LinkNewAccountAsync(user, provider, subject) : null;
     }
 
-    /// <summary>The second half of the one step the port promises. No transaction spans the two
-    /// calls, so a failed link is compensated: without the deletion it would leave an account holding
-    /// the address, carrying no password and attached to no provider — one nobody can sign into and
-    /// which blocks the address for good.</summary>
     private async Task<AccountIdentity?> LinkNewAccountAsync(
         AppUser user,
         string provider,

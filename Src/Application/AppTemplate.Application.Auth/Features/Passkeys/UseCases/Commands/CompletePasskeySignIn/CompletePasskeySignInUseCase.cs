@@ -11,13 +11,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.CompletePasskeySignIn;
 
-/// <summary>Finishes a passkey sign-in: the assertion is verified against the ceremony's
-/// challenge, the account is checked to still be allowed in, and only then is a session started.
-/// A verified passkey stands in for the whole of a sign-in, an armed second factor included — the
-/// ceremony required user verification, so no challenge is issued here and
-/// <see cref="LoginOutcome.TwoFactorRequired"/> is never this use case's answer; the armed factor
-/// still governs the ways in that prove less. Every refusal collapses to
-/// <see cref="PasskeysErrors.InvalidPasskeySignIn"/>.</summary>
 public sealed class CompletePasskeySignInUseCase(
     IPasskeyService passkeys,
     IAccountsService accounts,
@@ -26,7 +19,6 @@ public sealed class CompletePasskeySignInUseCase(
     ICurrentSession currentSession,
     IValidator<CompletePasskeySignInCommand> validator) : ICompletePasskeySignInUseCase
 {
-    /// <inheritdoc />
     public async Task<Result<LoginOutcome>> ExecuteAsync(
         CompletePasskeySignInCommand request,
         CancellationToken cancellationToken = default)
@@ -52,8 +44,6 @@ public sealed class CompletePasskeySignInUseCase(
             return Result.Failure<LoginOutcome>(PasskeysErrors.InvalidPasskeySignIn);
         }
 
-        // The same guard every other way in applies once the account is identified: a locked-out
-        // account answers its passkey the way it answers its password.
         if (!await accounts.CanSignInAsync(account.UserId, cancellationToken))
         {
             securityEventLog.Record(SecurityEvent.PasskeySignInFailed(account.UserId));
@@ -63,7 +53,6 @@ public sealed class CompletePasskeySignInUseCase(
 
         securityEventLog.Record(SecurityEvent.PasskeySignInSucceeded(account.UserId));
 
-        // The refresh token first: it starts the session the access token names.
         var refreshToken = await sessionTokens.IssueRefreshTokenAsync(
             account.UserId,
             currentSession.Client,

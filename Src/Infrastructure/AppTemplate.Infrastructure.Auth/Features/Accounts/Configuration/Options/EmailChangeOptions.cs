@@ -1,32 +1,13 @@
-﻿using AppTemplate.Infrastructure.Auth.Common.Options;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Options;
 
-/// <summary>
-/// Where the email-change confirmation link points, and how long the token behind it stays valid.
-/// <para>
-/// Its own section and its own named token provider, for the same reason
-/// <see cref="PasswordResetOptions"/> is not a second knob on <see cref="IdentityTokenOptions"/>:
-/// sharing the "Default" provider would tie this token's lifespan to email confirmation's, which is
-/// comfortable with a much longer one.
-/// </para>
-/// </summary>
 public sealed class EmailChangeOptions
 {
     public const string SectionName = "EmailChange";
 
-    /// <summary>
-    /// Absolute URL of the page that completes the change. The new address and the single-use token
-    /// are appended as a URL fragment, for the reason
-    /// <see cref="EmailConfirmationOptions.ConfirmEmailUrl"/> gives.
-    /// </summary>
     public Uri? ConfirmEmailChangeUrl { get; set; }
 
-    /// <summary>
-    /// An hour, matching <see cref="PasswordResetOptions.TokenLifespan"/>'s reasoning: long enough to
-    /// receive and act on the mail, short enough to limit a leaked link's reach.
-    /// </summary>
     public TimeSpan TokenLifespan { get; set; } = TimeSpan.FromHours(1);
 }
 

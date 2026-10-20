@@ -5,12 +5,6 @@ using Microsoft.AspNetCore.Identity;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// <see cref="IEmailTokensService"/> over ASP.NET Identity's token providers: the default one for
-/// email confirmation, and the named <c>PasswordReset</c> and <c>ChangeEmail</c> providers — see
-/// <c>PasswordResetTokenProvider</c> and <c>EmailChangeTokenProvider</c> for why each has its own
-/// lifespan rather than sharing the default's.
-/// </summary>
 internal sealed class EmailTokensService(
     UserManager<AppUser> userManager,
     IAppUserDirectory directory) : IEmailTokensService
@@ -55,9 +49,6 @@ internal sealed class EmailTokensService(
             return false;
         }
 
-        // ConfirmEmailAsync does not rotate the security stamp, unlike ChangePasswordAsync and
-        // ChangeEmailAsync. A DataProtectorTokenProvider token embeds the stamp and is refused once
-        // it no longer matches, so without this the token just redeemed stays replayable.
         await userManager.UpdateSecurityStampAsync(user);
 
         return true;
@@ -122,16 +113,11 @@ internal sealed class EmailTokensService(
 
         var user = await directory.FindByIdAsync(userId, cancellationToken);
 
-        // The caller already authenticated as this id, so there is no address to protect from
-        // enumeration: an absent account only means it was deleted after the token was issued.
         if (user is null)
         {
             return EmailChangeRequestOutcome.NoSuchAccount;
         }
 
-        // Not CheckPasswordAsync: it rewrites the stored hash on a rehash-needed result, rotating the
-        // security stamp and invalidating the session submitting this request. VerifyHashedPassword
-        // has no such side effect.
         if (user.PasswordHash is not { } hash ||
             userManager.PasswordHasher.VerifyHashedPassword(user, hash, currentPassword)
                 is PasswordVerificationResult.Failed)

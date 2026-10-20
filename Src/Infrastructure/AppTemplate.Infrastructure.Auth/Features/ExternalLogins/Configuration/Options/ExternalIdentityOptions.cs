@@ -1,49 +1,24 @@
-﻿using AppTemplate.Infrastructure.Auth.Features.Sessions.Adapters.Directories;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.ExternalLogins.Configuration.Options;
 
-/// <summary>Which identity providers this installation accepts an <c>id_token</c> from, and how
-/// long their signing keys are believed. <b>An empty section is valid and is the default:</b> a
-/// deployment that does not offer external sign-in boots normally and refuses every attempt as
-/// <c>ExternalIdentityStatus.UnknownProvider</c>; a validator that demanded a provider would stop
-/// the process for a feature the project may never turn on.</summary>
 public sealed class ExternalIdentityOptions
 {
     public const string SectionName = "ExternalIdentity";
 
-    /// <summary>The shortest and longest key-set lifetime the validator will accept.</summary>
     internal static readonly TimeSpan MinimumKeySetLifetime = TimeSpan.FromMinutes(1);
 
     internal static readonly TimeSpan MaximumKeySetLifetime = TimeSpan.FromHours(24);
 
-    /// <summary>
-    /// The providers, in no particular order. Read-only by design: the binder fills it, and a
-    /// setter would let a second configuration source replace the list rather than add to it.
-    /// </summary>
     public IList<ExternalIdentityProviderOptions> Providers { get; } = [];
 
-    /// <summary>How long a fetched key set is used before it is fetched again — fifteen minutes, a
-    /// compromise: fetching per sign-in would put the provider on the hot path of every login, and a
-    /// longer cache means a key the provider <em>withdrew</em> stays trusted that much longer. Key
-    /// <em>rotation</em> is not handled by this number at all — a token naming a key the cache does
-    /// not hold triggers an immediate re-fetch (<see cref="SigningKeyDirectory"/>).</summary>
     public TimeSpan KeySetLifetime { get; set; } = TimeSpan.FromMinutes(15);
 
-    /// <summary>
-    /// The provider configured under <paramref name="name"/>, or <c>null</c>. Case-insensitive: the
-    /// name arrives from a client, and refusing <c>Google</c> because the section says <c>google</c>
-    /// would be an outage nobody could read from the response.
-    /// </summary>
     internal ExternalIdentityProviderOptions? Find(string name) =>
         Providers.FirstOrDefault(
             provider => string.Equals(provider.Name, name, StringComparison.OrdinalIgnoreCase));
 }
 
-/// <summary>
-/// Refuses a provider entry that could only fail later, at the one moment nobody is watching: the
-/// first time a user signs in through it.
-/// </summary>
 internal sealed class ExternalIdentityOptionsValidator : IValidateOptions<ExternalIdentityOptions>
 {
     public ValidateOptionsResult Validate(string? name, ExternalIdentityOptions options)
@@ -85,8 +60,6 @@ internal sealed class ExternalIdentityOptionsValidator : IValidateOptions<Extern
         }
         else if (!seen.Add(provider.Name))
         {
-            // Two entries under one name means one of them is never reached, and which one is an
-            // accident of ordering.
             failures.Add($"{at}:Name' repeats '{provider.Name}', which is already configured.");
         }
 
@@ -107,11 +80,6 @@ internal sealed class ExternalIdentityOptionsValidator : IValidateOptions<Extern
         ValidateKeySetAddress(provider, at, failures);
     }
 
-    /// <summary>
-    /// Exactly one address, and it must be absolute and HTTPS. Plaintext would put the key set — the
-    /// only thing deciding whether a token is authentic — in reach of whoever is between the two
-    /// hosts.
-    /// </summary>
     private static void ValidateKeySetAddress(
         ExternalIdentityProviderOptions provider,
         string at,

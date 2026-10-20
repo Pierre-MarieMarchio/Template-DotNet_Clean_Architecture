@@ -269,7 +269,10 @@ that names no session — issued before the `sid` claim existed — spares nothi
 session is not one to spare. Ending a session is one conditional `UPDATE` on the family row
 followed by one on its live grants, in that order: a process that dies between leaves grants that
 are dead on arrival, which every rotation tests, so the revocation wins its race with a rotation in
-flight without holding a lock across the two.
+flight without holding a lock across the two. Ending every session of an account is the same two
+statements, never a loop over the grants: it runs on the replay path, which an attacker can trigger
+at will, and a round trip per grant is the amplification that path must not have. It also takes the
+live grants of sessions already ended, since a rotation in flight can leave one behind.
 
 <!--#endif-->
 <!--#if (localAuth)-->
@@ -289,7 +292,10 @@ presentations, on one instance or several, wins, and a ceremony that fails still
 up. A rewritten, expired, wrong-kind or spent state is refused exactly as a ceremony that does not
 verify. The rows live minutes, so the options calls purge the expired ones as they go rather than a
 maintenance task: the purge would otherwise have needed a seventh operation on `IPasskeyService`,
-past the six a port may declare, for a table no use case knows exists.
+past the six a port may declare, for a table no use case knows exists. A record outlives its state
+by five minutes: the state's expiry is read against the clock of whichever instance it reaches, and
+a record purged the instant it expired on one instance would let another, whose clock runs behind,
+accept the state once more.
 <!--#endif-->
 
 <!--#if (localAuth)-->
@@ -307,7 +313,9 @@ holds the whole sentence.
 could register its thief's passkey would hand over sign-in for ever after, so the completing call
 re-authenticates — the current password when one is set, and for an account holding nothing its
 holder could present (a provider-linked one) a recently issued access token, the same fallback and
-window account deletion takes. Registering a passkey ends no session and rotates no stamp: a new
+window account deletion takes. The proof is judged before the ceremony reaches the adapter, so a
+refused proof leaves the state unspent and a retry with the right evidence needs no new options
+call. Registering a passkey ends no session and rotates no stamp: a new
 credential changes what future sign-ins can present, not what the sessions already open are
 worth. Removing one is the other direction, and is treated as a password change is: the stamp
 rotates (the adapter rotates it, since Identity's own removal does not) and every session but the
@@ -602,4 +610,128 @@ owner. Removing a mapping commits before it returns and a second call answers th
 a caller that signs in again is provisioned afresh, under a new owner id with none of the old one's data.
 The facts about a mapping are published after the store has committed, in the same request, and the
 features holding data under that id hear them from their own consumers.
+
+<!--#if (localAuth)-->
+## Authentication
+
+**Every security-stamp rotation owes the refresh tokens a revocation, and one policy pays it.** The
+stamp fails every access token at its next validation, but refresh tokens are this module's own and
+survive it. ASP.NET Identity also leaves the stamp alone on several changes that take access away
+or alter it — a lockout, a role granted or revoked, a passkey removed, an email confirmed — so the
+adapters rotate it themselves. `CredentialInvalidationPolicy` is where a use case then revokes the
+grants and records the rotation, after the store accepted the change and never instead of rotating.
+It has two forms: a password change, arming or dropping the second factor and removing a passkey
+spare the session the change was made from, which has just proved the new posture; everything else
+ends every session, an email change and a reset included. A token naming no session spares nothing,
+because an unknown session is not one to spare. Four
+operations skip it on purpose. Confirming an email rotates the stamp but no session can exist before
+confirmation, since sign-in requires it — a deployment that sets `Identity:RequireConfirmedEmail` to
+`false` has to add the revocation. Provisioning a two-factor secret rotates through Identity's own
+`ResetAuthenticatorKeyAsync` and arms nothing, so signing every device out would punish a step that
+changed nothing. Deleting an account leaves no stamp to rotate and its grants go by cascade.
+Unlocking gives access back and rotates nothing. "Sign out everywhere" is the converse: it revokes
+every grant and rotates nothing, since a rotation would also kill the access token asking, which
+therefore lives out its lifetime. A new operation that rotates the stamp calls the policy.
+
+**Proving the current password never rotates the stamp and never counts towards lockout.**
+Re-authentication, arming and disarming the second factor and an email-change request check the
+password through the hasher's `VerifyHashedPassword`, not `UserManager.CheckPasswordAsync`, which
+rewrites the hash on a rehash-needed result and so rotates the stamp — ending the very session
+making the proof. A failed proof is not counted either: it must not lock out an account its holder
+is signed into. Sign-in is the one path that counts, through `CheckPasswordSignInAsync` with
+`lockoutOnFailure`, because lockout is what bounds online guessing.
+
+**The password policy has one authority, the validated `Identity` section.** ASP.NET Identity
+applies it to every new password, at registration, change and reset. The application layer checks
+only `PasswordInputPolicy` — present, and short enough that an arbitrarily long PBKDF2 input cannot
+become a denial of service — because a second copy of the policy would drift from the first. Every
+member of the section has a safe default: whatever is bound overwrites Identity's own defaults, so a
+member left at `false` or `0` by omission would loosen the policy instead of leaving it alone. The
+required length has a floor of eight that validation enforces and binding clamps to. A password
+that is checked rather than set — at sign-in, or as the current one — gets presence only, since it
+may predate the current policy.
+
+**An administrator cannot point an access-removing capability at their own account.** Locking an
+account and removing a role rotate the stamp, so the request would end the session making it, and
+perhaps the only one able to undo it; deleting is the same with nothing left to undo.
+`SelfAdministrationPolicy` refuses all three before the store is touched, and the role guard covers
+every role, not the administrator one: the application layer never spells that name — `IdentityRoles`
+does, once, for the seeder and the API's policy — and the broader rule stays right for a role a
+derived project adds. Stripping a second factor is refused against oneself for another reason: it
+would let a stolen administrator session drop the factor without the password the self-service
+route demands. Granting a role and unlocking add access and are not guarded. Every administrative
+change takes effect at once: the lock has no expiry and only an unlock lifts it, and a lock, a role
+change and a stripped factor each rotate the stamp and end every session of the target.
+
+**Each mailed token has a provider and a lifespan of its own, and any instance can redeem it.**
+`AddDefaultTokenProviders` registers its providers against one unnamed
+`DataProtectionTokenProviderOptions`, and Identity points password reset and email change at the
+`"Default"` provider unless told otherwise, so both would inherit email confirmation's one-day
+lifespan. Each is therefore a named provider with an options subtype of its own, an hour by default
+(`PasswordReset:TokenLifespan`, `EmailChange:TokenLifespan`); confirmation keeps its day
+(`IdentityTokens:Lifespan`). The tokens are data-protected, so the key ring is persisted in the
+identity schema under one application name every `AddDataProtection` call in the process shares: a
+link minted by one instance opens on another and survives a redeploy, and the passkey ceremony
+states sealed with the same ring do too. Confirming an address rotates the stamp, which Identity's
+`ConfirmEmailAsync` does not, because a data-protector token embeds the stamp and is otherwise
+replayable. A reset token is minted whatever the address's confirmation state: a forgotten password
+locked behind a confirmation link would strand its holder.
+
+**Some authentication writes commit on their own, and that reaches the caller's unit of work.** A
+grant has to be durable before its value leaves the process, so every refresh-token operation of
+`ISessionTokensService` commits the request's unit of work, and a caller with other work staged in
+the same request has that committed too. A rotation is one transaction of its own, replayed whole on
+a transient failure: the conditional `UPDATE` that consumes the presented grant commits with its
+successor or not at all, since a grant spent by a failed attempt would read as a replay on the retry,
+and a commit whose acknowledgement was lost is recognised by the successor it wrote. Ending sessions
+commits its own statements, so a revocation survives a caller that walks away. The spent-ceremony
+`INSERT` is `ON CONFLICT DO NOTHING`, outside the change tracker, so it commits nothing the request
+staged and leaves no failed insert behind for the next save to retry. Every `UserManager` write
+commits on its own, which is what lets an account deletion be published the moment it returns.
+
+**The security-event trail never names an address, and never fails the request it describes.**
+Login, reset and resend answer identically whether an address exists, so a log line naming the
+address on one branch would leak what the response hides: every event speaks in user ids, `null` for
+an attempt against an address that named no account. Each event is written twice — a structured log
+entry first, then a row of `identity.SecurityEvents` through a context of its own, in its own short
+transaction. Several events happen outside any transaction, a shared context would flush the caller's
+pending changes, and a row joined to the action would vanish with a rollback that is itself worth
+recording. A failed row is logged at `Error` and the outcome left as it was, so the table can have
+gaps the log does not. The row has no foreign key and outlives its account for
+`SecurityEventLog:RetentionInDays`; its kind is stored by name, so a member added in the middle
+rewrites nothing. Reads are one account at a time, the holder's own or the one an administrator
+names, and an administrator's read of an id naming no account answers what remains rather than a
+`404`, since a deleted account is exactly what an investigation asks about. The purge deletes in
+batches of `SecurityEventLog:PurgeBatchSize`, oldest first, and takes no lease.
+
+**External sign-in is one OpenID Connect adapter, and a provider is configuration.** Google,
+Microsoft and Apple all mint an `id_token`, and checking one is the same four checks whichever minted
+it; only strings differ, so a provider is an `ExternalIdentity:Providers` entry and not a class. An
+empty section is valid and the default: a deployment without external sign-in boots and refuses
+every attempt. An entry that could only fail at its first sign-in — a duplicate name, no key-set
+address or two, a plaintext one — is refused at start-up. Names match case-insensitively, since a
+client sends them; issuers and audiences are lists compared whole, because Google mints two issuer
+forms and one product registers several client ids. The one provider-shaped difference is Apple's
+`email_verified`, a string where Google sends a boolean, read by the same call and held by
+`ExternalIdentityVerifierTests`. Key sets come through a typed `HttpClient`, so the outbound budget
+applies — `JwtBearerOptions.Backchannel` and `HttpDocumentRetriever`'s parameterless constructor
+build a client of their own inside the package, where `NoType_ConstructsItsOwnHttpClient` cannot
+see — and the cache is a singleton apart from it, because the typed client is transient. Keys are
+believed for `KeySetLifetime`, counted from the provider's last answer so an outage cannot extend
+them, and a failed fetch keeps the keys already known rather than refusing every sign-in. A token
+naming a `kid` the cache does not hold forces a fetch at most once a minute per provider, counted
+from the last attempt: an invented `kid` then costs sixty requests an hour, and a missed rotation
+sixty seconds.
+
+**A sign-in ends in one of two typed shapes, whatever proved it.** `LoginOutcome` is a closed
+hierarchy with a JSON discriminator — a token pair, or a two-factor challenge — rather than one
+record of nullable fields, so a client switches on a `status` tag instead of guessing which fields
+go together. External sign-in ends in the same two, because a provider stands in for a password and
+never for a factor the owner armed. Redeeming a challenge and completing a passkey sign-in answer
+with `LoginOutcome` too, always its token-pair branch, so a client has one contract for "a sign-in
+just finished". Each of them, and every refresh, re-asks whether the account may still sign in after
+its proof has passed, so a lock lands on every way in at once. What the session knows about the
+account is re-read from the store as well: every access token's claims, the profile and its roles,
+never the presented token's claims. A token that outlived its account is answered as
+unauthenticated, not as a missing resource.
 <!--#endif-->

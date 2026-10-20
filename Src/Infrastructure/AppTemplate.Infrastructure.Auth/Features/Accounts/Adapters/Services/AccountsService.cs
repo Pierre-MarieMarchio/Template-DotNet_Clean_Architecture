@@ -10,33 +10,16 @@ using Npgsql;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// <see cref="IAccountsService"/> over <see cref="UserManager{TUser}"/> and
-/// <see cref="SignInManager{TUser}"/>. It translates and nothing more: every decision about what a
-/// refusal means to a caller belongs to the use case.
-/// </summary>
 internal sealed class AccountsService(
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
     IAppUserDirectory directory,
     IDateTimeProvider dateTimeProvider) : IAccountsService
 {
-    private static string? _absentUserPasswordHash;
+    private static string? _decoyPasswordHash;
 
-    /// <summary>
-    /// A real hash of a random string, verified when the email is unknown, so that the "no such
-    /// user" path does the same key derivation the real one does and the response time does not tell
-    /// an attacker which addresses are registered.
-    /// <para>
-    /// Produced by the <em>configured</em> hasher, so the decoy and the real verification derive a key
-    /// the same number of times. Building it from a fresh <see cref="PasswordHasher{TUser}"/> would
-    /// take that hasher's default iteration count and compatibility mode, and the two paths would stop
-    /// costing the same as soon as either was configured away from the default. Computed once per
-    /// process, since a key derivation per request is exactly the latency this is meant to hide.
-    /// </para>
-    /// </summary>
-    private string AbsentUserPasswordHash => LazyInitializer.EnsureInitialized(
-        ref _absentUserPasswordHash,
+    private string DecoyPasswordHash => LazyInitializer.EnsureInitialized(
+        ref _decoyPasswordHash,
         () => userManager.PasswordHasher.HashPassword(
             new AppUser(),
             Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))));
@@ -142,13 +125,11 @@ internal sealed class AccountsService(
 
         if (user is null)
         {
-            // Burn the same amount of CPU the real path would.
-            userManager.PasswordHasher.VerifyHashedPassword(new AppUser(), AbsentUserPasswordHash, password);
+            SpendADecoyKeyDerivation(new AppUser(), password);
 
             return CredentialCheckOutcome.Refused(CredentialCheckStatus.NoSuchAccount);
         }
 
-        // lockoutOnFailure is what bounds brute force: without it AccessFailedCount never moves.
         var result = await signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
         var identity = new AccountIdentity(
             user.Id,
@@ -167,12 +148,9 @@ internal sealed class AccountsService(
             _ => CredentialCheckStatus.IncorrectPassword,
         };
 
-        // CheckPasswordSignInAsync checks lockout and confirmation before deriving a key, so those
-        // refusals would answer faster than a wrong password. Burn the same derivation, result
-        // ignored. Not CheckPasswordAsync: it would rotate the security stamp on a refused login.
         if (outcome is CredentialCheckStatus.LockedOut or CredentialCheckStatus.EmailNotConfirmed)
         {
-            userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash ?? AbsentUserPasswordHash, password);
+            SpendADecoyKeyDerivation(user, password);
         }
 
         return CredentialCheckOutcome.Refused(outcome, identity);
@@ -200,8 +178,6 @@ internal sealed class AccountsService(
 
         var user = await directory.FindByIdAsync(userId, cancellationToken);
 
-        // The caller already authenticated as this id, so there is no address to protect from
-        // enumeration here: an absent account only means it was deleted after the token was issued.
         if (user is null)
         {
             return PasswordChangeOutcome.NoSuchAccount;
@@ -253,8 +229,6 @@ internal sealed class AccountsService(
 
         var user = await directory.FindByIdAsync(userId, cancellationToken);
 
-        // The caller already authenticated as this id, so there is no address to protect from
-        // enumeration here: an absent account only means it was deleted after the token was issued.
         if (user is null)
         {
             return AccountDeletionOutcome.NoSuchAccount;
@@ -264,6 +238,9 @@ internal sealed class AccountsService(
 
         return result.Succeeded ? AccountDeletionOutcome.Deleted : AccountDeletionOutcome.Rejected;
     }
+
+    private void SpendADecoyKeyDerivation(AppUser user, string password) =>
+        userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash ?? DecoyPasswordHash, password);
 
     private static string? JoinOrNull(IEnumerable<string> descriptions) =>
         descriptions.Any() ? string.Join(" ", descriptions) : null;

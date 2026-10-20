@@ -160,6 +160,17 @@ actions.
 The frontend, the action inputs and the fixtures are outside every Dependabot ecosystem and are
 bumped by hand; the test makes the fixtures fail rather than drift when the compose file moves.
 
+**The integration suites run without Testcontainers' resource reaper.** Ryuk, the container
+Testcontainers starts beside every test process to remove that process's containers if it dies, is
+declared ready once its `Started` line appears in the logs read from the container's creation time
+on. A WSL 2 machine's wall clock steps back by seconds every half-minute or so, and a step landing
+in that half-second stamps the line before the creation: it is never read, the start waits sixty
+seconds, and the fixture that triggered it fails with every one of its tests. Measured here: one
+Ryuk start in seventy-eight, one full run in eight. The fixtures already remove their own
+containers in `DisposeAsync`, so `ResourceReaperSwitch` turns the reaper off in both integration
+projects, and what is lost is only the clean-up after a run killed outright, done by hand as
+[`TESTING.md`](TESTING.md#running-it) shows.
+
 **Extract what two real cases prove identical, and nothing more.** A guessed abstraction is a worse
 defect than an assumed duplication: the duplication is visible and local, the wrong abstraction is
 neither. Measure first — `wc -l`, `diff` — and require two cases that do the same thing, not two

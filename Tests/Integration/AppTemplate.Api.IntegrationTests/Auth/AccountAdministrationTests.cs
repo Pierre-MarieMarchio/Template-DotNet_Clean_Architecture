@@ -1,9 +1,11 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
+using AppTemplate.Application.Auth.Features.Accounts.Model.Policies;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountAdministration;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Seeding;
@@ -273,6 +275,103 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         after.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         after.Headers.GetValues(ApiFactory.AuthFailureHeader)
             .ShouldContain("This token's security stamp is no longer valid.");
+    }
+
+    [Fact]
+    public async Task AnAdministrator_ListsTheAccounts_WhoseAddressStartsWithAPrefix_IgnoringCase()
+    {
+        var (adminClient, _, _) = await SignInAsAdministratorAsync();
+        string prefix = $"listed{Guid.NewGuid():N}";
+        var first = await RegisterConfirmedUserAsync(CreateClient(), $"{prefix}-a");
+        var second = await RegisterConfirmedUserAsync(CreateClient(), $"{prefix}-b");
+        await RegisterConfirmedUserAsync(CreateClient(), $"other{Guid.NewGuid():N}");
+
+        var page = await ListAsync(adminClient, $"?email={prefix.ToUpperInvariant()}");
+
+        page.Items.Select(account => account.Email).ShouldBe([first.Email, second.Email]);
+        page.TotalCount.ShouldBe(2);
+        page.Items.ShouldAllBe(account => account.EmailConfirmed && !account.LockedOut && account.Roles.Count == 0);
+    }
+
+    [Fact]
+    public async Task AListedAccount_ShowsItsLockoutAndItsRoles()
+    {
+        var (adminClient, _, _) = await SignInAsAdministratorAsync();
+        string prefix = $"state{Guid.NewGuid():N}";
+        var (_, targetUser, target) = await SignInAsync(prefix);
+
+        using var locked = await adminClient.PostAsync(
+            new Uri($"{_accountsRoute}/{target.UserId}/lockout", UriKind.Relative), content: null, TestToken);
+        locked.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        using var granted = await adminClient.PutAsync(
+            new Uri($"{_accountsRoute}/{target.UserId}/roles/{IdentityRoles.Administrator}", UriKind.Relative),
+            content: null,
+            TestToken);
+        granted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        var account = (await ListAsync(adminClient, $"?email={prefix}")).Items.ShouldHaveSingleItem();
+
+        account.Id.ShouldBe(target.UserId);
+        account.Email.ShouldBe(targetUser.Email);
+        account.LockedOut.ShouldBeTrue();
+        account.Roles.ShouldBe([IdentityRoles.Administrator]);
+    }
+
+    [Fact]
+    public async Task TheAccountList_IsPaged()
+    {
+        var (adminClient, _, _) = await SignInAsAdministratorAsync();
+        string prefix = $"paged{Guid.NewGuid():N}";
+        await RegisterConfirmedUserAsync(CreateClient(), $"{prefix}-a");
+        await RegisterConfirmedUserAsync(CreateClient(), $"{prefix}-b");
+
+        var firstPage = await ListAsync(adminClient, $"?email={prefix}&page=1&pageSize=1");
+        var secondPage = await ListAsync(adminClient, $"?email={prefix}&page=2&pageSize=1");
+
+        firstPage.HasNextPage.ShouldBeTrue();
+        firstPage.TotalPages.ShouldBe(2);
+        secondPage.HasNextPage.ShouldBeFalse();
+        secondPage.Items.ShouldHaveSingleItem().Email.ShouldNotBe(firstPage.Items.ShouldHaveSingleItem().Email);
+    }
+
+    [Fact]
+    public async Task APageSizeAboveTheCeiling_IsRefused()
+    {
+        var (adminClient, _, _) = await SignInAsAdministratorAsync();
+
+        using var response = await adminClient.GetAsync(
+            new Uri($"{_accountsRoute}?pageSize={AccountCollectionPolicy.Instance.MaxPageSize + 1}", UriKind.Relative),
+            TestToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("paging.invalid");
+    }
+
+    [Fact]
+    public async Task AnOrdinaryAuthenticatedUser_CannotListTheAccounts()
+    {
+        var (client, _, _) = await SignInAsync();
+
+        using var response = await client.GetAsync(new Uri(_accountsRoute, UriKind.Relative), TestToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task AnUnauthenticatedCaller_CannotListTheAccounts()
+    {
+        using var response = await CreateClient().GetAsync(new Uri(_accountsRoute, UriKind.Relative), TestToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    private static async Task<PagedResponse<AccountSummaryResponse>> ListAsync(HttpClient client, string query)
+    {
+        using var response = await client.GetAsync(new Uri($"{_accountsRoute}{query}", UriKind.Relative), TestToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        return await ApiJson.ReadAsync<PagedResponse<AccountSummaryResponse>>(response, TestToken);
     }
 
     private async Task<(HttpClient Client, TestUser User, TestSession Session)> SignInAsAdministratorAsync()

@@ -166,7 +166,7 @@ public sealed class PortConventionTests
 
     private static readonly string[] _authUseCasesPerFeature =
     [
-        "Accounts: 14",
+        "Accounts: 15",
         "ExternalLogins: 1",
         "Passkeys: 6",
         "SecurityEvents: 3",
@@ -191,7 +191,7 @@ public sealed class PortConventionTests
             .ShouldBe(
                 _authUseCasesPerFeature,
                 ignoreOrder: false,
-                "The authentication module's thirty-seven use cases are filed under six features — " +
+                "The authentication module's thirty-eight use cases are filed under six features — " +
                 "account lifecycle and administration, sessions, two-factor, passkeys, external " +
                 "sign-in and the security trail. Another distribution means an operation moved, " +
                 "appeared or vanished, and this rule is no longer describing the module.");

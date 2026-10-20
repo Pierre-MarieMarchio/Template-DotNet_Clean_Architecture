@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountQueries;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.ReAuthentication;
@@ -13,6 +14,7 @@ using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.TwoFactor.Ports.TwoFactor;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Common.Options;
+using AppTemplate.Infrastructure.Auth.Features.Accounts.Access.Queries;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Providers;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Services;
@@ -92,6 +94,7 @@ public static class AuthModule
         services.AddScoped<IAccountEmailFactory, AccountEmailFactory>();
         services.AddScoped<ISecurityEventLog, SecurityEventLog>();
         services.AddScoped<ISecurityEventQueries, SecurityEventQueries>();
+        services.AddScoped<IAccountQueries, AccountQueries>();
 
         services.TryAddScoped<ISecurityEventOriginProvider, UnknownSecurityEventOriginProvider>();
 

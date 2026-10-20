@@ -5,6 +5,7 @@ using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
@@ -43,6 +44,8 @@ public sealed class GrantTableFixture : IAsyncLifetime
         .WithPassword("apptemplate_tests")
         .Build();
 
+    private IConfiguration? _configuration;
+
     private ServiceProvider? _services;
 
     public IServiceProvider Services => _services
@@ -52,7 +55,7 @@ public sealed class GrantTableFixture : IAsyncLifetime
     {
         await _container.StartAsync(TestContext.Current.CancellationToken);
 
-        var configuration = new ConfigurationBuilder()
+        _configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["ConnectionStrings:Default"] = _container.GetConnectionString(),
@@ -63,15 +66,7 @@ public sealed class GrantTableFixture : IAsyncLifetime
             })
             .Build();
 
-        var services = new ServiceCollection();
-
-        // Logging, because the interceptors take an ILogger; and the audit actor, because the
-        // auditing interceptor takes one. Both are things the host supplies rather than a module.
-        services.AddLogging();
-        services.AddSingleton<IAuditActor, AnonymousAuditActor>();
-        services.AddAuthModule(configuration);
-
-        _services = services.BuildServiceProvider();
+        _services = Compose(_configuration);
 
         await using var scope = _services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
@@ -94,6 +89,15 @@ public sealed class GrantTableFixture : IAsyncLifetime
         // cancelled, or the container is left behind.
         await _container.DisposeAsync();
     }
+
+    /// <summary>
+    /// The same composition over the same database, with <paramref name="interceptors"/> attached to
+    /// the identity context: how a test makes one statement or one commit fail where it wants.
+    /// </summary>
+    public ServiceProvider ComposeWith(params IInterceptor[] interceptors) =>
+        Compose(
+            _configuration ?? throw new InvalidOperationException($"{nameof(GrantTableFixture)} has not been initialised."),
+            services => services.ConfigureDbContext<AuthDbContext>(options => options.AddInterceptors(interceptors)));
 
     /// <summary>An account for grants to hang off, since the grant table has a foreign key to it.</summary>
     public async Task<AppUser> CreateUserAsync(CancellationToken cancellationToken)
@@ -181,6 +185,20 @@ public sealed class GrantTableFixture : IAsyncLifetime
         command.Parameters.Add(Parameter(command, "userId", userId));
 
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+    }
+
+    private static ServiceProvider Compose(IConfiguration configuration, Action<IServiceCollection>? adjust = null)
+    {
+        var services = new ServiceCollection();
+
+        // Logging, because the interceptors take an ILogger; and the audit actor, because the
+        // auditing interceptor takes one. Both are things the host supplies rather than a module.
+        services.AddLogging();
+        services.AddSingleton<IAuditActor, AnonymousAuditActor>();
+        services.AddAuthModule(configuration);
+        adjust?.Invoke(services);
+
+        return services.BuildServiceProvider();
     }
 
     private static DbParameter Parameter(DbCommand command, string name, object value)

@@ -158,6 +158,66 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
             "prove: a revoked family serves none of its grants.");
     }
 
+    /// <summary>
+    /// A rotation is one transaction: when anything after the consumption fails, the consumption is
+    /// undone with it, so the client presenting the same token again is served rather than taken for
+    /// a thief — which would end every session of the account and record a replay that never was.
+    /// </summary>
+    [Fact]
+    public async Task ASaveThatFailsAfterTheConsumption_LeavesThePresentedTokenRotatable()
+    {
+        var user = await fixture.CreateUserAsync(TestToken);
+        var issued = await IssueAsync(user.Id);
+        var log = Substitute.For<ISecurityEventLog>();
+        var fault = new OneTimeFault(FaultPoint.BeforeTheSuccessorsInsert, transient: false);
+
+        await using (var failing = fixture.ComposeWith(fault.Interceptors))
+        {
+            await Should.ThrowAsync<Exception>(() => PresentThroughAsync(failing, user, issued.Value, log));
+        }
+
+        fault.Fired.ShouldBeTrue();
+
+        var retried = await PresentThroughAsync(fixture.Services, user, issued.Value, log);
+
+        retried.Succeeded.ShouldBeTrue(
+            "the failed attempt issued no successor, so it must not have consumed the grant either.");
+        log.DidNotReceiveWithAnyArgs().Record(default!);
+        (await fixture.CountLiveGrantsAsync(user.Id, TestToken)).ShouldBe(1);
+    }
+
+    /// <summary>
+    /// The identity context retries a transient failure, and a retry replays the whole rotation: an
+    /// acknowledgement lost after the conditional <c>UPDATE</c> ran must not leave the replay to find
+    /// its own consumption and answer it as theft, and a commit that landed but was not acknowledged
+    /// must be recognised rather than replayed.
+    /// </summary>
+    [Theory]
+    [InlineData(FaultPoint.AfterTheConsumption)]
+    [InlineData(FaultPoint.BeforeTheSuccessorsInsert)]
+    [InlineData(FaultPoint.AfterTheCommit)]
+    public async Task ATransientFailureDuringARotation_IsRetriedWithoutAFalseReplay(FaultPoint point)
+    {
+        var user = await fixture.CreateUserAsync(TestToken);
+        var issued = await IssueAsync(user.Id);
+        var log = Substitute.For<ISecurityEventLog>();
+        var fault = new OneTimeFault(point, transient: true);
+
+        RefreshTokenRotation rotation;
+
+        await using (var failing = fixture.ComposeWith(fault.Interceptors))
+        {
+            rotation = await PresentThroughAsync(failing, user, issued.Value, log);
+        }
+
+        fault.Fired.ShouldBeTrue();
+        rotation.Succeeded.ShouldBeTrue();
+        log.DidNotReceiveWithAnyArgs().Record(default!);
+        (await fixture.CountLiveGrantsAsync(user.Id, TestToken)).ShouldBe(
+            1,
+            "exactly one successor: the retry neither lost the one it staged nor inserted it twice.");
+    }
+
     private async Task<IssuedRefreshToken> IssueAsync(Guid userId)
     {
         await using var scope = fixture.Services.CreateAsyncScope();
@@ -190,6 +250,22 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
             .RotateRefreshTokenAsync(presentedToken, SessionClient.Unknown, TestToken);
     }
 
+    /// <summary>One presentation through <paramref name="services"/>, recording to <paramref name="log"/>.</summary>
+    private static async Task<RefreshTokenRotation> PresentThroughAsync(
+        IServiceProvider services,
+        AppUser user,
+        string presentedToken,
+        ISecurityEventLog log)
+    {
+        await using var scope = services.CreateAsyncScope();
+
+        var directory = Substitute.For<IAppUserDirectory>();
+        directory.FindByIdAsync(user.Id, Arg.Any<CancellationToken>()).Returns(user);
+
+        return await CreateGrants(scope.ServiceProvider, directory, log)
+            .RotateRefreshTokenAsync(presentedToken, SessionClient.Unknown, TestToken);
+    }
+
     private static async Task<AppUser?> ArriveThenReturnAsync(Rendezvous? rendezvous, AppUser user)
     {
         if (rendezvous is not null)
@@ -205,7 +281,10 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
     /// <c>UserManager</c> would drag ASP.NET Identity's whole store in for one <c>FindById</c>, and
     /// that lookup is not what these tests are about.
     /// </summary>
-    private static SessionTokensService CreateGrants(IServiceProvider scoped, IAppUserDirectory directory) =>
+    private static SessionTokensService CreateGrants(
+        IServiceProvider scoped,
+        IAppUserDirectory directory,
+        ISecurityEventLog? log = null) =>
         new(
             new AccessTokenIssuer(
                 directory,
@@ -215,8 +294,9 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
             scoped.GetRequiredService<IRefreshTokenFamilyTable>(),
             directory,
             scoped.GetRequiredService<IContextUnitOfWork<AuthDbContext>>(),
+            scoped.GetRequiredService<AuthDbContext>(),
             scoped.GetRequiredService<IDateTimeProvider>(),
             new OptionsWrapper<RefreshTokenOptions>(new RefreshTokenOptions()),
-            Substitute.For<ISecurityEventLog>(),
+            log ?? Substitute.For<ISecurityEventLog>(),
             NullLogger<SessionTokensService>.Instance);
 }

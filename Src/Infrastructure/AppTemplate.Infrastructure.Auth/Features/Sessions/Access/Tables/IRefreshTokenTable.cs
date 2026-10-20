@@ -29,15 +29,15 @@ public interface IRefreshTokenTable
 
     /// <summary>
     /// Consumes a live grant and stages its successor in the same session. The consumption is one
-    /// conditional UPDATE that commits on its own — the exception to "every method stages" — and
-    /// that is what makes rotation single-use: the liveness test travels in the UPDATE's own
-    /// <c>WHERE</c> clause, so of two simultaneous presentations exactly one affects a row
-    /// (testing liveness on a preceding read cannot achieve that, since an UPDATE derived from a
-    /// tracked row is keyed on the primary key alone). The successor is only staged, so a commit
-    /// that never happens leaves the grant consumed with no replacement issued — the safe
-    /// direction. The liveness test is the grant's alone, never the session's: a session revoked
-    /// while this UPDATE runs still gets its successor, one that is dead on arrival, which is how a
-    /// revocation wins its race with a rotation without holding a lock across the two.
+    /// conditional UPDATE that runs at once — the exception to "every method stages" — and that is
+    /// what makes rotation single-use: the liveness test travels in the UPDATE's own <c>WHERE</c>
+    /// clause, so of two simultaneous presentations exactly one affects a row (testing liveness on
+    /// a preceding read cannot achieve that, since an UPDATE derived from a tracked row is keyed on
+    /// the primary key alone). Run it inside a transaction that also commits the successor: alone,
+    /// it commits by itself, and a failure before the successor's commit leaves the grant consumed
+    /// with nothing to replace it. The liveness test is the grant's alone, never the session's: a
+    /// session revoked while this UPDATE runs still gets its successor, one that is dead on arrival,
+    /// which is how a revocation wins its race with a rotation without holding a lock across the two.
     /// </summary>
     /// <returns><c>false</c> when the presented hash names no live grant: unknown, expired, already
     /// revoked, or consumed a moment ago by a concurrent presentation. Nothing is staged in that case.

@@ -9,6 +9,7 @@ using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Sessions.Access.Tables;
 using AppTemplate.Infrastructure.Auth.Features.Sessions.Configuration.Options;
 using AppTemplate.Infrastructure.Core.Common.Saving;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -22,15 +23,17 @@ namespace AppTemplate.Infrastructure.Auth.Features.Sessions.Adapters.Services;
 /// user is revoked, while presenting one of an ended session is merely refused, without the alarm.
 /// Rows are staged through <see cref="IRefreshTokenTable"/> and
 /// <see cref="IRefreshTokenFamilyTable"/> and committed through
-/// <see cref="IContextUnitOfWork{TContext}"/>, so a rotation could share a transaction with other
-/// work; consuming a presented grant is the one step that does not wait — single-use rotation is
-/// decided by one conditional UPDATE (<see cref="IRefreshTokenTable.TryRotateAsync"/> says why).</summary>
+/// <see cref="IContextUnitOfWork{TContext}"/>. A rotation is one transaction of its own: the
+/// conditional UPDATE that consumes the presented grant — the single-use decision,
+/// <see cref="IRefreshTokenTable.TryRotateAsync"/> says why — commits with its successor or not
+/// at all.</summary>
 internal sealed class SessionTokensService(
     AccessTokenIssuer accessTokenIssuer,
     IRefreshTokenTable table,
     IRefreshTokenFamilyTable families,
     IAppUserDirectory directory,
     IContextUnitOfWork<AuthDbContext> unitOfWork,
+    AuthDbContext context,
     IDateTimeProvider dateTimeProvider,
     IOptions<RefreshTokenOptions> options,
     ISecurityEventLog securityEventLog,
@@ -114,28 +117,22 @@ internal sealed class SessionTokensService(
         }
 
         var (replacementValue, replacementExpiresAt) = CreateSecret(dateTimeProvider.UtcNow);
+        string replacementHash = ComputeHash(replacementValue);
 
-        // The table consumes the grant with a single conditional UPDATE, so of two simultaneous
-        // presentations exactly one is told it rotated. The grant was live when it was read a moment
-        // ago, so the only way to be refused here is that something else consumed it in between —
-        // which is indistinguishable from a stolen copy being redeemed, and is answered as one.
-        bool rotated = await table.TryRotateAsync(
-            presentedHash,
-            ComputeHash(replacementValue),
-            dateTimeProvider.UtcNow,
-            replacementExpiresAt,
+        // One transaction, replayed whole on a transient failure: committed apart, a grant spent by
+        // a failed attempt would read as a replay on the next presentation or the retry. A commit
+        // whose acknowledgement was lost is recognised by the successor it wrote.
+        bool rotated = await context.Database.CreateExecutionStrategy().ExecuteInTransactionAsync(
+            async ct => await RotateAsync(presentedHash, replacementHash, replacementExpiresAt, grant.FamilyId, client, ct),
+            async ct => await table.FindAsync(replacementHash, ct) is not null,
             cancellationToken);
 
+        // The grant was live when read, so a refusal means something consumed it in between —
+        // indistinguishable from a stolen copy being redeemed, and answered as one.
         if (!rotated)
         {
             return await RespondToReplayAsync(grant.UserId, cancellationToken);
         }
-
-        // A session ended between the read and this write gets its successor — and a successor is
-        // all it gets, because MarkUsedAsync and every later presentation test the family's
-        // revocation. That is how ending a session wins its race with a rotation in flight.
-        await families.MarkUsedAsync(grant.FamilyId, client.UserAgent, dateTimeProvider.UtcNow, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return RefreshTokenRotation.Rotated(
             user.Id,
@@ -178,6 +175,36 @@ internal sealed class SessionTokensService(
         await families.PurgeChildlessAsync(cancellationToken);
 
         return purged;
+    }
+
+    /// <summary>The writes of one rotation, run inside its transaction.</summary>
+    private async Task<bool> RotateAsync(
+        string presentedHash,
+        string replacementHash,
+        DateTimeOffset replacementExpiresAt,
+        Guid familyId,
+        SessionClient client,
+        CancellationToken cancellationToken)
+    {
+        // A single conditional UPDATE, so of two simultaneous presentations exactly one is told it
+        // rotated: the row stays locked by the winner until its transaction ends.
+        if (!await table.TryRotateAsync(
+            presentedHash,
+            replacementHash,
+            dateTimeProvider.UtcNow,
+            replacementExpiresAt,
+            cancellationToken))
+        {
+            return false;
+        }
+
+        // A session ended between the read and this write gets its successor — and a successor is
+        // all it gets, because MarkUsedAsync and every later presentation test the family's
+        // revocation. That is how ending a session wins its race with a rotation in flight.
+        await families.MarkUsedAsync(familyId, client.UserAgent, dateTimeProvider.UtcNow, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return true;
     }
 
     /// <summary>

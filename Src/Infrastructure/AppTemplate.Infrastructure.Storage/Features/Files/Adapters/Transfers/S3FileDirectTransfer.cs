@@ -78,8 +78,9 @@ internal sealed class S3FileDirectTransfer(
     }
 
     /// <summary>
-    /// The lifetime actually signed, clamped to <see cref="FilesStorageS3Options.MaxGrantLifetime"/>;
-    /// the store's deadline may fall up to a second earlier, as SigV4 floors to the second.
+    /// The lifetime actually signed, clamped to <see cref="FilesStorageS3Options.MaxGrantLifetime"/>.
+    /// The ceiling holds to the signer's clock precision: the SDK reads the clock again and rounds
+    /// <c>X-Amz-Expires</c> to the nearest second, so the store's deadline may differ by about a second.
     /// </summary>
     private DateTimeOffset ExpiryFor(TimeSpan lifetime)
     {

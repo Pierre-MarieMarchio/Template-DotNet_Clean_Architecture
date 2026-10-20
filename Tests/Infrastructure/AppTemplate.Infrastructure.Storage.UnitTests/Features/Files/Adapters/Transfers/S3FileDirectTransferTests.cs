@@ -26,6 +26,13 @@ public sealed class S3FileDirectTransferTests
     private const string _checksum = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
 
     /// <summary>
+    /// The signer reads the clock again after the adapter did and rounds to the second, so a lifetime
+    /// holds to the clock's precision, not exactly: the margin absorbs a loaded runner and a clock
+    /// stepping back between two reads, and still tells the ceiling from the requested lifetime.
+    /// </summary>
+    private static readonly TimeSpan _clockSlack = TimeSpan.FromSeconds(5);
+
+    /// <summary>
     /// The property the whole upload path rests on: the grant's <c>RequiredHeaders</c> is exactly the
     /// signed set, minus <c>host</c>, which the client does not choose. Read off the URL rather than
     /// off the request, because the signature is the only thing the store will consult.
@@ -108,8 +115,9 @@ public sealed class S3FileDirectTransferTests
             TimeSpan.FromHours(6),
             TestContext.Current.CancellationToken);
 
-        new SignedUrl(grant.Url).Lifetime.ShouldBe(TimeSpan.FromMinutes(10));
-        grant.ExpiresAt.ShouldBeInRange(before.AddMinutes(10), DateTimeOffset.UtcNow.AddMinutes(10));
+        var granted = TimeSpan.FromMinutes(10);
+        new SignedUrl(grant.Url).Lifetime.ShouldBeInRange(granted - _clockSlack, granted + _clockSlack);
+        grant.ExpiresAt.ShouldBeInRange(before + granted - _clockSlack, DateTimeOffset.UtcNow + granted + _clockSlack);
     }
 
     [Fact]
@@ -117,7 +125,8 @@ public sealed class S3FileDirectTransferTests
     {
         var grant = await UploadGrantAsync(TimeSpan.FromMinutes(3));
 
-        new SignedUrl(grant.Url).Lifetime.ShouldBe(TimeSpan.FromMinutes(3));
+        var granted = TimeSpan.FromMinutes(3);
+        new SignedUrl(grant.Url).Lifetime.ShouldBeInRange(granted - _clockSlack, granted + _clockSlack);
     }
 
     /// <summary>

@@ -11,45 +11,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AppTemplate.Api.IntegrationTests.Reminders;
 
-/// <summary>
-/// What every reminder test shares: the second route (reminders are addressed by their own id, not
-/// through the list — see <c>RemindersController</c>'s own remarks), and the two things no endpoint
-/// exposes at all: moving a reminder's due date into the past, and completing a to-do item without
-/// raising the domain event that would normally retire its reminder.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>Backdating through the store, not through the clock.</b> Scheduling and rescheduling both
-/// refuse a due date that is not in the future, so a reminder due <em>now</em> has to be created due
-/// shortly and then moved into the past directly. Moving the clock instead was rejected on purpose:
-/// <see cref="FireDueRemindersUseCase"/> reads the same frozen clock the bearer handler validates
-/// tokens against, and setting it backwards after a token has already been minted risks an
-/// <c>nbf</c> the handler refuses. Both direct writes go through <c>AppDbContext.Database</c> — a
-/// public method on a public type — never through an internal persistence model, the same boundary
-/// <see cref="TestDatabase"/> keeps for the same reason.
-/// </para>
-/// <para>
-/// <b>Firing is driven directly, not through HTTP.</b> <see cref="IFireDueRemindersUseCase"/> has no
-/// route: it runs from the API's reminder job on a timer, never from a request. Resolving it from
-/// the API host's own container and running it from a scope of the test's own is the same shape used
-/// elsewhere in this suite for <c>IUnitOfWork</c> — the exact production type, composed the way a
-/// real pass would compose it, just invoked once on demand instead of on a timer.
-/// </para>
-/// </remarks>
 public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    /// <summary>Reminders are their own aggregate, addressed by their own id — never nested under a
-    /// list or an item the way a <c>TodoItem</c> is.</summary>
     protected const string RemindersRoute = "/api/v1/reminders";
 
-    /// <summary>
-    /// The recording double behind <c>IReminderNotifier</c>, resolved the same way
-    /// <see cref="ApiFixture.Emails"/> resolves its own singleton. Nothing in
-    /// <see cref="IntegrationTestBase"/> clears it between tests — it has no reason to know this
-    /// double exists — so a test that reads it clears it itself, right before the action under test,
-    /// the same way other tests in this suite clear <c>Fixture.DomainEvents</c> defensively even
-    /// though the base already does for the events it does know about.
-    /// </summary>
     protected RecordedReminderNotifications Notifications =>
         Fixture.Factory.Services.GetRequiredService<RecordedReminderNotifications>();
 
@@ -97,12 +62,6 @@ public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBas
         return await ApiJson.ReadAsync<RemindersResponse>(response, TestToken);
     }
 
-    /// <summary>
-    /// A reschedule carrying whatever the caller wants in <c>If-Match</c>, including nothing at all —
-    /// the same shape as <c>IntegrationTestBase.RenameAsync</c>, for the same reason: a test that
-    /// could only send values <see cref="HttpClient"/> considers well-formed could never exercise the
-    /// malformed case.
-    /// </summary>
     protected static Task<HttpResponseMessage> RescheduleAsync(
         HttpClient client,
         Guid reminderId,
@@ -138,13 +97,6 @@ public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBas
         return client.SendAsync(request, TestToken);
     }
 
-    /// <summary>
-    /// Moves a reminder's due date into the past, bypassing the refusal <c>Reschedule</c> would
-    /// raise against one. Loading a stored reminder deliberately does not re-check that its due date
-    /// is in the future — that is a precondition of scheduling, not a property of the stored state —
-    /// which is what makes a row backdated this way loadable by the very query
-    /// <see cref="IFireDueRemindersUseCase"/> runs.
-    /// </summary>
     protected async Task BackdateReminderAsync(Guid reminderId, DateTimeOffset dueAt)
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
@@ -155,11 +107,6 @@ public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBas
             TestToken);
     }
 
-    /// <summary>
-    /// Leaves a reminder as a failed notification would: one attempt down, and the next not allowed
-    /// before <paramref name="nextAttemptAt"/>. The in-memory notifier never fails, so the state a
-    /// failure leaves behind has to be written the same direct way the due date is.
-    /// </summary>
     protected async Task PutInBackoffAsync(Guid reminderId, DateTimeOffset nextAttemptAt)
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
@@ -170,13 +117,6 @@ public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBas
             TestToken);
     }
 
-    /// <summary>
-    /// Completes a to-do item by writing the column directly, the way a completion that never went
-    /// through the use case would leave it: <c>CompletedAt</c> set, but no
-    /// <c>TodoItemCompletedDomainEvent</c> ever raised, and therefore
-    /// <c>CancelRemindersOnTodoItemCompletedConsumer</c> never runs. This is the lost event
-    /// <see cref="FireDueRemindersUseCase"/>'s own remarks describe re-checking completion against.
-    /// </summary>
     protected async Task CompleteTodoItemWithoutRaisingAnEventAsync(Guid todoItemId, DateTimeOffset completedAt)
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
@@ -187,11 +127,6 @@ public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBas
             TestToken);
     }
 
-    /// <summary>
-    /// Runs one pass of <see cref="IFireDueRemindersUseCase"/>, resolved from a scope of its own —
-    /// never from the scope an HTTP request is using — the same way the API's reminder
-    /// job does.
-    /// </summary>
     protected async Task<int> FireDueRemindersAsync()
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();

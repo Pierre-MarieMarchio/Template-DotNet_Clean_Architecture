@@ -11,16 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Http;
 
-/// <summary>
-/// Kestrel's shipped default accepts a 30 MB request body, which is a free denial-of-service against
-/// a JSON API whose largest legitimate body is a few kilobytes.
-/// </summary>
-/// <remarks>
-/// A second host lowers <c>RequestLimits:MaxRequestBodyBytes</c> to the validator's own floor, 1024
-/// bytes, so the "over the limit" case needs no 64 KB payload to reach it — the same reasoning
-/// <see cref="TodoLists.IfMatchRequiredTests"/> gives for building a second host rather than
-/// reconfiguring the shared one: the setting is read once, at composition time.
-/// </remarks>
 public sealed class RequestBodySizeLimitTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const long _loweredLimit = 1024;
@@ -33,8 +23,6 @@ public sealed class RequestBodySizeLimitTests(ApiFixture fixture) : IntegrationT
         using var host = HostWithLoweredLimit();
         using var limited = ClientOf(host, session.Tokens.AccessToken);
 
-        // Far larger than a business-valid name, but that is the point: the middleware runs before
-        // model binding or validation, so an oversized body never reaches either.
         string oversizedName = new string('a', (int)_loweredLimit + 500);
 
         using var response = await limited.PostAsJsonAsync(
@@ -86,7 +74,6 @@ public sealed class RequestBodySizeLimitTests(ApiFixture fixture) : IntegrationT
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-        // Its own rate-limit partition, out of the range CreateClient hands out.
         client.DefaultRequestHeaders.Add(TestClientAddressStartupFilter.HeaderName, "10.250.2.1");
 
         return client;

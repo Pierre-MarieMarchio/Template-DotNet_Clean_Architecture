@@ -12,10 +12,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// Register, confirm, log in — end to end, with the confirmation token taken out of the email that
-/// was actually sent.
-/// </summary>
 public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -32,14 +28,11 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         registered.StatusCode.ShouldBe(HttpStatusCode.Accepted);
         (await ApiJson.ReadAsync<RegisterResponse>(registered, TestToken)).ShouldBe(RegisterResponse.Pending);
 
-        // Exactly one email, to that address, with the configured subject.
         var sent = RequireLastEmailTo(email);
         Emails.Snapshot().Count.ShouldBe(1);
         sent.Subject.ShouldBe("Confirm your email address");
         sent.SentAt.ShouldBe(Clock.UtcNow);
 
-        // Signing in before confirming must fail, and fail the same way every other login failure
-        // does.
         using var tooEarly = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",
             new LoginRequest(email, ValidPassword),
@@ -65,14 +58,10 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
             TestToken);
         loggedIn.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        // Signing in answers with tokens and nothing else: a caller that wants the account it just
-        // signed in as asks the profile endpoint.
         var authenticated = (await ApiJson.ReadAsync<LoginResponse>(loggedIn, TestToken))
             .ShouldBeOfType<LoginResponse.Authenticated>();
         authenticated.Tokens.AccessToken.ShouldNotBeNullOrWhiteSpace();
 
-        // The access token is a working credential, which is the only thing that makes the whole
-        // flow worth anything.
         using var protectedRequest = new HttpRequestMessage(HttpMethod.Get, ProtectedRoute);
         protectedRequest.Headers.Authorization =
             new AuthenticationHeaderValue("Bearer", authenticated.Tokens.AccessToken);
@@ -80,7 +69,6 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         using var reached = await client.SendAsync(protectedRequest, TestToken);
         reached.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        // And the profile it opens describes the account that was just registered.
         using var profileRequest = new HttpRequestMessage(HttpMethod.Get, $"{AuthRoute}/me");
         profileRequest.Headers.Authorization =
             new AuthenticationHeaderValue("Bearer", authenticated.Tokens.AccessToken);
@@ -94,10 +82,6 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         profile.EmailConfirmed.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// The confirmation parameters travel in the link's <em>fragment</em>, which browsers never send
-    /// to a server, so the single-use token stays out of access logs and <c>Referer</c> headers.
-    /// </summary>
     [Fact]
     public async Task TheConfirmationLink_CarriesItsSecretInTheFragment()
     {
@@ -116,7 +100,6 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         uri.Fragment.ShouldNotBeEmpty();
         uri.GetLeftPart(UriPartial.Path).ShouldBe("https://client.integration.test/confirm-email");
 
-        // And the token is not in the part of the URL a server would see.
         uri.GetLeftPart(UriPartial.Query).ShouldNotContain(token);
     }
 
@@ -138,10 +121,6 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         (await EmailConfirmedAsync(user.Email)).ShouldBeFalse();
     }
 
-    /// <summary>
-    /// Confirming for an address nobody registered must answer exactly as a wrong token does, or the
-    /// endpoint tells an attacker which addresses exist.
-    /// </summary>
     [Fact]
     public async Task AnUnknownAddress_AndAWrongToken_AreIndistinguishable()
     {
@@ -167,10 +146,6 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         first.BodyWithoutTraceId.ShouldBe(second.BodyWithoutTraceId);
     }
 
-    /// <summary>
-    /// Registration commits the account before it tries to deliver anything, so a resend has to be
-    /// able to produce a fresh, working link.
-    /// </summary>
     [Fact]
     public async Task AResentLink_Confirms()
     {

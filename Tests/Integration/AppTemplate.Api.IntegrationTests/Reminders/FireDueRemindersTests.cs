@@ -5,21 +5,11 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Reminders;
 
-/// <summary>
-/// The guarantees <c>FireDueRemindersUseCase</c>'s own XML comment states, proved end to end through
-/// the real routes and the real store rather than through a mock of any of its ports: a due reminder
-/// fires exactly once, a fired reminder never fires again, and — the reason the use case re-checks
-/// completion at all instead of trusting the event that should have already cancelled a reminder —
-/// a target that turns out to be already completed or altogether gone is cancelled instead of
-/// notified, whether or not the event that was supposed to retire it first ever arrived.
-/// </summary>
 public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBase(fixture)
 {
     [Fact]
     public async Task ADueReminder_FiresAndRecordsExactlyOneNotification()
     {
-        // The recording double is a singleton for the whole suite (see RemindersTestBase's own
-        // remarks) and nothing clears it automatically, so a test that reads it clears it itself.
         Notifications.Clear();
 
         var (client, _, session) = await SignInAsync();
@@ -60,8 +50,6 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         (await FireDueRemindersAsync()).ShouldBe(1);
         Notifications.Snapshot().Count.ShouldBe(1);
 
-        // A second pass over the same batch — exactly what a crash-and-retry, or the job's own
-        // next tick, would also see.
         int notifiedAgain = await FireDueRemindersAsync();
 
         notifiedAgain.ShouldBe(0);
@@ -73,10 +61,6 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("fired");
     }
 
-    /// <summary>
-    /// What the retry state is for, proved against the real due query: a reminder whose last attempt
-    /// failed stays out of the batch until its wait is over, and is fired by the first pass after it.
-    /// </summary>
     [Fact]
     public async Task AReminderWaitingOutAFailedAttempt_IsNotFiredBeforeItsRetryTime()
     {
@@ -100,11 +84,6 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("fired");
     }
 
-    /// <summary>
-    /// The fast path working as intended: a completion that goes through the ordinary endpoint
-    /// retires its reminder through <c>CancelRemindersOnTodoItemCompletedConsumer</c> before the
-    /// reminder is ever due, and firing later finds nothing pending to notify.
-    /// </summary>
     [Fact]
     public async Task AnItemCompletedThroughTheNormalEndpoint_CancelsItsReminderAndFiringNeverNotifies()
     {
@@ -122,8 +101,6 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
             TestToken);
         completed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        // Cancelled already, before the reminder ever comes due — the consumer's own job, proved
-        // independently of firing.
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("cancelled");
 
         await BackdateReminderAsync(reminder.Id, Clock.UtcNow.AddMinutes(-1));
@@ -134,14 +111,6 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         Notifications.Snapshot().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The scenario the whole feature exists for. <c>CancelRemindersOnTodoItemCompletedConsumer</c>
-    /// is a best-effort fast path, not the correctness guarantee (see its own remarks): here the item
-    /// is completed by writing the column directly, exactly as it would be left by a completion whose
-    /// domain event never reached that consumer. Firing must still refuse to notify, because it
-    /// re-checks the target's completion itself rather than trusting a cancellation that never
-    /// happened.
-    /// </summary>
     [Fact]
     public async Task AnItemCompletedWithoutTheEventEverFiring_StillDoesNotGetNotified()
     {
@@ -154,11 +123,8 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.UtcNow.AddMinutes(5));
         await BackdateReminderAsync(reminder.Id, Clock.UtcNow.AddMinutes(-1));
 
-        // The lost event: completed, but not through the use case that would have raised it.
         await CompleteTodoItemWithoutRaisingAnEventAsync(itemId, Clock.UtcNow);
 
-        // Proof the simulation actually landed: the fast-path consumer never ran, so the reminder is
-        // still Pending going into the firing pass below.
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("pending");
 
         int notified = await FireDueRemindersAsync();
@@ -174,11 +140,6 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         settled.NotifiedAt.ShouldBeNull();
     }
 
-    /// <summary>
-    /// An item removed outright raises no domain event either — there is nothing for the consumer to
-    /// have missed — and firing treats an id absent from the target lookup exactly like a completed
-    /// one: cancelled, never notified.
-    /// </summary>
     [Fact]
     public async Task ARemovedItemsReminder_IsCancelledWithoutEverNotifying()
     {

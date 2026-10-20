@@ -13,28 +13,8 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.IntegrationTests.Fixtures;
 
-/// <summary>
-/// A real PostgreSQL and the persistence module composed against it, started once for the class that
-/// uses it.
-/// </summary>
-/// <remarks>
-/// <para>
-/// The grant table is composed exactly as the identity module composes it — through
-/// <c>AddPersistenceModule</c> and resolved as <c>IRefreshTokenTable</c> — so what the tests exercise
-/// is the registration the host builds, not a hand-wired copy of it.
-/// </para>
-/// <para>
-/// A container rather than an in-memory provider, because the property under test is a property of
-/// the database: which of two concurrent conditional updates affects a row. An in-memory or
-/// hand-written table would answer whatever it was written to answer.
-/// </para>
-/// </remarks>
 public sealed class GrantTableFixture : IAsyncLifetime
 {
-    /// <summary>
-    /// The image <c>docker-compose.yml</c>'s <c>db</c> service runs, tag and digest alike.
-    /// <c>ContainerImagePinningTests</c> fails when the two part.
-    /// </summary>
     private const string _postgresImage =
         "postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1";
 
@@ -60,8 +40,6 @@ public sealed class GrantTableFixture : IAsyncLifetime
             {
                 ["ConnectionStrings:Default"] = _container.GetConnectionString(),
 
-                // What IdentitySeedOptionsValidator requires when no password is supplied. Nothing
-                // here resolves the seeder, but the section is bound at composition time.
                 ["IdentitySeed:Enabled"] = "false",
             })
             .Build();
@@ -71,8 +49,6 @@ public sealed class GrantTableFixture : IAsyncLifetime
         await using var scope = _services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
 
-        // Before migrating, not instead of checking: see DatabaseReadiness for the failure this
-        // removes and for why waiting here cannot hide one.
         await DatabaseReadiness.WaitAsync(context, TestContext.Current.CancellationToken);
 
         await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
@@ -85,21 +61,14 @@ public sealed class GrantTableFixture : IAsyncLifetime
             await _services.DisposeAsync();
         }
 
-        // CancellationToken.None deliberately: teardown must run even when the run is being
-        // cancelled, or the container is left behind.
         await _container.DisposeAsync();
     }
 
-    /// <summary>
-    /// The same composition over the same database, with <paramref name="interceptors"/> attached to
-    /// the identity context: how a test makes one statement or one commit fail where it wants.
-    /// </summary>
     public ServiceProvider ComposeWith(params IInterceptor[] interceptors) =>
         Compose(
             _configuration ?? throw new InvalidOperationException($"{nameof(GrantTableFixture)} has not been initialised."),
             services => services.ConfigureDbContext<AuthDbContext>(options => options.AddInterceptors(interceptors)));
 
-    /// <summary>An account for grants to hang off, since the grant table has a foreign key to it.</summary>
     public async Task<AppUser> CreateUserAsync(CancellationToken cancellationToken)
     {
         string suffix = Guid.CreateVersion7().ToString("N", CultureInfo.InvariantCulture)[..12];
@@ -127,13 +96,6 @@ public sealed class GrantTableFixture : IAsyncLifetime
         return user;
     }
 
-    /// <summary>
-    /// How many of a user's grants are still live, read over the context's own connection.
-    /// </summary>
-    /// <remarks>
-    /// Raw SQL rather than a <c>DbSet</c>: the grant row type is internal to the persistence
-    /// assembly, and a test that could name it could also write one without going through the table.
-    /// </remarks>
     public async Task<int> CountLiveGrantsAsync(Guid userId, CancellationToken cancellationToken)
     {
         await using var scope = Services.CreateAsyncScope();
@@ -157,10 +119,6 @@ public sealed class GrantTableFixture : IAsyncLifetime
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
     }
 
-    /// <summary>
-    /// How many of a user's sessions are still live — neither revoked nor out of live grants — read
-    /// over the context's own connection, for the same reason as <see cref="CountLiveGrantsAsync"/>.
-    /// </summary>
     public async Task<int> CountLiveSessionsAsync(Guid userId, CancellationToken cancellationToken)
     {
         await using var scope = Services.CreateAsyncScope();
@@ -191,8 +149,6 @@ public sealed class GrantTableFixture : IAsyncLifetime
     {
         var services = new ServiceCollection();
 
-        // Logging, because the interceptors take an ILogger; and the audit actor, because the
-        // auditing interceptor takes one. Both are things the host supplies rather than a module.
         services.AddLogging();
         services.AddSingleton<IAuditActor, AnonymousAuditActor>();
         services.AddAuthModule(configuration);

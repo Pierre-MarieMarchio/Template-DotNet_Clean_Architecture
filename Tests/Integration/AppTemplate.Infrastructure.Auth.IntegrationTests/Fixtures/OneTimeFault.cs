@@ -4,32 +4,21 @@ using Npgsql;
 
 namespace AppTemplate.Infrastructure.Auth.IntegrationTests.Fixtures;
 
-/// <summary>Where a <see cref="OneTimeFault"/> strikes.</summary>
 public enum FaultPoint
 {
-    /// <summary>After the conditional <c>UPDATE</c> that consumes a grant has run: its acknowledgement is lost.</summary>
     AfterTheConsumption,
 
-    /// <summary>Before the successor's <c>INSERT</c> runs.</summary>
     BeforeTheSuccessorsInsert,
 
-    /// <summary>After a transaction committed: the commit's acknowledgement is lost.</summary>
     AfterTheCommit,
 }
 
-/// <summary>
-/// Fails the identity context once, at one point of a rotation, and then lets everything through.
-/// A transient fault is what the context's retrying execution strategy replays; any other one
-/// reaches the caller.
-/// </summary>
 public sealed class OneTimeFault(FaultPoint point, bool transient)
 {
     private int _fired;
 
-    /// <summary>The interceptors to attach to the context, through <see cref="GrantTableFixture.ComposeWith"/>.</summary>
     public IInterceptor[] Interceptors => [new Commands(this), new Commits(this)];
 
-    /// <summary>Whether the fault has struck.</summary>
     public bool Fired => Volatile.Read(ref _fired) == 1;
 
     private void Strike(FaultPoint reached)
@@ -39,8 +28,6 @@ public sealed class OneTimeFault(FaultPoint point, bool transient)
             return;
         }
 
-        // Npgsql reports a broken connection as an NpgsqlException wrapping the I/O failure; that
-        // inner exception is what makes it transient, and so retried.
         throw transient
             ? new NpgsqlException("Injected: the connection was lost.", new TimeoutException())
             : new InvalidOperationException("Injected: the statement failed.");

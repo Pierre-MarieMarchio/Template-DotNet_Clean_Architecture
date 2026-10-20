@@ -7,14 +7,6 @@ using System.Text.Json.Nodes;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// A WebAuthn authenticator in memory: one ES256 credential, created with the <c>none</c>
-/// attestation and asserted with a DER signature, as a browser would hand them to the API.
-/// </summary>
-/// <remarks>
-/// Every optional argument replaces one input of the ceremony and nothing else, so a refusal test
-/// differs from the accepted ceremony in exactly the value it names.
-/// </remarks>
 internal sealed class SoftwareAuthenticator : IDisposable
 {
     private const byte _userPresent = 0x01;
@@ -29,13 +21,10 @@ internal sealed class SoftwareAuthenticator : IDisposable
 
     public string CredentialIdBase64Url => Base64Url.EncodeToString(CredentialId);
 
-    /// <summary>The <c>user.id</c> of the creation options, as the authenticator stores it.</summary>
     public string? UserHandle { get; private set; }
 
-    /// <summary>The counter the next assertion increments, unless <see cref="KeepsNoCounter"/>.</summary>
     public uint SignCount { get; set; }
 
-    /// <summary>Reports zero on every assertion, as synced passkeys do.</summary>
     public bool KeepsNoCounter { get; init; }
 
     public bool BackupEligible { get; init; }
@@ -178,7 +167,6 @@ internal sealed class SoftwareAuthenticator : IDisposable
         return bytes;
     }
 
-    /// <summary>The credential's public key as a COSE EC2 key: P-256, ES256.</summary>
     private byte[] CosePublicKey()
     {
         var point = _key.ExportParameters(includePrivateParameters: false).Q;

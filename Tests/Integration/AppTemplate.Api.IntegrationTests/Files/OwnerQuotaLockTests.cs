@@ -7,10 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Files;
 
-/// <summary>
-/// The owner's quota lock against a real PostgreSQL, taken by two independently composed hosts.
-/// Each contender is started from inside the holder's work, so the overlap is a fact.
-/// </summary>
 public sealed class OwnerQuotaLockTests(LeaseFixture fixture) : IClassFixture<LeaseFixture>
 {
     private static readonly FileCategory _document = FileCategory.Create("document");
@@ -71,10 +67,6 @@ public sealed class OwnerQuotaLockTests(LeaseFixture fixture) : IClassFixture<Le
             .WaitAsync(_cap, TestToken)).ShouldBe(1);
     }
 
-    /// <summary>
-    /// <c>lock_timeout</c> bounds the wait on an advisory lock; the contender is refused with the
-    /// port's exception and never runs its work. Takes the adapter's whole wait limit.
-    /// </summary>
     [Fact]
     public async Task AWaitPastTheLimit_IsRefusedWithoutRunningTheWork()
     {

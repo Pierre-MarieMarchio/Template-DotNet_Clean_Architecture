@@ -6,23 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Storage;
 
-/// <summary>
-/// The two-step upload, against a real store: a grant this module signs is one the store accepts,
-/// and the bytes deposited under it come back byte for byte.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>Only a real store can answer this.</b> The unit tests read the URL a grant carries and assert
-/// its shape, which is all they can do without a store — the signature is computed locally, so a
-/// wrong one is indistinguishable from a right one until something checks it. Every assertion here
-/// is about the half nothing else can see: whether the store agrees.
-/// </para>
-/// <para>
-/// The refusals matter as much as the acceptance. A grant is a bearer right, and its whole value is
-/// that it authorises <em>one</em> deposit of <em>one</em> shape — so a suite that only proved the
-/// happy path would be equally green against a bucket that accepted anything from anyone.
-/// </para>
-/// </remarks>
 [Collection(ObjectStoreCollectionDefinition.Name)]
 public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 {
@@ -31,29 +14,10 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
     private static readonly byte[] _payload =
         "The quick brown fox jumps over the lazy dog, and then deposits itself in a bucket."u8.ToArray();
 
-    /// <summary>
-    /// The digest of <see cref="_payload"/>, computed rather than written down. A grant binds it, so a
-    /// constant that drifted from the bytes would mint a grant no honest deposit could satisfy.
-    /// </summary>
     private static readonly string _checksum = Convert.ToHexStringLower(SHA256.HashData(_payload));
 
-    /// <summary>
-    /// How long a grant is given to stop working before the wait is called a failure.
-    /// </summary>
-    /// <remarks>
-    /// Not a measurement of the store's punctuality: the grant below is signed for
-    /// <see cref="_shortLifetime"/>, and a store that honours the expiry refuses on the first request
-    /// past it. The cap is set orders of magnitude above that so that only a store ignoring the
-    /// deadline entirely can reach it — a cap of five seconds would be a bet on this machine, which is
-    /// a bet this repository has already lost once.
-    /// </remarks>
     private static readonly TimeSpan _expiryCap = TimeSpan.FromMinutes(2);
 
-    /// <summary>
-    /// How long the grant whose expiry is the subject is signed for. Short, so a passing run waits
-    /// seconds; nothing else depends on the figure, because what proves the grant was ever valid is
-    /// a control grant of its own rather than a window inside this one.
-    /// </summary>
     private static readonly TimeSpan _shortLifetime = TimeSpan.FromSeconds(3);
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -107,16 +71,6 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
             "is content this application cannot see going wrong.");
     }
 
-    /// <summary>
-    /// The overrides the download grant signs are the store's answer, not a suggestion.
-    /// </summary>
-    /// <remarks>
-    /// They are what stops an uploader choosing what a downloader's browser executes: the declared
-    /// media type is the uploader's own claim about bytes nothing here has read, and the disposition
-    /// is what makes the browser save rather than render it. A store that ignored either would leave
-    /// that decision with whoever deposited the file, and no unit test can tell the difference —
-    /// signing an override and honouring one are two different parties' jobs.
-    /// </remarks>
     [Fact]
     public async Task ADownloadGrant_MakesTheStoreAnswerWithAnAttachment()
     {
@@ -142,13 +96,8 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 
         disposition.ShouldNotBeNull();
 
-        // Inline would hand an uploader the right to have a viewer's browser render whatever was
-        // deposited.
         disposition.ShouldStartWith("attachment", Case.Sensitive);
 
-        // The RFC 6266 pair, and the reason there are two: the quoted form is ASCII for clients that
-        // parse nothing else, and the starred one carries the name the user actually chose. A store
-        // that dropped the second would silently rename every file with a non-ASCII character in it.
         disposition.ShouldContain("filename*=UTF-8''rapport%20%C3%A9t%C3%A9.txt");
     }
 
@@ -174,14 +123,6 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
             "confirmation, with the bytes already paid for and a row that cannot be confirmed.");
     }
 
-    /// <summary>
-    /// The headers a grant lists are the headers the signature covers, and the store checks.
-    /// </summary>
-    /// <remarks>
-    /// The unit tests hold that the two lists agree because the grant is built from the signed
-    /// request rather than restated. What they cannot hold is that the list means anything: only the
-    /// store recomputing the signature over what actually arrived turns it into a requirement.
-    /// </remarks>
     [Fact]
     public async Task ADepositThatOmitsARequiredHeader_IsRefused()
     {
@@ -208,10 +149,6 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 
         using var deposit = await fixture.DepositAsync(withoutContentType, _payload, TestToken);
 
-        // Refused, rather than refused with one particular status: a missing signed header is a
-        // malformed request to one store and a bad signature to another — MinIO answers 400 here and
-        // AWS S3 answers 403 SignatureDoesNotMatch — and pinning either would make this a test of
-        // which store is running.
         deposit.IsSuccessStatusCode.ShouldBeFalse(
             $"a header the grant names is one the signature covers, and the store answered " +
             $"{(int)deposit.StatusCode} to a deposit that dropped Content-Type. Accepting it would " +
@@ -219,15 +156,6 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
             await deposit.Content.ReadAsStringAsync(TestToken));
     }
 
-    /// <summary>
-    /// The signature is what authorises, not the URL, and not the bucket.
-    /// </summary>
-    /// <remarks>
-    /// A publicly readable bucket would make every signed URL in this template decoration — the
-    /// deployment guidance says so, and the one S3 identity <c>docker-compose.yml</c> gives its store
-    /// — which is what turns anonymous access off there — is the development stack acting on it.
-    /// Nothing in-process can check that; this can.
-    /// </remarks>
     [Fact]
     public async Task TheSameObjectWithoutASignature_IsRefused()
     {
@@ -253,32 +181,6 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
             "whole internet can read.");
     }
 
-    /// <summary>
-    /// An expired grant stops working, which is the only thing that limits what a leaked URL is
-    /// still worth.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The loop asks until the store refuses rather than sleeping for a guessed interval. The wait
-    /// is on the condition, so a store that expires promptly costs one extra request and a slow
-    /// machine costs a few more.
-    /// </para>
-    /// <para>
-    /// <b>Why a refusal here means expiry.</b> A grant over this object is served once first, under
-    /// a lifetime nowhere near elapsing. Without that control, the loop below would end on its own
-    /// exit condition having proved nothing: a signature computed wrong, a lifetime that reached the
-    /// store as nothing, or a store still warming up all answer the first request with the same
-    /// <c>Forbidden</c> the assertion is waiting for. The control is a separate grant rather than an
-    /// early request against the short one, so that establishing validity never races the very
-    /// window whose expiry is the subject — a race this suite loses on a run where twelve test
-    /// projects and four containers start at once.
-    /// </para>
-    /// <para>
-    /// <b>The lifetime is not the operator's ceiling.</b> <c>MaxGrantLifetime</c> clamps downwards
-    /// only, so asking for a second gets a second whatever the ceiling is, and this test needs no
-    /// configuration of its own.
-    /// </para>
-    /// </remarks>
     [Fact]
     public async Task AGrantWhoseLifetimeHasElapsed_IsRefused()
     {
@@ -318,16 +220,9 @@ public sealed class SignedGrantTests(ObjectStoreFixture fixture)
 
             if (last != HttpStatusCode.Forbidden)
             {
-                // A polling interval, not a guess at when the grant expires: the loop ends on the
-                // store's answer, and this only keeps a passing run from spending its seconds
-                // hammering the container.
                 await Task.Delay(TimeSpan.FromMilliseconds(100), TestToken);
             }
         }
-        // The exit condition is the thing being asserted, not "the answer changed". A store under
-        // start-up load can answer with something that is neither the object nor a refusal, and
-        // ending the loop on any non-OK status would turn one of those into a failed assertion
-        // about expiry.
         while (last != HttpStatusCode.Forbidden && elapsed.Elapsed < _expiryCap);
 
         last.ShouldBe(

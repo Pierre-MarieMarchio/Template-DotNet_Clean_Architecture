@@ -7,11 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Notes;
 
-/// <summary>
-/// One user's notes are invisible to another across the HTTP boundary, and "not yours" is
-/// indistinguishable from "does not exist": every attempt answers 404, never 403, so no endpoint
-/// taking a note id is an oracle for other users' ids.
-/// </summary>
 public sealed class NoteOwnershipTests(ApiFixture fixture) : NotesTestBase(fixture)
 {
     [Fact]
@@ -48,10 +43,6 @@ public sealed class NoteOwnershipTests(ApiFixture fixture) : NotesTestBase(fixtu
         still.ETag.ShouldBe(note.ETag, "the refused writes did not move the version");
     }
 
-    /// <summary>
-    /// Compared as whole responses with the id factored out: a foreign note and a note that never existed
-    /// must differ in nothing a caller can see, on every route and with a precondition attached.
-    /// </summary>
     [Fact]
     public async Task AForeignNote_AndAMissingOne_AnswerIdentically()
     {

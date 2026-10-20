@@ -7,15 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Caching;
 
-/// <summary>
-/// Every read states whether its response may be stored, and every write leaves the question alone.
-/// </summary>
-/// <remarks>
-/// <c>private</c> confines storage to
-/// the end client; <c>no-cache</c> still lets that client store the response, but only reuse it after
-/// revalidating with the origin — which is what makes the strong <c>ETag</c> this API already
-/// publishes worth having.
-/// </remarks>
 public sealed class CacheHeaderTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -43,10 +34,6 @@ public sealed class CacheHeaderTests(ApiFixture fixture) : IntegrationTestBase(f
         AssertRevalidateOnly(response);
     }
 
-    /// <summary>
-    /// The 304 path in particular: a revalidation response is exactly where the header does its
-    /// work, so it must not have been dropped on the short-circuit that produces it.
-    /// </summary>
     [Fact]
     public async Task A304Revalidation_CarriesTheCacheHeaderToo()
     {

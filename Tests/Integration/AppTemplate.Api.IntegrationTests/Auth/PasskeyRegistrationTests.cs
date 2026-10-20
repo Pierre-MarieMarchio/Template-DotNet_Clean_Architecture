@@ -7,17 +7,12 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// What a passkey registration demands of the caller and of the authenticator. Every ceremony
-/// refusal answers 400 on <c>credential</c>, so each also asserts the reason Identity recorded.
-/// </summary>
 public sealed class PasskeyRegistrationTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const string _validationFailed = "request.validationFailed";
 
     private PasskeyCeremonyFailures Failures => PasskeyTestSupport.Failures(Fixture);
 
-    /// <summary>The proof is checked before the ceremony, so the same state still completes once it is given.</summary>
     [Fact]
     public async Task WithoutThePassword_IsRefused_AndTheSameCeremonyCompletesWithIt()
     {
@@ -102,7 +97,6 @@ public sealed class PasskeyRegistrationTests(ApiFixture fixture) : IntegrationTe
                 options, PasskeyTestSupport.Origin, clientDataOrigin: "https://attacker.example"),
             "invalid origin");
 
-        // The same authenticator, the origins agreeing: the refusal above was the origin's.
         await PasskeyTestSupport.RegisterAsync(client, authenticator, user.Password, TestToken);
     }
 
@@ -133,10 +127,6 @@ public sealed class PasskeyRegistrationTests(ApiFixture fixture) : IntegrationTe
             "challenge does not match");
     }
 
-    /// <summary>
-    /// The options name the configured domain rather than TestServer's host, and a credential
-    /// scoped to that host is refused: <c>Passkey:ServerDomain</c> reaches Identity.
-    /// </summary>
     [Fact]
     public async Task ACredentialScopedToAnotherRelyingParty_IsRefused()
     {
@@ -179,10 +169,6 @@ public sealed class PasskeyRegistrationTests(ApiFixture fixture) : IntegrationTe
             "'type' field");
     }
 
-    /// <summary>
-    /// The captured pair presented again is refused by its spent state, before Identity sees it;
-    /// the same credential through a ceremony of its own is refused by Identity as already held.
-    /// </summary>
     [Fact]
     public async Task ACredentialAlreadyRegistered_IsRefused()
     {
@@ -210,7 +196,6 @@ public sealed class PasskeyRegistrationTests(ApiFixture fixture) : IntegrationTe
         (await PasskeyTestSupport.ListAsync(client, TestToken)).ShouldHaveSingleItem();
     }
 
-    /// <summary>A registration state is sealed for the account it was issued to.</summary>
     [Fact]
     public async Task AStateIssuedToAnotherAccount_IsRefused()
     {
@@ -233,10 +218,6 @@ public sealed class PasskeyRegistrationTests(ApiFixture fixture) : IntegrationTe
         (await PasskeyTestSupport.ListAsync(attacker, TestToken)).ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// A fresh ceremony whose credential <paramref name="createCredential"/> builds from the
-    /// options, refused on <c>credential</c> for the reason <paramref name="reason"/> names.
-    /// </summary>
     private async Task ShouldBeRefusedByIdentityAsync(
         HttpClient client,
         string password,

@@ -15,16 +15,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Saving;
 
-/// <summary>
-/// A save flushes and publishes only the work staged on the context instance being saved, against
-/// PostgreSQL and the host's own composition. A request commits other contexts too — the second
-/// business context an idempotency claim commits through, and the identity context where the host
-/// has local accounts — and none of those commits is the business write.
-/// </summary>
-/// <remarks>
-/// The same scenarios run without a container, on SQLite, in
-/// <c>AppTemplate.Api.UnitTests</c>'s <c>Composition/ContextScopedSavingTests</c>.
-/// </remarks>
 public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     //#if (localAuth)

@@ -41,41 +41,13 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 
-/// <summary>
-/// The real API host, wired to a real PostgreSQL container.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>Why the entry-point type argument is <c>Program</c>.</b>
-/// <see cref="WebApplicationFactory{TEntryPoint}"/> uses it to locate the assembly that owns the
-/// entry point, and refuses a type from an assembly that has none. <c>Program</c> is the one type
-/// that names that assembly's entry point itself. The host declares it public for exactly this,
-/// which costs it no member and no <c>InternalsVisibleTo</c>.
-/// </para>
-/// <para>
-/// <b>Why configuration is supplied through environment variables.</b> <c>Program.cs</c> reads
-/// <c>builder.Configuration</c> <em>while composing the container</em> —
-/// <see cref="DefaultConnectionString.Require"/> runs inside <c>AddPersistenceModule</c>, before the
-/// host is ever built. Environment variables are part of the default configuration chain and
-/// outrank every <c>appsettings*.json</c> file, so they are visible at that moment with no
-/// dependence on when a test hook happens to run. Every key each options validator requires is set
-/// here, which also means the suite does not care whether the content root resolves to the API
-/// project or to the test output directory.
-/// </para>
-/// </remarks>
 public sealed class ApiFactory : WebApplicationFactory<Program>
 {
     //#if (localAuth)
-    /// <summary>Well above the 32-byte HS256 floor <see cref="JwtOptions"/> enforces.</summary>
     private const string _signingKey = "integration-tests-signing-key-0123456789abcdef0123456789abcdef";
 
-    /// <summary>
-    /// Deliberately lower than the shipped default of 5, so the lockout test needs fewer requests
-    /// than the per-IP authentication rate limit allows.
-    /// </summary>
     public const int LockoutMaxFailedAccessAttempts = 3;
 
-    /// <summary>The <c>Identity</c> policy the suite asserts against, not the laxer development one.</summary>
     public const int PasswordRequiredLength = 12;
 
     //#endif
@@ -90,43 +62,27 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        // Runs after Program.cs has finished registering, which is what lets AddInMemoryModule's
-        // remove-then-add replacement actually replace something.
         builder.ConfigureTestServices(services =>
         {
-            // The clock and the email sender. Not fakes written here: the product project exists
-            // precisely so every host substitutes them the same way.
             services.AddInMemoryModule();
 
-            // Program.cs installs a JSON console provider. Dropping it keeps the suite's output
-            // readable; the capturing provider below is what the tests assert against.
             services.RemoveAll<ILoggerProvider>();
             services.AddSingleton<CapturedLogs>();
             services.AddSingleton<ILoggerProvider>(serviceProvider =>
                 new CapturingLoggerProvider(serviceProvider.GetRequiredService<CapturedLogs>()));
 
             //#if (todoLists)
-            // A second consumer for an event the product already consumes. Registered through the
-            // module's own public entry point, so the test proves that mechanism rather than
-            // bypassing it.
             services.AddSingleton<RecordedDomainEvents>();
             services.AddDomainEventConsumer<TodoItemCompletedDomainEvent, RecordingTodoItemCompletedConsumer>();
             //#endif
 
-            // Gives each test its own rate-limit partition. See TestClientAddressStartupFilter.
             services.AddSingleton<IStartupFilter, TestClientAddressStartupFilter>();
 
-            // The fixed-window limiter has no injectable clock: it catches up to real elapsed time
-            // on the next acquire regardless of AutoReplenishment, so nothing short of the window
-            // itself can stop a slow run from crossing a real one-minute boundary between one
-            // request and the next and getting a false replenish. Widened far past anything a test
-            // could plausibly take, which leaves the permit counts under test untouched.
             services.PostConfigure<RateLimitingOptions>(options => options.Window = TimeSpan.FromHours(1));
             //#if (localAuth)
 
             ExposeTheReasonATokenWasRefused(services);
 
-            // Identity's own handler, recording why it refused a ceremony; see PasskeyCeremonyFailures.
             services.AddSingleton<PasskeyCeremonyFailures>();
             services.Replace(ServiceDescriptor.Scoped<IPasskeyHandler<AppUser>, RecordingPasskeyHandler>());
             //#endif
@@ -138,16 +94,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     }
 
     //#if (localAuth)
-    /// <summary>
-    /// Surfaces why bearer validation refused a token, in a header only this host writes.
-    /// </summary>
-    /// <remarks>
-    /// The product deliberately tells an unauthenticated caller nothing beyond "a valid token is
-    /// required": expired, wrong signature and revoked security stamp must be indistinguishable, and a
-    /// test asserts exactly that. The cost is that a 401 nobody expected is undiagnosable, so the
-    /// reason is published here — in the test host, never in the product — where only a test can read
-    /// it.
-    /// </remarks>
     internal const string AuthFailureHeader = "X-Test-Auth-Failure";
 
     private static void ExposeTheReasonATokenWasRefused(IServiceCollection services) =>
@@ -217,9 +163,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             [$"{IdentityPolicyOptions.SectionName}__RequireUniqueEmail"] = "true",
 
             //#endif
-            // Validated even though InMemoryModule replaces the sender: ValidateOnStart does not
-            // care which adapter ends up consuming the section. A loopback host is what lets
-            // Security=None pass without the explicit insecure-transport opt-in.
             [$"{EmailOptions.SectionName}__Host"] = "localhost",
             [$"{EmailOptions.SectionName}__Port"] = "1025",
             [$"{EmailOptions.SectionName}__Security"] = "None",
@@ -232,8 +175,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
                 "https://client.integration.test/confirm-email",
             [$"{EmailConfirmationOptions.SectionName}__Subject"] = "Confirm your email address",
 
-            // Required, and validated on start by whichever host composes the identity module — so
-            // its absence stops the host before a single test runs, not the test that needs it.
             [$"{PasswordResetOptions.SectionName}__ResetPasswordUrl"] =
                 "https://client.integration.test/reset-password",
             [$"{PasswordResetOptions.SectionName}__Subject"] = "Reset your password",
@@ -244,8 +185,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
             [$"{IdentitySeedOptions.SectionName}__Enabled"] = "false",
 
-            // The relying-party id a passkey is scoped to, set rather than derived from TestServer's
-            // "localhost", so a ceremony signed for the request's host is refused.
             [$"{PasskeyOptions.SectionName}__ServerDomain"] = PasskeyTestSupport.RpId,
 
             //#endif
@@ -257,18 +196,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             ["Authentication__External__Roles__AdministratorRole"] = ExternalProvider.AdministratorRole,
 
             //#endif
-            // The suite drives the jobs' use cases itself, one pass on demand, so a timer running
-            // them in the background would race the assertions. The role switch is the supported
-            // way to say so, and is what keeps every other job setting unrequired here.
             [$"{JobsOptions.SectionName}__Enabled"] = "false",
 
-            // Same reasoning as the email section above: InMemoryModule replaces the content store,
-            // and ValidateOnStart still runs against whatever this section holds. A bucket name is
-            // the only required value, and no object is ever addressed under it here.
             ["Files__Storage__S3__BucketName"] = "apptemplate-integration-tests",
 
-            // Information, because a test asserts on a log the product's domain-event consumer
-            // writes at that level. The two noisiest categories are turned down.
             ["Logging__LogLevel__Default"] = "Information",
             ["Logging__LogLevel__Microsoft.AspNetCore"] = "Warning",
             ["Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command"] = "Warning",

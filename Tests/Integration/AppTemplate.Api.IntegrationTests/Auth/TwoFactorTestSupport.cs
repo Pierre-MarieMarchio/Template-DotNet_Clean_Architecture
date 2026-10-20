@@ -8,15 +8,8 @@ using Shouldly;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// The two-factor enrollment steps every test in this folder that needs an already-armed account
-/// repeats: begin, refresh past the stamp rotation provisioning causes, confirm. Shared so that
-/// <see cref="TwoFactorFlowTests"/> and <see cref="LoginResponseContractTests"/> do not each grow
-/// their own slightly different copy.
-/// </summary>
 internal static class TwoFactorTestSupport
 {
-    /// <summary>Matches <c>IntegrationTestBase.AuthRoute</c>, which is <c>protected</c> to its own hierarchy.</summary>
     private const string _authRoute = "/api/v1/auth";
 
     public static async Task<SetUpTwoFactorResponse> BeginTwoFactorSetupAsync(HttpClient client, CancellationToken cancellationToken)
@@ -47,11 +40,6 @@ internal static class TwoFactorTestSupport
         return await ApiJson.ReadAsync<ConfirmTwoFactorSetupResponse>(response, cancellationToken);
     }
 
-    /// <summary>
-    /// Provisioning a secret rotates the security stamp, which invalidates the access token that
-    /// asked for it on its very next request — see <c>SetUpTwoFactorUseCase</c>. A real client's
-    /// 401-retry would refresh; this does the same thing before continuing.
-    /// </summary>
     public static async Task RefreshAuthorizationAsync(
         HttpClient client,
         string refreshToken,
@@ -68,12 +56,6 @@ internal static class TwoFactorTestSupport
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
     }
 
-    /// <summary>
-    /// Enrolls and arms two-factor sign-in for the caller <paramref name="client"/> is authenticated
-    /// as, from a fresh <see cref="TestSession"/>, and returns the shared key and the recovery codes.
-    /// Confirming ends every session but the caller's own, and that one's access token dies with the
-    /// stamp rotation — callers sign back in through the challenge flow for a fresh one.
-    /// </summary>
     public static async Task<(string SharedKey, IReadOnlyList<string> RecoveryCodes)> EnableTwoFactorAsync(
         HttpClient client,
         TestUser user,
@@ -88,7 +70,6 @@ internal static class TwoFactorTestSupport
         return (setup.SharedKey, confirmed.RecoveryCodes);
     }
 
-    /// <summary>A plain login that must stop at a challenge rather than a token pair.</summary>
     public static async Task<LoginResponse.TwoFactorRequired> LoginExpectingChallengeAsync(
         HttpClient client,
         TestUser user,

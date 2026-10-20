@@ -6,21 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.OpenApi;
 
-/// <summary>
-/// The served OpenAPI document, asserted on its content rather than on its status code.
-/// </summary>
-/// <remarks>
-/// <para>
-/// A document endpoint fails quietly. The route matches, the body is valid OpenAPI, and the only
-/// evidence that anything is wrong is a path that is not in it or a sentence with a hole in it —
-/// neither of which a reachability check can see. That is the failure these tests are for, and it
-/// is not hypothetical: <c>AppTemplate.Api.csproj</c> declines two analyzer suggestions on the
-/// strength of the description assertion below.
-/// </para>
-/// <para>
-/// The host runs under Development, which is the only environment that maps the document at all.
-/// </para>
-/// </remarks>
 public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const string _documentPath = "/openapi/v1.json";
@@ -32,18 +17,11 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
 
         document.RootElement.GetProperty("openapi").GetString().ShouldStartWith("3.1");
 
-        // The test host's entry assembly is the test project, so a title taken from the entry
-        // assembly rather than from the document's own would read "AppTemplate.Api.IntegrationTests
-        // | v1" here and "AppTemplate.Api | v1" in production — a difference no test that runs only
-        // in the test host would otherwise notice.
         document.RootElement.GetProperty("info").GetProperty("title").GetString()
             .ShouldBe("AppTemplate.Api | v1");
     }
     //#if (signedInRoute)
 
-    /// <summary>
-    /// What AV0030 is about: one document per version, holding that version's actions and no others.
-    /// </summary>
     [Fact]
     public async Task TheDocument_HoldsEveryVersionedRouteAndNothingUnversioned()
     {
@@ -54,15 +32,11 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
         paths.ShouldNotBeEmpty();
         //#if (localAuth)
 
-        // Establishes the candidate set before asserting over it: an empty document would satisfy
-        // "every path is a v1 path" without holding a single one.
         paths.Length.ShouldBeGreaterThan(30);
         //#endif
 
         paths.ShouldAllBe(path => path.StartsWith("/api/v1/", StringComparison.Ordinal));
 
-        // Both are mapped outside the ApiExplorer, so their absence is what proves the document is
-        // built from the version's action list rather than from the route table.
         paths.ShouldNotContain("/health");
         paths.ShouldNotContain("/health/ready");
 
@@ -80,16 +54,10 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
 
         using var response = await client.GetAsync(new Uri("/openapi/v2.json", UriKind.Relative), TestToken);
 
-        // A single document registered under every name would answer 200 here, with v1's paths in
-        // it, and every assertion above would still pass.
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
     //#if (!publicApi)
 
-    /// <summary>
-    /// The bearer scheme <c>OpenApiSecurityTransformer</c> declares, and the global requirement it
-    /// deliberately does not add.
-    /// </summary>
     [Fact]
     public async Task TheDocument_DeclaresTheBearerSchemeWithoutARequirementOnEveryOperation()
     {
@@ -100,7 +68,6 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
             .GetProperty("securitySchemes")
             .GetProperty("Bearer");
 
-        // Http rather than ApiKey: it is what makes the UI add the "Bearer " prefix itself.
         scheme.GetProperty("type").GetString().ShouldBe("http");
         scheme.GetProperty("scheme").GetString().ShouldBe("bearer");
         scheme.GetProperty("bearerFormat").GetString().ShouldBe("JWT");
@@ -112,15 +79,6 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
     //#endif
     //#if (localAuth)
 
-    /// <summary>
-    /// The assertion the two suppressed analyzers in <c>AppTemplate.Api.csproj</c> rest on.
-    /// </summary>
-    /// <remarks>
-    /// <c>ResetPasswordRequest</c>'s summary is one sentence built around a
-    /// <c>&lt;see cref="ConfirmEmailRequest"/&gt;</c>, so a renderer that drops the reference leaves
-    /// "for the reason  gives." — grammatical wreckage in the published reference, and invisible to
-    /// every other assertion in this file. 26 descriptions in this document are shaped that way.
-    /// </remarks>
     [Fact]
     public async Task ASchemaDescription_ResolvesTheTypeThatItsSeeCrefNames()
     {

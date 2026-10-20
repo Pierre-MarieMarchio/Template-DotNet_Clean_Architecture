@@ -6,10 +6,8 @@ using AppTemplate.Api.IntegrationTests.Infrastructure;
 
 namespace AppTemplate.Api.IntegrationTests.Notes;
 
-/// <summary>A note as a caller sees it after a write: the body and the validator that came with it.</summary>
 public sealed record NoteWithTag(NoteResponse Note, string ETag);
 
-/// <summary>What the Notes tests share: the route and the few requests every scenario starts from.</summary>
 public abstract class NotesTestBase(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     protected const string NotesRoute = "/api/v1/notes";
@@ -35,10 +33,6 @@ public abstract class NotesTestBase(ApiFixture fixture) : IntegrationTestBase(fi
         return await ReadWrittenNoteAsync(response, HttpStatusCode.OK);
     }
 
-    /// <summary>
-    /// An update carrying whatever the caller wants in <c>If-Match</c>, including nothing at all. The header
-    /// is added without validation so that a malformed value can be sent too.
-    /// </summary>
     protected static Task<HttpResponseMessage> UpdateNoteAsync(
         HttpClient client,
         Guid noteId,

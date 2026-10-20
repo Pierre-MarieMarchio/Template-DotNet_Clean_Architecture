@@ -10,11 +10,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// Removing passkeys a real ceremony registered, and what the removal and the account's deletion
-/// leave an authenticator able to do. What a removal does to the account's sessions in general is
-/// <see cref="PasskeyRemovalTests"/>'.
-/// </summary>
 public sealed class PasskeyManagementTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const string _notFound = "auth.passkey.notFound";
@@ -43,7 +38,6 @@ public sealed class PasskeyManagementTests(ApiFixture fixture) : IntegrationTest
         (await ApiJson.ReadProblemAsync(refused, TestToken)).Code.ShouldBe("auth.passkeySignIn.invalid");
     }
 
-    /// <summary>One answer for a passkey of another account, one that does not exist and an id that does not decode.</summary>
     [Theory]
     [InlineData("other")]
     [InlineData("unknown")]
@@ -93,7 +87,6 @@ public sealed class PasskeyManagementTests(ApiFixture fixture) : IntegrationTest
         (await ApiJson.ReadProblemAsync(second, TestToken)).Code.ShouldBe(_notFound);
     }
 
-    /// <summary>The session a passkey signed in is one of the "other" sessions its removal ends.</summary>
     [Fact]
     public async Task RemovingAPasskey_EndsTheSessionItSignedIn()
     {

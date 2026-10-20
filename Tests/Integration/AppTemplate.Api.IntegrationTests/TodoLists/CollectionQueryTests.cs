@@ -9,15 +9,8 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.TodoLists;
 
-/// <summary>
-/// Sorting and filtering over the caller's own to-do lists: the whitelist that keeps <c>sort</c> from
-/// reaching an arbitrary column, and the <c>ILIKE</c> escaping that keeps <c>search</c> from being a
-/// wildcard scan. Cursor paging is covered separately, in <see cref="CursorPaginationTests"/>.
-/// </summary>
 public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    #region Sorting
-
     [Fact]
     public async Task Sort_NameAscending_OrdersByName()
     {
@@ -49,8 +42,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
     {
         var (client, _, _) = await SignInAsync();
 
-        // The clock does not move within a test (see IntegrationTestBase), so these three share one
-        // createdAt: the second term is the only thing that can order them.
         await CreateTodoListAsync(client, "Charlie");
         await CreateTodoListAsync(client, "Alpha");
         await CreateTodoListAsync(client, "Bravo");
@@ -71,10 +62,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("sort.invalid");
     }
 
-    /// <summary>
-    /// The important one: <c>ownerId</c> is a real column on the row, but it is not on the whitelist.
-    /// A rule that only rejected misspellings would let this through.
-    /// </summary>
     [Fact]
     public async Task Sort_AFieldThatExistsButIsNotWhitelisted_Is400WithTheStableCode()
     {
@@ -102,8 +89,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
     {
         var (client, _, _) = await SignInAsync();
 
-        // TodoListCollectionPolicy.Instance.MaxSortTerms is 3: this is a fourth term, so the count
-        // check must trip before any field is even looked at.
         using var response = await GetAsync(client, "sort=name:asc,createdAt:asc,lastModifiedAt:asc,name:desc");
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -132,11 +117,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("sort.invalid");
     }
 
-    /// <summary>
-    /// Several lists created in the same clock instant, ordered by a non-unique key. Without the
-    /// mandatory <c>Id</c> tiebreaker two rows with an equal <c>createdAt</c> could swap between
-    /// pages, so one is served twice and another never.
-    /// </summary>
     [Fact]
     public async Task Sort_AStableTiebreaker_CoversEveryRowExactlyOnceAcrossOffsetPages()
     {
@@ -159,10 +139,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
         seen.Count.ShouldBe(total);
         seen.Distinct().Count().ShouldBe(total);
     }
-
-    #endregion
-
-    #region Filtering
 
     [Fact]
     public async Task Search_MatchesASubstringOfTheName_CaseInsensitively()
@@ -189,7 +165,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
 
         var page = await ReadPageAsync(other, "search=shared");
 
-        // Ownership still applies: the match against the caller's own list only.
         page.Items.Count.ShouldBe(1);
     }
 
@@ -202,7 +177,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
 
         var page = await ReadPageAsync(client, $"search={Uri.EscapeDataString("%")}");
 
-        // Unescaped, '%' would match every row rather than only the one that literally contains it.
         page.Items.Select(item => item.Name).ShouldBe(["100% cotton"]);
     }
 
@@ -215,7 +189,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
 
         var page = await ReadPageAsync(client, "search=a_b");
 
-        // Unescaped, '_' would also match "axb" as a single-character wildcard.
         page.Items.Select(item => item.Name).ShouldBe(["a_b"]);
     }
 
@@ -260,7 +233,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
         Clock.Set(late);
         await CreateTodoListAsync(client, "Late");
 
-        // The window's own boundaries, so both ends being inclusive is what makes this pass.
         string after = Iso(early);
         string before = Iso(middle);
 
@@ -296,10 +268,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("filter.invalid");
     }
 
-    /// <summary>
-    /// The analogue of "a filter on an unmapped column": an unoffered query parameter is not wired to
-    /// anything, so it cannot narrow the result at all.
-    /// </summary>
     [Fact]
     public async Task AnUnknownQueryParameter_CannotFilterAnything()
     {
@@ -314,10 +282,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
             .ShouldBe(unfiltered.Items.Select(item => item.Id), ignoreOrder: true);
     }
 
-    /// <summary>
-    /// Pinned rather than assumed: <c>TodoListFilter</c>'s own remarks say search is not
-    /// accent-insensitive, because that would need a collation decision this schema does not make.
-    /// </summary>
     [Fact]
     public async Task Search_IsNotAccentInsensitive()
     {
@@ -328,8 +292,6 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
 
         page.Items.ShouldBeEmpty();
     }
-
-    #endregion
 
     private static string Iso(DateTimeOffset instant) => instant.ToString("O", CultureInfo.InvariantCulture);
 

@@ -16,10 +16,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Files;
 
-/// <summary>
-/// A burst of parallel registrations against the real store, in a strict category with room for one
-/// more pending upload: exactly one is accepted and the quota is never exceeded.
-/// </summary>
 public sealed class StrictQuotaConcurrencyTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const string _filesRoute = "/api/v1/files";

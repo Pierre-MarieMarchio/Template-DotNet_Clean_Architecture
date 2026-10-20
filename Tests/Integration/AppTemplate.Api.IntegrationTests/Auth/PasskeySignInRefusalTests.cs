@@ -8,10 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// Passkey sign-ins Identity or the ceremony state refuses. Every refusal answers the same 401, so
-/// each also asserts the reason recorded — or that none was, when the state refused it first.
-/// </summary>
 public sealed class PasskeySignInRefusalTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const string _signInInvalid = "auth.passkeySignIn.invalid";
@@ -66,7 +62,6 @@ public sealed class PasskeySignInRefusalTests(ApiFixture fixture) : IntegrationT
             "challenge does not match");
     }
 
-    /// <summary>The captured pair is refused by its spent state, before Identity sees it, and the counter stays.</summary>
     [Fact]
     public async Task ReplayingASignIn_IsRefused_AndLeavesTheCounter()
     {
@@ -87,10 +82,6 @@ public sealed class PasskeySignInRefusalTests(ApiFixture fixture) : IntegrationT
         (await PasskeyTestSupport.SignCountAsync(Database, userId, TestToken)).ShouldBe(1u);
     }
 
-    /// <summary>
-    /// A synced passkey reports zero every time, so Identity's counter check would accept the
-    /// captured pair again: the spent state is what refuses it.
-    /// </summary>
     [Fact]
     public async Task ReplayingASignIn_FromAnAuthenticatorWithNoCounter_IsRefused()
     {
@@ -161,9 +152,6 @@ public sealed class PasskeySignInRefusalTests(ApiFixture fixture) : IntegrationT
             "does not belong to the specified user");
     }
 
-    /// <summary>
-    /// Nothing in the answer tells a refused signature from a spent state or an unknown credential.
-    /// </summary>
     [Fact]
     public async Task EveryRefusal_AnswersTheSameBody()
     {
@@ -204,7 +192,6 @@ public sealed class PasskeySignInRefusalTests(ApiFixture fixture) : IntegrationT
         spentState.BodyWithoutTraceId.ShouldBe(badSignature.BodyWithoutTraceId);
     }
 
-    /// <summary>Registers the authenticator's passkey to a fresh password account, whose id it returns.</summary>
     private async Task<Guid> RegisterAsync(SoftwareAuthenticator authenticator)
     {
         var (client, user, session) = await SignInAsync();

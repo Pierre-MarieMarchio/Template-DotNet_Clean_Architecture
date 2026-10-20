@@ -8,12 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// The <c>status</c> discriminant on the wire, read as raw JSON rather than deserialised into
-/// <c>LoginResponse</c>. MVC decides what actually gets written from <c>ObjectResult.DeclaredType</c>,
-/// which a typed round trip never exercises — only reading what the real endpoint sent proves the
-/// discriminant is really there.
-/// </summary>
 public sealed class LoginResponseContractTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -34,11 +28,6 @@ public sealed class LoginResponseContractTests(ApiFixture fixture) : Integration
         document.RootElement.GetProperty("status").GetString().ShouldBe("authenticated");
     }
 
-    /// <summary>
-    /// The other branch of the same discriminant, for an account with two-factor sign-in armed:
-    /// <c>twoFactorRequired</c> with a <c>challengeToken</c>, not <c>authenticated</c> with a token
-    /// pair — read as raw JSON for the same reason as the test above.
-    /// </summary>
     [Fact]
     public async Task Login_OnATwoFactorAccount_PublishesTheTwoFactorRequiredBranchOnTheWire()
     {

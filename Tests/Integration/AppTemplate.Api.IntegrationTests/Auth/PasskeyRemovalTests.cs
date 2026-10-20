@@ -11,13 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// Removing a passkey against the real endpoint and the real database. The passkey is seeded
-/// through Identity's own store rather than registered through a ceremony: the WebAuthn arithmetic
-/// is the framework's, and what this proves is what the removal does to the sessions — the same as
-/// a password change: every other session ends, the caller's own access token dies with the
-/// security stamp, and the caller's own grant refreshes into the new posture.
-/// </summary>
 public sealed class PasskeyRemovalTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -36,7 +29,6 @@ public sealed class PasskeyRemovalTests(ApiFixture fixture) : IntegrationTestBas
             TestToken);
         removed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        // The exact same access token, replayed unchanged: the stamp rotated under it.
         using var after = await client.GetAsync(new Uri($"{AuthRoute}/me", UriKind.Relative), TestToken);
         after.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         after.Headers.GetValues(ApiFactory.AuthFailureHeader)
@@ -56,7 +48,6 @@ public sealed class PasskeyRemovalTests(ApiFixture fixture) : IntegrationTestBas
         (await ApiJson.ReadProblemAsync(otherRefreshed, TestToken)).Code.ShouldBe("auth.refreshToken.invalid");
     }
 
-    /// <summary>A removal the store refuses — a credential the account does not hold — ends nothing.</summary>
     [Fact]
     public async Task RemovingAPasskeyTheAccountDoesNotHold_EndsNoSession()
     {

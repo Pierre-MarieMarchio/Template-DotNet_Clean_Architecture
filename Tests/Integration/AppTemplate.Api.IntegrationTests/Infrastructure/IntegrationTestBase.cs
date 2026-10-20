@@ -37,14 +37,8 @@ using Xunit;
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 //#if (localAuth)
 
-/// <summary>
-/// An account, as far as a caller that has only signed up can know it. It carries no id: nothing in
-/// the sign-up journey publishes one — that is <see cref="TestSession.UserId"/>'s job.
-/// </summary>
-/// <param name="Password">Kept in plaintext so the test can log in again.</param>
 public sealed record TestUser(string Email, string Password);
 
-/// <param name="UserId">Read from <c>GET /auth/me</c>, the only endpoint that publishes a profile.</param>
 public sealed record TestSession(Guid UserId, TokenResponse Tokens);
 //#endif
 /*#if (externalAuth)
@@ -60,31 +54,10 @@ public sealed record TestSession(Guid UserId, ProviderTokens Tokens);
 public sealed record ProviderTokens(string AccessToken);
 #endif*/
 
-/// <summary>
-/// What every test class shares: the fixture, a clean database, a clean mailbox, a clock parked at a
-/// known instant, and clients that the rate limiter treats as separate callers.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>State reset.</b> Before each test every table in the module schemas is truncated, the
-/// recorded mailbox and captured log are emptied, and the clock is placed at a fixed instant. The
-/// host itself is not recycled — rebuilding it per test would cost more than the whole suite.
-/// </para>
-/// <para>
-/// <b>Why the clock is set to real time rather than to
-/// <see cref="FixedDateTimeProvider.DefaultInstant"/>.</b> Access tokens are stamped from the
-/// injected clock, but the bearer handler validates <c>exp</c> and <c>nbf</c> against the machine
-/// clock with zero skew. A clock parked in the past would mint tokens that are already expired by
-/// the time they are validated, so every authenticated request would 401 for a reason no test is
-/// about. It is set once per test and never moves on its own, so it is still exactly comparable
-/// against a stored timestamp — which is what the auditing test relies on.
-/// </para>
-/// </remarks>
 [Collection(ApiCollectionDefinition.Name)]
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
     //#if (localAuth)
-    /// <summary>Satisfies every rule in the <c>Identity</c> policy the test host configures.</summary>
     protected const string ValidPassword = "Integration!Test1";
 
     //#endif
@@ -96,10 +69,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     //#endif
     //#if (signedInRoute)
 
-    /// <summary>
-    /// A route that answers 200 to any signed-in caller and 401 to anyone else, for the tests whose
-    /// subject is the pipeline around an endpoint rather than the endpoint itself.
-    /// </summary>
     /*#if (todoLists)*/
     protected const string ProtectedRoute = TodoListsRoute;
     /*#elseif (localAuth)
@@ -137,8 +106,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         Fixture.DomainEvents.Clear();
         //#endif
 
-        // Truncated to whole milliseconds so an assertion against a PostgreSQL timestamptz — which
-        // keeps microseconds, not the .NET tick — can compare for exact equality.
         var now = DateTimeOffset.UtcNow;
         Clock.Set(new DateTimeOffset(
             now.Ticks - (now.Ticks % TimeSpan.TicksPerMillisecond),
@@ -158,11 +125,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return ValueTask.CompletedTask;
     }
 
-    /// <summary>
-    /// A client the host sees as a caller of its own. Each call hands out a fresh address, so one
-    /// test's authentication attempts cannot consume another's per-IP rate-limit budget. A test that
-    /// wants several requests to share a budget reuses the same client.
-    /// </summary>
     protected HttpClient CreateClient()
     {
         int index = Interlocked.Increment(ref _clientAddressCounter);
@@ -171,11 +133,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             string.Create(CultureInfo.InvariantCulture, $"10.10.{(index / 250) % 250}.{(index % 250) + 1}"));
     }
 
-    /// <summary>
-    /// A client pinned to a caller-chosen address instead of the next one <see cref="CreateClient"/>
-    /// would hand out. For the one kind of test that needs two distinct callers to look like the same
-    /// caller to the rate limiter — everywhere else a shared address would be a bug, not a fixture.
-    /// </summary>
     protected HttpClient CreateClientWithAddress(string address)
     {
         var client = Fixture.Factory.CreateClient();
@@ -188,13 +145,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     }
 
     //#if (localAuth)
-    #region Accounts
 
-    /// <summary>
-    /// Registers an account and confirms its email address, going through the real endpoints and
-    /// taking the confirmation token out of the recorded email — the same route a user's browser
-    /// takes. Sign-in requires a confirmed address, so almost every test needs this.
-    /// </summary>
     protected async Task<TestUser> RegisterConfirmedUserAsync(HttpClient client, string? label = null)
     {
         ArgumentNullException.ThrowIfNull(client);
@@ -236,10 +187,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return new TestUser(request.Email, ValidPassword);
     }
 
-    /// <summary>
-    /// Fails loudly on any other outcome: a helper that every test builds on must not quietly hand
-    /// back a session that was never established.
-    /// </summary>
     protected static async Task<TokenResponse> LoginAsync(HttpClient client, TestUser user)
     {
         ArgumentNullException.ThrowIfNull(client);
@@ -261,12 +208,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             ?? throw new InvalidOperationException($"Logging {user.Email} in did not produce a token pair.");
     }
 
-    /// <summary>A confirmed account plus a client already carrying its access token.</summary>
-    /// <remarks>
-    /// Three requests against the authentication endpoints' per-address budget — register, confirm, log
-    /// in — so a test that goes on to spend that budget on the same client has seven permits left, not
-    /// ten. Reading the profile costs nothing here: <c>GET /auth/me</c> is on the global limiter.
-    /// </remarks>
     protected async Task<(HttpClient Client, TestUser User, TestSession Session)> SignInAsync(string? label = null)
     {
         var client = CreateClient();
@@ -278,11 +219,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return (client, user, new TestSession(await ReadOwnUserIdAsync(client), tokens));
     }
 
-    /// <summary>
-    /// The account id of whoever <paramref name="client"/> is carrying a token for. Read from the
-    /// profile endpoint because that is the only place the id is published — signing up and signing
-    /// in both answer without it.
-    /// </summary>
     protected static async Task<Guid> ReadOwnUserIdAsync(HttpClient client)
     {
         ArgumentNullException.ThrowIfNull(client);
@@ -291,8 +227,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         if (response.StatusCode != HttpStatusCode.OK)
         {
-            // The product's 401 body says only that a token was required, by design. ApiFactory
-            // publishes the actual reason in a header so a 401 nobody expected can be diagnosed.
             response.Headers.TryGetValues(ApiFactory.AuthFailureHeader, out var why);
 
             throw new InvalidOperationException(
@@ -310,11 +244,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             $"No email was recorded for '{recipient}'. Recorded: " +
             string.Join(", ", Emails.Snapshot().Select(sent => sent.Recipient)));
 
-    /// <summary>
-    /// Pulls the address and the single-use token out of a confirmation or password-reset email, by
-    /// parsing the link the same way the browser page it points to would: both templates carry the
-    /// values in the URL fragment, HTML-encoded, in the same shape.
-    /// </summary>
     protected static (string Email, string Token) ReadEmailLink(SentEmail email)
     {
         ArgumentNullException.ThrowIfNull(email);
@@ -361,11 +290,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             token ?? throw new InvalidOperationException($"No token in the link fragment: {fragment}"));
     }
 
-    #endregion
-
     //#endif
     /*#if (externalAuth)
-    #region Callers
 
     /// <summary>
     /// A client carrying a token <see cref="ExternalProvider"/> signed for a subject of its own, the
@@ -394,11 +320,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return (client, user, new TestSession(owner.Value, new ProviderTokens(token)));
     }
 
-    #endregion
-
     #endif*/
     //#if (todoLists)
-    #region Todo lists
 
     protected static async Task<Guid> CreateTodoListAsync(HttpClient client, string name)
     {
@@ -444,21 +367,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return (await ApiJson.ReadAsync<TodoItemResponse>(response, TestToken)).Id;
     }
 
-    /// <summary>
-    /// Loads a stored aggregate the way a use case does: through the application port, inside a scope of
-    /// the caller's own.
-    /// </summary>
-    /// <remarks>
-    /// It deliberately does not reach for a <c>DbSet</c>. The persistence models are internal and EF does
-    /// not map the domain types, so a test that queried rows would be asserting on storage rather than on
-    /// what the application layer can actually see — and would pass even if the mapper never handed the
-    /// values back. Going through <see cref="ITodoListRepository"/> exercises the query, the mapper and
-    /// the identity map together.
-    /// <para>
-    /// The scope belongs to the caller, because an aggregate is only meaningful while the scope that
-    /// loaded it is alive: that scope owns the context holding the tracked rows behind it.
-    /// </para>
-    /// </remarks>
     protected static async Task<TodoList> LoadTodoListAsync(IServiceProvider services, Guid listId)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -467,14 +375,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             ?? throw new InvalidOperationException($"No to-do list with id '{listId}' is stored.");
     }
 
-    #endregion
-
-    #region Conditional requests
-
-    /// <summary>
-    /// Reads a list and returns the strong validator the read published, which is what a conditional
-    /// write has to send back.
-    /// </summary>
     protected static async Task<string> ReadETagAsync(HttpClient client, Guid todoListId)
     {
         ArgumentNullException.ThrowIfNull(client);
@@ -496,14 +396,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
                 string.Join(", ", response.Headers.Select(header => header.Key)));
     }
 
-    /// <summary>
-    /// A rename carrying whatever the caller wants in <c>If-Match</c>, including nothing at all.
-    /// </summary>
-    /// <remarks>
-    /// The header is added without validation on purpose: a test that could only send values
-    /// <see cref="HttpClient"/> considers well-formed could never exercise the malformed case, which
-    /// is one of the two the server has to distinguish.
-    /// </remarks>
     protected static Task<HttpResponseMessage> RenameAsync(
         HttpClient client,
         Guid todoListId,
@@ -525,6 +417,5 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return client.SendAsync(request, TestToken);
     }
 
-    #endregion
     //#endif
 }

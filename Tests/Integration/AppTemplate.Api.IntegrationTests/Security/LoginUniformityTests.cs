@@ -9,10 +9,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Security;
 
-/// <summary>
-/// Every way of failing to log in looks the same from outside. A different answer for "no such
-/// email" than for "wrong password" turns the endpoint into a user directory.
-/// </summary>
 public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -21,7 +17,6 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
         var setup = CreateClient();
         var user = await RegisterConfirmedUserAsync(setup);
 
-        // Both failures on one client, so nothing about the transport differs either.
         var attempts = CreateClient();
 
         var unknownEmail = await AttemptAsync(attempts, "nobody-at-all@integration.test", ValidPassword);
@@ -35,16 +30,9 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
         wrongPassword.Title.ShouldBe(unknownEmail.Title);
         wrongPassword.Detail.ShouldBe(unknownEmail.Detail);
 
-        // The whole body, not only the fields the suite names: a difference anywhere in it is a
-        // difference an attacker can measure. Except the traceId, which names the request rather
-        // than its outcome and so differs between any two of them.
         wrongPassword.BodyWithoutTraceId.ShouldBe(unknownEmail.BodyWithoutTraceId);
     }
 
-    /// <summary>
-    /// An account that exists but has not confirmed its address must not be distinguishable either —
-    /// otherwise the endpoint answers "this address is registered" for anybody who asks.
-    /// </summary>
     [Fact]
     public async Task AnUnconfirmedAccount_IsIndistinguishableFromAnUnknownOne()
     {
@@ -63,7 +51,6 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
     [Fact]
     public async Task TheCorrectCredentialsOfAConfirmedAccount_Succeed()
     {
-        // The control. Without it, a suite in which every login fails would pass the tests above.
         var client = CreateClient();
         var user = await RegisterConfirmedUserAsync(client);
 
@@ -79,8 +66,6 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
         authenticated.Tokens.AccessToken.ShouldNotBeNullOrWhiteSpace();
         authenticated.Tokens.RefreshToken.ShouldNotBeNullOrWhiteSpace();
 
-        // The pair belongs to the account that presented the credentials, which the profile endpoint
-        // is what says: sign-in itself discloses no identity at all.
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", authenticated.Tokens.AccessToken);
 
@@ -89,10 +74,6 @@ public sealed class LoginUniformityTests(ApiFixture fixture) : IntegrationTestBa
         (await ApiJson.ReadAsync<CurrentUserResponse>(profile, TestToken)).Email.ShouldBe(user.Email);
     }
 
-    /// <summary>
-    /// The resend endpoint is the other enumeration surface: it always answers 204, whether the
-    /// address is unknown, unconfirmed or already confirmed.
-    /// </summary>
     [Fact]
     public async Task ResendingConfirmation_AnswersTheSameForEveryKindOfAddress()
     {

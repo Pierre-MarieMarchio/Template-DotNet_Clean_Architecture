@@ -14,14 +14,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Security;
 
-/// <summary>
-/// Nothing is reachable without a token unless it says so.
-/// </summary>
-/// <remarks>
-/// Authorisation comes from the host's fallback policy rather than from each action, so the guard has
-/// to cover two things: that every endpoint answers 401, and that a <em>new</em> endpoint cannot
-/// quietly appear outside the enumeration below.
-/// </remarks>
 public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     //#if (todoLists)
@@ -29,11 +21,6 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     private static readonly Guid _someItemId = Guid.CreateVersion7();
 
     //#endif
-    /// <summary>
-    /// The six classes answering the <c>auth</c> prefix. Every rule below reads all six, for the
-    /// same reason a feature's rules read every class of its prefix: default deny is a property of an endpoint, and
-    /// a rule enumerating one class stops asking the question of the others.
-    /// </summary>
     private static readonly Type[] _authControllers =
     [
         typeof(RegistrationController),
@@ -45,11 +32,6 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     ];
     //#if (todoLists)
 
-    /// <summary>
-    /// The three classes answering the one route prefix. Every rule below is a claim about that
-    /// surface rather than about a class of it, so each reads all three: a rule counting one would
-    /// go on passing while covering a third of the endpoints.
-    /// </summary>
     private static readonly Type[] _todoListControllers =
     [
         typeof(TodoListsController),
@@ -85,8 +67,6 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
 
         using var request = new HttpRequestMessage(new HttpMethod(method), path)
         {
-            // A body on every verb that takes one, so a 401 cannot be confused with a 415 or a 400
-            // raised before authorisation ran.
             Content = method is "POST" or "PUT"
                 ? new StringContent("{}", System.Text.Encoding.UTF8, "application/json")
                 : null,
@@ -116,11 +96,6 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    /// <summary>
-    /// The enumeration above is only a regression guard if it is complete. This fails the moment an
-    /// action is added to the controller, which is exactly when somebody needs to be reminded to
-    /// cover it.
-    /// </summary>
     [Fact]
     public void TheEnumerationCoversEveryActionOnTheController()
     {
@@ -132,10 +107,6 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
             + "complete default-deny guard.");
     }
 
-    /// <summary>
-    /// Default-deny means an exemption is a visible decision. No action on the aggregate's controller
-    /// may opt out, at either the action or the controller level.
-    /// </summary>
     [Fact]
     public void NoTodoListEndpoint_OptsOutOfAuthorisation()
     {
@@ -153,17 +124,6 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     }
     //#endif
 
-    /// <summary>
-    /// The other half of the same rule: the endpoints that <em>must</em> be anonymous say so, rather
-    /// than being anonymous because nothing protected them.
-    /// </summary>
-    /// <remarks>
-    /// The exemption is declared per action and never on the controller. Authorisation is skipped for
-    /// an endpoint as soon as <c>IAllowAnonymous</c> appears <em>anywhere</em> in its metadata, so a
-    /// class-level <c>[AllowAnonymous]</c> would defeat the <c>[Authorize]</c> on the two actions
-    /// below and serve the caller's own profile to anyone — which is why its absence is asserted here
-    /// rather than its presence.
-    /// </remarks>
     [Fact]
     public void TheAuthenticationEndpoints_OptOutOneByOne()
     {
@@ -187,11 +147,6 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
         }
     }
 
-    /// <summary>
-    /// Which authentication actions require a token, enumerated so that adding one without deciding
-    /// fails here. Everything else on the six controllers is anonymous by necessity: a caller signing in,
-    /// confirming an address, resetting a password or completing a passkey ceremony has no token yet.
-    /// </summary>
     [Fact]
     public void OnlyTheAccountActions_RequireAToken()
     {
@@ -230,8 +185,6 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
     [Fact]
     public async Task AnAuthenticatedCaller_ReachesTheSameEndpoints()
     {
-        // The complement of the 401 theory: it proves those endpoints exist and are routable, so a
-        // 401 above cannot have been a 404 in disguise.
         var (client, _, _) = await SignInAsync();
 
         using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);

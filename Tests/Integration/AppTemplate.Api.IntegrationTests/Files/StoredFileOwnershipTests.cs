@@ -12,40 +12,15 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Files;
 
-/// <summary>
-/// Whether one caller can reach another caller's file, over HTTP, on every entry point that takes an
-/// id.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>The entry points are asserted, not the gate.</b> Ownership is enforced in one place —
-/// <c>StoredFileService.LoadOwnedAsync</c> — which is the right shape and is exactly why a single
-/// endpoint that stopped going through it would be invisible: every other endpoint would keep
-/// passing. So every entry point is enumerated deliberately, and the count below is asserted against
-/// the controller itself so that a route added later cannot be left out of the list. One forgotten
-/// route is the whole vulnerability.
-/// </para>
-/// <para>
-/// A registration is enough to test with, and no bytes are deposited. What is under test is who may
-/// name a file, which is settled before anything reads content; a pending file also lets the
-/// download endpoint be asked the question in its most interesting form, since the owner's own
-/// answer there is a refusal too — for a different reason, with a different status.
-/// </para>
-/// </remarks>
 public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const string _filesRoute = "/api/v1/files";
 
-    /// <summary>How many actions take a file id, and therefore how many refusals are asserted.</summary>
     private const int _entryPointsNamingAFile = 5;
 
     [Fact]
     public async Task AnotherUsersFile_IsNotFoundOnEveryEntryPointThatNamesOne()
     {
-        // Read off the controllers rather than remembered: every action taking a file id has to be
-        // exercised below, so a route added later fails here instead of passing untested. Both types,
-        // because ownership is a property of the URL and the tag route sits under the same prefix --
-        // counting one class would stop asking the question of the other.
         new[] { typeof(FilesController), typeof(FileTagsController) }
             .SelectMany(controller => controller
                 .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
@@ -61,9 +36,6 @@ public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTe
 
         var registered = await RegisterFileAsync(owner);
 
-        // The control, and it is not decoration: without it every assertion below is satisfied by an
-        // id that names nothing, and the test would pass against a feature that answers 404 to
-        // everyone.
         using (var toItsOwner = await owner.GetAsync(new Uri($"{_filesRoute}/{registered.Id}", UriKind.Relative), TestToken))
         {
             toItsOwner.StatusCode.ShouldBe(
@@ -95,8 +67,6 @@ public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTe
             "DELETE, which would destroy somebody else's row and let its bytes be reclaimed",
             () => intruder.DeleteAsync(new Uri($"{_filesRoute}/{registered.Id}", UriKind.Relative), TestToken));
 
-        // Still there afterwards. A 404 that had nonetheless carried out the write would be worse
-        // than a 403, and nothing above would have noticed.
         using var afterwards = await owner.GetAsync(
             new Uri($"{_filesRoute}/{registered.Id}", UriKind.Relative),
             TestToken);
@@ -107,16 +77,6 @@ public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTe
             "somebody who was answered 404 is a 404 that lied.");
     }
 
-    /// <summary>
-    /// The download endpoint's two refusals must not be confusable: its owner is told the file is not
-    /// ready, and a stranger is told it does not exist.
-    /// </summary>
-    /// <remarks>
-    /// This is the one endpoint where the owner is refused too, so it is the one where a lazy
-    /// implementation could answer both callers the same way and look correct from either side alone.
-    /// The statuses have to differ, because the information they carry differs: "wait" is true only
-    /// for the person entitled to wait.
-    /// </remarks>
     [Fact]
     public async Task TheDownloadEndpoint_TellsItsOwnerToWaitAndTellsAStrangerNothing()
     {
@@ -139,16 +99,6 @@ public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTe
             "a stranger learns nothing, not even that the id is one this installation has heard of.");
     }
 
-    /// <summary>
-    /// Under <c>If-Match: *</c>, confirming another user's file and confirming one that never existed
-    /// have to be indistinguishable — body included.
-    /// </summary>
-    /// <remarks>
-    /// The wildcard changes the status: a file the caller cannot see fails the precondition rather
-    /// than answering 404, which is deliberate and documented on the endpoint. That makes it worth
-    /// asserting, because the interesting property survives the change — both answers are the same
-    /// answer, so the pair cannot be used to ask whether an id exists.
-    /// </remarks>
     [Fact]
     public async Task UnderAWildcardPrecondition_AForeignFileAndAMissingFileAnswerIdentically()
     {
@@ -191,15 +141,6 @@ public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTe
             "reach the projection at all.");
     }
 
-    /// <summary>
-    /// The registration response carries a signed write URL, which is a credential.
-    /// </summary>
-    /// <remarks>
-    /// A POST gets no <c>Cache-Control</c> from this API's default, so without the endpoint's own
-    /// <c>[NoStore]</c> the response would say nothing at all about a bearer right to write into the
-    /// bucket. Asserted over HTTP rather than on the attribute: what protects the credential is the
-    /// header that arrives.
-    /// </remarks>
     [Fact]
     public async Task TheRegistrationResponse_ForbidsStoringTheGrantItCarries()
     {
@@ -225,8 +166,6 @@ public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTe
             "application/pdf",
             SizeInBytes: 4_096,
 
-            // Any 64 hexadecimal characters: nothing is deposited here, so no digest is ever compared
-            // against content. What matters is that the value is one the domain accepts.
             new string('a', 64));
 
     private static async Task<StoredFileRegistrationResponse> RegisterFileAsync(HttpClient client)
@@ -257,10 +196,6 @@ public sealed class StoredFileOwnershipTests(ApiFixture fixture) : IntegrationTe
         return await client.SendAsync(request, TestToken);
     }
 
-    /// <summary>
-    /// Asserts a refusal that says nothing, and names the entry point in the failure so a red test
-    /// points at the route rather than at this helper.
-    /// </summary>
     private static async Task ShouldBeNotFoundAsync(string entryPoint, Func<Task<HttpResponseMessage>> call)
     {
         using var response = await call();

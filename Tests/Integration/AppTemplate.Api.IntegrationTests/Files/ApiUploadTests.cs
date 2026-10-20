@@ -14,16 +14,11 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Files;
 
-/// <summary>
-/// <c>POST /files/uploads</c> end to end: the multipart body through the raised limit, the use case,
-/// PostgreSQL and the in-memory content store the test host substitutes.
-/// </summary>
 public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const string _uploadsRoute = "/api/v1/files/uploads";
     private const string _filesRoute = "/api/v1/files";
 
-    /// <summary>Above the 64 KiB every other endpoint accepts, so the raised limit is what lets it in.</summary>
     private static readonly byte[] _content = AText(100 * 1024);
 
     [Fact]
@@ -89,7 +84,6 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
         (await ApiJson.ReadAsync<StoredFileResponse>(response, TestToken)).Name.ShouldBe("quarterly.csv");
     }
 
-    /// <summary>Not idempotency-buffered: the same request twice is two files.</summary>
     [Fact]
     public async Task ARetriedUpload_CreatesASecondFile()
     {
@@ -130,10 +124,6 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
         response.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
     }
 
-    /// <summary>
-    /// A host whose ceiling is the validator's floor, 1 KiB: a body past the ceiling and its framing
-    /// is 413 before it is read, and a file past the ceiling alone is 400 on the file.
-    /// </summary>
     [Fact]
     public async Task TheCeiling_Is413ForTheBodyAnd400ForTheFile()
     {

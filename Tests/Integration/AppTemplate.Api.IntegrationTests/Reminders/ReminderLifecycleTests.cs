@@ -8,12 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Reminders;
 
-/// <summary>
-/// The reminder aggregate's whole HTTP surface, in the order a caller actually uses it: schedule,
-/// read, reschedule, cancel. Conditional writes are checked the same way <c>TodoLists</c>'s own
-/// tests check them — a stale <c>If-Match</c> refused, the current one accepted — because
-/// <c>RemindersController</c> reuses the very same precondition mechanism.
-/// </summary>
 public sealed class ReminderLifecycleTests(ApiFixture fixture) : RemindersTestBase(fixture)
 {
     [Fact]
@@ -34,8 +28,6 @@ public sealed class ReminderLifecycleTests(ApiFixture fixture) : RemindersTestBa
         scheduled.Headers.ETag.ShouldNotBeNull();
         scheduled.Headers.Location.ShouldNotBeNull();
 
-        // No get-by-id for one reminder (see RemindersController's own remarks): Location addresses
-        // the collection this reminder now appears in.
         scheduled.Headers.Location!.ToString().ShouldEndWith($"{TodoListsRoute}/{listId}/items/{itemId}/reminders");
 
         var created = await ApiJson.ReadAsync<ReminderResponse>(scheduled, TestToken);
@@ -47,17 +39,14 @@ public sealed class ReminderLifecycleTests(ApiFixture fixture) : RemindersTestBa
 
         string etagAfterScheduling = scheduled.Headers.ETag!.ToString();
 
-        // Following the Location header reaches it.
         using var located = await client.GetAsync(scheduled.Headers.Location, TestToken);
         located.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await ApiJson.ReadAsync<RemindersResponse>(located, TestToken)).Reminders
             .ShouldHaveSingleItem().Id.ShouldBe(created.Id);
 
-        // Reading it back through the item, the ordinary way.
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders
             .ShouldHaveSingleItem().Id.ShouldBe(created.Id);
 
-        // Rescheduling with a stale validator is refused, and nothing about the reminder moves.
         var newDueAt = dueAt.AddDays(1);
 
         using var staleReschedule = await RescheduleAsync(client, created.Id, newDueAt, "\"not-the-current-one\"");
@@ -66,7 +55,6 @@ public sealed class ReminderLifecycleTests(ApiFixture fixture) : RemindersTestBa
 
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().DueAt.ShouldBe(dueAt);
 
-        // Rescheduling with the reminder's own current validator succeeds and publishes a new one.
         using var rescheduled = await RescheduleAsync(client, created.Id, newDueAt, etagAfterScheduling);
         rescheduled.StatusCode.ShouldBe(HttpStatusCode.OK);
         rescheduled.Headers.ETag.ShouldNotBeNull();
@@ -80,20 +68,16 @@ public sealed class ReminderLifecycleTests(ApiFixture fixture) : RemindersTestBa
 
         string etagAfterReschedule = rescheduled.Headers.ETag!.ToString();
 
-        // Cancelling with the validator from before the reschedule is now stale too.
         using var staleCancel = await CancelAsync(client, created.Id, etagAfterScheduling);
         staleCancel.StatusCode.ShouldBe(HttpStatusCode.PreconditionFailed);
 
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("pending");
 
-        // Cancelling with the current validator succeeds and is terminal.
         using var cancelled = await CancelAsync(client, created.Id, etagAfterReschedule);
         cancelled.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("cancelled");
 
-        // A cancelled reminder cannot be rescheduled, unconditionally: the aggregate itself refuses,
-        // independently of whatever validator is attached.
         using var rescheduleAfterCancel = await RescheduleAsync(client, created.Id, newDueAt.AddDays(1));
         rescheduleAfterCancel.StatusCode.ShouldBe(HttpStatusCode.Conflict);
 
@@ -101,11 +85,6 @@ public sealed class ReminderLifecycleTests(ApiFixture fixture) : RemindersTestBa
         refusal.Code.ShouldBe("domain.invariantViolated", refusal.Body);
     }
 
-    /// <summary>
-    /// Scheduling itself is unconditional — it addresses a reminder that does not exist yet, so
-    /// there is no version an <c>If-Match</c> could name — the same reasoning as creating a to-do
-    /// list.
-    /// </summary>
     [Fact]
     public async Task Scheduling_NeedsNoIfMatchBecauseNothingExistsYetToNameAVersionOf()
     {
@@ -118,7 +97,6 @@ public sealed class ReminderLifecycleTests(ApiFixture fixture) : RemindersTestBa
         reminder.Status.ShouldBe("pending");
     }
 
-    /// <summary>An unknown reminder id is a plain 404 without any <c>If-Match</c> attached.</summary>
     [Fact]
     public async Task WithoutAnIfMatch_AnUnknownReminderIsStillAPlainNotFound()
     {

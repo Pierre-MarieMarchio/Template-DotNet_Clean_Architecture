@@ -7,23 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.TodoLists;
 
-/// <summary>
-/// A domain event raised inside a request really reaches a consumer — the whole mechanism can be
-/// present and dispatch nothing.
-/// </summary>
-/// <remarks>
-/// <para>
-/// Two independent assertions, deliberately. The recording consumer the test host registers proves
-/// that a consumer registered through the persistence module's public entry point is resolved and run.
-/// The log the product's own <c>LogTodoItemCompletedConsumer</c> writes proves the <em>shipped</em>
-/// consumer ran, which a double registered alongside it cannot show.
-/// </para>
-/// <para>
-/// Events are raised by the aggregate and EF does not track the aggregate, so an interceptor walking
-/// <c>ChangeTracker.Entries&lt;IAggregateRoot&gt;()</c> would find nothing and fail silently. They are
-/// drained from the feature's aggregate tracker instead, and these tests are what prove it happens.
-/// </para>
-/// </remarks>
 public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -49,10 +32,6 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
         received.OccurredOn.ShouldBe(completedAt);
     }
 
-    /// <summary>
-    /// The product's own consumer, whose only observable effect is a log line. Asserting on it is the
-    /// only way to know the shipped code ran rather than only the test's double.
-    /// </summary>
     [Fact]
     public async Task CompletingAnItem_RunsTheProductsOwnConsumer()
     {
@@ -76,10 +55,6 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
         record.Message.ShouldContain("Do the thing");
     }
 
-    /// <summary>
-    /// One event per completion, not one per subsequent save of the same tracked aggregate: the events
-    /// are drained when they are collected.
-    /// </summary>
     [Fact]
     public async Task EachCompletion_PublishesExactlyOneEvent()
     {
@@ -101,10 +76,6 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
             .ShouldBe([first, second], ignoreOrder: true);
     }
 
-    /// <summary>
-    /// A request that never committed published nothing. Publishing before the commit would let a
-    /// handler act on a change that then rolled back.
-    /// </summary>
     [Fact]
     public async Task ARefusedCompletion_PublishesNothing()
     {
@@ -123,10 +94,6 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
         Fixture.DomainEvents.CompletedItems.ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The event is published after the transaction commits, so by the time a consumer has run the
-    /// change it describes is durable — asserted by reading the row back outside the request.
-    /// </summary>
     [Fact]
     public async Task WhenTheConsumerHasRun_TheChangeIsAlreadyCommitted()
     {
@@ -146,10 +113,6 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
         stored.Items.Single(item => item.Id == itemId).CompletedAt.ShouldNotBeNull();
     }
 
-    /// <summary>
-    /// <c>TodoListCreatedDomainEvent</c> has no consumer registered anywhere. Dispatching it must be a
-    /// no-op rather than a failure, or adding an event would mean having to add a consumer for it.
-    /// </summary>
     [Fact]
     public async Task AnEventWithNoConsumer_IsHarmless()
     {

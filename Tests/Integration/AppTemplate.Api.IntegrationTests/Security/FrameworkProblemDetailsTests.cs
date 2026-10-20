@@ -7,17 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Security;
 
-/// <summary>
-/// The failures the application never decides on still have to look like the ones it does.
-/// </summary>
-/// <remarks>
-/// Some requests are answered before any of this API's code runs: a body that is not JSON, a route
-/// segment that fails its <c>:guid</c> constraint, a verb no action accepts, a media type nothing
-/// reads. Those come from the framework, not from an <c>Error</c>, so they never pass through
-/// <c>ErrorMapping</c> and do not inherit its <c>code</c>. The API's contract is that a client
-/// branches on <c>code</c> and never on prose — which is worth nothing on precisely the inputs a
-/// client is most likely to get wrong by accident.
-/// </remarks>
 public sealed class FrameworkProblemDetailsTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -42,7 +31,6 @@ public sealed class FrameworkProblemDetailsTests(ApiFixture fixture) : Integrati
     {
         var (client, _, _) = await SignInAsync();
 
-        // The route declares {todoListId:guid}; "not-a-guid" never reaches an action.
         using var response = await client.GetAsync(
             new Uri($"{TodoListsRoute}/not-a-guid", UriKind.Relative),
             TestToken);
@@ -83,10 +71,6 @@ public sealed class FrameworkProblemDetailsTests(ApiFixture fixture) : Integrati
         await AssertCarriesACodeAsync(response);
     }
 
-    /// <summary>
-    /// A code the application authored must survive: the default must fill the field in, never
-    /// overwrite a more specific value that <c>ErrorMapping</c> already set.
-    /// </summary>
     [Fact]
     public async Task AnErrorTheApplicationAuthored_KeepsItsOwnCode()
     {

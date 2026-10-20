@@ -1,23 +1,11 @@
 ﻿using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Domain.Features.TodoLists.Model.Entities;
-using AppTemplate.Domain.Features.TodoLists.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.TodoLists;
 
-/// <summary>
-/// The audit columns are stamped by the interceptor, and <c>CreatedBy</c> is the caller who actually
-/// made the request — never <c>Guid.Empty</c>, which looks like a user id and is not one.
-/// </summary>
-/// <remarks>
-/// The interceptor stamps the <em>row</em>, and the values then have to travel back into the
-/// aggregate. Reading the stamps straight out of the row would pass even if the aggregate never
-/// learned them, so these tests load through
-/// <see cref="ITodoListRepository"/> — the same path a use case
-/// takes — and assert on the aggregate.
-/// </remarks>
 public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -57,11 +45,6 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
         stored.LastModifiedBy.ShouldBe(session.UserId);
     }
 
-    /// <summary>
-    /// A change to a child is a change to its aggregate, so adding an item has to move the root's
-    /// <c>LastModifiedAt</c> even though no column of the root itself changed. The flusher is what
-    /// marks the root modified; nothing in EF's own change tracking would.
-    /// </summary>
     [Fact]
     public async Task AChangeToAChild_StampsTheRoot()
     {
@@ -87,10 +70,6 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
         afterComplete.LastModifiedBy.ShouldBe(session.UserId);
     }
 
-    /// <summary>
-    /// Two different callers, two different <c>CreatedBy</c> values. Without this, "CreatedBy is the
-    /// caller" would be satisfied by an interceptor that stamped any single constant.
-    /// </summary>
     [Fact]
     public async Task TwoCallers_AreRecordedAsTwoDifferentCreators()
     {
@@ -106,10 +85,6 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
         (await LoadAggregateAsync(secondList)).CreatedBy.ShouldBe(secondSession.UserId);
     }
 
-    /// <summary>
-    /// The clock the audit columns come from is the injected one, not the machine's. Moving it and
-    /// seeing the stamp move with it is what proves that.
-    /// </summary>
     [Fact]
     public async Task TheStampComesFromTheInjectedClock()
     {
@@ -124,16 +99,9 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
 
         stored.CreatedAt.ShouldBe(expected);
 
-        // Which is not the machine clock: it is days ahead of it.
         stored.CreatedAt.ShouldBeGreaterThan(DateTimeOffset.UtcNow.AddDays(2));
     }
 
-    /// <summary>
-    /// The row is the authority — the interceptor writes it — so this reads the columns directly and
-    /// checks the aggregate agrees. If the read-back after a save were dropped, the aggregate would
-    /// carry defaults while the row carried the truth, and every assertion above would still pass on the
-    /// row alone.
-    /// </summary>
     [Fact]
     public async Task TheAggregateAndTheRow_AgreeAboutTheStamps()
     {
@@ -142,8 +110,6 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
 
         var aggregate = await LoadAggregateAsync(listId);
 
-        // Compared in SQL rather than by parsing a rendered timestamp back into .NET: the comparison then
-        // happens in PostgreSQL's own type, so the assertion cannot pass or fail on a formatting detail.
         int matches = await Database.CountAsync(
             $"""
             SELECT count(*) FROM todo."TodoLists"

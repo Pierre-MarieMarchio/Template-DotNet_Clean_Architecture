@@ -8,16 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Security;
 
-/// <summary>
-/// Request logging must be incapable of writing a credential.
-/// </summary>
-/// <remarks>
-/// This is the one place in the API where the temptation is structural: header and body logging is
-/// three lines away and would be immediately useful, and the endpoints exercised below carry a
-/// password, an access token and a refresh token — two of them in a JSON body, where "don't log
-/// bodies" is the only workable rule. The test drives the whole authentication flow and then searches
-/// every log entry the host wrote for those exact secret values.
-/// </remarks>
 public sealed class RequestLogRedactionTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -25,18 +15,15 @@ public sealed class RequestLogRedactionTests(ApiFixture fixture) : IntegrationTe
     {
         var (client, user, session) = await SignInAsync();
 
-        // An authenticated request, so an Authorization header is on the wire.
         using var listed = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
         listed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        // A refresh, so a refresh token travels in a JSON body.
         using var refreshed = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh",
             new RefreshAccessTokenRequest(session.Tokens.RefreshToken),
             TestToken);
         refreshed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        // A failed login, so a password travels in a JSON body on a path that also logs a failure.
         using var rejected = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",
             new LoginRequest(user.Email, "Not-The-Password-1!"),
@@ -64,10 +51,6 @@ public sealed class RequestLogRedactionTests(ApiFixture fixture) : IntegrationTe
         }
     }
 
-    /// <summary>
-    /// The header name as well as its value: an entry reading <c>Authorization: [present]</c> is the
-    /// first step towards one that reads <c>Authorization: Bearer ey…</c>.
-    /// </summary>
     [Fact]
     public async Task NoLogEntry_NamesTheAuthorizationHeaderOrACookie()
     {
@@ -86,10 +69,6 @@ public sealed class RequestLogRedactionTests(ApiFixture fixture) : IntegrationTe
         }
     }
 
-    /// <summary>
-    /// The other half of the guarantee: the entry that <em>is</em> written carries what an
-    /// investigation needs, so nobody has a reason to add the headers back.
-    /// </summary>
     [Fact]
     public async Task TheRequestLog_CarriesTheTraceIdentifierFromTheProblemDetails()
     {
@@ -110,7 +89,6 @@ public sealed class RequestLogRedactionTests(ApiFixture fixture) : IntegrationTe
                 "so the identifier in the response cannot be looked up.");
     }
 
-    /// <summary>Health probes are excluded, or they would be most of the log.</summary>
     [Fact]
     public async Task TheLivenessProbe_IsNotLogged()
     {

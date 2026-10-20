@@ -1289,3 +1289,146 @@ factory's header redaction narrows only when something is added to its list, so
 `AddEmailModule_NarrowsNothingAboutTheFactorysHeaderRedaction` asserts the absence of that call and
 `TheRedactionRule_IsSensitive_AndSeesARedactionSetNarrowedToOtherHeaders` composes the mistake to show
 the assertion can fail.
+
+## Integration tests
+
+**One container, one host, one collection, and the classes run one after another.** Starting
+PostgreSQL and booting the API costs seconds, and nothing a test does depends on either, so
+`ApiFixture` starts both once for the suite. What is per test — the rows, the recorded mailbox, the
+captured log, the clock — is reset by `IntegrationTestBase` before each test, and every class joins
+the one collection so those resets cannot race: truncating every table between tests would delete a
+concurrent test's rows. The reset is a truncation and not a rollback because a test drives several
+requests, each with its own scope, context and commit, so no ambient transaction exists to roll back.
+`TestDatabase` discovers the tables of the schemas it is given and names the schemas by hand: a
+schema nobody lists is never reset, and its rows leak into the next test. The migrations history
+tables and the Data Protection key table stay out of the reset, because truncating them makes the
+next run re-apply every migration, or pulls the key ring from under a host that keeps it in memory.
+Teardown disposes the container with `CancellationToken.None`, because a cancelled run is the one
+that most needs the container gone.
+
+**The test host takes its configuration from environment variables, and sets every key a validator
+requires.** `Program.cs` reads configuration while it composes the container, before the host is
+built, and environment variables are in the default chain and outrank every `appsettings*.json`, so
+they are visible at that moment whatever the content root resolves to. A section is set even when
+`InMemoryModule` replaces the adapter that reads it, because `ValidateOnStart` does not care which
+adapter ends up consuming it, and a missing key stops the host before the first test instead of in
+the test that needs it. The background jobs run under the role switch that disables their timers,
+since the suite runs one pass of a job on demand and a timer would race the assertions.
+
+**The clock is set to real time at the start of each test and never moves on its own.** Access tokens
+are stamped from the injected clock, but the bearer handler checks `exp` and `nbf` against the machine
+clock with zero skew, so a clock parked in the past mints tokens already expired. A clock that is set
+once stays exactly comparable with a stored timestamp, which the auditing test relies on; the value is
+truncated to milliseconds so that it compares equal with what PostgreSQL keeps.
+
+**Each client gets a rate-limit partition of its own.** Under `TestServer` the remote address is null
+for every request, so the whole suite would share the ten-request budget of the authentication
+endpoints and fail with `429` for reasons unrelated to what it asserts.
+`TestClientAddressStartupFilter` puts a header-chosen address in place ahead of the rate limiter, a
+startup filter being the only hook that gets in front of a pipeline a test cannot edit, and
+`CreateClient` hands out a fresh address per call. A test that needs several requests to share a budget
+reuses the client, or pins one with `CreateClientWithAddress`. The limiter itself is untouched, and its
+window is widened to hours because it has no injectable clock and would otherwise replenish between two
+requests of a slow run.
+
+**The product's `401` says nothing about why; the test host says it in a header.** An expired token, a
+wrong signature and a revoked security stamp are indistinguishable to a caller on purpose, and a test
+asserts exactly that. The cost is that an unexpected `401` is undiagnosable, so `ApiFactory` publishes
+the reason in `X-Test-Auth-Failure`, in the test host and never in the product.
+
+**Responses are read as text and parsed, and two problem documents are compared without their
+`traceId`.** The error responses are `application/problem+json`, and a failed assertion should quote
+what the server sent rather than report a deserialisation exception. `ApiJson` reads raw bodies for that
+reason, and raw JSON is also how the wire shape of a polymorphic response is proved.
+
+**A test reaches storage through a port or through SQL, never through a persistence type.** The
+persistence models are internal and EF does not map the domain types, so a test that queried a `DbSet`
+would assert on storage rather than on what the application layer sees, and would pass even if the
+mapper stopped handing values back. `LoadTodoListAsync` loads through the application port inside a
+scope of the caller's own, which exercises the query, the mapper and the identity map together;
+`TestDatabase.QueryAsync` and `ExecuteAsync` cover the few assertions and seeds that have to touch a
+row, such as the role row an administration test needs, since this host seeds no account data.
+
+**A race is made a fact with `Rendezvous`, never hoped for with `Task.WhenAll`.** An asynchronous call
+that never yields runs to completion before the second starts, and the race becomes two sequential
+operations. `Rendezvous` holds every participant until the last has arrived, so each is known to be past
+the read and not yet at the write. The same reasoning puts the lease and quota-lock tests on a real
+PostgreSQL with one composition per participant: the exclusion is the session-scoped advisory lock, and
+a substitute asserts whatever it was written to assert. A cap on an attempt that must not queue is not a
+performance budget; it is set far above what a loaded machine needs so that only an implementation that
+genuinely waits for the holder can reach it, and it turns a deadlock into a failure. Lock names are
+unique per test because the lock is server-wide.
+
+**A test that asserts a refusal carries a control, and a test over a surface enumerates it.** A refusal
+test is paired with the same call succeeding, or with a read showing nothing changed, because every
+assertion otherwise holds for an endpoint that refuses everyone. The tests that claim a property of a
+whole surface — every action refuses an anonymous caller, every `Idempotent` action is a `POST`, every
+route taking an id answers `404` to a stranger — read the controllers by reflection and assert the
+count, so an action added later fails there instead of passing untested.
+
+**An integration test of a disclosure asserts what a caller can observe.** Whole-response equality with
+the `traceId` and the echoed id factored out is how "not yours" and "does not exist" are shown to be one
+answer, and how a known and an unknown address are shown to be indistinguishable. A `404` is asserted
+where a `403` would reveal that the id names something real.
+
+**The OpenAPI document is asserted on its content.** A document endpoint fails quietly: the route
+matches and the body is valid, and the only evidence of a defect is a missing path or a sentence with a
+hole in it. The title is asserted because the test host's entry assembly is the test project, so a title
+read from the entry assembly would differ between the two hosts and no other test would notice.
+
+<!--#if (localAuth)-->
+**The identity round trips live in a project of their own.**
+`AppTemplate.Infrastructure.Auth.IntegrationTests` exists because the refresh-token rotation guarantee
+is a property of the database — a conditional `UPDATE` that exactly one of two simultaneous
+presentations may win — and a fake store would assert only that the fake agrees. It is kept out of the
+API suite because that suite shares one host and one container through a collection, and a shared,
+serialised context is what would stop the race from happening. The module's types are internal apart
+from `AuthModule`, so the project holds `InternalsVisibleTo` from it, and needs none from the
+persistence project: grants are reached through the public port and rows are inspected over the
+context's own connection. `GrantTableFixture` composes the persistence module as the identity module
+does, and `DatabaseReadiness` waits for a container's database to accept a connection before migrating,
+because the official PostgreSQL image restarts itself once while initialising and four containers start
+at once across this solution; that is the cause the evidence points at, which is worth knowing before
+anyone deletes the wait as ceremony. The wait is on a fixture precondition, so a real refusal still
+fails at its ceiling and names the last error.
+
+**Passkey refusals are proved with a verifier that accepts everything.** Two kinds of test share the
+ceremony endpoints. `SoftwareAuthenticator` signs real ES256 assertions, so Identity's own handler
+verifies them. `AcceptingPasskeyHandler` accepts any ceremony it is handed, so a refusal can only be the
+sealed state's: tampered, issued to another account, sealed for the other ceremony, or spent. It reports
+a counter of zero every time, as a synced passkey does, so nothing but the state's single use stands
+between a replay and a session.
+
+**A credential change is proved by replaying the token that was in circulation.** Rotating the security
+stamp is what ends an access token before it would expire, and `SetLockoutEndDateAsync`,
+`AddToRoleAsync` and `RemoveFromRoleAsync` do not rotate it on their own, so each administrative action
+is tested by presenting the same access token again and reading the reason from the host's header. A
+refresh token is the codebase's own and survives a stamp rotation untouched unless the use case revokes
+it, which is why its revocation is a test of its own. The account deleted outright is the exception: the
+bearer handler looks the account up before it compares a stamp, so no stamp has to rotate.
+<!--#endif-->
+
+<!--#if (files)-->
+**The object-store suite runs against the real store, and lives in the API integration project.**
+`ObjectStoreFixture` starts the image the development stack runs, same release and same digest, and
+composes the storage module as a host does, so the adapters are exercised through their ports. The suite
+sits here rather than in a project of its own because a test project is one more entry in the solution
+and one more identifier to keep in step, and because this is the integration project that already
+references the storage module and whose name promises a layer rather than a single module. Only a real
+store can say whether a signed grant is one it accepts, so a deposit is refused by the store itself when
+its digest or its signed headers disagree, a listing is walked page by page against a boundary that falls
+between two keys, and a refusal is asserted as a refusal rather than as one status, since one store
+answers `400` where another answers `403`. An expired grant is waited out by asking until the store
+refuses, not by sleeping a guessed interval, and the loop ends on the refusal itself so that a store
+under start-up load answering something else does not end it early.
+
+**`Files:Storage:S3:PublicEndpoint` was measured against the real store before it was believed.** A
+presigned URL covers the host it was signed for, so a request arriving under another name is refused by
+the same store, on the same port, for the same object. `PublicEndpointTests` shows that and the other
+half: signing for the public name makes the store accept the identical request under that name, with the
+connection still going to the address the machine reaches and only the `Host` header carrying the public
+name. Calls the process makes itself keep using the internal endpoint, the only one it can resolve. The
+fixture sets the published endpoint to the address the machine reaches, which is a property of the test
+host and not of the template, and an empty public endpoint has to behave exactly as if the setting did
+not exist.
+<!--#endif-->

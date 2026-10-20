@@ -15,18 +15,8 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Notes;
 
-/// <summary>
-/// A stale write to a note is refused, and refused by the database: the <c>UPDATE</c> and the
-/// <c>DELETE</c> carry the <c>xmin</c> the row was loaded at, so a writer that lost a race cannot
-/// overwrite or delete what the winner committed.
-/// </summary>
-/// <remarks>
-/// Needs the PostgreSQL fixture. The same scenarios run against SQLite, with <c>xmin</c> played by an
-/// integer column, in <c>AppTemplate.Api.UnitTests</c>; only here is the token the real system column.
-/// </remarks>
 public sealed class NoteConcurrencyTests(ApiFixture fixture) : NotesTestBase(fixture)
 {
-    /// <summary>Enough simultaneous writers that several are overwhelmingly likely to read the same version.</summary>
     private const int _concurrentWriters = 8;
 
     [Fact]
@@ -120,12 +110,6 @@ public sealed class NoteConcurrencyTests(ApiFixture fixture) : NotesTestBase(fix
         conditional.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    /// <summary>
-    /// The competing write, with no luck involved: the loser loads the note and stages its change at a
-    /// version that still matches <c>If-Match</c>, the winner then commits through the API, and the loser
-    /// commits last. The check made at load time passes; the write is the one refused, because its
-    /// <c>WHERE</c> names the version it loaded and that row no longer exists.
-    /// </summary>
     [Fact]
     public async Task AWriteStagedAtTheCurrentVersion_IsRefusedAtTheCommit_WhenAnotherWriterCommitsFirst()
     {
@@ -180,11 +164,6 @@ public sealed class NoteConcurrencyTests(ApiFixture fixture) : NotesTestBase(fix
         (await ReadNoteAsync(client, note.Note.Id)).Note.Title.ShouldBe("Winner", "the note was not deleted");
     }
 
-    /// <summary>
-    /// Several writers name the same version at the same moment. Exactly one can win; every other is
-    /// refused with a well-formed problem document, 412 when it read the new version and 409 when it lost
-    /// the race at the write itself, and never a 500 or a second success.
-    /// </summary>
     [Fact]
     public async Task SimultaneousWritersNamingOneVersion_LetExactlyOneWin()
     {
@@ -220,10 +199,6 @@ public sealed class NoteConcurrencyTests(ApiFixture fixture) : NotesTestBase(fix
         (await ReadNoteAsync(client, note.Note.Id)).Note.Title.ShouldStartWith("Writer ");
     }
 
-    /// <summary>
-    /// The version as storage holds it, read through the application's own read port: the ETag a client
-    /// holds is opaque, and the competing-write tests work below the API, where the version is a number.
-    /// </summary>
     private static async Task<uint> VersionOfAsync(IServiceProvider services, UserId owner, Guid noteId) =>
         (await services.GetRequiredService<INoteQueries>().GetAsync(owner, noteId, TestToken))!.Version;
 }

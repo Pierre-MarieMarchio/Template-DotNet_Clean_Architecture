@@ -51,6 +51,45 @@
       "description": "The app's default host port on 127.0.0.1, overridden by WEB_<NAME>_HOST_PORT in .env.",
       "replaces": "8081"
     },
+    "auth": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "local",
+      "choices": [
+        { "choice": "local", "description": "The project was generated with --auth local." },
+        { "choice": "external", "description": "The project was generated with --auth external." },
+        { "choice": "none", "description": "The project was generated with --auth none." }
+      ],
+      "description": "The project's --auth value: the app's sign-in screens follow it."
+    },
+    "examples": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "all",
+      "choices": [
+        { "choice": "all", "description": "The project was generated with --examples all." },
+        { "choice": "notes", "description": "The project was generated with --examples notes." },
+        { "choice": "none", "description": "The project was generated with --examples none." }
+      ],
+      "description": "The project's --examples value: the app has one page per example feature."
+    },
+    "adminNeedsAccounts": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        { "choice": "refused", "description": "Not an option to set: it names the refusal." }
+      ],
+      "isRequired": "(audience == \"admin\" && auth == \"none\")",
+      "description": "Never set. --audience admin signs administrators in, which --auth none cannot."
+    },
+    "localAuth": { "type": "computed", "value": "(auth == \"local\")" },
+    "externalAuth": { "type": "computed", "value": "(auth == \"external\")" },
+    "publicApi": { "type": "computed", "value": "(auth == \"none\")" },
+    "accounts": { "type": "computed", "value": "(localAuth || externalAuth)" },
+    "browserSessions": { "type": "computed", "value": "(localAuth)" },
+    "todoLists": { "type": "computed", "value": "(examples == \"all\")" },
+    "notes": { "type": "computed", "value": "(examples == \"all\" || examples == \"notes\")" },
+    "anyWeb": { "type": "computed", "value": "true" },
     "webPlaceholder": { "type": "computed", "value": "(framework == \"placeholder\")" },
     "webReact": { "type": "computed", "value": "(framework == \"react\")" },
     "webAngular": { "type": "computed", "value": "(framework == \"angular\")" },

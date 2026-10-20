@@ -80,7 +80,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "(auth == \"none\" && (examples != \"none\" || files))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\"))"
     },
     "templateMaintenance": {
       "type": "computed",
@@ -226,6 +226,29 @@
         ]
       },
       "replaces": "app-template"
+    },
+    "webAudience": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "public",
+      "choices": [
+        { "choice": "public", "description": "A site for the API's users." },
+        { "choice": "admin", "description": "A back office for administrators; needs --auth local or external." }
+      ],
+      "description": "Who the first web app is for; the framework apps shape their screens by it."
+    },
+    "adminAudience": { "type": "computed", "value": "(anyWeb && webAudience == \"admin\")" },
+    "adminWebNeedsAccounts": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(web != \"none\" && webAudience == \"admin\" && auth == \"none\")",
+      "description": "Never set. --web-audience admin signs administrators in, which --auth none cannot: choose --auth local or external."
     },
     "webName": {
       "type": "parameter",

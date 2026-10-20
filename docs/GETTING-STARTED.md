@@ -118,7 +118,8 @@ It works in the VS Code REST Client and in Visual Studio's `.http` editor.
 
 By hand. The API answers on **5187** when you run it on the host (`dotnet run`, above) and on
 **8080** when it runs in the Compose stack; the commands read their address from `API`, so set it to
-the one you started. `jq` is optional; it only reads the token out of the response.
+the one you started. The sign-in command uses `jq` to read the token out of the response; without
+it, run that `curl` alone and copy `tokens.accessToken` into `TOKEN` by hand.
 
 ```bash
 API=http://localhost:5187     # host run; http://localhost:8080 under Compose

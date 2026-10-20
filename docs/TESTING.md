@@ -220,6 +220,12 @@ Each of these has been paid for at least once in this repository.
   inside the identity and storage modules and their mirrors, `Options.Create(…)` does not compile:
   use `new OptionsWrapper<T>(…)`, or qualify it in full. Only the bare name is affected;
   `IOptions<T>` and `IValidateOptions<T>` resolve as usual.
+<!--#if (localAuth)-->
+- **A passkey ceremony needs an `Origin` header, and TestServer sends none.** Identity compares the
+  client data's origin with the request's, so a completion without the header is refused like a
+  forged one. `PasskeyTestSupport` adds it; the API answers every ceremony refusal alike, and
+  `PasskeyCeremonyFailures` is where a test reads which check refused it.
+<!--#endif-->
 - **`.cs` files are UTF-8 *with* BOM** (`.editorconfig`), and a file written without one fails the
   formatting gate. Detecting a BOM by piping bytes through `grep` does not work reliably — it will
   happily add a second one.

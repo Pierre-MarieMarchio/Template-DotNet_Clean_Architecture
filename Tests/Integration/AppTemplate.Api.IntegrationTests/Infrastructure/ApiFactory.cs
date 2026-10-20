@@ -3,6 +3,9 @@ using System.Globalization;
 //#endif
 using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Api.Common.Security;
+//#if (localAuth)
+using AppTemplate.Api.IntegrationTests.Auth;
+//#endif
 //#if (todoLists)
 using AppTemplate.Application.Core;
 //#endif
@@ -13,6 +16,8 @@ using AppTemplate.Domain.Features.TodoLists.Model.Events;
 using AppTemplate.Infrastructure.Auth.Common.Options;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Options;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Seeding;
+using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
+using AppTemplate.Infrastructure.Auth.Features.Passkeys.Configuration.Options;
 using AppTemplate.Infrastructure.Auth.Features.Sessions.Configuration.Options;
 //#endif
 using AppTemplate.Infrastructure.Core.Common.Contexts;
@@ -22,6 +27,9 @@ using AppTemplate.Infrastructure.InMemory;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 //#endif
 using Microsoft.AspNetCore.Hosting;
+//#if (localAuth)
+using Microsoft.AspNetCore.Identity;
+//#endif
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -117,6 +125,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             //#if (localAuth)
 
             ExposeTheReasonATokenWasRefused(services);
+
+            // Identity's own handler, recording why it refused a ceremony; see PasskeyCeremonyFailures.
+            services.AddSingleton<PasskeyCeremonyFailures>();
+            services.Replace(ServiceDescriptor.Scoped<IPasskeyHandler<AppUser>, RecordingPasskeyHandler>());
             //#endif
             /*#if (externalAuth)
 
@@ -231,6 +243,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             [$"{EmailChangeOptions.SectionName}__Subject"] = "Confirm your new email address",
 
             [$"{IdentitySeedOptions.SectionName}__Enabled"] = "false",
+
+            // The relying-party id a passkey is scoped to, set rather than derived from TestServer's
+            // "localhost", so a ceremony signed for the request's host is refused.
+            [$"{PasskeyOptions.SectionName}__ServerDomain"] = PasskeyTestSupport.RpId,
 
             //#endif
             //#if (externalAuth)

@@ -1866,7 +1866,10 @@ internal package under `packages/`, with one lockfile. The pnpm version and its 
 `packageManager` field of `Src/Web/package.json`, which Corepack reads on a machine and
 `pnpm/action-setup` reads in CI, so both run the same pnpm; Node comes from `Src/Web/.node-version`,
 and `engines` states the floor. Every dependency is written at an exact version, so regenerating the
-lockfile cannot move a direct dependency. Nothing in the .NET build needs Node or pnpm.
+lockfile cannot move a direct dependency. Nothing in the .NET build needs Node or pnpm. The tasks
+run pnpm from inside `Src/Web`, never with `--dir` from the root: Corepack picks the version from
+the working directory's `package.json`, and from the root it would run its own default pnpm, which
+refuses a workspace pinned to another.
 
 **Internal packages export their TypeScript sources.** A package's `exports` names `src/index.ts`
 and each app's bundler compiles it, so there is no build order between packages, no stale `dist/`
@@ -1982,5 +1985,19 @@ name is a token in three spellings — `PlaceholderSite`, `placeholder-site`, `P
 replaced in paths and contents, so no word an app would use can collide with it. A framework's
 folder follows the same rule under its own token, so the repository's workspace builds every
 framework's app side by side.
+
+**A generated project receives the lockfile of its own shape, not the repository's.** The
+repository's workspace holds every framework's app, so its `Src/Web/pnpm-lock.yaml` records
+importers a generated project does not have, and `pnpm install --frozen-lockfile` refuses a lockfile
+naming a project that is missing. `dotnet run Tools/Tasks.cs web-lockfiles` copies the workspace once
+per folder under `Src/Web/apps`, keeping that app alone, starts from the union lockfile so no
+version moves, and lets the pinned pnpm prune it with `--lockfile-only`; the result is
+`.template.config/variants/web-<App>/Src/Web/pnpm-lock.yaml`, a source of `template.json` chosen by
+the symbol that keeps the app. The engine replaces the scope and the app's tokens in it as in every
+file, which leaves it satisfying the renamed tree. Apps are found by folder, so a new framework
+needs its app and its `template.json` source and nothing else; the task names the source that is
+missing. `web-lockfiles --check`, run by `verify` and by the template workflow's web legs, fails on
+a variant that differs from what the task writes or that locks a vanished app, so a dependency bump
+to the union lockfile — Dependabot's included — is followed by one run of the task.
 <!--#endif-->
 <!--#endif-->

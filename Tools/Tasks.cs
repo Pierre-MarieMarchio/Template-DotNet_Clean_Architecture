@@ -65,7 +65,24 @@ internal static class Tasks
         "bootstrap",
         "hygiene",
         "verify",
+        //#if (templateMaintenance)
+        "web-lockfiles",
+        //#endif
     ];
+    //#if (templateMaintenance)
+
+    private const string MaintenanceUsage =
+        """
+
+        Template repository only:
+          web-lockfiles                    write the lockfile of each generated web shape: for every
+                                           app under Src/Web/apps, a copy of the workspace holding
+                                           that app alone, locked by the pinned pnpm, into
+                                           .template.config/variants/web-<App>/Src/Web/pnpm-lock.yaml
+          web-lockfiles --check            fail when one of them differs from what the command writes;
+                                           verify runs it
+        """;
+    //#endif
 
     internal static int Run(string[] arguments)
     {
@@ -89,6 +106,9 @@ internal static class Tasks
         if (arguments is ["--help"] or ["-h"] or ["help"])
         {
             Console.WriteLine(Usage.Replace("<tasks>", TaskList(), StringComparison.Ordinal));
+            //#if (templateMaintenance)
+            Console.WriteLine(MaintenanceUsage);
+            //#endif
             return 0;
         }
 
@@ -99,6 +119,9 @@ internal static class Tasks
         List<string> featureOptions = [];
         bool noIntegration = false;
         bool apply = false;
+        //#if (templateMaintenance)
+        bool check = false;
+        //#endif
         string configuration = "Debug";
 
         for (int i = 0; i < arguments.Length; i++)
@@ -109,6 +132,12 @@ internal static class Tasks
             {
                 noIntegration = true;
             }
+            //#if (templateMaintenance)
+            else if (argument is "--check")
+            {
+                check = true;
+            }
+            //#endif
             else if (argument is "--apply")
             {
                 apply = true;
@@ -182,6 +211,13 @@ internal static class Tasks
         {
             throw new InvalidOperationException($"'--apply' is an option of the remove-feature task, not of '{task ?? "(no task)"}'.");
         }
+        //#if (templateMaintenance)
+
+        if (check && task != "web-lockfiles")
+        {
+            throw new InvalidOperationException($"'--check' is an option of the web-lockfiles task, not of '{task ?? "(no task)"}'.");
+        }
+        //#endif
 
         if (task is null)
         {
@@ -364,6 +400,9 @@ internal static class Tasks
 
             case "verify":
                 Gates(repoRoot);
+                //#if (templateMaintenance)
+                WebLockfiles(repoRoot, check: true);
+                //#endif
                 Step("dotnet", "restore", solution);
                 Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
                 Step("dotnet", "build", solution, "--configuration", configuration, "--no-restore");
@@ -383,6 +422,12 @@ internal static class Tasks
                 VulnerablePackages(solution);
                 break;
 
+            //#if (templateMaintenance)
+            case "web-lockfiles":
+                WebLockfiles(repoRoot, check);
+                break;
+
+            //#endif
             default:
                 throw new InvalidOperationException($"'{task}' is listed as a task and has no branch.");
         }
@@ -495,7 +540,7 @@ internal static class Tasks
     {
         try
         {
-            Step(OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", "--dir", Path.Combine(repoRoot, "Src", "Web"), script);
+            StepIn(Path.Combine(repoRoot, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", script);
         }
         catch (InvalidOperationException error)
         {
@@ -504,6 +549,129 @@ internal static class Tasks
                 + "`pnpm install` and `pnpm api` in Src/Web.");
         }
     }
+
+    //#endif
+    //#if (templateMaintenance)
+    private static void WebLockfiles(string repoRoot, bool check)
+    {
+        string web = Path.Combine(repoRoot, "Src", "Web");
+        string appsFolder = Path.Combine(web, "apps");
+        string variants = Path.Combine(repoRoot, ".template.config", "variants");
+        string templateJson = File.ReadAllText(Path.Combine(repoRoot, ".template.config", "template.json"));
+
+        string[] apps = Directory.Exists(appsFolder)
+            ? [.. Directory.GetDirectories(appsFolder)
+                .Where(folder => File.Exists(Path.Combine(folder, "package.json")))
+                .Select(folder => Path.GetFileName(folder))
+                .Order(StringComparer.Ordinal)]
+            : [];
+
+        if (apps.Length == 0)
+        {
+            throw new InvalidOperationException("Src/Web/apps holds no app with a package.json, so there is no generated web shape to lock.");
+        }
+
+        List<string> problems = [];
+        string scratch = Path.Combine(Path.GetTempPath(), "web-lockfiles-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            foreach (string app in apps)
+            {
+                string copy = Path.Combine(scratch, app);
+                CopyWorkspace(web, copy, app);
+                StepIn(copy, OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", "install", "--lockfile-only", "--no-frozen-lockfile");
+
+                string locked = Lines(File.ReadAllText(Path.Combine(copy, "pnpm-lock.yaml")));
+                string variant = Path.Combine(variants, "web-" + app, "Src", "Web", "pnpm-lock.yaml");
+                string shown = Path.GetRelativePath(repoRoot, variant).Replace('\\', '/');
+                bool current = File.Exists(variant) && Lines(File.ReadAllText(variant)) == locked;
+
+                if (!current && check)
+                {
+                    problems.Add($"{shown} is {(File.Exists(variant) ? "stale" : "missing")}.");
+                }
+                else if (!current)
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(variant)!);
+                    File.WriteAllText(variant, locked);
+                    Write($"Wrote {shown}.", ConsoleColor.Green);
+                }
+
+                string source = $"\"source\": \"./.template.config/variants/web-{app}/\"";
+
+                if (!templateJson.Contains(source, StringComparison.Ordinal))
+                {
+                    problems.Add(
+                        $".template.config/template.json does not generate {shown}: add {{ {source}, \"target\": \"./\", "
+                        + "\"condition\": \"(<the symbol choosing this app>)\" } to its sources.");
+                }
+            }
+
+            foreach (string orphan in Directory.GetDirectories(variants, "web-*"))
+            {
+                string shown = Path.GetRelativePath(repoRoot, orphan).Replace('\\', '/');
+
+                if (apps.Contains(Path.GetFileName(orphan)["web-".Length..], StringComparer.Ordinal))
+                {
+                    continue;
+                }
+
+                if (check)
+                {
+                    problems.Add($"{shown} locks an app Src/Web/apps no longer holds.");
+                }
+                else
+                {
+                    Directory.Delete(orphan, recursive: true);
+                    Write($"Removed {shown}.", ConsoleColor.Green);
+                }
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(scratch))
+            {
+                Directory.Delete(scratch, recursive: true);
+            }
+        }
+
+        if (problems.Count > 0)
+        {
+            throw new InvalidOperationException(
+                string.Join(Environment.NewLine, problems) + Environment.NewLine
+                + (check ? "Run `dotnet run Tools/Tasks.cs web-lockfiles` and commit what it writes." : "Fix the above and run the task again."));
+        }
+
+        Write($"{apps.Length} generated web shape(s) locked: {string.Join(", ", apps)}.", ConsoleColor.Green);
+    }
+
+    private static void CopyWorkspace(string web, string target, string app)
+    {
+        string apps = Path.Combine(web, "apps");
+        string[] outputs = ["node_modules", "dist", "coverage", ".angular"];
+
+        CopyTree(web, target, folder =>
+            outputs.Contains(Path.GetFileName(folder), StringComparer.Ordinal)
+            || (Path.GetDirectoryName(folder) == apps && Path.GetFileName(folder) != app));
+    }
+
+    private static void CopyTree(string source, string target, Func<string, bool> skip)
+    {
+        Directory.CreateDirectory(target);
+
+        foreach (string file in Directory.GetFiles(source))
+        {
+            File.Copy(file, Path.Combine(target, Path.GetFileName(file)));
+        }
+
+        foreach (string folder in Directory.GetDirectories(source).Where(folder => !skip(folder)))
+        {
+            CopyTree(folder, Path.Combine(target, Path.GetFileName(folder)), skip);
+        }
+    }
+
+    private static string Lines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal);
 
     //#endif
     private static string Gate(string repoRoot, string fileName) => Path.Combine(repoRoot, "Tools", fileName);
@@ -646,13 +814,20 @@ internal static class Tasks
         }
     }
 
-    private static void Step(string executable, params string[] arguments)
+    private static void Step(string executable, params string[] arguments) => StepIn(null, executable, arguments);
+
+    private static void StepIn(string? directory, string executable, params string[] arguments)
     {
         string line = executable + " " + string.Join(' ', arguments);
-        Write("> " + line, ConsoleColor.Cyan);
+        Write("> " + line + (directory is null ? string.Empty : $"   (in {directory})"), ConsoleColor.Cyan);
         Console.Out.Flush();
 
-        ProcessStartInfo startInfo = new() { FileName = executable, UseShellExecute = false };
+        ProcessStartInfo startInfo = new()
+        {
+            FileName = executable,
+            UseShellExecute = false,
+            WorkingDirectory = directory ?? string.Empty,
+        };
         foreach (string argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);

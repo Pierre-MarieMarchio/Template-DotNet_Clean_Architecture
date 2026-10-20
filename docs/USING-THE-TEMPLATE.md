@@ -29,6 +29,10 @@ Docker/Compose identifier is derived from. `-n Acme.OrderManagement` yields:
 | Root namespace | `Acme.OrderManagement.*` |
 | Compose project and image name | `acme-ordermanagement` — lower-cased, dots and underscores turned into hyphens |
 
+A name whose segment is a C# or Visual Basic keyword does not build: rule CA1716 turns a namespace
+such as `Acme.Default.Domain` or `Acme.Shared.Api` into an error, and the project treats warnings as
+errors. Pick a name with no such segment.
+
 Every project GUID is regenerated, so two generated projects never collide if they are opened side
 by side. `.template.config/template.json` holds the token, the casing generators and the GUID list;
 `Tests/Architecture/AppTemplate.Architecture.Tests` guards that list, so adding a project means
@@ -112,8 +116,9 @@ Sorted `using` directives are ordered alphabetically, so where a project's own n
 relative to `FluentValidation`, `Microsoft.*` and the rest depends on the name you chose.
 `AppTemplate` sorts one way, `Acme.OrderManagement` another. Until `bootstrap` runs once,
 `dotnet format --verify-no-changes` fails — and since that is the *first* step of the CI workflow
-you inherit, your first push fails with it. One run fixes it permanently, and it also restores the
-local tools the gate needs.
+you inherit, your first push fails with it. One run fixes it permanently. It formats first and
+restores the local tools after; if the restore fails it exits non-zero, with the formatting already
+done and the `dotnet ef` tasks named as the ones that cannot work yet.
 
 This cannot be fixed in the template itself: no single committed ordering is correct for every
 possible name. Commit the result before anything else.

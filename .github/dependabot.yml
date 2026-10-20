@@ -144,6 +144,10 @@ updates:
   - package-ecosystem: docker
     directories:
       - /Src/Presentation/AppTemplate.Api
+      #if (anyWeb)
+      # Every web app's nginx image, by directory glob.
+      - /Src/Web/apps/*
+      #endif
       #if (sonar)
       # The analysis image, Tools/sonar-scanner.Dockerfile, on the same SDK as the API's.
       - /Tools
@@ -165,6 +169,42 @@ updates:
         patterns:
           - "*"
 
+  #if (anyWeb)
+  # The web workspace: the npm ecosystem reads Src/Web/pnpm-lock.yaml for every app and package.
+  - package-ecosystem: npm
+    directory: /Src/Web
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - javascript
+    commit-message:
+      prefix: "build(deps)"
+      prefix-development: "build(deps-dev)"
+    groups:
+      web-lint:
+        applies-to: version-updates
+        patterns:
+          - eslint
+          - "@eslint/*"
+          - typescript-eslint
+          - globals
+      web-api-client:
+        applies-to: version-updates
+        patterns:
+          - openapi-fetch
+          - openapi-typescript
+      web-tooling:
+        applies-to: version-updates
+        patterns:
+          - typescript
+          - vitest
+
+  #endif
   # ---------------------------------------------------------------------------
   # docker-compose.yml: postgres, mailpit, the object store and the SonarQube server, as the
   # generation options include them. Development dependencies, but an unpatched

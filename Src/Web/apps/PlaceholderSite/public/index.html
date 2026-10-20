@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PlaceholderSite</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Src/Web/apps/PlaceholderSite</p>
+      <h1>PlaceholderSite goes here</h1>
+      <p>
+        This page holds the place of a web front end. nginx serves it from
+        <code>public/</code> and relays <code>/api/</code> and <code>/health</code> to the API,
+        so the browser talks to one origin.
+      </p>
+      <h2>Next</h2>
+      <ul>
+        <li>Put the front end's build output in place of <code>public/</code>, keeping <code>nginx.conf</code>, <code>Dockerfile</code> and <code>compose.yml</code>.</li>
+        <li>Or add a framework app beside this one: <code>dotnet new cleanarch-webapp -n BackOffice --framework react</code>.</li>
+        <li>Check the relay: <a href="/health">/health</a> answers from the API.</li>
+      </ul>
+    </main>
+  </body>
+</html>

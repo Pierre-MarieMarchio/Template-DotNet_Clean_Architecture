@@ -46,6 +46,9 @@ internal static class WorkflowGate
           - permissions: missing at both workflow and job level
           - a run: block reading an env: key that is defined nowhere
           - a local file a step names (script, Dockerfile, settings) that is absent from disk
+          - a working-directory, or a path an action takes as input (context, file,
+            global-json-file, node-version-file, package_json_file, cache_dependency_path),
+            that is absent from disk; a path built from an expression is not read
 
         Exit code 0 when every workflow is sound; 1 on a problem, and on a directory holding no
         workflow, which proves nothing.
@@ -72,6 +75,17 @@ internal static class WorkflowGate
         + @"|[\w\-./]+/Dockerfile"
         + @")",
         RegexOptions.Compiled);
+
+    private static readonly string[] PathInputs =
+    [
+        "context",
+        "file",
+        "global-json-file",
+        "node-version-file",
+        "package_json_file",
+        "cache_dependency_path",
+        "cache-dependency-path",
+    ];
 
     private static readonly Regex GoTemplate = new(@"\{\{.*?\}\}", RegexOptions.Singleline | RegexOptions.Compiled);
 
@@ -173,6 +187,11 @@ internal static class WorkflowGate
             knownEnv.UnionWith(Keys(Get(job, "env")));
             knownEnv.UnionWith(ShellBuiltins);
 
+            foreach (var problem in MissingPath(repo, "a default working-directory", Get(Get(Get(job, "defaults"), "run"), "working-directory")))
+            {
+                problems.Add($"{name}: job '{jobName}' {problem}");
+            }
+
             foreach (var (where, image) in JobImages(job))
             {
                 if (!DigestPin.IsMatch(image))
@@ -190,6 +209,14 @@ internal static class WorkflowGate
                 }
 
                 foreach (var problem in ActionImageProblems(uses?.Value, Get(step, "with")))
+                {
+                    problems.Add($"{name}: job '{jobName}' step '{StepName(step)}' {problem}");
+                }
+
+                var pathProblems = MissingPath(repo, "a working-directory", Get(step, "working-directory"))
+                    .Concat(PathInputs.SelectMany(input => MissingPath(repo, $"the input '{input}'", Get(Get(step, "with"), input))));
+
+                foreach (var problem in pathProblems)
                 {
                     problems.Add($"{name}: job '{jobName}' step '{StepName(step)}' {problem}");
                 }
@@ -397,6 +424,30 @@ internal static class WorkflowGate
             CleanFixture.Replace("Tools/Present.cs", "Tools/Absent.cs")
         ),
         (
+            "a Dockerfile input absent from disk",
+            CleanFixture.Replace(
+                "      - name: Build\n",
+                "      - name: Image\n        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a\n"
+                + "        with:\n          context: Web\n          file: Web/apps/Absent/Dockerfile\n      - name: Build\n")
+        ),
+        (
+            "a lockfile input absent from disk",
+            CleanFixture.Replace(
+                "      - name: Build\n",
+                "      - name: Package manager\n        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413\n"
+                + "        with:\n          cache_dependency_path: Web/absent-lock.yaml\n      - name: Build\n")
+        ),
+        (
+            "a step working-directory absent from disk",
+            CleanFixture.Replace("      - name: Build\n", "      - name: Build\n        working-directory: Absent\n")
+        ),
+        (
+            "a job default working-directory absent from disk",
+            CleanFixture.Replace(
+                "    timeout-minutes: 10\n",
+                "    timeout-minutes: 10\n    defaults:\n      run:\n        working-directory: Absent\n")
+        ),
+        (
             "no runs-on",
             CleanFixture.Replace("    runs-on: ubuntu-latest\n", "")
         ),
@@ -429,6 +480,17 @@ internal static class WorkflowGate
                 + "postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1")
         ),
         (
+            "path inputs that exist, and one built from the matrix",
+            CleanFixture
+                .Replace("    timeout-minutes: 10\n", "    timeout-minutes: 10\n    defaults:\n      run:\n        working-directory: Web\n")
+                .Replace(
+                    "      - name: Build\n",
+                    "      - name: Image\n        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a\n"
+                    + "        with:\n          context: Web\n          file: Web/apps/${{ matrix.app }}/Dockerfile\n"
+                    + "      - name: Package manager\n        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413\n"
+                    + "        with:\n          cache: true\n          cache_dependency_path: Web/pnpm-lock.yaml\n      - name: Build\n")
+        ),
+        (
             "permissions declared on the job rather than the workflow",
             CleanFixture
                 .Replace("permissions:\n  contents: read\n", "")
@@ -446,6 +508,8 @@ internal static class WorkflowGate
         var tools = Path.Combine(root, "Tools");
         Directory.CreateDirectory(tools);
         File.WriteAllText(Path.Combine(tools, "Present.cs"), "", Utf8NoBom);
+        Directory.CreateDirectory(Path.Combine(root, "Web"));
+        File.WriteAllText(Path.Combine(root, "Web", "pnpm-lock.yaml"), "", Utf8NoBom);
         Directory.CreateDirectory(Path.Combine(root, ".github", "workflows"));
     }
 
@@ -546,6 +610,28 @@ internal static class WorkflowGate
         Console.WriteLine(
             "The gate fires on every faulted workflow, on none of the sound ones, and reads both spellings.");
         return 0;
+    }
+
+    private static IEnumerable<string> MissingPath(string repo, string what, YamlNode? node)
+    {
+        if (IsNull(node) || node is not YamlScalarNode scalar)
+        {
+            yield break;
+        }
+
+        foreach (var line in (scalar.Value ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (line.Contains("${{", StringComparison.Ordinal) || line.Contains('*') || line is "true" or "false")
+            {
+                continue;
+            }
+
+            var candidate = Path.Combine(repo, line);
+            if (!File.Exists(candidate) && !Directory.Exists(candidate))
+            {
+                yield return $"names {what} '{line}', which does not exist on disk";
+            }
+        }
     }
 
     private static IEnumerable<(string Where, string Image)> JobImages(YamlMappingNode job)

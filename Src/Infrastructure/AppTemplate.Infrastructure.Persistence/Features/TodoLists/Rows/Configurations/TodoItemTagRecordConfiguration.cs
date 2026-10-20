@@ -6,11 +6,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Configurations;
 
-/// <summary>
-/// Mapping for a tag row. The key is the pair, not a surrogate: a tag has no identity of its own, so
-/// the thing that identifies the row is the owner plus the value — and that makes a duplicate tag on
-/// one item impossible in the database rather than merely unlikely.
-/// </summary>
 internal sealed class TodoItemTagRecordConfiguration : IEntityTypeConfiguration<TodoItemTagRecord>
 {
     public void Configure(EntityTypeBuilder<TodoItemTagRecord> builder)

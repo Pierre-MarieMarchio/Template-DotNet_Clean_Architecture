@@ -11,14 +11,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Access.Queries;
 
-/// <summary>
-/// The read side. Every method projects straight from the persistence models into a DTO, so the SQL
-/// selects only the columns the DTO needs and nothing is ever materialised or tracked.
-/// <para>
-/// Internal and sealed, like the repository: it is the adapter for <see cref="ITodoListQueries"/> and
-/// nothing outside this assembly names it. It reads through the context and never writes.
-/// </para>
-/// </summary>
 internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
 {
     public async Task<PagedResult<TodoListSummaryDto>> GetForOwnerAsync(
@@ -39,19 +31,12 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
             : await GetKeysetPageAsync(filtered, request, cancellationToken);
     }
 
-    /// <remarks>
-    /// <c>xmin</c> is selected by the same statement as the representation, so the version describes
-    /// exactly the rows that were read. Fetching it in a second query would leave a window in which
-    /// the two disagree.
-    /// </remarks>
     public Task<Versioned<TodoListDetailDto>?> GetDetailAsync(
         Guid id,
         UserId ownerId,
         CancellationToken cancellationToken = default) =>
         context.TodoLists
             .AsNoTracking()
-            // One query, so a missing list and someone else's list are indistinguishable. Fetching
-            // by id and comparing the owner afterwards would read another user's row first.
             .Where(list => list.Id == id && list.OwnerId == ownerId.Value)
             .Select(list => new Versioned<TodoListDetailDto>(
                 new TodoListDetailDto(
@@ -117,8 +102,6 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
         FeaturePageRequest<TodoListFilter> request,
         CancellationToken cancellationToken)
     {
-        // The use case refuses a multi-term sort under paging=cursor, so there is always exactly one
-        // term here.
         var term = request.Sort.Terms[0];
         int pageSize = request.Paging.PageSize;
 
@@ -126,7 +109,6 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
             ? TodoListSortMap.ApplyKeyset(filtered, term, cursor)
             : filtered;
 
-        // One row beyond the page answers "is there a next page" without a second query.
         var items = await TodoListSortMap.ApplyOrder(keysetSource, request.Sort)
             .Take(pageSize + 1)
             .Select(_toSummary)
@@ -147,11 +129,6 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
         return PagedResult.Keyset(page, pageSize, nextCursor);
     }
 
-    /// <remarks>
-    /// The one query here that crosses owners on purpose: it exists so a housekeeping pass can ask
-    /// which ids still hold data, and returns ids only — no owner can be identified through it. The
-    /// primitive is built client-side: its factory validates, and validation is not SQL.
-    /// </remarks>
     public async Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
         CancellationToken cancellationToken = default)
     {

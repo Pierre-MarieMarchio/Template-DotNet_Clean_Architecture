@@ -10,16 +10,10 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Adapters.Transfers;
 
-/// <summary>
-/// <see cref="IFileDirectTransfer"/> over Signature Version 4 presigned URLs. <c>signer</c> is built
-/// on <see cref="FilesStorageS3Options.SigningEndpoint"/> because a URL covers the host it was signed
-/// for; presigning opens no connection.
-/// </summary>
 internal sealed class S3FileDirectTransfer(
     [FromKeyedServices(BucketClientFactory.SigningClientKey)] IAmazonS3 signer,
     IOptions<FilesStorageS3Options> options) : IFileDirectTransfer
 {
-    /// <summary>The digest is signed into the upload: the store refuses other bytes and records it.</summary>
     private const string _checksumHeader = "x-amz-checksum-sha256";
 
     private const string _uploadMethod = "PUT";
@@ -43,7 +37,6 @@ internal sealed class S3FileDirectTransfer(
         var expiresAt = ExpiryFor(lifetime);
         var request = PreSignedRequest(objectKey, HttpVerb.PUT, expiresAt);
 
-        // Every header set here is signed; a deposit sending anything else is refused by the store.
         request.Headers.ContentType = declaredMediaType;
         request.Headers.ContentLength = sizeInBytes;
         request.Headers[_checksumHeader] = S3FileContentStore.Base64DigestOf(declaredSha256);
@@ -68,7 +61,6 @@ internal sealed class S3FileDirectTransfer(
         var expiresAt = ExpiryFor(lifetime);
         var request = PreSignedRequest(objectKey, HttpVerb.GET, expiresAt);
 
-        // Signed query parameters, so the client cannot turn the attachment into something rendered.
         request.ResponseHeaderOverrides.ContentType = declaredMediaType;
         request.ResponseHeaderOverrides.ContentDisposition = DownloadDispositionPolicy.AttachmentFor(downloadFileName);
 
@@ -77,18 +69,12 @@ internal sealed class S3FileDirectTransfer(
         return new IssuedDownloadGrant(url, expiresAt);
     }
 
-    /// <summary>
-    /// The lifetime actually signed, clamped to <see cref="FilesStorageS3Options.MaxGrantLifetime"/>.
-    /// The ceiling holds to the signer's clock precision: the SDK reads the clock again and rounds
-    /// <c>X-Amz-Expires</c> to the nearest second, so the store's deadline may differ by about a second.
-    /// </summary>
     private DateTimeOffset ExpiryFor(TimeSpan lifetime)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(lifetime, TimeSpan.Zero);
 
         var granted = lifetime <= options.Value.MaxGrantLifetime ? lifetime : options.Value.MaxGrantLifetime;
 
-        // The system clock, not the injectable one: the SDK signs from the machine's clock.
         return DateTimeOffset.UtcNow.Add(granted);
     }
 
@@ -99,7 +85,6 @@ internal sealed class S3FileDirectTransfer(
             Key = objectKey,
             Verb = verb,
 
-            // The SDK defaults to HTTPS whatever the endpoint says; the signing endpoint's scheme wins.
             Protocol = InsecureEndpoint() ? Protocol.HTTP : Protocol.HTTPS,
             Expires = expiresAt.UtcDateTime,
         };
@@ -107,7 +92,6 @@ internal sealed class S3FileDirectTransfer(
     private bool InsecureEndpoint() =>
         options.Value.SigningEndpoint.StartsWith(Uri.UriSchemeHttp + "://", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Read off the signed request so the grant cannot name headers the signature does not cover.</summary>
     private static Dictionary<string, string> RequiredHeadersOf(GetPreSignedUrlRequest request) =>
         request.Headers.Keys.ToDictionary(
             header => header,

@@ -5,10 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Access.Queries;
 
-/// <summary>
-/// The adapter for <see cref="ITodoItemTagQueries"/>. One column of a join, projected in SQL:
-/// nothing is materialised or tracked.
-/// </summary>
 internal sealed class TodoItemTagQueries(AppDbContext context) : ITodoItemTagQueries
 {
     public async Task<IReadOnlyList<string>> GetUsedTagsForOwnerAsync(

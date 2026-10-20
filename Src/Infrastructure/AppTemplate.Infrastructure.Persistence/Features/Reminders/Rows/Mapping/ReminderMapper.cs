@@ -5,13 +5,6 @@ using AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Mapping;
 
-/// <summary>
-/// The one place that knows both shapes.
-/// <para>
-/// Stateless and registered as a singleton: it touches no <c>DbContext</c>, so it can be shared, and the
-/// round-trip fidelity test can exercise it with no database at all.
-/// </para>
-/// </summary>
 internal sealed class ReminderMapper : IReminderMapper
 {
     public Reminder ToAggregate(ReminderRecord record)
@@ -52,11 +45,8 @@ internal sealed class ReminderMapper : IReminderMapper
             FailedAttempts = aggregate.FailedAttempts,
             NextAttemptAt = aggregate.NextAttemptAt,
 
-            // Overwritten on insert, where PostgreSQL assigns xmin. Carried so the round trip stays
-            // total and the fidelity test can check it.
             Version = aggregate.Version,
 
-            // Overwritten by the audit interceptor, which runs after this.
             CreatedAt = aggregate.CreatedAt,
             CreatedBy = aggregate.CreatedBy,
             LastModifiedAt = aggregate.LastModifiedAt,
@@ -69,7 +59,6 @@ internal sealed class ReminderMapper : IReminderMapper
         ArgumentNullException.ThrowIfNull(aggregate);
         ArgumentNullException.ThrowIfNull(record);
 
-        // Assigned, not replaced: EF writes a column only if the value differs from the one it read.
         record.OwnerId = aggregate.OwnerId.Value;
         record.TodoListId = aggregate.TodoListId;
         record.TodoItemId = aggregate.TodoItemId;
@@ -78,8 +67,5 @@ internal sealed class ReminderMapper : IReminderMapper
         record.NotifiedAt = aggregate.NotifiedAt;
         record.FailedAttempts = aggregate.FailedAttempts;
         record.NextAttemptAt = aggregate.NextAttemptAt;
-
-        // Version and the audit stamps are not written here: the token is PostgreSQL's, the stamps
-        // are the interceptor's, and a second writer for either would eventually disagree.
     }
 }

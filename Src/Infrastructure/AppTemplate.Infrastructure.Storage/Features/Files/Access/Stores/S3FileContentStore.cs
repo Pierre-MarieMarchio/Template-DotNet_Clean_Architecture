@@ -8,16 +8,10 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Access.Stores;
 
-/// <summary>
-/// <see cref="IFileContentStore"/> over an S3-compatible bucket; signed URLs are
-/// <c>S3FileDirectTransfer</c>'s. The SDK escapes the outbound HTTP policy, so <see cref="BucketBudget"/>
-/// restates it.
-/// </summary>
 internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorageS3Options> options) : IFileContentStore
 {
     private const int _sha256DigestLength = 32;
 
-    /// <summary>Codes answered when a body disagrees with its declared length or digest; nothing is written.</summary>
     private static readonly HashSet<string> _contentMismatchCodes = new(StringComparer.Ordinal)
     {
         "BadDigest",
@@ -27,11 +21,6 @@ internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorage
         "XAmzContentSHA256Mismatch",
     };
 
-    /// <summary>
-    /// <inheritdoc cref="IFileContentStore.WriteAsync"/>
-    /// One <c>PutObject</c> carrying length and SHA-256, so the store keeps the whole object or nothing.
-    /// No total budget: a write lasts as long as its body.
-    /// </summary>
     public async Task<ContentWriteOutcome> WriteAsync(
         string objectKey,
         Stream content,
@@ -78,7 +67,6 @@ internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorage
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);
 
-        // The budget bounds opening the object; reading it is bounded by whoever reads.
         using var budget = BucketBudget.Start(cancellationToken);
 
         try
@@ -95,11 +83,6 @@ internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorage
         }
     }
 
-    /// <summary>
-    /// <inheritdoc cref="IFileContentStore.DescribeAsync"/>
-    /// The digest is the one the store recorded at write time; an object without one is a fault, not a
-    /// reason to answer another digest that would fail every confirmation.
-    /// </summary>
     public async Task<StoredObjectDescription?> DescribeAsync(
         string objectKey,
         CancellationToken cancellationToken = default)
@@ -118,7 +101,6 @@ internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorage
                     BucketName = options.Value.BucketName,
                     Key = objectKey,
 
-                    // The store omits the checksum header unless the caller asks for it.
                     ChecksumMode = ChecksumMode.ENABLED,
                 },
                 budget.Token);
@@ -145,11 +127,9 @@ internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorage
         }
         catch (AmazonS3Exception exception) when (exception.StatusCode == HttpStatusCode.NotFound)
         {
-            // S3 answers 204 for a missing key; a compatible store answering 404 is the same answer.
         }
     }
 
-    /// <summary>The digest as S3 wants it: base64 of the raw bytes.</summary>
     internal static string Base64DigestOf(string sha256Hex)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sha256Hex);
@@ -164,7 +144,6 @@ internal sealed class S3FileContentStore(IAmazonS3 client, IOptions<FilesStorage
         return Convert.ToBase64String(Convert.FromHexString(sha256Hex));
     }
 
-    /// <summary>The recorded digest as lower-case hex; the store reports base64 of the same bytes.</summary>
     private static string HexChecksumOf(GetObjectMetadataResponse metadata, string objectKey)
     {
         if (string.IsNullOrWhiteSpace(metadata.ChecksumSHA256))

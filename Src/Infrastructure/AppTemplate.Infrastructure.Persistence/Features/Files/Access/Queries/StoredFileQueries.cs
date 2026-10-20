@@ -12,10 +12,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Access.Queries;
 
-/// <summary>
-/// The read side: every method projects straight into a DTO or a scalar, never materialising or
-/// tracking an entity, and never writes.
-/// </summary>
 internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueries
 {
     public async Task<PagedResult<StoredFileDto>> GetForOwnerAsync(
@@ -36,14 +32,12 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
             : await GetKeysetPageAsync(filtered, request, cancellationToken);
     }
 
-    /// <remarks>The version is selected by the same statement, so it describes exactly the row read.</remarks>
     public Task<Versioned<StoredFileDto>?> GetDetailAsync(
         Guid id,
         UserId ownerId,
         CancellationToken cancellationToken = default) =>
         context.StoredFiles
             .AsNoTracking()
-            // One query, so a missing file and someone else's are indistinguishable.
             .Where(file => file.Id == id && file.OwnerId == ownerId.Value)
             .Select(file => new Versioned<StoredFileDto>(
                 new StoredFileDto(
@@ -59,7 +53,6 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
                     file.Tags.Select(tag => tag.Value).ToList()),
                 file.Version))
             .FirstOrDefaultAsync(cancellationToken);
-
 
     public async Task<OwnerStorageUsage> GetUsageForOwnerAsync(
         UserId ownerId,
@@ -80,7 +73,6 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
             })
             .ToListAsync(cancellationToken);
 
-        // "Not Pending" rather than a list, so a new state counts against the quota from the start.
         var stored = totals.Where(total => total.State != StoredFileState.Pending).ToList();
         var pending = totals.FirstOrDefault(total => total.State == StoredFileState.Pending);
 
@@ -99,11 +91,9 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
 
         if (candidateObjectKeys.Count == 0)
         {
-            // IN () is not valid SQL.
             return [];
         }
 
-        // Bounded by the caller's candidates and served by the unique index on ObjectKey.
         return await context.StoredFiles
             .AsNoTracking()
             .Where(file => candidateObjectKeys.Contains(file.ObjectKey))
@@ -111,11 +101,6 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
             .ToListAsync(cancellationToken);
     }
 
-    /// <remarks>
-    /// The one query here that crosses owners on purpose: it exists so a housekeeping pass can ask
-    /// which ids still hold data, and returns ids only. The primitive is built client-side, because
-    /// its factory validates and validation is not SQL.
-    /// </remarks>
     public async Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -134,7 +119,6 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
     {
         if (filter.Search is { } search)
         {
-            // The name only: a searchable object key would let a caller probe for others' objects.
             string pattern = StoredFileLikePattern.Contains(search.Value);
             source = source.Where(file => EF.Functions.ILike(file.Name, pattern, "\\"));
         }
@@ -171,7 +155,6 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
         FeaturePageRequest<StoredFileFilter> request,
         CancellationToken cancellationToken)
     {
-        // The binder refuses a multi-term sort under paging=cursor: exactly one term here.
         var term = request.Sort.Terms[0];
         int pageSize = request.Paging.PageSize;
 
@@ -179,7 +162,6 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
             ? StoredFileSortMap.ApplyKeyset(filtered, term, cursor)
             : filtered;
 
-        // One row beyond the page answers "is there a next page" without a second query.
         var items = await StoredFileSortMap.ApplyOrder(keysetSource, request.Sort)
             .Take(pageSize + 1)
             .Select(_toDto)
@@ -200,7 +182,6 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
         return PagedResult.Keyset(page, pageSize, nextCursor);
     }
 
-    /// <remarks>One shape for every read. It carries no object key: that addresses the bytes and is not the client's business.</remarks>
     private static readonly Expression<Func<StoredFileRecord, StoredFileDto>> _toDto =
         file => new StoredFileDto(
             file.Id,

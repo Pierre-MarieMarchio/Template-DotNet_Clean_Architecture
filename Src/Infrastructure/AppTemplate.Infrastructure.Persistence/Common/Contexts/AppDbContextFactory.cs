@@ -4,17 +4,6 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Contexts;
 
-/// <summary>Lets <c>dotnet ef</c> build the model without starting the web host, so migrations can
-/// be generated and applied from this project alone:
-/// <code>
-/// dotnet tool restore
-/// dotnet ef migrations add &lt;Name&gt; --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence --output-dir Migrations
-/// </code>
-/// The history table is configured here as well as at runtime — only at runtime, the tool would
-/// record migrations somewhere else and the two would disagree about what has been applied.
-/// Public because the <c>dotnet ef</c> tool instantiates it from outside this assembly; reads
-/// <c>ConnectionStrings__Default</c> and falls back to the local docker-compose database
-/// (<see cref="DefaultConnectionString.ResolveForDesignTime"/>).</summary>
 public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 {
     public AppDbContext CreateDbContext(string[] args)

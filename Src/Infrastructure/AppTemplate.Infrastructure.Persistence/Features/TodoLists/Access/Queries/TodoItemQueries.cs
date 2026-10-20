@@ -5,15 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Access.Queries;
 
-/// <summary>
-/// The adapter for <see cref="ITodoItemQueries"/>. Items are read through
-/// <c>TodoListRecord.Items</c> — never <c>Set&lt;TodoItemRecord&gt;()</c> — the only way in, exactly
-/// as <c>TodoItemRecordConfiguration</c> intends by giving that record no <c>DbSet</c> of its own.
-/// <para>
-/// It lives in this feature's folder because it reads this feature's rows: the feature that asks
-/// the questions never touches them.
-/// </para>
-/// </summary>
 internal sealed class TodoItemQueries(AppDbContext context) : ITodoItemQueries
 {
     public Task<bool> ExistsForOwnerAsync(
@@ -24,7 +15,6 @@ internal sealed class TodoItemQueries(AppDbContext context) : ITodoItemQueries
     {
         ArgumentNullException.ThrowIfNull(ownerId);
 
-        // Owner and list in the predicate, not compared afterwards: another user's row is never read.
         return context.TodoLists
             .AsNoTracking()
             .Where(list => list.Id == todoListId && list.OwnerId == ownerId.Value)

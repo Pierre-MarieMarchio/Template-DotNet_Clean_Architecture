@@ -6,22 +6,8 @@ using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Access.Queries;
 
-/// <summary>The whitelist's other half: everywhere <see cref="TodoListCollectionPolicy"/> names a
-/// field, this is where the name becomes a column. No user string reaches an expression — every
-/// method switches on <see cref="SortTerm.Field"/> and every <c>default</c> arm throws: the use case
-/// should have rejected anything off the list, so a <c>default</c> arm is this template's own bug and
-/// must stay loud.</summary>
 internal static class TodoListSortMap
 {
-    /// <summary>Folds every term into <c>ORDER BY</c>, then always appends <c>Id</c>: without a
-    /// unique last key, two rows with equal sort keys can swap between pages — one served twice,
-    /// another never.</summary>
-    /// <remarks>The tiebreaker runs in the <em>same direction as the last term</em>, and that is
-    /// load-bearing: <see cref="ApplyKeyset"/> resumes with <c>key = k AND Id &lt; id</c> when the
-    /// term is descending, so a fixed-ascending tiebreaker would order the tied rows one way and walk
-    /// them the other, silently skipping every tied row past the cursor. It also keeps the composite
-    /// index usable — PostgreSQL scans <c>(OwnerId, CreatedAt, Id)</c> backwards for
-    /// <c>CreatedAt DESC, Id DESC</c>, but a mixed direction would need its own index.</remarks>
     public static IOrderedQueryable<TodoListRecord> ApplyOrder(IQueryable<TodoListRecord> source, SortOrder sort)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -34,15 +20,11 @@ internal static class TodoListSortMap
             ordered = ordered is null ? OrderByTerm(source, term) : ThenByTerm(ordered, term);
         }
 
-        // sort.Terms is never empty — SortOrder's own invariant — so ordered is always assigned here.
         return sort.Terms[^1].Direction == SortDirection.Ascending
             ? ordered!.ThenBy(record => record.Id)
             : ordered!.ThenByDescending(record => record.Id);
     }
 
-    /// <summary>The keyset row comparison: <c>key &gt; k || (key == k &amp;&amp; Id &gt; id)</c>
-    /// ascending, the mirror descending. <c>CompareTo</c> because it is what translates to the plain
-    /// relational operators on both <c>text</c> and <c>uuid</c> in PostgreSQL.</summary>
     public static IQueryable<TodoListRecord> ApplyKeyset(IQueryable<TodoListRecord> source, SortTerm term, Cursor cursor)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -59,12 +41,6 @@ internal static class TodoListSortMap
         };
     }
 
-    /// <summary>The value the next cursor carries, in the same wire form <see cref="Cursor.Key"/> expects, read from the last row actually served.</summary>
-    /// <remarks>Reads the projected summary rather than a <see cref="TodoListRecord"/> on purpose:
-    /// the keyset page never materialises an entity, so a record here would be assembled by hand,
-    /// and a field made keyset-sortable later would read a default off that half-filled object and
-    /// mint a cursor pointing at the wrong row, silently. Reading the DTO makes the same mistake a
-    /// compile error.</remarks>
     public static string KeyOf(TodoListSummaryDto summary, string field)
     {
         ArgumentNullException.ThrowIfNull(summary);
@@ -130,8 +106,6 @@ internal static class TodoListSortMap
         SortDirection direction,
         Cursor cursor)
     {
-        // CursorKeys has already validated that the key parses, so failing here is a defect rather
-        // than a bad request, and it must stay loud instead of ordering by nothing.
         if (!DateTimeOffset.TryParse(
             cursor.Key,
             CultureInfo.InvariantCulture,

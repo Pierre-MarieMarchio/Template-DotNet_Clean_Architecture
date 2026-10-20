@@ -4,10 +4,6 @@ using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
-/// <summary>
-/// An <see cref="IFileDirectTransfer"/> minting real signatures over URLs that resolve nowhere (see
-/// <see cref="StoredObjects"/>); a deposit is performed by a test through <see cref="StoredObjects.Deposit"/>.
-/// </summary>
 internal sealed class InMemoryFileDirectTransfer(StoredObjects objects, IDateTimeProvider dateTimeProvider)
     : IFileDirectTransfer
 {
@@ -34,7 +30,6 @@ internal sealed class InMemoryFileDirectTransfer(StoredObjects objects, IDateTim
 
         var expiresAt = dateTimeProvider.UtcNow.Add(lifetime);
 
-        // The headers a real signed PUT covers, so a client written against the double works on the real adapter.
         var required = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["Content-Type"] = declaredMediaType,

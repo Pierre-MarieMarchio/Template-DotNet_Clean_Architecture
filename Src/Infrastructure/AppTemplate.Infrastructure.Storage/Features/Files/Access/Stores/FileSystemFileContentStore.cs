@@ -5,26 +5,12 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Access.Stores;
 
-/// <summary>
-/// <see cref="IFileContentStore"/> over a directory: each object is the file at
-/// <c>RootPath/&lt;object key&gt;</c>. The key is the only thing that names a file; a client-supplied
-/// name never reaches the disk.
-/// </summary>
 internal sealed class FileSystemFileContentStore(IOptions<FilesStorageFileSystemOptions> options) : IFileContentStore
 {
-    /// <summary>
-    /// Temporary files start with this, which no object key does. The inventory never lists them and
-    /// deletes those a crashed write left behind.
-    /// </summary>
     internal const string TemporaryFilePrefix = ".";
 
     private const int _bufferSize = 81920;
 
-    /// <summary>
-    /// <inheritdoc cref="IFileContentStore.WriteAsync"/>
-    /// Bytes go to a temporary file while counted and hashed; only a match is published, by a rename
-    /// that cannot overwrite. An existing key keeps its object: a key is bound to one declared digest.
-    /// </summary>
     public async Task<ContentWriteOutcome> WriteAsync(
         string objectKey,
         Stream content,
@@ -59,7 +45,6 @@ internal sealed class FileSystemFileContentStore(IOptions<FilesStorageFileSystem
             }
             catch (IOException) when (File.Exists(target))
             {
-                // Already written under this key, with the same declared digest.
             }
 
             return ContentWriteOutcome.Written;
@@ -77,10 +62,6 @@ internal sealed class FileSystemFileContentStore(IOptions<FilesStorageFileSystem
         return Task.FromResult<Stream?>(TryOpen(PathFor(objectKey)));
     }
 
-    /// <summary>
-    /// <inheritdoc cref="IFileContentStore.DescribeAsync"/>
-    /// The disk records no digest, so it is computed by reading the whole file.
-    /// </summary>
     public async Task<StoredObjectDescription?> DescribeAsync(
         string objectKey,
         CancellationToken cancellationToken = default)
@@ -107,13 +88,11 @@ internal sealed class FileSystemFileContentStore(IOptions<FilesStorageFileSystem
         }
         catch (DirectoryNotFoundException)
         {
-            // Nothing was ever written under this key's directory: already deleted.
         }
 
         return Task.CompletedTask;
     }
 
-    /// <summary>The file an object key names, refused unless strictly under the root.</summary>
     internal static string PathFor(string rootPath, string objectKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);
@@ -156,7 +135,6 @@ internal sealed class FileSystemFileContentStore(IOptions<FilesStorageFileSystem
             {
                 written += read;
 
-                // Stop at the first byte past the declared size rather than storing an unbounded body.
                 if (written > sizeInBytes)
                 {
                     return false;
@@ -177,7 +155,6 @@ internal sealed class FileSystemFileContentStore(IOptions<FilesStorageFileSystem
     {
         try
         {
-            // FileShare.Delete: a deletion racing a download must not fail either of them.
             return new FileStream(
                 path,
                 FileMode.Open,

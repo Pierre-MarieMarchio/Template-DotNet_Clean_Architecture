@@ -5,15 +5,6 @@ using AppTemplate.Application.Core.Common.Localization;
 
 namespace AppTemplate.Infrastructure.Core.Common.Templating;
 
-/// <summary>One mail's embedded templates — one per language — and the body they render.</summary>
-/// <remarks>A template is an embedded resource named <c>&lt;baseName&gt;.&lt;culture&gt;.html</c>
-/// — shipping a language is adding a file — and must be declared with <c>WithCulture="false"</c>, or
-/// MSBuild compiles it into a satellite assembly this class cannot see. The subject is the template's
-/// <c>&lt;title&gt;</c>, not a separate setting: a subject and a body described in two places can be
-/// delivered in two different languages. Placeholders are written <c>{{Name}}</c> and every
-/// substituted value is HTML-encoded, so a value a user chose cannot carry markup into a mail; a
-/// subject takes none — a mail header is not HTML, and an unencoded newline in a header is header
-/// injection. Resources are read once, on the first render; the instance is safe to share.</remarks>
 public sealed class EmailTemplate
 {
     private static readonly Regex _title = new(
@@ -25,11 +16,6 @@ public sealed class EmailTemplate
     private readonly string _baseName;
     private readonly Lazy<Dictionary<string, RenderedEmail>> _templates;
 
-    /// <param name="resources">The assembly holding the templates — passed in, so a module renders
-    /// its own mail out of its own resources.</param>
-    /// <param name="baseName">The template family's file-name stem — <c>RegisterEmailTemplate</c>.
-    /// Only the stem: the full resource name carries the assembly and the folder in front, and a
-    /// module renamed above the templates would break a name written out in full.</param>
     public EmailTemplate(Assembly resources, string baseName)
     {
         ArgumentNullException.ThrowIfNull(resources);
@@ -40,16 +26,8 @@ public sealed class EmailTemplate
         _templates = new Lazy<Dictionary<string, RenderedEmail>>(Read);
     }
 
-    /// <summary>The cultures this mail has a template for, which is what makes them available.</summary>
     public IReadOnlyCollection<string> AvailableCultures => _templates.Value.Keys;
 
-    /// <summary>Renders in the closest available language to <paramref name="languageTag"/>:
-    /// itself, then each broader tag in turn — <c>fr-CA</c> reaches the <c>fr</c> template — and
-    /// <see cref="CurrentLanguage.FallbackTag"/> when none of them ships one.</summary>
-    /// <param name="languageTag">The reader's language, usually <see cref="CurrentLanguage.Current"/>.</param>
-    /// <param name="placeholders">Values for the <c>{{Name}}</c> placeholders, HTML-encoded on the way in.</param>
-    /// <exception cref="InvalidOperationException">No template is embedded for the fallback
-    /// culture, so a reader whose language is unavailable has nothing to receive.</exception>
     public RenderedEmail Render(string languageTag, IReadOnlyDictionary<string, string> placeholders)
     {
         ArgumentNullException.ThrowIfNull(languageTag);

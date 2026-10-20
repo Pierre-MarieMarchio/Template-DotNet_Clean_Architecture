@@ -2,10 +2,6 @@
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
-/// <summary>
-/// An <see cref="IFileContentScanner"/> that answers what <see cref="ArrangedScans"/> holds for the
-/// key, and opens no socket. It reads the content to the end, as a real scanner does.
-/// </summary>
 internal sealed class InMemoryFileContentScanner(ArrangedScans scans) : IFileContentScanner
 {
     public async Task<FileScanOutcome> ScanAsync(

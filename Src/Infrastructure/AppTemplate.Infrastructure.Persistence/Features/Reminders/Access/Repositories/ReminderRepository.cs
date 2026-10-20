@@ -10,14 +10,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Reminders.Access.Repositories;
 
-/// <summary>
-/// Loads and stages <see cref="Reminder"/> aggregates. Nothing here calls <c>SaveChangesAsync</c>: it
-/// borrows the context and never owns the transaction. Committing belongs to <c>IUnitOfWork</c>.
-/// <para>
-/// Internal and sealed: it is an adapter for a port the domain layer declares, and nothing outside this
-/// assembly has any business naming the type. Callers depend on <see cref="IReminderRepository"/>.
-/// </para>
-/// </summary>
 internal sealed class ReminderRepository(
     AppDbContext context,
     IReminderMapper mapper,
@@ -25,8 +17,6 @@ internal sealed class ReminderRepository(
 {
     public async Task<Reminder?> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        // The identity map first: two use cases in one request must get the same object, or the flush
-        // would keep whichever copy it saw last.
         if (tracker.Find(id) is { } alreadyLoaded)
         {
             return alreadyLoaded;
@@ -59,8 +49,6 @@ internal sealed class ReminderRepository(
             .Where(reminder => reminder.State == ReminderState.Pending
                 && reminder.DueAt <= asOf
                 && (reminder.NextAttemptAt == null || reminder.NextAttemptAt <= asOf))
-            // By when each became eligible, so a reminder that failed queues behind those that have
-            // waited longer instead of holding the front of every batch.
             .OrderBy(reminder => reminder.NextAttemptAt ?? reminder.DueAt)
             .Take(batchSize)
             .ToListAsync(cancellationToken);
@@ -68,7 +56,6 @@ internal sealed class ReminderRepository(
         return records.Select(LoadOrTrack).ToList();
     }
 
-    /// <summary>Loads every reminder of one owner, whatever its state, as tracked aggregates.</summary>
     public async Task<IReadOnlyList<Reminder>> GetForOwnerAsync(
         UserId ownerId,
         CancellationToken cancellationToken)
@@ -90,7 +77,6 @@ internal sealed class ReminderRepository(
 
         context.Reminders.Add(record);
 
-        // Tracked like any other, so a mutation made after Add is mapped onto this row before the save.
         tracker.Track(reminder, record);
     }
 
@@ -98,9 +84,6 @@ internal sealed class ReminderRepository(
     {
         ArgumentNullException.ThrowIfNull(reminder);
 
-        // Ordinarily already tracked, because a delete follows a load. The fallback attaches a stub
-        // carrying the key and the version, so the delete still happens and is still checked against
-        // the token the caller decided on.
         var record = tracker.FindRecord(reminder.Id)
             ?? new ReminderRecord { Id = reminder.Id, Version = reminder.Version };
 
@@ -108,13 +91,6 @@ internal sealed class ReminderRepository(
         tracker.MarkRemoved(reminder, record);
     }
 
-    /// <summary>
-    /// Hands back the tracked aggregate for a row that is already known to this request, or maps and
-    /// tracks a fresh one. Needed by every query that can return more than one row: unlike
-    /// <see cref="GetAsync"/>, which only ever looks up one id, these can revisit a reminder already
-    /// loaded earlier in the same request, and skipping the identity map would hand out a second,
-    /// divergent copy of it.
-    /// </summary>
     private Reminder LoadOrTrack(ReminderRecord record)
     {
         if (tracker.Find(record.Id) is { } alreadyLoaded)

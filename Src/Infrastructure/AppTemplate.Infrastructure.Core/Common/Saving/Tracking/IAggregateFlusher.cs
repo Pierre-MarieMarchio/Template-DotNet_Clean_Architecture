@@ -2,46 +2,11 @@
 
 namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 
-/// <summary>
-/// The bridge between a domain aggregate and the persistence model that stores it, for one feature.
-/// EF Core does not map the domain types, so its change tracker cannot see a mutation made inside
-/// an aggregate: something has to write the aggregate's state onto the tracked rows before EF
-/// computes its diff, and read the store's own values — the concurrency token, the audit stamps —
-/// back into the aggregate afterwards. That something is a flusher, one per aggregate, and this is
-/// the only shape <c>Common/</c> knows about. The two halves must not be collapsed into "rebuild
-/// the row from the aggregate": assigning every column from a freshly mapped, detached record
-/// makes every write a full-row <c>UPDATE</c> and overwrites the audit columns the interceptor
-/// owns — an implementation mutates the <em>tracked</em> rows in place and lets EF decide what
-/// actually changed.
-/// </summary>
 public interface IAggregateFlusher
 {
-    /// <summary>
-    /// Whether <paramref name="context"/> is the context this flusher's rows are staged on. Only a
-    /// save of that context flushes them or reads the store's values back: a request can save other
-    /// contexts, and other instances of the same one, in transactions of their own.
-    /// </summary>
-    /// <param name="context">The context being saved.</param>
     bool IsStagedOn(DbContext context);
 
-    /// <summary>
-    /// Writes the state of every aggregate this flusher is holding onto its tracked rows, reconciles
-    /// child collections, and marks a root modified when only a child changed.
-    /// <para>
-    /// Called from a save-changes interceptor registered <b>first</b>, so that everything downstream —
-    /// audit stamping, event collection, EF's own diff — sees the finished picture.
-    /// </para>
-    /// </summary>
-    /// <param name="context">The context being saved. Passed in rather than injected, so that a
-    /// flusher can be constructed by the same interceptor the context's options resolve, without the
-    /// two depending on each other.</param>
     void FlushTo(DbContext context);
 
-    /// <summary>
-    /// Copies the values the store decided — the concurrency token, the audit stamps — back into the
-    /// aggregates, after a successful save. Without this the aggregate a use case is still holding
-    /// would carry a stale version, and its next write in the same request would fail against a
-    /// token it had itself just moved.
-    /// </summary>
     void RefreshFromStore();
 }

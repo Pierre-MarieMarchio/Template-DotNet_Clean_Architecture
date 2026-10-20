@@ -5,10 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Access.Queries;
 
-/// <summary>
-/// The adapter for <see cref="IStoredFileTagQueries"/>. One column of a join, projected in SQL:
-/// nothing is materialised or tracked.
-/// </summary>
 internal sealed class StoredFileTagQueries(AppDbContext context) : IStoredFileTagQueries
 {
     public async Task<IReadOnlyList<string>> GetUsedTagsForOwnerAsync(

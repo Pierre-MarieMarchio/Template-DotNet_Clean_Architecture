@@ -6,15 +6,6 @@ using AppTemplate.Infrastructure.Persistence.Features.Notes.Rows.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Notes.Access.Queries;
 
-/// <summary>
-/// Where <see cref="NoteCollectionPolicy"/>'s whitelisted names become columns. No user string
-/// reaches an expression: every method switches on the field, and the <c>default</c> arm throws,
-/// because the policy has already refused anything else and reaching it is this template's own bug.
-/// </summary>
-/// <remarks>
-/// The same shape as the to-do list's sort map, narrowed to two fields. The tiebreaker on <c>Id</c>
-/// runs in the direction of the last term, so keyset resumption and ordering walk ties the same way.
-/// </remarks>
 internal static class NoteSortMap
 {
     public static IOrderedQueryable<NoteRecord> ApplyOrder(IQueryable<NoteRecord> source, SortOrder sort)
@@ -29,13 +20,11 @@ internal static class NoteSortMap
             ordered = ordered is null ? OrderByTerm(source, term) : ThenByTerm(ordered, term);
         }
 
-        // sort.Terms is never empty, so ordered is always assigned here.
         return sort.Terms[^1].Direction == SortDirection.Ascending
             ? ordered!.ThenBy(record => record.Id)
             : ordered!.ThenByDescending(record => record.Id);
     }
 
-    /// <summary>The keyset row comparison: <c>key &gt; k || (key == k &amp;&amp; Id &gt; id)</c>, mirrored descending.</summary>
     public static IQueryable<NoteRecord> ApplyKeyset(IQueryable<NoteRecord> source, SortTerm term, Cursor cursor)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -51,10 +40,6 @@ internal static class NoteSortMap
         };
     }
 
-    /// <summary>
-    /// The value the next cursor carries, read from the last row served. It reads the projected
-    /// summary, so a keyset field added later has to appear on the DTO before this switch can name it.
-    /// </summary>
     public static string KeyOf(NoteSummaryDto summary, string field)
     {
         ArgumentNullException.ThrowIfNull(summary);
@@ -111,7 +96,6 @@ internal static class NoteSortMap
         SortDirection direction,
         Cursor cursor)
     {
-        // CursorKeys has already validated that the key parses, so failing here is a defect.
         if (!DateTimeOffset.TryParse(
             cursor.Key,
             CultureInfo.InvariantCulture,

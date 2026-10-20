@@ -6,11 +6,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Rows.Configurations;
 
-/// <summary>
-/// Mapping for the subject-to-owner row. The unique index on (issuer, subject) is the whole
-/// guarantee that a caller gets one owner: two concurrent first requests both try to insert, and the
-/// index refuses the second.
-/// </summary>
 internal sealed class ExternalIdentityRecordConfiguration : IEntityTypeConfiguration<ExternalIdentityRecord>
 {
     public void Configure(EntityTypeBuilder<ExternalIdentityRecord> builder)
@@ -36,7 +31,6 @@ internal sealed class ExternalIdentityRecordConfiguration : IEntityTypeConfigura
 
         builder.Property(identity => identity.UserId).IsRequired();
 
-        // Serves the reads by owner: the reminder recipient lookup, newest first.
         builder.HasIndex(identity => new { identity.UserId, identity.LastSeenAt })
             .HasDatabaseName("IX_ExternalIdentities_UserId_LastSeenAt");
 

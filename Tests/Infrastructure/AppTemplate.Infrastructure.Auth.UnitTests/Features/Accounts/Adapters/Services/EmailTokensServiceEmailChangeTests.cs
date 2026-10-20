@@ -58,7 +58,7 @@ public sealed class EmailTokensServiceEmailChangeTests
     }
 
     [Fact]
-    public async Task ACorrectPasswordAndAnAlreadyTakenAddress_IsSuppressed()
+    public async Task ACorrectPasswordAndAnAlreadyTakenAddress_IsReportedAsSuch_WithNoToken()
     {
         GivenTheAccountExists();
         GivenThePasswordVerifies();
@@ -69,7 +69,7 @@ public sealed class EmailTokensServiceEmailChangeTests
 
         var request = await CreateTokens().IssueEmailChangeAsync(_userId, _currentPassword, _newEmail, TestToken);
 
-        request.Status.ShouldBe(EmailChangeRequestStatus.Requested);
+        request.Status.ShouldBe(EmailChangeRequestStatus.AddressAlreadyRegistered);
         request.Token.ShouldBeNull();
     }
 

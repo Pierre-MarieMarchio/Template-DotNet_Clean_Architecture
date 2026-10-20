@@ -10,9 +10,8 @@ using Microsoft.Extensions.Logging;
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.RequestEmailChange;
 
 /// <summary>
-/// Mints a token for the new address and mails it. Succeeds once the password is verified whether
-/// or not anything was sent, so the response cannot be read as an answer to "is that address
-/// already registered?".
+/// Once the password is verified, mails the new address a confirmation link, or the notice that an
+/// account already holds it, and succeeds the same way for both.
 /// </summary>
 public sealed class RequestEmailChangeUseCase(
     IEmailTokensService emailTokens,
@@ -60,29 +59,24 @@ public sealed class RequestEmailChangeUseCase(
             return Result.Failure(AccountsErrors.IncorrectCurrentPassword);
         }
 
-        if (issued.Token is { } token)
-        {
-            await TrySendAsync(request.NewEmail, token, cancellationToken);
-        }
+        await TrySendAsync(request.NewEmail, issued, cancellationToken);
 
-        // Always success once the password is verified: the answer must not differ between "sent"
-        // and "that address is already registered", or the endpoint becomes a way to test which
-        // addresses exist.
         return Result.Success();
     }
 
-    private async Task TrySendAsync(string newEmail, string token, CancellationToken cancellationToken)
+    private async Task TrySendAsync(string newEmail, EmailChangeRequestOutcome issued, CancellationToken cancellationToken)
     {
         try
         {
-            var message = await emailFactory.CreateEmailChangeAsync(newEmail, token, cancellationToken);
+            var message = issued.Token is { } token
+                ? await emailFactory.CreateEmailChangeAsync(newEmail, token, cancellationToken)
+                : await emailFactory.CreateAlreadyRegisteredAsync(newEmail, cancellationToken);
 
             await emailSender.SendAsync(newEmail, message.Subject, message.HtmlBody, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // The address is not logged, for the reason ResendConfirmationEmailUseCase gives.
-            logger.LogError(exception, "Failed to send an email change confirmation.");
+            logger.LogError(exception, "Failed to send an email change mail.");
         }
     }
 }

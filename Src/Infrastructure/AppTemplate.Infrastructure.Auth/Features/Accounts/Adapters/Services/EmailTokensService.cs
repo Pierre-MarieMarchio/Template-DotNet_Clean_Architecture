@@ -141,11 +141,9 @@ internal sealed class EmailTokensService(
 
         var existing = await userManager.FindByEmailAsync(newEmail);
 
-        // Suppressed rather than reported: revealing that the address is registered would turn this
-        // into a way to test which addresses exist.
         if (existing is not null)
         {
-            return EmailChangeRequestOutcome.Suppressed;
+            return EmailChangeRequestOutcome.AddressAlreadyRegistered;
         }
 
         return EmailChangeRequestOutcome.Issued(await userManager.GenerateChangeEmailTokenAsync(user, newEmail));

@@ -6,12 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Common.Security;
 
-/// <summary>
-/// The counterpart to <see cref="NoCallerCurrentUser"/>, and the reason the two abstractions are
-/// separate: asking this host <em>who is calling</em> is a composition mistake and throws, while
-/// asking it <em>whom to record</em> has a truthful answer. One type answering both leaves every
-/// background loop unable to commit, because the audit interceptor runs on every save.
-/// </summary>
 public sealed class BackgroundAuditActorTests
 {
     private readonly BackgroundAuditActor _sut = new();

@@ -11,12 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// <see cref="AccountAdministrationService.LockAsync"/> and <see cref="AccountAdministrationService.UnlockAsync"/> over a real <see cref="UserManager{TUser}"/>: whether locking and
-/// unlocking reach the store the way the automatic, timed lockout in
-/// <c>AccountsService.VerifyCredentialAsync</c> already does, and — the gap this type exists to close —
-/// whether locking also rotates the security stamp.
-/// </summary>
 public sealed class AccountAdministrationServiceLockoutTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
@@ -50,10 +44,6 @@ public sealed class AccountAdministrationServiceLockoutTests
         user.LockoutEnd.ShouldBe(DateTimeOffset.MaxValue);
     }
 
-    /// <summary>
-    /// The gap this port exists to close: without this, an access token issued just before the lock
-    /// keeps validating for as long as it has left to live.
-    /// </summary>
     [Fact]
     public async Task LockingAKnownAccount_RotatesTheSecurityStamp()
     {
@@ -88,13 +78,6 @@ public sealed class AccountAdministrationServiceLockoutTests
         user.LockoutEnd.ShouldBeNull();
     }
 
-    /// <summary>
-    /// <c>SetLockoutEndDateAsync</c> refuses outright — <c>UserLockoutNotEnabled</c> — when the
-    /// account's <c>LockoutEnabled</c> flag is false, which is also exactly the state an account is
-    /// in when nobody has ever locked it out. Without the fallback in
-    /// <see cref="AccountAdministrationService.UnlockAsync"/>, this case answers <c>Rejected</c> for an account
-    /// that has never been anything but unlocked.
-    /// </summary>
     [Fact]
     public async Task UnlockingAnAccountThatWasNeverLockedOut_IsStillReportedAsApplied()
     {
@@ -105,10 +88,6 @@ public sealed class AccountAdministrationServiceLockoutTests
         outcome.Status.ShouldBe(AccountAdministrationStatus.Applied);
     }
 
-    /// <summary>
-    /// Unlike locking, lifting a lockout grants access back rather than taking it away: there is no
-    /// live credential of the target's for it to invalidate.
-    /// </summary>
     [Fact]
     public async Task UnlockingAKnownAccount_DoesNotRotateTheSecurityStamp()
     {
@@ -133,8 +112,6 @@ public sealed class AccountAdministrationServiceLockoutTests
 
         _directory.FindByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(user);
 
-        // NSubstitute defaults an unconfigured Task<IdentityResult> member to a null result, and
-        // UserManager reads .Succeeded off it without a null check.
         _store.UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>())
             .Returns(IdentityResult.Success);
 

@@ -18,11 +18,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Common.Idempotency;
 
-/// <summary>
-/// A caller <see cref="ICurrentUser"/> cannot resolve to a <see cref="Guid"/> is exactly the profile
-/// an <c>Idempotency-Key</c> matters most for — one that replays by design. These tests are what
-/// stands behind refusing that caller instead of quietly letting the write through unprotected.
-/// </summary>
 public sealed class IdempotencyFilterTests
 {
     [Fact]
@@ -68,10 +63,6 @@ public sealed class IdempotencyFilterTests
         logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning);
     }
 
-    /// <summary>
-    /// The capability stays opt-in: a caller that never asked for it is never refused for something
-    /// it did not request, no matter what <see cref="ICurrentUser"/> says about it.
-    /// </summary>
     [Fact]
     public async Task ACallerWithNoIdentity_ButNoIdempotencyKeyHeader_ProceedsNormally()
     {
@@ -100,7 +91,6 @@ public sealed class IdempotencyFilterTests
         context.Result.ShouldBeNull();
     }
 
-    /// <summary>A deployment that turns the whole capability off must not gain a new way to refuse.</summary>
     [Fact]
     public async Task WhenIdempotencyIsDisabled_ACallerWithNoIdentity_StillProceedsNormally()
     {
@@ -129,14 +119,6 @@ public sealed class IdempotencyFilterTests
         context.Result.ShouldBeNull();
     }
 
-    /// <summary>
-    /// Response writing starts only once the action has already produced a result, and every
-    /// <see cref="IdempotentAttribute"/> action returns one only once its use case has committed. An
-    /// exception caught with the response already under way must therefore never release the claim —
-    /// doing so would let a retry run an already-committed write again for real. Removing the
-    /// <c>HasStarted</c> guard in <see cref="IdempotencyFilter"/> turns this red: without it, every
-    /// exception out of <c>next()</c> releases the claim, this scenario included.
-    /// </summary>
     [Fact]
     public async Task AnExceptionAfterTheResponseHasStarted_DoesNotReleaseTheClaim()
     {
@@ -167,11 +149,6 @@ public sealed class IdempotencyFilterTests
         await store.DidNotReceive().ReleaseAsync(Arg.Any<IdempotencyKey>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The counterpart to the test above: nothing has been written yet, so whatever threw did so
-    /// before the action could have produced a committed result at all — releasing here is still
-    /// exactly right, and must stay right after the fix above.
-    /// </summary>
     [Fact]
     public async Task AnExceptionBeforeTheResponseHasStarted_StillReleasesTheClaim()
     {
@@ -201,10 +178,6 @@ public sealed class IdempotencyFilterTests
         await store.Received(1).ReleaseAsync(Arg.Any<IdempotencyKey>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// A 204 is a <see cref="StatusCodeResult"/>, not an <see cref="ObjectResult"/>: completing its claim
-    /// is what lets a retry be answered instead of running the write again.
-    /// </summary>
     [Fact]
     public async Task ASuccessful204_CompletesTheClaim_WithItsStatusAndNoBody()
     {
@@ -277,7 +250,6 @@ public sealed class IdempotencyFilterTests
             new RecordingLogger<IdempotencyFilter>());
     }
 
-    /// <summary>A response that has already started sending, the way a real Kestrel one would report it.</summary>
     private sealed class AlreadyStartedResponseFeature : IHttpResponseFeature
     {
         public int StatusCode { get; set; } = StatusCodes.Status200OK;

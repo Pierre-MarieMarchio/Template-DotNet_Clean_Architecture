@@ -32,12 +32,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.ExternalIdentity;
 
-/// <summary>
-/// The external-authentication composition in a running pipeline: real bearer validation, real
-/// mapping and a real owner-filtered service, with a key generated here standing in for the
-/// provider's and SQLite for PostgreSQL. The provider's discovery document is replaced by the
-/// configuration it would have served, which is the only part not exercised.
-/// </summary>
 public sealed class ExternalAuthenticationHostTests : IAsyncLifetime
 {
     private const string _issuer = "https://idp.example.com/realms/app";
@@ -60,7 +54,6 @@ public sealed class ExternalAuthenticationHostTests : IAsyncLifetime
         _keeper = new SqliteConnection(database);
         await _keeper.OpenAsync(TestToken);
 
-        // An empty content root, so the API's own appsettings copied beside this assembly are not read.
         _contentRoot = Directory.CreateTempSubdirectory("external-host-");
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -88,7 +81,6 @@ public sealed class ExternalAuthenticationHostTests : IAsyncLifetime
         services.AddExternalAuthentication(builder.Configuration);
         SqliteSavingHost.OnSqlite<AppDbContext>(services, database);
 
-        // What the discovery document would have said: this issuer, signing with this key.
         services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
         {
             options.Configuration = new OpenIdConnectConfiguration { Issuer = _issuer };

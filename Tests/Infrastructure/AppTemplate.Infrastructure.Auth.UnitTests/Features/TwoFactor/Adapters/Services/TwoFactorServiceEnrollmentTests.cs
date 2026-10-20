@@ -14,13 +14,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.TwoFactor.Adapters.Services;
 
-/// <summary>
-/// <see cref="TwoFactorService.BeginSetupAsync"/>, <see cref="TwoFactorService.ConfirmSetupAsync"/> and
-/// <see cref="TwoFactorService.DisableAsync"/> over a real <see cref="UserManager{TUser}"/>, with a real
-/// <see cref="AuthenticatorTokenProvider{TUser}"/> registered under
-/// <see cref="TokenOptions.DefaultAuthenticatorProvider"/> — so a right code is proven right the same
-/// way a real authenticator app would be checked, not assumed.
-/// </summary>
 public sealed class TwoFactorServiceEnrollmentTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
@@ -57,10 +50,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         started.AuthenticatorUri.ShouldContain($"secret={started.SharedKey}");
     }
 
-    /// <summary>
-    /// The one side effect this use case's caller accepts rather than compensates for — see
-    /// <c>SetUpTwoFactorUseCase</c>.
-    /// </summary>
     [Fact]
     public async Task BeginSetupAsync_WhenNoKeyExistsYet_RotatesTheSecurityStamp()
     {
@@ -72,10 +61,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         user.SecurityStamp.ShouldNotBe(stampBefore);
     }
 
-    /// <summary>
-    /// A second call before confirmation must not silently swap the secret out from under a caller
-    /// who already scanned the first one into an app.
-    /// </summary>
     [Fact]
     public async Task BeginSetupAsync_CalledTwiceBeforeConfirmation_ReturnsTheSamePendingKey()
     {
@@ -101,7 +86,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         _authenticatorKey.ShouldBeNull();
     }
 
-    /// <summary>A key the store refused to keep must not be handed out to be scanned.</summary>
     [Fact]
     public async Task BeginSetupAsync_WhenTheStoreRefusesToProvisionTheKey_ReportsRejectedAndHandsBackNoKey()
     {
@@ -115,7 +99,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         started.AuthenticatorUri.ShouldBeNull();
     }
 
-    /// <summary>A token that outlived its account is a status, not a 500.</summary>
     [Fact]
     public async Task BeginSetupAsync_AnAccountThatNoLongerExists_ReportsNoSuchAccount()
     {
@@ -138,11 +121,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         confirmation.RecoveryCodes.ShouldBeNull();
     }
 
-    /// <summary>
-    /// The code was right, so the refusal is the store's, and reporting it as a wrong code would
-    /// mislead the caller. The codes already stored are not handed out: with the factor off they
-    /// redeem nothing, and the next confirmation replaces them.
-    /// </summary>
     [Fact]
     public async Task ConfirmSetupAsync_WhenTheStoreRefusesToArmTheFactor_ReportsRejectedAndHandsOutNoRecoveryCodes()
     {
@@ -158,10 +136,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         confirmation.RecoveryCodes.ShouldBeNull();
     }
 
-    /// <summary>
-    /// Armed without recovery codes, losing the authenticator app would be losing the account, so the
-    /// codes are stored first and a refusal there leaves the factor off and is reported.
-    /// </summary>
     [Fact]
     public async Task ConfirmSetupAsync_WhenTheStoreRefusesTheRecoveryCodes_ArmsNothingAndReportsRejected()
     {
@@ -178,10 +152,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         user.TwoFactorEnabled.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// A second confirmation on an armed account would replace the recovery codes and then write the
-    /// switch-on again; a refusal of that write would leave the account with codes nobody was shown.
-    /// </summary>
     [Fact]
     public async Task ConfirmSetupAsync_WhenTwoFactorIsAlreadyEnabled_ReportsAlreadyEnabledAndKeepsTheRecoveryCodes()
     {
@@ -234,11 +204,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         confirmation.RecoveryCodes.ShouldBeUnique();
     }
 
-    /// <summary>
-    /// The security stamp already rotated inside <c>ResetAuthenticatorKeyAsync</c> when the key was
-    /// first provisioned; confirming rotates it again — see <c>ConfirmTwoFactorSetupUseCase</c> for
-    /// why that second rotation is the one this feature actually relies on.
-    /// </summary>
     [Fact]
     public async Task ConfirmSetupAsync_ARightPasswordAndCode_RotatesTheSecurityStampAgain()
     {
@@ -266,12 +231,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         user.TwoFactorEnabled.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The gap this repository was asked to close: a caller holding nothing but a stolen access token
-    /// must not be able to arm two-factor sign-in — and revoke every session on the account —
-    /// without proving the password, exactly as it already could not disarm one. See
-    /// <see cref="DisableAsync_AWrongPassword_LeavesTwoFactorOn"/> for the mirror case.
-    /// </summary>
     [Fact]
     public async Task ConfirmSetupAsync_AWrongPassword_IsRefusedAndEnablesNothingRegardlessOfTheCode()
     {
@@ -286,7 +245,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         user.TwoFactorEnabled.ShouldBeFalse();
     }
 
-    /// <summary>A wrong password never even reaches the code check — see <c>ConfirmSetupAsync</c>.</summary>
     [Fact]
     public async Task ConfirmSetupAsync_AWrongPassword_DoesNotRotateTheSecurityStamp()
     {
@@ -301,7 +259,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         user.SecurityStamp.ShouldBe(stampAfterBegin);
     }
 
-    /// <summary>The caller already authenticated as this id — see <c>AccountsService.ChangePasswordAsync</c>.</summary>
     [Fact]
     public async Task ConfirmSetupAsync_AnAccountWithNoPasswordHash_IsReportedAsAnIncorrectPassword()
     {
@@ -328,10 +285,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         user.TwoFactorEnabled.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// So that a later re-enrollment starts from a fresh secret instead of the one every previous
-    /// authenticator app on file for this account still knows.
-    /// </summary>
     [Fact]
     public async Task DisableAsync_ARightPassword_InvalidatesThePreviousSharedKey()
     {
@@ -345,10 +298,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         _authenticatorKey.ShouldNotBe(oldKey);
     }
 
-    /// <summary>
-    /// A refusal is reported, so the use case neither records the factor as off nor revokes sessions
-    /// for a change that did not happen — and the secret every authenticator app knows is kept.
-    /// </summary>
     [Fact]
     public async Task DisableAsync_WhenTheStoreRefuses_ReportsRejectedAndKeepsTheSharedKey()
     {
@@ -377,7 +326,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         user.TwoFactorEnabled.ShouldBeTrue();
     }
 
-    /// <summary>A token that outlived its account is not a wrong password.</summary>
     [Fact]
     public async Task DisableAsync_AnAccountThatNoLongerExists_ReportsNoSuchAccount()
     {
@@ -416,10 +364,6 @@ public sealed class TwoFactorServiceEnrollmentTests
                 : IdentityResult.Success);
     }
 
-    /// <summary>
-    /// The write that saves the new recovery codes succeeds; the one after it, which switches the
-    /// factor on, is refused.
-    /// </summary>
     private void GivenTheStoreRefusesTheSwitchOnWriteAfterSavingRecoveryCodes()
     {
         int updatesSinceCodesReplaced = -1;
@@ -528,7 +472,6 @@ public sealed class TwoFactorServiceEnrollmentTests
         return new TwoFactorService(userManager, _directory, Substitute.For<IDateTimeProvider>(), options);
     }
 
-    /// <summary>A hasher whose verification result the test controls — see <c>AccountsServiceChangePasswordTests</c>.</summary>
     private sealed class ConfigurableHasher : IPasswordHasher<AppUser>
     {
         public PasswordVerificationResult NextVerification { get; set; } = PasswordVerificationResult.Failed;

@@ -13,15 +13,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Common.Security;
 
-/// <summary>
-/// What <c>AddApiRateLimiting</c> composes, read from the options the middleware would be handed and
-/// exercised through the same <c>PartitionedRateLimiter</c> the middleware drives.
-/// </summary>
-/// <remarks>
-/// <c>RateLimiterOptions</c> keeps its named policies in an internal map, so a named policy cannot
-/// be invoked from here. Every policy is built by the same helper, which is tested directly; what a
-/// policy does with it afterwards is the integration suite's.
-/// </remarks>
 public sealed class RateLimitingExtensionsTests
 {
     private static readonly TimeSpan _anHour = TimeSpan.FromHours(1);
@@ -96,10 +87,6 @@ public sealed class RateLimitingExtensionsTests
         fromTheOtherCaller.IsAcquired.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// The refusal carries the metadata the rejection turns into the <c>Retry-After</c> header; a
-    /// limiter that refused without it would still answer 429 and the documented header would vanish.
-    /// </summary>
     [Fact]
     public void ARefusal_CarriesRetryAfter()
     {
@@ -116,10 +103,6 @@ public sealed class RateLimitingExtensionsTests
         retryAfter.ShouldBeLessThanOrEqualTo(_anHour);
     }
 
-    /// <summary>
-    /// A caller over budget is told so rather than parked: with a queue, the awaiting request would
-    /// hold a thread for the rest of the window, the opposite of shedding load.
-    /// </summary>
     [Fact]
     public async Task ACallerOverBudget_IsRefusedImmediatelyRatherThanQueued()
     {
@@ -135,11 +118,6 @@ public sealed class RateLimitingExtensionsTests
         refused.IsAcquired.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The 429 is written by hand because <c>IProblemDetailsService</c> writes nothing when the
-    /// request's <c>Accept</c> header excludes JSON. A browser-style header must still get the body,
-    /// the content type, <c>Retry-After</c> and the members every other problem carries.
-    /// </summary>
     [Theory]
     [InlineData(null)]
     [InlineData("application/json")]

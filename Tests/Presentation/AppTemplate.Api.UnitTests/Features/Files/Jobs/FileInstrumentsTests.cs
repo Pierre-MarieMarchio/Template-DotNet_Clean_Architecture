@@ -13,13 +13,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Files.Jobs;
 
-/// <summary>
-/// Proves the metric the file loops emit carries the case that would otherwise stay invisible: a
-/// sweep that removed nothing. That is the normal state of both of these in a healthy system, so a
-/// count of what they removed can never say whether they ran — only
-/// <c>apptemplate.jobs.files.iterations</c> can, and it is what an alert on "a sweep stopped"
-/// would watch.
-/// </summary>
 public sealed class FileInstrumentsTests
 {
     private static readonly TimeSpan _tinyInterval = TimeSpan.FromMilliseconds(20);
@@ -30,10 +23,6 @@ public sealed class FileInstrumentsTests
         var purge = new FakeAbandonedRegistrationPurge(count: 0);
         var sweep = new FakeOrphanedContentSweep(count: 0);
 
-        // Concurrent, not a List: this host runs its two loops at the same time, so measurements
-        // arrive on two threads at once, and every other test class in this assembly is recording to
-        // the same static meter in parallel. A List loses items under that and the loss is silent —
-        // it cost one intermittent red here before the collection was changed.
         var purgedMeasurements = new ConcurrentQueue<(long Value, string? Task)>();
         var reclaimedMeasurements = new ConcurrentQueue<(long Value, string? Task)>();
         var iterationMeasurements = new ConcurrentQueue<(long Value, string? Task, string? Outcome)>();
@@ -92,19 +81,12 @@ public sealed class FileInstrumentsTests
             "both file sweeps to have run once");
         await service.StopAsync(TestContext.Current.CancellationToken);
 
-        // No other fake in this project reports a success with zero removed, so a zero here can only
-        // have come from this test's own pass, even if other tests share the static meter.
         purgedMeasurements.ShouldContain(m => m.Value == 0 && m.Task == "abandoned registrations");
         reclaimedMeasurements.ShouldContain(m => m.Value == 0 && m.Task == "orphaned content");
         iterationMeasurements.ShouldContain(m => m.Outcome == "success" && m.Task == "abandoned registrations");
         iterationMeasurements.ShouldContain(m => m.Outcome == "success" && m.Task == "orphaned content");
     }
 
-    /// <summary>
-    /// The other half of the same requirement: a sweep whose every pass throws still records that it
-    /// ran. Without this the iterations counter would go flat exactly when the loop is broken, which
-    /// is the one moment it exists for — an outage would look identical to a stopped process.
-    /// </summary>
     [Fact]
     public async Task AFailingSweep_StillRecordsAnIteration()
     {
@@ -159,14 +141,6 @@ public sealed class FileInstrumentsTests
         iterationMeasurements.ShouldContain(m => m.Task == "orphaned content" && m.Outcome == "exception");
     }
 
-    /// <summary>
-    /// The third case, and the one this feature needs most: a loop a configuration flag switched off
-    /// still counts its passes, tagged <c>disabled</c>. Without it an operator reading a flat
-    /// <c>apptemplate.jobs.files.iterations</c> cannot tell a loop somebody turned off from one
-    /// that died — and the inspection loop is the one whose death leaves every upload permanently
-    /// unreadable. <c>ReminderBackgroundService</c> has counted its own disabled pass all along; this
-    /// holds the file loops to the same reading.
-    /// </summary>
     [Fact]
     public async Task ADisabledSweep_RecordsAnIteration_SoAFlatLineIsNotAmbiguous()
     {
@@ -190,8 +164,6 @@ public sealed class FileInstrumentsTests
         });
         listener.Start();
 
-        // No use case is registered at all: a disabled pass must never open a scope, so a loop that
-        // reached for one would fail this test rather than quietly counting an exception.
         using var provider = new ServiceCollection().AddBackgroundScope().BuildServiceProvider();
 
         var options = new JobsFilesOptions
@@ -215,9 +187,6 @@ public sealed class FileInstrumentsTests
             "a disabled inspection pass to be counted");
         await service.StopAsync(TestContext.Current.CancellationToken);
 
-        // ShouldContain, not an assertion over everything recorded: this static meter is shared with
-        // every other test in the assembly and they run in parallel, so the queue holds their
-        // measurements too.
         iterationMeasurements.ShouldContain(m => m.Task == "deposited files" && m.Outcome == "disabled");
     }
 }

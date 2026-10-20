@@ -6,18 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Features.ExternalLogins;
 
-/// <summary>
-/// The double a test host uses in place of the adapter that talks to Google, Microsoft or Apple.
-/// <para>
-/// What is under test is that it answers exactly what was arranged and refuses everything else — a
-/// double that verified anything it had not been told about would let a test pass while the use case
-/// above it accepted a token nobody vouched for.
-/// </para>
-/// <para>
-/// Reached through the port from a composed container, the same way every other double in this
-/// project is: the class behind it is internal, and the registration is part of what is under test.
-/// </para>
-/// </summary>
 public sealed class InMemoryExternalIdentityVerifierTests : IDisposable
 {
     private const string _provider = "google";
@@ -50,10 +38,6 @@ public sealed class InMemoryExternalIdentityVerifierTests : IDisposable
         (await Verify(_provider, _idToken)).ShouldBeNull();
     }
 
-    /// <summary>
-    /// The property the real adapter enforces by checking the issuer: a token minted by one provider
-    /// cannot be presented as another's. A double keyed on the token alone would stop covering it.
-    /// </summary>
     [Fact]
     public async Task VerifyAsync_RefusesATokenPresentedForADifferentProvider()
     {

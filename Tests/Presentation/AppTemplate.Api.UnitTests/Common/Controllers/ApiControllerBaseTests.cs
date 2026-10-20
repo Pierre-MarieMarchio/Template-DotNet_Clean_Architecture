@@ -12,12 +12,6 @@ namespace AppTemplate.Api.UnitTests.Common.Controllers;
 
 public sealed class ApiControllerBaseTests
 {
-    /// <summary>
-    /// <c>Ok(value)</c> leaves <see cref="ObjectResult.DeclaredType"/> null, which serialises the
-    /// runtime type and silently drops a closed hierarchy's discriminator. Asserting only
-    /// <c>ShouldBeOfType&lt;OkObjectResult&gt;()</c> would not catch a regression to that — the type
-    /// has to be named here, not just the result's CLR type.
-    /// </summary>
     [Fact]
     public void OkOrProblem_NamesTheDeclaredType()
     {
@@ -38,10 +32,6 @@ public sealed class ApiControllerBaseTests
         controller.Response.Headers.ETag.ToString().ShouldBe(EntityTagMapping.From(3));
     }
 
-    /// <summary>
-    /// RFC 9110 requires a 304 to carry the validator it is refusing to resend the body for — the
-    /// header has to be on the response before the 304-or-200 decision is made, not after.
-    /// </summary>
     [Fact]
     public void OkOrProblem_Versioned_PublishesTheEtag_EvenWhenAnsweringNotModified()
     {
@@ -102,10 +92,6 @@ public sealed class ApiControllerBaseTests
         controller.Response.Headers.ETag.ToString().ShouldBe(EntityTagMapping.From(1));
     }
 
-    /// <summary>
-    /// The whole point of taking a <see cref="Func{T,TResult}"/> rather than a value: a failed result
-    /// has no value to build a route from, so nothing may evaluate it.
-    /// </summary>
     [Fact]
     public void CreatedOrProblem_Versioned_NeverInvokesRouteValues_OnFailure()
     {

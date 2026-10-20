@@ -9,19 +9,10 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Adapters.Scanners;
 
-/// <summary>
-/// The adapter around the <c>INSTREAM</c> conversation: the decisions it makes before any socket is
-/// opened, and what an unreachable daemon becomes.
-/// </summary>
 public sealed class ClamAvFileContentScannerTests
 {
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// Content whose confirmed size is past the ceiling is judged before a byte is sent, whatever the
-    /// stream can say about its own length. The host here resolves to nothing listening, so any
-    /// connection attempt would answer Unavailable instead.
-    /// </summary>
     [Fact]
     public async Task ContentKnownToBePastTheCeiling_IsNotInspectableWithoutConnecting()
     {

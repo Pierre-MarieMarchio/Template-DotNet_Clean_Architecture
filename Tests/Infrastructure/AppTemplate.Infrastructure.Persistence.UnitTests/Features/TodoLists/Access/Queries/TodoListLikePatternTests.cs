@@ -8,8 +8,6 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.TodoLists.Ac
 
 public sealed class TodoListLikePatternTests
 {
-    #region Pattern escaping
-
     [Fact]
     public void Contains_WrapsThePatternInWildcards() =>
         TodoListLikePattern.Contains("milk").ShouldBe("%milk%");
@@ -30,15 +28,6 @@ public sealed class TodoListLikePatternTests
     public void Contains_Rejects_ANullTerm() =>
         Should.Throw<ArgumentNullException>(() => TodoListLikePattern.Contains(null!));
 
-    #endregion
-
-    #region SQL shape
-
-    /// <summary>
-    /// The same call <c>TodoListQueries</c> makes: <see cref="TodoListLikePattern.Contains"/> feeding
-    /// <c>EF.Functions.ILike</c>. Proves the escape character reaches PostgreSQL as <c>ESCAPE '\'</c>
-    /// and that a caller's own <c>%</c> travels only inside the parameter, never into the SQL text.
-    /// </summary>
     [Fact]
     public void ILikeWithTheEscapedPattern_ProducesEscapeInTheSql()
     {
@@ -55,6 +44,4 @@ public sealed class TodoListLikePatternTests
         sql.ShouldContain("ILIKE @pattern ESCAPE '\\'");
         sql.ShouldContain("@pattern='%50\\% off\\_thing%'");
     }
-
-    #endregion
 }

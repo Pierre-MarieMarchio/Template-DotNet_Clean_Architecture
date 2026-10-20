@@ -7,29 +7,10 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Reminders;
 
-/// <summary>
-/// The guarantee that pays for the decision to keep persistence models separate from the domain model:
-/// nothing is lost on the way through them.
-/// </summary>
-/// <remarks>
-/// <para>
-/// The same reflection harness as <see cref="TodoLists.TodoListMapperFidelityTests"/>, which states
-/// why the aggregate's state is enumerated from the type rather than asserted by hand, and the three
-/// things that make it fail.
-/// </para>
-/// <see cref="TheHarness_DetectsAMapperThatForgetsAProperty"/> proves the machinery can actually fail, by
-/// running the same comparison against a mapper with one line missing.
-/// </remarks>
 public sealed class ReminderMapperFidelityTests
 {
-    /// <summary>
-    /// Aggregate-root members that are not stored state. Checked against the type below, so this list
-    /// cannot rot into a silent exemption.
-    /// </summary>
     private static readonly string[] _membersThatAreNotStoredState =
     [
-        // Deliberately not persisted. Events are raised, published after the commit and dropped; an
-        // event that outlived the request would be delivered twice.
         nameof(Reminder.DomainEvents),
     ];
 
@@ -43,10 +24,6 @@ public sealed class ReminderMapperFidelityTests
         AssertStateSurvived(original, roundTripped);
     }
 
-    /// <summary>
-    /// The exclusion list is only safe while every name in it still exists. A renamed property would
-    /// otherwise stay excluded under its old name and simply stop being compared under its new one.
-    /// </summary>
     [Fact]
     public void TheExclusionList_NamesRealMembers()
     {
@@ -58,10 +35,6 @@ public sealed class ReminderMapperFidelityTests
         }
     }
 
-    /// <summary>
-    /// Non-vacuity: the enumeration has to be finding the properties it claims to check. Without this, a
-    /// reflection filter that matched nothing would make the assertion above pass over an empty loop.
-    /// </summary>
     [Fact]
     public void TheEnumeration_FindsTheStateItIsMeantToCheck()
     {
@@ -83,12 +56,6 @@ public sealed class ReminderMapperFidelityTests
         properties.ShouldContain(nameof(Reminder.LastModifiedBy));
     }
 
-    /// <summary>
-    /// Proof that the harness can fail. <see cref="ForgetfulMapper"/> is the real mapper with exactly one
-    /// line removed — it does not carry the concurrency token — and the same reflection walk must reject
-    /// it. If this test ever passes, the comparison is comparing nothing and a mapper could quietly lose
-    /// any property it liked.
-    /// </summary>
     [Fact]
     public void TheHarness_DetectsAMapperThatForgetsAProperty()
     {
@@ -101,8 +68,6 @@ public sealed class ReminderMapperFidelityTests
 
         failure.Message.ShouldContain(nameof(Reminder.Version));
     }
-
-    // ---- The comparison ------------------------------------------------------------------------
 
     private static Reminder RoundTrip(IReminderMapper mapper, Reminder original) =>
         mapper.ToAggregate(mapper.ToNewRecord(original));
@@ -128,10 +93,6 @@ public sealed class ReminderMapperFidelityTests
         }
     }
 
-    /// <summary>
-    /// The readable state of the aggregate: public instance properties with a getter, minus the ones
-    /// excluded by name. Indexers are skipped because they are not state.
-    /// </summary>
     private static IEnumerable<PropertyInfo> StateProperties(string[] excluded) =>
         typeof(Reminder).GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(property => property.GetMethod is not null)
@@ -142,11 +103,6 @@ public sealed class ReminderMapperFidelityTests
     private static object? DefaultOf(Type type) =>
         type.IsValueType && Nullable.GetUnderlyingType(type) is null ? Activator.CreateInstance(type) : null;
 
-    /// <summary>
-    /// The mapper as it would be if somebody forgot one line. Used only by
-    /// <see cref="TheHarness_DetectsAMapperThatForgetsAProperty"/>, and it deliberately delegates
-    /// everything else to the real implementation so that the one difference is the one thing under test.
-    /// </summary>
     private sealed class ForgetfulMapper : IReminderMapper
     {
         private readonly ReminderMapper _real = new();
@@ -157,7 +113,6 @@ public sealed class ReminderMapperFidelityTests
         {
             var record = _real.ToNewRecord(aggregate);
 
-            // The forgotten line: the concurrency token never reaches the row.
             record.Version = 0u;
 
             return record;

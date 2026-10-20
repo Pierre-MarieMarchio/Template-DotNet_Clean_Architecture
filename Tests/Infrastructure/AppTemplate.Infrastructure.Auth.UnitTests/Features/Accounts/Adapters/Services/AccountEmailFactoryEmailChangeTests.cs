@@ -6,11 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// Mirrors <see cref="AccountEmailFactoryPasswordResetTests"/>: the factory's job is to put a
-/// user-supplied name into an HTML document, which makes it an injection site, and the encoding is
-/// the whole defence.
-/// </summary>
 public sealed class AccountEmailFactoryEmailChangeTests
 {
     private const string _confirmPage = "https://localhost:5001/confirm-email-change";
@@ -30,10 +25,6 @@ public sealed class AccountEmailFactoryEmailChangeTests
         message.HtmlBody.ShouldNotContain("<a href=\"https://evil.test\"");
     }
 
-    /// <summary>
-    /// The token travels in the link's fragment, which browsers never send to a server, so it stays
-    /// out of access logs and <c>Referer</c> headers.
-    /// </summary>
     [Fact]
     public async Task CreateEmailChange_PutsTheTokenInTheLinkFragment()
     {

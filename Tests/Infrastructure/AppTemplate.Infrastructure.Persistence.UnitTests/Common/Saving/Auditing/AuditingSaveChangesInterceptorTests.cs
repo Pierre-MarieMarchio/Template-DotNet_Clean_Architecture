@@ -9,26 +9,12 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Saving.Auditing;
 
-/// <summary>
-/// The interceptor runs on every save from every host, so what it asks for decides which hosts can
-/// write at all. It asks <see cref="IAuditActor"/>, which a host with no principal can answer, and
-/// not <see cref="ICurrentUser"/>, which such a host cannot.
-/// <para>
-/// No database is contacted: the provider is only there so the model exists, and change tracking
-/// needs no connection.
-/// </para>
-/// </summary>
 public sealed class AuditingSaveChangesInterceptorTests
 {
     private static readonly DateTimeOffset _now = new(2026, 6, 7, 8, 9, 10, TimeSpan.Zero);
 
     private static readonly Guid _userId = new("22222222-2222-2222-2222-222222222222");
 
-    /// <summary>
-    /// The case that broke the background jobs: an actor naming nobody must produce a stamped
-    /// row, not an exception. Every background loop commits through here, so an actor this
-    /// interceptor cannot consult is a host that can write nothing.
-    /// </summary>
     [Fact]
     public void AnActorNamingNobody_StampsTheRowWithoutAUser()
     {
@@ -69,11 +55,6 @@ public sealed class AuditingSaveChangesInterceptorTests
         record.CreatedAt.ShouldBe(default(DateTimeOffset), "a modification does not re-create the row");
     }
 
-    /// <summary>
-    /// Proves the interceptor never reaches for the calling principal. An actor that threw the way
-    /// a background scope's <c>NoCallerCurrentUser</c> does would surface here rather than on the first
-    /// deposited file in production.
-    /// </summary>
     [Fact]
     public void TheInterceptor_ReadsTheActorExactlyOncePerSave_AndNothingElse()
     {
@@ -87,8 +68,6 @@ public sealed class AuditingSaveChangesInterceptorTests
 
         actor.Reads.ShouldBe(1, "the stamp is one question per save, not one per row");
     }
-
-    // ---- Fixture -----------------------------------------------------------------------------
 
     private static void Save(AppDbContext context, IAuditActor actor)
     {

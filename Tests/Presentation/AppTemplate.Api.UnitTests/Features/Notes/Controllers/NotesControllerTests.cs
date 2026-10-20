@@ -20,10 +20,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Notes.Controllers;
 
-/// <summary>
-/// The transport decisions this controller makes, each one asserted where it is taken. The service is
-/// substituted: what it decides is its own to test.
-/// </summary>
 public sealed class NotesControllerTests
 {
     private static readonly DateTimeOffset _createdAt = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
@@ -32,9 +28,6 @@ public sealed class NotesControllerTests
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
-    #region Listing
-
-    /// <summary>Five positional members of two types: every value is distinct so a permutation cannot pass.</summary>
     [Fact]
     public async Task GetAll_HandsEveryQueryStringParameter_ToTheService()
     {
@@ -61,10 +54,6 @@ public sealed class NotesControllerTests
         action.Result.ShouldBeOfType<OkObjectResult>();
         httpContext.Response.Headers.ETag.Count.ShouldBe(0);
     }
-
-    #endregion
-
-    #region A single note publishes its version
 
     [Fact]
     public async Task GetNote_PublishesTheVersionAsAStrongEntityTag()
@@ -109,10 +98,6 @@ public sealed class NotesControllerTests
         StatusOf(action.Result!).ShouldBe(StatusCodes.Status404NotFound);
     }
 
-    #endregion
-
-    #region Creating
-
     [Fact]
     public async Task Create_Answers201_LocatingTheNote_AndPublishingItsVersion()
     {
@@ -135,10 +120,6 @@ public sealed class NotesControllerTests
         captured.ShouldBe(new NoteContentDto("Groceries", "Milk"));
     }
 
-    /// <summary>
-    /// Creating names no existing resource, so there is no version for a condition to be about, even
-    /// where a deployment requires <c>If-Match</c> on every write.
-    /// </summary>
     [Fact]
     public async Task Create_IsUnconditional_EvenWhereTheDeploymentRequiresAPrecondition()
     {
@@ -161,10 +142,6 @@ public sealed class NotesControllerTests
 
         StatusOf(action.Result!).ShouldBe(StatusCodes.Status400BadRequest);
     }
-
-    #endregion
-
-    #region Updating and deleting honour If-Match
 
     [Fact]
     public async Task Update_HandsTheRouteIdAndTheVersionsFromIfMatch_ToTheService_AndPublishesTheNewTag()
@@ -285,14 +262,6 @@ public sealed class NotesControllerTests
         StatusOf(action).ShouldBe(StatusCodes.Status404NotFound);
     }
 
-    #endregion
-
-    #region Surface
-
-    /// <summary>
-    /// Creating is unaddressed, so a retry is indistinguishable from a second request. Update and delete
-    /// name the note in the route and carry <c>If-Match</c>, which is what makes their retries safe.
-    /// </summary>
     [Fact]
     public void CreatingIsTheOnlyIdempotentAction() =>
         typeof(NotesController)
@@ -300,8 +269,6 @@ public sealed class NotesControllerTests
             .Where(method => method.GetCustomAttribute<IdempotentAttribute>() is not null)
             .Select(method => method.Name)
             .ShouldBe([nameof(NotesController.Create)]);
-
-    #endregion
 
     private void GivenTheServiceReads(uint version) =>
         _notes.GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
@@ -325,10 +292,6 @@ public sealed class NotesControllerTests
         };
     }
 
-    /// <summary>
-    /// The entity tag this API publishes for a version, obtained the way a caller obtains one: by reading
-    /// it off a response, so the encoding is never restated here.
-    /// </summary>
     private static async Task<string> APublishedEntityTagAsync(uint version)
     {
         var httpContext = AContext();

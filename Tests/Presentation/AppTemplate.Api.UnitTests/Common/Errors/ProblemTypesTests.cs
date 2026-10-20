@@ -20,11 +20,6 @@ public sealed class ProblemTypesTests
         ProblemTypes.For("todoList.notFound", "https://example.org/problems/")
             .ShouldBe("https://example.org/problems/todoList.notFound");
 
-    /// <summary>
-    /// RFC 9457 §3.1: <c>type</c> identifies the problem, not the status. Two errors with different
-    /// codes must resolve to different URIs even when both map to the same HTTP status — the defect
-    /// the literal <c>https://httpstatuses.io/{status}</c> had.
-    /// </summary>
     [Fact]
     public void For_DistinguishesTwoCodesThatShareOneStatus() =>
         ProblemTypes.For("request.validationFailed").ShouldNotBe(ProblemTypes.For("precondition.malformed"));

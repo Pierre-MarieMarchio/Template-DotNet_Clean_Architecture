@@ -6,26 +6,10 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.TodoLists;
 
-/// <summary>
-/// The other half of the mapper's job: writing an aggregate onto rows EF is already tracking, without
-/// destroying anything the store owns and without rewriting rows that did not change.
-/// </summary>
-/// <remarks>
-/// These assertions are about the shape of the write, not about SQL — EF is what turns "this collection
-/// lost an element" into a <c>DELETE</c>, and the integration suite is what proves it does. What is
-/// checked here is the thing EF cannot check for us: that the mapper leaves the audit columns and the
-/// concurrency token alone, and that it identifies children by their id rather than by position.
-/// </remarks>
 public sealed class TodoListMapperReconciliationTests
 {
     private readonly TodoListMapper _mapper = new();
 
-    /// <summary>
-    /// The single most important negative assertion in the persistence layer. A write that rebuilds a
-    /// detached row and assigns every column flattens the audit values with whatever the detached object
-    /// happens to hold. The audit columns have exactly one writer — the interceptor — and the mapper is
-    /// not it.
-    /// </summary>
     [Fact]
     public void WriteTo_LeavesTheAuditColumnsAndTheConcurrencyTokenAlone()
     {
@@ -45,10 +29,6 @@ public sealed class TodoListMapperReconciliationTests
         tracked.LastModifiedBy.ShouldBe(_storedLastModifiedBy);
     }
 
-    /// <summary>
-    /// The row object itself must be the same instance afterwards. Replacing it would detach what EF is
-    /// tracking, and the write would silently do nothing.
-    /// </summary>
     [Fact]
     public void WriteTo_MutatesTheTrackedRowsRatherThanReplacingThem()
     {
@@ -110,11 +90,6 @@ public sealed class TodoListMapperReconciliationTests
         tracked.Items.Count.ShouldBe(aggregate.Items.Count);
     }
 
-    /// <summary>
-    /// A modified child is written in place, and the untouched sibling's row object is not even reassigned.
-    /// This is what makes "child rows that did not change must not be written" true: EF compares each
-    /// property against the value it read, and an unchanged row produces no statement at all.
-    /// </summary>
     [Fact]
     public void WriteTo_UpdatesOnlyTheItemThatChanged()
     {
@@ -158,11 +133,6 @@ public sealed class TodoListMapperReconciliationTests
             .ShouldBe(tagged.Tags.Select(tag => tag.Value), ignoreOrder: true);
     }
 
-    /// <summary>
-    /// Adding a tag the item already carries is a no-op in the domain, so it must be a no-op here: a
-    /// reconciliation that reported a change would mark the root modified, move its
-    /// <c>LastModifiedAt</c> and burn its concurrency token for a request that changed nothing.
-    /// </summary>
     [Fact]
     public void WriteTo_ReportsNoChange_WhenATagIsReAdded()
     {
@@ -191,11 +161,6 @@ public sealed class TodoListMapperReconciliationTests
         tracked.Items.ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// Two items exchanging titles must move two columns, not four rows. Matching children by anything
-    /// other than their id — position, or the title itself — would turn this into two deletes and two
-    /// inserts, taking each item's tags and its foreign keys down with it.
-    /// </summary>
     [Fact]
     public void WriteTo_KeepsBothRows_WhenTwoItemsSwapTitles()
     {
@@ -215,11 +180,6 @@ public sealed class TodoListMapperReconciliationTests
             .ShouldBe(ATodoListAggregate.CompletedItemTitle);
     }
 
-    /// <summary>
-    /// <c>ReconcileTags</c> compares values with <see cref="StringComparer.Ordinal"/>, and that is only
-    /// correct because <c>Tag</c> lower-cases everything it accepts: two spellings of one tag are one
-    /// value long before reconciliation sees them.
-    /// </summary>
     [Fact]
     public void WriteTo_ReportsNoChange_WhenATagIsReAddedInADifferentCase()
     {
@@ -236,11 +196,6 @@ public sealed class TodoListMapperReconciliationTests
             .ShouldBe(ATodoListAggregate.CompletedItemTags, ignoreOrder: true);
     }
 
-    /// <summary>
-    /// The other side of the same coin: a stored value that is <em>not</em> what <c>Tag</c> would have
-    /// produced is a different value, and reconciliation replaces it with the normalised one rather than
-    /// leaving two spellings of one tag in the table.
-    /// </summary>
     [Fact]
     public void WriteTo_ReplacesAStoredTagThatIsNotNormalised()
     {
@@ -258,13 +213,6 @@ public sealed class TodoListMapperReconciliationTests
             .ShouldBe(tagged.Tags.Select(tag => tag.Value), ignoreOrder: true);
     }
 
-    // ---- Fixture -------------------------------------------------------------------------------
-
-    /// <summary>
-    /// The same list, the same item ids, and the two titles exchanged. Built through
-    /// <c>Rehydrate</c> because the domain has no rename for an item — and because a rename through the
-    /// aggregate would momentarily hold two items with the same title, which it refuses.
-    /// </summary>
     private static TodoList WithTheTwoTitlesExchanged(TodoList stored)
     {
         var completed = stored.Items.Single(item => item.Id == ATodoListAggregate.CompletedItemId);
@@ -299,11 +247,6 @@ public sealed class TodoListMapperReconciliationTests
     private static readonly DateTimeOffset _storedCreatedAt = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset _storedLastModifiedAt = new(2026, 2, 2, 0, 0, 0, TimeSpan.Zero);
 
-    /// <summary>
-    /// The row as EF would have it after a query: the aggregate's own values, but with the store-owned
-    /// columns holding values the aggregate does <em>not</em> know, so that a mapper which wrote them
-    /// would be caught rather than accidentally agreeing.
-    /// </summary>
     private TodoListRecord StoredRowFor(TodoList aggregate)
     {
         var record = _mapper.ToNewRecord(aggregate);

@@ -1,6 +1,5 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
-using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Infrastructure.InMemory.Features.Files;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -8,15 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Features.Files;
 
-/// <summary>
-/// The double behind <see cref="IFileDirectTransfer"/>, exercised end to end through the container.
-/// <para>
-/// What it stands in for is a store that mints bearer rights, and the two properties worth
-/// reproducing are that a grant authorises exactly one verb and that it stops working. Both are
-/// asserted by verifying the grant rather than by reading the string it is made of, because a
-/// signature nothing verifies is decoration and an expiry nothing checks is a comment.
-/// </para>
-/// </summary>
 public sealed class InMemoryFileDirectTransferTests
 {
     private const string _objectKey = "t0/202601/9f2c1d7a4b6e8f0132547698badcfe10";
@@ -25,10 +15,6 @@ public sealed class InMemoryFileDirectTransferTests
 
     private static readonly byte[] _content = Encoding.UTF8.GetBytes("the deposited bytes");
 
-    /// <summary>
-    /// The digest of <see cref="_content"/>, computed rather than written down: a grant binds it, so a
-    /// constant that drifted from the bytes would mint a grant no honest deposit could satisfy.
-    /// </summary>
     private static readonly string _checksum = Convert.ToHexStringLower(SHA256.HashData(_content));
 
     [Fact]
@@ -55,10 +41,6 @@ public sealed class InMemoryFileDirectTransferTests
         bucket.IsGrantValid(grant.Url, "PUT", clock.UtcNow).ShouldBeFalse();
     }
 
-    /// <summary>
-    /// A grant covers one verb. A right to deposit that also authorised a read would let a client
-    /// that was given an upload URL read whatever ends up under the key.
-    /// </summary>
     [Fact]
     public async Task CreateUploadGrantAsync_AuthorisesNothingButTheDeposit()
     {
@@ -78,10 +60,6 @@ public sealed class InMemoryFileDirectTransferTests
             .ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The same two headers the S3 adapter's signature covers, so a client written against the double
-    /// sends what the real one will require of it.
-    /// </summary>
     [Fact]
     public async Task CreateUploadGrantAsync_RequiresTheDeclaredTypeAndSize()
     {
@@ -119,11 +97,6 @@ public sealed class InMemoryFileDirectTransferTests
         FileContentHost.BucketOf(provider).IsGrantValid(grant.Url, "PUT", clock.UtcNow).ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The host is reserved by RFC 2606 and can never resolve. A test that follows a grant fails at
-    /// DNS instead of reaching something real, which is the only honest thing a double can promise
-    /// about a URL it did not put any bytes behind.
-    /// </summary>
     [Fact]
     public async Task EveryGrant_PointsAtAHostThatCannotExist()
     {
@@ -150,11 +123,6 @@ public sealed class InMemoryFileDirectTransferTests
         FileContentHost.TransferIn(scope).IsSupported.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// Issuing a grant is not depositing. The case where a client is handed an upload URL and never
-    /// uses it is exactly what confirmation and the abandonment sweep exist for, so a double that
-    /// wrote the object when the grant was minted would make it untestable.
-    /// </summary>
     [Fact]
     public async Task AnUploadGrant_StoresNothingUntilADepositHappens()
     {

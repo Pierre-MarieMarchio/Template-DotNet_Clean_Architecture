@@ -5,18 +5,6 @@ using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Reminders;
 
-/// <summary>
-/// Builds a reminder aggregate in which <b>every</b> piece of state is set to a value distinguishable
-/// from its type's default.
-/// </summary>
-/// <remarks>
-/// A round-trip assertion that compares <c>null</c> against <c>null</c>, or the enum's default member
-/// against itself, passes for a property the mapper never copied — so a sample built from a freshly
-/// scheduled reminder would silently exempt exactly the properties a firing host sets: <c>NotifiedAt</c>,
-/// the retry state, a non-<c>Pending</c> <c>State</c>. This builder goes through
-/// <see cref="Reminder.Rehydrate"/> instead of the lifecycle methods, so it can put the aggregate
-/// straight into that fired shape without a clock to advance.
-/// </remarks>
 internal static class AReminderAggregate
 {
     internal static readonly UserId OwnerId = UserId.Create(new("4b7f1d92-4c8a-4f4b-9a1e-0d2f3c4b5a61"));
@@ -31,18 +19,14 @@ internal static class AReminderAggregate
     internal static readonly DateTimeOffset CreatedAt = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
     internal static readonly DateTimeOffset LastModifiedAt = new(2026, 3, 5, 8, 9, 10, TimeSpan.Zero);
 
-    /// <summary>Non-zero, so a mapper that dropped the retry count is visible.</summary>
     internal const int FailedAttempts = 3;
 
-    /// <summary>Non-zero, so a mapper that dropped the concurrency token is visible.</summary>
     internal const uint Version = 987_654u;
 
-    /// <summary>Not <see cref="ReminderState.Pending"/>, the enum's default member.</summary>
     internal const ReminderState State = ReminderState.Fired;
 
     internal static Guid ReminderId { get; } = new("0199a3c4-1111-7000-8000-000000000099");
 
-    /// <summary>A fully populated aggregate, as if it had just been loaded after firing.</summary>
     internal static Reminder FullyPopulated()
     {
         var aggregate = Reminder.Rehydrate(new ReminderSnapshot
@@ -65,12 +49,6 @@ internal static class AReminderAggregate
         return aggregate;
     }
 
-    /// <summary>
-    /// The same reminder, with <b>every</b> domain-owned value different from <see cref="FullyPopulated"/>
-    /// — including the ones only an update can move. The id is deliberately unchanged: a different id
-    /// would make this a fresh insert, going through <c>ToNewRecord</c> instead of the update path this
-    /// sample exists to exercise.
-    /// </summary>
     internal static Reminder DifferentInEveryDomainOwnedValue()
     {
         var aggregate = Reminder.Rehydrate(new ReminderSnapshot
@@ -93,8 +71,6 @@ internal static class AReminderAggregate
         return aggregate;
     }
 
-    // ---- The second, entirely different set of values -------------------------------------------
-
     internal static readonly UserId OtherOwnerId = UserId.Create(new("7c1e2d3f-4a5b-4c6d-8e9f-0a1b2c3d4e61"));
     internal static readonly Guid OtherTodoListId = new("0199a3c4-3333-7000-8000-000000000002");
     internal static readonly Guid OtherTodoItemId = new("0199a3c4-4444-7000-8000-000000000002");
@@ -107,9 +83,6 @@ internal static class AReminderAggregate
 
     internal const uint OtherVersion = 123_456u;
 
-    // Cancelled rather than Fired, so it differs from FullyPopulated's State. Rehydrate ties the
-    // notification instant to that state — only a fired reminder carries one — so this sample
-    // differs from the other by holding none.
     internal const ReminderState OtherState = ReminderState.Cancelled;
 
     internal const int OtherFailedAttempts = 5;

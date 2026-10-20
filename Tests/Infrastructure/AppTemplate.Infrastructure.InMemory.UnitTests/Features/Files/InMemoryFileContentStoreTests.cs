@@ -10,13 +10,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Features.Files;
 
-/// <summary>
-/// The double behind <see cref="IFileContentStore"/>, exercised end to end through the container.
-/// <para>
-/// It holds the bytes it is given and refuses, as a real store does, a body whose length or digest
-/// disagrees with the declaration.
-/// </para>
-/// </summary>
 public sealed class InMemoryFileContentStoreTests
 {
     private const string _objectKey = "t0/202601/9f2c1d7a4b6e8f0132547698badcfe10";
@@ -25,10 +18,6 @@ public sealed class InMemoryFileContentStoreTests
 
     private static readonly byte[] _content = Encoding.UTF8.GetBytes("the deposited bytes");
 
-    /// <summary>
-    /// The digest of <see cref="_content"/>, computed rather than written down: a grant binds it, so a
-    /// constant that drifted from the bytes would mint a grant no honest deposit could satisfy.
-    /// </summary>
     private static readonly string _checksum = Convert.ToHexStringLower(SHA256.HashData(_content));
 
     [Fact]
@@ -116,10 +105,6 @@ public sealed class InMemoryFileContentStoreTests
         FileContentHost.BucketOf(provider).Snapshot().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// One bucket for the whole host, so an object deposited in one request is found in the next —
-    /// which is what every assertion made after a sequence of requests depends on.
-    /// </summary>
     [Fact]
     public async Task TheDoubles_ShareOneBucketAcrossEveryScope()
     {
@@ -136,11 +121,6 @@ public sealed class InMemoryFileContentStoreTests
             .ShouldNotBeNull();
     }
 
-    /// <summary>
-    /// Replacement, not addition: the module removes what a real module registered before adding its
-    /// own doubles. A double that won by being registered last is a silent dependency on composition
-    /// order whose failure mode is a test quietly talking to a real bucket.
-    /// </summary>
     [Fact]
     public void AddInMemoryModule_ReplacesFilePortsThatWereAlreadyRegistered()
     {

@@ -20,10 +20,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.ExternalIdentity;
 
-/// <summary>
-/// Just-in-time provisioning of the subject-to-owner mapping, through the real service, the real
-/// store and the real unique index, on an in-memory SQLite database.
-/// </summary>
 public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
 {
     private const string _issuer = "https://idp.example.com/realms/app";
@@ -46,10 +42,6 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
         await SqliteSavingHost.CreateSchemaAsync<AppDbContext>(_services, _keeper, TestToken);
     }
 
-    /// <summary>
-    /// The real composition over the shared in-memory database, with the store optionally wrapped:
-    /// the store is internal to its module, so a test reaches it only through the container.
-    /// </summary>
     private ServiceProvider Compose(Func<IExternalIdentityStore, IExternalIdentityStore>? decorate)
     {
         var configuration = new ConfigurationBuilder()
@@ -188,10 +180,6 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
         (await RowsAsync()).Single().UserId.ShouldBe(link.UserId.Value);
     }
 
-    /// <summary>
-    /// The race, made deterministic: the service reads no mapping, a rival's insert lands before its
-    /// own, and the index refuses the second. The caller must come out as the rival's owner.
-    /// </summary>
     [Fact]
     public async Task ALostFirstRequestRace_AnswersTheWinnersOwner()
     {
@@ -219,8 +207,6 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
             }
             catch (DbUpdateException)
             {
-                // SQLite's shared cache can refuse a concurrent writer outright, where PostgreSQL
-                // would queue it; a refusal is a failed request, never a second owner.
                 return null;
             }
         }));
@@ -248,7 +234,6 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
     {
         var owner = await ResolveAsync(Caller("old-subject", "old@example.com", "Old"));
 
-        // An owner carried over to a second provider: its row is pre-inserted with the same owner id.
         _clock.Advance(TimeSpan.FromDays(1));
         await using (var scope = _services.CreateAsyncScope())
         {
@@ -266,11 +251,6 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
         (await ResolveAsync(new ExternalCallerDto("https://new.example.com", "new-subject", null, null))).ShouldBe(owner);
     }
 
-    /// <summary>
-    /// The administrative deletion: the mappings and the locally assigned roles go together, and
-    /// the fact that tells the features their owner is gone is published once the store has
-    /// committed it.
-    /// </summary>
     [Fact]
     public async Task ADeletedOwner_LosesItsMappingsAndRoles_AndIsPublished()
     {
@@ -294,10 +274,6 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
         fact.OccurredAt.ShouldBe(_clock.UtcNow);
     }
 
-    /// <summary>
-    /// The idempotence the port documents: a second call for the same owner answers not-found —
-    /// the first one finished — and publishes nothing further.
-    /// </summary>
     [Fact]
     public async Task ASecondDeletionOfTheSameOwner_IsNotFound()
     {
@@ -379,10 +355,6 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
         public void Advance(TimeSpan delta) => UtcNow += delta;
     }
 
-    /// <summary>
-    /// Answers the first lookup as if no mapping existed yet, and lands the rival's insert just
-    /// before the caller's own: the interleaving two first requests produce.
-    /// </summary>
     private sealed class RivalInsertsFirst(IExternalIdentityStore inner, ExternalIdentityLink rival) : IExternalIdentityStore
     {
         private bool _lookedUp;
@@ -412,10 +384,6 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
             throw new NotSupportedException("No provisioning test deletes an account.");
     }
 
-    /// <summary>
-    /// Records what the service publishes, in order: the deletion's fact is what the features
-    /// holding data under the owner react to, and the tests here assert on what reached them.
-    /// </summary>
     private sealed class RecordingPublisher : IDomainEventPublisher
     {
         private readonly List<IDomainEvent> _events = [];

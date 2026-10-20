@@ -7,10 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.TodoLists.Contracts.Mapping;
 
-/// <summary>
-/// A hand-written mapper's only failure mode is a field nobody copied, so every test here asserts on
-/// the whole shape rather than on the members that happen to be interesting.
-/// </summary>
 public sealed class TodoListResponseMappingTests
 {
     [Fact]
@@ -83,10 +79,6 @@ public sealed class TodoListResponseMappingTests
         response.Items.ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The DTO's items are ordered by title upstream, so re-ordering them here would silently discard
-    /// a decision the query made.
-    /// </summary>
     [Fact]
     public void ToResponse_List_KeepsTheItemsInTheOrderReceived()
     {
@@ -134,10 +126,6 @@ public sealed class TodoListResponseMappingTests
         response.Items.Select(item => item.Title).ShouldBe(["Apples", "Bread", "Cheese"]);
     }
 
-    /// <summary>
-    /// An item-less list is still an envelope carrying an empty array, not an absent one: a client
-    /// reading <c>items</c> must never have to distinguish null from empty.
-    /// </summary>
     [Fact]
     public void ToResponse_Items_WrapsAnEmptyCollection_InAnEmptyArray()
     {
@@ -248,10 +236,6 @@ public sealed class TodoListResponseMappingTests
         result.Value.Value.Items.Single().Title.ShouldBe("Buy milk");
     }
 
-    /// <summary>
-    /// <c>Result{T}.Value</c> throws on a failure, so a lift that reached for it before testing
-    /// <c>IsFailure</c> would turn every mapped error into a 500.
-    /// </summary>
     [Fact]
     public void ToPageResponse_PropagatesAFailure_WithoutThrowing()
     {

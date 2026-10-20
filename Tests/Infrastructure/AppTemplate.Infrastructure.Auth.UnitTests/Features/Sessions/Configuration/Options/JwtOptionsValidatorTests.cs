@@ -7,15 +7,8 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Sessions.Configuration.Options;
 
-/// <summary>
-/// The validator runs under <c>ValidateOnStart</c>, so what it rejects is what stops the process from
-/// booting. A short signing key has to be one of those things: HS256 with a key shorter than its own
-/// output is a weakened signature, and the failure would otherwise surface as an opaque IDX10653 at
-/// the first login.
-/// </summary>
 public sealed class JwtOptionsValidatorTests
 {
-    /// <summary>The key <c>.env.example</c> and <c>appsettings.Development.json</c> ship.</summary>
     private const string _shippedDevelopmentKey = "dev-only-signing-key-not-for-production-replace-me-0123456789ab";
 
     private static readonly JwtOptionsValidator _validator = new(new HostEnvironment(Environments.Development));
@@ -32,10 +25,6 @@ public sealed class JwtOptionsValidatorTests
         result.FailureMessage.ShouldContain($"{JwtOptions.MinimumKeyLengthInBytes} bytes");
     }
 
-    /// <summary>
-    /// The floor is counted in bytes, not characters, so a key that is long enough as a string but
-    /// short as UTF-8 must not slip through. Nothing else in the file would catch that.
-    /// </summary>
     [Fact]
     public void Validate_CountsTheKeyInBytesRatherThanCharacters()
     {
@@ -50,10 +39,6 @@ public sealed class JwtOptionsValidatorTests
     public void Validate_RejectsAMissingKey() =>
         _validator.Validate(name: null, Valid(key: "   ")).Failed.ShouldBeTrue();
 
-    /// <summary>
-    /// The shipped development key is public, so a host outside Development refuses to start with it
-    /// and says which setting to supply instead.
-    /// </summary>
     [Fact]
     public void Validate_RefusesTheShippedDevelopmentKeyInProduction()
     {

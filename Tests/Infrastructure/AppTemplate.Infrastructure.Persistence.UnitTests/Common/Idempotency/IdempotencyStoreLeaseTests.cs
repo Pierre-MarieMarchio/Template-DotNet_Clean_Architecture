@@ -4,12 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Idempotency;
 
-/// <summary>
-/// <see cref="IdempotencyStore.HasExpiredLease"/> is the pure rule behind reclaiming a claim its
-/// original owner never finished: it decides whether a row is fair game for a retry to take over,
-/// with none of the atomicity that makes the actual reclaim in <c>ClaimAsync</c> safe under
-/// concurrency — that half needs a real database and is covered by the integration suite instead.
-/// </summary>
 public sealed class IdempotencyStoreLeaseTests
 {
     private static readonly DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
@@ -38,11 +32,6 @@ public sealed class IdempotencyStoreLeaseTests
         IdempotencyStore.HasExpiredLease(record, _now).ShouldBeTrue();
     }
 
-    /// <summary>
-    /// A completed claim is never reclaimable regardless of what its lease says: completion is what
-    /// retires the lease, and <see cref="IdempotencyStore.Decide"/> — not a reclaim — is what answers
-    /// for it from there on.
-    /// </summary>
     [Fact]
     public void HasExpiredLease_IsFalse_ForACompletedClaim_EvenWithALeaseInThePast()
     {

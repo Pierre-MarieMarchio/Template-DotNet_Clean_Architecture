@@ -1,10 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Unit tests for what any host needs whatever its transport. The mirror of
-       AppTemplate.Presentation.Core, which carries no framework reference, so neither does this:
-       every test here is a statement about an options validator, a resilience policy or the
-       identity of a process with no caller. -->
-
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>

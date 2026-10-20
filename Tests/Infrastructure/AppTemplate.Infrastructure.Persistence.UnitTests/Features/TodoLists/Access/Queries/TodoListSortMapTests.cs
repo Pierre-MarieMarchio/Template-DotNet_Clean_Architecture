@@ -11,27 +11,10 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.TodoLists.Access.Queries;
 
-/// <summary>
-/// SQL-shape assertions against <c>ToQueryString()</c>. No database is contacted: the context is
-/// configured against PostgreSQL only so EF has a provider and a model to translate against — the
-/// same arrangement <c>EfUnitOfWorkTests</c> uses, one project inwards.
-/// <para>
-/// Every sort here is built through the real <see cref="SortOrder.Parse"/> and every cursor through
-/// the real <see cref="Cursor.After"/>, never by hand-constructing internals, so these tests
-/// exercise exactly what a request would produce.
-/// </para>
-/// </summary>
 public sealed class TodoListSortMapTests
 {
     private static readonly TodoListCollectionPolicy _policy = TodoListCollectionPolicy.Instance;
 
-    #region ApplyOrder
-
-    /// <summary>
-    /// Driven by the policy's own whitelist rather than a hard-coded field list, so a newly
-    /// whitelisted field is covered by these three theories automatically instead of silently
-    /// untested.
-    /// </summary>
     public static TheoryData<string> WhitelistedFieldNames()
     {
         var names = _policy.SortableFields.Select(field => field.Name).ToList();
@@ -70,14 +53,6 @@ public sealed class TodoListSortMapTests
         sql.ShouldNotContain("DESC");
     }
 
-    /// <summary>
-    /// The tiebreaker must run the <em>same way</em> as the term it breaks ties for, and this
-    /// assertion is deliberately exact rather than a <c>ShouldContain</c> prefix: a prefix match is
-    /// satisfied by both <c>"Id"</c> and <c>"Id" DESC</c>, so it would pass whichever direction the
-    /// tiebreaker took and pin nothing. A descending order with an ascending tiebreaker orders tied
-    /// rows one way while <see cref="TodoListSortMap.ApplyKeyset"/> walks them the other, and every
-    /// row tied on the sort key past the cursor is then silently skipped.
-    /// </summary>
     [Theory]
     [MemberData(nameof(WhitelistedFieldNames))]
     public void ApplyOrder_Descending_RunsTheTiebreakerDescendingToo(string field)
@@ -90,10 +65,6 @@ public sealed class TodoListSortMapTests
         sql.TrimEnd().ShouldEndWith($"ORDER BY t.\"{ColumnOf(field)}\" DESC, t.\"Id\" DESC");
     }
 
-    /// <summary>
-    /// In a multi-term sort the tiebreaker follows the <em>last</em> term, so the order it continues
-    /// is the one immediately before it.
-    /// </summary>
     [Fact]
     public void ApplyOrder_AMultiTermSort_RunsTheTiebreakerWithItsLastTerm()
     {
@@ -105,21 +76,9 @@ public sealed class TodoListSortMapTests
         sql.TrimEnd().ShouldEndWith("ORDER BY t.\"CreatedAt\", t.\"Name\" DESC, t.\"Id\" DESC");
     }
 
-    /// <summary>
-    /// The whitelist's field names are camelCase and the columns they map to are the same name
-    /// PascalCased — the same convention <see cref="TodoListSortMap"/> itself relies on for every
-    /// field it knows about. Kept local to the two exact-match theories above rather than promoted to
-    /// production code, since nothing there needs a field name turned into a column name in general.
-    /// </summary>
     private static string ColumnOf(string field) =>
         char.ToUpperInvariant(field[0]) + field[1..];
 
-    /// <summary>
-    /// <see cref="TodoListSortMap"/> only recognises <see cref="TodoListCollectionPolicy"/>'s own
-    /// field constants. <see cref="SortOrder.Parse"/> under the real policy would never let an
-    /// unknown name through, so the only honest way to reach the default arm is a policy double that
-    /// whitelists a name this map does not — without weakening any type along the way.
-    /// </summary>
     [Fact]
     public void ApplyOrder_AFieldNotOnTheWhitelist_Throws()
     {
@@ -128,10 +87,6 @@ public sealed class TodoListSortMapTests
 
         Should.Throw<InvalidOperationException>(() => TodoListSortMap.ApplyOrder(context.TodoLists, sort));
     }
-
-    #endregion
-
-    #region ApplyKeyset
 
     [Fact]
     public void ApplyKeyset_Ascending_IsAGreaterThanComparisonWithTheIdTiebreak()
@@ -158,11 +113,6 @@ public sealed class TodoListSortMapTests
         sql.ShouldContain("WHERE t.\"CreatedAt\" < @key OR (t.\"CreatedAt\" = @key AND t.\"Id\" < @cursor_Id)");
     }
 
-    /// <summary>
-    /// A createdAt key that does not parse as a date only reaches here if
-    /// <c>CursorKeys.Validate</c> was bypassed — this proves that failure mode is loud
-    /// rather than a wrong or silently-empty result.
-    /// </summary>
     [Fact]
     public void ApplyKeyset_AnUnparseableDateKey_Throws()
     {
@@ -172,10 +122,6 @@ public sealed class TodoListSortMapTests
 
         Should.Throw<InvalidOperationException>(() => TodoListSortMap.ApplyKeyset(context.TodoLists, term, cursor));
     }
-
-    #endregion
-
-    #region KeyOf
 
     [Fact]
     public void KeyOf_Name_ReadsTheNameVerbatim()
@@ -191,8 +137,6 @@ public sealed class TodoListSortMapTests
 
         string key = TodoListSortMap.KeyOf(ASummary(createdAt: instant), TodoListCollectionPolicy.CreatedAtField);
 
-        // Round-trip exactly, sub-second included: a key that lost precision would place the cursor
-        // before rows the caller has already been served, and serve them a second time.
         DateTimeOffset.Parse(key, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
             .ShouldBe(instant);
     }
@@ -204,14 +148,6 @@ public sealed class TodoListSortMapTests
     private static TodoListSummaryDto ASummary(string name = "Any", DateTimeOffset createdAt = default) =>
         new(Guid.CreateVersion7(), name, ItemCount: 0, CompletedItemCount: 0, createdAt);
 
-    #endregion
-
-    /// <remarks>
-    /// Built through the public <see cref="Cursor.After"/> — the same call the read side makes to
-    /// mint a next-page cursor. Decoding is not exercised here: this project has no access to
-    /// <c>Cursor.Decode</c> by design, and what a decoded cursor accepts or refuses is covered where
-    /// that code lives, in the application layer's own tests.
-    /// </remarks>
     private static Cursor ACursor(SortTerm term, string key) =>
         Cursor.After(term, key, Guid.CreateVersion7());
 

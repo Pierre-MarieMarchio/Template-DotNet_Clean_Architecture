@@ -9,18 +9,8 @@ using FrameworkCorsOptions = Microsoft.AspNetCore.Cors.Infrastructure.CorsOption
 
 namespace AppTemplate.Api.UnitTests.Common.Security;
 
-/// <summary>
-/// A browser hands script only the CORS-safelisted response headers unless the server names the
-/// rest, so a header this API writes and does not expose reads as absent to a cross-origin client
-/// — with no error anywhere to say why.
-/// </summary>
 public sealed class CorsExtensionsTests
 {
-    /// <summary>
-    /// The headers this API writes that a client is expected to act on. Each one is asserted
-    /// against where it is written, so that adding a header without exposing it fails here rather
-    /// than in whichever browser reaches it first.
-    /// </summary>
     private static readonly (string Header, string Written)[] _actionable =
     [
         ("Retry-After", "the rate limiter, on a 429"),
@@ -47,11 +37,6 @@ public sealed class CorsExtensionsTests
         }
     }
 
-    /// <summary>
-    /// The other half, and the reason this is a policy rather than a wildcard: credentials stay off,
-    /// because tokens travel in the Authorization header and it is that pairing with a permissive
-    /// origin list that turns a policy into a hole.
-    /// </summary>
     [Fact]
     public void TheDefaultPolicy_DoesNotAllowCredentials()
     {
@@ -60,10 +45,6 @@ public sealed class CorsExtensionsTests
             + "not needed and allowing them would widen the policy for nothing.");
     }
 
-    /// <summary>
-    /// Nothing configured means allow nothing rather than allow everything. Same-origin callers are
-    /// unaffected either way, because CORS governs cross-origin requests alone.
-    /// </summary>
     [Fact]
     public void WithNoConfiguredOrigins_ThePolicyAllowsNone()
     {

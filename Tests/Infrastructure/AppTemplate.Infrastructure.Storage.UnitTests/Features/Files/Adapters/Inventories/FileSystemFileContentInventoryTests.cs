@@ -5,10 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Adapters.Inventories;
 
-/// <summary>
-/// The listing of the local file system store, against a real directory: ordinal order, resumable
-/// from the last key seen, the same contract an S3 listing has.
-/// </summary>
 public sealed class FileSystemFileContentInventoryTests : IDisposable
 {
     private readonly TemporaryRoot _root = new();
@@ -20,7 +16,6 @@ public sealed class FileSystemFileContentInventoryTests : IDisposable
     [Fact]
     public async Task ListKeysAsync_WalksEveryKeyOnceInOrdinalOrderAcrossPages()
     {
-        // 'B' sorts before 'a' ordinally, and '2026/1' before '20260' — a culture-aware sort would not.
         string[] keys = ["t0/202608/b", "t0/202608/a", "t0/202608/B", "t0/202609/a", "t0/20260/z"];
         Create(keys);
 
@@ -41,10 +36,6 @@ public sealed class FileSystemFileContentInventoryTests : IDisposable
         pages.ShouldBe(3);
     }
 
-    /// <summary>
-    /// A walk resumes strictly after the key it is given, whether that key came from the previous
-    /// page or from a checkpoint saved before a restart — and whether or not it still exists.
-    /// </summary>
     [Fact]
     public async Task ListKeysAsync_ResumesStrictlyAfterTheKeyItIsGiven()
     {
@@ -66,7 +57,6 @@ public sealed class FileSystemFileContentInventoryTests : IDisposable
         page.Items.ShouldBe(["t0/202608/a"]);
     }
 
-    /// <summary>A write in flight is not an object, and the sweep must never reclaim one.</summary>
     [Fact]
     public async Task ListKeysAsync_SkipsTemporaryFilesOfWritesInFlight()
     {
@@ -77,10 +67,6 @@ public sealed class FileSystemFileContentInventoryTests : IDisposable
         page.Items.ShouldBe(["t0/202608/a"]);
     }
 
-    /// <summary>
-    /// A temporary file older than any write is what a crashed write leaves behind; no key names it,
-    /// so the listing reclaims it. A recent one is a write in flight and stays.
-    /// </summary>
     [Fact]
     public async Task ListKeysAsync_DeletesTemporaryFilesACrashedWriteLeftBehind()
     {

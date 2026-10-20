@@ -1189,3 +1189,103 @@ signing in; a first link needs a verified address and a confirmed local account.
 The use cases that rotate the security stamp revoke the refresh tokens themselves, because those
 survive the rotation, in one call naming the session to spare — none when the token names none.
 <!--#endif-->
+
+## Unit tests of the adapters and the API
+
+**A mapper test proves the mapping is total by walking the aggregate's type, and proves the walk can
+fail.**
+<!--#if (aggregates)-->
+The fidelity tests of the aggregates' mappers enumerate the aggregate's readable state by
+reflection instead of listing it, so a property added to the aggregate and forgotten by the mapper
+fails the round trip. The sample differs from its counterpart in every domain-owned value, because a
+value compared with itself passes for a property nobody copied; it keeps the same ids, because a new
+id would turn the update into an insert and skip the path the sample exists to exercise.
+<!--#endif-->
+A list of members the walk skips is kept per test class and names each one for a reason: the domain
+events are never persisted (they are raised, published after the commit and dropped, and their
+survival is the integration tests' guarantee that a consumer ran exactly once), the version is
+PostgreSQL's `xmin` and has a single writer, and the four audit values are the interceptor's and flow
+from row to aggregate only. `TheExclusionList_NamesRealMembers` keeps the list from rotting into a
+silent exemption, and `TheHarness_DetectsAMapperThatForgetsAProperty` runs the walk against a mapper
+with one line forgotten, since a green test nobody has seen go red is not evidence.
+
+<!--#if (localAuth)-->
+**The identity adapters are tested over a real `UserManager` on substituted stores, and the stores
+are set up for what `UserManager` does around them.** NSubstitute answers an unconfigured
+`Task<IdentityResult>` member with a null result and `UserManager` reads `.Succeeded` off it, so every
+test that reaches a store write configures the update to succeed. `UserManager` also normalises an
+address or a role name before it reaches the store, so a lookup is stubbed on any argument and a
+seeded role is stored upper-cased. The token providers are registered under the name `UserManager`
+resolves, with a stand-in that carries the one property the test relies on: a token is only as good
+as the security stamp it was minted against. The in-memory account rows seed a security stamp because
+`AddLoginAsync` rotates it, and carry the unique indexes of the real schema but no duplicate check on
+a login, which `UserManager` performs itself; repeating it there would make a test pass through a rule
+the production path never reaches. A security-ordering assertion is made before the next call is
+attempted when the order is the guarantee: `RedeemChallengeAsync_AfterTheConfiguredNumberOfWrongCodes_DestroysTheChallenge`
+checks that the write which reached the ceiling destroyed the challenge, not that the next call
+refused it.
+
+<!--#endif-->
+**A test double is written by hand when a substitute would hide what is under test.** The recording
+loggers keep the formatted line because `ILogger.Log` receives its state as a generic parameter and a
+substituted call is unreadable. The recording dispatcher of the persistence tests is hand-written
+because the dispatcher port is internal to its assembly and a dynamic proxy would need that assembly
+to trust the proxy generator, a wider grant than a test double is worth. A misconfigured service
+provider is hand-written in `DispatchAsync_StillThrows_WhenARegistrationIsNotAConsumer` because no
+ordinary container hands the dispatcher a registration that fails its cast, and that is the only way
+to show the per-consumer isolation still lets the exception through.
+
+**Instrument tests assert with `ShouldContain` on a concurrent queue.** The meters are static and the
+test classes of an assembly run in parallel, so a listener receives measurements recorded by other
+tests; a plain list would lose items under two writer threads, and an assertion over everything
+recorded would fail on someone else's. A zero measurement is only meaningful because no other fake in
+the project reports a success with nothing removed, so a zero can only be the test's own pass. The
+disabled and failing cases are asserted as well as the successful one, because a flat counter must
+never be the only thing an alert sees.
+
+**A configuration test writes down the budget it asserts.** The outbound HTTP policy asserts the
+attempt, total and sampling values and the retry shape although they coincide with the package's
+current defaults, so that a dependency reached on a budget nobody wrote down does not change when the
+package's defaults do; the sampling window sits at exactly twice the attempt timeout with no margin,
+so raising one value alone fails a test rather than a deployment. The retry delay is the only value
+overridden, and only so the retried case finishes.
+
+**A validator test records where its rule stops.** `Validate_AcceptsAFromAddressWithNoDomainBecauseTheParserReadsItAsAMailbox`
+pins that a bare address boots because MimeKit reads it as a mailbox, a start-up check passing on
+something no relay will accept. The culture check of the localisation options is a check of shape
+only, because the project builds with invariant globalization and the runtime cannot be asked whether
+`fr` is a real culture. An optional feature whose absent configuration stops the host is a regression
+for everyone who does not use it, so the validators of optional sections also assert that the empty
+or disabled configuration is accepted.
+
+**A contract test says what it does not prove.** The serialisation tests of the authentication
+responses declare the value as the polymorphic base on purpose, which is what puts the discriminator
+in the JSON; they prove the shape of the contract and nothing about the starting type MVC serialises
+with, which comes from `ObjectResult.DeclaredType` and is held by `OkOrProblem_NamesTheDeclaredType`
+and by the integration tests that read the wire body. A controller test that depends on the
+framework's own decision runs the result through MVC's executor (a 302 against a 307 is chosen from
+two flags together) and takes an entity tag from a response, the way a client does, so the encoding is
+never restated in a test.
+
+<!--#if (files)-->
+**The storage adapters are tested for what no socket can show.** A presigned URL carries everything it
+authorises in its query string, so the tests read the URL apart: the grant's required headers are
+exactly the signed set, the host is the public endpoint, and the credentials are fabricated because a
+signature is a keyed hash that any key produces well-formed. The presigning client and the client this
+process talks to differ by host name alone, so swapping them compiles and passes every assertion about
+a grant;
+`TheStore_TakesOnlyTheClientThisProcessTalksToTheStoreWith` and `CreateForSigning_OpensNoConnectionToTheEndpointItSignsFor`
+hold the two halves. The ClamAV tests run against a daemon written in the test that reassembles the
+`INSTREAM` framing, since a fake that ignored the framing could not notice a length written the wrong
+way round.
+
+<!--#endif-->
+**The email adapters are tested for what they must not reveal or repeat.** The server token of the
+HTTP transport is distinctive so that "appears nowhere" assertions can fail, and
+`SendAsync_LeaksTheServerTokenIntoNeitherTheLogNorTheException` looks in the refusal path, the only
+one that formats anything. A refused send is attempted exactly once, `SendAsync_AttemptsARefusedSendExactlyOnce`,
+because the provider's endpoint takes no idempotency key and a replay is a second delivery. The
+factory's header redaction narrows only when something is added to its list, so
+`AddEmailModule_NarrowsNothingAboutTheFactorysHeaderRedaction` asserts the absence of that call and
+`TheRedactionRule_IsSensitive_AndSeesARedactionSetNarrowedToOtherHeaders` composes the mistake to show
+the assertion can fail.

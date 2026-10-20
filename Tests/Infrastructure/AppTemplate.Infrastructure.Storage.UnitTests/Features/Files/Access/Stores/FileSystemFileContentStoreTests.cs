@@ -8,9 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Access.Stores;
 
-/// <summary>
-/// The local file system store, against a real directory under the temporary path.
-/// </summary>
 public sealed class FileSystemFileContentStoreTests : IDisposable
 {
     private const string _objectKey = "t0/202608/9f2c1d7a4b6e8f0132547698badcfe10";
@@ -51,7 +48,6 @@ public sealed class FileSystemFileContentStoreTests : IDisposable
         (await store.DescribeAsync(_objectKey, TestToken)).ShouldBeNull();
     }
 
-    /// <summary>The object lands exactly where its key says, and nowhere a client could name.</summary>
     [Fact]
     public async Task AWrittenObject_IsTheFileItsKeyNamesAndNothingElse()
     {
@@ -60,10 +56,6 @@ public sealed class FileSystemFileContentStoreTests : IDisposable
         _root.AllFiles().ShouldBe([_objectKey]);
     }
 
-    /// <summary>
-    /// A body that disagrees with its declaration leaves nothing behind — not under the key, and not
-    /// as a temporary file either.
-    /// </summary>
     [Theory]
     [InlineData(1, false)]
     [InlineData(-1, false)]
@@ -80,15 +72,11 @@ public sealed class FileSystemFileContentStoreTests : IDisposable
         _root.AllFiles().ShouldBeEmpty();
     }
 
-    /// <summary>The digest compares as a value, whatever the case of its hexadecimal.</summary>
     [Fact]
     public async Task TheDeclaredDigest_IsComparedWhateverItsCase() =>
         (await WriteAsync(Store(), _bytes, _bytes.Length, _checksum.ToUpperInvariant()))
             .ShouldBe(ContentWriteOutcome.Written);
 
-    /// <summary>
-    /// A failure while reading the body is a fault, and it too leaves nothing behind.
-    /// </summary>
     [Fact]
     public async Task ABodyThatFailsMidway_LeavesNothing()
     {
@@ -103,9 +91,6 @@ public sealed class FileSystemFileContentStoreTests : IDisposable
         _root.AllFiles().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// A second write under the same key keeps one object: the key is bound to one declared digest.
-    /// </summary>
     [Fact]
     public async Task WritingAKeyTwice_KeepsOneObject()
     {
@@ -128,10 +113,6 @@ public sealed class FileSystemFileContentStoreTests : IDisposable
         await Should.NotThrowAsync(store.DeleteAsync(_objectKey, TestToken));
     }
 
-    /// <summary>
-    /// Object keys forbid <c>..</c> already; the store holds its own line so that no string, whatever
-    /// produced it, reaches a file outside the root.
-    /// </summary>
     [Theory]
     [InlineData("../outside")]
     [InlineData("t0/../../outside")]
@@ -153,10 +134,6 @@ public sealed class FileSystemFileContentStoreTests : IDisposable
         await Should.ThrowAsync<ArgumentException>(() => store.DeleteAsync(objectKey, TestToken));
     }
 
-    /// <summary>
-    /// A sibling directory whose name starts with the root's is outside it: the check compares whole
-    /// path segments, not a string prefix.
-    /// </summary>
     [Fact]
     public void ASiblingSharingTheRootsPrefix_IsOutsideIt() =>
         Should.Throw<ArgumentException>(() => FileSystemFileContentStore.PathFor(
@@ -172,7 +149,6 @@ public sealed class FileSystemFileContentStoreTests : IDisposable
         string declaredChecksum) =>
         store.WriteAsync(_objectKey, new MemoryStream(bytes), _mediaType, declaredSize, declaredChecksum, TestToken);
 
-    /// <summary>Yields a few bytes, then fails as a dropped connection would.</summary>
     private sealed class FailingStream : Stream
     {
         private bool _served;

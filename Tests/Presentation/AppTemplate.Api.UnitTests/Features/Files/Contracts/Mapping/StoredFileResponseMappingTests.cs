@@ -13,20 +13,14 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Files.Contracts.Mapping;
 
-/// <summary>
-/// A hand-written mapper's only failure mode is a field nobody copied, so every test here asserts on
-/// the whole shape rather than on the members that happen to be interesting.
-/// </summary>
 public sealed class StoredFileResponseMappingTests
 {
     private static readonly DateTimeOffset _registeredAt = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
 
     private static readonly DateTimeOffset _availableAt = new(2026, 3, 4, 5, 9, 7, TimeSpan.Zero);
 
-    /// <summary>What MVC serialises with when nothing overrides it, which is the case here.</summary>
     private static readonly JsonSerializerOptions _mvcDefaults = new JsonOptions().JsonSerializerOptions;
 
-    /// <summary>The one difference that would break every upload, so that asserting it is absent means something.</summary>
     private static readonly JsonSerializerOptions _camelCasedKeys =
         new(JsonSerializerDefaults.Web) { DictionaryKeyPolicy = JsonNamingPolicy.CamelCase };
 
@@ -48,7 +42,6 @@ public sealed class StoredFileResponseMappingTests
         response.AvailableAt.ShouldBe(_availableAt);
     }
 
-    /// <summary>The category is on the wire under the name the request uses for it.</summary>
     [Fact]
     public void TheWireShape_CarriesTheCategory()
     {
@@ -68,11 +61,6 @@ public sealed class StoredFileResponseMappingTests
         response.AvailableAt.ShouldBeNull();
     }
 
-    /// <summary>
-    /// The two words are the same ones <c>StoredFileFilter.Create</c> accepts for <c>state</c>, which
-    /// is what lets a client filter with a value it just read instead of translating between two
-    /// vocabularies. A rename on either side without the other is what this holds.
-    /// </summary>
     [Theory]
     [InlineData(StoredFileState.Pending, "pending")]
     [InlineData(StoredFileState.Available, "available")]
@@ -83,10 +71,6 @@ public sealed class StoredFileResponseMappingTests
         StoredFileResponseMapping.ToResponse(file).Status.ShouldBe(expected);
     }
 
-    /// <summary>
-    /// A member added to <see cref="StoredFileState"/> without a word for it here would otherwise be
-    /// served as whatever the last arm happened to return.
-    /// </summary>
     [Fact]
     public void ToResponse_File_RefusesAStateItHasNoWordFor()
     {
@@ -114,24 +98,6 @@ public sealed class StoredFileResponseMappingTests
         response.ExpiresAt.ShouldBe(expiresAt);
     }
 
-    /// <summary>
-    /// The store checks the deposit against a signature that covers these header names, so a client
-    /// has to send them back exactly as written. Nothing in this API configures
-    /// <see cref="JsonSerializerOptions.DictionaryKeyPolicy"/>, which is what leaves them alone —
-    /// and a deployment that set one to match the camel-cased property names would break every
-    /// upload without breaking anything a test was watching.
-    /// </summary>
-    /// <remarks>
-    /// Serialised through <see cref="JsonOptions"/>'s own defaults rather than options this test
-    /// picked, because the guarantee is about what MVC does, not about what a policy named here
-    /// would do.
-    /// <para>
-    /// Asserted on the parsed document rather than on the JSON text: Shouldly's string
-    /// <c>ShouldContain</c> compares case-insensitively, so a text assertion here would pass against
-    /// exactly the camel-cased output it is written to reject. The second half below is what proves
-    /// this one does not.
-    /// </para>
-    /// </remarks>
     [Fact]
     public void TheGrantsRequiredHeaders_AreServedVerbatim()
     {
@@ -196,10 +162,6 @@ public sealed class StoredFileResponseMappingTests
         result.Value.Value.Id.ShouldBe(file.Id);
     }
 
-    /// <summary>
-    /// Every projection here is written as a <c>Map</c>, which must leave a failure alone rather than
-    /// evaluating a value a failed result never produced.
-    /// </summary>
     [Fact]
     public void EveryProjection_PassesAFailureThroughUntouched()
     {
@@ -246,21 +208,6 @@ public sealed class StoredFileResponseMappingTests
             new Dictionary<string, string>(StringComparer.Ordinal) { ["Content-Type"] = "application/pdf" },
             _registeredAt.AddMinutes(30));
 
-    /// <summary>
-    /// Every state has a word on the wire, checked against the enum rather than against a list
-    /// somebody kept in step.
-    /// </summary>
-    /// <remarks>
-    /// The mapping is an exhaustive switch that throws on anything it does not name, so a state
-    /// added to the domain without a word here is a 500 on the first read of a file in it — and no
-    /// test built around a file this suite constructs would see it, because those files are never
-    /// in the new state. That is the defect docs/TESTING.md records against a switch over an event
-    /// enum, arriving at the same place by the same route.
-    /// <para>
-    /// It also pins the words to what <c>StoredFileFilter</c> accepts. A client must be able to
-    /// filter by the value it just read, and the two lists live in different projects.
-    /// </para>
-    /// </remarks>
     [Fact]
     public void EveryState_HasAWordOnTheWire()
     {

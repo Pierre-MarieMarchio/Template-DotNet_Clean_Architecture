@@ -5,24 +5,10 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Common.Email;
 
-/// <summary>
-/// The mailbox every integration test reads its assertions out of. A defect here does not fail a
-/// test — it makes one pass for the wrong reason: hand back the first message to an address instead
-/// of the most recent, and a suite that resends a confirmation email goes green while confirming an
-/// account with the superseded token.
-/// <para>
-/// Messages arrive through the port, resolved from a scope, because that is the only way anything
-/// puts them there.
-/// </para>
-/// </summary>
 public sealed class RecordedEmailsTests
 {
     private const string _recipient = "someone@example.invalid";
 
-    /// <summary>
-    /// Ordering is the property. Two messages to one address is the ordinary case — a confirmation
-    /// email and its resend — and the second is the one that is still valid.
-    /// </summary>
     [Fact]
     public async Task LastTo_ReturnsTheMostRecentMessageRatherThanTheFirst()
     {
@@ -39,7 +25,6 @@ public sealed class RecordedEmailsTests
         found.HtmlBody.ShouldBe("<p>3</p>");
     }
 
-    /// <summary>The identity store normalises addresses, so the mailbox has to match the way it does.</summary>
     [Fact]
     public async Task LastTo_MatchesTheAddressWhateverItsCasing()
     {
@@ -58,10 +43,6 @@ public sealed class RecordedEmailsTests
         found.Subject.ShouldBe("Confirm your email address");
     }
 
-    /// <summary>
-    /// The answer is per address, not "the last message sent". A suite that registers two accounts
-    /// in one test would otherwise read the second account's token while asserting on the first.
-    /// </summary>
     [Fact]
     public async Task LastTo_AnswersForTheAddressAskedAboutAndNotTheLatestMessage()
     {
@@ -87,10 +68,6 @@ public sealed class RecordedEmailsTests
         InMemoryHost.MailboxOf(provider).LastTo("nobody@example.invalid").ShouldBeNull();
     }
 
-    /// <summary>
-    /// Asking for nothing is a mistake in the test, not an empty mailbox: a null return would read as
-    /// "no such message" and send the author looking at the wrong end of the failure.
-    /// </summary>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -112,10 +89,6 @@ public sealed class RecordedEmailsTests
             .ShouldBe(["First", "Second"]);
     }
 
-    /// <summary>
-    /// A snapshot is a copy. An integration test asserting on a count while other requests are still
-    /// in flight would otherwise be reading a list that grows underneath it.
-    /// </summary>
     [Fact]
     public async Task Snapshot_DoesNotChangeWhenMoreMailArrives()
     {

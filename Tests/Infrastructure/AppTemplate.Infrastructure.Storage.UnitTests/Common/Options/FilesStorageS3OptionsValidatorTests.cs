@@ -6,16 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Common.Options;
 
-/// <summary>
-/// What stops the process from booting. This validator runs under <c>ValidateOnStart</c>, so every
-/// rule here is the difference between a misconfiguration reported at deployment and one reported by
-/// a client, hours later, as a failed upload.
-/// <para>
-/// The plaintext-endpoint rule is the one worth the most. A signed URL is a bearer right to read or
-/// write one object, and an <c>http://</c> endpoint means every one of them travels in clear — which
-/// nothing anywhere else would report, because the upload works.
-/// </para>
-/// </summary>
 public sealed class FilesStorageS3OptionsValidatorTests
 {
     private readonly FilesStorageS3OptionsValidator _validator = new();
@@ -23,10 +13,6 @@ public sealed class FilesStorageS3OptionsValidatorTests
     [Fact]
     public void ADeployedConfiguration_IsAccepted() => Validate(StorageFixture.Options()).Succeeded.ShouldBeTrue();
 
-    /// <summary>
-    /// No credentials at all is the shape a deployment with an instance role has: the SDK's own
-    /// chain supplies short-lived ones and nothing here holds a long-lived secret.
-    /// </summary>
     [Fact]
     public void AConfigurationWithNoCredentials_IsAccepted()
     {
@@ -45,10 +31,6 @@ public sealed class FilesStorageS3OptionsValidatorTests
     public void ABucketWithNoName_IsRefused(string bucketName) =>
         Failures(storage => storage.BucketName = bucketName).ShouldContain(failure => failure.Contains("BucketName"));
 
-    /// <summary>
-    /// Every one of these is refused by S3 itself, so accepting it here only moves the failure to the
-    /// first request — where it arrives as a signature error or a redirect that mentions none of it.
-    /// </summary>
     [Theory]
     [InlineData("ab")]
     [InlineData("App-Files")]
@@ -83,11 +65,6 @@ public sealed class FilesStorageS3OptionsValidatorTests
             .Succeeded.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// The escape hatch, and it is deliberate rather than reachable by picking a permissive value
-    /// somewhere else — the same shape <c>EmailOptions.AllowInsecureTransport</c> has, for the same
-    /// containerised-development reason.
-    /// </summary>
     [Fact]
     public void APlaintextEndpointAcceptedDeliberately_IsAllowed()
     {
@@ -117,11 +94,6 @@ public sealed class FilesStorageS3OptionsValidatorTests
             .ShouldContain(failure => failure.Contains("PublicEndpoint"));
     }
 
-    /// <summary>
-    /// The rule that matters, aimed where it belongs. A signed URL is a bearer right to read or write
-    /// one object, and the endpoint it is minted for is the one it travels to — so a plaintext public
-    /// endpoint is the case worth refusing, whatever the endpoint this process talks to happens to be.
-    /// </summary>
     [Fact]
     public void APlaintextPublicEndpointBehindAnEncryptedInternalOne_IsRefused()
     {
@@ -135,14 +107,6 @@ public sealed class FilesStorageS3OptionsValidatorTests
         failures.ShouldContain(failure => failure.Contains($"'{FilesStorageS3Options.SectionName}:PublicEndpoint'"));
     }
 
-    /// <summary>
-    /// Plain HTTP inside a service mesh with TLS at the ingress is the ordinary shape, and that is why
-    /// it demands no permission: the internal endpoint carries this process's own calls, signed per
-    /// request, inside a network the operator chose; nothing re-usable is minted from it. Demanding
-    /// <c>AllowInsecureTransport</c> here would force this deployment to raise a flag that would then
-    /// let a genuinely plaintext public endpoint through unnoticed. The rule is about the public
-    /// endpoint, not the internal one.
-    /// </summary>
     [Fact]
     public void APlaintextInternalEndpointUnderAnEncryptedPublicOne_NeedsNoPermission()
     {
@@ -180,11 +144,6 @@ public sealed class FilesStorageS3OptionsValidatorTests
         Validate(options).Succeeded.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// The failure names the key the operator actually wrote. A deployment that never stated a public
-    /// endpoint has no such line to correct, and sending it looking for one is how a clear message
-    /// becomes a support thread.
-    /// </summary>
     [Fact]
     public void TheClearTextFailure_NamesTheKeyThatCarriesTheEndpointItIsAbout()
     {
@@ -200,11 +159,6 @@ public sealed class FilesStorageS3OptionsValidatorTests
                 failure.Contains($"'{FilesStorageS3Options.SectionName}:PublicEndpoint' is an http URL"));
     }
 
-    /// <summary>
-    /// A configuration written before <c>Files:Storage:S3:PublicEndpoint</c> existed gets the same verdict it
-    /// always got, because the endpoint the rule looks at defaults to the one such a configuration
-    /// states. That is the compatibility promise, and it is a rule rather than a coincidence.
-    /// </summary>
     [Theory]
     [InlineData("http://objectstore:9000", false, false)]
     [InlineData("http://objectstore:9000", true, true)]
@@ -229,10 +183,6 @@ public sealed class FilesStorageS3OptionsValidatorTests
         Validate(options).Succeeded.ShouldBe(expected);
     }
 
-    /// <summary>
-    /// Half a credential pair is always a mistake, and the shape it takes is a process that starts
-    /// and signs every request as nobody.
-    /// </summary>
     [Fact]
     public void AKeyIdWithNoSecret_IsRefused()
     {
@@ -254,10 +204,6 @@ public sealed class FilesStorageS3OptionsValidatorTests
             .ShouldContain(failure => failure.Contains("MaxGrantLifetime"));
     }
 
-    /// <summary>
-    /// Signature Version 4 will not sign for longer than seven days, so a larger ceiling could never
-    /// be honoured and would present as a signing exception on somebody's first upload.
-    /// </summary>
     [Fact]
     public void AGrantCeilingLongerThanASignatureCanCarry_IsRefused()
     {

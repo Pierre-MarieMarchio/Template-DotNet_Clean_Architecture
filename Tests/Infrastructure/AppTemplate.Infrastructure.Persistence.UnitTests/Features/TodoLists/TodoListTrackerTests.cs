@@ -8,22 +8,11 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.TodoLists;
 
-/// <summary>
-/// The three jobs EF's change tracker cannot do for aggregates it does not track: the identity map, the
-/// note that a row is on its way out, and the drain that domain-event dispatch depends on.
-/// </summary>
-/// <remarks>
-/// No database and no <c>DbContext</c> here. <c>FlushTo</c> needs EF's change tracker and is covered
-/// end to end in the integration suite; everything below is the tracker's own bookkeeping, and the
-/// failures it guards — an event delivered twice, or never — do not need a database to happen.
-/// </remarks>
 public sealed class TodoListTrackerTests
 {
     private static readonly DateTimeOffset _now = new(2026, 5, 6, 7, 8, 9, TimeSpan.Zero);
 
     private readonly TodoListMapper _mapper = new();
-
-    // ---- The identity map ----------------------------------------------------------------------
 
     [Fact]
     public void Find_ReturnsTheVerySameInstanceEveryTime()
@@ -61,8 +50,6 @@ public sealed class TodoListTrackerTests
             record,
             "the row is still staged for deletion, and the repository needs it to attach the token.");
     }
-
-    // ---- Draining ------------------------------------------------------------------------------
 
     [Fact]
     public void DrainDomainEvents_YieldsEachEventExactlyOnce()
@@ -109,11 +96,6 @@ public sealed class TodoListTrackerTests
             + "be undeliverable.");
     }
 
-    /// <summary>
-    /// The fallback path in the repository: an aggregate reconstructed elsewhere is in no identity map,
-    /// and marking it removed has to take it in. Before it did, the aggregate was never tracked, so its
-    /// events were never drained and never published — silently.
-    /// </summary>
     [Fact]
     public void MarkRemoved_TakesInAnAggregateThatWasNeverTracked()
     {
@@ -125,11 +107,6 @@ public sealed class TodoListTrackerTests
         tracker.DrainDomainEvents().ShouldHaveSingleItem();
     }
 
-    /// <summary>
-    /// The ordinary path, where the delete follows a load. The row already in the identity map is the one
-    /// EF is tracking; a removal must not swap it for a stub, or the flush would write onto an object the
-    /// change tracker has never seen.
-    /// </summary>
     [Fact]
     public void MarkRemoved_KeepsTheTrackedRow_WhenTheAggregateIsAlreadyKnown()
     {
@@ -141,8 +118,6 @@ public sealed class TodoListTrackerTests
 
         tracker.FindRecord(aggregate.Id).ShouldBeSameAs(tracked);
     }
-
-    // ---- Restoring after a failed save ---------------------------------------------------------
 
     [Fact]
     public void Restore_HandsTheEventsBackOnTheNextDrain()
@@ -180,14 +155,11 @@ public sealed class TodoListTrackerTests
     [Fact]
     public void Restore_RejectsNull() => Should.Throw<ArgumentNullException>(() => ATracker().Restore(null!));
 
-    // ---- Fixture -------------------------------------------------------------------------------
-
     private TodoListTracker ATracker() => new(_mapper);
 
     private static TodoList ANewList(string name) =>
         TodoList.Create(ATodoListAggregate.OwnerId, name, _now);
 
-    /// <summary>Registers an aggregate the way the repository does, and hands back its row.</summary>
     private TodoListRecord Track(TodoListTracker tracker, TodoList aggregate)
     {
         var record = _mapper.ToNewRecord(aggregate);

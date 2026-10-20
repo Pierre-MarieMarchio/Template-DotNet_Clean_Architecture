@@ -58,10 +58,6 @@ public sealed class JobsFilesOptionsValidatorTests
         _validator.Validate(name: null, options).Failed.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// A pass of the orphan sweep lists up to a quarter of a million keys, so a sub-minute cadence
-    /// describes a loop that never idles rather than a schedule anybody chose.
-    /// </summary>
     [Fact]
     public void Validate_Fails_WhenTheReclaimIntervalIsBelowAMinute()
     {

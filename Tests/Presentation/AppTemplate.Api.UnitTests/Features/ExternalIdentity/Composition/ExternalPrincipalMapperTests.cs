@@ -13,11 +13,6 @@ using RoleSource = AppTemplate.Api.Features.ExternalIdentity.Configuration.Optio
 
 namespace AppTemplate.Api.UnitTests.Features.ExternalIdentity.Composition;
 
-/// <summary>
-/// The step between a validated token and the caller this API serves, and above all what it refuses:
-/// no issuer, no subject, an oversized key, or a provider-sent identity claim standing in for the
-/// mapped one.
-/// </summary>
 public sealed class ExternalPrincipalMapperTests
 {
     private const string _issuer = "https://idp.example.com/realms/app";
@@ -66,11 +61,6 @@ public sealed class ExternalPrincipalMapperTests
             new ExternalCallerDto(_issuer, "object-1", "a@example.com", "Ada"), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Reminders are sent to the kept address, so one the provider says it has not verified is not
-    /// kept; an absent <c>email_verified</c> proves nothing either way, since Entra ID and others
-    /// never send it.
-    /// </summary>
     [Theory]
     [InlineData("true", "a@example.com")]
     [InlineData("false", null)]
@@ -175,7 +165,6 @@ public sealed class ExternalPrincipalMapperTests
             claims.Select(claim => new Claim(claim.Type, claim.Value)),
             authenticationType: "Bearer"));
 
-    /// <summary>An unsigned token is enough here: validation is the handler's job, and has happened.</summary>
     private static JsonWebToken Token(string extraPayload = "{}")
     {
         string payload = extraPayload.Length > 2

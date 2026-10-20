@@ -16,17 +16,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Passkeys.Adapters.Services;
 
-/// <summary>
-/// <see cref="PasskeyService"/> over a real <see cref="UserManager{TUser}"/> and a substituted
-/// <see cref="IPasskeyHandler{TUser}"/>: the ceremonies' arithmetic is the framework's and is not
-/// retested here — what these prove is the glue the adapter owns. The account the ceremony's
-/// state names is the account the credential lands on, a credential the account does not hold is
-/// not removed, a vanished account is not an error where its owner is only reading, and a
-/// sign-in's new signature counter is persisted before the account is handed back. And the state
-/// joining a ceremony's two calls: sealed, time-limited, bound to its ceremony kind, and spent
-/// before the handler ever sees it — over a real data protector and a substituted spent-ceremony
-/// table, whose single-use guarantee the database makes and the integration suite asserts.
-/// </summary>
 public sealed class PasskeyServiceTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
@@ -36,9 +25,7 @@ public sealed class PasskeyServiceTests
     private readonly EphemeralDataProtectionProvider _dataProtection = new();
     private readonly ISpentPasskeyCeremonyTable _spentCeremonies = Substitute.For<ISpentPasskeyCeremonyTable>();
 
-    // At the machine's own time, because the time-limited protector reads that clock and this one
-    // must agree with it for a state to be sealed and unsealed at all.
-    private readonly MovableDateTimeProvider _clock = new(DateTimeOffset.UtcNow);
+    private readonly MovableDateTimeProvider _clockAtTheMachinesTime = new(DateTimeOffset.UtcNow);
 
     private readonly IUserStore<AppUser> _store = (IUserStore<AppUser>)Substitute.For(
         [
@@ -58,16 +45,15 @@ public sealed class PasskeyServiceTests
     {
         _httpContextAccessor.HttpContext.Returns(new DefaultHttpContext());
 
-        // The store's update is the UserManager's own step around every passkey write; a
-        // substituted IUserStore returns a null result for it, which would fault inside the
-        // manager rather than say anything about this adapter.
         _store.UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(IdentityResult.Success));
 
-        // Every state is fresh unless a test says it was spent already.
+        GivenEveryStateIsFreshUnlessATestSpendsIt();
+    }
+
+    private void GivenEveryStateIsFreshUnlessATestSpendsIt() =>
         _spentCeremonies.TrySpendAsync(Arg.Any<string>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
             .Returns(true);
-    }
 
     [Fact]
     public async Task BeginRegistrationAsync_WithoutAnAccount_IsRefused()
@@ -116,11 +102,6 @@ public sealed class PasskeyServiceTests
         registration.Status.ShouldBe(PasskeyRegistrationStatus.InvalidCeremony);
     }
 
-    /// <summary>
-    /// The ceremony state was issued naming this account's handle; one naming another's was not
-    /// issued to this caller, and completing it would store a credential whose user handle answers
-    /// a different account.
-    /// </summary>
     [Fact]
     public async Task CompleteRegistrationAsync_AStateNamingAnotherAccount_IsRefused()
     {
@@ -135,7 +116,6 @@ public sealed class PasskeyServiceTests
         await Store.DidNotReceiveWithAnyArgs().AddOrUpdatePasskeyAsync(default!, default!, TestToken);
     }
 
-    /// <summary>The account left between the re-authentication the use case demanded and the store.</summary>
     [Fact]
     public async Task CompleteRegistrationAsync_AnAccountThatNoLongerExists_IsRefused()
     {
@@ -169,10 +149,6 @@ public sealed class PasskeyServiceTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The store write itself is void-shaped; what can refuse is the <c>UserManager</c> update
-    /// that surrounds it, so the refusal is produced by a validator that rejects the update.
-    /// </summary>
     [Fact]
     public async Task CompleteRegistrationAsync_AStoreRefusal_IsRefused()
     {
@@ -222,11 +198,6 @@ public sealed class PasskeyServiceTests
         (await CreateService().RemoveAsync(_userId, [1, 2, 3], TestToken)).ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The read before the remove is what makes an id the account never held and one belonging to
-    /// somebody else the same answer: <see cref="IUserPasskeyStore{TUser}.FindPasskeyAsync"/> only
-    /// looks among the account's own.
-    /// </summary>
     [Fact]
     public async Task RemoveAsync_ACredentialTheAccountDoesNotHold_AnswersNotFoundAndRemovesNothing()
     {
@@ -251,11 +222,6 @@ public sealed class PasskeyServiceTests
         (await CreateService().RemoveAsync(_userId, [1, 2, 3], TestToken)).ShouldBeTrue();
     }
 
-    /// <summary>
-    /// Identity's own <c>RemovePasskeyAsync</c> leaves the stamp alone, so the rotation that ends
-    /// the access tokens in circulation is the adapter's to make — after the removal, never for a
-    /// credential it did not remove.
-    /// </summary>
     [Fact]
     public async Task RemoveAsync_ACredentialTheAccountHolds_RotatesTheSecurityStampAfterRemovingIt()
     {
@@ -289,7 +255,6 @@ public sealed class PasskeyServiceTests
         challenge.SignInOptions.ShouldBe("the-request-options");
         challenge.AuthenticationState.ShouldNotContain("the-state");
         Unseal(SignInProtector(), challenge.AuthenticationState).ShouldBe("the-state");
-        // No account is named: the authenticator offers a discoverable credential.
         await _handler.Received(1).MakeRequestOptionsAsync(null, Arg.Any<HttpContext>());
     }
 
@@ -304,10 +269,6 @@ public sealed class PasskeyServiceTests
         assertion.Status.ShouldBe(PasskeySignInStatus.InvalidCeremony);
     }
 
-    /// <summary>
-    /// The counter before the account facts: a caller that mints tokens next must be reading a
-    /// credential whose replay window has already closed.
-    /// </summary>
     [Fact]
     public async Task CompleteSignInAsync_PersistsTheNewSignatureCounterBeforeAnswering()
     {
@@ -338,10 +299,6 @@ public sealed class PasskeyServiceTests
         assertion.Status.ShouldBe(PasskeySignInStatus.StoreRejected);
     }
 
-    /// <summary>
-    /// What the handler receives is what it issued, so the sealing is invisible to the ceremony:
-    /// the client carries the sealed form, the handler only ever reads its own.
-    /// </summary>
     [Fact]
     public async Task CompleteSignInAsync_HandsTheHandlerTheStateItIssued()
     {
@@ -358,8 +315,6 @@ public sealed class PasskeyServiceTests
     {
         GivenAVerifiedSignIn();
 
-        // The handler's own state, unsealed: what a client that forged one from the options it
-        // was given would post.
         var assertion = await CreateService().CompleteSignInAsync("the-credential", "the-state", TestToken);
 
         assertion.Status.ShouldBe(PasskeySignInStatus.InvalidCeremony);
@@ -372,7 +327,6 @@ public sealed class PasskeyServiceTests
         GivenAVerifiedSignIn();
         string sealedState = SignInState();
 
-        // One character changed in the middle, where the ciphertext and its tag are.
         int middle = sealedState.Length / 2;
         char replacement = sealedState[middle] == 'A' ? 'B' : 'A';
         string tampered = string.Concat(sealedState.AsSpan(0, middle), [replacement], sealedState.AsSpan(middle + 1));
@@ -383,14 +337,13 @@ public sealed class PasskeyServiceTests
         await ShouldNeitherSpendNorVerifyAsync();
     }
 
-    /// <summary>The module's clock is the one the lifetime is read against, as for every expiry here.</summary>
     [Fact]
     public async Task CompleteSignInAsync_AStatePastItsLifetime_IsRefusedBeforeTheHandler()
     {
         GivenAVerifiedSignIn();
         string sealedState = SignInState();
 
-        _clock.Advance(_lifetime);
+        _clockAtTheMachinesTime.Advance(_lifetime);
 
         var assertion = await CreateService().CompleteSignInAsync("the-credential", sealedState, TestToken);
 
@@ -398,10 +351,6 @@ public sealed class PasskeyServiceTests
         await ShouldNeitherSpendNorVerifyAsync();
     }
 
-    /// <summary>
-    /// And the machine's clock too, which the protector reads on its own: a state sealed to expire
-    /// before now is refused even by a module clock that has not reached its expiry.
-    /// </summary>
     [Fact]
     public async Task CompleteSignInAsync_AStateTheProtectorFindsExpired_IsRefusedBeforeTheHandler()
     {
@@ -438,7 +387,6 @@ public sealed class PasskeyServiceTests
         await ShouldNeitherSpendNorVerifyAsync();
     }
 
-    /// <summary>A registration state is sealed for its own account, so another's caller cannot even spend it.</summary>
     [Fact]
     public async Task CompleteRegistrationAsync_AStateSealedForAnotherAccount_IsRefusedBeforeTheHandler()
     {
@@ -457,7 +405,7 @@ public sealed class PasskeyServiceTests
         GivenAVerifiedRegistration();
         string sealedState = RegistrationState();
 
-        _clock.Advance(_lifetime);
+        _clockAtTheMachinesTime.Advance(_lifetime);
 
         var registration = await CreateService().CompleteRegistrationAsync(
             _userId, "the-credential", sealedState, null, TestToken);
@@ -466,10 +414,6 @@ public sealed class PasskeyServiceTests
         await ShouldNeitherSpendNorVerifyAsync();
     }
 
-    /// <summary>
-    /// The replay itself: a state the table says is spent never reaches the handler, however
-    /// well the ceremony would verify — the signature counter is not what stops it.
-    /// </summary>
     [Fact]
     public async Task CompleteSignInAsync_ASpentState_IsRefusedBeforeTheHandler()
     {
@@ -496,10 +440,6 @@ public sealed class PasskeyServiceTests
         await Store.DidNotReceiveWithAnyArgs().AddOrUpdatePasskeyAsync(default!, default!, TestToken);
     }
 
-    /// <summary>
-    /// Spent first, verified second, so a ceremony that fails still uses its state up: a caller
-    /// cannot keep one state alive by presenting credentials that do not verify.
-    /// </summary>
     [Fact]
     public async Task CompleteSignInAsync_SpendsTheStateBeforeVerifying_EvenWhenTheCeremonyFails()
     {
@@ -530,15 +470,11 @@ public sealed class PasskeyServiceTests
         });
     }
 
-    /// <summary>
-    /// The record is keyed by a hash of the state, never the state, and lives as long as the state
-    /// does. Two states for two ceremonies never share a key.
-    /// </summary>
     [Fact]
     public async Task CompleteSignInAsync_RecordsAHashOfTheStateUntilTheStateExpires()
     {
         GivenAVerifiedSignIn();
-        var expiresAt = _clock.UtcNow.Add(_lifetime);
+        var expiresAt = _clockAtTheMachinesTime.UtcNow.Add(_lifetime);
 
         await CreateService().CompleteSignInAsync("the-credential", SignInState(), TestToken);
         await CreateService().CompleteSignInAsync("the-credential", SignInState("another-state"), TestToken);
@@ -554,10 +490,6 @@ public sealed class PasskeyServiceTests
         spends.ShouldAllBe(arguments => (DateTimeOffset)arguments[1]! == expiresAt);
     }
 
-    /// <summary>
-    /// The sweep runs where the table grows, and keeps a record a while past its state's expiry so
-    /// an instance whose clock runs behind still finds it.
-    /// </summary>
     [Fact]
     public async Task BeginSignInAsync_PurgesTheRecordsOfStatesLongExpired()
     {
@@ -567,7 +499,7 @@ public sealed class PasskeyServiceTests
         await CreateService().BeginSignInAsync(TestToken);
 
         await _spentCeremonies.Received(1).PurgeExpiredAsync(
-            Arg.Is<DateTimeOffset>(cutoff => cutoff < _clock.UtcNow),
+            Arg.Is<DateTimeOffset>(cutoff => cutoff < _clockAtTheMachinesTime.UtcNow),
             Arg.Any<CancellationToken>());
     }
 
@@ -644,12 +576,11 @@ public sealed class PasskeyServiceTests
     private ITimeLimitedDataProtector SignInProtector() =>
         _dataProtection.CreateProtector(PasskeyService.SignInStatePurpose).ToTimeLimitedDataProtector();
 
-    /// <summary>A registration state as this API seals it, for <see cref="_userId"/> unless told otherwise.</summary>
     private string RegistrationState(Guid? userId = null) =>
-        RegistrationProtector(userId ?? _userId).Protect("the-state", _clock.UtcNow.Add(_lifetime));
+        RegistrationProtector(userId ?? _userId).Protect("the-state", _clockAtTheMachinesTime.UtcNow.Add(_lifetime));
 
     private string SignInState(string state = "the-state") =>
-        SignInProtector().Protect(state, _clock.UtcNow.Add(_lifetime));
+        SignInProtector().Protect(state, _clockAtTheMachinesTime.UtcNow.Add(_lifetime));
 
     private static string Unseal(ITimeLimitedDataProtector protector, string sealedState) =>
         protector.Unprotect(sealedState, out _);
@@ -676,15 +607,11 @@ public sealed class PasskeyServiceTests
             _directory,
             _dataProtection,
             _spentCeremonies,
-            clock ?? _clock,
+            clock ?? _clockAtTheMachinesTime,
             new OptionsWrapper<PasskeyOptions>(new PasskeyOptions()));
     }
 }
 
-/// <summary>
-/// Rejects every update, so the <c>UserManager</c> call that surrounds a passkey store write
-/// fails — the one refusal a void-shaped store write can produce.
-/// </summary>
 file sealed class RefusingValidator : IUserValidator<AppUser>
 {
     public Task<IdentityResult> ValidateAsync(UserManager<AppUser> manager, AppUser user) =>

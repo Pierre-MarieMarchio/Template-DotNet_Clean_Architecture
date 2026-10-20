@@ -5,17 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Idempotency;
 
-/// <summary>
-/// <see cref="IdempotencyStore.Decide"/> is what a retry gets handed back once the row it collides
-/// with has been read: the point where stored columns become an <see cref="IdempotentResponse"/>
-/// again. A column dropped here is silent — the replay simply arrives without it — so the validator
-/// is asserted explicitly.
-/// </summary>
-/// <remarks>
-/// No database. The row is built directly, which is exactly what a read from PostgreSQL produces;
-/// that the <c>ETag</c> column survives a real round trip is covered in
-/// <c>AppTemplate.Api.IntegrationTests</c>.
-/// </remarks>
 public sealed class IdempotencyStoreReplayTests
 {
     private const string _fingerprint = "9f2c1b7d4e6a8c05f3b9d1e7a2c4680f5d3b9e1a7c2f48609d5b3e1a7c2f4860";
@@ -31,11 +20,6 @@ public sealed class IdempotencyStoreReplayTests
             "a replayed representation is the same representation, so it carries the same validator");
     }
 
-    /// <summary>
-    /// A write that published no validator must replay as having none. An empty string would be a
-    /// syntactically valid <c>ETag</c> header value that matches nothing, which is worse than absent:
-    /// the caller would send it back in an <c>If-Match</c> that can only ever fail.
-    /// </summary>
     [Fact]
     public void Decide_ReplaysNoETag_WhenTheOriginalResponsePublishedNone()
     {
@@ -74,7 +58,6 @@ public sealed class IdempotencyStoreReplayTests
         IdempotencyStore.Decide(AKey(), record).Status.ShouldBe(IdempotencyStatus.InProgress);
     }
 
-    /// <summary>A dropped body cannot be replayed even when the validator survived it.</summary>
     [Fact]
     public void Decide_RefusesToReplay_WhenTheBodyWasTooLargeToStore()
     {
@@ -84,10 +67,6 @@ public sealed class IdempotencyStoreReplayTests
         IdempotencyStore.Decide(AKey(), record).Status.ShouldBe(IdempotencyStatus.NotReplayable);
     }
 
-    /// <summary>
-    /// A 204 has no body by definition, so a null <c>ResponseBody</c> there is the response itself and
-    /// not a dropped one. The status, <c>Location</c> and validator stored beside it replay unchanged.
-    /// </summary>
     [Fact]
     public void Decide_ReplaysACompleted204_WhoseBodyIsNullByDefinition()
     {

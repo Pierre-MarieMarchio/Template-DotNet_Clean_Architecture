@@ -9,11 +9,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Common.Hosting;
 
-/// <summary>
-/// Both option classes already have their own validator tests; what is worth asserting here is the
-/// wiring itself — that the bound values actually reach <see cref="HostOptions"/> and the framework's
-/// own <see cref="RequestTimeoutOptions"/>, which is the part a validator test cannot see.
-/// </summary>
 public sealed class HostLifecycleExtensionsTests
 {
     [Fact]

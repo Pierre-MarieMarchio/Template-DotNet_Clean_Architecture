@@ -47,8 +47,6 @@ public sealed class AccountsServiceRegisterTests
         _store.CreateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>()).Returns(IdentityResult.Success);
     }
 
-    #region The address's state
-
     [Fact]
     public async Task AnUnknownAddress_IsCreatedWithTheAddressAsItsUserName()
     {
@@ -144,10 +142,6 @@ public sealed class AccountsServiceRegisterTests
         await Should.ThrowAsync<DbUpdateException>(() => CreateAccounts().RegisterAsync(_email, _password, TestToken));
     }
 
-    #endregion
-
-    #region Refusals of the submitted values
-
     [Fact]
     public async Task ACodeThatMerelyContainsDuplicate_IsARejection()
     {
@@ -181,8 +175,6 @@ public sealed class AccountsServiceRegisterTests
         registration.PasswordRejection.ShouldNotBeNullOrEmpty();
         registration.EmailRejection.ShouldBeNull();
     }
-
-    #endregion
 
     private static AppUser ExistingAccount(bool confirmed) => new()
     {

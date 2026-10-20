@@ -27,26 +27,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Auth.Controllers;
 
-/// <summary>
-/// The transport decisions the external sign-in endpoint takes, asserted where they are taken.
-/// </summary>
-/// <remarks>
-/// The use case is substituted: which sign-ins are accepted is its own subject, and collapsing every
-/// refusal into one error is a guarantee it owns. What is left here is what no other layer can be
-/// asked about -- that the body a client receives really carries the branch tag, and that a second
-/// factor travels as a challenge rather than as a token pair.
-/// <para>
-/// The bodies are read from a response stream MVC wrote, never from
-/// <c>JsonSerializer.Serialize&lt;TBase&gt;(…)</c>: naming the polymorphic base in the test is what
-/// puts the discriminator in the JSON, so a test that does it proves its own arithmetic. The
-/// discriminator is only really there because <c>ApiControllerBase</c> sets
-/// <see cref="ObjectResult.DeclaredType"/>, and only a run through the output formatter can see that.
-/// </para>
-/// <para>
-/// The attribute rules for this surface live in <c>AuthenticationSurfaceTests</c>: they are claims
-/// about all five controllers answering the <c>auth</c> prefix, not about this one.
-/// </para>
-/// </remarks>
 public sealed class SessionsControllerTests
 {
     private static readonly DateTimeOffset _accessExpiry = new(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
@@ -55,12 +35,6 @@ public sealed class SessionsControllerTests
     private readonly ISignInWithExternalProviderUseCase _signInWithExternalProvider =
         Substitute.For<ISignInWithExternalProviderUseCase>();
 
-    #region What reaches the use case
-
-    /// <summary>
-    /// Two positional strings on both records, so swapping them compiles and ships an
-    /// <c>id_token</c> as a provider name. The values are distinct for that reason.
-    /// </summary>
     [Fact]
     public async Task LoginWithExternalProvider_HandsTheProviderAndTheTokenToTheUseCase()
     {
@@ -80,10 +54,6 @@ public sealed class SessionsControllerTests
         captured.Provider.ShouldBe("the-operators-name-for-a-provider");
         captured.IdToken.ShouldBe("the.id.token");
     }
-
-    #endregion
-
-    #region The body a client actually receives
 
     [Fact]
     public async Task AnAuthenticatedSignIn_IsServedWithItsStatusTag_AndTheTokensNested()
@@ -117,11 +87,6 @@ public sealed class SessionsControllerTests
         httpContext.Response.StatusCode.ShouldBe(StatusCodes.Status200OK);
     }
 
-    /// <summary>
-    /// The one that matters most: an account with a second factor armed must get a challenge out of
-    /// this endpoint and nothing else. Serving a pair here would make linking a provider the way to
-    /// walk around a second factor its owner armed.
-    /// </summary>
     [Fact]
     public async Task ASignInIntoATwoFactorAccount_IsServedAsAChallenge_AndCarriesNoToken()
     {
@@ -147,18 +112,9 @@ public sealed class SessionsControllerTests
             + "reaching a caller here is the second factor bypassed.");
     }
 
-    /// <summary>
-    /// The branch tags and the field names match <c>POST /auth/login</c>'s, which is the whole reason
-    /// this endpoint has a shape of its own rather than a bespoke one: a client already parsing a
-    /// password sign-in parses this without a second code path.
-    /// </summary>
     [Fact]
     public void TheTwoBranches_AreTaggedTheSameWayLoginsAre() =>
         DiscriminatorsOf(typeof(ExternalLoginResponse)).ShouldBe(DiscriminatorsOf(typeof(LoginResponse)));
-
-    #endregion
-
-    #region What a refusal says
 
     [Fact]
     public async Task ARefusal_Answers401_WithTheStableCode()
@@ -182,13 +138,6 @@ public sealed class SessionsControllerTests
             + "part of it is something an attacker chose.");
     }
 
-    /// <summary>
-    /// Which cause produced the refusal is the application layer's to hide, and it hides it by
-    /// returning one error for all of them. What this asserts is the half the API owns: that nothing
-    /// derived from the request reaches the body, so a refusal cannot be read for whether the provider
-    /// name meant anything or the token was even the right kind. Only the trace identifier differs,
-    /// and it names the request rather than its outcome.
-    /// </summary>
     [Fact]
     public async Task EveryRefusal_LooksTheSame_WhateverWasSent()
     {
@@ -207,9 +156,6 @@ public sealed class SessionsControllerTests
 
         unverified.ShouldBe(configured);
     }
-
-    #endregion
-    #region Fixture
 
     private static SignInWithExternalProviderRequest ARequest() => new("a-provider", "an.id.token");
 
@@ -231,9 +177,6 @@ public sealed class SessionsControllerTests
 
         using var body = await ServedBodyAsync(action.Result.ShouldBeOfType<ObjectResult>(), httpContext);
 
-        // Everything except the trace identifier, which names the request rather than its outcome, so
-        // any two responses differ in it and comparing whole documents would assert that two requests
-        // are the same one.
         var fields = body.RootElement
             .EnumerateObject()
             .Where(property => !string.Equals(property.Name, "traceId", StringComparison.Ordinal))
@@ -243,10 +186,6 @@ public sealed class SessionsControllerTests
         return string.Join('\n', fields);
     }
 
-    /// <summary>
-    /// The body MVC wrote, obtained by running the result through the same
-    /// <c>IActionResultExecutor</c> and output formatter the pipeline uses.
-    /// </summary>
     private static async Task<JsonDocument> ServedBodyAsync(ObjectResult result, HttpContext httpContext)
     {
         using var written = new MemoryStream();
@@ -271,10 +210,6 @@ public sealed class SessionsControllerTests
             .Order(StringComparer.Ordinal),
     ];
 
-    /// <summary>
-    /// Carries what MVC's own object-result executor resolves — the formatter set, the response
-    /// stream writer factory, the logger — so the JSON asserted on is the JSON the pipeline produces.
-    /// </summary>
     private static DefaultHttpContext AContext()
     {
         var services = new ServiceCollection();
@@ -303,6 +238,4 @@ public sealed class SessionsControllerTests
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext ?? AContext() },
         };
-
-    #endregion
 }

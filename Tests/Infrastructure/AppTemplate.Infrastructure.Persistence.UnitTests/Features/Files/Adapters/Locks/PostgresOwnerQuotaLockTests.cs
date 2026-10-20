@@ -9,19 +9,11 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Files.Adapters.Locks;
 
-/// <summary>
-/// What can be said about the PostgreSQL quota lock without a server: its key and its registration.
-/// The lock itself is exercised against PostgreSQL in the integration tests.
-/// </summary>
 public sealed class PostgresOwnerQuotaLockTests
 {
     private static readonly UserId _owner = UserId.Create(Guid.Parse("01890a5d-ac96-774b-bcce-b302099a8057"));
     private static readonly FileCategory _document = FileCategory.Create("document");
 
-    /// <summary>
-    /// Every host must compute the same key. The expected value is the first eight bytes, big-endian,
-    /// of SHA-256 over <c>files.quota:{owner}:{category}</c>, computed outside .NET.
-    /// </summary>
     [Fact]
     public void TheKey_IsTheNamespacedDigestOfOwnerAndCategory() =>
         PostgresOwnerQuotaLock.KeyOf(_owner, _document).ShouldBe(5650554713523010619L);

@@ -14,12 +14,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.TwoFactor.Adapters.Services;
 
-/// <summary>
-/// <see cref="TwoFactorService.IssueChallengeAsync"/> and <see cref="TwoFactorService.RedeemChallengeAsync"/> over a real <see cref="UserManager{TUser}"/>: whether a challenge
-/// is genuinely single-use, superseding, self-describing and time-limited — the four properties
-/// <c>ITwoFactorService</c> promises — and whether a right code from either the authenticator app
-/// or a recovery code is actually accepted.
-/// </summary>
 public sealed class TwoFactorServiceChallengeTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
@@ -95,7 +89,6 @@ public sealed class TwoFactorServiceChallengeTests
         redemption.Status.ShouldBe(TwoFactorRedemptionStatus.InvalidChallenge);
     }
 
-    /// <summary>The secret is a bearer credential: swapping it for another user's does not help either.</summary>
     [Fact]
     public async Task RedeemChallengeAsync_WithATamperedSecret_IsRejected()
     {
@@ -141,7 +134,6 @@ public sealed class TwoFactorServiceChallengeTests
         redemption.UsedRecoveryCode.ShouldBeFalse();
     }
 
-    /// <summary>Single-use: the same challenge cannot mint a second token pair.</summary>
     [Fact]
     public async Task RedeemChallengeAsync_ARightCode_ConsumesTheChallenge()
     {
@@ -172,7 +164,6 @@ public sealed class TwoFactorServiceChallengeTests
         redemption.UsedRecoveryCode.ShouldBeTrue();
     }
 
-    /// <summary>Recovery codes are single-use: redeeming one removes it from the set.</summary>
     [Fact]
     public async Task RedeemChallengeAsync_ARightRecoveryCode_CannotBeReplayedOnANewChallenge()
     {
@@ -189,10 +180,6 @@ public sealed class TwoFactorServiceChallengeTests
         replay.Status.ShouldBe(TwoFactorRedemptionStatus.InvalidCode);
     }
 
-    /// <summary>
-    /// A mistyped code should not force the caller back through <c>/login</c> — up to the ceiling the
-    /// case below asserts.
-    /// </summary>
     [Fact]
     public async Task RedeemChallengeAsync_AWrongCode_LeavesTheChallengeLiveForARetry()
     {
@@ -208,16 +195,6 @@ public sealed class TwoFactorServiceChallengeTests
         right.Status.ShouldBe(TwoFactorRedemptionStatus.Verified);
     }
 
-    /// <summary>
-    /// The ceiling, and the only thing that bounds guessing a code.
-    /// </summary>
-    /// <remarks>
-    /// Account lockout counts failed <em>password</em> checks — <c>CheckPasswordSignInAsync</c> with
-    /// <c>lockoutOnFailure</c> — and presenting a code is not one. Without this counter a caller
-    /// holding the password could offer codes for the whole challenge lifetime, bounded only by a
-    /// rate limiter that is per process and therefore per replica. The right code is presented
-    /// last on purpose: what has to be refused is the challenge itself, not the code.
-    /// </remarks>
     [Fact]
     public async Task RedeemChallengeAsync_AfterTheConfiguredNumberOfWrongCodes_DestroysTheChallenge()
     {
@@ -237,9 +214,6 @@ public sealed class TwoFactorServiceChallengeTests
                 "must not answer identically here.");
         }
 
-        // Asserted before another redemption is attempted, and that ordering is the point: the
-        // challenge has to be destroyed by the write that reached the ceiling, not merely refused by
-        // the next call to arrive. A row left behind is a row that answers one more guess.
         _tokens.ShouldBeEmpty(
             "the third wrong code took the last attempt, so the challenge must already be gone from " +
             "the store rather than waiting to be refused on presentation.");
@@ -255,14 +229,6 @@ public sealed class TwoFactorServiceChallengeTests
             "Anything else leaves the six-digit space open to whoever already has the password.");
     }
 
-    /// <summary>
-    /// Spending an attempt rewrites the challenge, and must carry its deadline over untouched.
-    /// </summary>
-    /// <remarks>
-    /// The counter lives in the same stored value as the expiry, so the write that records a wrong
-    /// code is also the write that could extend one — which would turn guessing into a way of keeping
-    /// a challenge alive for ever, one wrong code at a time.
-    /// </remarks>
     [Fact]
     public async Task RedeemChallengeAsync_AWrongCode_DoesNotExtendTheChallengesLife()
     {
@@ -287,7 +253,6 @@ public sealed class TwoFactorServiceChallengeTests
             "make the lifetime a value an attacker controls.");
     }
 
-    /// <summary>Only the latest challenge for an account is ever live — see <c>ITwoFactorService</c>.</summary>
     [Fact]
     public async Task IssueChallengeAsync_CalledAgain_SupersedesThePreviousChallenge()
     {
@@ -315,9 +280,6 @@ public sealed class TwoFactorServiceChallengeTests
 
     private static string GenerateBase32Key()
     {
-        // Twenty random bytes, base32-encoded by hand with the RFC 4648 alphabet — the same shape
-        // ResetAuthenticatorKeyAsync produces. Encoding is not RFC 6238: it carries no cryptographic
-        // meaning of its own, only how the random bytes below are spelled.
         const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
         byte[] bytes = new byte[20];
         Random.Shared.NextBytes(bytes);

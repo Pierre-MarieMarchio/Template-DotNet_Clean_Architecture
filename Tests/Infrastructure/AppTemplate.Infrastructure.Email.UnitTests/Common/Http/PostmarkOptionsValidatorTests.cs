@@ -4,13 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Email.UnitTests.Common.Http;
 
-/// <summary>
-/// This validator runs under <c>ValidateOnStart</c>, so what it rejects is what stops the process
-/// from booting. Its transport rule is the counterpart of the SMTP one: there the danger is a mode
-/// that falls back to plaintext, here it is a base URL that is plaintext to begin with — and what
-/// travels in the clear then is not one message but the credential that sends all of them, on every
-/// request.
-/// </summary>
 public sealed class PostmarkOptionsValidatorTests
 {
     private static readonly PostmarkOptionsValidator _validator = new();
@@ -66,10 +59,6 @@ public sealed class PostmarkOptionsValidatorTests
         message.ShouldContain("readable on the wire");
     }
 
-    /// <summary>
-    /// The one exception, for the same reason the SMTP rule makes it: a request that never leaves the
-    /// machine cannot be read off a network. It is what lets a local mock stand in for the provider.
-    /// </summary>
     [Theory]
     [InlineData("http://localhost:8025/")]
     [InlineData("http://127.0.0.1:8025/")]
@@ -82,10 +71,6 @@ public sealed class PostmarkOptionsValidatorTests
         _validator.Validate(name: null, options).Succeeded.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// One pass reports everything, for the same reason the SMTP validator does: otherwise fixing a
-    /// misconfigured transport is one restart per mistake.
-    /// </summary>
     [Fact]
     public void Validate_ReportsEveryFailureFromASinglePass()
     {
@@ -102,10 +87,6 @@ public sealed class PostmarkOptionsValidatorTests
         result.Failures.ShouldNotBeNull().Count().ShouldBe(3);
     }
 
-    /// <summary>
-    /// No failure may render the credential. This validator is handed the token and reports on it by
-    /// name in two of its three rules, which is exactly where quoting the value would look helpful.
-    /// </summary>
     [Fact]
     public void Validate_NamesTheServerTokenKeyWithoutQuotingItsValue()
     {
@@ -142,6 +123,5 @@ public sealed class PostmarkOptionsValidatorTests
         return message;
     }
 
-    /// <summary>Settings that would pass every rule, so a test can spoil one field at a time.</summary>
     private static PostmarkOptions Valid() => new() { ServerToken = "postmark-server-token-3f9c1a7e" };
 }

@@ -6,11 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// Mirrors <see cref="AccountEmailFactoryConfirmationTests"/>: the factory's job is to put a user-supplied
-/// address into an HTML document, which makes it an injection site, and the encoding is the whole
-/// defence.
-/// </summary>
 public sealed class AccountEmailFactoryPasswordResetTests
 {
     private const string _resetPage = "https://localhost:5001/reset-password";
@@ -30,10 +25,6 @@ public sealed class AccountEmailFactoryPasswordResetTests
         message.HtmlBody.ShouldNotContain("<a href=\"https://evil.test\"");
     }
 
-    /// <summary>
-    /// The token travels in the link's fragment, which browsers never send to a server, so it stays
-    /// out of access logs and <c>Referer</c> headers.
-    /// </summary>
     [Fact]
     public async Task CreatePasswordReset_PutsTheTokenInTheLinkFragment()
     {

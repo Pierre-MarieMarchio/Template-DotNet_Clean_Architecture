@@ -8,7 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Notes.Contracts.Mapping;
 
-/// <summary>A hand-written mapper's only failure mode is a field nobody copied, so each test asserts the whole shape.</summary>
 public sealed class NoteResponseMappingTests
 {
     private static readonly DateTimeOffset _createdAt = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);

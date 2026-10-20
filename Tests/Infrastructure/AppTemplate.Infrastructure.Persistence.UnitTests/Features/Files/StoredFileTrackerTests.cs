@@ -9,27 +9,12 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Files;
 
-/// <summary>
-/// The three jobs EF's change tracker cannot do for aggregates it does not track: the identity map, the
-/// note that a row is on its way out, and the drain that domain-event dispatch depends on.
-/// </summary>
-/// <remarks>
-/// No database and no <c>DbContext</c> here. <c>FlushTo</c> needs EF's change tracker and is covered end
-/// to end in the integration suite; everything below is the tracker's own bookkeeping.
-/// <para>
-/// The drain matters more for this feature than for most: <c>StoredFileDeletedDomainEvent</c> is raised
-/// on the way out, and it is what reclaims a deleted file's bytes promptly rather than at the next
-/// sweep. An event lost between <c>Remove</c> and the commit costs storage until then.
-/// </para>
-/// </remarks>
 public sealed class StoredFileTrackerTests
 {
     private static readonly DateTimeOffset _registeredAt = new(2026, 5, 6, 7, 8, 9, TimeSpan.Zero);
     private static readonly DateTimeOffset _confirmedAt = _registeredAt.AddMinutes(3);
 
     private readonly StoredFileMapper _mapper = new();
-
-    // ---- The identity map ----------------------------------------------------------------------
 
     [Fact]
     public void Find_ReturnsTheVerySameInstanceEveryTime()
@@ -68,8 +53,6 @@ public sealed class StoredFileTrackerTests
             "the row is still staged for deletion, and the repository needs it to attach the token.");
     }
 
-    // ---- Draining ------------------------------------------------------------------------------
-
     [Fact]
     public void DrainDomainEvents_YieldsEachEventExactlyOnce()
     {
@@ -101,12 +84,6 @@ public sealed class StoredFileTrackerTests
             .ShouldBe([first.Id, second.Id], ignoreOrder: true);
     }
 
-    /// <summary>
-    /// The deletion path, and the one that costs storage when it fails. <c>Delete</c> raises the event
-    /// that reclaims the bytes now; the row is staged for removal in the same breath, so a tracker that
-    /// stopped draining a removed aggregate would leave every deleted file's content on the store until
-    /// the next sweep.
-    /// </summary>
     [Fact]
     public void DrainDomainEvents_StillYieldsTheEventsOfARemovedAggregate()
     {
@@ -122,11 +99,6 @@ public sealed class StoredFileTrackerTests
             .ShouldBeOfType<StoredFileDeletedDomainEvent>();
     }
 
-    /// <summary>
-    /// The fallback path in the repository: an aggregate reconstructed elsewhere is in no identity map,
-    /// and marking it removed has to take it in. Before it did, the aggregate was never tracked, so its
-    /// events were never drained and never published — silently.
-    /// </summary>
     [Fact]
     public void MarkRemoved_TakesInAnAggregateThatWasNeverTracked()
     {
@@ -139,11 +111,6 @@ public sealed class StoredFileTrackerTests
         tracker.DrainDomainEvents().ShouldHaveSingleItem();
     }
 
-    /// <summary>
-    /// The ordinary path, where the delete follows a load. The row already in the identity map is the one
-    /// EF is tracking; a removal must not swap it for a stub, or the flush would write onto an object the
-    /// change tracker has never seen.
-    /// </summary>
     [Fact]
     public void MarkRemoved_KeepsTheTrackedRow_WhenTheAggregateIsAlreadyKnown()
     {
@@ -155,8 +122,6 @@ public sealed class StoredFileTrackerTests
 
         tracker.FindRecord(aggregate.Id).ShouldBeSameAs(tracked);
     }
-
-    // ---- Restoring after a failed save ---------------------------------------------------------
 
     [Fact]
     public void Restore_HandsTheEventsBackOnTheNextDrain()
@@ -195,14 +160,8 @@ public sealed class StoredFileTrackerTests
     [Fact]
     public void Restore_RejectsNull() => Should.Throw<ArgumentNullException>(() => ATracker().Restore(null!));
 
-    // ---- Fixture -------------------------------------------------------------------------------
-
     private StoredFileTracker ATracker() => new(_mapper);
 
-    /// <summary>
-    /// A freshly registered file, through the real factory — so its key is minted the way a real one is
-    /// and each sample gets its own id.
-    /// </summary>
     private static StoredFile ARegisteredFile() => StoredFile.Register(
         AStoredFileAggregate.OwnerId,
         FileCategory.Create(AStoredFileAggregate.CategoryName),
@@ -212,7 +171,6 @@ public sealed class StoredFileTrackerTests
         Sha256Checksum.Create(AStoredFileAggregate.ChecksumValue),
         _registeredAt);
 
-    /// <summary>A file that has raised its confirmation event, ready to be tracked.</summary>
     private static StoredFile AConfirmedFile()
     {
         var storedFile = ARegisteredFile();
@@ -225,7 +183,6 @@ public sealed class StoredFileTrackerTests
         return storedFile;
     }
 
-    /// <summary>Registers an aggregate the way the repository does, and hands back its row.</summary>
     private StoredFileRecord Track(StoredFileTracker tracker, StoredFile aggregate)
     {
         var record = _mapper.ToNewRecord(aggregate);

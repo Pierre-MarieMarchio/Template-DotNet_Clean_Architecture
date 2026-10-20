@@ -9,10 +9,6 @@ public sealed class FilesScanningOptionsValidatorTests
 {
     private readonly FilesScanningOptionsValidator _validator = new();
 
-    /// <summary>
-    /// <b>The shipped state, asserted.</b> A deployment that configures nothing here has to start:
-    /// the type check needs no scanner.
-    /// </summary>
     [Fact]
     public void AConfigurationWithScanningDisabled_IsValid() =>
         Validate(new FilesScanningOptions()).Succeeded.ShouldBeTrue();
@@ -22,10 +18,6 @@ public sealed class FilesScanningOptionsValidatorTests
         Validate(new FilesScanningOptions { Enabled = true, Host = "clamav", Port = 3310 })
             .Succeeded.ShouldBeTrue();
 
-    /// <summary>
-    /// Enabled with nowhere to connect would leave every deposited file waiting for a verdict that
-    /// never comes, reported by users rather than at start-up.
-    /// </summary>
     [Fact]
     public void AnEnabledScannerWithNoHost_IsRefused()
     {
@@ -47,15 +39,10 @@ public sealed class FilesScanningOptionsValidatorTests
         result.FailureMessage.ShouldContain("Files:Scanning:Port");
     }
 
-    /// <summary>A port nothing will dial is not judged: a disabled deployment leaves it at a default.</summary>
     [Fact]
     public void APortNothingWillDial_IsNotJudged() =>
         Validate(new FilesScanningOptions { Port = 0 }).Succeeded.ShouldBeTrue();
 
-    /// <summary>
-    /// Below a megabyte every real upload would come back as not inspectable, and the policy refuses
-    /// those: a system that quarantines everything.
-    /// </summary>
     [Fact]
     public void AStreamCeilingBelowAnyRealFile_IsRefused()
     {

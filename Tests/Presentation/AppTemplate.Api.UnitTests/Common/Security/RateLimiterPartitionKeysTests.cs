@@ -7,17 +7,8 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Common.Security;
 
-/// <summary>
-/// The partition key selector in isolation, independent of where in the pipeline it ends up wired.
-/// </summary>
 public sealed class RateLimiterPartitionKeysTests
 {
-    /// <summary>
-    /// An authenticated caller gets the same key as an anonymous one from the same address. That is
-    /// the decision, not an omission: partitioning by identity would require authentication to run
-    /// before the limiter, which would make every rejected request pay for a bearer validation and
-    /// its security stamp read first.
-    /// </summary>
     [Fact]
     public void ForAddress_ReturnsThePrefixedAddress_RegardlessOfAuthentication()
     {
@@ -34,10 +25,6 @@ public sealed class RateLimiterPartitionKeysTests
         RateLimiterPartitionKeys.ForAddress(httpContext).ShouldBe("ip:unknown");
     }
 
-    /// <summary>
-    /// Two callers from different addresses must never fold into one partition, which is the whole
-    /// property the limiter rests on.
-    /// </summary>
     [Fact]
     public void ForAddress_KeepsTwoDistinctAddressesApart()
     {

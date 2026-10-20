@@ -8,16 +8,8 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Notes.Rows.Configurations;
 
-/// <summary>
-/// Assertions against the built EF model. No database is contacted: the provider is only there so the
-/// model carries the same relational mapping the real one has.
-/// </summary>
 public sealed class NoteRecordConfigurationTests
 {
-    /// <summary>
-    /// The concurrency token is PostgreSQL's own <c>xmin</c>, read back after every write and put into
-    /// the <c>WHERE</c> clause of the next UPDATE or DELETE. A row without it accepts a lost update.
-    /// </summary>
     [Fact]
     public void TheVersion_IsTheDatabasesOwnConcurrencyToken()
     {
@@ -34,10 +26,6 @@ public sealed class NoteRecordConfigurationTests
     public void EveryTextColumn_IsAsLongAsTheValidatorAllows(string property, int expected) =>
         Entity().FindProperty(property)!.GetMaxLength().ShouldBe(expected);
 
-    /// <summary>
-    /// Every read filters by owner, so every index that serves a sortable field leads with it and ends
-    /// in the id the sort map appends as its tiebreaker.
-    /// </summary>
     [Fact]
     public void EverySortIndex_LeadsWithTheOwner_AndEndsWithTheId()
     {

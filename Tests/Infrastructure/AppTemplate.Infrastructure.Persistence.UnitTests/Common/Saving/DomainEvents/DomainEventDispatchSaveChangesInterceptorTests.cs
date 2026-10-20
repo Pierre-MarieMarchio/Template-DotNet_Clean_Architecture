@@ -13,14 +13,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Saving.DomainEvents;
 
-/// <summary>
-/// Publishing after the commit is only half the guarantee. The other half is what happens when the
-/// commit does not arrive, and when a consumer misbehaves after it has.
-/// </summary>
-/// <remarks>
-/// The contexts are real and never connect: a save is described to the interceptor rather than run,
-/// and the context only has to say which rows it is tracking.
-/// </remarks>
 public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
 {
     private const string _neverOpened = "Host=nowhere;Database=never-opened;Username=none;Password=none";
@@ -31,7 +23,6 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
     private readonly TodoListTracker _tracker;
     private readonly RecordingLogger<DomainEventDispatchSaveChangesInterceptor> _logger = new();
 
-    /// <summary>The context the tracked rows are staged on.</summary>
     private readonly AppDbContext _context = AnAppDbContext();
 
     public DomainEventDispatchSaveChangesInterceptorTests() => _tracker = new TodoListTracker(_mapper);
@@ -55,11 +46,6 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
         dispatcher.Dispatched.Count.ShouldBe(1, "a committed save must not re-publish what it published");
     }
 
-    /// <summary>
-    /// A failed save commits nothing, so nothing may be published — and nothing may be lost either. The
-    /// documented recovery for a lost update is to reload and save again, and the events were taken out
-    /// of the aggregates before the failure: discarding them would leave the retry publishing silence.
-    /// </summary>
     [Fact]
     public async Task AFailedSave_PublishesNothingButKeepsTheEventsForTheRetry()
     {
@@ -103,11 +89,6 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
         dispatcher.Dispatched.ShouldHaveSingleItem();
     }
 
-    /// <summary>
-    /// The worst failure shape available, and the one this guards: by the time dispatch runs the
-    /// transaction has committed, so an exception escaping here would tell the caller a write failed that
-    /// in fact landed — and the caller would retry an already-applied write.
-    /// </summary>
     [Fact]
     public async Task AThrowingConsumer_LeavesTheCommitAlone_AndTheOtherEventsPublished()
     {
@@ -141,15 +122,9 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
         var reported = _logger.Entries.ShouldHaveSingleItem();
         reported.Level.ShouldBe(LogLevel.Error);
         reported.Exception.ShouldBeSameAs(failure);
-        // A swallowed failure that does not say which event it lost is not diagnosable.
         reported.Message.ShouldContain(nameof(TodoListCreatedDomainEvent));
     }
 
-    /// <summary>
-    /// A failed dispatch is not a failed commit, and therefore not something the next save retries: the
-    /// event was taken and is gone. Publishing it again on the next save would make delivery at-least-once
-    /// for consumers that happened to fail, which is a different contract from the one documented.
-    /// </summary>
     [Fact]
     public async Task AThrownAwayEvent_IsNotPublishedAgainByTheNextSave()
     {
@@ -169,10 +144,6 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
         dispatched.Count.ShouldBe(1);
     }
 
-    /// <summary>
-    /// The idempotency store commits through a second instance of the same context in the same
-    /// request. Its save is not the business commit, so it takes none of the business events.
-    /// </summary>
     [Fact]
     public async Task ASaveOfAnotherInstanceOfTheContext_TakesNoneOfTheEvents()
     {
@@ -193,10 +164,6 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
         dispatcher.Dispatched.ShouldHaveSingleItem().ShouldBeOfType<TodoListCreatedDomainEvent>();
     }
 
-    /// <summary>
-    /// A context whose model has no such row, as the identity module's has none of the business
-    /// rows, is answered without being asked about a row it cannot map.
-    /// </summary>
     [Fact]
     public async Task ASaveOfAContextThatDoesNotMapTheRows_TakesNoneOfTheEvents()
     {
@@ -218,10 +185,6 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
         dispatcher.Dispatched.ShouldHaveSingleItem();
     }
 
-    /// <summary>
-    /// What a save collected belongs to that save: another context's failure hands nothing back, and
-    /// does not stop the save that collected the events from publishing them.
-    /// </summary>
     [Fact]
     public async Task AnotherContextsFailure_LeavesThisSavesEventsToIt()
     {
@@ -249,8 +212,6 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
 
         dispatcher.Dispatched.ShouldHaveSingleItem().ShouldBeOfType<TodoListCreatedDomainEvent>();
     }
-
-    // ---- Fixture -------------------------------------------------------------------------------
 
     private DomainEventDispatchSaveChangesInterceptor AnInterceptor(IDomainEventDispatcher dispatcher) =>
         new(dispatcher, [_tracker], _logger);
@@ -290,7 +251,6 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
     private static TodoList ANewList(string name) =>
         TodoList.Create(ATodoListAggregate.OwnerId, name, _now);
 
-    /// <summary>Stages the list's row on <see cref="_context"/>, as the repository does.</summary>
     private void Track(TodoList aggregate)
     {
         var record = _mapper.ToNewRecord(aggregate);
@@ -302,6 +262,5 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
     private static AppDbContext AnAppDbContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_neverOpened).Options);
 
-    /// <summary>A context with a provider and a model that maps none of the business rows.</summary>
     private sealed class UnrelatedContext(DbContextOptions<UnrelatedContext> options) : DbContext(options);
 }

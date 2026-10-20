@@ -8,13 +8,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Features.Files;
 
-/// <summary>
-/// The module composed on its own, and the file doubles reached the way a request reaches them:
-/// out of a scope, behind their ports. The doubles are internal, so this is also the only way to
-/// reach them at all — which is the arrangement, not an obstacle: a test that named
-/// <c>InMemoryFileContentStore</c> would be asserting on the double instead of on the port it stands
-/// behind, and would not notice the day the module stopped registering it.
-/// </summary>
 internal static class FileContentHost
 {
     internal static ServiceProvider Compose() =>

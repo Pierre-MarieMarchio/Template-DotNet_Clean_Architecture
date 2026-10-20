@@ -5,10 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.TodoLists;
 
-/// <summary>
-/// How the audit stamps come off a row. The fidelity tests only ever load a fully stamped one, so the
-/// shape every freshly inserted list actually has — created, never modified — is exercised here.
-/// </summary>
 public sealed class TodoListMapperAuditTests
 {
     private readonly TodoListMapper _mapper = new();
@@ -37,11 +33,6 @@ public sealed class TodoListMapperAuditTests
         aggregate.LastModifiedBy.ShouldBe(ATodoListAggregate.LastModifiedBy);
     }
 
-    /// <summary>
-    /// The stamps are written as a pair by one interceptor, so a row carrying a modifier and no
-    /// timestamp cannot have come from this application. Reading the timestamp and ignoring the modifier
-    /// would drop it without a sound, which is why the mismatch is refused instead.
-    /// </summary>
     [Fact]
     public void ToAggregate_RefusesARowWithAModifierButNoModificationTime()
     {

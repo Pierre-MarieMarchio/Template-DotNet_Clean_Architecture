@@ -13,10 +13,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// <see cref="AccountsService.FindProfileAsync"/> always reads the store — see <c>IAccountsService</c> for why a claims-based
-/// shortcut is refused — so these assert what it reads and how it maps what comes back.
-/// </summary>
 public sealed class AccountsServiceProfileTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();

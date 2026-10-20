@@ -33,10 +33,6 @@ public sealed class AccountUserAccountDirectoryTests
         exists.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// The whole contract: what the consumers of the account-deleted fact re-derive their
-    /// precondition through. An id the store no longer answers is an account that is gone.
-    /// </summary>
     [Fact]
     public async Task AnIdTheUserStoreNoLongerAnswers_IsNotAnAccount()
     {

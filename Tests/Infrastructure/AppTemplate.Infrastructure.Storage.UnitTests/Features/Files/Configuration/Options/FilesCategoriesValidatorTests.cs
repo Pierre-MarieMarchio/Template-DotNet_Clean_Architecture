@@ -5,10 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Configuration.Options;
 
-/// <summary>
-/// The category rules that depend on this module's own sections: a scan needs scanning enabled, and
-/// a direct-only category needs a store that can sign.
-/// </summary>
 public sealed class FilesCategoriesValidatorTests
 {
     [Fact]

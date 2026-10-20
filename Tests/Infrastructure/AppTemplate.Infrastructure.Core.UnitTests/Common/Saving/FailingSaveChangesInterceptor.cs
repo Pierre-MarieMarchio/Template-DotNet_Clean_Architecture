@@ -2,10 +2,6 @@
 
 namespace AppTemplate.Infrastructure.Core.UnitTests.Common.Saving;
 
-/// <summary>
-/// Makes a save fail the way the database would, without a database: the exception is raised before EF
-/// asks the provider for a connection.
-/// </summary>
 internal sealed class FailingSaveChangesInterceptor(Exception failure) : SaveChangesInterceptor
 {
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(

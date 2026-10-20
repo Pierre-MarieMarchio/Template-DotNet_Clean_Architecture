@@ -12,16 +12,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Sessions.Adapters.Services;
 
-/// <summary>
-/// What the access token says about the session it was issued in, proven by reading a real token
-/// back rather than by inspecting the code that wrote it.
-/// </summary>
-/// <remarks>
-/// The claim's short name is load-bearing: the host reads <c>sid</c> back as written, because no
-/// inbound claim-type mapping renames it — a token that arrived as <c>sid</c> and was answered as
-/// something else would quietly turn every session into "unknown", and every revoke-on-change
-/// would revoke the caller's own session too.
-/// </remarks>
 public sealed class AccessTokenIssuerTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
@@ -43,10 +33,6 @@ public sealed class AccessTokenIssuerTests
         token.GetClaim(JwtRegisteredClaimNames.Sid).Value.ShouldBe(sessionId.ToString());
     }
 
-    /// <summary>
-    /// The claim's value is what the host's <c>Guid.TryParse</c> will be given, so it is asserted as
-    /// a round trip: parse the string out of the token and get the session back.
-    /// </summary>
     [Fact]
     public async Task TheSidClaim_ParsesBackAsTheSessionItWasIssuedIn()
     {
@@ -59,10 +45,6 @@ public sealed class AccessTokenIssuerTests
         parsed.ShouldBe(sessionId);
     }
 
-    /// <summary>
-    /// The account's own claims are the issuer's to collect: a claim revoked between two issuances
-    /// is gone from the next token, and the session id does not replace any of them.
-    /// </summary>
     [Fact]
     public async Task AnIssuedToken_StillCarriesTheAccountsOwnClaims()
     {

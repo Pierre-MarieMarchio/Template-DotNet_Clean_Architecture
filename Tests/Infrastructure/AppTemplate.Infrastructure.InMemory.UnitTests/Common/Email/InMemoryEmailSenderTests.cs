@@ -4,11 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Common.Email;
 
-/// <summary>
-/// The sender stands in for one that opens a socket, so what it has to get right is fidelity: the
-/// message is recorded as the port received it, and stamped with the clock the test controls rather
-/// than with the machine's.
-/// </summary>
 public sealed class InMemoryEmailSenderTests
 {
     [Fact]
@@ -29,11 +24,6 @@ public sealed class InMemoryEmailSenderTests
         recorded.HtmlBody.ShouldBe("<p>https://localhost:5001/confirm-email?token=abc</p>");
     }
 
-    /// <summary>
-    /// The stamp comes from the injected clock, which is what makes "this email was sent after the
-    /// token expired" assertable. A sender reading <see cref="DateTimeOffset.UtcNow"/> would stamp two
-    /// messages a few microseconds apart however far the test moved time.
-    /// </summary>
     [Fact]
     public async Task SendAsync_StampsTheMessageWithTheClockTheTestControls()
     {
@@ -50,10 +40,6 @@ public sealed class InMemoryEmailSenderTests
         stamps.ShouldBe([sendingInstant, sendingInstant.AddHours(2)]);
     }
 
-    /// <summary>
-    /// Cancellation is honoured before anything is recorded, so a cancelled request cannot leave a
-    /// message behind for a later assertion to find.
-    /// </summary>
     [Fact]
     public async Task SendAsync_RecordsNothingWhenTheRequestIsAlreadyCancelled()
     {

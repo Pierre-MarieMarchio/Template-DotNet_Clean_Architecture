@@ -4,11 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Presentation.Core.UnitTests.Common.Jobs;
 
-/// <summary>
-/// The loop every recurring host job is built from: it runs at once rather than after a first
-/// interval, it keeps running, and a cancellation ends it by returning instead of by throwing —
-/// which is what lets a caller log its own shutdown on the line after the call.
-/// </summary>
 public sealed class PeriodicJobTests
 {
     private static readonly TimeSpan _tinyInterval = TimeSpan.FromMilliseconds(20);
@@ -56,10 +51,6 @@ public sealed class PeriodicJobTests
         iterations.ShouldBe(3);
     }
 
-    /// <summary>
-    /// The stop landing while an iteration is still running is the case a caller's shutdown line
-    /// depends on: the iteration's own cancellation must not unwind through the loop.
-    /// </summary>
     [Fact]
     public async Task RunAsync_ReturnsNormally_WhenAnIterationIsCancelledMidFlight()
     {
@@ -76,8 +67,6 @@ public sealed class PeriodicJobTests
             },
             cancellation.Token);
 
-        // Reaching this line at all is the property: the iteration's own cancellation ended the
-        // loop instead of unwinding through it.
         iterations.ShouldBe(1);
     }
 
@@ -93,10 +82,6 @@ public sealed class PeriodicJobTests
                 cancellation.Token));
     }
 
-    /// <summary>
-    /// Anything other than the shutdown ends the loop and reaches the caller, so a job that has to
-    /// survive its own failures says so by handling them.
-    /// </summary>
     [Fact]
     public async Task RunAsync_PropagatesAnyOtherFailure()
     {

@@ -16,10 +16,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Auth.Contracts.Mapping;
 
-/// <summary>
-/// A hand-written projection fails by omission: a field nobody copied still compiles and still
-/// serialises, just empty. Every assertion here names every field for that reason.
-/// </summary>
 public sealed class AuthResponseMappingTests
 {
     [Fact]
@@ -49,10 +45,6 @@ public sealed class AuthResponseMappingTests
         authenticated.Tokens.RefreshTokenExpiresAt.ShouldBe(_refreshExpiry);
     }
 
-    /// <summary>
-    /// Signing in answers with tokens and nothing else. The profile lives on <c>GET /auth/me</c>, so
-    /// there is one definition of it rather than two that can drift.
-    /// </summary>
     [Fact]
     public void LoginResponse_Authenticated_PublishesNoProfileField()
     {
@@ -61,10 +53,6 @@ public sealed class AuthResponseMappingTests
         names.ShouldBe(["Tokens"]);
     }
 
-    /// <summary>
-    /// Nothing produces this branch yet. Mapping it anyway is the whole point of having declared it:
-    /// the second factor ships without changing the shape clients already parse.
-    /// </summary>
     [Fact]
     public void ToLoginResponse_MapsTwoFactorRequired()
     {
@@ -108,10 +96,6 @@ public sealed class AuthResponseMappingTests
         authenticated.AccountCreated.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// <c>false</c> is the value a copied-nothing projection produces, so the flag is asserted in both
-    /// states: a mapping that hard-coded it would pass the test above on its own.
-    /// </summary>
     [Fact]
     public void ToExternalLoginResponse_CarriesAccountCreated_ForASignInThatCreatedNothing()
     {
@@ -130,11 +114,6 @@ public sealed class AuthResponseMappingTests
         response.ShouldBeOfType<ExternalLoginResponse.Authenticated>().AccountCreated.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The branch a provider sign-in produces for an account whose owner armed a second factor. It
-    /// carries a challenge and nothing else: the token fields are not on this record at all, so no
-    /// mapping mistake can put a pair in it.
-    /// </summary>
     [Fact]
     public void ToExternalLoginResponse_MapsTwoFactorRequired()
     {
@@ -232,10 +211,6 @@ public sealed class AuthResponseMappingTests
         result.Error.ShouldBe(_someRefusal);
     }
 
-    /// <summary>
-    /// The wire format is the contract: the <c>status</c> tag and the nesting under <c>tokens</c> are
-    /// what a client is written against, so they are asserted on the JSON rather than on the type.
-    /// </summary>
     [Fact]
     public void Authenticated_SerialisesWithTheStatusTag_AndNestsTheTokens()
     {
@@ -369,11 +344,6 @@ public sealed class AuthResponseMappingTests
         response.AuthenticationState.ShouldBe("the-state");
     }
 
-    // Proves the contract's shape, not what MVC serves: `response` is declared as the polymorphic
-    // base on purpose, which is what puts the discriminator in the JSON below. MVC's own choice of
-    // starting type comes from ObjectResult.DeclaredType, which ApiControllerBase sets — matching
-    // JsonSerializerOptions here says nothing about that. Only a test that goes through the MVC
-    // pipeline (an integration test) proves the wire body actually looks like this.
     private static readonly JsonSerializerOptions _webJson = new(JsonSerializerDefaults.Web);
 
     private static readonly DateTimeOffset _accessExpiry = new(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);

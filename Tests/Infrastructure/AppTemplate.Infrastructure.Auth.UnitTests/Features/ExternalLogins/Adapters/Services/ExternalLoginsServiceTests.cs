@@ -11,14 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.ExternalLogins.Adapters.Services;
 
-/// <summary>
-/// The four primitives external sign-in is built from, over a real <see cref="UserManager{TUser}"/>
-/// and its <see cref="UserValidator{TUser}"/>.
-/// <para>
-/// An account provisioned without <c>EmailConfirmed</c> is created successfully and then refused at
-/// the very next step, on every first sign-in: a failure invisible until production.
-/// </para>
-/// </summary>
 public sealed class ExternalLoginsServiceTests : IDisposable
 {
     private const string _provider = "google";
@@ -26,11 +18,6 @@ public sealed class ExternalLoginsServiceTests : IDisposable
 
     private readonly AccountRows _rows = new();
     private readonly IAppUserDirectory _directory = Substitute.For<IAppUserDirectory>();
-    /// <summary>
-    /// The deployed policy, not the framework's defaults: <c>IdentityPolicyOptionsValidator</c>
-    /// refuses to let unique addresses be turned off, so a test running without that rule would be
-    /// exercising a configuration no deployment has.
-    /// </summary>
     private readonly IdentityOptions _identityOptions = new()
     {
         User = { RequireUniqueEmail = true, AllowedUserNameCharacters = string.Empty },
@@ -62,10 +49,6 @@ public sealed class ExternalLoginsServiceTests : IDisposable
         (await CreateService().FindByExternalLoginAsync(_provider, _subject, TestToken)).ShouldBeNull();
     }
 
-    /// <summary>
-    /// The flag is the whole reason this operation exists: an account registered at an address
-    /// nobody ever proved is exactly what must not be linked to automatically.
-    /// </summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -104,10 +87,6 @@ public sealed class ExternalLoginsServiceTests : IDisposable
         linked.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The race the port names: another request attached the same pair between the caller's lookup
-    /// and this call, and the unique key on the pair is what actually prevents the second one.
-    /// </summary>
     [Fact]
     public async Task LinkAsync_RefusesWhenThePairIsAlreadyAttachedToSomebodyElse()
     {
@@ -136,12 +115,6 @@ public sealed class ExternalLoginsServiceTests : IDisposable
         _rows.IsLinked(account.UserId, _provider, _subject).ShouldBeTrue();
     }
 
-    /// <summary>
-    /// Without this the account is created and then refused by <c>SignInManager.CanSignInAsync</c> at
-    /// the very next step of the same sign-in, because <c>Identity:RequireConfirmedEmail</c> is on —
-    /// every first sign-in, in every deployment, and no unit test around the use case would see it
-    /// because they all substitute this adapter away.
-    /// </summary>
     [Fact]
     public async Task ProvisionAsync_StoresTheAddressAsAlreadyConfirmed()
     {
@@ -155,10 +128,6 @@ public sealed class ExternalLoginsServiceTests : IDisposable
         _rows.Users.ShouldHaveSingleItem().EmailConfirmed.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// There is no secret to invent and none the user could ever be told, so the account is created
-    /// without one — and a stored hash would be a credential nobody chose.
-    /// </summary>
     [Fact]
     public async Task ProvisionAsync_CreatesAnAccountWithNoPassword()
     {
@@ -180,10 +149,6 @@ public sealed class ExternalLoginsServiceTests : IDisposable
         _rows.Users.ShouldHaveSingleItem().UserName.ShouldBe("rené.dupont+news@example.com");
     }
 
-    /// <summary>
-    /// A taken address is not a collision to work around: somebody claimed it between the caller's
-    /// lookup and this call, and that is exactly what <c>Refused</c> describes.
-    /// </summary>
     [Fact]
     public async Task ProvisionAsync_RefusesWhenTheAddressWasTakenInTheMeantime()
     {
@@ -198,11 +163,6 @@ public sealed class ExternalLoginsServiceTests : IDisposable
         account.ShouldBeNull();
     }
 
-    /// <summary>
-    /// The port promises one step, and there is no transaction across the two calls. Without the
-    /// compensation this leaves an account holding the address, carrying no password and attached to
-    /// no provider — one nobody can ever sign into, blocking that address permanently.
-    /// </summary>
     [Fact]
     public async Task ProvisionAsync_DeletesTheAccountItJustCreatedWhenTheLinkIsRefused()
     {
@@ -241,9 +201,6 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     private ExternalLoginsService CreateService() =>
         new(CreateUserManager(), _directory, _clock);
 
-    /// <summary>
-    /// The real manager and the real validator, so the duplicate checks under test are ASP.NET Identity's own rather than this file's opinion of them.
-    /// </summary>
     private UserManager<AppUser> CreateUserManager() =>
         new(
             _rows,

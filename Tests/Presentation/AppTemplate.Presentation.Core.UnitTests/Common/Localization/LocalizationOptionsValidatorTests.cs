@@ -4,12 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Presentation.Core.UnitTests.Common.Localization;
 
-/// <summary>
-/// The one key this section has, and the reason it is validated at all: a culture nothing can match
-/// would not fail — it would quietly send every mail in the fallback language for the life of the
-/// deployment, which is the kind of defect that is only ever noticed by a reader who never
-/// complains.
-/// </summary>
 public sealed class LocalizationOptionsValidatorTests
 {
     private readonly LocalizationOptionsValidator _validator = new();
@@ -23,7 +17,6 @@ public sealed class LocalizationOptionsValidatorTests
         _validator.Validate(name: null, new LocalizationOptions { DefaultCulture = culture })
             .Succeeded.ShouldBeTrue();
 
-    /// <summary>The default is what a host uses when nobody configures the section.</summary>
     [Fact]
     public void Validate_Succeeds_ForTheDefault() =>
         _validator.Validate(name: null, new LocalizationOptions()).Succeeded.ShouldBeTrue();
@@ -39,10 +32,6 @@ public sealed class LocalizationOptionsValidatorTests
         result.FailureMessage.ShouldContain(nameof(LocalizationOptions.DefaultCulture));
     }
 
-    /// <summary>
-    /// Shape only, and deliberately: this repository builds with <c>InvariantGlobalization</c>, so
-    /// the runtime knows no culture but the invariant one and cannot be asked whether 'fr' is real.
-    /// </summary>
     [Theory]
     [InlineData("not a tag")]
     [InlineData("e")]
@@ -62,10 +51,6 @@ public sealed class LocalizationOptionsValidatorTests
     public void Validate_RejectsNull() =>
         Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
 
-    /// <summary>
-    /// The section name is the contract with whoever deploys this: every host binds it, so a change
-    /// here changes what a deployment's configuration file has to be called.
-    /// </summary>
     [Fact]
     public void TheSectionName_IsTheOneEveryHostBinds() =>
         LocalizationOptions.SectionName.ShouldBe("Localization");

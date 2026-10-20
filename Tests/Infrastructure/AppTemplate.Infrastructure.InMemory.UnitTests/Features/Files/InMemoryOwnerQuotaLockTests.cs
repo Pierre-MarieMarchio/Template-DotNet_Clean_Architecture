@@ -8,10 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Features.Files;
 
-/// <summary>
-/// The in-process quota lock, reached through its port as <c>AddInMemoryOwnerQuotaLock</c>
-/// registers it. Each contender is started from inside the holder's work, so the overlap is a fact.
-/// </summary>
 public sealed class InMemoryOwnerQuotaLockTests
 {
     private static readonly UserId _owner = UserId.Create(Guid.CreateVersion7());

@@ -14,17 +14,11 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Common.Hosting;
 
-/// <summary>
-/// The request-size middleware and the raised limit one endpoint may declare, driven directly:
-/// this project starts no server, and TestServer would not apply Kestrel's limit anyway.
-/// </summary>
 public sealed class RequestBodyLimitTests
 {
     private const long _globalLimit = 64 * 1024;
     private const long _raisedLimit = 1024 * 1024;
     private const string _boundary = "test-boundary";
-
-    #region The middleware
 
     [Fact]
     public async Task ABodyOverTheGlobalLimit_Answers413_WithoutReachingTheEndpoint()
@@ -61,7 +55,6 @@ public sealed class RequestBodyLimitTests
         await ShouldBeTooLargeAsync(httpContext);
     }
 
-    /// <summary>A chunked body declares no length: the server's limit is what stops it, so it is raised too.</summary>
     [Fact]
     public async Task AnEndpointWithARaisedLimit_RaisesTheServersLimitForThisRequest()
     {
@@ -86,11 +79,6 @@ public sealed class RequestBodyLimitTests
         await Should.ThrowAsync<InvalidDataException>(() => httpContext.Request.ReadFormAsync(TestContext.Current.CancellationToken));
     }
 
-    #endregion
-
-    #region The filter
-
-    /// <summary>Kestrel's own refusal while the form is read becomes the same 413, not a 400 from binding.</summary>
     [Fact]
     public async Task ABodyThatOverrunsWhileTheFormIsRead_Answers413()
     {
@@ -107,7 +95,6 @@ public sealed class RequestBodyLimitTests
         await ShouldBeTooLargeAsync(httpContext);
     }
 
-    /// <summary>A malformed form is left to model binding, which answers 400 from the same cached failure.</summary>
     [Fact]
     public async Task AMalformedForm_IsLeftToModelBinding()
     {
@@ -137,8 +124,6 @@ public sealed class RequestBodyLimitTests
         reached.ShouldBeTrue();
         httpContext.Request.Form.Files.Count.ShouldBe(1);
     }
-
-    #endregion
 
     private static DefaultHttpContext AContext(long? contentLength, bool raised = false)
     {
@@ -197,7 +182,6 @@ public sealed class RequestBodyLimitTests
         public long? MaxRequestBodySize { get; set; }
     }
 
-    /// <summary>What Kestrel's body reader throws once a request passes its limit.</summary>
     private sealed class OverrunningStream : MemoryStream
     {
         public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>

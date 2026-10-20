@@ -14,10 +14,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// <see cref="AccountsService.ChangePasswordAsync"/> over a real <see cref="UserManager{TUser}"/>: which
-/// of ASP.NET Identity's refusals is reported as what.
-/// </summary>
 public sealed class AccountsServiceChangePasswordTests
 {
     private static readonly Guid _userId = Guid.CreateVersion7();
@@ -62,7 +58,6 @@ public sealed class AccountsServiceChangePasswordTests
         change.Status.ShouldBe(PasswordChangeStatus.Changed);
     }
 
-    /// <summary>The verification derives a key exactly once, whatever it costs to hash for real.</summary>
     [Fact]
     public async Task AMatchingCurrentPassword_ReplacesTheStoredHash()
     {
@@ -82,8 +77,6 @@ public sealed class AccountsServiceChangePasswordTests
         ((IUserPasswordStore<AppUser>)_store).GetPasswordHashAsync(user, Arg.Any<CancellationToken>()).Returns(_storedHash);
         ((IUserPasswordStore<AppUser>)_store).HasPasswordAsync(user, Arg.Any<CancellationToken>()).Returns(true);
 
-        // NSubstitute defaults an unconfigured Task<IdentityResult> member to a null result, and
-        // UserManager reads .Succeeded off it without a null check.
         _store.UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>()).Returns(IdentityResult.Success);
     }
 
@@ -114,7 +107,6 @@ public sealed class AccountsServiceChangePasswordTests
         return new AccountsService(userManager, signInManager, _directory, Substitute.For<IDateTimeProvider>());
     }
 
-    /// <summary>A hasher whose verification result the test controls, unlike the fixed decoy in <c>RecordingPasswordHasher</c>.</summary>
     private sealed class ConfigurableHasher : IPasswordHasher<AppUser>
     {
         public PasswordVerificationResult NextVerification { get; set; } = PasswordVerificationResult.Failed;

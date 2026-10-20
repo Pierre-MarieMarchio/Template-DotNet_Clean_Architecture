@@ -11,11 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
-/// <summary>
-/// <see cref="AccountAdministrationService.DisableTwoFactorAsync"/> over a real <see cref="UserManager{TUser}"/>. It runs
-/// the same disable sequence as <c>TwoFactorService.DisableAsync</c>, so these pin that it
-/// still discards the secret and still reports a store refusal.
-/// </summary>
 public sealed class AccountAdministrationServiceTwoFactorTests
 {
     private const string _oldKey = "OLDKEYOLDKEYOLDKEYOLDKEYOLDKEY23";

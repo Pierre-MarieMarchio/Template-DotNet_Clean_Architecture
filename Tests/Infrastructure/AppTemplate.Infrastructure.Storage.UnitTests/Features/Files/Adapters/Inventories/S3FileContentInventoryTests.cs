@@ -10,26 +10,10 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Adapters.Inventories;
 
-/// <summary>
-/// The listing the orphan sweep walks. What matters here is the cursor: the sweep loops until it is
-/// null, so a page that hands one back when the walk is finished is an infinite loop, and one that
-/// drops it when the walk is not finished silently stops reclaiming anything past the first page.
-/// </summary>
 public sealed class S3FileContentInventoryTests
 {
     private const string _prefix = "t0/";
 
-    /// <summary>
-    /// The listing is a call this process makes, so it goes over the endpoint this process can reach
-    /// and never over the public one.
-    /// </summary>
-    /// <remarks>
-    /// The two clients differ by host name alone. Handing this one the presigning client would
-    /// compile, would satisfy every assertion below — the substitute answers either way — and would
-    /// fail only in a deployment where the public name does not resolve from inside, which is the
-    /// deployment <c>Files:Storage:S3:PublicEndpoint</c> exists for. What is checked is therefore the
-    /// constructor: one client, asked for without a key.
-    /// </remarks>
     [Fact]
     public void TheInventory_TakesOnlyTheClientThisProcessTalksToTheStoreWith()
     {
@@ -43,10 +27,6 @@ public sealed class S3FileContentInventoryTests
             "the listing walking a store this process may not be able to reach.");
     }
 
-    /// <summary>
-    /// The cursor is the last key listed, not the store's opaque token: a key is what a walk can
-    /// resume from after a restart, and a token expires.
-    /// </summary>
     [Fact]
     public async Task ListKeysAsync_CarriesTheLastKeyWhileMoreRemain()
     {
@@ -59,7 +39,6 @@ public sealed class S3FileContentInventoryTests
         page.HasNextPage.ShouldBeTrue();
     }
 
-    /// <summary>A truncated page that listed nothing would hand back no key to resume from.</summary>
     [Fact]
     public async Task ListKeysAsync_EndsTheWalkOnAnEmptyPageEvenIfTruncated()
     {
@@ -69,9 +48,6 @@ public sealed class S3FileContentInventoryTests
         page.NextCursor.ShouldBeNull();
     }
 
-    /// <summary>
-    /// Truncation decides whether more remain, never the presence of a token a store may echo.
-    /// </summary>
     [Fact]
     public async Task ListKeysAsync_EndsTheWalkWhenTheListingIsNotTruncated()
     {
@@ -83,10 +59,6 @@ public sealed class S3FileContentInventoryTests
         page.HasNextPage.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// No store counts its own contents to answer a listing, so the offset half of the page stays
-    /// empty rather than being filled with a number computed here.
-    /// </summary>
     [Fact]
     public async Task ListKeysAsync_ReportsNoPageNumberAndNoTotal()
     {

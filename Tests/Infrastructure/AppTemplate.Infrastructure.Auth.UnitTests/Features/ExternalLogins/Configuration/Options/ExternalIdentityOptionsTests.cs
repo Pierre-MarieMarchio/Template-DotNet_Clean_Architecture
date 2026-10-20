@@ -5,21 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.ExternalLogins.Configuration.Options;
 
-/// <summary>
-/// The keys an operator writes, bound the way the module binds them.
-/// <para>
-/// This is not a formality. <c>Providers</c>, <c>Issuers</c> and <c>Audiences</c> are collections
-/// declared with no setter, and a binder that could not fill them would leave a fully configured
-/// installation with no providers at all — booting cleanly, validating cleanly, and refusing every
-/// external sign-in. Nothing else in this repository would notice, because the validator accepts an
-/// empty list on purpose.
-/// </para>
-/// <para>
-/// The literal keys below are the contract. They are what <c>docs/CONFIGURATION.md</c> and every
-/// <c>appsettings.json</c> have to agree with, and writing them out is what makes a rename of a
-/// property fail here rather than at somebody's next deployment.
-/// </para>
-/// </summary>
 public sealed class ExternalIdentityOptionsTests
 {
     [Fact]
@@ -59,10 +44,6 @@ public sealed class ExternalIdentityOptionsTests
         apple.JwksUri.ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The default is what every project that never turns this on runs with, so it is asserted
-    /// rather than assumed: an absent section leaves no provider and a usable key-set lifetime.
-    /// </summary>
     [Fact]
     public void TheSection_LeavesTheDefaultsInPlaceWhenItIsAbsentEntirely()
     {
@@ -72,10 +53,6 @@ public sealed class ExternalIdentityOptionsTests
         options.KeySetLifetime.ShouldBe(TimeSpan.FromMinutes(15));
     }
 
-    /// <summary>
-    /// The name arrives from a client, so refusing <c>Google</c> because the section says
-    /// <c>google</c> would be an outage nothing in the response could explain.
-    /// </summary>
     [Theory]
     [InlineData("google")]
     [InlineData("Google")]

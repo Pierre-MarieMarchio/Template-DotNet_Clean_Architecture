@@ -8,12 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Maintenance.Jobs;
 
-/// <summary>
-/// Exercises the loop itself — resilience across iterations, respect for the toggles, and
-/// respect for the stopping token — against fake use cases resolved from a real, minimal
-/// container. No database, no HTTP: what runs here is the timer's own orchestration, with every
-/// use case faked and every real dependency of the loop itself in place.
-/// </summary>
 public sealed class MaintenanceBackgroundServiceTests
 {
     private static readonly TimeSpan _tinyInterval = TimeSpan.FromMilliseconds(20);
@@ -34,8 +28,6 @@ public sealed class MaintenanceBackgroundServiceTests
             "the refresh-token purge to have run three times");
         await service.StopAsync(CancellationToken.None);
 
-        // The point: a permanently failing task in one iteration does not stop the loop from
-        // reaching a later iteration, and does not stop its sibling task in the SAME iteration.
         idempotency.CallCount.ShouldBeGreaterThanOrEqualTo(3);
         refreshTokens.CallCount.ShouldBeGreaterThanOrEqualTo(3);
         securityEvents.CallCount.ShouldBeGreaterThanOrEqualTo(3);
@@ -80,12 +72,6 @@ public sealed class MaintenanceBackgroundServiceTests
     }
 
     //#endif
-    /// <summary>
-    /// A long interval proves the point: if the host waited out the interval instead of honouring
-    /// the token, this would time out. The hanging use case only ever returns via cancellation, so
-    /// a clean stop is also the only way this test completes at all — proving the host does not
-    /// abandon a mid-flight iteration in some half-finished state either.
-    /// </summary>
     [Fact]
     public async Task StopAsync_ReturnsPromptly_InsteadOfWaitingOutTheInterval()
     {
@@ -115,11 +101,6 @@ public sealed class MaintenanceBackgroundServiceTests
     }
     //#if (localAuth)
 
-    /// <summary>
-    /// A task switched off is a task that decided to do nothing, and it has to look different from
-    /// a loop that died. The consequence is in the line because what accumulates while the purge is
-    /// off is rows nothing else in the system removes.
-    /// </summary>
     [Fact]
     public async Task DisabledPurge_IsLoggedWithWhatAccumulates_OnEverySkippedIteration()
     {
@@ -150,11 +131,6 @@ public sealed class MaintenanceBackgroundServiceTests
     }
     //#endif
 
-    /// <summary>
-    /// The stop landing while a purge is mid-flight is the case that matters: an operator watching
-    /// for a loop that stopped needs the one stop that was asked for to look different from the ones
-    /// that were not.
-    /// </summary>
     [Fact]
     public async Task Stopping_IsLogged_EvenWhenTheStopLandsMidIteration()
     {

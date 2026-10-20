@@ -11,10 +11,6 @@ public sealed class CurrentAccessTokenTests
 {
     private static readonly DateTimeOffset _issuedAt = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
 
-    /// <summary>
-    /// The token handler writes <c>iat</c> as Unix seconds and maps no long claim name over it —
-    /// which is why the adapter reads the short one, and why this test holds it to exactly that.
-    /// </summary>
     [Fact]
     public void ATokenCarryingIat_AnswersItsIssueInstant()
     {
@@ -32,10 +28,6 @@ public sealed class CurrentAccessTokenTests
         IssuedAtOf(principal).ShouldBeNull();
     }
 
-    /// <summary>
-    /// A malformed claim is a refusal, never a guess: the decision that reads this answers
-    /// "not recently issued", which fails closed.
-    /// </summary>
     [Theory]
     [InlineData("")]
     [InlineData("not a number")]

@@ -8,10 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.UnitTests.Features.Reminders.Contracts.Mapping;
 
-/// <summary>
-/// A hand-written mapper's only failure mode is a field nobody copied, so every test here asserts
-/// on the whole shape rather than on the members that happen to be interesting.
-/// </summary>
 public sealed class ReminderResponseMappingTests
 {
     [Fact]
@@ -67,10 +63,6 @@ public sealed class ReminderResponseMappingTests
         response.Reminders.Select(reminder => reminder.Id).ShouldBe([.. reminders.Select(reminder => reminder.Id)]);
     }
 
-    /// <summary>
-    /// A reminder-less item is still an envelope carrying an empty array, not an absent one: a
-    /// client reading <c>reminders</c> must never have to distinguish null from empty.
-    /// </summary>
     [Fact]
     public void ToResponse_Reminders_WrapsAnEmptyCollection_InAnEmptyArray()
     {

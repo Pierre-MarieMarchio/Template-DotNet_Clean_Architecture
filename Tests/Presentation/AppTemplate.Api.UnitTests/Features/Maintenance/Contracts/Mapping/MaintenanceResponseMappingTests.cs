@@ -16,10 +16,6 @@ public sealed class MaintenanceResponseMappingTests
         response.Value.Deleted.ShouldBe(17);
     }
 
-    /// <summary>
-    /// Nothing to purge is a purge that succeeded, so zero has to travel as a body — not as a failure,
-    /// and not as an empty response a caller would have to guess at.
-    /// </summary>
     [Fact]
     public void ToPurgeResponse_TreatsZeroDeleted_AsASuccessCarryingZero()
     {

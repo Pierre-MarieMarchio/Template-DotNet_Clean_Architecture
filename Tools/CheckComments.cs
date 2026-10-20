@@ -36,7 +36,9 @@ internal static class CheckComments
 
         Configuration files: appsettings*.json, .env.example, docker-compose*.yml|yaml,
         .github/workflows/*.yml|yaml, .editorconfig, Directory.*.props, Directory.*.targets,
-        coverage.runsettings, coverage.minimum, Dockerfile, *.Dockerfile, Tests/Load/*.js
+        coverage.runsettings, coverage.minimum, Dockerfile, *.Dockerfile, Tests/Load/*.js, and
+        in the web workspace Src/Web: compose*.yml|yaml, nginx.conf, pnpm-workspace.yaml and the
+        *.ts, *.tsx, *.js, *.mjs and *.cjs sources, a generated/ folder's excepted
           A line whose first non-blank characters open a comment (#, ; in .editorconfig, //, /*
           or <!--) is a guidance line, and each line of a multi-line comment counts as one.
           refused  a block: two or more guidance lines with nothing between them but blank lines.
@@ -194,6 +196,17 @@ internal static class CheckComments
         if (Regex.IsMatch(relative, @"(?:^|/)Tests/Load/[^/]+\.js$"))
         {
             return Syntax.Slash;
+        }
+
+        if (Regex.IsMatch(relative, @"(?:^|/)Src/Web/(?:.+/)?[^/]+\.(?:ts|tsx|js|mjs|cjs)$")
+            && !relative.Contains("/generated/", StringComparison.Ordinal))
+        {
+            return Syntax.Slash;
+        }
+
+        if (Regex.IsMatch(relative, @"(?:^|/)Src/Web/(?:.+/)?(?:compose[^/]*\.ya?ml|nginx\.conf|pnpm-workspace\.yaml)$"))
+        {
+            return Syntax.Hash;
         }
 
         if (Regex.IsMatch(name, @"^Directory\..+\.(?:props|targets)$") || name == "coverage.runsettings")
@@ -1173,6 +1186,11 @@ internal static class CheckComments
         new("two guidance lines after a parser directive", "Src/App/Dockerfile", "# syntax=docker/dockerfile:1\n# one\n# two\nFROM x\n", 1),
         new("a JSDoc block in the load test", "Tests/Load/smoke.js", "/**\n * one\n */\nexport default function () {}\n", 1),
         new("two guidance lines in .editorconfig", ".editorconfig", "; one\n# two\n[*.cs]\n", 1),
+        new("two guidance lines in a web app's compose file", "Src/Web/apps/Site/compose.yml", "# one\n# two\nservices:\n", 1),
+        new("two guidance lines in a web app's nginx.conf", "Src/Web/apps/Site/nginx.conf", "# one\n# two\nserver {\n}\n", 1),
+        new("two guidance lines in the workspace manifest", "Src/Web/pnpm-workspace.yaml", "# one\n# two\npackages: []\n", 1),
+        new("a JSDoc block in a web package", "Src/Web/packages/api-client/src/client.ts", "/**\n * one\n */\nexport const a = 1;\n", 1),
+        new("two line comments in a web script", "Src/Web/packages/api-client/scripts/generate.mjs", "// one\n// two\nconsole.log(1);\n", 1),
         new("a narrating guidance line", ".env.example", "# The previous version was wrong.\nKEY=1\n", 1),
         new("one guidance line per setting in a workflow", ".github/workflows/ci.yml", "# Replace with your registry.\nenv:\n  # The image name.\n  IMAGE: x\n", 0),
         new("guidance lines split by template markers", "docker-compose.yml", "#if (files)\n# The object store.\n#endif\n# The mail catcher.\nmail:\n", 0),
@@ -1185,6 +1203,8 @@ internal static class CheckComments
         new("the coverage floor's guidance line", "coverage.minimum", "# The floor, in percent.\n85\n", 0),
         new("a guidance line between props conditionals", "Directory.Packages.props", "<!--#if (sonar)-->\n<!-- The analyzer. -->\n<PackageVersion />\n<!--#endif-->\n", 0),
         new("a file outside every list", "Tools/script.sh", "# one\n# two\n", 0),
+        new("the generated API client's documentation", "Src/Web/packages/api-client/src/generated/schema.ts", "/**\n * one\n */\nexport type a = 1;\n", 0),
+        new("one guidance line in a web app's nginx.conf", "Src/Web/apps/Site/nginx.conf", "# The relay.\nserver {\n    # The API.\n    listen 8080;\n}\n", 0),
         new("narration in a changelog", "CHANGELOG.md", "This used to be the algorithm name.\n", 0),
     ];
 

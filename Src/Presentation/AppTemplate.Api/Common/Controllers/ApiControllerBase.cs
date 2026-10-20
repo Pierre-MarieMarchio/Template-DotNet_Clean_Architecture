@@ -11,11 +11,9 @@ namespace AppTemplate.Api.Common.Controllers;
 /// Turns a <see cref="Result"/> into an HTTP response, so a controller action binds, calls one use
 /// case and maps: no business logic, no try/catch, no hand-rolled error shapes.
 /// </summary>
-// Only universal statuses: ProducesResponseType adds to an action's set and cannot be removed by
-// it. 429, 413 and 415 all arrive ahead of every action.
-//
-// No [Produces("application/json")]: it overwrites ObjectResult.ContentTypes, including the
-// "application/problem+json" ErrorMapping sets on every error response.
+// Only universal statuses (429, 413 and 415 arrive ahead of every action): ProducesResponseType adds to an
+// action's set and cannot be removed by it. No [Produces("application/json")]: it overwrites
+// ObjectResult.ContentTypes, including the problem+json ErrorMapping sets on every error response.
 [ApiController]
 [ProducesResponseType(StatusCodes.Status413PayloadTooLarge, Type = typeof(ProblemDetails))]
 [ProducesResponseType(StatusCodes.Status415UnsupportedMediaType, Type = typeof(ProblemDetails))]

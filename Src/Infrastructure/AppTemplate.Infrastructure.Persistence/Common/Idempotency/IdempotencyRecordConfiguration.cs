@@ -39,10 +39,9 @@ internal sealed class IdempotencyRecordConfiguration : IEntityTypeConfiguration<
 
         builder.ToTable("IdempotencyKeys", AppDbContext.PlatformSchema);
 
-        // Composite, not a surrogate id: this is what makes ClaimAsync's insert race-safe. Two
-        // concurrent claims of the same (UserId, Key) collide on the primary key itself rather than
-        // one silently overwriting the other, so the loser can be told what the winner decided
-        // instead of both believing they own the claim.
+        // Composite, not a surrogate id: it makes ClaimAsync's insert race-safe. Two concurrent claims of the same
+        // (UserId, Key) collide on the primary key, so the loser can be told what the winner decided instead of
+        // both believing they own the claim.
         builder.HasKey(record => new { record.UserId, record.Key });
 
         builder.Property(record => record.Key).IsRequired().HasMaxLength(MaxKeyLength);

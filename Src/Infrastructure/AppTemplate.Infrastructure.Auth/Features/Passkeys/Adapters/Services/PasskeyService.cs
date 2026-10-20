@@ -127,10 +127,9 @@ internal sealed class PasskeyService(
             return PasskeyRegistrationOutcome.InvalidCeremony();
         }
 
-        // The state was issued naming this account's handle; a state naming another's was not
-        // issued to this caller, and completing it would store a credential whose user handle
-        // answers a different account. The protector's purpose already names the account, so this
-        // is the second of two checks rather than the only one.
+        // A state naming another account's handle was not issued to this caller, and completing it would store a
+        // credential whose user handle answers a different account. The protector's purpose already names the
+        // account, so this is the second of two checks.
         if (!string.Equals(attestation.UserEntity.Id, userId.ToString(), StringComparison.Ordinal))
         {
             return PasskeyRegistrationOutcome.InvalidCeremony();

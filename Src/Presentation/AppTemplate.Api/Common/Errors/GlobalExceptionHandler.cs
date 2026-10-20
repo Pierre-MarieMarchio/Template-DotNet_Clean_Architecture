@@ -18,10 +18,9 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         Exception exception,
         CancellationToken cancellationToken)
     {
-        // A timeout cancels the same RequestAborted token a client disconnect does, so the exception
-        // type cannot tell a deadline from a hangup and this feature is the only thing that can.
-        // A net rather than a path: RequestTimeoutsMiddleware answers a timeout itself, so nothing
-        // reaches this arm today. It keeps a deadline from being measured as a client hangup.
+        // A timeout cancels the same RequestAborted token a client disconnect does, so only this feature can tell a
+        // deadline from a hangup. A net rather than a path: RequestTimeoutsMiddleware answers a timeout itself, so
+        // nothing reaches this arm today.
         bool isServerTimeout = exception is OperationCanceledException
             && httpContext.Features.Get<IHttpRequestTimeoutFeature>() is not null;
 
@@ -33,11 +32,9 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
                 "concurrency.conflict",
                 "The resource was changed by another request. Reload it and apply the change again."),
 
-            // 400 rather than 500: a DomainException is a caller driving an aggregate into a
-            // forbidden state. A net, not a path — every write use case catches it at its own
-            // boundary — so nothing appears to exercise this arm, and it must stay. The type is
-            // visible only through AppTemplate.Application's reference to the domain, which is why
-            // this project has no ProjectReference to AppTemplate.Domain.
+            // 400 rather than 500: a caller drove an aggregate into a forbidden state. A net, not a path — every write
+            // use case catches it at its own boundary. The type is visible only through AppTemplate.Application's
+            // reference to the domain, which is why this project has no ProjectReference to AppTemplate.Domain.
             DomainException => (
                 StatusCodes.Status400BadRequest,
                 "Invalid request",

@@ -72,10 +72,9 @@ internal sealed class EmailOptionsValidator : IValidateOptions<EmailOptions>
 
         var failures = new List<string>();
 
-        // A deployment sending over HTTP has no relay, so a host, a port and a TLS mode would be
-        // values for a transport it does not use. Compared against SMTP by name rather than "not
-        // the HTTP one", so a misspelt transport is reported as itself instead of as three relay
-        // failures.
+        // A deployment sending over HTTP has no relay, so host, port and TLS mode would be values for a transport it
+        // does not use. Compared against SMTP by name, so a misspelt transport is reported as itself and not as
+        // three relay failures.
         bool isSmtp = string.Equals(options.Transport, EmailOptions.SmtpTransport, StringComparison.OrdinalIgnoreCase);
 
         if (!isSmtp && !string.Equals(options.Transport, EmailOptions.PostmarkTransport, StringComparison.OrdinalIgnoreCase))

@@ -20,10 +20,9 @@ internal static class ModelStateProblemExtensions
 
         services.Configure<ApiBehaviorOptions>(options => options.InvalidModelStateResponseFactory = CreateResponse);
 
-        // Left on, the JSON input formatter copies a JsonException's text — the CLR type it was
-        // binding and the byte offset it stopped at — into the model error, and out to the client.
-        // Qualified because Microsoft.AspNetCore.Http.Json declares a JsonOptions of its own; a
-        // controller's input formatter reads MVC's.
+        // Left on, the JSON input formatter copies a JsonException's text — the CLR type and byte offset — into the
+        // model error and out to the client. Qualified because Microsoft.AspNetCore.Http.Json declares its own
+        // JsonOptions; a controller's input formatter reads MVC's.
         services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(
             options => options.AllowInputFormatterExceptionMessages = false);
 

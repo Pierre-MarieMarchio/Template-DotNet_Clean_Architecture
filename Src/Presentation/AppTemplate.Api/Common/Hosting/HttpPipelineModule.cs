@@ -140,19 +140,8 @@ public static class HttpPipelineModule
     /// <returns>The same application, for chaining.</returns>
     /// <remarks>Deliberately one call rather than a step at a time: six of these orderings are
     /// coupled pairwise, so an extension point in the middle would offer a caller exactly the
-    /// arrangement this method exists to prevent. Forwarded headers first, before anything reads
-    /// the client address or scheme (the rate limiter partitions on the remote address; CORS,
-    /// authentication and the exception handler observe the scheme). Security and cache headers
-    /// next, so a response written by the exception handler, the rate limiter or a health endpoint
-    /// carries the same headers as a controller's — both write from <c>OnStarting</c>, what survives
-    /// <c>UseExceptionHandler</c>'s <c>Response.Clear()</c>. The request log outside the exception
-    /// handler and ahead of the size limit, so the entry reports the status received and a 413 is
-    /// answered without calling the next middleware. Request limits before anything reads the body.
-    /// The language and the timeout after the rate limiter, so a rejected request does no work and
-    /// starts no clock; the timeout before authentication and authorization, so the deadline covers
-    /// them too. HTTPS redirection is not installed and HSTS is not sent: TLS terminates upstream,
-    /// and the HSTS attributes are commitments over a whole domain the component terminating TLS is
-    /// the one to know.</remarks>
+    /// arrangement this method exists to prevent. The order and its reasons are in
+    /// <c>docs/DECISIONS.md</c>.</remarks>
     public static WebApplication UseHttpPipeline(
         this WebApplication app,
         ResponseContentSecurityPolicy? apiReferencePolicy = null)

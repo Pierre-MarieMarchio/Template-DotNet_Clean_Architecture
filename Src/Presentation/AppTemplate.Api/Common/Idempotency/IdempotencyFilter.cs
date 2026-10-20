@@ -124,10 +124,9 @@ internal sealed class IdempotencyFilter(
         }
         catch
         {
-            // A started response means the action produced its result, so the write has committed
-            // and releasing the claim would let a retry run it again. The converse is a guess: a
-            // failure between the commit and the first byte releases a claim whose write did land.
-            // The lease bounds the mistake either way.
+            // A started response means the write has committed, so releasing the claim would let a retry run it again.
+            // The converse is a guess: a failure between the commit and the first byte releases a claim whose write
+            // landed. The lease bounds the mistake either way.
             if (!httpContext.Response.HasStarted)
             {
                 await store.ReleaseAsync(key, CancellationToken.None);

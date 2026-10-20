@@ -1906,6 +1906,41 @@ generated `paths`, relative to the page's origin, which each app's relay makes t
 memory, and the `middleware` list, where a refresh that retries a request belongs. Neither knows a
 framework.
 
+**A browser session holds the access token in a variable and leaves the refresh token to the
+cookie.** `createBrowserSession` keeps the access token in memory only, never in `localStorage` or
+`sessionStorage`, which every script of the origin reads and which outlive the tab. The app hands it
+each sign-in answer's `tokens` through `signedIn`; the refresh token never reaches script, since the
+API sets it as the `HttpOnly` cookie when a sign-in asks for cookie mode. A reload loses the variable,
+so the app calls `refresh()` once at start: the cookie yields a new access token, and a reload costs
+one request instead of a sign-in. `refresh` and `logout` are bodiless `POST`s with
+`X-Refresh-Token-Mode: cookie` and `credentials: 'same-origin'`, the page and the API sharing an
+origin through the app's relay. `onChange` tells a listener when the signed-in state flips, not on
+every rotation, which is what a router or a menu reacts to.
+
+**One refresh at a time, and a refused call is replayed once.** Concurrent `refresh()` calls share
+one request, because the API rotates the cookie on each refresh and treats a replayed token as
+theft: two parallel refreshes would end the session. `sessionMiddleware` sends the bearer token,
+adds the mode header on the paths that issue, rotate or revoke a grant (`cookieModePaths`, matched on
+the schema path, so a base URL does not matter), and on a `401` from any other call refreshes and
+replays the request once; the replay does not pass through the middleware again, so a second `401`
+is the answer. When another call renewed the token while this one was in flight, the replay uses it
+without refreshing again. A `401` from a sign-in, refresh or logout path is never replayed: it is the
+answer itself. The request is cloned before it is sent, so a large upload is held twice in memory
+until it is answered.
+
+**Only a refused refresh ends the session locally.** A refresh answered `401` signs out; a network
+failure or a server error resolves `false` and keeps the token, as the API keeps the cookie on any
+failure but a refusal. `signOut` clears the local state first, lets a refresh in flight finish so the
+logout presents the current cookie, and ignores a failed logout call: a sign-out that leaves the page
+signed in is worse than a grant left to expire. A refresh that answers after a sign-in or a sign-out
+has landed changes nothing, so a slow refusal cannot undo a fresh sign-in.
+
+**Under external authentication the session module is unused.** The OIDC client library holds and
+renews the provider's tokens and supplies the access token through `createApiClient({ accessToken })`;
+the API issues no refresh token of its own then. The module stays in the package for every project,
+since it imports nothing from the generated schema and so type-checks whichever API the schema
+describes.
+
 **Each app is its own nginx image, built from the workspace.** The build context is `Src/Web`, so
 an app's Dockerfile reaches the lockfile and the packages it depends on and nothing of the .NET
 tree. The placeholder copies its `public/` folder into `nginxinc/nginx-unprivileged`, which runs as

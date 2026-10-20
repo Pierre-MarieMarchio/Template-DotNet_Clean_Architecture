@@ -29,13 +29,8 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
             new RegisterRequest(email, ValidPassword),
             TestToken);
 
-        registered.StatusCode.ShouldBe(HttpStatusCode.OK);
-
-        // No account id: sign-up publishes only what the rest of the journey addresses the account by,
-        // which is the address it was sent to.
-        var account = await ApiJson.ReadAsync<RegisterResponse>(registered, TestToken);
-        account.Email.ShouldBe(email);
-        account.ConfirmationEmailSent.ShouldBeTrue();
+        registered.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        (await ApiJson.ReadAsync<RegisterResponse>(registered, TestToken)).ShouldBe(RegisterResponse.Pending);
 
         // Exactly one email, to that address, with the configured subject.
         var sent = RequireLastEmailTo(email);
@@ -200,6 +195,75 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         confirmed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         (await EmailConfirmedAsync(user.Email)).ShouldBeTrue();
     }
+
+    [Fact]
+    public async Task EveryStateOfTheAddress_GetsAByteIdenticalAnswer_AndItsOwnMail()
+    {
+        var client = CreateClient();
+        string email = $"probed-{Guid.CreateVersion7():N}@integration.test";
+
+        var unknown = await RegisterAsync(client, email);
+        var firstMail = RequireLastEmailTo(email);
+        Emails.Clear();
+
+        var takenUnconfirmed = await RegisterAsync(client, email);
+        var secondMail = RequireLastEmailTo(email);
+        Emails.Clear();
+
+        var (confirmedEmail, token) = ReadEmailLink(secondMail);
+        using var confirmed = await client.PostAsJsonAsync(
+            $"{AuthRoute}/confirm-email",
+            new ConfirmEmailRequest(confirmedEmail, token),
+            TestToken);
+        confirmed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        Emails.Clear();
+
+        var takenConfirmed = await RegisterAsync(client, email);
+        var thirdMail = RequireLastEmailTo(email);
+
+        takenUnconfirmed.ShouldBe(unknown);
+        takenConfirmed.ShouldBe(unknown);
+        unknown.Status.ShouldBe(HttpStatusCode.Accepted);
+        unknown.Body.ShouldBe("""{"status":"pending"}""");
+
+        firstMail.Subject.ShouldBe("Confirm your email address");
+        secondMail.Subject.ShouldBe("Confirm your email address");
+        thirdMail.Subject.ShouldBe("You already have an account");
+        thirdMail.HtmlBody.ShouldNotContain("href", Case.Insensitive);
+        Emails.Snapshot().ShouldHaveSingleItem();
+
+        (await Database.CountAsync("""SELECT count(*) FROM identity."User" """, TestToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task SimultaneousRegistrations_OfOneAddress_CreateOneAccount_AndAllAnswerTheSame()
+    {
+        var client = CreateClient();
+        string email = $"racing-{Guid.CreateVersion7():N}@integration.test";
+
+        var answers = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => RegisterAsync(client, email)));
+
+        answers.ShouldAllBe(answer => answer == answers[0]);
+        answers[0].Status.ShouldBe(HttpStatusCode.Accepted);
+        (await Database.CountAsync("""SELECT count(*) FROM identity."User" """, TestToken)).ShouldBe(1);
+        Emails.Snapshot().ShouldAllBe(sent => sent.Recipient == email);
+    }
+
+    private static async Task<RegistrationAnswer> RegisterAsync(HttpClient client, string email)
+    {
+        using var response = await client.PostAsJsonAsync(
+            $"{AuthRoute}/register",
+            new RegisterRequest(email, ValidPassword),
+            TestToken);
+
+        return new RegistrationAnswer(
+            response.StatusCode,
+            response.Content.Headers.ContentType?.ToString(),
+            response.Headers.Location,
+            await response.Content.ReadAsStringAsync(TestToken));
+    }
+
+    private sealed record RegistrationAnswer(HttpStatusCode Status, string? ContentType, Uri? Location, string Body);
 
     private async Task<bool> EmailConfirmedAsync(string email)
     {

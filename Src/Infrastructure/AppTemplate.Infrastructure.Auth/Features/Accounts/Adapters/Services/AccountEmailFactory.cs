@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Services;
 
 /// <summary>
-/// Renders the three account mails and hands them back for the caller to deliver. What each names
+/// Renders the account mails and hands them back for the caller to deliver. What each names
 /// is all that distinguishes it: its template, its placeholders and the page its link points at —
 /// see <see cref="EmailTemplate"/> for the encoding those go through. Each page address is
 /// guaranteed by its options validator at startup.
@@ -28,6 +28,10 @@ internal sealed class AccountEmailFactory(
     private static readonly EmailTemplate _emailChangeTemplate = new(
         typeof(AccountEmailFactory).Assembly,
         "EmailChangeEmailTemplate");
+
+    private static readonly EmailTemplate _alreadyRegisteredTemplate = new(
+        typeof(AccountEmailFactory).Assembly,
+        "AlreadyRegisteredEmailTemplate");
 
     public Task<AccountEmail> CreateConfirmationAsync(
         string email,
@@ -63,6 +67,17 @@ internal sealed class AccountEmailFactory(
                 $"'{EmailChangeOptions.SectionName}:ConfirmEmailChangeUrl' is not configured.");
 
         return RenderAsync(_emailChangeTemplate, "ConfirmationLink", page, newEmail, token, cancellationToken);
+    }
+
+    public Task<AccountEmail> CreateAlreadyRegisteredAsync(string email, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var rendered = _alreadyRegisteredTemplate.Render(
+            CurrentLanguage.Current,
+            new Dictionary<string, string>(StringComparer.Ordinal));
+
+        return Task.FromResult(new AccountEmail(rendered.Subject, rendered.Body));
     }
 
     private static Task<AccountEmail> RenderAsync(

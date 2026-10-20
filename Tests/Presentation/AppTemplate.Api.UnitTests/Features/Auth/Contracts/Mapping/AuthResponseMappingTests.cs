@@ -1,8 +1,8 @@
 ﻿using System.Buffers.Text;
+using System.Reflection;
 using System.Text.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Mapping;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
-using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.Register;
 using AppTemplate.Application.Auth.Features.ExternalLogins.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Auth.Features.Passkeys.Ports.Passkeys;
 using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
@@ -23,34 +23,10 @@ namespace AppTemplate.Api.UnitTests.Features.Auth.Contracts.Mapping;
 public sealed class AuthResponseMappingTests
 {
     [Fact]
-    public void ToRegisterResponse_CopiesEveryField()
+    public void RegisterResponse_CarriesNothingButItsStatus()
     {
-        var dto = new RegisterOutcome(
-            UserId: Guid.NewGuid(),
-            Email: "ada@example.com",
-            ConfirmationEmailSent: true);
-
-        var response = AuthResponseMapping.ToRegisterResponse(Result.Success(dto)).Value;
-
-        response.Email.ShouldBe("ada@example.com");
-        response.ConfirmationEmailSent.ShouldBeTrue();
-    }
-
-    /// <summary>
-    /// A contract decision, not an oversight: the id is not needed to finish signing up, and
-    /// publishing it hands out an internal identifier for nothing.
-    /// </summary>
-    [Fact]
-    public void RegisterResponse_PublishesNoUserId() => typeof(RegisterResponse).GetProperty("UserId").ShouldBeNull();
-
-    [Fact]
-    public void ToRegisterResponse_PropagatesAFailure_WithoutReadingTheValue()
-    {
-        var result = Should.NotThrow(
-            () => AuthResponseMapping.ToRegisterResponse(Result.Failure<RegisterOutcome>(_someConflict)));
-
-        result.IsFailure.ShouldBeTrue();
-        result.Error.ShouldBe(_someConflict);
+        typeof(RegisterResponse).GetProperties(BindingFlags.Public | BindingFlags.Instance).Select(property => property.Name).ShouldBe(["Status"]);
+        RegisterResponse.Pending.Status.ShouldBe("pending");
     }
 
     [Fact]
@@ -403,6 +379,5 @@ public sealed class AuthResponseMappingTests
     private static readonly DateTimeOffset _accessExpiry = new(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
     private static readonly DateTimeOffset _refreshExpiry = new(2026, 1, 9, 3, 4, 5, TimeSpan.Zero);
 
-    private static readonly Error _someConflict = Error.Conflict("auth.registrationConflict", "taken");
     private static readonly Error _someRefusal = Error.Unauthorized("auth.invalidCredentials", "refused");
 }

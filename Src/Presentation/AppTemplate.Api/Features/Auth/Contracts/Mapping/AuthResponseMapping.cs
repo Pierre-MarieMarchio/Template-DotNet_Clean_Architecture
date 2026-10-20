@@ -1,7 +1,6 @@
 ﻿using System.Buffers.Text;
 using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
-using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.Register;
 using AppTemplate.Application.Auth.Features.ExternalLogins.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Auth.Features.Passkeys.Ports.Passkeys;
 using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventQueries;
@@ -19,9 +18,6 @@ namespace AppTemplate.Api.Features.Auth.Contracts.Mapping;
 /// <remarks>Each lift tests <see cref="Result.IsFailure"/> on its own line before touching <c>Result{T}.Value</c>, which throws on a failure.</remarks>
 internal static class AuthResponseMapping
 {
-    public static Result<RegisterResponse> ToRegisterResponse(Result<RegisterOutcome> result) =>
-        result.Map(value => new RegisterResponse(value.Email, value.ConfirmationEmailSent));
-
     public static Result<LoginResponse> ToLoginResponse(Result<LoginOutcome> result) =>
         result.Map<LoginOutcome, LoginResponse>(value => value switch
         {

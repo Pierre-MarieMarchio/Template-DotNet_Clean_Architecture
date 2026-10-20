@@ -92,7 +92,6 @@ of the contract.
 | `auth.login.invalidTwoFactorChallenge` | 401 — the challenge token is unknown, spent or expired |
 | `auth.refreshToken.invalid` | 401 — unknown, expired, revoked or replayed |
 | `auth.externalSignIn.refused` | 401 — one answer for an unknown provider and a token that did not verify |
-| `auth.register.unavailable` | 409 |
 | `auth.confirmEmail.invalid` / `auth.resetPassword.invalid` / `auth.changeEmail.invalid` | 400 — the token is unknown, spent or expired |
 | `auth.twoFactor.alreadyEnabled` | 409 |
 | `auth.account.notFound` | 404 — an administration action naming an account that does not exist |

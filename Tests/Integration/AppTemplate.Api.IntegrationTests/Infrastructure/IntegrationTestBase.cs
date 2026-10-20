@@ -226,16 +226,14 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         using var response = await client.PostAsJsonAsync($"{AuthRoute}/register", request, TestToken);
 
-        if (response.StatusCode != HttpStatusCode.OK)
+        if (response.StatusCode != HttpStatusCode.Accepted)
         {
             throw new InvalidOperationException(
                 $"Registering {request.Email} failed with {(int)response.StatusCode}: " +
                 await response.Content.ReadAsStringAsync(TestToken));
         }
 
-        var registered = await ApiJson.ReadAsync<RegisterResponse>(response, TestToken);
-
-        return new TestUser(registered.Email, ValidPassword);
+        return new TestUser(request.Email, ValidPassword);
     }
 
     /// <summary>

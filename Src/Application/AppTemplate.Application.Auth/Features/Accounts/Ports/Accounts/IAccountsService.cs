@@ -9,10 +9,10 @@
 public interface IAccountsService
 {
     /// <summary>
-    /// Creates an account with a password. The address is stored unconfirmed: proving it is a
-    /// separate step, through <c>IEmailTokensService</c>.
+    /// Judges the submitted values, then creates an unconfirmed account unless one already holds
+    /// the address, hashing the password once either way.
     /// </summary>
-    Task<AccountCreationOutcome> CreateAsync(
+    Task<AccountRegistrationOutcome> RegisterAsync(
         string email,
         string password,
         CancellationToken cancellationToken = default);

@@ -188,6 +188,11 @@ jobs:
         with:
           node-version-file: Src/Web/.node-version
 
+      # A generated project holds one app, so it receives that shape's lockfile, not this checkout's union one.
+      - name: Assert each generated web shape's lockfile is current
+        if: matrix.web == 'true'
+        run: dotnet run Tools/Tasks.cs web-lockfiles --check
+
       # The added app joins the stack by the two lines its README gives.
       - name: Add a second app with cleanarch-webapp
         if: matrix.web == 'true'

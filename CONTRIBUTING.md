@@ -27,8 +27,9 @@ dotnet run Tools/Tasks.cs verify
 
 That is the whole gate in CI's order —
 <!--#if (templateMaintenance)-->
-the four hygiene gates each after their own self-test, restore, formatting, build with warnings as
-errors, the tests, and migration drift for both contexts. The coverage floor is
+the four hygiene gates each after their own self-test, the lockfile of each generated web shape
+(`web-lockfiles --check`, which needs pnpm: `corepack enable` once), restore, formatting, build with
+warnings as errors, the tests, and migration drift for both contexts. The coverage floor is
 `dotnet run Tools/Tasks.cs coverage`, and `dotnet list package --vulnerable --include-transitive`
 has to report nothing.
 <!--#else

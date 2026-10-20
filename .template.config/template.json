@@ -402,7 +402,8 @@
             "Src/Web/**/node_modules/**",
             "Src/Web/**/dist/**",
             "Src/Web/**/coverage/**",
-            "Src/Web/packages/api-client/openapi/**"
+            "Src/Web/packages/api-client/openapi/**",
+            "Src/Web/pnpm-lock.yaml"
           ]
         },
         {
@@ -597,6 +598,11 @@
       "source": "./.template.config/variants/no-sonar/",
       "target": "./",
       "condition": "(!sonar)"
+    },
+    {
+      "source": "./.template.config/variants/web-PlaceholderSite/",
+      "target": "./",
+      "condition": "(webPlaceholder)"
     },
     {
       "source": "./.template.config/variants/refused/",

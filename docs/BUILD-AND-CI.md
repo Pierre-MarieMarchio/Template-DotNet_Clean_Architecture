@@ -233,6 +233,8 @@ test projects that do not reference Testcontainers — integration tests stay wi
 build — and runs `dotnet run Tools/Tasks.cs hygiene` in the generated project, which asks the
 filesystem which gates its tree carries. Only `--auth local` generates the Auth context, so only those legs
 compare its model. A leg without a web app asserts that nothing in the tree names the web workspace.
+A web leg first runs `dotnet run Tools/Tasks.cs web-lockfiles --check` in this checkout, which fails
+when the lockfile a generated web shape receives differs from what the pinned pnpm writes for it.
 The web leg also adds a second app with `dotnet new cleanarch-webapp -n BackOffice --framework
 placeholder` and the two lines its README gives, then runs the workspace's install, client
 regeneration, lint, test and build, checks that a second `pnpm api` writes the same client, starts

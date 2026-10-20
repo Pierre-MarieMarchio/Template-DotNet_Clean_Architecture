@@ -61,6 +61,7 @@ absent from the completion query — removed, or its list deleted — is cancell
 one and is not counted as a missed cancellation.
 <!--#endif-->
 
+<!--#if (anyFeature)-->
 **Deleting an account deletes the id's data, and each feature decides what that means for its own
 rows.** The account row and the feature rows live in two contexts with no shared transaction, so
 Auth never reaches across: it publishes the fact `UserAccountDeleted(UserId, OccurredAt)` —
@@ -80,26 +81,24 @@ code when the factor is armed, an access token under five minutes old otherwise)
 The trigger is an administrative call on the mapping, and a
 provider-side deletion signal is that call's to wire — the template ships no endpoint for it.
 <!--#endif-->
+<!--#endif-->
 
 <!--#if (files)-->
-**The refusal of an outbox was re-examined against a feature that could have overturned it, and it
-holds.** The `Files` feature looked like the counter-example: a thumbnail that is never generated
-because an event went missing is visible, and bytes that are never reclaimed accumulate. It is not
+**The refusal of an outbox holds for `Files`, the feature that looks like the counter-example.** A
+thumbnail that is never generated because an event went missing is visible, and bytes that are never reclaimed accumulate. It is not
 one. The reclamation is a periodic sweep that re-derives its own precondition — an object no row
 references is garbage — so the deletion event is a fast path that shortens an interval and nothing
-more
 <!--#if (reminders)-->
-, in exactly the shape `CancelRemindersOnTodoItemCompletedConsumer` already had
-<!--#endif-->
-. Derivative
+more, in exactly the shape of `CancelRemindersOnTodoItemCompletedConsumer`. Derivative
+<!--#else
+more. Derivative
+#endif-->
 generation, when a project adds it, gets the same treatment: sweep for available files without a
 derivative, and let the event only make it prompt.
 <!--#endif-->
-The thing that nearly cost this its meaning was not the design. Three files in one feature
-described the deletion consumer's behaviour in detail before the consumer existed, and every test
-was green, because nothing related the events raised to the consumers registered.
-`DomainEventTests` now does: every event is either consumed or written into a list saying why it is
-not.
+**Every event is either consumed or written into a list saying why it is not.** A consumer
+described in prose before it exists passes every test, because nothing else relates the events
+raised to the consumers registered; `DomainEventTests` does.
 
 <!--#if (files)-->
 **A sweep is only a guarantee if it reaches everything**, so each Files pass states its retry
@@ -197,12 +196,11 @@ never builds.
 `Queries` projects rows onto a DTO without materialising one. `Store` is an application port for
 storage with no aggregate behind it — `IIdempotencyStore`, which a use case depends on. `Table` is
 row access to one table, declared inside the persistence project and reached only by a sibling
-infrastructure module
 <!--#if (localAuth)-->
- — `IRefreshTokenTable`, which no use case has ever heard of.
+infrastructure module — `IRefreshTokenTable`, which no use case has ever heard of.
 <!--#else
-, and no use case has ever heard of one.
-<!--#endif-->
+infrastructure module, and no use case has ever heard of one.
+#endif-->
 `StorageVocabularyTests` holds all four: a `Store` or a `Table` naming a domain entity has become a
 `Repository`, a `Repository` declared outside the Domain is a promise it cannot keep, and a `Table`
 a use case depends on has become a port and needs declaring where ports are.
@@ -232,22 +230,24 @@ number moves, re-read both.
 
 **Exclusivity between hosts belongs to the operation, not to the loop that starts it.**
 `ILeaderLease` is an application port, and the operations that must not run twice at once
-<!--#if (reminders)-->
-(`FireDueRemindersUseCase`
+<!--#if (reminders && files)-->
+(`FireDueRemindersUseCase`, the three Files passes)
+<!--#elseif (reminders)-->
+(`FireDueRemindersUseCase`)
+<!--#elseif (files)-->
+(the three Files passes)
 <!--#endif-->
-<!--#if (files)-->
-, the three Files passes
-<!--#endif-->
-)
 take it inside their use cases — not their background services. A `BackgroundService` is a trigger; a guard placed
 there protects the timer's callers and nobody else, and the
 <!--#if (localAuth)-->
 two purges are already exposed over HTTP by
 `MaintenanceController` as the standing reminder that a second caller does turn up.
-<!--#else
+<!--#elseif (externalAuth)-->
 idempotency-key purge is already exposed over HTTP by `MaintenanceController` as the standing
 reminder that a second caller does turn up.
-<!--#endif--> The adapter is
+<!--#else
+idempotency-key purge is a use case any future caller can reach, and a second caller does turn up.
+#endif--> The adapter is
 a PostgreSQL session-level advisory lock (`Common/Leases/`), chosen because losing the process
 releases the lock rather than stranding a lease until a timer says otherwise. **It is not a fencing
 token** — leadership can be lost mid-run — so anything run under it still has to survive a second
@@ -316,7 +316,27 @@ outlive the withdrawal. A token naming no session spares nothing, as for a passw
 <!--#endif-->
 
 **No MediatR, no dispatcher, no pipeline behaviours.** A controller names the use case it calls, and
-`F12` reaches the implementation. `LayerDependencyTests` forbids the package by name.
+`F12` reaches the implementation: the call graph is a call graph, and the compiler checks the wiring
+instead of a runtime registry. MediatR would add a `Command` type, a `Handler` type, an `IRequest<>`
+marker and a runtime dispatch step to reach exactly the same method, and the pipeline behaviours it
+offers are available without it — FluentValidation runs in the use case, logging is `ILogger`, and
+the transaction boundary is `IUnitOfWork`. This is not an argument against MediatR in general, but
+for not paying for it before there is a pipeline to put in it: adding it later is mechanical,
+removing it once every handler assumes it is not. `LayerDependencyTests` forbids the package by name.
+
+**The HTTP pipeline is one call, `UseHttpPipeline()`, in one order.** Six of its orderings are coupled
+pairwise, so a step a host could insert in the middle would offer exactly the arrangement the call
+exists to prevent. Forwarded headers come first, before anything reads the client address or scheme:
+the rate limiter partitions on the remote address, and CORS, authentication and the exception handler
+observe the scheme. Security and cache headers come next, so a response written by the exception
+handler, the rate limiter or a health endpoint carries the headers a controller's does — both write
+from `OnStarting`, which survives `UseExceptionHandler`'s `Response.Clear()`. The request log sits
+outside the exception handler and ahead of the size limit, so its entry reports the status the caller
+received and a 413 is answered without calling the next middleware; the limits come before anything
+reads the body. The language and the timeout follow the rate limiter, so a rejected request does no
+work and starts no clock, and the timeout precedes authentication and authorization so its deadline
+covers them. HTTPS redirection is not installed and HSTS is not sent: TLS terminates upstream, and
+the HSTS attributes are commitments over a whole domain that only the component terminating TLS knows.
 
 **A port never exposes `IQueryable`.** A contract that hands out a query tree has not abstracted the
 database, it has published it — and every caller becomes a place where a lazy load can happen.

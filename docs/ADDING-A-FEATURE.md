@@ -12,7 +12,14 @@ those changes.
 it. `Reminders` is the same vertical without child entities; section 4c says what
 that changes.
 #endif-->
-<!--#if (todoLists)-->
+<!--#if (publicApi)-->
+
+**This project was generated with `--auth none`, which adds no feature.** Every feature belongs to a
+caller, and a public API has none: `dotnet run Tools/Tasks.cs new-feature` refuses it, and the
+`--examples` and `--files` options that would have brought features are refused at generation. The
+sections below describe the shape of a feature; to read them against real files, generate a project
+with `--auth local` or `--auth external` beside this one.
+<!--#elseif (todoLists)-->
 <!--#else
 
 **This project was generated without that example** (`--examples notes` or `none`), so the files
@@ -888,7 +895,11 @@ fires **when you do the thing in the left column**, not a list of chores a featu
 | A public interface under `Common/` | it joins the port population by default. If it is not a port — something inside this layer implements it, not a module — it goes in `ApplicationPorts.NotPorts` with its reason, beside `ICollectionPolicy` and `ICollectionQuery` |
 | An anonymous endpoint | `_anonymousActions` in `Rules/HttpSurfaceTests.cs` |
 | A background service | the floor in `Rules/BackgroundWorkTests.cs`, and an instrument means `Rules/ObservabilityRegistrationTests.cs` |
+<!--#if (templateMaintenance)-->
 | A new project | guids in `AppTemplate.sln` **and** `.template.config/template.json` (`Rules/TemplatePackagingTests.cs` guards the list), a `COPY` line in both Dockerfiles, a mirror under `Tests/`, and the project floors in `Rules/ModuleDependencyTests.cs` |
+<!--#else-->
+| A new project | its entry in `AppTemplate.sln`, a `COPY` line in both Dockerfiles, a mirror under `Tests/`, and the project floors in `Rules/ModuleDependencyTests.cs` |
+<!--#endif-->
 | Anything at all, eventually | `coverage.minimum`, whose own rule says when the floor moves and demands Docker before it is touched |
 
 `_expectedEntities` in `Rules/DomainModelTests.cs` and `Rules/FeatureFolderVocabularyTests.cs` are

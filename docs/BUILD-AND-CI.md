@@ -315,8 +315,8 @@ One thing to expect rather than debug: the first analysis of `main` can come bac
 project with no previous analysis has no baseline and everything reads as new code. It settles as
 soon as that first run becomes the baseline.
 
-The analysis re-builds and re-tests rather than reusing the build job's output: SonarScanner for
-.NET learns which file belongs to which project by observing MSBuild between its `begin` and `end`
+The analysis re-builds and re-tests rather than reusing the build job's output: SonarScanner for .NET
+learns which file belongs to which project by observing MSBuild between its `begin` and `end`
 calls, so a build that already happened is invisible to it. Coverage reaches Sonar through
 `sonar.cs.cobertura.reportsPaths`, reading the same Cobertura reports and the same
 `coverage.runsettings` the coverage gate uses.

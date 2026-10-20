@@ -93,7 +93,7 @@ public sealed class ModuleDependencyTests
             + "that vertical, not under the module's Common/.");
 
     /// <summary>
-    /// The same rule the persistence mechanisms are held to, applied to the four other modules.
+    /// The same rule the persistence mechanisms are held to, applied to every other module that has a <c>Common/</c>.
     /// <c>Common/</c> holds what no single subject owns; a type there that names a feature is a
     /// feature adapter wearing the shared machinery's clothes, and the folder stops meaning
     /// anything.

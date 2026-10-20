@@ -451,13 +451,13 @@ says otherwise.
 - The container runs as a non-root user and exposes only `8080/tcp`; CI asserts both.
 - **Migrations are not applied at startup outside Development.**
 <!--#if (localAuth)-->
-- **The jobs share the API's process, and so its signing key.** The periodic jobs now run inside
+- **The jobs share the API's process, and so its signing key.** The periodic jobs run inside
   `AppTemplate.Api`, which signs and verifies every token, so the process that sends mail and
   deletes expired rows holds the real `Jwt:Key`. That is a deliberate trade for one process and one
-  image, and it removes a separation the template used to have: a separate worker needed the `Jwt`
-  section only to start — no background loop resolves `AccessTokenIssuer` — and was given a
+  image, and it gives up a separation: a separate worker needs the `Jwt`
+  section only to start — no background loop resolves `AccessTokenIssuer` — and can be given a
   self-describing placeholder, so a compromised background container could not mint a token. A
-  deployment that wants that property back runs the jobs in a process of its own, sets
+  deployment that wants that property runs the jobs in a process of its own, sets
   `Jobs:Enabled=false` on the API, and gives that process a placeholder `Jwt:Key` with the
   same `Jwt:Issuer` and `Jwt:Audience`; nothing in the jobs reads the key.
 <!--#endif-->
@@ -472,23 +472,31 @@ says otherwise.
    shipped `preload` would burn a domain for months. Nothing here can detect that you forgot, which
    is exactly why it is first on this list.
 3. **Configure the `ReverseProxy` section if anything sits in front of the app.** Until you do,
-   `X-Forwarded-For` is ignored and the rate limiter partitions on the proxy's address — so **every
-   caller in the world shares one 10-request window** and the brute-force protection does not work.
+   `X-Forwarded-For` is ignored and the rate limiter partitions on the proxy's address — so
+<!--#if (localAuth)-->
+   **every caller in the world shares one 10-request window** and the brute-force protection does not
+   work.
+<!--#else
+   **every caller in the world shares one window** and the limit protects nothing.
+#endif-->
    Set `KnownProxies` and/or `KnownNetworks` to the hops you actually run, and `ForwardLimit` to
    their number. Do **not** enable it with empty trust lists to "make it work": ASP.NET Core treats
    two empty lists as *trust every caller*, which lets a client forge its own partition key and
    bypass the limiter just as completely. The options validator refuses to start in that state.
+<!--#if (localAuth)-->
 4. **Supply the signing secret from a secret manager**, with real entropy, and rotate it. Never
    from a file in source control. Same for `ConnectionStrings:Default` and the SMTP credentials.
-<!--#if (localAuth)-->
    Give `Jwt:Key` to
    `AppTemplate.Api` and to nothing else — a separate job runner, if you extract one, needs the *section*,
    not the *key*.
+<!--#elseif (externalAuth)-->
+4. **Supply `ConnectionStrings:Default` and the SMTP credentials from a secret manager**, never from
+   a file in source control. The signing secret is the provider's, held by the provider; what this
+   deployment supplies is `Authentication:External:Authority` and `Authentication:External:Audience`.
 <!--#else
-   With external authentication the signing secret is the provider's, held by the provider; what
-   this deployment supplies is `Authentication:External:Authority` and
-   `Authentication:External:Audience`.
-<!--#endif-->
+4. **Supply `ConnectionStrings:Default` and the SMTP credentials from a secret manager**, never from
+   a file in source control.
+#endif-->
 5. **Set `Cors:AllowedOrigins`** to your real origins, and **narrow `AllowedHosts`** from `*` to the
    hostnames you serve.
 6. **Apply migrations as a separate step** — the release workflow builds a self-contained bundle.
@@ -497,8 +505,13 @@ says otherwise.
 7. **Grant the database user least privilege**: DML on its own tables, no DDL, no superuser.
 
 ### Strongly recommended
+<!--#if (localAuth)-->
 - Ship the OTLP telemetry somewhere and alert on it — `429` and `401` rates are the signals that
   tell you brute force is happening.
+<!--#else
+- Ship the OTLP telemetry somewhere and alert on it — the `429` rate is the signal that something is
+  hammering the API.
+#endif-->
 - Set a log retention policy, and re-check redaction after you add any logging of your own. The
   guarantee here covers the middleware this template ships, not code you add.
 - Back up the database and rehearse the restore.
@@ -556,28 +569,30 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
 - **The background work needs an availability signal, and `/health/ready` is not it.** The jobs run
   in the API process, whose readiness probe answers for HTTP — the database checks and the shutdown
   state — so with every instance's jobs stopped, or switched off with `Jobs:Enabled=false`,
-  no idempotency key is reclaimed
-<!--#if (localAuth)-->
-  , no expired refresh-token grant is deleted
-<!--#endif-->
-<!--#if (reminders)-->
-  and no reminder is rung
-<!--#endif-->
-  , and the probe stays green. Each of the three jobs emits a heartbeat, and it is what a deployment
+<!--#if (localAuth && reminders)-->
+  no idempotency key is reclaimed, no expired refresh-token grant is deleted and no reminder is
+  rung, and the probe stays green.
+<!--#elseif (localAuth)-->
+  no idempotency key is reclaimed and no expired refresh-token grant is deleted, and the probe stays
+  green.
+<!--#elseif (reminders)-->
+  no idempotency key is reclaimed and no reminder is rung, and the probe stays green.
+<!--#else
+  no idempotency key is reclaimed, and the probe stays green.
+#endif-->
+  Each job emits a heartbeat, and it is what a deployment
   should alert on going flat, on the instance designated to run them:
   the `jobs.*.iterations` counters, counted once per pass and never
   gated on how much the pass found, so a healthy quiet system still produces samples. Alert on that
   instance's restart count alongside them.
-  Do **not** alert on the absence of `apptemplate.reminders.missed_cancellations`, which this
-  paragraph used to advise: that counter increments only when a cancellation was missed, so silence
-  is its healthy state and it cannot tell a working loop from a dead one.
 <!--#if (reminders)-->
-  Running the jobs on more than one instance is **safe** for the reminder pass, and it was not before.
+  Do **not** alert on the absence of `apptemplate.reminders.missed_cancellations`: that counter
+  increments only when a cancellation was missed, so silence is its healthy state and it cannot tell
+  a working loop from a dead one.
+  Running the jobs on more than one instance is **safe** for the reminder pass.
 <!--#endif-->
-<!--#if (accounts)-->
-  The purges are idempotent deletes over an already-covered range, so a second process wastes a
+  Each purge is an idempotent delete over an already-covered range, so a second process wastes a
   connection and nothing more.
-<!--#endif-->
 <!--#if (reminders)-->
   The reminder loop is where concurrency mattered: two replicas ticking
   in the same second read the same due reminders and both send the mail, and only then does one of
@@ -585,11 +600,16 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   invisible to the other replica, and one written to the store before the send would only add a
   state that a crash strands — so the lease is the one exclusivity there is.
 <!--#endif-->
-  The pass now runs under `ILeaderLease`, whose adapter is a PostgreSQL session-level advisory lock
+  A pass that must not run twice takes `ILeaderLease`, whose adapter is a PostgreSQL session-level advisory lock
   on its own unpooled connection: exactly one host runs a pass, and losing that process closes the
   session and releases the lock rather than stranding a lease until a timer says otherwise. The
   guard is in the use case rather than in the `BackgroundService`, so it also covers any future
-  caller — `MaintenanceController` is the standing proof that one turns up.
+  caller
+<!--#if (accounts)-->
+  — `MaintenanceController` is the standing proof that one turns up.
+<!--#else
+  — and one does turn up.
+#endif-->
   **It is not a fencing token.** Leadership can be lost mid-run without the work being told, so
   delivery stays at-least-once and anything else put under a lease has to survive a second host
   starting it. What the lease removes is the systematic duplication of every single pass.
@@ -627,28 +647,39 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   no `If-Match` at all is still accepted unless `Concurrency:IfMatch` is set to `Required` — see
   `Concurrency:IfMatch`. Until you set it, a slow user's form submission can still overwrite a change made
   after it was rendered without anything detecting it.
-- **Domain-event delivery is best-effort, with no outbox.** Consumers are now isolated from one
+- **Domain-event delivery is best-effort, with no outbox.** Consumers are isolated from one
   another: one throwing is logged with its event and consumer type, and the remaining consumers of
-  that same event still run. What remains open is narrower but real — the throwing consumer's own
-  side effect is lost and never retried, and a process that dies between the commit and the dispatch
+  that same event still run. Two losses are open — the throwing consumer's own
+  side effect is never retried, and a process that dies between the commit and the dispatch
   loop loses every consumer for that save, because nothing durable recorded that the event was
   raised. Closing that needs an outbox, plus a dispatcher, a dead-letter path and idempotent
   consumers, and this template refuses to ship half of one: a dispatcher with no dead-letter queue
   and no alert on lag is worse than an acknowledged gap, because it looks solved.
+<!--#if (reminders)-->
   The reminder feature shows the alternative, and it is the pattern to copy: the effect re-reads
   the state it depends on at the moment it acts, so a lost cancellation delays a reminder's
   retirement instead of firing it wrongly, and the reminder job counts every such divergence —
   a non-zero `apptemplate.reminders.missed_cancellations` is the number of events that went missing. A
   consumer whose effect *cannot* be re-derived, because nothing re-reads the state later — mail,
   money, a call to a third party — still needs an outbox before you rely on it.
+<!--#else
+  A consumer whose effect *cannot* be re-derived, because nothing re-reads the state later — mail,
+  money, a call to a third party — still needs an outbox before you rely on it.
+#endif-->
   No consumer is the only thing keeping a rule true: every effect re-derives its precondition when
   it runs, so a lost event leaves the system stale rather than wrong.
 - **Idempotency keys expire only where the jobs run.** `Idempotency:Retention` stamps each row's
   `ExpiresAt`; it does not delete anything. The API's maintenance job calls the purge on its own
-  schedule, and the same operation is exposed as
+  schedule.
+<!--#if (accounts)-->
+  The same operation is exposed as
   `DELETE /api/v1/maintenance/idempotency-keys/expired` behind the `Administrator` policy for a
   deployment that runs the jobs on no instance. Deploy neither and a completed key stays replayable
   past its retention window while the table grows without bound.
+<!--#else
+  A deployment that runs the jobs on no instance has no purge at all, and a completed key stays
+  replayable past its retention window while the table grows without bound.
+#endif-->
 <!--#if (localAuth)-->
 - **The auth wire format has two owners.** `ConfigureJwtBearerOptions` in the Identity module builds
   its own `ProblemDetails` and owns the `auth.required` / `auth.forbidden` codes, so a change to how

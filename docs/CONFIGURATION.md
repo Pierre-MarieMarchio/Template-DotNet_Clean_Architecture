@@ -304,7 +304,7 @@ there: what is deliberately not configurable, and how a key becomes an environme
 | Key | Type | Default | Notes |
 |---|---|---|---|
 <!--#if (localAuth)-->
-| `Default` | string | — | **Required.** The one and only connection string. Npgsql format. Both `DbContext`s use it, which is also what makes them share one pool; see [ARCHITECTURE.md](ARCHITECTURE.md#two-contexts-one-database-six-schemas). |
+| `Default` | string | — | **Required.** The one and only connection string. Npgsql format. Both `DbContext`s use it, which is also what makes them share one pool; see [ARCHITECTURE.md](ARCHITECTURE.md#two-contexts-one-database). |
 <!--#else
 | `Default` | string | — | **Required.** The one and only connection string. Npgsql format. |
 <!--#endif-->

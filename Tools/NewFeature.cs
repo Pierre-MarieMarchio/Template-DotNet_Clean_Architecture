@@ -1183,7 +1183,7 @@ internal static class NewFeature
         }
 
         output.WriteLine();
-        output.WriteLine("It does not compose yet, and nothing here edited a file it does not own.");
+        output.WriteLine("The solution does not compile until edit 1 is made, and the feature does not compose until all are; nothing here edited a file it does not own.");
         output.WriteLine(spec.Reaction is null
             ? "Six edits, each by hand, each somewhere an absence should be visible:"
             : "Eleven edits, each by hand: six like every feature, and five more because this project was");

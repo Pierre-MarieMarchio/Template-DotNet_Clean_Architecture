@@ -34,7 +34,8 @@ public sealed class PendingModelChangesTests
 
         context.Database.HasPendingModelChanges().ShouldBeFalse(
             "the model has changed since the last migration was generated. "
-            + "Run 'dotnet ef migrations add <Name>' from the AppTemplate.Infrastructure.Auth project "
+            + "The launcher's migration-add targets the business context only, so run 'dotnet ef migrations add <Name>' "
+            + "with the Auth project on both --project and --startup-project (docs/MIGRATIONS.md) "
             + "so the schema change ships with the code that needs it.");
     }
 }

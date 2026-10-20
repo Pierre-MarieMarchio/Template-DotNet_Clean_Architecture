@@ -128,7 +128,9 @@ reports, writing nothing: the files the feature owns, the lines elsewhere that r
 in a migration or the snapshot, or use its types (confirmed), the lines that only contain its name (possible), and the checks to run
 afterwards. Adding `--apply` deletes the generated files, the manifest and the folders left empty, but only when every file still
 hashes as written, nothing was added to the feature's folders, and none of the six edits above (nor any other use of the feature)
-exists yet. Otherwise it refuses before deleting anything and prints the same report. A migration is never touched.
+exists yet. Otherwise it refuses before deleting anything and prints the same report. A use of its types is
+confirmed only by a name the feature itself declares, so `OrderBy` beside an `Orders` feature, or a type's name in a
+string or a comment, is a possible match and blocks nothing. A migration is never touched.
 The first owner feature of a project generated with no feature also holds the account-deletion files every owner feature
 shares (below): `--apply` deletes them with it only when no other owner feature and none of the five registrations printed
 for them still use them, and refuses otherwise.
@@ -168,7 +170,10 @@ on.
 feature nobody composes is visibly registered nowhere. It prints the edits instead — the three in
 `AppDbContext`, the `Add<Features>()` of `ApplicationModule` (with, for an owner feature, the two
 faces of its account-deleted policy) and of `PersistenceModule`, the call in `Program.cs`, and the
-two test classes that list every feature — and then the migration step. When it brought the
+two test classes that list every feature — and then the migration step. Until the first of them is
+made the solution does not compile, because the generated record configuration refers to the schema
+constant `AppDbContext` does not yet hold; it compiles again once that edit is in, and the feature
+composes once all of them are. When it brought the
 account-deleted reaction with it, five more edits are printed: the `AddDeletedAccountSweep()` of
 `ApplicationCoreModule` and its call in `Program.cs`, the `AddDeletedAccountSweepJobs()` call of
 `BackgroundJobsModule`, the directory adapter in the composition of the accounts, and in the

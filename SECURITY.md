@@ -42,6 +42,18 @@ against your production system.
   stale token is still recognised as a replay rather than as unknown. A refresh rotates first and
   asks second whether the account may still sign in, so a replay is refused before anything else
   and a suspended account cannot refresh its way onwards.
+<!--#if (browserSessions)-->
+- **A browser's refresh token is never readable by script.** A request sending
+  `X-Refresh-Token-Mode: cookie` to a sign-in completion, `refresh` or `logout` has the token set in
+  the `refresh_token` cookie — `HttpOnly`, `Secure`, `SameSite=Strict`, host-only, on
+  `Path=/api/v1/auth`, expiring with the grant — and the body carries no `refreshToken`. The cookie
+  is read only when that header is present, so a forged cross-site or cross-origin request cannot
+  spend or revoke the grant: `SameSite=Strict` withholds the cookie from another site, and the
+  custom header forces a CORS preflight the policy never grants with credentials. A refresh or
+  logout sending the cookie without the header is refused and touches nothing; a refresh whose
+  cookie is missing answers `401`, and a replayed cookie raises the same theft alarm as a replayed
+  body token and clears the cookie. Without the header nothing changes for a non-browser client.
+<!--#endif-->
 - **Sessions an owner can see and end.** One sign-in is one session: a refresh-token family, with
   its creation time, its last use and the client's `User-Agent` as of that use. The access token
   carries a `sid` claim naming the session it was issued in. `GET /auth/sessions` lists the caller's
@@ -176,6 +188,11 @@ against your production system.
 - **CORS denies by default.** An empty `Cors:AllowedOrigins` allows nothing rather than everything,
   and `AllowCredentials` is never set, because it is the combination of credentials and a permissive
   origin policy that turns CORS into a hole.
+<!--#if (browserSessions)-->
+  The refresh-token cookie depends on it: a listed origin allowed credentials could send the cookie
+  with the header that unlocks it. A web app reaches the API through its own relay, on its own
+  origin, and needs no CORS at all.
+<!--#endif-->
 
 ### Abuse resistance
 <!--#if (localAuth)-->
@@ -596,6 +613,13 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   Closing it means taking delivery off the request: queue the message durably and answer on both
   branches at once. A detached task is not the fix — it drops the mail on the next deployment — and
   neither is a fixed delay, which would have to exceed the relay's own variance to hide anything.
+<!--#endif-->
+<!--#if (browserSessions)-->
+- **On `localhost`, every web app shares one refresh-token cookie.** Cookies are not scoped by
+  port, so two apps served on two ports of `localhost` send and replace the same `refresh_token`:
+  signing in on one ends the cookie the other held. Deployed apps on distinct hosts each get their
+  own, since the cookie is host-only. A browser that does not treat `http://localhost` as secure for
+  cookies drops the `Secure` cookie in development; serve the app over HTTPS there to use one.
 <!--#endif-->
 - **The background work needs an availability signal, and `/health/ready` is not it.** The jobs run
   in the API process, whose readiness probe answers for HTTP — the database checks and the shutdown

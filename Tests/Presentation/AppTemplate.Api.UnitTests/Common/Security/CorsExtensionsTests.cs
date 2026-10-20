@@ -11,6 +11,16 @@ namespace AppTemplate.Api.UnitTests.Common.Security;
 
 public sealed class CorsExtensionsTests
 {
+    /*#if (browserSessions)*/
+    private const string _whyNoCredentials =
+        "the refresh-token cookie reaches the API from the web app's own origin, through its relay; "
+        + "allowing credentials would let a listed origin present it from a page of its own.";
+    /*#else
+    private const string _whyNoCredentials =
+        "tokens travel in the Authorization header rather than a cookie, so credentials are "
+        + "not needed and allowing them would widen the policy for nothing.";
+    #endif*/
+
     private static readonly (string Header, string Written)[] _actionable =
     [
         ("Retry-After", "the rate limiter, on a 429"),
@@ -38,12 +48,8 @@ public sealed class CorsExtensionsTests
     }
 
     [Fact]
-    public void TheDefaultPolicy_DoesNotAllowCredentials()
-    {
-        ResolvePolicy(["https://app.test"]).SupportsCredentials.ShouldBeFalse(
-            "tokens travel in the Authorization header rather than a cookie, so credentials are "
-            + "not needed and allowing them would widen the policy for nothing.");
-    }
+    public void TheDefaultPolicy_DoesNotAllowCredentials() =>
+        ResolvePolicy(["https://app.test"]).SupportsCredentials.ShouldBeFalse(_whyNoCredentials);
 
     [Fact]
     public void WithNoConfiguredOrigins_ThePolicyAllowsNone()

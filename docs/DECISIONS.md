@@ -1857,3 +1857,95 @@ failing requests, ten-second responses — and a 429 counts as the rate limiter 
 its release archive checked against the published SHA-256: the documented apt install needs a
 keyserver daemon the hosted runner lacks.
 <!--#endif-->
+<!--#if (anyWeb)-->
+
+## Web front ends
+
+**One pnpm workspace, every version pinned.** `Src/Web` holds every app under `apps/` and every
+internal package under `packages/`, with one lockfile. The pnpm version and its hash are the
+`packageManager` field of `Src/Web/package.json`, which Corepack reads on a machine and
+`pnpm/action-setup` reads in CI, so both run the same pnpm; Node comes from `Src/Web/.node-version`,
+and `engines` states the floor. Every dependency is written at an exact version, so regenerating the
+lockfile cannot move a direct dependency. Nothing in the .NET build needs Node or pnpm.
+
+**Internal packages export their TypeScript sources.** A package's `exports` names `src/index.ts`
+and each app's bundler compiles it, so there is no build order between packages, no stale `dist/`
+to forget, and a change shows in every app's dev server at once. A package's `build` is therefore a
+type check. The price is that a package cannot leave the workspace as it is; one that has to would
+get its own build step, recorded here.
+
+**The package scope is the project's kebab name.** Internal packages are `@<kebab-name>/…`, the
+same transform that names the Compose project, so two generated projects never share a scope.
+Apps are not scoped: nothing imports an app, and an app's package name is its folder's kebab name,
+which is what `pnpm --filter` takes.
+
+**The API client is generated from the document the API itself describes.**
+`Microsoft.Extensions.ApiDescription.Server` writes the OpenAPI document when a build asks for it;
+an ordinary build does not, so a `dotnet build` or an image build never starts the application.
+`pnpm api` asks: it clears the generator's incremental cache, builds the API with generation on in
+the Development environment, whose settings are complete enough to compose the application, and
+turns the document into `Src/Web/packages/api-client/src/generated/schema.ts` with `openapi-typescript`.
+`Program.cs` returns before the Development migrations when the generator is its entry point, since
+the document needs the composed services and not a database. The document is an intermediate file
+and is ignored; the schema is committed, so an app type-checks without the .NET SDK, and CI
+regenerates it and fails on any difference. A generated project receives the schema of the
+template's full API, which its first `dotnet run Tools/Tasks.cs bootstrap` regenerates to the
+project's own.
+
+**`openapi-typescript` runs on TypeScript 6.** Its peer range still names 5, and it only prints
+types, which TypeScript 6 does unchanged. `peerDependencyRules` in `pnpm-workspace.yaml` allows it
+by name, rather than leaving a warning that teaches everyone to read past peer warnings; the rule
+goes when the range widens.
+
+**One client wrapper, the same for every framework.** `createApiClient` is `openapi-fetch` over the
+generated `paths`, relative to the page's origin, which each app's relay makes the API's.
+`unwrap` returns the body or throws an `ApiError` carrying the problem document's `code` and field
+`errors`; an answer that is no problem document, such as a proxy's error page, becomes the code
+`response.unreadable`, so a caller branches on codes alone. Credentials enter through one seam: an
+`accessToken` provider read before each request, which keeps the token wherever the app holds it in
+memory, and the `middleware` list, where a refresh that retries a request belongs. Neither knows a
+framework.
+
+**Each app is its own nginx image, built from the workspace.** The build context is `Src/Web`, so
+an app's Dockerfile reaches the lockfile and the packages it depends on and nothing of the .NET
+tree. The placeholder copies its `public/` folder into `nginxinc/nginx-unprivileged`, which runs as
+uid 101 on port 8080; a framework app puts a build stage in front of the same runtime stage —
+`pnpm fetch` from the lockfile, `pnpm install --offline --frozen-lockfile --filter <app>...`,
+`pnpm --filter <app> build` — and copies its `dist/` instead. `nginx.conf` is installed as a
+template: the image's entrypoint substitutes `API_UPSTREAM` and the container's resolver at start,
+and the upstream is resolved per request, so the web container survives an API restart that moves
+its address, and the same image runs wherever the API answers to another name.
+
+**The pages carry the page headers; the API carries its own.** The Content-Security-Policy,
+`X-Content-Type-Options`, `Referrer-Policy`, `Cross-Origin-Opener-Policy` and `Cache-Control` are
+added in the location that serves files. The relayed `/api/` and `/health` answers keep the API's
+headers untouched, since nginx would otherwise send a second policy beside the API's. A file whose
+name ends in a dash and a hash of eight characters or more, holding a digit or a capital, is cached
+for a year as immutable and answers 404 when absent; every other file, `index.html` first,
+revalidates, and an unknown path falls back to `index.html` for the app's router.
+
+**Apps are discovered, not listed.** CI builds one image per folder under `Src/Web/apps` holding a
+Dockerfile, and Dependabot watches `Src/Web/apps/*` by directory glob and the whole workspace through
+its lockfile. The one list an app joins is `include:` in `docker-compose.yml`, because Compose
+includes no glob; `EveryWebApp_IsIncludedInTheRootComposeFile` fails when an app's `compose.yml` is
+missing from it.
+
+**`dotnet new cleanarch-webapp` prints the include line instead of writing it.** The template
+engine edits no YAML: its file-editing post-action handles JSON alone, and a script post-action
+needs `--allow-scripts`, fails the command when refused and receives no option values. The command
+prints where the line goes, and the new app's `README.md` gives the line and its port setting
+written out. An app without dependencies, as the placeholder, needs no lockfile entry, so
+`pnpm install --frozen-lockfile` stays green after adding one; a framework app changes the lockfile,
+which one `pnpm install` records.
+<!--#if (templateMaintenance)-->
+
+**The first app and every added app come from one folder.** `Src/Web/apps/PlaceholderSite` is the
+placeholder's source for both `--web placeholder` and `cleanarch-webapp --framework placeholder`:
+the project template keeps only the chosen framework's folder and renames it from `--web-name`, the
+item template reads the same folder through its own manifest and renames it from `-n`. The folder's
+name is a token in three spellings — `PlaceholderSite`, `placeholder-site`, `PLACEHOLDER_SITE` —
+replaced in paths and contents, so no word an app would use can collide with it. A framework's
+folder follows the same rule under its own token, so the repository's workspace builds every
+framework's app side by side.
+<!--#endif-->
+<!--#endif-->

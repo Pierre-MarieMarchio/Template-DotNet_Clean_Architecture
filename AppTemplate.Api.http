@@ -32,6 +32,8 @@
 # {{requestName.response.body.$.field}} against a named earlier response.
 ####################################################################################################
 
+# 5187 when the API runs on the host (`dotnet run`); http://localhost:8080 when it runs in the
+# Compose stack.
 @host = http://localhost:5187
 @api = {{host}}/api/v1
 #if (externalAuth)
@@ -92,7 +94,9 @@ Content-Type: application/json
 
 ###
 # 4. MANUAL STEP. Read the confirmation mail out of mailpit and copy the `token` fragment
-#    parameter of the confirm-email link into @confirmationToken below.
+#    parameter of the confirm-email link into @confirmationToken below, URL-decoded: the link
+#    carries it percent-encoded (%2B for +, %2F for /), and the encoded form answers 400
+#    auth.confirmEmail.invalid, which reads as an expired link and is not one.
 #    The browser UI at http://localhost:8025 shows the same message.
 # @name confirmationMail
 GET {{mailpit}}/api/v1/message/latest

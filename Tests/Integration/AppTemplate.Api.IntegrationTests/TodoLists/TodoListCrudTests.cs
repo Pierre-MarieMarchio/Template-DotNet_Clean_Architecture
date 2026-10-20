@@ -8,9 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.TodoLists;
 
-/// <summary>
-/// The create / read / delete round trip over HTTP, with its status codes and <c>Location</c> header.
-/// </summary>
 public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -25,8 +22,6 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
 
         created.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        // The whole representation, so a caller that has just created a list can go on writing to it
-        // without reading it back.
         var list = await ApiJson.ReadAsync<TodoListResponse>(created, TestToken);
         list.Id.ShouldNotBe(Guid.Empty);
         list.Name.ShouldBe("Groceries");
@@ -36,7 +31,6 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
         created.Headers.Location.ShouldNotBeNull();
         created.Headers.Location!.ToString().ShouldEndWith(list.Id.ToString());
 
-        // The header is not decoration: following it has to reach the resource.
         using var followed = await client.GetAsync(created.Headers.Location, TestToken);
 
         followed.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -104,7 +98,6 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
             TestToken);
         deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        // Cascade, asserted at the database rather than inferred from the list being gone.
         int items = await Database.CountAsync("SELECT count(*) FROM todo.\"TodoItems\"", TestToken);
         items.ShouldBe(0);
     }

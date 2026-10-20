@@ -10,10 +10,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Notes;
 
-/// <summary>
-/// One user creates, lists, reads, edits and deletes their notes through the real API and the real
-/// database, and every route refuses an anonymous caller.
-/// </summary>
 public sealed class NoteCrudTests(ApiFixture fixture) : NotesTestBase(fixture)
 {
     [Fact]
@@ -62,7 +58,6 @@ public sealed class NoteCrudTests(ApiFixture fixture) : NotesTestBase(fixture)
         followed.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    /// <summary>The owner is the caller. A body that names one is not a field, so it cannot choose it.</summary>
     [Fact]
     public async Task TheOwner_CannotBeChosenInTheBody()
     {
@@ -189,10 +184,6 @@ public sealed class NoteCrudTests(ApiFixture fixture) : NotesTestBase(fixture)
         response.StatusCode.ShouldBe(HttpStatusCode.NotModified);
     }
 
-    /// <summary>
-    /// The three-fifths of the surface that has no body to fall back on: every route, with no token and
-    /// with a garbage one, answers 401 before anything else is looked at.
-    /// </summary>
     [Theory]
     [InlineData("GET", NotesRoute)]
     [InlineData("POST", NotesRoute)]
@@ -223,7 +214,6 @@ public sealed class NoteCrudTests(ApiFixture fixture) : NotesTestBase(fixture)
         }
     }
 
-    /// <summary>The routes above are only a guard while they are the whole surface.</summary>
     [Fact]
     public void TheControllerHasExactlyTheFiveRoutesTheAnonymousTestCovers() =>
         typeof(NotesController)

@@ -131,6 +131,10 @@ this repository:
   on a newly added member and turned the first real call into a 500; every unit test around it had
   substituted that collaborator away. Where a component is substituted everywhere, something has to
   exercise the real one.
+- **A refusal test needs its control.** Pair it with the same call succeeding, or with a read that
+  shows nothing changed, or it holds for an endpoint that refuses everyone; and a test that claims a
+  property of a whole surface reads the controllers by reflection and asserts the count. The
+  [integration-test decisions](DECISIONS.md#integration-tests) give the reasons.
 - **Never compare two problem documents whole.** They carry a `traceId`, which identifies the
   request rather than its outcome, so two requests always differ — an assertion that they are equal
   is asserting that two requests are the same one. Compare everything else.

@@ -12,11 +12,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// End to end coverage of <c>change-email</c> and <c>confirm-email-change</c>: two tokens, two
-/// addresses, a rotation the framework performs and a revocation this codebase performs by hand,
-/// and an anti-enumeration path on the new address.
-/// </summary>
 public sealed class EmailChangeFlowTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -25,9 +20,6 @@ public sealed class EmailChangeFlowTests(ApiFixture fixture) : IntegrationTestBa
         var (client, user, _) = await SignInAsync();
         string newEmail = NewAddress();
 
-        // SignInAsync registers first, which already sent the confirmation mail this test is not
-        // about: cleared so what follows can check what was and was not sent from a known-empty
-        // mailbox.
         Emails.Clear();
 
         using var requested = await client.PostAsJsonAsync(
@@ -36,7 +28,6 @@ public sealed class EmailChangeFlowTests(ApiFixture fixture) : IntegrationTestBa
             TestToken);
         requested.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        // Mailed to the new address, never the old one.
         var sent = RequireLastEmailTo(newEmail);
         sent.Subject.ShouldBe("Confirm your new email address");
         Emails.LastTo(user.Email).ShouldBeNull();
@@ -54,8 +45,6 @@ public sealed class EmailChangeFlowTests(ApiFixture fixture) : IntegrationTestBa
             $"{AuthRoute}/login", new LoginRequest(user.Email, user.Password), TestToken);
         loginWithOld.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
 
-        // ChangeEmailAsync marks the new address confirmed as part of applying the change, so signing
-        // in with it works immediately — no separate confirm-email round trip is needed.
         using var loginWithNew = await client.PostAsJsonAsync(
             $"{AuthRoute}/login", new LoginRequest(newEmail, user.Password), TestToken);
         loginWithNew.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -139,11 +128,6 @@ public sealed class EmailChangeFlowTests(ApiFixture fixture) : IntegrationTestBa
             .ShouldBeEmpty("The address must never reach a log on this anti-enumeration path.");
     }
 
-    /// <summary>
-    /// Mirrors the guarantee <c>ChangePassword</c> gives: the stamp rotation that
-    /// <c>ChangeEmailAsync</c> performs fails the access token already in circulation before it would
-    /// otherwise expire.
-    /// </summary>
     [Fact]
     public async Task ConfirmEmailChange_InvalidatesTheAccessTokenAlreadyInCirculation()
     {
@@ -160,18 +144,12 @@ public sealed class EmailChangeFlowTests(ApiFixture fixture) : IntegrationTestBa
             TestToken);
         confirmed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        // The exact same token, already issued, replayed unchanged.
         using var after = await client.GetAsync(new Uri($"{AuthRoute}/me", UriKind.Relative), TestToken);
         after.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         after.Headers.GetValues(ApiFactory.AuthFailureHeader)
             .ShouldContain("This token's security stamp is no longer valid.");
     }
 
-    /// <summary>
-    /// The stamp rotation kills access tokens on its own; refresh tokens are this codebase's own and
-    /// survive it untouched unless <c>ConfirmEmailChangeUseCase</c> revokes them itself through
-    /// <c>CredentialInvalidationPolicy</c>.
-    /// </summary>
     [Fact]
     public async Task ConfirmEmailChange_RevokesEveryRefreshTokenForTheAccount()
     {

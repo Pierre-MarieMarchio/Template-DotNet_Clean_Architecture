@@ -8,16 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Security;
 
-/// <summary>
-/// The response-security headers must be on every response, not on the convenient ones.
-/// </summary>
-/// <remarks>
-/// The three cases below are the three ways a response leaves this API, and they take three
-/// different paths through the pipeline: a controller writing a result, the bearer handler writing a
-/// ProblemDetails during authentication, and a health endpoint that no controller and no
-/// authorisation ever sees. A middleware that set headers on the way in would pass the first and fail
-/// the others, because <c>UseExceptionHandler</c> clears the response before re-running it.
-/// </remarks>
 public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     //#if (signedInRoute)
@@ -60,10 +50,6 @@ public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBas
     }
     //#if (signedInRoute)
 
-    /// <summary>
-    /// The strict policy, asserted as the exact string. A partial assertion would pass on a policy
-    /// that had quietly lost <c>default-src</c> and kept only <c>frame-ancestors</c>.
-    /// </summary>
     [Fact]
     public async Task AnApiRoute_CarriesTheStrictContentSecurityPolicy()
     {
@@ -76,10 +62,6 @@ public sealed class SecurityHeaderTests(ApiFixture fixture) : IntegrationTestBas
     }
     //#endif
 
-    /// <summary>
-    /// Both halves of the clickjacking control, so that dropping either one fails. The header is for
-    /// agents predating CSP Level 2; the directive is what a current browser obeys.
-    /// </summary>
     [Fact]
     public async Task TheFramingControls_AreBothPresent()
     {

@@ -8,10 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.TodoLists;
 
-/// <summary>
-/// A refused invariant is a proper HTTP status with a stable code — never a 500 carrying an
-/// exception message.
-/// </summary>
 public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -35,10 +31,6 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
         problem.Detail.ShouldBe("This list already contains an item titled 'Buy milk'.");
     }
 
-    /// <summary>
-    /// The rule is case-insensitive, which is why it lives in the aggregate rather than in a unique
-    /// index: a B-tree unique index would enforce a different and weaker rule.
-    /// </summary>
     [Theory]
     [InlineData("buy milk")]
     [InlineData("BUY MILK")]
@@ -77,10 +69,6 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
         problem.Detail.ShouldBe("Item 'Do the thing' is already completed.");
     }
 
-    /// <summary>
-    /// The negative statement that makes the rest of this class meaningful: none of these refusals is
-    /// a 500, and none of them leaks a stack trace or an exception message the product did not write.
-    /// </summary>
     [Fact]
     public async Task NoRefusedInvariant_ProducesAServerError()
     {
@@ -128,8 +116,6 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
     {
         var (client, _, _) = await SignInAsync();
 
-        // The shape validator and the value object share the same bound, so the request is refused
-        // before the aggregate is ever asked — a DomainException here would mean the two disagree.
         using var response = await client.PostAsJsonAsync(
             TodoListsRoute,
             new CreateTodoListRequest(new string('x', TodoListName.MaxLength + 1)),
@@ -157,14 +143,6 @@ public sealed class AggregateInvariantTests(ApiFixture fixture) : IntegrationTes
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
-    /// <summary>
-    /// A refusal the product decided on: a 4xx, a stable code, and no sign of the last-resort handler.
-    /// </summary>
-    /// <remarks>
-    /// A <c>traceId</c> is not that sign. Every problem document carries one, by design, so it says
-    /// nothing about which layer authored the refusal — what distinguishes a decision from a crash is
-    /// the stable code, the title, and the absence of anything an exception would have leaked.
-    /// </remarks>
     private static async Task AssertCleanRefusalAsync(HttpResponseMessage response)
     {
         ((int)response.StatusCode).ShouldBeInRange(400, 499);

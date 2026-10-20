@@ -6,31 +6,8 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Leases;
 
-/// <summary>
-/// One host at a time, against a real PostgreSQL.
-/// </summary>
-/// <remarks>
-/// <para>
-/// Only a real server can answer this. The exclusion <em>is</em> <c>pg_try_advisory_lock</c>, and the
-/// lock belongs to the session that took it — a substitute would assert whatever it had been written
-/// to assert, and a single <see cref="ILeaderLease"/> shared by both participants would assert
-/// nothing about two replicas.
-/// </para>
-/// <para>
-/// Each test runs the contender from <em>inside</em> the holder's work. That makes the overlap a fact
-/// rather than a hope: the holder cannot have released a lease it is still running the work for, so
-/// there is no window in which a passing result means the two calls merely missed each other.
-/// </para>
-/// </remarks>
 public sealed class LeaderLeaseTests(LeaseFixture fixture) : IClassFixture<LeaseFixture>
 {
-    /// <summary>How long an attempt that must not queue is given before it is called a wait.</summary>
-    /// <remarks>
-    /// Not a performance budget: every call here is one round trip to a container on this machine.
-    /// It is set far above what any loaded machine needs, so that only an implementation genuinely
-    /// waiting for the holder can reach it. Eleven test projects run at once in this repository and a
-    /// cap tight enough to say something about speed would be a bet on the machine instead.
-    /// </remarks>
     private static readonly TimeSpan _refusalCap = TimeSpan.FromSeconds(30);
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -148,9 +125,6 @@ public sealed class LeaderLeaseTests(LeaseFixture fixture) : IClassFixture<Lease
 
         holderTookTheLease.ShouldBeTrue();
 
-        // The lock is taken on a bigint derived from the name. A derivation that ignored its input —
-        // a constant, or a truncation that kept none of what differs — would pass every assertion
-        // above and serialise two loops that have nothing to do with each other.
         neighbourTookTheLease.ShouldBeTrue(
             "two lease names name two different things and must not contend. This one was refused " +
             "while a lease of another name was held, so the key is not a function of the name.");
@@ -158,21 +132,9 @@ public sealed class LeaderLeaseTests(LeaseFixture fixture) : IClassFixture<Lease
         neighbourRanItsWork.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// Runs <paramref name="whileHeld"/> at the one moment that matters: inside the holder's work,
-    /// with the lease taken and not yet released.
-    /// </summary>
     private static Task<bool> WhileHoldingAsync(ILeaderLease holder, string leaseName, Func<Task> whileHeld) =>
         holder.TryRunExclusivelyAsync(leaseName, async _ => await whileHeld(), TestToken);
 
-    /// <summary>
-    /// Awaits an attempt that is not allowed to queue, and says so if it does.
-    /// </summary>
-    /// <remarks>
-    /// Without the cap this would deadlock rather than fail: the contender runs inside the holder's
-    /// work, so an implementation that waited for the holder would wait for itself, and the run would
-    /// hang with nothing naming what went wrong.
-    /// </remarks>
     private static async Task<bool> WithoutWaitingAsync(Task<bool> attempt)
     {
         try
@@ -188,10 +150,6 @@ public sealed class LeaderLeaseTests(LeaseFixture fixture) : IClassFixture<Lease
         }
     }
 
-    /// <summary>
-    /// A name no other test has used. The lock is server-wide, so a shared name would let one test's
-    /// leftovers decide another's outcome.
-    /// </summary>
     private static string LeaseName(string purpose)
     {
         string suffix = Guid.CreateVersion7().ToString("N", CultureInfo.InvariantCulture)[..12];

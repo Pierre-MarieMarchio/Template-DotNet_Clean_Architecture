@@ -12,16 +12,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.IntegrationTests.Features.Passkeys.Access.Tables;
 
-/// <summary>
-/// Single-use passkey ceremony states, against a real database.
-/// </summary>
-/// <remarks>
-/// What makes a state single-use is the primary key on its hash, so it is asserted where the key
-/// lives: two spends of one state held at a rendezvous and released together, each through its own
-/// scope — its own context and connection, as two instances would have — of which exactly one may
-/// win. The ceremony around it is the adapter's, and its unit tests prove the spend happens before
-/// the handler verifies anything, and the API suite drives the same refusal through the endpoints.
-/// </remarks>
 public sealed class SpentPasskeyCeremonyTableTests(GrantTableFixture fixture) : IClassFixture<GrantTableFixture>
 {
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -54,10 +44,6 @@ public sealed class SpentPasskeyCeremonyTableTests(GrantTableFixture fixture) : 
         (await SpendAsync(stateHash, expiresAt)).ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The spend commits on its own: a context that never saves still leaves the state spent, which
-    /// is what lets the adapter spend before verifying and stop there when verification fails.
-    /// </summary>
     [Fact]
     public async Task ASpend_IsDurableWithoutTheUnitOfWork()
     {
@@ -96,8 +82,6 @@ public sealed class SpentPasskeyCeremonyTableTests(GrantTableFixture fixture) : 
                 .PurgeExpiredAsync(cutoff, TestToken);
         }
 
-        // Exactly the two this test wrote: the other tests in the class share the database, but
-        // their rows expire minutes from now, a decade after this cutoff.
         purged.ShouldBe(2);
         (await CountAsync(expired)).ShouldBe(0);
         (await CountAsync(expiringAtTheCutoff)).ShouldBe(0);
@@ -109,8 +93,6 @@ public sealed class SpentPasskeyCeremonyTableTests(GrantTableFixture fixture) : 
         await using var scope = fixture.Services.CreateAsyncScope();
         var table = scope.ServiceProvider.GetRequiredService<ISpentPasskeyCeremonyTable>();
 
-        // Each participant opens its connection before the rendezvous, so the release is into the
-        // INSERT itself rather than into a connection handshake that would serialise the two.
         await scope.ServiceProvider.GetRequiredService<AuthDbContext>().Database.OpenConnectionAsync(TestToken);
 
         if (rendezvous is not null)
@@ -121,8 +103,6 @@ public sealed class SpentPasskeyCeremonyTableTests(GrantTableFixture fixture) : 
         return await table.TrySpendAsync(stateHash, expiresAt, TestToken);
     }
 
-    /// <summary>Raw SQL, for the reason <see cref="GrantTableFixture"/> counts grants that way: the
-    /// row type is internal to the module, and the table is the only door to it.</summary>
     private async Task<int> CountAsync(string stateHash)
     {
         await using var scope = fixture.Services.CreateAsyncScope();
@@ -145,7 +125,6 @@ public sealed class SpentPasskeyCeremonyTableTests(GrantTableFixture fixture) : 
         return Convert.ToInt32(await command.ExecuteScalarAsync(TestToken), CultureInfo.InvariantCulture);
     }
 
-    /// <summary>What the adapter stores: a base64url SHA-256, here of random bytes.</summary>
     private static string AStateHash() =>
         Base64Url.EncodeToString(SHA256.HashData(RandomNumberGenerator.GetBytes(32)));
 }

@@ -11,20 +11,12 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Files;
 
-/// <summary>
-/// What the background passes read and write in PostgreSQL: the inspection queue's due filter and
-/// order, and the orphan sweep's checkpoint row.
-/// </summary>
 public sealed class BackgroundPassStorageTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const long _size = 4_096;
 
     private static readonly string _checksum = new('a', Sha256Checksum.Length);
 
-    /// <summary>
-    /// Due files only, in the order they became due: a deferred file queues by its next attempt, a
-    /// fresh one by its registration, and one deferred past now is not offered.
-    /// </summary>
     [Fact]
     public async Task TheInspectionQueue_OffersDueFilesInTheOrderTheyBecameDue()
     {
@@ -75,7 +67,6 @@ public sealed class BackgroundPassStorageTests(ApiFixture fixture) : Integration
         loaded.NextInspectionAt.ShouldBe(now.AddMinutes(3));
     }
 
-    /// <summary>Insert, update and reset of the one checkpoint row, each read back from a fresh scope.</summary>
     [Fact]
     public async Task TheCheckpoint_IsSavedUpdatedAndReset()
     {

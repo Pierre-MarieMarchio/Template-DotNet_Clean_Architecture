@@ -9,16 +9,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Files;
 
-/// <summary>
-/// Labelling a file, over HTTP and through the database.
-/// </summary>
-/// <remarks>
-/// The rules under test are not this feature's: normalisation, de-duplication and the cap live in
-/// <c>TagSet</c>, which a to-do item obeys through the same code, and they have their own unit
-/// tests. What is asserted here is that a file is genuinely subject to them — that the set survives
-/// the round trip through the tag table and comes back through the read projection, which no unit
-/// test can say.
-/// </remarks>
 public sealed class StoredFileTaggingTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const string _filesRoute = "/api/v1/files";
@@ -30,7 +20,6 @@ public sealed class StoredFileTaggingTests(ApiFixture fixture) : IntegrationTest
         var registered = await RegisterFileAsync(owner);
         var tags = new Uri($"{_filesRoute}/{registered.Id}/tags", UriKind.Relative);
 
-        // Three spellings of two tags. What comes back says whether the domain's normalisation ran.
         using var written = await owner.PutAsJsonAsync(
             tags,
             new ReplaceStoredFileTagsRequest(["Invoice", "invoice ", "2026"]),
@@ -42,8 +31,6 @@ public sealed class StoredFileTaggingTests(ApiFixture fixture) : IntegrationTest
 
         afterWriting.ShouldNotBeNull().Tags.ShouldBe(["invoice", "2026"], ignoreOrder: true);
 
-        // Read back through the query projection rather than the command's own answer: the two are
-        // different code paths onto the same rows, and only this one goes through the tag table.
         using var reread = await owner.GetAsync(
             new Uri($"{_filesRoute}/{registered.Id}", UriKind.Relative),
             TestToken);
@@ -122,10 +109,6 @@ public sealed class StoredFileTaggingTests(ApiFixture fixture) : IntegrationTest
             "the cap is read from the aggregate by the validator, so a set over it is refused before "
             + "the domain has to raise for it.");
     }
-    /// <summary>
-    /// A registration is enough: nothing here deposits bytes, because a label is settled before
-    /// anything reads content.
-    /// </summary>
     private static async Task<StoredFileRegistrationResponse> RegisterFileAsync(HttpClient client)
     {
         using var response = await client.PostAsJsonAsync(
@@ -136,8 +119,6 @@ public sealed class StoredFileTaggingTests(ApiFixture fixture) : IntegrationTest
                 "application/pdf",
                 SizeInBytes: 4_096,
 
-                // Any 64 hexadecimal characters: nothing is deposited, so no digest is ever compared
-                // against content. What matters is that the value is one the domain accepts.
                 new string('a', 64)),
             TestToken);
 

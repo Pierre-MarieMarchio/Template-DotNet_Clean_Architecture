@@ -8,19 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Security;
 
-/// <summary>
-/// The authentication endpoints are throttled per caller: with lockout alone, guessing is bounded
-/// per account but not per attacker.
-/// </summary>
-/// <remarks>
-/// <para>
-/// The limit is ten requests per window per client address. These tests are among the few in the
-/// suite that deliberately reuse one client for many requests, or pin two clients to the same
-/// address — everywhere else each client gets its own address so that a test cannot spend another's
-/// budget. The window itself is widened for this host (see <c>ApiFactory</c>) so a slow run cannot
-/// cross a real boundary mid-test; the permit counts asserted here are the real production ones.
-/// </para>
-/// </remarks>
 public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private static readonly int _permitsPerMinute = new RateLimitingOptions().AuthenticationPermitLimit;
@@ -50,10 +37,6 @@ public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(
         rejected.Headers.RetryAfter.ShouldNotBeNull();
     }
 
-    /// <summary>
-    /// The budget belongs to the controller, not to one action, so spending it on login also closes
-    /// registration. Otherwise an attacker just alternates endpoints.
-    /// </summary>
     [Fact]
     public async Task TheBudget_IsSharedAcrossTheAuthenticationEndpoints()
     {
@@ -73,10 +56,6 @@ public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(
         registration.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
     }
 
-    /// <summary>
-    /// Partitioned per address, so one attacker cannot exhaust everybody's budget. This is also what
-    /// makes the rest of the suite viable.
-    /// </summary>
     [Fact]
     public async Task ExhaustingOneCallersBudget_LeavesAnotherCallerUnaffected()
     {
@@ -96,12 +75,6 @@ public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(
         fromTheOtherCaller.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    /// <summary>
-    /// Mirrors <see cref="ExhaustingOneCallersBudget_LeavesAnotherCallerUnaffected"/> in reverse: two
-    /// distinct signed-in callers pinned to the same address on purpose. The authentication policy
-    /// must not tell them apart — it exists to slow down credential guessing on endpoints where,
-    /// by construction, there is no identity yet, and reading one here would defeat that.
-    /// </summary>
     [Fact]
     public async Task TheAuthenticationPolicy_SharesItsBudget_BetweenTwoSignedInCallersOnTheSameAddress()
     {
@@ -112,7 +85,7 @@ public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(
         var second = CreateClientWithAddress(sharedAddress);
 
         var firstUser = await RegisterConfirmedUserAsync(first, "shared-addr-first");
-        permitsSpent += 2; // register, confirm-email
+        permitsSpent += 2;
 
         await LoginAsync(first, firstUser);
         permitsSpent += 1;
@@ -126,8 +99,6 @@ public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(
             allowed.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         }
 
-        // The address's budget is now spent on `first`'s traffic alone. `second` shares the address,
-        // so it finds the same empty budget despite never having failed a login itself.
         using var rejected = await AttemptLoginAsync(second);
         rejected.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
     }

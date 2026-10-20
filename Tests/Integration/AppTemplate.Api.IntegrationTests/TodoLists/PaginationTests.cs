@@ -9,10 +9,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.TodoLists;
 
-/// <summary>
-/// The page bounds are enforced and <c>totalCount</c> is the total, not the page's size — a count
-/// taken from the materialised page would report the latter.
-/// </summary>
 public sealed class PaginationTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const int _listCount = 5;
@@ -47,8 +43,6 @@ public sealed class PaginationTests(ApiFixture fixture) : IntegrationTestBase(fi
             seen.AddRange(result.Items.Select(item => item.Id));
         }
 
-        // No row shown twice and none missed, which is what the unique tiebreaker in the ordering is
-        // there to guarantee — several lists here are created in the same clock instant.
         seen.Count.ShouldBe(_listCount);
         seen.Distinct().Count().ShouldBe(_listCount);
     }
@@ -77,10 +71,6 @@ public sealed class PaginationTests(ApiFixture fixture) : IntegrationTestBase(fi
         page.TotalCount.ShouldBe(_listCount);
     }
 
-    // 101 is TodoListCollectionPolicy.Instance.MaxPageSize + 1, restated as a literal: InlineData
-    // arguments must be compile-time constants, so the arithmetic cannot reference the policy
-    // directly. TodoListCollectionPolicyTests asserts the ceiling is 100, which is what keeps this
-    // literal honest.
     [Theory]
     [InlineData(0, 20, "the page number must be 1 or greater")]
     [InlineData(-1, 20, "a negative page number")]
@@ -104,8 +94,6 @@ public sealed class PaginationTests(ApiFixture fixture) : IntegrationTestBase(fi
     [Fact]
     public async Task ThePageSizeCeiling_IsItselfAccepted()
     {
-        // The bound is inclusive; without this the test above would also pass for an off-by-one that
-        // rejected the largest legal page.
         var (client, _, _) = await SignInAsync();
 
         var page = await ReadPageAsync(client, page: 1, pageSize: TodoListCollectionPolicy.Instance.MaxPageSize);

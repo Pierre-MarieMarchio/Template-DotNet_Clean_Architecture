@@ -11,26 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Security;
 
-/// <summary>
-/// The two most common failures this API can produce — 401 and 403 — look like every other failure.
-/// </summary>
-/// <remarks>
-/// <para>
-/// The defect this guards: a bearer handler left to its own devices answers a challenge and a forbidden
-/// in a shape of its own — <c>application/json</c>, an English <c>message</c>, no <c>code</c> — while
-/// every other failure in the API is <c>application/problem+json</c> with a stable machine-readable
-/// <c>code</c>. A client then has to special-case the two responses it sees most often, with nothing but
-/// prose to branch on, so "session expired, refresh and retry" becomes indistinguishable from anything
-/// else without string matching.
-/// </para>
-/// <para>
-/// The 403 is asserted by invoking the configured handler directly. That is not a shortcut: this API's
-/// fallback policy only requires an authenticated user, so an authenticated caller passes every endpoint
-/// and there is no route that can be made to answer 403 without inventing one. Testing the configuration
-/// that <em>would</em> render it is the honest alternative to a test-only endpoint, and it still runs
-/// against the options the real host composed.
-/// </para>
-/// </remarks>
 public sealed class AuthenticationProblemDetailsTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -66,19 +46,12 @@ public sealed class AuthenticationProblemDetailsTests(ApiFixture fixture) : Inte
 
         var problem = await ApiJson.ReadProblemAsync(response, TestToken);
 
-        // Identical to the no-token case, deliberately. "Expired", "wrong signature" and "revoked security
-        // stamp" are all facts about the system's state that an unauthenticated caller has no business
-        // learning.
         problem.Code.ShouldBe("auth.required", problem.Body);
         problem.Detail.ShouldNotBeNull();
         problem.Detail.ShouldNotContain("signature");
         problem.Detail.ShouldNotContain("expired");
     }
 
-    /// <summary>
-    /// The 401 body carries a trace identifier, like every other problem document, so a support request can
-    /// be tied to the log line without the response saying anything about why the token was refused.
-    /// </summary>
     [Fact]
     public async Task TheProblemDocument_CarriesATraceIdentifier()
     {
@@ -92,9 +65,6 @@ public sealed class AuthenticationProblemDetailsTests(ApiFixture fixture) : Inte
         traceId.GetString().ShouldNotBeNullOrWhiteSpace();
     }
 
-    /// <summary>
-    /// The forbidden path, driven through the events the real host configured.
-    /// </summary>
     [Fact]
     public async Task TheForbiddenHandler_WritesAProblemDocumentWithItsOwnCode()
     {
@@ -125,8 +95,6 @@ public sealed class AuthenticationProblemDetailsTests(ApiFixture fixture) : Inte
         root.GetProperty("status").GetInt32().ShouldBe(StatusCodes.Status403Forbidden);
         root.GetProperty("title").GetString().ShouldBe("Forbidden");
 
-        // A different code from the 401, because the two call for different client behaviour: refresh and
-        // retry versus stop and tell the user.
         root.GetProperty("code").GetString().ShouldBe("auth.forbidden");
         root.GetProperty("code").GetString().ShouldNotBe("auth.required");
     }

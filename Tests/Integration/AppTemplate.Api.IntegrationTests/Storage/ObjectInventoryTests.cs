@@ -5,43 +5,17 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Storage;
 
-/// <summary>
-/// Walking the store, page by page, until there is nothing left.
-/// </summary>
-/// <remarks>
-/// <para>
-/// The orphan sweep reads this and deletes by difference — everything stored under a prefix that no
-/// live row still names. Two failures of the walk are therefore both losses of data or of money: a
-/// page boundary that skips keys leaves content nobody will ever reclaim, and a cursor that repeats a
-/// page makes the sweep re-read the same keys for ever without reaching the end.
-/// </para>
-/// <para>
-/// Neither can be seen without a real store. The cursor is the last key listed and the store resumes
-/// with <c>StartAfter</c>, so whether the two agree on order is the store's behaviour — any test
-/// against a substitute is a test of the substitute's idea of paging.
-/// </para>
-/// </remarks>
 [Collection(ObjectStoreCollectionDefinition.Name)]
 public sealed class ObjectInventoryTests(ObjectStoreFixture fixture)
 {
     private const string _mediaType = "application/octet-stream";
 
-    /// <summary>
-    /// Seven objects over pages of two: three full pages, a partial one, and a boundary that falls
-    /// between two keys rather than on the end of the set. An even count over an even page size
-    /// would make the last page full, and a store that mistook "full" for "there is more" would
-    /// still terminate.
-    /// </summary>
     private const int _objectCount = 7;
 
     private const int _pageSize = 2;
 
     private static readonly byte[] _payload = "one small object"u8.ToArray();
 
-    /// <summary>
-    /// The digest of <see cref="_payload"/>, computed rather than written down. A grant binds it, so a
-    /// constant that drifted from the bytes would mint a grant no honest deposit could satisfy.
-    /// </summary>
     private static readonly string _checksum = Convert.ToHexStringLower(SHA256.HashData(_payload));
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -71,9 +45,6 @@ public sealed class ObjectInventoryTests(ObjectStoreFixture fixture)
             cursor = page.NextCursor;
             pages++;
 
-            // The walk is bounded by something other than the store agreeing to end it. A cursor
-            // that never advanced would otherwise spin here for as long as the run lasts, and the
-            // sweep that reads this in production would do the same against real content.
             pages.ShouldBeLessThanOrEqualTo(
                 _objectCount + 1,
                 $"the walk asked for a {pages}th page of {_pageSize} over {_objectCount} objects. " +
@@ -133,25 +104,12 @@ public sealed class ObjectInventoryTests(ObjectStoreFixture fixture)
         page.HasNextPage.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// Deposits <paramref name="count"/> objects under <paramref name="prefix"/> and answers their
-    /// keys.
-    /// </summary>
-    /// <remarks>
-    /// Through the port's own upload grants rather than through a client of this suite's own: what
-    /// the inventory has to enumerate is what this application actually deposits, and a listing
-    /// asserted over objects put there some other way would be a weaker claim by exactly the
-    /// difference between the two.
-    /// </remarks>
     private async Task<List<string>> DepositAsync(string prefix, int count)
     {
         var keys = new List<string>(count);
 
         for (int index = 0; index < count; index++)
         {
-            // Ordinal, zero-padded, so the store's own lexicographic order is the order they were
-            // created in. It makes a failure legible — a page boundary names two adjacent keys —
-            // without the assertions depending on any order at all.
             string objectKey = $"{prefix}/{index.ToString("D2", CultureInfo.InvariantCulture)}";
 
             var grant = await fixture.Transfer.CreateUploadGrantAsync(

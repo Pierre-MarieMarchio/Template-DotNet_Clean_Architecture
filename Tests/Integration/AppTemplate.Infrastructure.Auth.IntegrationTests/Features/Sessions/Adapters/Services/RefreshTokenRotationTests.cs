@@ -18,15 +18,6 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.IntegrationTests.Features.Sessions.Adapters.Services;
 
-/// <summary>
-/// Single-use rotation, against a real database.
-/// </summary>
-/// <remarks>
-/// This is the one guarantee the whole refresh-token design rests on: a grant can be redeemed once,
-/// and a second redemption is evidence that the chain leaked. It is a guarantee about what happens
-/// when two requests arrive at the same instant, so it is asserted the same way — two presentations
-/// held at a rendezvous until both are past the read, then released into the write together.
-/// </remarks>
 public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClassFixture<GrantTableFixture>
 {
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -37,8 +28,6 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
         var user = await fixture.CreateUserAsync(TestToken);
         var issued = await IssueAsync(user.Id);
 
-        // Both presentations are released from the rendezvous after each has read the grant and found
-        // it live, which is the one window in which both could rotate it.
         var rendezvous = new Rendezvous(participants: 2);
 
         var rotations = await Task.WhenAll(
@@ -50,7 +39,6 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
             "a refresh token is single-use: of two simultaneous presentations exactly one may be " +
             "issued a successor. Two winners means two live chains from one stolen token.");
 
-        // The loser is handed nothing at all — not a successor, not an account to mint claims for.
         var refused = rotations.Single(rotation => !rotation.Succeeded);
         refused.Token.ShouldBeNull();
         refused.UserId.ShouldBeNull();
@@ -65,8 +53,6 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
         var rotated = await PresentAsync(user, first.Value);
         rotated.Succeeded.ShouldBeTrue();
 
-        // A live grant exists at this point — the successor — so anything that stops working below is
-        // the family revocation and not a chain that was already dead.
         (await fixture.CountLiveGrantsAsync(user.Id, TestToken)).ShouldBe(1);
 
         var replayed = await PresentAsync(user, first.Value);
@@ -90,10 +76,6 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
         (await fixture.CountLiveGrantsAsync(user.Id, TestToken)).ShouldBe(1);
     }
 
-    /// <summary>
-    /// One sign-in is one session: the successor of a rotation stays in the family the presented
-    /// token started, so the session the access token names survives every refresh.
-    /// </summary>
     [Fact]
     public async Task ARotation_KeepsThePresentedTokensSession()
     {
@@ -106,11 +88,6 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
         rotated.Token!.SessionId.ShouldBe(issued.SessionId);
     }
 
-    /// <summary>
-    /// A token of a session that was ended is what a client still holding it sends next, so it is
-    /// refused without the replay alarm: nothing else of the account's goes, and in particular the
-    /// account's other sessions do not.
-    /// </summary>
     [Fact]
     public async Task ATokensOfAnEndedSession_AreRefusedWithoutTouchingTheOtherSessions()
     {
@@ -134,10 +111,6 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
         (await fixture.CountLiveSessionsAsync(user.Id, TestToken)).ShouldBe(1);
     }
 
-    /// <summary>
-    /// The exception a credential change asks for: every session of the account ends but the one the
-    /// change was made from, whose live grant — and only whose — must survive the sweep.
-    /// </summary>
     [Fact]
     public async Task EndingEverySessionButOne_LeavesThatOnesGrantLive()
     {
@@ -158,11 +131,6 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
             "prove: a revoked family serves none of its grants.");
     }
 
-    /// <summary>
-    /// A rotation is one transaction: when anything after the consumption fails, the consumption is
-    /// undone with it, so the client presenting the same token again is served rather than taken for
-    /// a thief — which would end every session of the account and record a replay that never was.
-    /// </summary>
     [Fact]
     public async Task ASaveThatFailsAfterTheConsumption_LeavesThePresentedTokenRotatable()
     {
@@ -186,12 +154,6 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
         (await fixture.CountLiveGrantsAsync(user.Id, TestToken)).ShouldBe(1);
     }
 
-    /// <summary>
-    /// The identity context retries a transient failure, and a retry replays the whole rotation: an
-    /// acknowledgement lost after the conditional <c>UPDATE</c> ran must not leave the replay to find
-    /// its own consumption and answer it as theft, and a commit that landed but was not acknowledged
-    /// must be recognised rather than replayed.
-    /// </summary>
     [Theory]
     [InlineData(FaultPoint.AfterTheConsumption)]
     [InlineData(FaultPoint.BeforeTheSuccessorsInsert)]
@@ -226,10 +188,6 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
             .IssueRefreshTokenAsync(userId, SessionClient.Unknown, TestToken);
     }
 
-    /// <summary>
-    /// One presentation of a token, in a scope of its own — one context, one unit of work — which is
-    /// what a request gets.
-    /// </summary>
     private async Task<RefreshTokenRotation> PresentAsync(
         AppUser user,
         string presentedToken,
@@ -237,12 +195,8 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
     {
         await using var scope = fixture.Services.CreateAsyncScope();
 
-        // A substitute per presentation: the two run concurrently, and NSubstitute records calls on
-        // an instance without synchronising them.
         var directory = Substitute.For<IAppUserDirectory>();
 
-        // The rotation reads the grant, then looks the account up, then writes. Holding the callers
-        // here puts every one of them past the read and short of the write at the same moment.
         directory.FindByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(_ => ArriveThenReturnAsync(rendezvous, user));
 
@@ -250,7 +204,6 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
             .RotateRefreshTokenAsync(presentedToken, SessionClient.Unknown, TestToken);
     }
 
-    /// <summary>One presentation through <paramref name="services"/>, recording to <paramref name="log"/>.</summary>
     private static async Task<RefreshTokenRotation> PresentThroughAsync(
         IServiceProvider services,
         AppUser user,
@@ -276,11 +229,6 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
         return user;
     }
 
-    /// <summary>
-    /// The adapter as the container composes it, except for the account lookup: a real
-    /// <c>UserManager</c> would drag ASP.NET Identity's whole store in for one <c>FindById</c>, and
-    /// that lookup is not what these tests are about.
-    /// </summary>
     private static SessionTokensService CreateGrants(
         IServiceProvider scoped,
         IAppUserDirectory directory,

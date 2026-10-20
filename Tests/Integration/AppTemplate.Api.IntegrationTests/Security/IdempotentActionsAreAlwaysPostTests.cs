@@ -27,23 +27,8 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Security;
 
-/// <summary>
-/// Where <see cref="IdempotentAttribute"/> may be applied.
-/// </summary>
-/// <remarks>
-/// Replaying a <c>GET</c> is meaningless — a read has no effect to deduplicate — and replaying a
-/// <c>PUT</c> or <c>DELETE</c> hides the idempotence those verbs already have by definition. The
-/// attribute is only load-bearing on a <c>POST</c>, so this is a reflection rule rather than an
-/// architecture-assembly one: it reads the controllers directly, which is why it lives here and not
-/// in <c>AppTemplate.Architecture.Tests</c> — that project deliberately does not reference
-/// <c>AppTemplate.Api</c> (see its own csproj comment), composing the API's modules itself instead of
-/// the API assembly. This project already references <c>AppTemplate.Api</c> to drive it over HTTP, so
-/// the reference this rule needs already exists.
-/// </remarks>
 public sealed class IdempotentActionsAreAlwaysPostTests
 {
-    /// <summary>Every controller the API declares. A new controller silently missing here would let a
-    /// misapplied [Idempotent] on it escape this rule.</summary>
     private static readonly Type[] _controllers =
     [
         //#if (localAuth)
@@ -104,20 +89,15 @@ public sealed class IdempotentActionsAreAlwaysPostTests
         //#endif
         int expected = 0
             //#if (notes)
-            // NotesController.Create.
             + 1
             //#endif
             //#if (todoLists)
-            // TodoListsController.Create and TodoListsController.AddItem.
             + 2
             //#endif
             //#if (reminders)
-            // RemindersController.Schedule.
             + 1
             //#endif
             //#if (files)
-            // FilesController's registration: the one file action a replay would otherwise
-            // duplicate, since it is the only one that names no existing file.
             + 1
             //#endif
             ;
@@ -136,12 +116,6 @@ public sealed class IdempotentActionsAreAlwaysPostTests
                 "already have by definition.");
     }
 
-    /// <summary>
-    /// Proves the enumeration above is complete, the same way
-    /// <c>DefaultDenyAuthorizationTests.TheEnumerationCoversEveryActionOnTheController</c> does for its
-    /// own list: this fails the moment a new controller is added, which is exactly when somebody needs
-    /// to be reminded to add it to <see cref="_controllers"/>.
-    /// </summary>
     [Fact]
     public void TheControllerList_CoversEveryControllerInTheApiAssembly()
     {

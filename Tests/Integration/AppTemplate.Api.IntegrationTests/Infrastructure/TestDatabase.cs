@@ -10,60 +10,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 
-/// <summary>
-/// Direct access to the container's database, for the handful of assertions that have to look at
-/// what was actually stored rather than at what an endpoint said.
-/// </summary>
-/// <remarks>
-/// <para>
-/// It borrows a connection from a <see cref="DbContext"/> instead of opening one of its own, so the
-/// suite needs no Npgsql dependency and cannot drift from the connection string the host is using.
-/// Commands go through <see cref="DbCommand"/> rather than <c>ExecuteSqlRaw</c>: the statements here
-/// are assembled from schema metadata, and EF's analyser is right to object to that shape.
-/// </para>
-/// <para>
-/// The reset strategy is <b>truncate, not transaction-rollback</b>. Each test drives several HTTP
-/// requests, each of which gets its own scope, its own context and its own commit, so there is no
-/// single ambient transaction a test could roll back. Truncating every table
-/// in the module schemas between tests is the only reset that matches how the system actually
-/// commits, and it also clears rows written by <c>SaveChanges</c> calls the test never saw.
-/// </para>
-/// <para>
-/// Those schemas are what the contexts declare between them — every feature's schema and
-/// <c>platform</c> from the business half, plus <c>identity</c> from the authentication half when
-/// the project carries local accounts. They are named one by one in <see cref="PrepareAsync"/>
-/// rather than discovered, so a module that adds a schema of its own has to be named there too:
-/// until it is, its rows survive from one test into the next.
-/// </para>
-/// </remarks>
 public sealed class TestDatabase(IServiceProvider rootServices)
 {
-    /// <summary>
-    /// Excluded from the reset, where the project carries one: the host builds its Data Protection
-    /// key ring once and keeps it in memory for as long as it runs. Truncating this table between tests is invisible today because
-    /// the suite never asks two hosts to read the same protected payload, but it would silently break
-    /// the day a multi-instance test does — the second host's ring would no longer agree with the
-    /// first's, and that would look like a sharing defect rather than what it actually is: a table
-    /// this reset wiped out from under a ring that was never supposed to be reset per test.
-    /// </summary>
     private const string _dataProtectionKeysTableName = "DataProtectionKeys";
 
     private string? _truncateStatement;
 
-    /// <summary>
-    /// Builds the reset statement once, from <c>information_schema</c>. The <em>tables</em> are
-    /// discovered rather than hard-coded, so a table added to one of the schemas named below is
-    /// truncated too without anybody listing it. The <em>schemas</em> are the hand-written list itself:
-    /// one that is missing from it is never reset at all, and its rows leak silently from one test into
-    /// the next. Every schema either context declares is named here.
-    /// <para>
-    /// The migrations history tables are excluded by name rather than by schema. The business half's
-    /// sits in the connection's default schema, outside this list; an authentication context's sits
-    /// inside <c>identity</c> with the tables it records, so the list does reach it where there is
-    /// one. Truncating
-    /// either would make the next test run re-apply every migration.
-    /// </para>
-    /// </summary>
     public async Task PrepareAsync(CancellationToken cancellationToken)
     {
         string[] schemas =
@@ -118,7 +70,6 @@ public sealed class TestDatabase(IServiceProvider rootServices)
         await ExecuteAsync(statement, cancellationToken);
     }
 
-    /// <summary>Every value of the first column of a result set, as text.</summary>
     public async Task<IReadOnlyList<string>> QueryAsync(string sql, CancellationToken cancellationToken)
     {
         await using var scope = rootServices.CreateAsyncScope();
@@ -144,14 +95,6 @@ public sealed class TestDatabase(IServiceProvider rootServices)
         return values.Count == 0 ? 0 : int.Parse(values[0], CultureInfo.InvariantCulture);
     }
 
-    /// <summary>
-    /// Runs a statement with no result set — for the handful of test fixtures that have to put a row
-    /// in place rather than only look at what is already there. Seeding a role row that
-    /// administration tests need is the standing example: this test host seeds no account data of
-    /// its own, and the row is otherwise nowhere for a test to put it without naming the persistence
-    /// module's internal types, which this project's own convention keeps out of an integration
-    /// test.
-    /// </summary>
     public async Task ExecuteAsync(string sql, CancellationToken cancellationToken)
     {
         await using var scope = rootServices.CreateAsyncScope();

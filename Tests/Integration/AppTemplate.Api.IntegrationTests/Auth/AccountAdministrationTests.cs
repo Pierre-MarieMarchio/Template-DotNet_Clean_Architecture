@@ -13,21 +13,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// Locking, unlocking, granting a role, revoking a role, deleting an account outright — every one of
-/// them restricted to <c>AuthorizationPolicies.Administrator</c>, and three of them (lock, grant, revoke) proved
-/// here to rotate the security stamp: <c>SetLockoutEndDateAsync</c>, <c>AddToRoleAsync</c> and
-/// <c>RemoveFromRoleAsync</c> do not do that on their own, so an access token issued just before one
-/// of these calls would otherwise keep validating for as long as it has left to live.
-/// </summary>
-/// <remarks>
-/// This test host seeds no identity data at all (<c>IdentitySeed:Enabled</c> is <c>false</c> for the
-/// whole suite — see <c>ApiFactory</c> and <c>AdministratorPolicyTests</c>), and no HTTP route can
-/// grant the very first Administrator when none exists yet. <see cref="GrantRoleAsync"/> bootstraps
-/// one directly through <see cref="IAccountAdministrationService"/> instead, inside a scope of the caller's own —
-/// the same convention the suite uses to read an aggregate back: through the application port rather
-/// than a persistence internal.
-/// </remarks>
 public sealed class AccountAdministrationTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const string _accountsRoute = $"{AuthRoute}/accounts";
@@ -55,10 +40,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    /// <summary>
-    /// The gap this endpoint exists to close. Without the stamp rotation inside
-    /// <c>AccountLockouts.LockAsync</c>, this test's final read answers 200, not 401.
-    /// </summary>
     [Fact]
     public async Task LockingAnAccount_InvalidatesTheAccessTokenAlreadyInCirculation()
     {
@@ -72,7 +53,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
             new Uri($"{_accountsRoute}/{target.UserId}/lockout", UriKind.Relative), content: null, TestToken);
         locked.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        // The exact same token, already issued, replayed unchanged.
         using var after = await targetClient.GetAsync(new Uri($"{AuthRoute}/me", UriKind.Relative), TestToken);
         after.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         after.Headers.GetValues(ApiFactory.AuthFailureHeader)
@@ -101,10 +81,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         loginAfterUnlock.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    /// <summary>
-    /// Locking rotates the security stamp, which would invalidate the very token making this call —
-    /// an administrator could otherwise strand every session but the one that just locked itself out.
-    /// </summary>
     [Fact]
     public async Task AnAdministrator_CannotLockTheirOwnAccount()
     {
@@ -127,12 +103,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
-    /// <summary>
-    /// The gap this endpoint exists to close, mirroring
-    /// <see cref="LockingAnAccount_InvalidatesTheAccessTokenAlreadyInCirculation"/>: without the
-    /// rotation inside <c>RoleAssignments.RemoveRoleAsync</c>, the revoked role keeps authorising
-    /// whatever it granted for as long as this token has left to live.
-    /// </summary>
     [Fact]
     public async Task RevokingARole_InvalidatesTheAccessTokenAlreadyInCirculation()
     {
@@ -141,8 +111,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
 
         await GrantRoleAsync(target.UserId, IdentityRoles.Administrator);
 
-        // The token captured by SignInAsync predates the grant; a fresh one is what actually carries
-        // the role claim the revocation below needs to invalidate.
         var tokensWithRole = await LoginAsync(targetClient, targetUser);
         targetClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", tokensWithRole.AccessToken);
@@ -161,13 +129,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
             .ShouldContain("This token's security stamp is no longer valid.");
     }
 
-    /// <summary>
-    /// Not narrowed to "may not remove their own Administrator role": <c>RemoveRoleUseCase</c> has no
-    /// reference to that literal, so the guard refuses removing any role from the caller's own
-    /// account. Proved here with the same role a real administrator would otherwise be blocked from
-    /// removing from themselves — see <c>RemoveRoleUseCaseTests</c> for the unit-level proof that a
-    /// different role is refused the same way.
-    /// </summary>
     [Fact]
     public async Task AnAdministrator_CannotRemoveARoleFromTheirOwnAccount()
     {
@@ -192,10 +153,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
-    /// <summary>
-    /// Deleting is a more permanent version of the self-lockout <see cref="AnAdministrator_CannotLockTheirOwnAccount"/>
-    /// refuses: nothing survives to undo it.
-    /// </summary>
     [Fact]
     public async Task AnAdministrator_CannotDeleteTheirOwnAccount()
     {
@@ -207,11 +164,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    /// <summary>
-    /// No stamp to rotate here — see <c>IAccountDeletionService</c> — because the row the stamp lived on is
-    /// simply gone: the bearer handler looks the account up by id before it ever compares a stamp,
-    /// and an id that no longer resolves fails there regardless.
-    /// </summary>
     [Fact]
     public async Task DeletingAnAccount_InvalidatesItsAccessTokenImmediately()
     {
@@ -252,13 +204,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    /// <summary>
-    /// Not the self-lockout reason <see cref="AnAdministrator_CannotLockTheirOwnAccount"/> gives —
-    /// this account is fully reachable afterward either way. It is refused because letting this route
-    /// reach the caller's own account would let a stolen administrator session strip that account's
-    /// own second factor without ever presenting the password the self-service
-    /// <c>/two-factor/disable</c> route demands — see <c>DisableAccountTwoFactorUseCase</c>.
-    /// </summary>
     [Fact]
     public async Task AnAdministrator_CannotDisableTwoFactorOnTheirOwnAccount()
     {
@@ -281,12 +226,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
-    /// <summary>
-    /// The gap this endpoint exists to close: a caller who has lost the authenticator app <em>and</em>
-    /// the recovery codes can prove neither a code nor — once the second factor is armed — a
-    /// completed login at all, and so has no recourse short of the account being deleted outright. No
-    /// password, no code: an administrator's own session is what this capability is gated on instead.
-    /// </summary>
     [Fact]
     public async Task AnAdministrator_CanDisableTwoFactorOnAnAccountThatLostItsSecondFactor()
     {
@@ -298,8 +237,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
             new Uri($"{_accountsRoute}/{targetSession.UserId}/two-factor", UriKind.Relative), TestToken);
         disabled.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        // The escape hatch actually worked: the account signs in in one step again, with no
-        // authenticator app and no recovery code in sight.
         using var loginAfterDisable = await CreateClient().PostAsJsonAsync(
             $"{AuthRoute}/login", new LoginRequest(targetUser.Email, targetUser.Password), TestToken);
         loginAfterDisable.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -307,12 +244,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
             .ShouldBeOfType<LoginResponse.Authenticated>();
     }
 
-    /// <summary>
-    /// The gap this endpoint exists to close, mirroring
-    /// <see cref="LockingAnAccount_InvalidatesTheAccessTokenAlreadyInCirculation"/>: without the
-    /// rotation inside <c>TwoFactorAdministration.DisableAsync</c>, a token issued while the second
-    /// factor was still armed would keep validating for as long as it has left to live.
-    /// </summary>
     [Fact]
     public async Task DisablingTwoFactorAsAdministrator_InvalidatesTheAccessTokenAlreadyInCirculation()
     {
@@ -320,8 +251,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         var (targetClient, targetUser, targetSession) = await SignInAsync();
         var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(targetClient, targetUser, targetSession, TestToken);
 
-        // Confirming revoked every refresh token; sign back in the long way to hold a token this
-        // admin action then has to invalidate.
         var loginClient = CreateClient();
         var challenge = await TwoFactorTestSupport.LoginExpectingChallengeAsync(loginClient, targetUser, TestToken);
 
@@ -340,15 +269,12 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
             new Uri($"{_accountsRoute}/{targetSession.UserId}/two-factor", UriKind.Relative), TestToken);
         disabled.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        // The exact same token, already issued, replayed unchanged.
         using var after = await loginClient.GetAsync(new Uri($"{AuthRoute}/me", UriKind.Relative), TestToken);
         after.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         after.Headers.GetValues(ApiFactory.AuthFailureHeader)
             .ShouldContain("This token's security stamp is no longer valid.");
     }
 
-    /// <summary>A confirmed account, signed in, then promoted to <c>Administrator</c> and signed in again
-    /// so the token it ends up holding actually carries the role claim the policy checks.</summary>
     private async Task<(HttpClient Client, TestUser User, TestSession Session)> SignInAsAdministratorAsync()
     {
         var (client, user, session) = await SignInAsync();
@@ -377,14 +303,6 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         }
     }
 
-    /// <summary>
-    /// Puts the role's own catalog row in place. <see cref="IAccountAdministrationService"/> only assigns a role
-    /// that already exists — it never invents one, the same as <c>AddToRoleAsync</c> underneath it —
-    /// and the row <c>IdentitySeeder</c> would normally create is absent here because
-    /// <c>IdentitySeed:Enabled</c> is <c>false</c> for the whole suite. Raw SQL against the schema
-    /// rather than <c>AppRole</c>, which by this project's own convention (see
-    /// <c>AdministratorPolicyTests</c>) an integration test may not name.
-    /// </summary>
     private async Task EnsureRoleExistsAsync(string role)
     {
         string normalizedRole = role.ToUpperInvariant();

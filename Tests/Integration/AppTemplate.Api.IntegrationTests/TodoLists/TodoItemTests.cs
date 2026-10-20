@@ -8,11 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.TodoLists;
 
-/// <summary>
-/// An item is reachable only through its list, and tags are normalised and de-duplicated on the way
-/// in. Making either an aggregate root of its own would let an item change without its list's
-/// invariants ever being loaded.
-/// </summary>
 public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -28,7 +23,6 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
 
         added.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        // The created item is answered in full, already trimmed, and the ETag is the list's new one.
         var created = await ApiJson.ReadAsync<TodoItemResponse>(added, TestToken);
         created.Title.ShouldBe("Wash the car");
         created.Description.ShouldBe("Before Friday");
@@ -58,8 +52,6 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
 
         item.Tags.ShouldBe(["urgent", "home"], ignoreOrder: true);
 
-        // Asserted at the database too: the owned collection's key is (owner, value), so a duplicate
-        // tag is unrepresentable there as well as in the domain.
         var stored = await Database.QueryAsync(
             """SELECT "Value" FROM todo."TodoItemTags" ORDER BY "Value" """,
             TestToken);
@@ -83,15 +75,10 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("request.validationFailed");
 
-        // Nothing was written: the whole command is one transaction.
         (await Database.CountAsync("""SELECT count(*) FROM todo."TodoItems" """, TestToken)).ShouldBe(0);
         (await Database.CountAsync("""SELECT count(*) FROM todo."TodoItemTags" """, TestToken)).ShouldBe(0);
     }
 
-    /// <summary>
-    /// The aggregate boundary, over HTTP: the item exists, the caller owns both lists, and the item
-    /// is still unreachable through the wrong one.
-    /// </summary>
     [Fact]
     public async Task AnItem_IsNotReachableThroughADifferentListOfTheSameOwner()
     {
@@ -115,11 +102,9 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
         removed.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await ApiJson.ReadProblemAsync(removed, TestToken)).Code.ShouldBe("todoItem.notFound");
 
-        // Untouched.
         (await ReadDetailAsync(client, listId)).Items.Single().IsCompleted.ShouldBeFalse();
     }
 
-    /// <summary>There is no route that names an item without naming its list.</summary>
     [Theory]
     [InlineData("/api/v1/todo-items")]
     [InlineData("/api/v1/todo-tags")]
@@ -146,10 +131,6 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("todoItem.notFound");
     }
 
-    /// <summary>
-    /// The removal answers with the <em>list</em>, not the item: the item the route named is gone, so
-    /// the list is the only representation left to hand back.
-    /// </summary>
     [Fact]
     public async Task RemovingAnItem_AnswersWithTheListAndTakesItsTagsWithIt()
     {

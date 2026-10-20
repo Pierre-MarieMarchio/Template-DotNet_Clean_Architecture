@@ -6,12 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Idempotency;
 
-/// <summary>
-/// The lease on an unfinished claim, exercised against real PostgreSQL through
-/// <see cref="IIdempotencyStore"/> directly rather than over HTTP: reproducing "the process behind a
-/// claim died" needs a claim nobody ever completes or releases, which no real request the filter
-/// drives can ever leave behind on its own.
-/// </summary>
 public sealed class IdempotencyLeaseTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -25,7 +19,6 @@ public sealed class IdempotencyLeaseTests(ApiFixture fixture) : IntegrationTestB
         (await store.ClaimAsync(key, now.AddHours(24), now.AddMinutes(15), TestToken)).Status
             .ShouldBe(IdempotencyStatus.Claimed);
 
-        // Nobody ever calls CompleteAsync or ReleaseAsync: the process behind the claim died.
         var retry = await store.ClaimAsync(key, now.AddHours(24), now.AddMinutes(15), TestToken);
 
         retry.Status.ShouldBe(IdempotencyStatus.InProgress, "the lease has not run out yet");
@@ -52,11 +45,6 @@ public sealed class IdempotencyLeaseTests(ApiFixture fixture) : IntegrationTestB
             "past its lease, an unfinished claim must not block a retry for the rest of its 24-hour retention");
     }
 
-    /// <summary>
-    /// The atomicity the whole mechanism depends on: two retries racing to reclaim the very same
-    /// abandoned key must not both succeed, the exact double claim that would let both go on to write
-    /// for real.
-    /// </summary>
     [Fact]
     public async Task TwoConcurrentRetries_RacingToReclaimTheSameAbandonedKey_OnlyOneWins()
     {

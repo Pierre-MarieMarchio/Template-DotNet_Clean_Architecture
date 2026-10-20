@@ -7,14 +7,8 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// End to end coverage of the three password endpoints that had none:
-/// <c>change-password</c>, <c>forgot-password</c> and <c>reset-password</c>.
-/// </summary>
 public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    #region change-password
-
     [Fact]
     public async Task ChangePassword_WithTheCorrectCurrentPassword_SwapsWhichPasswordSignsIn()
     {
@@ -35,12 +29,6 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
         loginWithNew.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    /// <summary>
-    /// A password change made from the caller's own session ends every other session and spares that
-    /// one — the owner's decision when sessions were named: proving the current password is
-    /// possession, not a compromise, so the caller is not signed out by its own change. The spared
-    /// grant keeps refreshing; a second session's grant does not.
-    /// </summary>
     [Fact]
     public async Task ChangePassword_EndsEveryOtherSessionButSparesTheCallersOwn()
     {
@@ -90,10 +78,6 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
         stillWorks.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    /// <summary>
-    /// Long enough for the shape validator, refused by the configured policy: the store's refusal is
-    /// reported on the field the caller typed the new password in.
-    /// </summary>
     [Fact]
     public async Task ChangePassword_ANewPasswordThePolicyRefuses_IsReportedOnTheNewPasswordField()
     {
@@ -112,15 +96,6 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
         problem.Body.ShouldNotContain("\"password\"", Case.Sensitive);
     }
 
-    #endregion
-
-    #region forgot-password
-
-    /// <summary>
-    /// The anti-enumeration property and the no-plaintext-logging one, together: a known and an
-    /// unknown address must answer the same way, and neither may leave the known address readable in
-    /// a log entry.
-    /// </summary>
     [Fact]
     public async Task ForgotPassword_AnswersIdenticallyForAKnownAndAnUnknownAddress_AndLogsNoPlainAddress()
     {
@@ -137,8 +112,6 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
         forKnown.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         forUnknown.StatusCode.ShouldBe(forKnown.StatusCode);
 
-        // Proof the known branch actually did something: silence on both sides would satisfy the
-        // assertions above without the endpoint having sent a single email.
         RequireLastEmailTo(user.Email).Subject.ShouldBe("Reset your password");
         Emails.LastTo("nobody-at-all@integration.test").ShouldBeNull();
 
@@ -146,10 +119,6 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
             .Where(record => record.Message.Contains(user.Email, StringComparison.Ordinal))
             .ShouldBeEmpty("The address must never reach a log on this anti-enumeration path.");
     }
-
-    #endregion
-
-    #region reset-password
 
     [Fact]
     public async Task ResetPassword_WithTheEmailedToken_ChangesThePasswordAndRevokesExistingRefreshTokens()
@@ -168,7 +137,6 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
             TestToken);
         reset.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        // The refresh token minted before the reset must not survive it.
         using var refreshed = await client.PostAsJsonAsync(
             $"{AuthRoute}/refresh",
             new RefreshAccessTokenRequest(session.Tokens.RefreshToken),
@@ -185,10 +153,6 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
         loginWithNew.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    /// <summary>
-    /// The same collapse <c>ConfirmEmail</c> uses, for the same reason: telling an unknown address
-    /// apart from a wrong token is exactly what a probe is trying to learn.
-    /// </summary>
     [Fact]
     public async Task ResetPassword_AnUnknownAddressAndAWrongToken_AreIndistinguishable()
     {
@@ -219,6 +183,4 @@ public sealed class PasswordManagementTests(ApiFixture fixture) : IntegrationTes
 
         first.BodyWithoutTraceId.ShouldBe(second.BodyWithoutTraceId);
     }
-
-    #endregion
 }

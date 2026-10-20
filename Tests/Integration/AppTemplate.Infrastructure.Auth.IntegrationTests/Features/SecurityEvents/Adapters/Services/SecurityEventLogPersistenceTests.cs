@@ -22,27 +22,12 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.IntegrationTests.Features.SecurityEvents.Adapters.Services;
 
-/// <summary>
-/// The trail's persistence guarantees, against a real PostgreSQL: the row commits on its own, the
-/// purge removes exactly what has aged out, and a page reads back one account's events newest
-/// first.
-/// </summary>
-/// <remarks>
-/// These are properties of the database the whole design rests on — an insert that must not carry
-/// a caller's transaction with it, a range delete, an ordered page — so they are asserted against
-/// the real schema the migration built, exactly as the module composes it.
-/// </remarks>
 public sealed class SecurityEventLogPersistenceTests(GrantTableFixture fixture) : IClassFixture<GrantTableFixture>
 {
     private static readonly DateTimeOffset _now = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// The row's transaction is the row's own: whatever the caller's context still tracks stays
-    /// pending after <see cref="ISecurityEventLog.Record"/>, because a shared context would flush
-    /// it alongside the row — or lose the row to a rollback that is itself worth recording.
-    /// </summary>
     [Fact]
     public async Task Record_CommitsTheRowAlone_AndFlushesNothingOfTheCallers()
     {
@@ -68,12 +53,6 @@ public sealed class SecurityEventLogPersistenceTests(GrantTableFixture fixture) 
             .ShouldContain(entry => entry.State == EntityState.Added, "the caller's pending work is not flushed with it");
     }
 
-    /// <summary>
-    /// The columns are cut, not refused: the headers are the caller's to inflate, the detail is a
-    /// role name nobody validates at this end, and an event must never be dropped over its
-    /// metadata. Constructed rather than resolved, because the composed origin provider of this
-    /// fixture has no request to read; the subject here is the cut, not the composition.
-    /// </summary>
     [Fact]
     public async Task Record_CutsTheOriginAndDetail_ToTheColumnsWidths()
     {
@@ -148,7 +127,6 @@ public sealed class SecurityEventLogPersistenceTests(GrantTableFixture fixture) 
         page.HasNextPage.ShouldBeTrue();
     }
 
-    /// <summary>An event with no account behind it at all, as a refused sign-in against no known address produces.</summary>
     [Fact]
     public async Task Record_KeepsAnEventWithNoAccount()
     {

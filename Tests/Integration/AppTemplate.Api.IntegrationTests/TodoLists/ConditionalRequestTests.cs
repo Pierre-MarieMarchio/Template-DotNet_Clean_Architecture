@@ -10,33 +10,8 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.TodoLists;
 
-/// <summary>
-/// The half of concurrency control a client can take part in: a read publishes the version as a
-/// strong <c>ETag</c>, and a write that names it is applied only while it is still current.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <c>xmin</c> alone closes the window between a use case's own read and its own commit — see
-/// <see cref="OptimisticConcurrencyTests"/>. It cannot close the much longer window between a user
-/// opening an edit form and submitting it, because nothing in the request says which version the
-/// change was decided against. These tests are about that: the validator on the way out, and
-/// <c>If-Match</c> on the way back in.
-/// </para>
-/// <para>
-/// Everything here goes through the ordinary endpoints. There is no test-only route, no injected
-/// failure, and the tags are never constructed by the test — a test that minted its own would be
-/// asserting against its own idea of the format rather than the server's.
-/// </para>
-/// </remarks>
 public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    #region The validator
-
-    /// <summary>
-    /// A strong validator, quoted per RFC 9110, and not weak. The distinction is load-bearing rather
-    /// than cosmetic: <c>If-Match</c> is compared with the strong function, under which a weak tag
-    /// never matches, so a weak <c>ETag</c> here would make every conditional write fail.
-    /// </summary>
     [Fact]
     public async Task AReadOfAList_PublishesAStrongQuotedETag()
     {
@@ -55,11 +30,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         response.Headers.ETag.Tag.Length.ShouldBeGreaterThan(2, "an empty tag identifies nothing.");
     }
 
-    /// <summary>
-    /// The tag has to be opaque. A client that could read the stored version out of it would start
-    /// treating it as a number — comparing two for ordering, or incrementing one — and none of that
-    /// is true of a PostgreSQL transaction id.
-    /// </summary>
     [Fact]
     public async Task TheETag_DoesNotPublishTheStoredVersionInReadableForm()
     {
@@ -75,11 +45,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
             "the stored version must not be legible in the tag.");
     }
 
-    /// <summary>
-    /// The item read publishes the <em>list's</em> validator, because the list is the aggregate. An
-    /// item with a tag of its own would let a caller change it while believing the rest of the list
-    /// had stood still.
-    /// </summary>
     [Fact]
     public async Task AReadOfAnItem_PublishesTheListsETag()
     {
@@ -113,10 +78,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
             "a validator that survived a write would let the next stale request through.");
     }
 
-    /// <summary>
-    /// A change to a child moves the root's validator too. The list is one resource, so adding an
-    /// item has to invalidate a tag somebody holds for it.
-    /// </summary>
     [Fact]
     public async Task TheETag_ChangesWhenAnItemIsAdded()
     {
@@ -138,10 +99,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
 
         (await ReadETagAsync(client, first)).ShouldNotBe(await ReadETagAsync(client, second));
     }
-
-    #endregion
-
-    #region If-Match on writes
 
     [Fact]
     public async Task TheCurrentETag_IsAcceptedOnEveryMutatingEndpoint()
@@ -224,16 +181,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
-    /// <summary>
-    /// The same ten endpoints, each refusing a validator that is no longer current. Written as one
-    /// test over all of them because the failure worth catching is one endpoint having been left
-    /// unconditional, and that only shows up when every endpoint is asked.
-    /// </summary>
-    /// <remarks>
-    /// Every one of them is refused before the operation itself is attempted, which is why a stale tag
-    /// on <c>reopen</c> against an item that was never completed is a 412 rather than the refusal the
-    /// aggregate would otherwise raise: the version is compared while the aggregate is being loaded.
-    /// </remarks>
     [Fact]
     public async Task AStaleETag_IsRefusedByEveryMutatingEndpoint()
     {
@@ -242,7 +189,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         IReadOnlyList<string> tags = ["urgent"];
         var itemId = await AddTodoItemAsync(client, listId, "Buy milk", tags);
 
-        // Read, then change the list behind the caller's back. The tag it holds is now stale.
         string stale = await ReadETagAsync(client, listId);
         using var interfering = await RenameAsync(client, listId, "Renamed by somebody else");
         interfering.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -315,7 +261,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         using var deleted = await SendAsync(client, HttpMethod.Delete, $"{TodoListsRoute}/{listId}", stale);
         await AssertPreconditionFailedAsync(deleted);
 
-        // And none of them was applied.
         var detail = await ReadDetailAsync(client, listId);
         detail.Name.ShouldBe("Renamed by somebody else");
         detail.Items.Select(item => item.Title).ShouldBe(["Buy milk"]);
@@ -325,11 +270,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         item.Tags.ShouldBe(["urgent"]);
     }
 
-    /// <summary>
-    /// A 412 is an ordinary failure of this API and must look like one: RFC 7807, a stable code, and
-    /// the same security headers as everything else. A response the middleware never saw would be a
-    /// hole in a guarantee the rest of the suite asserts for other statuses.
-    /// </summary>
     [Fact]
     public async Task A412_IsAProblemDocumentCarryingTheSecurityHeaders()
     {
@@ -349,11 +289,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         SecurityHeaderAssertions.AssertSecurityHeaders(response);
     }
 
-    /// <summary>
-    /// A weak validator where a strong one is required. RFC 9110 says <c>If-Match</c> is evaluated
-    /// with strong comparison, under which a weak tag matches nothing — so this is a failed
-    /// precondition, not a malformed request.
-    /// </summary>
     [Fact]
     public async Task AWeakValidator_NeverMatches()
     {
@@ -368,11 +303,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         (await ReadDetailAsync(client, listId)).Name.ShouldBe("Groceries");
     }
 
-    /// <summary>
-    /// A well-formed entity tag this API never issued is a condition nothing satisfies. It must not
-    /// be mistaken for an absent header, which would silently turn a conditional write into an
-    /// unconditional one.
-    /// </summary>
     [Fact]
     public async Task AQuotedTagThisApiNeverIssued_IsRefused()
     {
@@ -385,10 +315,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         (await ReadDetailAsync(client, listId)).Name.ShouldBe("Groceries");
     }
 
-    /// <summary>
-    /// Unquoted, so not an entity tag at all. That is a defect in the request rather than a
-    /// statement about state, and it answers 400 — never 412, and above all never 204.
-    /// </summary>
     [Theory]
     [InlineData("12345")]
     [InlineData("\"unterminated")]
@@ -411,10 +337,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         (await ReadDetailAsync(client, listId)).Name.ShouldBe("Groceries");
     }
 
-    /// <summary>
-    /// A caller may accept several states, and one of them matching is enough — that is what the
-    /// list form of <c>If-Match</c> means.
-    /// </summary>
     [Fact]
     public async Task AListOfTagsMatchesWhenOneOfThemIsCurrent()
     {
@@ -429,10 +351,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         (await ReadDetailAsync(client, listId)).Name.ShouldBe("Renamed");
     }
 
-    #endregion
-
-    #region If-Match: *
-
     [Fact]
     public async Task AWildcardIfMatch_SucceedsWhenTheResourceExists()
     {
@@ -445,11 +363,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         (await ReadDetailAsync(client, listId)).Name.ShouldBe("Renamed");
     }
 
-    /// <summary>
-    /// <c>If-Match: *</c> asserts that the resource exists, so a missing one is that condition
-    /// failing. 412 rather than 404 is what RFC 9110 requires, and it costs nothing here: a list
-    /// belonging to somebody else arrives at the same place, so the two stay indistinguishable.
-    /// </summary>
     [Fact]
     public async Task AWildcardIfMatch_FailsAgainstAResourceThatDoesNotExist()
     {
@@ -474,10 +387,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         (await ReadDetailAsync(owner, listId)).Name.ShouldBe("Groceries");
     }
 
-    /// <summary>
-    /// Without the wildcard, a missing list is still a plain 404: the change in status is a
-    /// consequence of the condition the caller attached, not of the endpoint.
-    /// </summary>
     [Fact]
     public async Task WithoutAnIfMatch_AMissingListIsStillANotFound()
     {
@@ -487,10 +396,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
-
-    #endregion
-
-    #region If-None-Match on reads
 
     [Fact]
     public async Task ARepeatedReadWithTheSameETag_IsA304WithNoBody()
@@ -549,14 +454,6 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         response.StatusCode.ShouldBe(HttpStatusCode.NotModified);
     }
 
-    #endregion
-
-    // ---- Helpers ---------------------------------------------------------------------------------
-
-    /// <summary>
-    /// Asserts the whole shape of a refused precondition, not only the status: a 412 whose body is
-    /// not a problem document, or whose code a client cannot branch on, is not a usable answer.
-    /// </summary>
     private static async Task<ProblemResponse> AssertPreconditionFailedAsync(HttpResponseMessage response)
     {
         response.StatusCode.ShouldBe(

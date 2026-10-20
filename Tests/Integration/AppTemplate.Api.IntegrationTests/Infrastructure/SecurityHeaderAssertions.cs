@@ -2,10 +2,6 @@
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 
-/// <summary>
-/// The response-security headers, asserted from one place so that every test which cares about a new
-/// kind of response can hold it to the same set.
-/// </summary>
 public static class SecurityHeaderAssertions
 {
     public static void AssertSecurityHeaders(HttpResponseMessage response)

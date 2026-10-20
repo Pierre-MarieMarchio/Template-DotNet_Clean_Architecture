@@ -11,25 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Files;
 
-/// <summary>
-/// What one owner's quota is measured against, per stored-file state, against a real database.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>Every state that means bytes are on the store has to count, and <c>StoredFileState</c> has
-/// four of them.</b> A query that reads <c>Available</c> and <c>Pending</c> alone misses
-/// <c>Deposited</c>, waiting for a verdict, and <c>Quarantined</c>, refused and kept — which makes
-/// failing a file's own content inspection the cheapest way to hold bytes for ever, since nothing
-/// moves a file out of <c>Quarantined</c> and the orphan sweep will not reclaim its object while a
-/// row still names it.
-/// </para>
-/// <para>
-/// Driven through the repository and the aggregate's own transitions rather than through HTTP: the
-/// subject is a <c>GROUP BY</c> over a column, the states reached here are ones no single request can
-/// walk a file through, and the aggregate is what decides which instants a state is allowed to carry.
-/// No SQL either — a hand-written INSERT would assert against a schema of the test's own imagination.
-/// </para>
-/// </remarks>
 public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const long _size = 4_096;
@@ -80,10 +61,6 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
             "pending count is the anti-abuse bound on outstanding write grants.");
     }
 
-    /// <summary>
-    /// The half that was already right, asserted here so that a change moving every state into one
-    /// bucket cannot pass: a registration is bytes promised, not bytes held.
-    /// </summary>
     [Fact]
     public async Task APendingRegistration_CountsAsPromisedRatherThanStored()
     {
@@ -100,7 +77,6 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
         usage.CommittedBytes.ShouldBe(_size, "promised bytes are what the quota refuses to ignore.");
     }
 
-    /// <summary>The quota is per (owner, category): a file in one category weighs nothing on another.</summary>
     [Fact]
     public async Task AFileInAnotherCategory_DoesNotWeighOnThisOne()
     {
@@ -117,10 +93,6 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
         image.StoredBytes.ShouldBe(_size);
     }
 
-    /// <summary>
-    /// Registers one file for <paramref name="owner"/> and applies <paramref name="advance"/> to it
-    /// before the single commit, so the row lands in whatever state that leaves it in.
-    /// </summary>
     private async Task StoreAsync(UserId owner, Action<StoredFile> advance, FileCategory? category = null)
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
@@ -140,10 +112,6 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
         await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestToken);
     }
 
-    /// <summary>
-    /// The deposit the store would have reported: the declared size and digest, because a deposit of
-    /// any other length or content is refused by the store rather than confirmed here.
-    /// </summary>
     private static void Confirm(StoredFile file) =>
         file.ConfirmDeposit(FileSize.Create(_size), Sha256Checksum.Create(new string('a', Sha256Checksum.Length)));
 

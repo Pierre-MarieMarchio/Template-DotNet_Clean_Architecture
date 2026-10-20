@@ -5,10 +5,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// Identity's own passkey handler, unchanged, with the reason of every ceremony it refuses written
-/// to <see cref="PasskeyCeremonyFailures"/>.
-/// </summary>
 internal sealed class RecordingPasskeyHandler(
     UserManager<AppUser> userManager,
     IOptions<IdentityPasskeyOptions> options,

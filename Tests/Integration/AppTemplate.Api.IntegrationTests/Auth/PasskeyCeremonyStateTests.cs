@@ -15,16 +15,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// The state joining a passkey ceremony's two calls, through the real endpoints, the real data
-/// protection key ring and the real spent-ceremony table — with verification that accepts every
-/// ceremony (<see cref="AcceptingPasskeyHandler"/>), so a refusal can only be the state's.
-/// </summary>
-/// <remarks>
-/// The replay these guard against: a captured state and credential presented again. For a synced
-/// passkey, whose signature counter stays at zero, Identity's verification accepts the second
-/// presentation as readily as the first, and the state is all that refuses it.
-/// </remarks>
 public sealed class PasskeyCeremonyStateTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const string _signInInvalid = "auth.passkeySignIn.invalid";
@@ -76,10 +66,6 @@ public sealed class PasskeyCeremonyStateTests(ApiFixture fixture) : IntegrationT
         ledger.Verified.Count.ShouldBe(1);
     }
 
-    /// <summary>
-    /// The state is sealed: the client carries something it can neither read nor rewrite, and what
-    /// reaches the handler is the handler's own state, unchanged.
-    /// </summary>
     [Fact]
     public async Task AStateTheClientRewrote_IsRefusedBeforeVerification()
     {
@@ -99,7 +85,6 @@ public sealed class PasskeyCeremonyStateTests(ApiFixture fixture) : IntegrationT
         (await ApiJson.ReadProblemAsync(refused, TestToken)).Code.ShouldBe(_signInInvalid);
         ledger.Verified.ShouldBeEmpty();
 
-        // The untouched state still completes, so the refusal above was the rewrite's.
         using var accepted = await PostSignInAsync(client, session.UserId, state);
         accepted.StatusCode.ShouldBe(HttpStatusCode.OK);
         ledger.Verified.Single().ShouldContain("challenge", Case.Insensitive);
@@ -122,7 +107,6 @@ public sealed class PasskeyCeremonyStateTests(ApiFixture fixture) : IntegrationT
         ledger.Verified.ShouldBeEmpty();
     }
 
-    /// <summary>The two ceremonies seal under purposes of their own, so one's state is no use to the other.</summary>
     [Fact]
     public async Task ASignInState_CannotCompleteARegistration()
     {
@@ -139,10 +123,6 @@ public sealed class PasskeyCeremonyStateTests(ApiFixture fixture) : IntegrationT
         ledger.Verified.ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// A host whose passkey verification accepts every ceremony, its clock placed where the suite's
-    /// is — a derived host has a clock of its own, and the protector reads the machine's beside it.
-    /// </summary>
     private WebApplicationFactory<Program> AcceptingHost(out AcceptingPasskeyHandler.Ledger ledger)
     {
         var recorded = new AcceptingPasskeyHandler.Ledger();
@@ -159,7 +139,6 @@ public sealed class PasskeyCeremonyStateTests(ApiFixture fixture) : IntegrationT
         return host;
     }
 
-    /// <summary>A client of the derived host with an address of its own, as <see cref="IntegrationTestBase.CreateClient"/> hands out.</summary>
     private static HttpClient AcceptingClient(WebApplicationFactory<Program> host)
     {
         int index = Interlocked.Increment(ref _acceptingClientCounter);
@@ -198,7 +177,6 @@ public sealed class PasskeyCeremonyStateTests(ApiFixture fixture) : IntegrationT
         return (await ApiJson.ReadAsync<PasskeyRegistrationOptionsResponse>(response, TestToken)).RegistrationState;
     }
 
-    /// <summary>The credential is the account's id: what <see cref="AcceptingPasskeyHandler"/> answers for.</summary>
     private static Task<HttpResponseMessage> PostSignInAsync(HttpClient client, Guid userId, string state) =>
         client.PostAsJsonAsync(
             $"{AuthRoute}/passkeys/sign-in",

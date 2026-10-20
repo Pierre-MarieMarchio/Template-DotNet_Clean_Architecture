@@ -9,17 +9,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Security;
 
-/// <summary>
-/// One user's aggregate is invisible to another, across the HTTP boundary.
-/// </summary>
-/// <remarks>
-/// <para>
-/// Every attempt answers <b>404, not 403</b>, and that is the right choice: 403 would confirm that
-/// the id exists, which turns any endpoint taking a list id into an oracle for enumerating other
-/// users' ids. The two cases — "no such list" and "not yours" — are deliberately indistinguishable,
-/// and the tests below assert that indistinguishability rather than just the status code.
-/// </para>
-/// </remarks>
 public sealed class OwnershipIsolationTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -34,7 +23,6 @@ public sealed class OwnershipIsolationTests(ApiFixture fixture) : IntegrationTes
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("todoList.notFound");
 
-        // The owner still sees it, so the 404 is about the caller and not about the list.
         using var ownerResponse = await owner.GetAsync(
             new Uri($"{TodoListsRoute}/{listId}", UriKind.Relative),
             TestToken);
@@ -115,10 +103,6 @@ public sealed class OwnershipIsolationTests(ApiFixture fixture) : IntegrationTes
         detail.Items.Single().IsCompleted.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The point of answering 404: an intruder cannot tell an id that exists from one that does not,
-    /// so comparing the two responses tells them nothing.
-    /// </summary>
     [Fact]
     public async Task AnExistingForeignList_AnswersExactlyAsAnAbsentOneDoes()
     {
@@ -138,8 +122,6 @@ public sealed class OwnershipIsolationTests(ApiFixture fixture) : IntegrationTes
         foreign.Code.ShouldBe(absent.Code);
         foreign.Title.ShouldBe(absent.Title);
 
-        // Detail names the id that was asked for, which is the caller's own input, so the two differ
-        // only in that echoed id and in nothing that could disclose existence.
         foreign.Detail.ShouldBe($"No to-do list with id '{listId}' was found.");
     }
 

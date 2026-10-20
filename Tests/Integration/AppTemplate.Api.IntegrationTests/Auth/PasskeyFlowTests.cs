@@ -10,10 +10,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// Passkeys registered and used through the real endpoints, signed by a
-/// <see cref="SoftwareAuthenticator"/> and verified by Identity's own handler.
-/// </summary>
 public sealed class PasskeyFlowTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -59,7 +55,6 @@ public sealed class PasskeyFlowTests(ApiFixture fixture) : IntegrationTestBase(f
         options.SignInOptions.ShouldNotContain(user.Email, Case.Insensitive);
     }
 
-    /// <summary>The creation date is Identity's, read from the machine's clock rather than the suite's.</summary>
     [Fact]
     public async Task ARegisteredPasskey_IsListedWithItsIdNameAndCreationDate()
     {
@@ -91,10 +86,6 @@ public sealed class PasskeyFlowTests(ApiFixture fixture) : IntegrationTestBase(f
             .ShouldBe([second.CredentialIdBase64Url, first.CredentialIdBase64Url]);
     }
 
-    /// <summary>
-    /// A passkey is user-verified possession of a device, two factors in one, so an armed
-    /// authenticator app is not asked for on top of it.
-    /// </summary>
     [Fact]
     public async Task APasskeySignIn_IsNotChallengedForTheSecondFactor()
     {
@@ -124,7 +115,6 @@ public sealed class PasskeyFlowTests(ApiFixture fixture) : IntegrationTestBase(f
         (await PasskeyTestSupport.SignCountAsync(Database, session.UserId, TestToken)).ShouldBe(2u);
     }
 
-    /// <summary>Synced passkeys report zero every time, and a counter that never moves is not a regression.</summary>
     [Fact]
     public async Task AnAuthenticatorThatKeepsNoCounter_SignsInAgainAndAgain()
     {

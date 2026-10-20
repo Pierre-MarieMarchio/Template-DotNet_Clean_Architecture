@@ -9,32 +9,14 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Auth;
 
-/// <summary>
-/// The two-factor lifecycle end to end, against the real endpoints and the real database — the proof
-/// the unit tests around <c>ITwoFactorEnrollmentService</c> and <c>ITwoFactorChallengeService</c> cannot give on
-/// their own, because each of those tests the adapter against a substituted store, never the whole
-/// pipeline a caller actually walks through.
-/// <para>
-/// Login and the second step are always exercised from a freshly created client rather than the one
-/// enrollment used: both are anonymous, and reusing the enrollment client would spend its
-/// <see cref="AppTemplate.Api.Common.Security.RateLimitingExtensions.Authentication"/> budget down to
-/// nothing across a single test.
-/// </para>
-/// </summary>
 public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    /// <summary>
-    /// Setup, confirm, then a full two-step login with a code computed the same way a real
-    /// authenticator app would compute it.
-    /// </summary>
     [Fact]
     public async Task TheFullTwoStepLoginFlow_WorksEndToEndWithAnAuthenticatorCode()
     {
         var (client, user, session) = await SignInAsync();
         var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, user, session, TestToken);
 
-        // Confirming rotated the stamp again and revoked every refresh token for the account: nothing
-        // captured above still works, and login for this address now stops at a challenge.
         var loginClient = CreateClient();
         var challenge = await TwoFactorTestSupport.LoginExpectingChallengeAsync(loginClient, user, TestToken);
 
@@ -49,11 +31,6 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
         authenticated.Tokens.AccessToken.ShouldNotBeNullOrEmpty();
     }
 
-    /// <summary>
-    /// A wrong code against a live challenge is refused with the same error an unknown or expired
-    /// challenge gets — see <c>TwoFactorErrors.InvalidTwoFactorChallenge</c> — and the challenge survives
-    /// the attempt, so a mistyped code does not force the caller back through <c>/login</c>.
-    /// </summary>
     [Fact]
     public async Task AWrongCode_IsRefusedButTheChallengeSurvivesForARetry()
     {
@@ -78,11 +55,6 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
         (await ApiJson.ReadAsync<LoginResponse>(retryResponse, TestToken)).ShouldBeOfType<LoginResponse.Authenticated>();
     }
 
-    /// <summary>
-    /// A recovery code completes the second step exactly like an authenticator code does, and — the
-    /// reason ten of them exist rather than one reusable value — the same code cannot complete a
-    /// second login.
-    /// </summary>
     [Fact]
     public async Task ARecoveryCode_CompletesLoginOnceAndIsThenSpent()
     {
@@ -102,7 +74,6 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
         (await ApiJson.ReadAsync<LoginResponse>(firstVerifyResponse, TestToken))
             .ShouldBeOfType<LoginResponse.Authenticated>();
 
-        // A fresh challenge, same recovery code: it is single-use, not tied to one challenge.
         var secondLoginClient = CreateClient();
         var secondChallenge = await TwoFactorTestSupport.LoginExpectingChallengeAsync(secondLoginClient, user, TestToken);
 
@@ -116,17 +87,12 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
             .ShouldBe("auth.login.invalidTwoFactorChallenge");
     }
 
-    /// <summary>
-    /// Disabling requires the current password and turns the challenge back off: after it, the same
-    /// account logs in with a token pair again, with no second step.
-    /// </summary>
     [Fact]
     public async Task DisablingTwoFactor_RestoresAOneStepLogin()
     {
         var (client, user, session) = await SignInAsync();
         var (sharedKey, _) = await TwoFactorTestSupport.EnableTwoFactorAsync(client, user, session, TestToken);
 
-        // Confirming revoked every refresh token; sign back in the long way before disabling.
         var loginClient = CreateClient();
         var challenge = await TwoFactorTestSupport.LoginExpectingChallengeAsync(loginClient, user, TestToken);
 
@@ -156,10 +122,6 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
             .ShouldBeOfType<LoginResponse.Authenticated>();
     }
 
-    /// <summary>
-    /// A wrong current password neither disables the second factor nor spends anything a right
-    /// password would have.
-    /// </summary>
     [Fact]
     public async Task DisablingWithTheWrongPassword_LeavesTwoFactorArmed()
     {
@@ -194,13 +156,6 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
             .ShouldBeOfType<LoginResponse.TwoFactorRequired>();
     }
 
-    /// <summary>
-    /// The gap this repository was asked to close. Arming the second factor revokes every session on
-    /// the account, the caller's own included, exactly as disarming it does — see
-    /// <see cref="DisablingTwoFactor_RestoresAOneStepLogin"/> — so a caller holding nothing but a
-    /// stolen access token must not be able to do it on a code it produced itself, without ever
-    /// proving the account's password.
-    /// </summary>
     [Fact]
     public async Task ConfirmingWithTheWrongPassword_ArmsNothing()
     {
@@ -214,8 +169,6 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
             TestToken);
         wrongPasswordResponse.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
-        // Nothing was consumed by the refusal above: a login for this address still completes in one
-        // step, exactly as it would have if enrollment had never been confirmed at all.
         using var loginResponse = await CreateClient().PostAsJsonAsync(
             $"{AuthRoute}/login",
             new LoginRequest(user.Email, user.Password),
@@ -224,8 +177,6 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
         (await ApiJson.ReadAsync<LoginResponse>(loginResponse, TestToken))
             .ShouldBeOfType<LoginResponse.Authenticated>();
 
-        // The same pending secret, the right password and the right code now confirm it — proving
-        // the refusal above cost nothing a legitimate retry would need.
         using var rightPasswordResponse = await client.PostAsJsonAsync(
             $"{AuthRoute}/two-factor/confirm",
             new ConfirmTwoFactorSetupRequest(user.Password, AuthenticatorCodes.CurrentCodeFor(setup.SharedKey)),
@@ -235,13 +186,6 @@ public sealed class TwoFactorFlowTests(ApiFixture fixture) : IntegrationTestBase
             .RecoveryCodes.ShouldNotBeEmpty();
     }
 
-    /// <summary>
-    /// Arming the second factor from the caller's own session ends every other session and spares
-    /// that one — the owner's decision when sessions were named: the confirm step proved possession
-    /// of the password and the code, so the caller is not signed out by its own change. The spared
-    /// grant keeps refreshing although the stamp rotation killed the access token it held; a second
-    /// session's grant does not.
-    /// </summary>
     [Fact]
     public async Task ConfirmingTwoFactor_EndsEveryOtherSessionButSparesTheCallersOwn()
     {

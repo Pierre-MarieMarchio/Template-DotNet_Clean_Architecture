@@ -9,10 +9,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Idempotency;
 
-/// <summary>
-/// The <c>Idempotency-Key</c> header over real HTTP against the real PostgreSQL fixture, on the two
-/// actions that opt in: <c>TodoListsController.Create</c> and <c>AddItem</c>.
-/// </summary>
 public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     private const string _headerName = "Idempotency-Key";
@@ -37,9 +33,6 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
         second.Headers.Location.ShouldBe(firstLocation);
         second.Headers.GetValues(_replayedHeaderName).ShouldContain("true");
 
-        // The replay must carry a validator, and the same one the original response did — otherwise a
-        // client that replays through a different instance than the one that served the first response
-        // gets a body it cannot make a conditional request against.
         first.Headers.ETag.ShouldNotBeNull();
         second.Headers.ETag.ShouldBe(first.Headers.ETag);
 
@@ -98,10 +91,6 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
         lists.Items.Count.ShouldBe(2);
     }
 
-    /// <summary>
-    /// The important isolation test: the claim is scoped per user, so two different callers reusing
-    /// the same key string as coincidence do not collide.
-    /// </summary>
     [Fact]
     public async Task AKeyBelongingToADifferentUser_DoesNotCollide()
     {
@@ -120,10 +109,6 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
         (await GetListsAsync(stranger)).Items.Count.ShouldBe(1);
     }
 
-    /// <summary>
-    /// A single space rather than an empty string: an empty header value is dropped before it ever
-    /// reaches the wire, which would make this indistinguishable from sending no header at all.
-    /// </summary>
     [Fact]
     public async Task ABlankKey_Returns400KeyInvalid()
     {
@@ -140,7 +125,7 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
     {
         var (client, _, _) = await SignInAsync();
 
-        string oversized = new('a', 129); // the shipped default MaxKeyLength is 128.
+        string oversized = new('a', 129);
 
         using var response = await PostAsync(client, oversized, new CreateTodoListRequest("Groceries"));
 
@@ -148,7 +133,6 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("idempotency.keyInvalid");
     }
 
-    /// <summary>Proves the claim is released on failure: a corrected retry under the same key succeeds.</summary>
     [Fact]
     public async Task AFailedRequest_ReleasesTheClaim_SoACorrectedRetryUnderTheSameKeySucceeds()
     {
@@ -185,8 +169,6 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
         var detail = await ReadDetailAsync(client, listId);
         detail.Items.Count.ShouldBe(1, "a replayed AddItem must not add a second item.");
     }
-
-    // ---- Helpers ---------------------------------------------------------------------------------
 
     private static async Task<Guid> ReadListIdAsync(HttpResponseMessage response) =>
         (await ApiJson.ReadAsync<TodoListResponse>(response, TestToken)).Id;

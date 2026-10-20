@@ -11,23 +11,8 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 
-/// <summary>
-/// The PostgreSQL container and the API host, started once for the whole suite.
-/// </summary>
-/// <remarks>
-/// A collection fixture, because starting a container and booting the host costs seconds and
-/// neither depends on anything a test does. What <em>is</em> per-test — the contents of the
-/// database, the recorded mailbox, the clock, the captured log — is reset by
-/// <see cref="IntegrationTestBase"/>, and every test class belongs to the one collection so that
-/// those resets cannot race.
-/// </remarks>
 public sealed class ApiFixture : IAsyncLifetime
 {
-    /// <summary>
-    /// The image <c>docker-compose.yml</c>'s <c>db</c> service runs, tag and digest alike, so the
-    /// database these suites test against is the one a developer runs. <c>ContainerImagePinningTests</c>
-    /// fails when the two part.
-    /// </summary>
     internal const string PostgresImage =
         "postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1";
 
@@ -44,7 +29,6 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public TestDatabase Database => _database ?? throw NotInitialised();
 
-    /// <summary>The one clock the host reads, resolvable as its concrete type so a test can move it.</summary>
     public FixedDateTimeProvider Clock => Factory.Services.GetRequiredService<FixedDateTimeProvider>();
 
     public RecordedEmails Emails => Factory.Services.GetRequiredService<RecordedEmails>();
@@ -61,10 +45,6 @@ public sealed class ApiFixture : IAsyncLifetime
 
         _factory = new ApiFactory(_container.GetConnectionString());
 
-        // Touching Services builds and starts the host, which is also when the API's own
-        // Development bootstrap applies the migrations. They are applied again here, explicitly and
-        // idempotently, so the schema is a stated precondition of the suite rather than a side
-        // effect of which environment the test host happens to run under.
         await using var scope = _factory.Services.CreateAsyncScope();
         //#if (localAuth)
 
@@ -86,8 +66,6 @@ public sealed class ApiFixture : IAsyncLifetime
             await _factory.DisposeAsync();
         }
 
-        // CancellationToken.None deliberately: teardown must run even when the test run is being
-        // cancelled, or the container is left behind.
         await _container.DisposeAsync();
     }
 
@@ -95,14 +73,6 @@ public sealed class ApiFixture : IAsyncLifetime
         new($"{nameof(ApiFixture)} has not been initialised.");
 }
 
-/// <summary>
-/// The single collection every test class joins.
-/// </summary>
-/// <remarks>
-/// One collection means one container, and it also means the classes run one after another. That is
-/// required, not incidental: the reset between tests truncates every table of every module schema,
-/// so two tests running at the same time against the same database would delete each other's rows.
-/// </remarks>
 [CollectionDefinition(Name)]
 public sealed class ApiCollectionDefinition : ICollectionFixture<ApiFixture>
 {

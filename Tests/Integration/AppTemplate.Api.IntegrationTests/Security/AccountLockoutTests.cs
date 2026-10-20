@@ -11,10 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Security;
 
-/// <summary>
-/// Online password guessing is bounded by lockout. Without <c>lockoutOnFailure: true</c> on the
-/// sign-in call, <c>AccessFailedCount</c> never moves and guessing is bounded only by request rate.
-/// </summary>
 public sealed class AccountLockoutTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
     [Fact]
@@ -33,17 +29,10 @@ public sealed class AccountLockoutTests(ApiFixture fixture) : IntegrationTestBas
 
         withTheRightPassword.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
 
-        // Lockout is not disclosed: saying so would confirm the account exists.
         (await ApiJson.ReadProblemAsync(withTheRightPassword, TestToken)).Code
             .ShouldBe("auth.login.invalidCredentials");
     }
 
-    /// <summary>
-    /// The counter climbs on the way to the threshold and the lockout window is written when it is
-    /// reached. Note that ASP.NET Identity <em>resets</em> the counter at that moment — once the
-    /// lockout is in force the counter has done its job — so the durable evidence of a lockout is
-    /// <c>LockoutEnd</c>, not the count.
-    /// </summary>
     [Fact]
     public async Task TheFailureCounterClimbs_AndTheLockoutWindowIsWrittenWhenItTrips()
     {
@@ -75,10 +64,6 @@ public sealed class AccountLockoutTests(ApiFixture fixture) : IntegrationTestBas
         locked.AccessFailedCount.ShouldBe(0);
     }
 
-    /// <summary>
-    /// One failure short of the limit must still let the real user in, or "lockout works" would be
-    /// satisfied by an endpoint that simply never accepts anything.
-    /// </summary>
     [Fact]
     public async Task OneFailureShortOfTheLimit_TheCorrectPasswordStillWorks()
     {
@@ -95,8 +80,6 @@ public sealed class AccountLockoutTests(ApiFixture fixture) : IntegrationTestBas
 
         succeeded.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        // A successful sign-in resets the counter, so the next attacker starts from zero rather than
-        // from wherever the real user happened to leave it.
         (await ReadUserAsync(user.Email)).AccessFailedCount.ShouldBe(0);
     }
 

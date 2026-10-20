@@ -9,11 +9,6 @@ using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Notes;
 
-/// <summary>
-/// Creating a note is the one write with no resource to name, so a retry is made safe by the optional
-/// <c>Idempotency-Key</c>. Update and delete need none: their route names the note and their
-/// <c>If-Match</c> makes a repeated request refuse itself.
-/// </summary>
 public sealed class NoteIdempotencyTests(ApiFixture fixture) : NotesTestBase(fixture)
 {
     private const string _headerName = "Idempotency-Key";
@@ -67,7 +62,6 @@ public sealed class NoteIdempotencyTests(ApiFixture fixture) : NotesTestBase(fix
         (await CountNotesAsync(client)).ShouldBe(2);
     }
 
-    /// <summary>Keys are scoped per user, so two callers choosing the same string do not collide.</summary>
     [Fact]
     public async Task AKeyBelongingToAnotherUser_DoesNotCollide()
     {
@@ -83,10 +77,6 @@ public sealed class NoteIdempotencyTests(ApiFixture fixture) : NotesTestBase(fix
             .ShouldNotBe((await ApiJson.ReadAsync<NoteResponse>(strangersNote, TestToken)).Id);
     }
 
-    /// <summary>
-    /// The retry of an update, with the <c>If-Match</c> it first carried, refuses itself instead of applying
-    /// twice: the first attempt moved the version, so the repeat names one that is gone.
-    /// </summary>
     [Fact]
     public async Task ARetriedUpdate_WithTheSameIfMatch_IsRefused_AndAppliesOnce()
     {

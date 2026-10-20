@@ -702,9 +702,10 @@ replayable. A reset token is minted whatever the address's confirmation state: a
 locked behind a confirmation link would strand its holder.
 
 **Some authentication writes commit on their own, and that reaches the caller's unit of work.** A
-grant has to be durable before its value leaves the process, so every refresh-token operation of
-`ISessionTokensService` commits the request's unit of work, and a caller with other work staged in
-the same request has that committed too. A rotation is one transaction of its own, replayed whole on
+grant has to be durable before its value leaves the process, so issuing, rotating and revoking every
+refresh token of `ISessionTokensService` commit the request's unit of work, and a caller with other
+work staged in the same request has that committed too. Revoking one token and purging expired ones
+run their own statements and commit nothing else. A rotation is one transaction of its own, replayed whole on
 a transient failure: the conditional `UPDATE` that consumes the presented grant commits with its
 successor or not at all, since a grant spent by a failed attempt would read as a replay on the retry,
 and a commit whose acknowledgement was lost is recognised by the successor it wrote. Ending sessions

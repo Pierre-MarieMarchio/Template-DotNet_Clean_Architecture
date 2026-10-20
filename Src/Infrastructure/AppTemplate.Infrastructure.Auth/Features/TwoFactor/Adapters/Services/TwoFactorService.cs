@@ -290,7 +290,7 @@ internal sealed class TwoFactorService(
         }
 
         if (parts.Length == 3
-            && (!int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out attempts) || attempts < 0))
+            && !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out attempts))
         {
             attempts = int.MaxValue;
         }

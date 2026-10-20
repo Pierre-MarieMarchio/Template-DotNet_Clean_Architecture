@@ -780,7 +780,7 @@ opposite. 1000 is a starting point, not a measured optimum for your ingestion ra
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `Key` | string | `""` | **Required.** HS256 signing key, **minimum 32 bytes**. Secret — user secrets or env var only. |
+| `Key` | string | `""` | **Required.** HS256 signing key, **minimum 32 bytes**. Secret — user secrets or env var only. Outside Development, a key starting with `dev-only` — the public one `.env.example` and `appsettings.Development.json` ship — is refused at start-up. |
 | `Issuer` | string | `""` | **Required.** Issuer validation is never disabled. |
 | `Audience` | string | `""` | **Required.** Audience validation is never disabled. |
 | `RequireHttpsMetadata` | bool | `true` | Only a local host has business setting `false`. |

@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -15,6 +16,12 @@ public sealed class JwtOptions
 
     /// <summary>HS256 requires a key at least as long as its output. Anything shorter is rejected.</summary>
     public const int MinimumKeyLengthInBytes = 32;
+
+    /// <summary>
+    /// How the signing key the template ships for local development begins. It is public, so
+    /// outside Development a key with this prefix is refused.
+    /// </summary>
+    public const string DevelopmentKeyPrefix = "dev-only";
 
     /// <summary>Symmetric signing key. Supply it through a secret store, never through appsettings.json.</summary>
     public string Key { get; set; } = string.Empty;
@@ -35,7 +42,7 @@ public sealed class JwtOptions
     internal SymmetricSecurityKey CreateSigningKey() => new(Encoding.UTF8.GetBytes(Key));
 }
 
-internal sealed class JwtOptionsValidator : IValidateOptions<JwtOptions>
+internal sealed class JwtOptionsValidator(IHostEnvironment environment) : IValidateOptions<JwtOptions>
 {
     public ValidateOptionsResult Validate(string? name, JwtOptions options)
     {
@@ -50,6 +57,14 @@ internal sealed class JwtOptionsValidator : IValidateOptions<JwtOptions>
             failures.Add(
                 $"'{JwtOptions.SectionName}:Key' must be at least {JwtOptions.MinimumKeyLengthInBytes} bytes " +
                 "long to sign HS256 tokens.");
+        }
+        else if (!environment.IsDevelopment()
+            && options.Key.StartsWith(JwtOptions.DevelopmentKeyPrefix, StringComparison.Ordinal))
+        {
+            failures.Add(
+                $"'{JwtOptions.SectionName}:Key' is the development key the template ships, which is public. " +
+                $"Outside Development, supply a secret of your own as '{JwtOptions.SectionName}:Key' " +
+                "(environment variable Jwt__Key, or JWT_KEY in .env for Docker Compose).");
         }
 
         if (string.IsNullOrWhiteSpace(options.Issuer))

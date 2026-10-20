@@ -247,6 +247,12 @@
           ]
         },
         {
+          "condition": "(!templateMaintenance)",
+          "exclude": [
+            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/TemplatePackagingTests.cs"
+          ]
+        },
+        {
           "condition": "(!localAuth)",
           "exclude": [
             "Src/Application/AppTemplate.Application.Auth/**",

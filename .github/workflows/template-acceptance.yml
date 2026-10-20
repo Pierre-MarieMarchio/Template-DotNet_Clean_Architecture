@@ -107,6 +107,22 @@ jobs:
             exit 1
           fi
 
+      # A condition that leaves a comma before a closing brace still loads in ASP.NET Core,
+      # which tolerates it, and fails in jq, in editors' schema validation and in any strict
+      # parser. Every generated JSON file is therefore parsed strictly, in every leg.
+      - name: Assert every generated JSON file is strict JSON
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          status=0
+          while IFS= read -r -d '' file; do
+            if ! python3 -c 'import json, sys; json.load(open(sys.argv[1], encoding="utf-8-sig"))' "$file" 2>"${{ runner.temp }}/json-error"; then
+              echo "::error file=$file,title=Not strict JSON::$(cat "${{ runner.temp }}/json-error")"
+              status=1
+            fi
+          done < <(find . \( -name .git -o -name bin -o -name obj -o -name node_modules \) -prune -o -name '*.json' -print0)
+          exit "$status"
+
       # Proves the documented first step, and proves it is *sufficient*. Sorted using
       # directives are ordered alphabetically, so the correct order depends on where the
       # generated project's own namespace falls among FluentValidation, Microsoft.* and

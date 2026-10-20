@@ -7,8 +7,8 @@
   <!--#if (files)-->
 
   <!-- Storage/ is the one exception to "over HTTP against the host", and it is here rather than in a
-       project of its own because a test project has to be in AppTemplate.sln and in
-       .template.config/template.json with matching GUIDs, which TemplatePackagingTests compares.
+       project of its own because a test project is one more entry in AppTemplate.sln and
+       one more GUID to keep in step.
        Of the two integration projects this is the one that already references
        AppTemplate.Infrastructure.Storage, and the one whose name promises a layer rather than a
        single module — so the S3 adapters are exercised through their ports here, against a real

@@ -773,9 +773,12 @@ internal static class RemoveFeature
                 File.Delete(Path.Combine(root, file));
             }
 
+            // The Features/ folder above goes too once this was its last feature: a generated tree
+            // ships no empty folder, and LayoutConventionTests refuses one under Src.
             foreach (string folder in analysis.Folders)
             {
                 RemoveEmpty(Path.Combine(root, folder));
+                RemoveEmptyAncestors(root, folder);
             }
 
             foreach (string file in analysis.Shared)
@@ -822,8 +825,8 @@ internal static class RemoveFeature
     }
 
     /// <summary>
-    /// Removes the folders above a deleted file that it leaves empty, up to the first that still holds
-    /// something, and never <c>Src</c>, <c>Tests</c> or the root.
+    /// Removes the folders above a deleted file or folder that it leaves empty, up to the first that
+    /// still holds something, and never <c>Src</c>, <c>Tests</c> or the root.
     /// </summary>
     private static void RemoveEmptyAncestors(string root, string relative)
     {
@@ -1101,6 +1104,24 @@ internal static class RemoveFeature
     }
 
     /// <summary>
+    /// The projects a feature is written into, each with its project file and, as in a tree the template
+    /// generates with no feature, no <c>Features/</c> folder: the generator creates it, and the removal of
+    /// the last feature must take it away again.
+    /// </summary>
+    private static void Projects(string root)
+    {
+        foreach (string project in new[]
+        {
+            "Src/Domain/Acme.Domain", "Src/Application/Acme.Application", "Src/Infrastructure/Acme.Infrastructure.Persistence",
+            "Src/Presentation/Acme.Api", "Tests/Application/Acme.Application.UnitTests", "Tests/Domain/Acme.Domain.UnitTests",
+            "Tests/Infrastructure/Acme.Infrastructure.Persistence.UnitTests", "Tests/Presentation/Acme.Api.UnitTests",
+        })
+        {
+            Put(root, $"{project}/{Path.GetFileName(project)}.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />\n");
+        }
+    }
+
+    /// <summary>
     /// A tree as the template generates it with no feature: none of the account-deleted reaction, the
     /// account adapter's composition, the jobs module, and the event whose documentation names the
     /// policy port in a comment.
@@ -1109,15 +1130,7 @@ internal static class RemoveFeature
     {
         string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
 
-        foreach (string directory in new[]
-        {
-            "Src/Domain/Acme.Domain", "Src/Application/Acme.Application", "Src/Infrastructure/Acme.Infrastructure.Persistence",
-            "Src/Presentation/Acme.Api", "Tests/Application/Acme.Application.UnitTests", "Tests/Domain/Acme.Domain.UnitTests",
-            "Tests/Infrastructure/Acme.Infrastructure.Persistence.UnitTests", "Tests/Presentation/Acme.Api.UnitTests",
-        })
-        {
-            Directory.CreateDirectory(Path.Combine(root, directory, "Features"));
-        }
+        Projects(root);
 
         Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
         Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddPurgeExpiredIdempotencyKeys();\n");
@@ -1301,15 +1314,7 @@ internal static class RemoveFeature
             string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
             string features = combination[0];
 
-            foreach (string directory in new[]
-            {
-                "Src/Domain/Acme.Domain", "Src/Application/Acme.Application", "Src/Infrastructure/Acme.Infrastructure.Persistence",
-                "Src/Presentation/Acme.Api", "Tests/Application/Acme.Application.UnitTests", "Tests/Domain/Acme.Domain.UnitTests",
-                "Tests/Infrastructure/Acme.Infrastructure.Persistence.UnitTests", "Tests/Presentation/Acme.Api.UnitTests",
-            })
-            {
-                Directory.CreateDirectory(Path.Combine(root, directory, "Features"));
-            }
+            Projects(root);
 
             Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
             Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddTodoLists();\n");
@@ -1346,6 +1351,11 @@ internal static class RemoveFeature
 
             expect(applied.Code == 0, $"A fresh {features} was refused: {applied.Output}{applied.Error}");
             expect(Same(original, Snapshot(root)), $"After removing {features} the tree is not the one that was there before it was generated.");
+
+            foreach (string empty in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories).Where(folder => !Directory.EnumerateFileSystemEntries(folder).Any()))
+            {
+                expect(false, $"After removing {features}, its last feature, '{Path.GetRelativePath(root, empty)}' was left empty.");
+            }
         }
     }
 }

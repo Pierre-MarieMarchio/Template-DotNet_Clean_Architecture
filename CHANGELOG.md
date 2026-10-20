@@ -525,6 +525,11 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `ArchitectureTestUserAccountDirectory` double registered in `AddHostSuppliedAdapters` and
   `AddBackgroundOnlyAdapters` — and `remove-feature` counts those lines among the registrations
   that hold the shared account-deletion files back.
+- **Removing the last generated feature leaves no empty `Features/` folder.** `remove-feature --apply`
+  deleted the feature's folders but not the `Features/` folders above them, so a project generated
+  without a feature kept four empty ones after its only feature was removed, and
+  `LayoutConventionTests.NoFolderInTheSourceTree_IsEmpty` failed on the two under `Src/`. The folders a removal leaves empty above the feature's own now go
+  with it, up to the first that still holds something.
 - **A project without a feature can compose the first one the generator writes.** `new-feature`
   tells the user to call `services.AddFeature(...)` in `ApplicationModule`, and to register the
   adapters of a model-mapped feature through `AddScopedTracker` in `PersistenceModule`. Both private

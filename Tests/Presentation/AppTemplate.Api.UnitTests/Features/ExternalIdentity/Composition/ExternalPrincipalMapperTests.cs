@@ -66,6 +66,27 @@ public sealed class ExternalPrincipalMapperTests
             new ExternalCallerDto(_issuer, "object-1", "a@example.com", "Ada"), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// Reminders are sent to the kept address, so one the provider says it has not verified is not
+    /// kept; an absent <c>email_verified</c> proves nothing either way, since Entra ID and others
+    /// never send it.
+    /// </summary>
+    [Theory]
+    [InlineData("true", "a@example.com")]
+    [InlineData("false", null)]
+    [InlineData(null, "a@example.com")]
+    public async Task TheEmail_IsKeptUnlessTheProviderSaysItIsUnverified(string? emailVerified, string? kept)
+    {
+        (string Type, string Value)[] claims = emailVerified is null
+            ? [("sub", "abc"), ("email", "a@example.com")]
+            : [("sub", "abc"), ("email", "a@example.com"), ("email_verified", emailVerified)];
+
+        await Mapper().MapAsync(Principal(claims), Token(), TestToken);
+
+        await _identities.Received(1).ResolveAsync(
+            new ExternalCallerDto(_issuer, "abc", kept, null), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task ATokenWithoutASubject_IsRefused_AndNothingIsMapped()
     {

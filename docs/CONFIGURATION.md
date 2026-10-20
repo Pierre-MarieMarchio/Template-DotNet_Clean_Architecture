@@ -521,7 +521,7 @@ for that mode; a host with local accounts never reads it.
 | `Audience` | string | `""` | **Required.** This API's identifier at the provider. Audience validation is never disabled. |
 | `RequireHttpsMetadata` | bool | `true` | Refuses an `http` authority. Only a provider on a developer's machine has business setting `false`. |
 | `SubjectClaim` | string | `sub` | The claim naming the caller at the provider. Mapped to an internal owner id, never used as one. |
-| `EmailClaim` | string | `email` | Kept on the mapping, for notifications. |
+| `EmailClaim` | string | `email` | Kept on the mapping, for notifications — dropped when the token carries `email_verified` and it is not `true`, kept when the claim is absent. |
 | `NameClaim` | string | `name` | Kept on the mapping, for notifications. |
 | `Roles:Source` | `Claim` or `Local` | `Local` | Where roles come from: the token, or the `external_identity.RoleAssignments` table. |
 | `Roles:ClaimPath` | string | — | **Required when `Source` is `Claim`.** A dot path to a string or an array of strings: `roles` (Entra ID), `realm_access.roles` (Keycloak), a namespaced claim such as `https://example.com/roles` (Auth0, matched whole). |
@@ -531,6 +531,11 @@ for that mode; a host with local accounts never reads it.
 the first time it calls, and every business row carries that id; an email address is never the key.
 [`SECURITY.md`](../SECURITY.md#external-identity-provider) has the mapping, how to keep existing
 owners across a change of provider, and why a token that cannot be mapped is refused.
+
+**An address is kept only if the provider does not call it unverified.** Reminders are sent to it,
+so a token whose `email_verified` is anything but `true` keeps none. A token without the claim keeps
+its address, because Entra ID and others never send it; a provider that issues unverified addresses
+*and* omits the claim should have `EmailClaim` pointed at a claim it never emits.
 
 **`Local` roles have no API.** Assignments are rows of `(UserId, Role)` written by SQL or a seed.
 

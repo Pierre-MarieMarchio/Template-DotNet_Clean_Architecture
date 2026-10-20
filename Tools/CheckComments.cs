@@ -35,8 +35,9 @@ internal static class CheckComments
           allowed  <!--#...--> template conditionals; refused: every other <!-- -->.
 
         Configuration files: appsettings*.json, .env.example, docker-compose*.yml|yaml,
-        .github/workflows/*.yml|yaml, .editorconfig, Directory.*.props, Directory.*.targets,
-        coverage.runsettings, coverage.minimum, Dockerfile, *.Dockerfile, Tests/Load/*.js, and
+        .github/workflows/*.yml|yaml, .github/dependabot.yml, .editorconfig, Directory.*.props,
+        Directory.*.targets, coverage.runsettings, coverage.minimum, Dockerfile, *.Dockerfile,
+        Tests/Load/*.js, and
         in the web workspace Src/Web: compose*.yml|yaml, nginx.conf, pnpm-workspace.yaml and the
         *.ts, *.tsx, *.js, *.mjs and *.cjs sources, a generated/ folder's excepted
           A line whose first non-blank characters open a comment (#, ; in .editorconfig, //, /*
@@ -218,7 +219,8 @@ internal static class CheckComments
             || name.EndsWith(".Dockerfile", StringComparison.Ordinal)
             || name.StartsWith("Dockerfile.", StringComparison.Ordinal)
             || Regex.IsMatch(name, @"^docker-compose.*\.ya?ml$")
-            || Regex.IsMatch(relative, @"(?:^|/)\.github/workflows/[^/]+\.ya?ml$"))
+            || Regex.IsMatch(relative, @"(?:^|/)\.github/workflows/[^/]+\.ya?ml$")
+            || Regex.IsMatch(relative, @"(?:^|/)\.github/dependabot\.ya?ml$"))
         {
             return Syntax.Hash;
         }
@@ -1180,6 +1182,7 @@ internal static class CheckComments
         new("a two-line comment in a project file", "Src/App/App.csproj", "<Project>\n  <!-- why\n       this -->\n</Project>\n", 1),
         new("template conditionals in a project file", "Src/App/App.csproj", "<Project>\n<!--#if (files)-->\n<ItemGroup />\n<!--#endif-->\n</Project>\n", 0),
         new("two guidance lines in a workflow", ".github/workflows/ci.yml", "# one\n# two\nname: ci\n", 1),
+        new("two guidance lines in the Dependabot file", ".github/dependabot.yml", "# one\n# two\nversion: 2\n", 1),
         new("two guidance lines split by a blank line", "docker-compose.yml", "# one\n\n# two\nservices:\n", 1),
         new("two guidance lines in appsettings", "Src/App/appsettings.json", "{\n  // one\n  // two\n  \"A\": 1\n}\n", 1),
         new("a two-line comment in a targets file", "Directory.Build.targets", "<Project>\n  <!-- one\n       two -->\n</Project>\n", 1),

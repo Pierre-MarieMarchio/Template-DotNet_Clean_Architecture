@@ -40,8 +40,6 @@ public sealed class DeleteRemindersOnAccountDeletedConsumerTests
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
 
-    /// <summary>The precondition is re-derived, never trusted: a replayed delivery must not delete
-    /// the data of an account that exists again.</summary>
     [Fact]
     public async Task AnAccountThatExistsAgain_KeepsItsReminders()
     {
@@ -55,7 +53,6 @@ public sealed class DeleteRemindersOnAccountDeletedConsumerTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>What a redelivery finds: nothing left, so nothing to commit.</summary>
     [Fact]
     public async Task AnOwnerWithNoRemindersLeft_CommitsNothing()
     {
@@ -79,7 +76,6 @@ public sealed class DeleteRemindersOnAccountDeletedConsumerTests
         owners.ShouldBe([_ownerId]);
     }
 
-    /// <summary>The event face is the policy face applied to the event's id.</summary>
     [Fact]
     public async Task TheEventFace_AppliesThePolicyToTheEventsOwner()
     {

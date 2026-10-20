@@ -50,11 +50,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The event the derivative hook hangs off, raised here rather than at confirmation — which is
-    /// the moment it now means what it says: the file is servable, and a consumer reading its bytes
-    /// is reading content something has looked at.
-    /// </summary>
     [Fact]
     public async Task AReleasedFile_RaisesTheMadeAvailableEvent()
     {
@@ -70,11 +65,6 @@ public sealed class InspectDepositedFilesUseCaseTests
 
     #region A refused file
 
-    /// <summary>
-    /// The end-to-end shape of the gap being closed: a client declared a PNG, deposited a script
-    /// container, and the file is refused on the evidence of its own bytes rather than of its own
-    /// claim.
-    /// </summary>
     [Fact]
     public async Task ADepositWhoseContentContradictsWhatWasDeclared_IsQuarantined()
     {
@@ -101,11 +91,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         storedFile.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<StoredFileQuarantinedDomainEvent>();
     }
 
-    /// <summary>
-    /// Quarantining removes nothing from the object store, and this asserts the pass does not go
-    /// behind the aggregate's back and do it: the row goes on naming the same key, which is what
-    /// leaves the bytes reachable and keeps deletion the only thing that reclaims them.
-    /// </summary>
     [Fact]
     public async Task AQuarantinedFile_KeepsNamingItsBytes()
     {
@@ -122,10 +107,6 @@ public sealed class InspectDepositedFilesUseCaseTests
 
     #region No verdict
 
-    /// <summary>
-    /// A scanner that cannot be reached must not make files readable, and must not destroy them
-    /// either. The file stays deposited, its next attempt is pushed out, and the deferral is committed.
-    /// </summary>
     [Fact]
     public async Task AFileThatCouldNotBeInspected_IsDeferredAndTheDeferralCommitted()
     {
@@ -142,10 +123,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// A confirmed deposit whose object is gone is no verdict, not a refusal: quarantining on an
-    /// absence would refuse a file over a store fault.
-    /// </summary>
     [Fact]
     public async Task AFileWhoseContentIsMissing_IsLeftForTheNextPass()
     {
@@ -159,9 +136,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         await _scanner.DidNotReceive().ScanAsync(Arg.Any<string>(), Arg.Any<Stream>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// A store that fails while being read is an outage, and an outage is retried.
-    /// </summary>
     [Fact]
     public async Task AStoreThatCannotBeRead_IsAnOutageRatherThanAVerdict()
     {
@@ -176,10 +150,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         storedFile.InspectionAttempts.ShouldBe(1);
     }
 
-    /// <summary>
-    /// Shutdown is not an outage: the caller's cancellation propagates instead of being logged as a
-    /// file that could not be read.
-    /// </summary>
     [Fact]
     public async Task TheCallersCancellation_Propagates()
     {
@@ -192,11 +162,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         await Should.ThrowAsync<OperationCanceledException>(() => UseCase().ExecuteAsync(cancellation.Token));
     }
 
-    /// <summary>
-    /// One unreachable file must not hold up the rest of the batch. The pass is the only thing that
-    /// makes any upload readable, so a single object the store will not answer about cannot be
-    /// allowed to stop every other user's file.
-    /// </summary>
     [Fact]
     public async Task OneFileWithoutAVerdict_DoesNotStopTheOthers()
     {
@@ -218,10 +183,6 @@ public sealed class InspectDepositedFilesUseCaseTests
 
     #region The pass itself
 
-    /// <summary>
-    /// Nothing to inspect is the normal state of a healthy system, and it must cost nothing: no
-    /// commit, and therefore no round trip to prove that nothing changed.
-    /// </summary>
     [Fact]
     public async Task APassWithNothingToInspect_CommitsNothing()
     {
@@ -234,11 +195,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The content is read from the key the aggregate holds, never one recomputed from anything
-    /// else. A pass that read the wrong object would clear a file on the strength of another file's
-    /// bytes.
-    /// </summary>
     [Fact]
     public async Task TheContent_IsReadFromTheAggregatesOwnKey()
     {
@@ -252,11 +208,6 @@ public sealed class InspectDepositedFilesUseCaseTests
             .ScanAsync(storedFile.ObjectKey.Value, Arg.Any<Stream>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The head is read off the front of the stream before the scan; the scanner must still receive
-    /// every byte, head included, or it would clear an executable whose signature sits in the
-    /// first kibibyte.
-    /// </summary>
     [Fact]
     public async Task TheScanner_ReceivesTheWholeContentHeadIncluded()
     {
@@ -279,7 +230,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         scanned.ShouldBe(large);
     }
 
-    /// <summary>One commit per file, so a failure on one file loses no other file's verdict.</summary>
     [Fact]
     public async Task EachFile_IsCommittedOnItsOwn()
     {
@@ -295,7 +245,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         await _unitOfWork.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>The batch is asked for as of now, so a deferred file comes back only once it is due.</summary>
     [Fact]
     public async Task TheBatch_IsAskedForAsOfNow()
     {
@@ -329,9 +278,8 @@ public sealed class InspectDepositedFilesUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>The literal is repeated on purpose: the name is a contract across releases.</summary>
     [Fact]
-    public async Task ThePass_RunsUnderItsNamedLease()
+    public async Task TheLeaseName_IsPinnedAsALiteral()
     {
         GivenTheRepositoryHolds();
 
@@ -344,7 +292,6 @@ public sealed class InspectDepositedFilesUseCaseTests
 
     #region What the category decides
 
-    /// <summary>The confirmed size goes with the content, so a scanner with a ceiling refuses before streaming.</summary>
     [Fact]
     public async Task TheScanner_IsGivenTheConfirmedSize()
     {
@@ -389,7 +336,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         storedFile.State.ShouldBe(StoredFileState.Available);
     }
 
-    /// <summary>Markup is refused in every category, whatever it says about signatures.</summary>
     [Fact]
     public async Task ACategoryThatDoesNotVerifySignatures_StillQuarantinesMarkup()
     {
@@ -402,10 +348,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         storedFile.State.ShouldBe(StoredFileState.Quarantined);
     }
 
-    /// <summary>
-    /// A category removed from configuration after registration gets the strictest inspection: the
-    /// scanner is asked and the head must match.
-    /// </summary>
     [Fact]
     public async Task ACategoryNoLongerConfigured_IsScannedAndVerified()
     {

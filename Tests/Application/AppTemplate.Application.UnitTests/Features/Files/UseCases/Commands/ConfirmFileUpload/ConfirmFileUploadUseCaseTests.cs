@@ -46,10 +46,6 @@ public sealed class ConfirmFileUploadUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Confirming somebody else's upload would make their file servable on this caller's say-so, and
-    /// would tell them the file exists into the bargain.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersFile_IsNotConfirmed()
     {
@@ -98,12 +94,6 @@ public sealed class ConfirmFileUploadUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The check the whole two-step flow exists for. A deposit whose length does not match what was
-    /// declared leaves the file pending — nothing is served, and the abandonment sweep is what
-    /// eventually clears it. Deleting the size comparison in <c>StoredFile.ConfirmDeposit</c>
-    /// turns this red.
-    /// </summary>
     [Fact]
     public async Task ADepositOfTheWrongSize_LeavesTheFilePending()
     {
@@ -120,10 +110,6 @@ public sealed class ConfirmFileUploadUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The same, for the digest — which is the half that catches content substituted for content of
-    /// exactly the same length.
-    /// </summary>
     [Fact]
     public async Task ADepositWithTheWrongChecksum_LeavesTheFilePending()
     {
@@ -138,11 +124,6 @@ public sealed class ConfirmFileUploadUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// A zero-byte object is what an interrupted deposit leaves behind, and it is indistinguishable
-    /// from no deposit at all as far as the store is concerned. <c>FileSize</c> refuses it, so it
-    /// cannot be confirmed as a real file.
-    /// </summary>
     [Fact]
     public async Task AZeroByteDeposit_IsRefused()
     {
@@ -155,10 +136,6 @@ public sealed class ConfirmFileUploadUseCaseTests
         storedFile.State.ShouldBe(StoredFileState.Pending);
     }
 
-    /// <summary>
-    /// The observed values come from the store, and the store is asked about the key the aggregate
-    /// holds — not one recomputed from anything the caller sent.
-    /// </summary>
     [Fact]
     public async Task TheStore_IsAskedAboutTheAggregatesOwnKey()
     {
@@ -170,8 +147,6 @@ public sealed class ConfirmFileUploadUseCaseTests
         await _content.Received(1).DescribeAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>());
     }
 
-    /// <summary>Casing is normalised on both sides, so two tools disagreeing about it is not a
-    /// mismatch.</summary>
     [Fact]
     public async Task AChecksumReportedInUpperCase_StillMatches()
     {
@@ -201,13 +176,6 @@ public sealed class ConfirmFileUploadUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// <b>The guarantee this endpoint does not give.</b> A matching deposit is not a readable file:
-    /// nothing has read the content, so the file is not servable and carries no availability instant.
-    /// Making this endpoint release the file again — because it is the convenient place, and because
-    /// a client is already waiting there — would serve every byte anyone uploads without one of them
-    /// having been looked at.
-    /// </summary>
     [Fact]
     public async Task AMatchingDeposit_DoesNotMakeTheFileServable()
     {
@@ -233,8 +201,6 @@ public sealed class ConfirmFileUploadUseCaseTests
         result.Value.Value.SizeInBytes.ShouldBe(AStoredFile.SizeInBytes);
     }
 
-    /// <summary>Confirming twice is refused by the aggregate: only a pending file can have its
-    /// deposit confirmed.</summary>
     [Fact]
     public async Task AnAlreadyAvailableFile_IsRefused()
     {

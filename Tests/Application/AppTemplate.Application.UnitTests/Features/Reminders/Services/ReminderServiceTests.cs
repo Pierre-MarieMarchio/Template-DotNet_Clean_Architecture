@@ -13,11 +13,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Reminders.Services;
 
-/// <summary>
-/// The one gate every reminder command loads its aggregate through, so its own tests are where
-/// the identity/ownership/precondition matrix is proven exhaustively — same rationale as
-/// <c>TodoListServiceTests</c>.
-/// </summary>
 public sealed class ReminderServiceTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
@@ -58,10 +53,6 @@ public sealed class ReminderServiceTests
         result.Error.Code.ShouldBe("reminder.notFound");
     }
 
-    /// <summary>
-    /// "Not yours" and "does not exist" answer identically, so a caller cannot use this to
-    /// enumerate other users' reminder ids.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersReminder_IsIndistinguishableFromAMissingOne()
     {

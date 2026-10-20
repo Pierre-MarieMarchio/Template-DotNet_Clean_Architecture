@@ -7,11 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.TodoLists.Model.Mapping;
 
-/// <summary>
-/// <see cref="TodoListDtoMapping"/> exists so a command does not need a second query to
-/// describe what it just wrote. These tests pin the one place that projection could silently
-/// disagree with a read: item order.
-/// </summary>
 public sealed class TodoListDtoMappingTests
 {
     private static readonly DateTimeOffset _now = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
@@ -32,14 +27,6 @@ public sealed class TodoListDtoMappingTests
         projected.Value.CreatedAt.ShouldBe(_now);
     }
 
-    /// <summary>
-    /// The pinning test for presentation order: the aggregate keeps items in insertion order, but
-    /// both the projection and <c>TodoListQueries.GetDetailAsync</c> must present them ordered
-    /// by title — otherwise the same resource reads differently depending on whether it came
-    /// back from a write or from a query. This test can't reach the EF query directly (no
-    /// database here), so it pins the projection against the same comparator that query uses:
-    /// <c>StringComparer.Ordinal</c> over the title.
-    /// </summary>
     [Fact]
     public void Detail_OrdersItemsByTitle_NotByInsertionOrder()
     {

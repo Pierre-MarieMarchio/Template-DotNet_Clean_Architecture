@@ -18,11 +18,6 @@ public sealed class ReminderTests
     private static Reminder AReminder(DateTimeOffset? dueAt = null, DateTimeOffset? scheduledAt = null) =>
         Reminder.Schedule(_ownerId, _todoListId, _todoItemId, dueAt ?? _now.AddHours(1), scheduledAt ?? _now);
 
-    /// <summary>
-    /// Builds a reminder through the load path rather than <see cref="Reminder.Schedule"/>, which is
-    /// the only way to put a reminder in a state <c>Schedule</c> could never produce itself — overdue,
-    /// or already retired.
-    /// </summary>
     private static Reminder ARehydratedReminder(
         Guid? id = null,
         ReminderState state = ReminderState.Pending,
@@ -72,10 +67,6 @@ public sealed class ReminderTests
         exception.Message.ShouldContain("to-do item");
     }
 
-    /// <summary>
-    /// The default instant is what an uninitialised caller passes. Accepting it would schedule a
-    /// reminder for 0001-01-01, a value indistinguishable from "never set".
-    /// </summary>
     [Fact]
     public void Schedule_Rejects_TheDefaultDueDate()
     {
@@ -90,10 +81,6 @@ public sealed class ReminderTests
         Should.Throw<DomainException>(
             () => Reminder.Schedule(_ownerId, _todoListId, _todoItemId, _now.AddMinutes(-1), _now));
 
-    /// <summary>
-    /// A reminder due at the very instant it is scheduled would never be reachable by a firing pass
-    /// that reads strictly-due rows: it must be pushed at least an instant into the future.
-    /// </summary>
     [Fact]
     public void Schedule_Rejects_ADueDateEqualToNow() =>
         Should.Throw<DomainException>(() => Reminder.Schedule(_ownerId, _todoListId, _todoItemId, _now, _now));
@@ -121,12 +108,6 @@ public sealed class ReminderTests
 
     #region Rehydrating
 
-    /// <summary>
-    /// The load path holds every identity invariant scheduling holds, because both reach the
-    /// aggregate through the same constructor. Stating them once is what stops the two paths from
-    /// disagreeing about what a reminder must carry, and 0001-01-01 is the value that shows it: a
-    /// stored due date the aggregate would never have written.
-    /// </summary>
     [Fact]
     public void Rehydrate_Rejects_TheDefaultDueDate() =>
         Should.Throw<DomainException>(
@@ -179,14 +160,6 @@ public sealed class ReminderTests
                 NextAttemptAt = null,
             }));
 
-    /// <summary>
-    /// The single most important test in this file. Being in the future is a precondition of
-    /// <see cref="Reminder.Schedule"/>, not a property the aggregate holds forever: a reminder stops
-    /// satisfying it by the mere passing of time, and every reminder the firing query is meant to find
-    /// is, by definition, one for which it no longer holds. A <c>Rehydrate</c> that re-checked it would
-    /// throw while loading exactly the rows it exists to load, and the feature could never fire anything.
-    /// This test loading an overdue reminder successfully is the proof that firing can work at all.
-    /// </summary>
     [Fact]
     public void Rehydrate_DoesNotRecheckThatTheDueDateIsInTheFuture()
     {
@@ -299,11 +272,6 @@ public sealed class ReminderTests
         Should.Throw<DomainException>(() => reminder.Cancel());
     }
 
-    /// <summary>
-    /// A property of shape, not of history: <c>Cancel</c> assigns a state rather than moving one, so a
-    /// redelivered cancellation lands on the same value instead of being rejected as an illegal
-    /// transition from "cancelled" to "cancelled".
-    /// </summary>
     [Fact]
     public void Cancel_IsIdempotent()
     {
@@ -393,10 +361,6 @@ public sealed class ReminderTests
         reminder.NextAttemptAt.ShouldBe(_now.AddMinutes(1) + TimeSpan.FromMinutes(2));
     }
 
-    /// <summary>
-    /// A minute, doubling, and an hour at the most: the seventh failure is the first whose doubled
-    /// wait would pass the ceiling, and a failure count far beyond it must not overflow.
-    /// </summary>
     [Theory]
     [InlineData(1, 1)]
     [InlineData(2, 2)]
@@ -471,10 +435,6 @@ public sealed class ReminderTests
         raised.OccurredOn.ShouldBe(notifiedAt);
     }
 
-    /// <summary>
-    /// The rejected retry must not sneak out a second event: it fails before it reaches the point where
-    /// one would be raised.
-    /// </summary>
     [Fact]
     public void MarkNotified_RaisesNoAdditionalEvent_WhenARepeatCallIsRejected()
     {
@@ -494,11 +454,6 @@ public sealed class ReminderTests
 
     #region Stored rows that contradict themselves
 
-    /// <summary>
-    /// The state and the instants are two records of the same fact, and a row where they disagree
-    /// describes a reminder that never existed. Loading it would produce an aggregate whose own
-    /// rules are already broken, and the damage would surface far from the row that caused it.
-    /// </summary>
     [Fact]
     public void Rehydrate_Rejects_AFiredReminderWithNoNotificationInstant() =>
         Should.Throw<DomainException>(

@@ -54,7 +54,6 @@ public sealed class ConfirmEmailChangeUseCaseTests
         result.IsSuccess.ShouldBeTrue();
     }
 
-    /// <summary>A bad token and a missing account are one refusal, answered with one error.</summary>
     [Fact]
     public async Task ABadToken_AnswersWithTheInvalidLinkError()
     {
@@ -79,10 +78,6 @@ public sealed class ConfirmEmailChangeUseCaseTests
         result.Error!.Details!["email"].ShouldContain("That address is not allowed.");
     }
 
-    /// <summary>
-    /// The security stamp already rotated inside ChangeEmailAsync and takes every access token with
-    /// it; refresh tokens survive that rotation, so this use case has to revoke them itself.
-    /// </summary>
     [Fact]
     public async Task ASuccessfulChange_RevokesEveryRefreshTokenForTheAccount()
     {

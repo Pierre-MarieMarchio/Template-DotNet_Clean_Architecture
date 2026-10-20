@@ -45,11 +45,6 @@ public sealed class GetMySecurityEventsUseCaseTests
             Arg.Any<Guid>(), Arg.Any<PageRequest>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The account comes from the caller and is not part of the query, so there is no parameter a
-    /// caller could widen. Passing anything but the caller's own id here would list somebody
-    /// else's trail.
-    /// </summary>
     [Fact]
     public async Task ThePage_IsAlwaysScopedToTheCaller()
     {

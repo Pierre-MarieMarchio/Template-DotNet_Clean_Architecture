@@ -101,10 +101,6 @@ public sealed class SortOrderTests
         result.Error.Message.ShouldContain("secretColumn");
     }
 
-    /// <summary>
-    /// lastModifiedAt is offset-only, not absent from the whitelist: sorting by it is fine. Only
-    /// resuming a keyset page from it is refused, and that is <see cref="Cursor.Decode"/>'s concern.
-    /// </summary>
     [Fact]
     public void AFieldNotWhitelistedForKeyset_IsStillSortable() =>
         SortOrder.Parse("lastModifiedAt", _policy).IsSuccess.ShouldBeTrue();

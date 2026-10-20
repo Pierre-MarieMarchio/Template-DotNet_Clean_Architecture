@@ -27,7 +27,6 @@ public sealed class BeginPasskeyRegistrationUseCaseTests
         _passkeys.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>A valid token can outlive its account: deleted after the token was issued.</summary>
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsRefused()
     {

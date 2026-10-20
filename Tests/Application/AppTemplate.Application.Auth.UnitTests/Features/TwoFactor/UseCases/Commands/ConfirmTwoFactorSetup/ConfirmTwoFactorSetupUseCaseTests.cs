@@ -52,10 +52,6 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         _twoFactor.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The gap this whole feature closes: a wrong password refuses arming the second factor exactly
-    /// as a wrong password already refused disarming it — see <c>DisableTwoFactorUseCaseTests</c>.
-    /// </summary>
     [Fact]
     public async Task AWrongPassword_IsRefused()
     {
@@ -67,11 +63,6 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         result.Error!.Details!["currentPassword"].ShouldContain("The current password is incorrect.");
     }
 
-    /// <summary>
-    /// The proof this repository asked for before shipping the fix: without it, a caller holding
-    /// nothing but a stolen access token could arm two-factor sign-in — and revoke every session on
-    /// the account — on a password it never had to prove.
-    /// </summary>
     [Fact]
     public async Task AWrongPassword_ArmsNothingAndRevokesNoRefreshTokenAndRecordsNoEvent()
     {
@@ -105,7 +96,6 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticatedAndRevokesNothing()
     {
@@ -119,10 +109,6 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// A second confirmation leaves the armed factor and its recovery codes alone, and so has no
-    /// posture change to record or revoke for.
-    /// </summary>
     [Fact]
     public async Task AnAccountAlreadyArmed_IsAConflictAndRevokesNothingRecordsNothing()
     {
@@ -137,10 +123,6 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The store refusing to arm the factor is not the caller's wrong code: the code was right and
-    /// retrying it may well succeed.
-    /// </summary>
     [Fact]
     public async Task AStoreRefusal_IsReportedAsSuchAndArmsNothingRevokesNothingRecordsNothing()
     {
@@ -154,7 +136,6 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>Non-regression: the right password still arms the second factor.</summary>
     [Fact]
     public async Task ARightPasswordAndCode_AnswersWithTheFreshRecoveryCodes()
     {
@@ -176,11 +157,6 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         _securityEventLog.Received(1).Record(SecurityEvent.TwoFactorEnabled(_callerId));
     }
 
-    /// <summary>
-    /// The security stamp already rotated inside <c>ConfirmSetupAsync</c> — see
-    /// <c>ITwoFactorService.ConfirmSetupAsync</c> — and takes every access token with it; refresh tokens
-    /// survive that rotation, so this use case has to revoke them itself.
-    /// </summary>
     [Fact]
     public async Task ARightPasswordAndCode_RevokesEverySessionButTheCallersOwn()
     {
@@ -195,11 +171,6 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_callerId));
     }
 
-    /// <summary>
-    /// Arming the factor just proved both the password and the new factor from this session, so the
-    /// session is the one that need not re-authenticate. A token that names no session spares
-    /// nothing: an unknown session is not one to spare.
-    /// </summary>
     [Fact]
     public async Task ARightPasswordAndCodeFromATokenWithoutASession_RevokesEverySession()
     {
@@ -220,7 +191,6 @@ public sealed class ConfirmTwoFactorSetupUseCaseTests
         _twoFactor.ConfirmSetupAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(confirmation);
 
-    /// <summary>The session the caller arms the factor from, fixed so assertions can name it.</summary>
     private readonly StubCurrentSession _currentSession = StubCurrentSession.InSession(Guid.CreateVersion7());
 
     private ConfirmTwoFactorSetupUseCase UseCaseFor(ICurrentUser currentUser, StubCurrentSession currentSession) =>

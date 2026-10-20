@@ -8,24 +8,15 @@ using AppTemplate.Domain.Features.Files.Repositories;
 
 namespace AppTemplate.Application.UnitTests.TestDoubles;
 
-/// <summary>
-/// A stored-file store with the two properties of the real one a background pass depends on: a save
-/// writes every changed aggregate or none, and a write against a version that has since moved is
-/// refused and stays staged, as it does in the EF context. Repository and unit of work in one.
-/// <see cref="GetDepositedAsync"/> follows the contract <see cref="IStoredFileRepository"/> documents.
-/// </summary>
 internal sealed class InMemoryStoredFileStore : IStoredFileRepository, IUnitOfWork
 {
     private readonly Dictionary<Guid, Row> _committed = [];
     private readonly Dictionary<Guid, Loaded> _loaded = [];
 
-    /// <summary>How many saves were attempted, successful or not.</summary>
     public int SaveAttempts { get; private set; }
 
-    /// <summary>How many saves succeeded.</summary>
     public int Commits { get; private set; }
 
-    /// <summary>Puts a file in the store as if it had been saved before.</summary>
     public void Seed(StoredFile storedFile)
     {
         ArgumentNullException.ThrowIfNull(storedFile);
@@ -33,13 +24,10 @@ internal sealed class InMemoryStoredFileStore : IStoredFileRepository, IUnitOfWo
         _committed[storedFile.Id] = new Row(Snapshot(storedFile), 1);
     }
 
-    /// <summary>What a new job pass gets: nothing loaded, nothing staged.</summary>
     public void StartNewScope() => _loaded.Clear();
 
-    /// <summary>The state the store holds for a file, as a fresh aggregate would load it.</summary>
     public StoredFile Committed(Guid id) => Load(_committed[id]);
 
-    /// <summary>Another process changes the file and commits, moving its version under any earlier reader.</summary>
     public void ChangeBehindTheBack(Guid id)
     {
         var row = _committed[id];
@@ -102,7 +90,6 @@ internal sealed class InMemoryStoredFileStore : IStoredFileRepository, IUnitOfWo
         CancellationToken cancellationToken) =>
         throw new NotSupportedException("No inspection test reads pending registrations.");
 
-    /// <summary>No inspection test removes an owner's files; the double exists for the background passes.</summary>
     public Task<IReadOnlyList<StoredFile>> GetForOwnerAsync(UserId ownerId, CancellationToken cancellationToken) =>
         throw new NotSupportedException("No inspection test removes an owner's files.");
 
@@ -149,7 +136,6 @@ internal sealed class InMemoryStoredFileStore : IStoredFileRepository, IUnitOfWo
         Tags = [.. storedFile.Tags.Select(tag => tag.Value)],
     };
 
-    /// <summary>The values a file's own behaviour can change, compared by value.</summary>
     private static (StoredFileState, DateTimeOffset?, int, DateTimeOffset?, string) Key(StoredFileSnapshot snapshot) =>
         (snapshot.State,
             snapshot.AvailableAt,

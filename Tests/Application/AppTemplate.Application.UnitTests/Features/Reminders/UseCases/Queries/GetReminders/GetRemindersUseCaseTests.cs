@@ -45,10 +45,6 @@ public sealed class GetRemindersUseCaseTests
     public async Task ANullQuery_IsAProgrammingError() =>
         await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
 
-    /// <summary>
-    /// Owner, list and item are the query's arguments, so the filtering is done where the rows are
-    /// and this use case has nothing left to hide: it passes the caller's id, not a stranger's.
-    /// </summary>
     [Fact]
     public async Task TheQuery_IsAskedForTheCallersOwnRemindersOnTheNamedItem()
     {

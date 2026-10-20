@@ -10,10 +10,6 @@ using Xunit;
 
 namespace AppTemplate.Application.Auth.UnitTests.Features.Sessions.UseCases.Commands.RefreshAccessToken;
 
-/// <summary>
-/// A refresh consumes the presented grant first and only then asks whether the account may still
-/// sign in — and when it may not, the successor it was just issued has to go too.
-/// </summary>
 public sealed class RefreshAccessTokenUseCaseTests
 {
     private static readonly DateTimeOffset _accessTokenExpiry = DateTimeOffset.UnixEpoch.AddMinutes(15);
@@ -24,7 +20,6 @@ public sealed class RefreshAccessTokenUseCaseTests
     private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
-    /// <summary>The client whose refresh call this is, so the assertion can see it recorded.</summary>
     private static readonly SessionClient _client = new("test-agent/1.0");
 
     private readonly RefreshAccessTokenUseCase _useCase;
@@ -39,10 +34,6 @@ public sealed class RefreshAccessTokenUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// A blank token must not reach rotation: rotation treats reuse as theft, and an empty string is
-    /// not a token anyone was ever issued. Removing the <c>IsValid</c> check turns this red.
-    /// </summary>
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -57,10 +48,6 @@ public sealed class RefreshAccessTokenUseCaseTests
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// Unknown, expired, revoked and replayed are one answer. The adapter has already revoked the
-    /// family for a replay; the caller must not be able to tell that apart from a typo.
-    /// </summary>
     [Fact]
     public async Task ARejectedRotation_IsAnsweredWithOneErrorAndMintsNothing()
     {
@@ -78,11 +65,6 @@ public sealed class RefreshAccessTokenUseCaseTests
         _accounts.ReceivedCalls().ShouldBeEmpty("a rejected token names no account to ask about.");
     }
 
-    /// <summary>
-    /// A grant issued before the account was locked out or disabled must not keep minting access
-    /// tokens, and the successor this very call produced has to be revoked with the rest — otherwise
-    /// the holder simply refreshes again with it.
-    /// </summary>
     [Fact]
     public async Task ARotatedGrantForAnAccountThatMayNoLongerSignIn_IsRefusedAndTakesTheFamilyWithIt()
     {
@@ -98,10 +80,6 @@ public sealed class RefreshAccessTokenUseCaseTests
         await _sessionTokens.DidNotReceiveWithAnyArgs().IssueAccessTokenAsync(default, default, Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Deciding that a grant may not be renewed is this use case's job, so the resulting revocation
-    /// is what it records — not the adapter that merely carries out the decision.
-    /// </summary>
     [Fact]
     public async Task ARevokedFamily_IsRecordedAsARevocation()
     {
@@ -130,10 +108,6 @@ public sealed class RefreshAccessTokenUseCaseTests
         await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The successor comes from rotation, never from a fresh issuance: minting a second grant here
-    /// would leave two live chains for one presented token.
-    /// </summary>
     [Fact]
     public async Task NoSecondGrant_IsIssued()
     {
@@ -145,10 +119,6 @@ public sealed class RefreshAccessTokenUseCaseTests
         await _sessionTokens.DidNotReceiveWithAnyArgs().IssueRefreshTokenAsync(default, Arg.Any<SessionClient>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Rotation is single-use, so it has to be the first thing that happens: revalidating the account
-    /// first would leave a window in which a replayed token is answered by a check that passes.
-    /// </summary>
     [Fact]
     public async Task TheGrantIsConsumed_BeforeTheAccountIsRevalidated()
     {

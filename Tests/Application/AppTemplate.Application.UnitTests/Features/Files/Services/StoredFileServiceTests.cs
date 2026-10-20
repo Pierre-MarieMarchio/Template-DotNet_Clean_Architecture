@@ -11,11 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Files.Services;
 
-/// <summary>
-/// The one gate every file command loads its aggregate through, so its own tests are where the
-/// identity/ownership/precondition matrix is proven exhaustively rather than re-proven, slightly
-/// differently, in every use case's test file.
-/// </summary>
 public sealed class StoredFileServiceTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
@@ -56,11 +51,6 @@ public sealed class StoredFileServiceTests
         result.Error.Code.ShouldBe("storedFile.notFound");
     }
 
-    /// <summary>
-    /// "Not yours" and "does not exist" answer identically, so a caller cannot use this to enumerate
-    /// other users' file ids. Deleting the <c>OwnerId</c> comparison in <c>StoredFileService</c>
-    /// turns this red, and every other ownership test in the feature with it.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersFile_IsIndistinguishableFromAMissingOne()
     {
@@ -78,10 +68,6 @@ public sealed class StoredFileServiceTests
         foreignResult.Error.Type.ShouldBe(ErrorType.NotFound);
     }
 
-    /// <summary>
-    /// The message must not leak the file either: a 404 quoting somebody else's file name would say
-    /// the file exists just as loudly as a 403 would.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersFile_IsNotNamedInTheRefusal()
     {
@@ -129,10 +115,6 @@ public sealed class StoredFileServiceTests
         result.Error!.Type.ShouldBe(ErrorType.PreconditionFailed);
     }
 
-    /// <summary>
-    /// Ownership is answered before the version is, so a caller cannot learn that somebody else's
-    /// file exists by watching a 412 come back instead of a 404.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersFile_IsRefusedAsMissingEvenWithAnUnsatisfiablePrecondition()
     {
@@ -154,7 +136,6 @@ public sealed class StoredFileServiceTests
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
     }
 
-    /// <summary>The owner reads their file in any state; the use case answers the state.</summary>
     [Fact]
     public async Task Readable_TheOwnersPendingFileIsLoaded()
     {
@@ -199,7 +180,6 @@ public sealed class StoredFileServiceTests
         result.Error!.Code.ShouldBe("storedFile.notFound");
     }
 
-    /// <summary>Visibility opens the content only: every other operation still loads through ownership.</summary>
     [Fact]
     public async Task Owned_AnotherUsersFileInAnAuthenticatedCategoryIsStillNotFound()
     {

@@ -11,10 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Application.Auth.UnitTests.Features.Sessions.UseCases.Commands.Login;
 
-/// <summary>
-/// Logging in is a credential check followed by two token issuances, and the interesting part is
-/// what happens when the check does not pass: every reason has to look the same from outside.
-/// </summary>
 public sealed class LoginUseCaseTests
 {
     private static readonly DateTimeOffset _accessTokenExpiry = DateTimeOffset.UnixEpoch.AddMinutes(15);
@@ -26,7 +22,6 @@ public sealed class LoginUseCaseTests
     private readonly ITwoFactorService _twoFactor = Substitute.For<ITwoFactorService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
 
-    /// <summary>The client a login names its new session by, so the assertion can see it travel.</summary>
     private static readonly SessionClient _client = new("test-agent/1.0");
 
     private readonly StubCurrentSession _currentSession = new(null, _client);
@@ -42,19 +37,11 @@ public sealed class LoginUseCaseTests
             _currentSession,
             new LoginCommandValidator());
 
-    /// <summary>
-    /// Every way the credential check can refuse. Read off the enum rather than listed, so a new
-    /// outcome cannot be added without a decision about how it is answered.
-    /// </summary>
     public static TheoryData<CredentialCheckStatus> Refusals =>
         [.. Enum.GetValues<CredentialCheckStatus>().Where(outcome => outcome is not CredentialCheckStatus.Verified)];
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// The credential check must not be reached with a blank field, or a request with no password
-    /// goes straight to the user store. Removing the <c>IsValid</c> check turns this red.
-    /// </summary>
     [Theory]
     [InlineData("", "correct horse battery")]
     [InlineData("   ", "correct horse battery")]
@@ -71,11 +58,6 @@ public sealed class LoginUseCaseTests
         _accounts.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// Login validates shape only. An address that is not a valid email is a credential
-    /// that will not match, not a malformed request — answering 400 here would tell an
-    /// attacker which addresses are even worth trying.
-    /// </summary>
     [Fact]
     public async Task AMalformedEmail_IsLeftForTheCredentialCheckToRefuse()
     {
@@ -94,11 +76,6 @@ public sealed class LoginUseCaseTests
 
     #region Indistinguishability
 
-    /// <summary>
-    /// An unknown address, a wrong password, an unconfirmed address and a locked-out account all
-    /// answer with one error, down to the message. Mapping any of them to its own error — a 403 for
-    /// the lockout, a "confirm your email" hint — is what turns this endpoint into a user directory.
-    /// </summary>
     [Theory]
     [MemberData(nameof(Refusals))]
     public async Task EveryRefusal_AnswersWithTheSameError(CredentialCheckStatus outcome)
@@ -114,10 +91,6 @@ public sealed class LoginUseCaseTests
             "Email or password is incorrect."));
     }
 
-    /// <summary>
-    /// The failure is still recorded for the audit trail even though the caller is told nothing more
-    /// than the one uniform error.
-    /// </summary>
     [Fact]
     public async Task ARefusal_IsRecordedAsAnAuthenticationFailure()
     {
@@ -130,7 +103,6 @@ public sealed class LoginUseCaseTests
             .Record(SecurityEvent.AuthenticationFailed(null, CredentialCheckStatus.IncorrectPassword));
     }
 
-    /// <summary>The lockout is recorded by this use case, before the refusal it explains.</summary>
     [Fact]
     public async Task ALockedOutAccount_IsRecordedAsALockoutAndAnAuthenticationFailure()
     {
@@ -161,11 +133,6 @@ public sealed class LoginUseCaseTests
         _securityEventLog.DidNotReceive().Record(SecurityEvent.AccountLockedOut(account.UserId));
     }
 
-    /// <summary>
-    /// The theory above compares each refusal against a literal. This compares them against each
-    /// other, so a change that moved all of them to the same *new* error would still be caught by one
-    /// of the two.
-    /// </summary>
     [Fact]
     public async Task NoRefusal_IsDistinguishableFromAnother()
     {
@@ -202,11 +169,6 @@ public sealed class LoginUseCaseTests
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// A refusal carrying an account would be a caller's chance to use it anyway, so the guard reads
-    /// both the outcome and the account. Loosening it to the outcome alone leaves this passing;
-    /// loosening it to the account alone turns it red.
-    /// </summary>
     [Fact]
     public async Task ARefusalCarryingAnAccount_IsStillARefusal()
     {
@@ -252,12 +214,6 @@ public sealed class LoginUseCaseTests
         _securityEventLog.Received(1).Record(SecurityEvent.LoginSucceeded(account.UserId));
     }
 
-    /// <summary>
-    /// Both tokens are issued for the account the check returned, not for anything taken from the
-    /// request — the request only ever held an address somebody typed. The refresh token is issued
-    /// first and names its client, and the access token names the session it started: that is the
-    /// order that makes one login one session.
-    /// </summary>
     [Fact]
     public async Task BothTokens_AreIssuedForTheVerifiedAccount()
     {
@@ -299,10 +255,6 @@ public sealed class LoginUseCaseTests
 
     #region A two-factor account
 
-    /// <summary>
-    /// A verified password is only half a login for a two-factor account: a challenge comes back
-    /// instead of a token pair, and neither token issuer is touched.
-    /// </summary>
     [Fact]
     public async Task AVerifiedCredentialOnATwoFactorAccount_IsAnsweredWithAChallengeInstead()
     {
@@ -319,10 +271,6 @@ public sealed class LoginUseCaseTests
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// Not recorded as a login yet: only half of it happened. <c>VerifyTwoFactorUseCase</c> records
-    /// <see cref="SecurityEvent.LoginSucceeded"/> once the second step actually completes.
-    /// </summary>
     [Fact]
     public async Task AVerifiedCredentialOnATwoFactorAccount_IsNotYetRecordedAsALoginSuccess()
     {

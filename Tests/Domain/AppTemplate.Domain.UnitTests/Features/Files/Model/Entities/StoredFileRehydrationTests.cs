@@ -7,13 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Domain.UnitTests.Features.Files.Model.Entities;
 
-/// <summary>
-/// The load path, and the rows it has to refuse. Everything refused here describes a row that no
-/// sequence of operations on the aggregate could have written: the state and the confirmation
-/// instant are two records of the same fact, and where they disagree, loading the row would put the
-/// contradiction inside an aggregate — where it surfaces as a file that can never be confirmed, or
-/// as one served without its bytes ever having been checked, far from the row that caused it.
-/// </summary>
 public sealed class StoredFileRehydrationTests
 {
     private static readonly DateTimeOffset _registeredAt = new(2026, 8, 9, 12, 0, 0, TimeSpan.Zero);
@@ -62,10 +55,6 @@ public sealed class StoredFileRehydrationTests
     public void Rehydrate_Rejects_AnAbsentSnapshot() =>
         Should.Throw<ArgumentNullException>(() => StoredFile.Rehydrate(null!));
 
-    /// <summary>
-    /// <c>Tags</c> is <c>required</c>, so it cannot be forgotten -- but it can be written as
-    /// <c>null</c>, and the set below would then fail somewhere less obvious than the way in.
-    /// </summary>
     [Fact]
     public void Rehydrate_Rejects_AnAbsentTagSequence() =>
         Should.Throw<ArgumentNullException>(
@@ -137,13 +126,6 @@ public sealed class StoredFileRehydrationTests
                 Tags = [],
             }));
 
-    /// <summary>
-    /// Without it, a pending row could not answer how long it has been waiting, and the abandonment
-    /// sweep would either skip it for ever or remove it immediately depending on which way the
-    /// comparison against <c>default</c> fell. It is also the value the orphan sweep derives a
-    /// row's storage slice from, so a row without one names bytes the sweep would look for in the
-    /// wrong prefix — and therefore never find referenced.
-    /// </summary>
     [Fact]
     public void Rehydrate_Rejects_AMissingRegistrationInstant() =>
         Should.Throw<DomainException>(() => Rehydrate(registeredAt: default(DateTimeOffset)));
@@ -182,18 +164,6 @@ public sealed class StoredFileRehydrationTests
         exception.Message.ShouldContain("must record");
     }
 
-    /// <summary>
-    /// The converse, over every state that is not available. The instant is written by the one
-    /// transition that makes a file servable, so a row in any other state holding one is a row that
-    /// was half-written — which is exactly what a mapper that assigns the instant before the state
-    /// produces.
-    /// <para>
-    /// The rule is stated as an equivalence over the whole enum rather than as one clause per state,
-    /// and that is what this theory is checking: the two rules it replaced named <c>Available</c> and
-    /// <c>Pending</c>, so the day a third member appeared it was exempt from both — a quarantined row
-    /// carrying an availability instant would have loaded without complaint.
-    /// </para>
-    /// </summary>
     [Theory]
     [InlineData(StoredFileState.Pending)]
     [InlineData(StoredFileState.Deposited)]
@@ -217,13 +187,6 @@ public sealed class StoredFileRehydrationTests
 
     #region Rows that only look contradictory
 
-    /// <summary>
-    /// Instants are not checked against each other on purpose. Both come from a wall clock an NTP
-    /// correction can step backwards, so a row written across such a step is legitimate; refusing it
-    /// would make the file unreadable and undeletable over a field nothing makes a decision from.
-    /// Asserted so that adding an ordering rule is a deliberate act that fails a test rather than a
-    /// tidy-up that quietly bricks rows.
-    /// </summary>
     [Fact]
     public void Rehydrate_DoesNotCheckThatTheConfirmationFollowsTheRegistration() =>
         Should.NotThrow(
@@ -257,7 +220,6 @@ public sealed class StoredFileRehydrationTests
         file.NextInspectionAt.ShouldBe(_registeredAt.AddMinutes(3));
     }
 
-    /// <summary>A verdict keeps the record of the deferrals before it, so such a row must load.</summary>
     [Fact]
     public void Rehydrate_Accepts_AnAvailableFileThatWasDeferredBeforeItsVerdict() =>
         Should.NotThrow(
@@ -307,28 +269,13 @@ public sealed class StoredFileRehydrationTests
         file.RegisteredAt.ShouldBe(_registeredAt);
         file.AvailableAt.ShouldBe(availableAt);
 
-        // Restored through the shared set, so a row is normalised and de-duplicated on the way in
-        // exactly as a caller's input is: "Urgent" and "urgent " are one tag.
         file.Tags.Select(tag => tag.Value).ShouldBe(["urgent", "home"], ignoreOrder: true);
     }
 
-    /// <summary>
-    /// The stored key is restored exactly, never re-minted. A load path that generated a fresh key
-    /// would point every reloaded file at bytes that do not exist, and would do it silently — the
-    /// aggregate would look perfectly healthy, and the orphan sweep would then reclaim the real
-    /// bytes, because nothing would reference them any more.
-    /// </summary>
     [Fact]
     public void Rehydrate_KeepsTheStoredObjectKey() =>
         Rehydrate().ObjectKey.Value.ShouldBe("t0/202608/0123456789abcdef0123456789abcdef");
 
-    /// <summary>
-    /// A loaded row can only ever be a file that exists, because a deleted file is a row that was
-    /// removed. There is no state to load a tombstone into and no argument by which to ask for one —
-    /// which is what spares every caller from having to check whether the file it just loaded still
-    /// counts. Asserted through the signature, since the guarantee is that the parameter does not
-    /// exist rather than that some value of it is refused.
-    /// </summary>
     [Fact]
     public void Rehydrate_CannotBeAskedForADeletedFile()
     {
@@ -346,10 +293,6 @@ public sealed class StoredFileRehydrationTests
     [Fact]
     public void Rehydrate_RaisesNoDomainEvent() => Rehydrate().DomainEvents.ShouldBeEmpty();
 
-    /// <summary>
-    /// A loaded pending file behaves like a registered one: the transitions are a property of the
-    /// state, not of how the aggregate came to be in it.
-    /// </summary>
     [Fact]
     public void ALoadedPendingFile_CanStillBeConfirmed()
     {
@@ -360,12 +303,6 @@ public sealed class StoredFileRehydrationTests
         file.State.ShouldBe(StoredFileState.Deposited);
     }
 
-    /// <summary>
-    /// The row the inspection pass loads on every tick. It is also the row a host that stopped
-    /// mid-pass leaves behind, so a loaded deposited file has to be able to reach both verdicts — and
-    /// neither of them may be reachable from a loaded quarantined one, which is the property the
-    /// second half asserts.
-    /// </summary>
     [Fact]
     public void ALoadedDepositedFile_CanStillReachEitherVerdict()
     {
@@ -376,10 +313,6 @@ public sealed class StoredFileRehydrationTests
             () => Rehydrate(state: StoredFileState.Quarantined).MakeAvailable(_registeredAt.AddMinutes(1)));
     }
 
-    /// <summary>
-    /// A loaded pending file registered long ago is what the abandonment sweep exists to find, and it
-    /// is a state <c>Register</c> cannot produce: nothing can be registered in the past.
-    /// </summary>
     [Fact]
     public void ALoadedPendingFile_CanBeAbandoned() =>
         Rehydrate(state: StoredFileState.Pending, registeredAt: _registeredAt.AddDays(-7))

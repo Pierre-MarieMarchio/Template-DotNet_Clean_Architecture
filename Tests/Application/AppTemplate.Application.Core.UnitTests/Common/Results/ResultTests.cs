@@ -44,10 +44,6 @@ public sealed class ResultTests
         result.Value.ShouldBe(42);
     }
 
-    /// <summary>
-    /// A null slipping through here is served as a 200 with an empty body under a non-nullable
-    /// declaration, which is indistinguishable from a real answer to the caller.
-    /// </summary>
     [Fact]
     public void Success_RefusesANullValue() => Should.Throw<ArgumentNullException>(() => Result<string>.Success(null!));
 
@@ -69,11 +65,6 @@ public sealed class ResultTests
         result.Value.ShouldBe(0);
     }
 
-    /// <summary>
-    /// Reading the value of a failure is a programming error, not a fallback: silently
-    /// handing back <c>default</c> would let a failed use case look like one that returned
-    /// zero rows.
-    /// </summary>
     [Fact]
     public void Value_Throws_OnAFailure()
     {
@@ -125,10 +116,6 @@ public sealed class ResultTests
         Should.Throw<InvalidOperationException>(() => result.Value);
     }
 
-    /// <summary>
-    /// The implicit conversion is what lets a use case end with <c>return value;</c>. It
-    /// must produce a success, not a wrapper that still has to be unpacked.
-    /// </summary>
     [Fact]
     public void AValue_ConvertsImplicitlyToASuccessfulResult()
     {
@@ -142,10 +129,6 @@ public sealed class ResultTests
 
     #region The construction guards
 
-    /// <summary>
-    /// A result carrying both a value and an error would leave every caller free to pick
-    /// which one to believe. The constructor refuses to build one.
-    /// </summary>
     [Fact]
     public void ASuccess_CannotBeConstructedWithAnError()
     {
@@ -154,10 +137,6 @@ public sealed class ResultTests
         exception.Message.ShouldContain("successful result");
     }
 
-    /// <summary>
-    /// A failure with no error would reach the transport layer with nothing to render, so
-    /// it is refused at construction rather than dereferenced later.
-    /// </summary>
     [Fact]
     public void AFailure_CannotBeConstructedWithoutAnError()
     {
@@ -188,7 +167,6 @@ public sealed class ResultTests
         converted.Error.ShouldBe(_anError);
     }
 
-    /// <summary>A success carries no error to report, so converting one is a programming error.</summary>
     [Fact]
     public void To_Throws_OnASuccess() =>
         Should.Throw<InvalidOperationException>(() => Result.Success(1).To<string>());
@@ -208,25 +186,17 @@ public sealed class ResultTests
 
     #region The failure-only Value
 
-    /// <summary>
-    /// Property subpatterns short-circuit in the order they are written. Naming <c>Value</c> before
-    /// <c>IsSuccess</c> reads the getter before the guard runs, so it throws on a failure instead of
-    /// simply not matching.
-    /// </summary>
     [Fact]
     public void APropertyPatternNamingValueBeforeIsSuccess_ThrowsOnAFailure_InsteadOfFailingToMatch()
     {
         var result = Result<int>.Failure(_anError);
 
-        // A discard ("Value: var _") is elided by the compiler and never calls the getter at all,
-        // so the pattern has to bind the value to a real variable to force the read this test pins.
         Should.Throw<InvalidOperationException>(() =>
         {
             _ = result is { Value: var capturedValue, IsSuccess: true } && capturedValue >= 0;
         });
     }
 
-    /// <summary>The safe order: the guard runs first and the pattern simply fails to match.</summary>
     [Fact]
     public void APropertyPatternNamingIsSuccessFirst_FailsToMatch_InsteadOfThrowing()
     {
@@ -238,8 +208,4 @@ public sealed class ResultTests
     #endregion
 }
 
-/// <summary>
-/// The guards live in a private protected constructor, so reaching them means deriving from
-/// <c>Result</c> — which is exactly what any future result type in the layer would do.
-/// </summary>
 internal sealed class DerivedResult(bool isSuccess, Error? error) : Result(isSuccess, error);

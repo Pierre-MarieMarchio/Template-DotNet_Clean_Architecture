@@ -49,7 +49,6 @@ public sealed class ResetPasswordUseCaseTests
         result.IsSuccess.ShouldBeTrue();
     }
 
-    /// <summary>An unknown address and an invalid or expired token are one refusal, so they cannot be told apart.</summary>
     [Fact]
     public async Task AnUnknownAddressOrABadToken_AnswerWithTheSameError()
     {
@@ -63,7 +62,6 @@ public sealed class ResetPasswordUseCaseTests
             "The password reset link is invalid or has expired."));
     }
 
-    /// <summary>On "newPassword", the request field the value came from.</summary>
     [Fact]
     public async Task ARejectedNewPassword_ReportsTheStoresMessageOnTheNewPasswordField()
     {
@@ -76,10 +74,6 @@ public sealed class ResetPasswordUseCaseTests
         result.Error.Details.ContainsKey("password").ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The store already rotated the security stamp as part of redeeming the token, which fails
-    /// every access token; refresh tokens survive that rotation and are revoked here.
-    /// </summary>
     [Fact]
     public async Task ASuccessfulReset_RevokesEveryRefreshTokenForTheAccount()
     {

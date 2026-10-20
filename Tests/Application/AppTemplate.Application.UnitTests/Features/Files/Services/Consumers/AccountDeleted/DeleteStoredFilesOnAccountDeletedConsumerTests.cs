@@ -25,8 +25,6 @@ public sealed class DeleteStoredFilesOnAccountDeletedConsumerTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>The removal goes through the aggregate, so each file announces its bytes: that is
-    /// what makes the content reclamation prompt rather than sweep-found.</summary>
     [Fact]
     public async Task TheOwnersFiles_AreRemovedAnnouncingTheirBytesAndCommitted()
     {
@@ -45,8 +43,6 @@ public sealed class DeleteStoredFilesOnAccountDeletedConsumerTests
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
 
-    /// <summary>The precondition is re-derived, never trusted: a replayed delivery must not delete
-    /// the data of an account that exists again.</summary>
     [Fact]
     public async Task AnAccountThatExistsAgain_KeepsItsFiles()
     {
@@ -60,7 +56,6 @@ public sealed class DeleteStoredFilesOnAccountDeletedConsumerTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>What a redelivery finds: nothing left, so nothing to commit and no event raised.</summary>
     [Fact]
     public async Task AnOwnerWithNoFilesLeft_CommitsNothing()
     {
@@ -84,7 +79,6 @@ public sealed class DeleteStoredFilesOnAccountDeletedConsumerTests
         owners.ShouldBe([_ownerId]);
     }
 
-    /// <summary>The event face is the policy face applied to the event's id.</summary>
     [Fact]
     public async Task TheEventFace_AppliesThePolicyToTheEventsOwner()
     {

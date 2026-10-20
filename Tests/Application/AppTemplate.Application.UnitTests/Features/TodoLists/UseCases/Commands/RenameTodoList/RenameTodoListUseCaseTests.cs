@@ -36,10 +36,6 @@ public sealed class RenameTodoListUseCaseTests
         result.Error.Code.ShouldBe("auth.required");
     }
 
-    /// <summary>
-    /// An anonymous caller must not even reach the repository: a use case that loads first
-    /// and authorises later has already read data on behalf of nobody.
-    /// </summary>
     [Fact]
     public async Task AnAnonymousCaller_ReadsAndWritesNothing()
     {
@@ -122,10 +118,6 @@ public sealed class RenameTodoListUseCaseTests
         result.Error.Code.ShouldBe("todoList.notFound");
     }
 
-    /// <summary>
-    /// The ownership check. Deleting the <c>OwnerId</c> comparison lets any authenticated
-    /// caller rename any list in the database, and turns this red.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersList_IsNotRenamed()
     {
@@ -139,10 +131,6 @@ public sealed class RenameTodoListUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// "Not yours" and "does not exist" are answered identically, so the two cannot be
-    /// told apart by a caller probing for other users' list ids.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersList_IsIndistinguishableFromAMissingOne()
     {

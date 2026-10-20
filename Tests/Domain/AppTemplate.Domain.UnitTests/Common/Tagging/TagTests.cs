@@ -13,10 +13,6 @@ public sealed class TagTests
     [Fact]
     public void Create_TrimsSurroundingWhitespace() => Tag.Create("  urgent  ").Value.ShouldBe("urgent");
 
-    /// <summary>
-    /// Lower-casing is what makes "Urgent", "urgent " and "URGENT" one tag. Dropping it
-    /// makes filtering by a tag depend on how it was typed.
-    /// </summary>
     [Theory]
     [InlineData("URGENT")]
     [InlineData("Urgent")]
@@ -62,10 +58,6 @@ public sealed class TagTests
         Tag.Create("urgent").ShouldNotBe(Tag.Create("later"));
     }
 
-    /// <summary>
-    /// Normalisation and equality together are what make de-duplication work inside an
-    /// item: two differently typed spellings must land on the same value.
-    /// </summary>
     [Fact]
     public void Equality_IgnoresCasingAndPaddingBecauseTheValueIsNormalised()
     {
@@ -84,11 +76,6 @@ public sealed class TagTests
     public void TheOnlyWayToBuildATag_IsTheFactory() =>
         typeof(Tag).GetConstructors().ShouldBeEmpty();
 
-    /// <summary>
-    /// A tripwire on the value of the limit, not on the mechanism: every other length test above
-    /// reads the constant and is therefore blind to a change in the constant itself. The column is
-    /// sized from this number, so widening it is a schema decision and has to be a deliberate one.
-    /// </summary>
     [Fact]
     public void TheMaximumLength_IsFiftyCharacters() => Tag.MaxLength.ShouldBe(50);
 }

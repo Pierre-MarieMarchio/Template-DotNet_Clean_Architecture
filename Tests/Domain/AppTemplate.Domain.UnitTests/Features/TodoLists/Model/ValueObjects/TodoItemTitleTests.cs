@@ -15,10 +15,6 @@ public sealed class TodoItemTitleTests
     public void Create_TrimsSurroundingWhitespace() =>
         TodoItemTitle.Create("  Buy milk \t ").Value.ShouldBe("Buy milk");
 
-    /// <summary>
-    /// Unlike a tag, a title is something a person reads, so its casing and its inner spacing
-    /// are theirs to choose. Adding a <c>ToLowerInvariant</c> here turns this red.
-    /// </summary>
     [Fact]
     public void Create_PreservesCasingAndInnerWhitespace() =>
         TodoItemTitle.Create("Buy  Milk AND bread").Value.ShouldBe("Buy  Milk AND bread");
@@ -66,11 +62,6 @@ public sealed class TodoItemTitleTests
             .ShouldBe(TodoItemTitle.Create("Buy milk").GetHashCode());
     }
 
-    /// <summary>
-    /// Casing is part of the value, so it is part of the identity too. The list's uniqueness rule
-    /// is case-insensitive on purpose and does its own comparison; that is a rule about a set of
-    /// titles, not about what makes two titles the same value.
-    /// </summary>
     [Fact]
     public void Equality_IsCaseSensitive() =>
         TodoItemTitle.Create("Buy milk").ShouldNotBe(TodoItemTitle.Create("buy milk"));
@@ -87,11 +78,6 @@ public sealed class TodoItemTitleTests
     public void TheOnlyWayToBuildATitle_IsTheFactory() =>
         typeof(TodoItemTitle).GetConstructors().ShouldBeEmpty();
 
-    /// <summary>
-    /// A tripwire on the value of the limit, not on the mechanism: every other length test above
-    /// reads the constant and is therefore blind to a change in the constant itself. The column is
-    /// sized from this number, so widening it is a schema decision and has to be a deliberate one.
-    /// </summary>
     [Fact]
     public void TheMaximumLength_IsTwoHundredCharacters() => TodoItemTitle.MaxLength.ShouldBe(200);
 }

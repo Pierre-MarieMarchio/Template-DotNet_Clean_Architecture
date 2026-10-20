@@ -21,19 +21,10 @@ public sealed class LoginCommandValidatorTests
     public void AnIncompleteRequest_IsRejected(string email, string password) =>
         _validator.Validate(new LoginCommand(email, password)).IsValid.ShouldBeFalse();
 
-    /// <summary>
-    /// Login checks presence only. Rejecting a malformed address here would tell an attacker
-    /// which addresses are even worth trying, and there is no length or format rule a
-    /// credential comparison needs.
-    /// </summary>
     [Fact]
     public void AMalformedEmail_IsAcceptedBecauseLoginChecksPresenceOnly() =>
         _validator.Validate(new LoginCommand("not-an-email", "correct horse battery")).IsValid.ShouldBeTrue();
 
-    /// <summary>
-    /// The password floor is deliberately not repeated here: an existing account may predate
-    /// the current policy, and refusing its owner a login would lock them out.
-    /// </summary>
     [Fact]
     public void AShortPassword_IsAcceptedBecauseAnExistingAccountMayPredateThePolicy() =>
         _validator.Validate(new LoginCommand("someone@example.com", "a")).IsValid.ShouldBeTrue();

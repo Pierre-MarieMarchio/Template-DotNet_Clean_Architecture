@@ -5,7 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Files.Configuration.Options;
 
-/// <summary>Each refusal of a <c>Files</c> section, proven on its own against an otherwise valid one.</summary>
 public sealed class FilesOptionsValidatorTests
 {
     private readonly FilesOptionsValidator _validator = new();
@@ -115,7 +114,6 @@ public sealed class FilesOptionsValidatorTests
     public void TheDefaultApiUploadCeiling_IsTenMebibytes() =>
         new FilesOptions().ApiUploadMaxBytes.ShouldBe(10L * 1024 * 1024);
 
-    /// <summary>Every failure is reported, not only the first, so one start-up names them all.</summary>
     [Fact]
     public void EveryFailure_IsReported()
     {

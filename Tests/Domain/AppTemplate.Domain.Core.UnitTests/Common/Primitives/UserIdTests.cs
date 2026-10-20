@@ -15,10 +15,6 @@ public sealed class UserIdTests
         UserId.Create(value).Value.ShouldBe(value);
     }
 
-    /// <summary>
-    /// The invariant the three aggregates used to state one apiece. It lives here now, so a
-    /// <see cref="UserId"/> anywhere in the tree names somebody.
-    /// </summary>
     [Fact]
     public void Create_Rejects_AnEmptyIdentifier()
     {
@@ -31,10 +27,6 @@ public sealed class UserIdTests
     public void CreateOptional_AnswersNull_ForNoIdentifierAtAll() =>
         UserId.CreateOptional(null).ShouldBeNull();
 
-    /// <summary>
-    /// The same rule as <see cref="UserId.Create"/> and the opposite outcome, which is what an
-    /// anonymous request needs: absent is an answer here, not a failure.
-    /// </summary>
     [Fact]
     public void CreateOptional_AnswersNull_ForAnEmptyIdentifier() =>
         UserId.CreateOptional(Guid.Empty).ShouldBeNull();
@@ -70,10 +62,6 @@ public sealed class UserIdTests
         (left != right).ShouldBeTrue();
     }
 
-    /// <summary>
-    /// What a cache key and a log line interpolate. <c>UsedTagsCache.KeyFor</c> leans on it, so a
-    /// change here would silently re-key every cached list.
-    /// </summary>
     [Fact]
     public void ToString_IsTheIdentifierItself()
     {

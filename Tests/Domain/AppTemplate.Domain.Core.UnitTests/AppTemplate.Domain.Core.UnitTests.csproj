@@ -1,9 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Unit tests for the domain primitives. The mirror of AppTemplate.Domain.Core, which references
-       nothing, so neither does this beyond its test framework: every test here is a statement about
-       an entity, an aggregate root or the domain exception, in memory. -->
-
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>

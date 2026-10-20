@@ -7,11 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Domain.UnitTests.Features.TodoLists.Model.Entities;
 
-/// <summary>
-/// Tests for <see cref="IAuditable"/>, exercised through the one aggregate that
-/// implements it. The point of the interface is not that the values can be set — it is
-/// that only a persistence interceptor holding the interface can set them.
-/// </summary>
 public sealed class TodoListAuditTests
 {
     private static readonly DateTimeOffset _now = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
@@ -54,7 +49,6 @@ public sealed class TodoListAuditTests
         list.CreatedAt.ShouldBe(default);
     }
 
-    /// <summary>A change made by a background job has no acting user.</summary>
     [Fact]
     public void TheActingUser_MayBeAbsent()
     {
@@ -67,11 +61,6 @@ public sealed class TodoListAuditTests
         list.LastModifiedBy.ShouldBeNull();
     }
 
-    /// <summary>
-    /// The stamping methods are implemented explicitly, so application code holding a
-    /// <see cref="TodoList"/> cannot reach them without deliberately casting to the
-    /// interface. Turning either into a public method turns this red.
-    /// </summary>
     [Theory]
     [InlineData("SetCreated")]
     [InlineData("SetLastModified")]
@@ -80,10 +69,6 @@ public sealed class TodoListAuditTests
             .GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance)
             .ShouldBeNull();
 
-    /// <summary>
-    /// The audit properties are read-only from outside the assembly, which is what stops
-    /// a caller from forging a creation date or an author.
-    /// </summary>
     [Theory]
     [InlineData(nameof(TodoList.CreatedAt))]
     [InlineData(nameof(TodoList.CreatedBy))]

@@ -72,7 +72,6 @@ public sealed class AddRoleUseCaseTests
         result.Error!.Details!["role"].ShouldContain("Role 'Ghost' does not exist.");
     }
 
-    /// <summary>The gap this whole vertical exists to close: see <c>IAccountAdministrationService</c>.</summary>
     [Fact]
     public async Task ASuccessfulGrant_RevokesEveryRefreshTokenForTheTarget()
     {

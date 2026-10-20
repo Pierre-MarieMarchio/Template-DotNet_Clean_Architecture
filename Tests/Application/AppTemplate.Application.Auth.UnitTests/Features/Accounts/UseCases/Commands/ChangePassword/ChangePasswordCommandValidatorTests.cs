@@ -19,7 +19,6 @@ public sealed class ChangePasswordCommandValidatorTests
     public void ABlankCurrentPassword_IsRejected(string currentPassword) =>
         ShouldFailOn(new ChangePasswordCommand(currentPassword, "correct horse battery"), "CurrentPassword");
 
-    /// <summary>The length policy is the store's — see <c>RegisterCommandValidatorTests</c>.</summary>
     [Fact]
     public void AShortNewPassword_IsLeftToTheStore() =>
         _validator.Validate(new ChangePasswordCommand("old password", "a")).IsValid.ShouldBeTrue();

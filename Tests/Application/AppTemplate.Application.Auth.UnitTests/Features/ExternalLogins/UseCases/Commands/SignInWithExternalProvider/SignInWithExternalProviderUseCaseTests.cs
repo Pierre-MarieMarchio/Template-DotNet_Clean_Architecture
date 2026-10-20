@@ -13,11 +13,6 @@ using Xunit;
 
 namespace AppTemplate.Application.Auth.UnitTests.Features.ExternalLogins.UseCases.Commands.SignInWithExternalProvider;
 
-/// <summary>
-/// Signing in with a provider is four decisions, not one path, and the happy path is the least
-/// interesting of them: what matters is which of the four cases a given token lands in, and that a
-/// caller learns nothing from a refusal about which one it was.
-/// </summary>
 public sealed class SignInWithExternalProviderUseCaseTests
 {
     private const string _provider = "google";
@@ -27,7 +22,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
     private static readonly DateTimeOffset _accessTokenExpiry = DateTimeOffset.UnixEpoch.AddMinutes(15);
     private static readonly DateTimeOffset _refreshTokenExpiry = DateTimeOffset.UnixEpoch.AddDays(30);
 
-    /// <summary>The client an external sign-in names its new session by, so assertions can see it travel.</summary>
     private static readonly SessionClient _client = new("test-agent/1.0");
 
     private static readonly Error _refusal = Error.Unauthorized(
@@ -82,10 +76,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
         _verifier.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// A forged token and a provider nobody configured answer identically. Mapping the unknown
-    /// provider to its own error would let anyone enumerate which providers an installation accepts.
-    /// </summary>
     [Fact]
     public async Task ATokenThatDoesNotVerify_IsRefusedWithoutTouchingAnyAccount()
     {
@@ -99,11 +89,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The provider name from the request selects which issuer, audience and key set the token is
-    /// checked against. Passing anything else — a default, or a name read from the token's own
-    /// claims — would let a token minted by one provider be presented as another's.
-    /// </summary>
     [Fact]
     public async Task TheTokenIsVerified_AgainstTheProviderTheRequestNamed()
     {
@@ -118,13 +103,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
     #region Case 1 — the provider identity is already linked
 
-    /// <summary>
-    /// The regression this whole design exists to prevent. Apple returns an address on the first
-    /// authorisation only, so every later token has none and claims nothing about one. Resolving by
-    /// the subject means those tokens still sign in; resolving by the address means the second Apple
-    /// sign-in of every user fails, in production, and never in a development account that has only
-    /// ever authorised once.
-    /// </summary>
     [Fact]
     public async Task AnAlreadyLinkedIdentity_SignsIn_EvenWhenTheTokenCarriesNoAddressAtAll()
     {
@@ -142,11 +120,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
             .UserId.ShouldBe(account.UserId);
     }
 
-    /// <summary>
-    /// The other half of the same guarantee, and the one that stays red if someone "helpfully" adds an
-    /// address lookup for a linked identity: once the pair is on file the address is not consulted at
-    /// all, so it cannot make a sign-in fail and it cannot move an account to a different one.
-    /// </summary>
     [Fact]
     public async Task AnAlreadyLinkedIdentity_IsNeverResolvedByAddress()
     {
@@ -164,11 +137,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
             .ProvisionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Two providers may hand out the same address, and one provider hands out the same address to
-    /// whoever holds it now. The pair is the key, so a token whose subject nothing is linked to does
-    /// not reach the linked account that shares its address.
-    /// </summary>
     [Fact]
     public async Task ADifferentSubjectAtTheSameAddress_IsADifferentIdentity()
     {
@@ -194,11 +162,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
     #region The address gate on a first link
 
-    /// <summary>
-    /// A provider that will not say it checked the address has told us who the caller is at that
-    /// provider and nothing about who they are here. Reaching an account from it would let anyone who
-    /// can set an unverified address on a provider account claim any address they like.
-    /// </summary>
     [Theory]
     [InlineData(_email, false)]
     [InlineData(null, false)]
@@ -300,10 +263,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
             .ProvisionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The link is what the sign-in rests on afterwards, so a store that would not take it must not
-    /// produce a token pair anyway.
-    /// </summary>
     [Fact]
     public async Task ARefusedLink_MintsNoToken()
     {
@@ -326,11 +285,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
     #region Case 4 — an unconfirmed local account holds the address
 
-    /// <summary>
-    /// The vector, stated as a test: someone registers an address they cannot read and never confirms
-    /// it. Linking automatically would hand them the account its real owner is creating right now
-    /// through their provider.
-    /// </summary>
     [Fact]
     public async Task AnUnconfirmedLocalAccount_IsNeitherLinkedNorSignedIn()
     {
@@ -370,11 +324,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
     #region The shared tail
 
-    /// <summary>
-    /// Every refusal along the four cases produces the same error, down to the message. Compared
-    /// against each other rather than against a literal, so a change moving all of them to one *new*
-    /// error is caught by the per-case assertions above and a change splitting them is caught here.
-    /// </summary>
     [Fact]
     public async Task NoRefusal_IsDistinguishableFromAnother()
     {
@@ -404,10 +353,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
         errors.Distinct().Count().ShouldBe(1, "the refusals differ, and the difference is measurable.");
     }
 
-    /// <summary>
-    /// A provider proves who the caller is; it does not say the account may still sign in. Without
-    /// this check an administrator's lockout is undone by one round trip to Google.
-    /// </summary>
     [Fact]
     public async Task AnAccountThatMayNoLongerSignIn_IsRefusedDespiteAValidToken()
     {
@@ -427,10 +372,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
             SecurityEvent.AuthenticationFailed(account.UserId, CredentialCheckStatus.LockedOut));
     }
 
-    /// <summary>
-    /// A second factor the owner armed is not waived by having proved an identity somewhere else —
-    /// otherwise linking a provider becomes the way around it.
-    /// </summary>
     [Fact]
     public async Task AnAccountWithTwoFactorArmed_IsChallengedInsteadOfIssuedTokens()
     {

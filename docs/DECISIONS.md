@@ -1098,4 +1098,94 @@ would accept means holding a provider's private key — so what a token means is
 and the checks the real adapter makes are proved against real signatures in its own unit tests. An
 arrangement is keyed by provider and token together, because a token is meaningful only for the
 provider it was presented for.
+
+## Unit tests of the domain and application
+
+**A limit is asserted against a literal, once.** The length of a value, the cap on a collection, the
+width of a generated key and the ceiling on a password are each stated in one test as a number,
+because every other boundary test reads the constant and moves with it. Widening a column, a cap or
+a key then fails a test and has to be decided, instead of being a smaller diff than it deserves. A
+lease name is pinned the same way: every replica derives its lock key from it, two releases run
+side by side during a rolling deploy, and renaming the constant would silently split the leader in
+two.
+
+**A test may pin what a rule deliberately leaves unchecked.** Where a check was left out on purpose,
+a test says so, so that adding it is a decision that fails something and not a tidy-up. A validator on
+an anonymous route measures presence only and leaves the rest to the verifier or the store, because
+a 400 would tell a caller which addresses or providers exist. A load path does not compare two
+instants that a clock correction can reverse, and does not re-check a precondition that time
+breaks. A parser is looser than the minting that feeds it, so the keys of yesterday's scheme still
+load.
+
+<!--#if (aggregates)-->
+**Rehydration is tested as an act of its own.** Loading takes the id it is given, raises no event,
+and goes through the same factories a live aggregate does, so a row that no longer satisfies an
+invariant is refused on the way in. It refuses what no sequence of operations on the aggregate could
+have written — a state and its confirming instant that disagree, stated as an equivalence over the
+whole enum and not as one clause per state, so a member added later is not exempt from both. It does
+not refuse what only time makes false: a reminder stops being due in the future by the mere passing
+of time, and a load path that re-checked it would throw on exactly the rows it exists to load.
+<!--#endif-->
+
+<!--#if (aggregates)-->
+**Test doubles keep the real behaviour wherever a guarantee depends on it.** `ATodoList`,
+`AReminder` and `AStoredFile` build real aggregates, never fakes: a root that accepted anything
+would make "a duplicate title becomes a conflict" assert nothing. Where a state cannot be reached
+through the aggregate's own methods — a version, an overdue reminder, a quarantined file — they load
+it as a store would. The in-memory stores keep the two properties of the real one that a delivery
+test depends on: a save writes every changed aggregate or none, and a write against a version that
+has moved is refused and stays staged, as it does in the EF context. That is why a use case cannot
+step over a conflict and carry on in the same scope, and it is the level of proof: a use-case test
+with a faithful double, not the SQL that orders and filters the real query, which the integration
+suite covers and which runs only where Docker does. A cache that records is a real one, not a
+substitute whose `GetOrCreateAsync` answers `default`.
+<!--#endif-->
+
+<!--#if (files)-->
+**The file aggregate's tests assert the design, not only the code.** `Register_DoesNotDeriveTheObjectKeyFromTheId`
+and `TimeSegmentFor_IsComputedInUtc` hold what the orphan sweep is correct because of: a key is
+generated, and the slice it sits in is a function of the registration instant read in UTC, so the
+sweep never finds a live file's bytes unreferenced. `TheStateMachine_HasNoStateMeaningDeleted` and
+`TheStateMachine_KeepsTheNumbersAlreadyWrittenToRows` hold two things nothing else in the build can
+see: a deleted file is a removed row, not a state a query has to remember to filter, and the state is
+persisted as its integer, so renumbering a member would reread every row as another state with no
+migration generated. `MakeAvailable_Rejects_AQuarantinedFile` holds the guard on the aggregate and
+not on the caller, so no second pass, retried message or future route has to remember it. A deposit
+confirmed is not a file released, and neither step raises an event: an event there would invite a
+consumer to inspect the content inside the request the inspection is arranged to stay out of.
+`Quarantine_LeavesTheObjectKeyNamingTheSameBytes` holds that refusing a file removes nothing, so the
+bytes stay reachable to an investigation and deletion stays the one path that reclaims them.
+<!--#endif-->
+
+<!--#if (files)-->
+**The content policy refuses by what the bytes say, and its limits are tests.** A format named
+by its own signature that differs from the declared type is quarantined, and so is a declared type
+that always has a signature when the content has none. Markup is refused in every category, an
+honestly declared SVG and an honest XML data file included (`AnHonestlyDeclaredSvg_IsQuarantinedToo`,
+`AnHonestXmlDocument_IsRefusedToo_BecauseNothingHereSanitisesMarkup`): nothing here sanitises it
+and the download path hands out a URL to an origin the application does not control, so the format
+is the only thing this layer can refuse. A project that has to accept XML changes those tests
+deliberately and owes a sanitiser. The markup search reads a truncated head, decodes UTF-16 by
+dropping its null bytes and looks past a byte-order mark; a second check refuses an SVG whose
+markup was padded past the head. ZIP has no entry in the signature table because every Office,
+OpenDocument and EPUB file starts like one, and an archive declared as an image is still refused by
+the other direction. There is no alias table, a second place for the two sides to disagree: a
+client that spells a type the common wrong way is refused and told the canonical one. A format with
+no signature — CSV, JSON, plain text — cannot be checked this way and is released. No verdict is
+neither a pass nor a refusal: an outage is checked before anything else, so an empty head can never
+be read as content that failed the type check, and the file is asked about again.
+<!--#endif-->
+
+<!--#if (localAuth)-->
+**Anonymous routes are tested for sameness, not only for refusal.** Every login refusal answers
+one error down to the message, asserted against a literal and again against each other: a change that
+moves them all to one new error is caught by the first, one that splits them by the second
+(`NoRefusal_IsDistinguishableFromAnother`). A known address and an unknown one, a reachable relay
+and an unreachable one, a wrong code against a live challenge and an unknown challenge are each
+asserted indistinguishable from the answer alone, while a cancellation still propagates, since it is
+not an outage. An external identity resolves by the pair of provider and subject and never by
+address once it is linked, so a provider that sends an address on the first authorisation only keeps
+signing in; a first link needs a verified address and a confirmed local account.
+The use cases that rotate the security stamp revoke the refresh tokens themselves, because those
+survive the rotation, in one call naming the session to spare — none when the token names none.
 <!--#endif-->

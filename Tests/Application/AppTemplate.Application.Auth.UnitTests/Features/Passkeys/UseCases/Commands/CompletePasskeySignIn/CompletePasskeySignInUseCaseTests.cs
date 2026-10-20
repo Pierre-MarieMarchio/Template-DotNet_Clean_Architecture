@@ -33,10 +33,6 @@ public sealed class CompletePasskeySignInUseCaseTests
         _passkeys.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// One answer for every refusal an anonymous route can meet, so a guess is told nothing —
-    /// the same reason every login refusal carries <c>auth.login.invalidCredentials</c>.
-    /// </summary>
     [Fact]
     public async Task ACeremonyThatDoesNotVerify_IsRefusedWithTheOneSignInError()
     {
@@ -52,10 +48,6 @@ public sealed class CompletePasskeySignInUseCaseTests
             Arg.Is<SecurityEvent>(e => e.Kind == SecurityEventKind.PasskeySignInFailed && e.UserId == null));
     }
 
-    /// <summary>
-    /// The assertion verified but its signature counter could not be persisted: sign-in stops here
-    /// rather than completing against a credential that could be replayed.
-    /// </summary>
     [Fact]
     public async Task AStoreRefusal_IsRefusedWithTheOneSignInError()
     {
@@ -69,10 +61,6 @@ public sealed class CompletePasskeySignInUseCaseTests
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The same guard every other way in applies once the account is identified: a locked-out
-    /// account answers its passkey the way it answers its password.
-    /// </summary>
     [Fact]
     public async Task AnAccountThatMayNoLongerSignIn_IsRefusedAndNamedInTheTrail()
     {
@@ -88,12 +76,6 @@ public sealed class CompletePasskeySignInUseCaseTests
             Arg.Is<SecurityEvent>(e => e.Kind == SecurityEventKind.PasskeySignInFailed && e.UserId == _userId));
     }
 
-    /// <summary>
-    /// The decision this vertical made about the armed second factor: a user-verified passkey is
-    /// the whole of a sign-in — the ceremony's user-verification requirement is
-    /// <c>required</c> — so no challenge is issued and the tokens are minted here, not after a
-    /// second step. The factor still governs the ways in that prove less.
-    /// </summary>
     [Fact]
     public async Task AnArmedSecondFactor_IsSatisfiedByThePasskeyAlone()
     {
@@ -121,8 +103,6 @@ public sealed class CompletePasskeySignInUseCaseTests
         authenticated.AccessToken.ShouldBe("the-access-token");
         authenticated.RefreshToken.ShouldBe("the-refresh-token");
 
-        // The session the tokens name is the one this request's client started — the same pairing
-        // a password sign-in makes.
         await _sessionTokens.Received(1).IssueRefreshTokenAsync(
             _userId, _currentSession.Client, Arg.Any<CancellationToken>());
         await _sessionTokens.Received(1).IssueAccessTokenAsync(

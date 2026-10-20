@@ -65,10 +65,6 @@ public sealed class CompleteTodoItemUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The ownership check. Deleting the <c>OwnerId</c> comparison lets any authenticated
-    /// caller complete items on any list, and turns this red.
-    /// </summary>
     [Fact]
     public async Task AnItemOnAnotherUsersList_IsNotCompleted()
     {
@@ -86,10 +82,6 @@ public sealed class CompleteTodoItemUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The list-level failure is reported as "no such list", never as "no such item": the
-    /// latter would confirm that the list exists and belongs to somebody.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersList_IsReportedAsAMissingListNotAMissingItem()
     {
@@ -106,10 +98,6 @@ public sealed class CompleteTodoItemUseCaseTests
 
     #region Missing item
 
-    /// <summary>
-    /// The aggregate throws on an unknown item id, but asking for something that is not
-    /// there is an expected outcome of a request, so it is answered as a result.
-    /// </summary>
     [Fact]
     public async Task AnUnknownItemId_IsReportedAsNotFoundRatherThanThrown()
     {
@@ -134,12 +122,6 @@ public sealed class CompleteTodoItemUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The precondition is checked as part of loading the list, before the item is looked up. A
-    /// stale caller naming an unknown item therefore sees 412, not 404: the precondition is about
-    /// the resource the request names (the list), and answering 404 first would confirm or deny an
-    /// item's existence to a caller working from an outdated copy of the list.
-    /// </summary>
     [Fact]
     public async Task AStalePreconditionOnAnUnknownItem_IsReportedAsPreconditionFailedNotAsMissingItem()
     {
@@ -173,10 +155,6 @@ public sealed class CompleteTodoItemUseCaseTests
 
     #region Invariants surfaced as conflicts
 
-    /// <summary>
-    /// Completing something already completed depends on current state, not on the shape of
-    /// the request, so it is a conflict — and it must not escape as an exception.
-    /// </summary>
     [Fact]
     public async Task AnAlreadyCompletedItem_BecomesAConflict()
     {
@@ -227,10 +205,6 @@ public sealed class CompleteTodoItemUseCaseTests
         item.CompletedAt.ShouldBe(StubDateTimeProvider.DefaultInstant);
     }
 
-    /// <summary>
-    /// The clock is injected, so a use case cannot smuggle in an ambient
-    /// <c>DateTime.UtcNow</c> that a test could not pin down.
-    /// </summary>
     [Fact]
     public async Task TheCompletionInstant_ComesFromTheProviderAndNotTheSystemClock()
     {

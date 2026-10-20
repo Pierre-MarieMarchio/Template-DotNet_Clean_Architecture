@@ -37,9 +37,6 @@ public sealed class DeleteTodoListsOnAccountDeletedConsumerTests
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
 
-    /// <summary>The precondition is re-derived, never trusted: a delivery that arrives for an id
-    /// that names an account again — a replay, or a future outbox — must not delete a live owner's
-    /// lists.</summary>
     [Fact]
     public async Task AnAccountThatExistsAgain_KeepsItsLists()
     {
@@ -54,8 +51,6 @@ public sealed class DeleteTodoListsOnAccountDeletedConsumerTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>What a redelivery finds: the first delivery already removed everything, and the
-    /// second must be a true no-op.</summary>
     [Fact]
     public async Task AnOwnerWithNoListsLeft_CommitsNothing()
     {
@@ -79,8 +74,6 @@ public sealed class DeleteTodoListsOnAccountDeletedConsumerTests
         owners.ShouldBe([_ownerId]);
     }
 
-    /// <summary>The event face is the policy face applied to the event's id: what holds for the
-    /// sweep holds for the fast path, because they are one implementation.</summary>
     [Fact]
     public async Task TheEventFace_AppliesThePolicyToTheEventsOwner()
     {

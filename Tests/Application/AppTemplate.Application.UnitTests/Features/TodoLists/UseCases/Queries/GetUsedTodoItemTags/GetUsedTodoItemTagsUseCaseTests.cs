@@ -8,10 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Queries.GetUsedTodoItemTags;
 
-/// <summary>
-/// The read that goes through the cache: the answer is the owner's, and a second call is served
-/// without asking the database again.
-/// </summary>
 public sealed class GetUsedTodoItemTagsUseCaseTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
@@ -56,10 +52,6 @@ public sealed class GetUsedTodoItemTagsUseCaseTests
         await _queries.Received(1).GetUsedTagsForOwnerAsync(_callerId, Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Two owners are two answers. A key that forgot the owner would serve one caller's tags to
-    /// another, which is the failure a cache makes possible and nothing else here would catch.
-    /// </summary>
     [Fact]
     public async Task TwoOwners_DoNotShareAnEntry()
     {

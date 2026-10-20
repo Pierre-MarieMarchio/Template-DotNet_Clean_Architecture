@@ -45,10 +45,6 @@ public sealed class GetTodoListsUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Authentication is checked before anything else, so an anonymous caller cannot tell bad input
-    /// from a missing session.
-    /// </summary>
     [Fact]
     public async Task AnAnonymousCaller_IsRefusedBeforeAnythingElseIsValidated()
     {
@@ -62,10 +58,6 @@ public sealed class GetTodoListsUseCaseTests
 
     #region Ownership
 
-    /// <summary>
-    /// The owner comes from <see cref="ICurrentUser"/> and is not part of the query, so no
-    /// caller can widen the scope to somebody else's rows.
-    /// </summary>
     [Fact]
     public async Task TheQuery_IsAlwaysScopedToTheCallersId()
     {
@@ -98,12 +90,6 @@ public sealed class GetTodoListsUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// There is no overload, no optional owner and no <c>Guid.Empty</c> sentinel that could
-    /// stand for "everybody": every read-side method takes an owner. The one exception is named in
-    /// the rule: the deleted-account sweep's owner listing, which crosses owners on purpose and
-    /// answers ids only — no owner can be identified through it.
-    /// </summary>
     [Fact]
     public void EveryMethodOnTheReadSidePort_TakesAnOwner() =>
         typeof(ITodoListQueries).GetMethods()
@@ -112,11 +98,6 @@ public sealed class GetTodoListsUseCaseTests
 
     #endregion
 
-    /// <summary>
-    /// All of paging/sort/cursor/filter parsing lives in <c>GetTodoListsRequestBinder</c> now, and is
-    /// exercised exhaustively in <c>GetTodoListsRequestBinderTests</c>. This use case only has to prove
-    /// it delegates to the binder and propagates its failure — one representative case.
-    /// </summary>
     [Fact]
     public async Task ABinderFailure_IsPropagatedWithoutReachingThePort()
     {

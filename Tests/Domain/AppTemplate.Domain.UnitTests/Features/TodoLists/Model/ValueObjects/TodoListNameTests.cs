@@ -15,10 +15,6 @@ public sealed class TodoListNameTests
     public void Create_TrimsSurroundingWhitespace() =>
         TodoListName.Create("  Groceries \t ").Value.ShouldBe("Groceries");
 
-    /// <summary>
-    /// Unlike a tag, a list name is something a person reads, so its casing is theirs to
-    /// choose. Adding a <c>ToLowerInvariant</c> here turns this red.
-    /// </summary>
     [Fact]
     public void Create_PreservesCasing() =>
         TodoListName.Create("Weekly SHOPPING list").Value.ShouldBe("Weekly SHOPPING list");
@@ -66,7 +62,6 @@ public sealed class TodoListNameTests
             .ShouldBe(TodoListName.Create("Groceries").GetHashCode());
     }
 
-    /// <summary>Casing is part of the value, so it is part of the identity too.</summary>
     [Fact]
     public void Equality_IsCaseSensitive() =>
         TodoListName.Create("Groceries").ShouldNotBe(TodoListName.Create("groceries"));

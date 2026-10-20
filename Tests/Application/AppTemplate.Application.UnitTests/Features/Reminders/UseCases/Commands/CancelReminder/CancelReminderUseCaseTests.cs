@@ -117,7 +117,6 @@ public sealed class CancelReminderUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>Idempotent by shape: cancelling twice is a no-op, not an error.</summary>
     [Fact]
     public async Task AnAlreadyCancelledReminder_CancelsAgainWithoutError()
     {

@@ -16,22 +16,12 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Commands.RegisterFile;
 
-/// <summary>
-/// Concurrent registrations of one owner in one category with room for one more file. Each
-/// registration has its own repository and unit of work over one shared set of committed rows, and
-/// a usage read does not return until every registration has read or one is waiting for the lock:
-/// without a lock, all of them read usage before any commits.
-/// </summary>
 public sealed class RegisterFileConcurrencyTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// The reproduction: before registrations took the lock, both of these succeeded and two rows
-    /// were committed against a limit of one.
-    /// </summary>
     [Fact]
     public async Task Strict_TwoConcurrentRegistrationsWithRoomForOne_CommitExactlyOne()
     {
@@ -55,10 +45,6 @@ public sealed class RegisterFileConcurrencyTests
         world.CommittedCount.ShouldBe(1);
     }
 
-    /// <summary>
-    /// The documented bound of the indicative mode: a burst of N concurrent registrations overshoots
-    /// by at most N - 1 files, here reached exactly, and never takes the lock.
-    /// </summary>
     [Fact]
     public async Task Indicative_ABurstOfNRegistrations_OvershootsByAtMostNMinusOne()
     {
@@ -167,10 +153,6 @@ public sealed class RegisterFileConcurrencyTests
                 TestToken);
         }
 
-        /// <summary>
-        /// Reads committed usage, then holds the reader until every registration has read or one of
-        /// them is waiting for the lock: the widest window an unlocked read-then-insert can have.
-        /// </summary>
         private async Task<OwnerStorageUsage> ReadUsageAsync()
         {
             int pending = CommittedCount;

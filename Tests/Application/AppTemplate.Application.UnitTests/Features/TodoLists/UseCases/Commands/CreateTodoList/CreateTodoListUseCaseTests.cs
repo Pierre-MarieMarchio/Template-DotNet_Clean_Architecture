@@ -47,10 +47,6 @@ public sealed class CreateTodoListUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Authentication is checked before validation, so an anonymous caller learns nothing
-    /// about which of their fields were malformed.
-    /// </summary>
     [Fact]
     public async Task AnAnonymousCaller_IsRefusedBeforeTheirInputIsValidated()
     {
@@ -100,10 +96,6 @@ public sealed class CreateTodoListUseCaseTests
         result.IsSuccess.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// The transactional boundary: a use case that failed early must not have committed,
-    /// and must not have staged anything a later commit could pick up.
-    /// </summary>
     [Fact]
     public async Task AnInvalidCommand_WritesNothing()
     {
@@ -129,10 +121,6 @@ public sealed class CreateTodoListUseCaseTests
         _repository.Received(1).Add(Arg.Is<TodoList>(list => list != null && list.OwnerId == _callerId));
     }
 
-    /// <summary>
-    /// The owner comes from <see cref="ICurrentUser"/> and the command has no owner field,
-    /// so no caller can create a list in somebody else's name.
-    /// </summary>
     [Fact]
     public async Task TheOwner_IsAlwaysTheCallerAndNeverComesFromTheRequest()
     {
@@ -170,7 +158,6 @@ public sealed class CreateTodoListUseCaseTests
         staged.ShouldHaveSingleItem().Name.Value.ShouldBe("Groceries");
     }
 
-    /// <summary>Two calls would mean two transactions with no rollback path between them.</summary>
     [Fact]
     public async Task ASuccessfulCommand_CommitsExactlyOnce()
     {
@@ -189,10 +176,6 @@ public sealed class CreateTodoListUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(cancellation.Token);
     }
 
-    /// <summary>
-    /// The creation event is raised with the injected clock's instant, not with an ambient
-    /// <c>DateTime.UtcNow</c> read inside the aggregate.
-    /// </summary>
     [Fact]
     public async Task TheStagedList_CarriesACreationEventStampedByTheInjectedClock()
     {

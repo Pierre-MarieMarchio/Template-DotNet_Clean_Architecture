@@ -62,7 +62,6 @@ public sealed class CursorTests
         result.Error.Message.ShouldContain("maximum length");
     }
 
-    /// <summary>The bound is inclusive: exactly the ceiling must not be refused by the length gate.</summary>
     [Fact]
     public void Decode_DoesNotFailOnLength_AtExactlyTheMaxEncodedLength()
     {
@@ -141,8 +140,6 @@ public sealed class CursorTests
     [Fact]
     public void Decode_Rejects_AFieldNotWhitelistedForKeyset()
     {
-        // lastModifiedAt sorts fine but does not support a keyset resume — SortOrder.Parse accepts
-        // it, so this proves the refusal happens at Decode, on the field's SupportsKeyset flag.
         var term = SortOrder.Parse("lastModifiedAt", _policy).Value.Terms[0];
         string encoded = Cursor.After(term, "x", Guid.CreateVersion7()).Encode();
 

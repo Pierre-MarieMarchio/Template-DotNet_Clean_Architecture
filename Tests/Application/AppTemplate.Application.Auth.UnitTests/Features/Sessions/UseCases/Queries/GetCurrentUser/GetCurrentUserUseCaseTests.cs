@@ -56,10 +56,6 @@ public sealed class GetCurrentUserUseCaseTests
         result.Value.TwoFactorEnabled.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// The account named by a valid token can still be gone by the time this runs — deleted after
-    /// the token was issued. Nothing about the caller's own principal is trusted for the answer.
-    /// </summary>
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsRefused()
     {

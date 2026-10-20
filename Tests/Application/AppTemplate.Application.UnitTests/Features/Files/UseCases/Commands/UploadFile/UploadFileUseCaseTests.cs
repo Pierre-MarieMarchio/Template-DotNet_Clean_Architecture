@@ -80,7 +80,6 @@ public sealed class UploadFileUseCaseTests
         _removed.ShouldBeNull();
     }
 
-    /// <summary>Registration, then confirmation: two commits, and the bytes between them.</summary>
     [Fact]
     public async Task TheRegistrationAndTheConfirmation_AreCommittedSeparately()
     {
@@ -110,10 +109,6 @@ public sealed class UploadFileUseCaseTests
         order.ShouldBe(["commit pending", "write", "commit deposited"]);
     }
 
-    /// <summary>
-    /// The digest is computed here from the bytes, bound into the registration and handed to the
-    /// store with the whole content from its first byte.
-    /// </summary>
     [Fact]
     public async Task TheBytes_AreWrittenFromTheStartUnderTheFilesKeyWithTheirOwnDigest()
     {
@@ -148,7 +143,6 @@ public sealed class UploadFileUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>The write may take as long as the client's network; no other registration waits on it.</summary>
     [Fact]
     public async Task TheBytes_AreWrittenOutsideTheQuotaLock()
     {
@@ -243,7 +237,6 @@ public sealed class UploadFileUseCaseTests
         ShouldBeRefusedOn(result, "name");
     }
 
-    /// <summary>A name the value object refuses is a conflict, as for a direct registration.</summary>
     [Fact]
     public async Task ANameWithAPathSeparator_IsRefusedByTheDomainAndNothingIsWritten()
     {
@@ -253,7 +246,6 @@ public sealed class UploadFileUseCaseTests
         await ShouldHaveWrittenNothingAsync();
     }
 
-    /// <summary>The same status as a direct registration in an API-only category: the deployment's choice.</summary>
     [Fact]
     public async Task ACategoryWithoutApiUploads_Answers409AndWritesNothing()
     {
@@ -282,7 +274,6 @@ public sealed class UploadFileUseCaseTests
 
     #region Failure after the registration
 
-    /// <summary>The registration goes at once, so its quota slot is free for the retry.</summary>
     [Fact]
     public async Task AFailedWrite_RemovesTheRegistrationAndPropagates()
     {
@@ -330,9 +321,6 @@ public sealed class UploadFileUseCaseTests
         ShouldHaveRemovedTheRegistration();
     }
 
-    /// <summary>
-    /// A client gone mid-upload cancels the request token; the removal still runs to completion.
-    /// </summary>
     [Fact]
     public async Task ACancelledWrite_StillRemovesTheRegistration()
     {
@@ -351,10 +339,6 @@ public sealed class UploadFileUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(CancellationToken.None);
     }
 
-    /// <summary>
-    /// The removal is best effort: its failure is logged, the original failure is the one reported,
-    /// and the pending row is left to the abandoned-registration purge.
-    /// </summary>
     [Fact]
     public async Task AFailedRemoval_IsLoggedAndTheOriginalFailurePropagates()
     {

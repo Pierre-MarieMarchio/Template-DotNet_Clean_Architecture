@@ -34,10 +34,6 @@ public sealed class SweepDeletedAccountDataUseCaseTests
         await _policy.Received(1).ApplyAsync(_secondOwner, TestToken);
     }
 
-    /// <summary>
-    /// The precondition is the policy's to re-derive: an owner whose account exists again — or never
-    /// left — is listed like any other, and the sweep counts nothing for it.
-    /// </summary>
     [Fact]
     public async Task AnOwnerWhosePolicyAppliedNothing_IsNotCounted()
     {
@@ -50,10 +46,6 @@ public sealed class SweepDeletedAccountDataUseCaseTests
         result.Value.ShouldBe(1);
     }
 
-    /// <summary>
-    /// Resumption is per owner: one poisoned owner is skipped and logged, never allowed to stop
-    /// its neighbours — and the owners swept before it are kept.
-    /// </summary>
     [Fact]
     public async Task AnOwnerWhoseApplicationThrows_IsSkippedAndTheSweepContinues()
     {
@@ -69,10 +61,6 @@ public sealed class SweepDeletedAccountDataUseCaseTests
         await _policy.Received(1).ApplyAsync(_thirdOwner, TestToken);
     }
 
-    /// <summary>
-    /// One host at a time: a standby that did not take the lease runs nothing and reports zero,
-    /// rather than reporting a failure that would look like a sweep that went wrong.
-    /// </summary>
     [Fact]
     public async Task AHostThatDoesNotHoldTheLease_AppliesNothingAndReportsZero()
     {
@@ -107,11 +95,6 @@ public sealed class SweepDeletedAccountDataUseCaseTests
     private SweepDeletedAccountDataUseCase UseCase() =>
         new([_policy], _lease, NullLogger<SweepDeletedAccountDataUseCase>.Instance);
 
-    /// <summary>
-    /// Runs the work it is handed, or answers <c>false</c> without running it — the two outcomes
-    /// <see cref="ILeaderLease"/> defines. The work is invoked, not just recorded, because what is
-    /// under test is what the pass does while it holds the lease.
-    /// </summary>
     private sealed class StubLeaderLease : ILeaderLease
     {
         public bool HoldsTheLease { get; set; } = true;

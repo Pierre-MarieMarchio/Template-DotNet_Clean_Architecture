@@ -22,7 +22,6 @@ public sealed class AggregateRootTests
         aggregate.DomainEvents.ShouldHaveSingleItem().ShouldBeSameAs(domainEvent);
     }
 
-    /// <summary>Order matters: handlers may depend on the sequence the events happened in.</summary>
     [Fact]
     public void RaiseDomainEvent_PreservesTheOrderEventsWereRaisedIn()
     {
@@ -80,10 +79,6 @@ public sealed class AggregateRootTests
         aggregate.DomainEvents.ShouldHaveSingleItem().ShouldBeSameAs(afterClear);
     }
 
-    /// <summary>
-    /// The dispatcher receives a snapshot it cannot append to: an event added from
-    /// outside the aggregate would be one nothing in the model ever decided to raise.
-    /// </summary>
     [Fact]
     public void DomainEvents_CannotBeMutatedThroughTheExposedCollection()
     {
@@ -104,10 +99,6 @@ public sealed class AggregateRootTests
         new SampleAggregate(id).ShouldBe(new SampleAggregate(id));
     }
 
-    /// <summary>
-    /// Infrastructure collects events through the non-generic marker, so a root must be
-    /// reachable as <see cref="IAggregateRoot"/> without knowing its id type.
-    /// </summary>
     [Fact]
     public void AnAggregateRoot_IsReachableThroughTheNonGenericMarker()
     {
@@ -124,7 +115,6 @@ public sealed class AggregateRootTests
     }
 }
 
-/// <summary>Exposes <c>RaiseDomainEvent</c> so the protected hook can be exercised.</summary>
 internal sealed class SampleAggregate(Guid id) : AggregateRoot<Guid>(id)
 {
     public void Raise(IDomainEvent domainEvent) => RaiseDomainEvent(domainEvent);

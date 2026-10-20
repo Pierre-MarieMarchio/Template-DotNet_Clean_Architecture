@@ -6,10 +6,6 @@ using Xunit;
 
 namespace AppTemplate.Application.Core.UnitTests;
 
-/// <summary>
-/// The registration mechanisms themselves: what a use case has to look like for the container to
-/// bind it, and what the entry points refuse.
-/// </summary>
 public sealed class ApplicationCoreModuleTests
 {
     private sealed class UseCaseWithNoContract : IUseCase<Guid, Result>
@@ -28,10 +24,6 @@ public sealed class ApplicationCoreModuleTests
             Task.FromResult(Result.Success());
     }
 
-    /// <summary>
-    /// A use case that declares no interface of its own, or several, has no single service type to
-    /// bind. Registration says so at start-up instead of choosing for the author.
-    /// </summary>
     [Theory]
     [InlineData(typeof(UseCaseWithNoContract))]
     [InlineData(typeof(UseCaseWithTwoContracts))]

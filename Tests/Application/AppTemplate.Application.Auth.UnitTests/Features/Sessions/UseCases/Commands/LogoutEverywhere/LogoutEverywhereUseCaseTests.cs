@@ -45,10 +45,6 @@ public sealed class LogoutEverywhereUseCaseTests
         _securityEventLog.Received(1).Record(SecurityEvent.RefreshTokenRevoked(_callerId));
     }
 
-    /// <summary>
-    /// The caller's own access token must keep working: they asked to end other sessions, not this
-    /// one, and rotating the stamp would do both.
-    /// </summary>
     [Fact]
     public async Task ACaller_DoesNotRotateTheSecurityStamp()
     {

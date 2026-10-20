@@ -58,10 +58,6 @@ public sealed class UnlockAccountUseCaseTests
         _securityEventLog.Received(1).Record(SecurityEvent.AccountUnlockedByAdministrator(_targetId));
     }
 
-    /// <summary>
-    /// Unlike locking, lifting a lockout grants access back rather than taking it away, so there is
-    /// no credential of the target's this needs to invalidate — see <c>UnlockAccountUseCase</c>.
-    /// </summary>
     [Fact]
     public async Task ASuccessfulUnlock_RotatesNoStampAndRevokesNothing()
     {

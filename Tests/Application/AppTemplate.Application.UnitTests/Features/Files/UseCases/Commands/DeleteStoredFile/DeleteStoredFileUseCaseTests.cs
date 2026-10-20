@@ -44,10 +44,6 @@ public sealed class DeleteStoredFileUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The ownership check on the most destructive operation the feature has. Deleting the
-    /// <c>OwnerId</c> comparison lets any authenticated caller destroy any file, and turns this red.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersFile_IsNotDeleted()
     {
@@ -62,10 +58,6 @@ public sealed class DeleteStoredFileUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Not deleting is not enough: a refusal that announced the deletion would have a consumer
-    /// reclaim somebody else's bytes while their row stayed exactly where it was.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersFile_HasNoDeletionAnnouncedForIt()
     {
@@ -96,10 +88,6 @@ public sealed class DeleteStoredFileUseCaseTests
 
     #region Success
 
-    /// <summary>
-    /// Deleting a file is removing its row — there is no state to move to and no flag to set. If
-    /// this feature ever grew a "deleted" state, the row would stay and this would go red.
-    /// </summary>
     [Fact]
     public async Task TheCallersOwnFile_HasItsRowRemovedAndCommitted()
     {
@@ -112,10 +100,6 @@ public sealed class DeleteStoredFileUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The announcement is the fast path that reclaims the bytes now instead of at the next sweep.
-    /// It is raised alongside the removal, never instead of it.
-    /// </summary>
     [Fact]
     public async Task TheCallersOwnFile_AnnouncesItsDeletionForTheContentToBeReclaimed()
     {
@@ -130,10 +114,6 @@ public sealed class DeleteStoredFileUseCaseTests
         announcement.OccurredOn.ShouldBe(StubDateTimeProvider.DefaultInstant);
     }
 
-    /// <summary>
-    /// The key travels on the event because by the time a consumer runs — after the commit — the row
-    /// it would have read is gone.
-    /// </summary>
     [Fact]
     public async Task TheAnnouncement_CarriesTheKeyRatherThanLeavingItToBeLookedUp()
     {

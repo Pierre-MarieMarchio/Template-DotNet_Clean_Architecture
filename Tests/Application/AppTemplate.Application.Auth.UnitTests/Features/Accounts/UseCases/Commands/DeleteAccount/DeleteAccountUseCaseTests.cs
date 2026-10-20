@@ -44,7 +44,6 @@ public sealed class DeleteAccountUseCaseTests
         _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>A more permanent version of the self-lockout <c>LockAccountUseCase</c> refuses: nothing survives to undo it.</summary>
     [Fact]
     public async Task ACallerTargetingThemselves_IsRefusedBeforeTouchingTheStore()
     {
@@ -87,10 +86,6 @@ public sealed class DeleteAccountUseCaseTests
         _securityEventLog.Received(1).Record(SecurityEvent.AccountDeleted(_targetId));
     }
 
-    /// <summary>
-    /// The rows another feature owns under the id are that feature's to remove, and the fact is what
-    /// tells them: an administrative deletion that skipped it would leave them orphaned again.
-    /// </summary>
     [Fact]
     public async Task ASuccessfulDeletion_PublishesTheAccountDeletedFact()
     {

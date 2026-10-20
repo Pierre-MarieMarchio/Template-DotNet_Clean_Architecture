@@ -23,17 +23,6 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// The trap this whole class of use case exists around. The worker registers a
-    /// <c>BackgroundCurrentUser</c> whose <c>UserId</c> throws rather than pretend an anonymous
-    /// caller, so a maintenance pass that reached for the caller would fail on its first scheduled
-    /// iteration — in production, and nowhere else, because every other host supplies one.
-    /// <para>
-    /// A use case has no ambient route to the caller: the only way to read one is to take it in the
-    /// constructor, so the constructor is where the guarantee can be stated. Adding
-    /// <see cref="ICurrentUser"/> to this use case turns this red before a background job ever runs it.
-    /// </para>
-    /// </summary>
     [Fact]
     public void ThePass_NeverReadsTheCurrentUser()
     {
@@ -61,11 +50,6 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Announced so any bytes a client did deposit without ever confirming are reclaimed promptly.
-    /// Nothing depends on the announcement arriving — the orphan sweep covers the same ground — but
-    /// not raising it would leave every abandoned deposit to that slower path for no reason.
-    /// </summary>
     [Fact]
     public async Task AnAbandonedRegistration_AnnouncesItsDeletion()
     {
@@ -77,12 +61,6 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
         abandoned.DomainEvents.OfType<StoredFileDeletedDomainEvent>().ShouldHaveSingleItem();
     }
 
-    /// <summary>
-    /// The query is the coarse filter and <c>StoredFile.IsAbandoned</c> is the decision. A row the
-    /// query returned that the aggregate does not consider abandoned is left alone — which is what
-    /// keeps a second host, a maintenance endpoint or a future caller reaching the same aggregate by
-    /// another route from getting a different answer.
-    /// </summary>
     [Fact]
     public async Task ARegistrationTheAggregateDoesNotCallAbandoned_IsLeftAlone()
     {
@@ -117,10 +95,6 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The pass belongs to no owner: it removes whatever is stale, across every account, which is
-    /// exactly why there is nobody to ask about permission.
-    /// </summary>
     [Fact]
     public async Task ThePass_RemovesStaleRegistrationsOfEveryOwner()
     {
@@ -149,7 +123,6 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>One pass pulls a bounded batch; a backlog beyond it waits for the next run.</summary>
     [Fact]
     public async Task ThePass_AsksForABoundedBatch()
     {
@@ -176,9 +149,8 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>The literal is repeated on purpose: the name is a contract across releases.</summary>
     [Fact]
-    public async Task ThePass_RunsUnderItsNamedLease()
+    public async Task TheLeaseName_IsPinnedAsALiteral()
     {
         GivenTheRepositoryReturns();
 
@@ -187,10 +159,6 @@ public sealed class PurgeAbandonedRegistrationsUseCaseTests
         _lease.RequestedNames.ShouldBe(["apptemplate.files.purge-abandoned"]);
     }
 
-    /// <summary>
-    /// A failed commit surfaces rather than reporting a purge, and wrote nothing, so the next pass
-    /// selects the same rows and removes them.
-    /// </summary>
     [Fact]
     public async Task AFailedCommit_LeavesTheRowsForTheNextPass()
     {

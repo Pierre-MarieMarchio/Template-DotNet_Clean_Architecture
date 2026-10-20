@@ -54,7 +54,6 @@ public sealed class ChangePasswordUseCaseTests
         result.IsSuccess.ShouldBeTrue();
     }
 
-    /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticatedAndRevokesNothing()
     {
@@ -79,7 +78,6 @@ public sealed class ChangePasswordUseCaseTests
         result.Error.Details!["currentPassword"].ShouldContain("The current password is incorrect.");
     }
 
-    /// <summary>On "newPassword", the field the caller typed it in — the one the validator's own length rule names too.</summary>
     [Fact]
     public async Task ARejectedNewPassword_ReportsTheStoresMessageOnTheNewPasswordField()
     {
@@ -92,11 +90,6 @@ public sealed class ChangePasswordUseCaseTests
         result.Error.Details.ContainsKey("password").ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The security stamp already rotated inside <c>ChangePasswordAsync</c> and takes every access
-    /// token with it; refresh tokens survive that rotation, so this use case has to revoke them
-    /// itself.
-    /// </summary>
     [Fact]
     public async Task ASuccessfulChange_RevokesEverySessionButTheCallersOwn()
     {
@@ -110,11 +103,6 @@ public sealed class ChangePasswordUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The caller just proved the current password, so its session is the one that need not prove it
-    /// again. A token that names no session — issued before sessions were named in it — spares
-    /// nothing: an unknown session is not one to spare.
-    /// </summary>
     [Fact]
     public async Task ASuccessfulChangeFromATokenWithoutASession_RevokesEverySession()
     {
@@ -129,10 +117,6 @@ public sealed class ChangePasswordUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// One revocation call, naming the spared session: a use case that revoked twice would answer
-    /// the same result while leaving a window between the two calls.
-    /// </summary>
     [Fact]
     public async Task ASuccessfulChange_MakesOneRevocationCall()
     {
@@ -171,7 +155,6 @@ public sealed class ChangePasswordUseCaseTests
         _accounts.ChangePasswordAsync(_callerId, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(change);
 
-    /// <summary>The session the caller changes the password from, fixed so assertions can name it.</summary>
     private readonly StubCurrentSession _currentSession = StubCurrentSession.InSession(Guid.CreateVersion7());
 
     private ChangePasswordUseCase UseCaseFor(ICurrentUser currentUser, StubCurrentSession currentSession) =>

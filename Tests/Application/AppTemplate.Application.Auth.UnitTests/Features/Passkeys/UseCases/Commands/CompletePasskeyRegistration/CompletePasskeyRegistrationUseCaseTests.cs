@@ -16,7 +16,6 @@ namespace AppTemplate.Application.Auth.UnitTests.Features.Passkeys.UseCases.Comm
 
 public sealed class CompletePasskeyRegistrationUseCaseTests
 {
-    /// <summary>The window a proofless account's access token must have been issued within.</summary>
     private static readonly TimeSpan _window = DeleteMyAccountUseCase.RecentAuthenticationWindow;
 
     private static readonly Guid _callerId = Guid.CreateVersion7();
@@ -52,7 +51,6 @@ public sealed class CompletePasskeyRegistrationUseCaseTests
         _passkeys.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>A valid token can outlive its account: deleted after the token was issued.</summary>
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsRefused()
     {
@@ -93,10 +91,6 @@ public sealed class CompletePasskeyRegistrationUseCaseTests
         _passkeys.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The account that has no password its holder could present — a provider-linked one — falls
-    /// back to the token itself, and only while it is fresh.
-    /// </summary>
     [Fact]
     public async Task AProoflessAccount_WithAStaleAccessToken_IsAskedToSignInAgain()
     {
@@ -122,10 +116,6 @@ public sealed class CompletePasskeyRegistrationUseCaseTests
         result.Error!.Code.ShouldBe("auth.account.reAuthenticationRequired");
     }
 
-    /// <summary>
-    /// A refused proof leaves the ceremony state the client holds alone: no half-registered
-    /// anything, and a retry with the right evidence needs no second options call.
-    /// </summary>
     [Fact]
     public async Task ARefusedProof_NeverReachesThePasskeyPort()
     {
@@ -154,7 +144,6 @@ public sealed class CompletePasskeyRegistrationUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>The account left between the profile read and the store: the same answer as the profile read.</summary>
     [Fact]
     public async Task ARegistrationThatFindsNoAccount_IsRefusedAsUnauthenticated()
     {

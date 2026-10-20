@@ -4,13 +4,8 @@ using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 
 namespace AppTemplate.Application.UnitTests.TestDoubles;
 
-/// <summary>
-/// Builds real aggregates, never fakes: a root that accepted anything would make the
-/// "duplicate title becomes a conflict" tests assert nothing.
-/// </summary>
 internal static class ATodoList
 {
-    /// <summary>The creation event is already cleared, so callers assert on their own events only.</summary>
     internal static TodoList OwnedBy(UserId ownerId, string name = "Groceries")
     {
         var list = TodoList.Create(ownerId, name, StubDateTimeProvider.DefaultInstant);
@@ -40,11 +35,6 @@ internal static class ATodoList
         return list;
     }
 
-    /// <summary>
-    /// A list with one item, placed at <paramref name="version"/> the way the store places a
-    /// freshly loaded aggregate. It goes through <see cref="IVersioned"/> because that is the only
-    /// way anything writes a version.
-    /// </summary>
     internal static TodoList OwnedByWithItemAtVersion(UserId ownerId, uint version, out Guid itemId)
     {
         var list = OwnedByWithItem(ownerId, out itemId);
@@ -53,7 +43,6 @@ internal static class ATodoList
         return list;
     }
 
-    /// <summary>Filled to <see cref="TodoList.MaxItems"/>.</summary>
     internal static TodoList OwnedByAndFull(UserId ownerId)
     {
         var list = OwnedBy(ownerId);

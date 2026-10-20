@@ -11,10 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Application.Auth.UnitTests.Features.Accounts.UseCases.Commands.ResendConfirmationEmail;
 
-/// <summary>
-/// The resend endpoint answers the same for every address it is given. Everything else it does — or
-/// does not do — happens behind that one answer.
-/// </summary>
 public sealed class ResendConfirmationEmailUseCaseTests
 {
     private readonly IEmailTokensService _emailTokens = Substitute.For<IEmailTokensService>();
@@ -32,11 +28,6 @@ public sealed class ResendConfirmationEmailUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// The recovery path is the one endpoint an unconfirmed account depends on, so a blank
-    /// address must be refused rather than handed to the mailer. Removing the
-    /// <c>IsValid</c> check turns this red.
-    /// </summary>
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -72,10 +63,6 @@ public sealed class ResendConfirmationEmailUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// No token means no account is awaiting confirmation — unknown address or already confirmed.
-    /// Nothing is sent, and the answer is the same success as for an account that was.
-    /// </summary>
     [Fact]
     public async Task AnAddressWithNothingPending_SendsNothingAndStillSucceeds()
     {
@@ -89,10 +76,6 @@ public sealed class ResendConfirmationEmailUseCaseTests
         _emailSender.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The two cases compared directly: an unknown address and a pending one must produce results a
-    /// caller cannot tell apart. Returning a failure for either turns this red.
-    /// </summary>
     [Fact]
     public async Task APendingAddressAndAnUnknownOne_AreAnsweredIdentically()
     {
@@ -110,10 +93,6 @@ public sealed class ResendConfirmationEmailUseCaseTests
         forUnknown.Error.ShouldBe(forPending.Error);
     }
 
-    /// <summary>
-    /// An unreachable relay must not turn into a distinguishable answer either: a failure here would
-    /// say "this address had a mail to send".
-    /// </summary>
     [Fact]
     public async Task AnUnreachableRelay_StillSucceeds()
     {
@@ -131,10 +110,6 @@ public sealed class ResendConfirmationEmailUseCaseTests
         result.IsSuccess.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// Cancellation is not an outage, so it is not swallowed: the request is gone and there is
-    /// nothing to answer.
-    /// </summary>
     [Fact]
     public async Task ACancelledDelivery_Propagates()
     {

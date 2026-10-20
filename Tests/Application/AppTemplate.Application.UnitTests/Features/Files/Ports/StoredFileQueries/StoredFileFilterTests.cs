@@ -29,17 +29,12 @@ public sealed class StoredFileFilterTests
         result.Value.State.ShouldBe(expected);
     }
 
-    /// <summary>
-    /// The reason this is a hand-written switch rather than <c>Enum.TryParse</c>: that helper also
-    /// accepts the underlying number, so "7" would parse into a state no switch anywhere handles and
-    /// the request would come back as an empty page instead of a refusal.
-    /// </summary>
     [Theory]
     [InlineData("0")]
     [InlineData("1")]
     [InlineData("7")]
     [InlineData("deleted")]
-    public void AnUnrecognisedState_IsRefused(string raw)
+    public void AnUnrecognisedStateOrANumber_IsRefused(string raw)
     {
         var result = StoredFileFilter.Create(null, raw);
 

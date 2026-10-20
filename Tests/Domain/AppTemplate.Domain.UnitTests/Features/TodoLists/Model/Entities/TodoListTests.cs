@@ -35,10 +35,6 @@ public sealed class TodoListTests
     public void Create_NormalisesTheName() =>
         TodoList.Create(UserId.Create(Guid.CreateVersion7()), "  Groceries  ", _now).Name.Value.ShouldBe("Groceries");
 
-    /// <summary>
-    /// Ownership is what every authorisation check in the application layer rests on, so
-    /// an ownerless list must not be constructible at all.
-    /// </summary>
     [Fact]
     public void Create_Rejects_AnAbsentOwner()
     {
@@ -62,11 +58,6 @@ public sealed class TodoListTests
     public void Create_GivesEveryListADistinctId() =>
         ANewList().Id.ShouldNotBe(ANewList().Id);
 
-    /// <summary>
-    /// The concurrency token belongs to the store; nothing in the application may assign it, because
-    /// a caller able to stamp an arbitrary token could present a stale value as current and defeat
-    /// conflict detection entirely.
-    /// </summary>
     [Fact]
     public void TheConcurrencyToken_HasNoPubliclyReachableSetter()
     {
@@ -76,12 +67,6 @@ public sealed class TodoListTests
             "'Version' must not expose a public setter.");
     }
 
-    /// <summary>
-    /// A tripwire on the value of the cap, not on the mechanism: every other cap test fills the
-    /// list to <see cref="TodoList.MaxItems"/> and is therefore blind to a change in the constant
-    /// itself. The cap is the only bound on how much a single write has to load, so raising it
-    /// should have to be a deliberate decision.
-    /// </summary>
     [Fact]
     public void TheItemCap_IsFiveHundredItems() => TodoList.MaxItems.ShouldBe(500);
 
@@ -138,10 +123,6 @@ public sealed class TodoListTests
         item.IsCompleted.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// Two entries reading the same is a defect the user cannot resolve by reading, so
-    /// the list refuses the second one. Removing the uniqueness check turns this red.
-    /// </summary>
     [Fact]
     public void AddItem_Rejects_ADuplicateTitle()
     {
@@ -154,10 +135,6 @@ public sealed class TodoListTests
         list.Items.Count.ShouldBe(1);
     }
 
-    /// <summary>
-    /// "Buy milk" and "BUY MILK" are the same entry to the person reading them. Changing
-    /// the comparison to a case-sensitive one turns this red.
-    /// </summary>
     [Theory]
     [InlineData("BUY MILK")]
     [InlineData("buy milk")]
@@ -171,10 +148,6 @@ public sealed class TodoListTests
         list.Items.Count.ShouldBe(1);
     }
 
-    /// <summary>
-    /// Normalisation happens before the uniqueness comparison, so padding a title cannot
-    /// be used to slip a duplicate past the check.
-    /// </summary>
     [Fact]
     public void AddItem_Rejects_ATitleThatDiffersOnlyBySurroundingWhitespace()
     {
@@ -208,10 +181,6 @@ public sealed class TodoListTests
         list.Items.ShouldHaveSingleItem().Title.Value.ShouldBe("Buy milk");
     }
 
-    /// <summary>
-    /// A write loads the whole aggregate, so its size bounds the cost of every command.
-    /// Removing the cap turns this red.
-    /// </summary>
     [Fact]
     public void AddItem_Rejects_AnItemBeyondTheMaximumCount()
     {
@@ -274,10 +243,6 @@ public sealed class TodoListTests
         list.Items.ShouldHaveSingleItem().Id.ShouldBe(keptId);
     }
 
-    /// <summary>
-    /// An unknown id must never silently do nothing: the caller believes it changed
-    /// something, and a no-op would let that belief survive the transaction.
-    /// </summary>
     [Fact]
     public void RemoveItem_Rejects_AnUnknownItemId()
     {
@@ -319,10 +284,6 @@ public sealed class TodoListTests
         item.CompletedAt.ShouldBe(completedAt);
     }
 
-    /// <summary>
-    /// Completing something already completed would move its completion timestamp and
-    /// raise a second event, so the model refuses it.
-    /// </summary>
     [Fact]
     public void CompleteItem_Rejects_AnAlreadyCompletedItem()
     {
@@ -336,10 +297,6 @@ public sealed class TodoListTests
         list.Items.ShouldHaveSingleItem().CompletedAt.ShouldBe(firstCompletion);
     }
 
-    /// <summary>
-    /// The event is raised only after the item accepted the change. Raising it before
-    /// calling <c>Complete</c> would announce a completion that never happened.
-    /// </summary>
     [Fact]
     public void CompleteItem_RaisesNoEvent_WhenTheItemRefusesTheChange()
     {
@@ -428,10 +385,6 @@ public sealed class TodoListTests
         item.Description.ShouldBe("Wholemeal");
     }
 
-    /// <summary>
-    /// The exclusion that makes the uniqueness check usable from a rename: without it,
-    /// renaming "Buy milk" to "Buy milk" would collide with itself.
-    /// </summary>
     [Fact]
     public void UpdateItem_Accepts_RenamingAnItemToItsOwnCurrentTitle()
     {
@@ -454,10 +407,6 @@ public sealed class TodoListTests
         list.Items.ShouldHaveSingleItem().Title.Value.ShouldBe("BUY MILK");
     }
 
-    /// <summary>
-    /// The exclusion is by id, not by title: it must not let a rename collide-check against
-    /// nothing at all when another item genuinely holds the title already.
-    /// </summary>
     [Fact]
     public void UpdateItem_Rejects_ATitleAlreadyHeldByAnotherItem()
     {
@@ -471,10 +420,6 @@ public sealed class TodoListTests
         list.Items.Single(item => item.Id == itemId).Title.Value.ShouldBe("Buy bread");
     }
 
-    /// <summary>
-    /// Uniqueness is checked on the title the item would store, not on the raw input: the
-    /// padded variant would otherwise pass, and the saved list would then fail to rehydrate.
-    /// </summary>
     [Fact]
     public void UpdateItem_Rejects_AWhitespaceVariantOfATitleAlreadyHeldByAnotherItem()
     {
@@ -508,8 +453,6 @@ public sealed class TodoListTests
         reloaded.Items.Select(item => item.Title.Value).ShouldBe(["Buy milk", "Buy eggs"]);
     }
 
-    /// <summary>Both values are validated before either is applied, so a refused update
-    /// leaves the item as it was.</summary>
     [Fact]
     public void UpdateItem_ChangesNothing_WhenTheDescriptionIsRefused()
     {
@@ -617,10 +560,6 @@ public sealed class TodoListTests
         list.Items.ShouldHaveSingleItem().Tags.ShouldHaveSingleItem().Value.ShouldBe("urgent");
     }
 
-    /// <summary>
-    /// Adding a tag twice satisfies the caller's intent either way, so a retried request
-    /// must not fail and must not duplicate the tag.
-    /// </summary>
     [Fact]
     public void AddTagToItem_IsIdempotent()
     {
@@ -719,11 +658,6 @@ public sealed class TodoListTests
 
     #region Encapsulation
 
-    /// <summary>
-    /// The declared type of <c>Items</c> is the encapsulation guarantee. Widening it to a
-    /// mutable collection would let a caller add an item without passing the uniqueness
-    /// and cap checks, which is exactly what makes those checks enforceable today.
-    /// </summary>
     [Fact]
     public void Items_IsExposedAsAReadOnlyCollection() =>
         typeof(TodoList).GetProperty(nameof(TodoList.Items))!.PropertyType
@@ -744,12 +678,8 @@ public sealed class TodoListTests
         list.Items.ShouldHaveSingleItem().Id.ShouldBe(itemId);
     }
 
-    /// <summary>
-    /// There is no public constructor and no public item type constructor, so the only
-    /// way to put an item on a list is to go through the root's own method.
-    /// </summary>
     [Fact]
-    public void TheRoot_IsTheOnlyWayToBuildAList()
+    public void TheRoot_IsTheOnlyWayToPutAnItemOnAList()
     {
         typeof(TodoList).GetConstructors().ShouldBeEmpty();
         typeof(TodoItem).GetConstructors().ShouldBeEmpty();
@@ -791,16 +721,12 @@ public sealed class TodoListTests
         list.RemoveTagFromItem(itemId, "urgent");
         list.UpdateItem(itemId, "Buy bread", "Wholemeal");
         list.SetItemTags(itemId, ["weekly"]);
-        list.ReopenItem(itemId, _now); // already open: a no-op, not an event
+        list.ReopenItem(itemId, _now);
         list.RemoveItem(itemId);
 
         list.DomainEvents.ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// Mirrors <see cref="CompleteItem_RaisesACompletionEvent"/>: a consumer tracking
-    /// completions must be able to track reversals too, or it drifts after the first reopen.
-    /// </summary>
     [Fact]
     public void ReopenItem_RaisesAReopenedEvent_WhenTheItemWasCompleted()
     {
@@ -814,10 +740,6 @@ public sealed class TodoListTests
         list.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<TodoItemReopenedDomainEvent>();
     }
 
-    /// <summary>
-    /// No event on a no-op: an item that was already open has nothing to announce a
-    /// reversal of.
-    /// </summary>
     [Fact]
     public void ReopenItem_RaisesNoEvent_WhenTheItemWasAlreadyOpen()
     {

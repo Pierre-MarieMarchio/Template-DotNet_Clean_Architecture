@@ -19,13 +19,6 @@ public sealed class CursorKeysTests
         CursorKeys.Validate(cursor, _dateField).IsSuccess.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// The tampered-cursor-key decision this check exists for: a date cursor whose key was edited
-    /// into something that is not a date is refused here — as a validation failure, never an
-    /// exception — before it can ever reach the persistence layer's keyset predicate. That predicate
-    /// only has a throw for this case, which the global exception handler turns into a 500; this
-    /// check is what keeps a tampered cursor a 400 instead.
-    /// </summary>
     [Fact]
     public void Validate_ATamperedDateKey_IsRejectedAsCursorInvalid()
     {

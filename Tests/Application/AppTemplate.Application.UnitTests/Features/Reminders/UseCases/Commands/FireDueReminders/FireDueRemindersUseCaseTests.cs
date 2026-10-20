@@ -18,11 +18,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands.FireDueReminders;
 
-/// <summary>
-/// This is the use case the whole feature's correctness rides on: it is the one place that must
-/// stay right independently of whether <c>CancelRemindersOnTodoItemCompletedConsumer</c> ever
-/// ran.
-/// </summary>
 public sealed class FireDueRemindersUseCaseTests
 {
     private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
@@ -72,18 +67,12 @@ public sealed class FireDueRemindersUseCaseTests
         result.Value.ShouldBe(1);
         reminder.State.ShouldBe(ReminderState.Fired);
         reminder.NotifiedAt.ShouldBe(_now);
-        // A plain value rather than Arg.Is: ReminderNotification is a record, so NSubstitute
-        // matches this call by structural equality without needing a predicate at all.
         await _notifier.Received(1).NotifyAsync(
             new ReminderNotification(reminder.OwnerId, _recipient, reminder.TodoItemId, reminder.DueAt),
             TestToken);
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
 
-    /// <summary>
-    /// An owner who no longer names an account has nobody to ring, and retrying would not change
-    /// that: the reminder is retired, not counted as notified.
-    /// </summary>
     [Fact]
     public async Task AReminderWhoseOwnerIsGone_IsCancelledInsteadOfNotified()
     {
@@ -115,10 +104,6 @@ public sealed class FireDueRemindersUseCaseTests
         await _notifier.DidNotReceive().NotifyAsync(Arg.Any<ReminderNotification>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// This is the count that exactly equals the completion events
-    /// <c>CancelRemindersOnTodoItemCompletedConsumer</c> never received.
-    /// </summary>
     [Fact]
     public async Task ACompletedTargetStillPending_RecordsAMissedCancellation()
     {
@@ -131,17 +116,11 @@ public sealed class FireDueRemindersUseCaseTests
         _diagnostics.Received(1).RecordMissedCancellation();
     }
 
-    /// <summary>
-    /// Deleting an item or its list raises no domain event, so there is nothing this could have
-    /// missed — unlike <see cref="ACompletedTargetStillPending_RecordsAMissedCancellation"/>, this
-    /// is the mechanism working as intended, not a divergence.
-    /// </summary>
     [Fact]
     public async Task ATargetAbsentFromTheProjection_IsCancelledWithoutRecordingADivergence()
     {
         var reminder = ADueReminder();
         GivenDueReminders(reminder);
-        // No entry at all for reminder.TodoItemId: the item was deleted, not completed.
         GivenCompletionStates();
 
         var result = await UseCase().ExecuteAsync(TestToken);
@@ -172,10 +151,6 @@ public sealed class FireDueRemindersUseCaseTests
         succeeding.State.ShouldBe(ReminderState.Fired);
     }
 
-    /// <summary>
-    /// One commit per reminder is what bounds a failed commit to the reminder it belongs to: the
-    /// failure of a notification is saved too, so the retry wait it starts is not lost.
-    /// </summary>
     [Fact]
     public async Task EveryReminderOfTheBatch_IsCommittedOnItsOwn()
     {
@@ -201,10 +176,6 @@ public sealed class FireDueRemindersUseCaseTests
         await _unitOfWork.Received(2).SaveChangesAsync(TestToken);
     }
 
-    /// <summary>
-    /// The missed-cancellation count is the number of completion events that never arrived, so it
-    /// must not be incremented for a cancellation that did not commit and will be found again.
-    /// </summary>
     [Fact]
     public async Task ACancellationThatLosesItsRace_IsNotCountedAsAMissedEvent()
     {
@@ -220,10 +191,6 @@ public sealed class FireDueRemindersUseCaseTests
         _diagnostics.DidNotReceive().RecordMissedCancellation();
     }
 
-    /// <summary>
-    /// A failed write stays staged in the scope, so carrying on would only meet the same conflict
-    /// again at every later save. The pass ends instead, and the rest wait for the next one.
-    /// </summary>
     [Fact]
     public async Task AConflict_EndsThePassWithoutTouchingTheReminderAfterIt()
     {
@@ -258,10 +225,6 @@ public sealed class FireDueRemindersUseCaseTests
             TestToken);
     }
 
-    /// <summary>
-    /// A pass that is not the leader is not a failure and not an error to report: another host is
-    /// firing this batch. What it must not do is any of the work.
-    /// </summary>
     [Fact]
     public async Task TheLeaseHeldByAnotherHost_LeavesTheWholePassUndone()
     {
@@ -281,13 +244,8 @@ public sealed class FireDueRemindersUseCaseTests
         reminder.State.ShouldBe(ReminderState.Pending);
     }
 
-    /// <summary>
-    /// The lease name is the lock key every replica derives, including the two releases running
-    /// side by side during a rolling deploy. The literal is repeated here on purpose: that is what
-    /// makes renaming the constant fail a test instead of silently splitting the leader in two.
-    /// </summary>
     [Fact]
-    public async Task TheWholePass_RunsUnderOneNamedLease()
+    public async Task TheLeaseName_IsPinnedAsALiteral_AndTheWholePassRunsUnderIt()
     {
         var reminder = ADueReminder();
         GivenDueReminders(reminder);
@@ -302,10 +260,6 @@ public sealed class FireDueRemindersUseCaseTests
             TestToken);
     }
 
-    /// <summary>
-    /// A failure inside the work must not come back looking like a standby pass: the two answers
-    /// mean opposite things to whoever reads the log.
-    /// </summary>
     [Fact]
     public async Task AFailureInsideTheLease_SurfacesToTheCaller()
     {
@@ -329,12 +283,6 @@ public sealed class FireDueRemindersUseCaseTests
         _lease,
         NullLogger<FireDueRemindersUseCase>.Instance);
 
-    /// <summary>
-    /// The substitute has to <em>call</em> the delegate, or every test here would assert against a
-    /// pass that never ran. The lambda is async and returns <c>Task&lt;bool&gt;</c> so that the work
-    /// is awaited inside the call rather than abandoned: a non-async one would return true while
-    /// the work was still an unobserved task, and an exception it threw would surface nowhere.
-    /// </summary>
     private void GivenTheLeaseIsGranted() =>
         _lease.TryRunExclusivelyAsync(
                 Arg.Any<string>(),

@@ -47,11 +47,6 @@ namespace AppTemplate.Application.Auth.UnitTests;
 
 public sealed class ApplicationAuthModuleTests
 {
-    /// <summary>
-    /// Twenty-four account and sign-in operations, one for signing in through an external identity
-    /// provider, two security-trail reads, two administrative purges reached only from a background
-    /// job, and the two the session list gives its owner: reading it and ending one of its entries.
-    /// </summary>
     private const int _knownUseCaseCount = 37;
 
     public static TheoryData<Type> UseCaseImplementations =>
@@ -64,10 +59,6 @@ public sealed class ApplicationAuthModuleTests
             "A use case was added or removed without this count following it. Discovery is what puts " +
             "it in the container, so the count is the only place the number is stated at all.");
 
-    /// <summary>
-    /// Each use case resolves through its own interface and nothing else: a container that binds the
-    /// concrete class would let a controller depend on the implementation.
-    /// </summary>
     [Theory]
     [MemberData(nameof(UseCaseImplementations))]
     public void EveryUseCase_ResolvesThroughItsOwnInterface(Type implementation)
@@ -101,10 +92,6 @@ public sealed class ApplicationAuthModuleTests
         services.ShouldNotContain(descriptor => descriptor.ServiceType == implementation);
     }
 
-    /// <summary>
-    /// The validators are discovered, not listed, so a command whose validator was never
-    /// written would fail to resolve here rather than silently skip validation.
-    /// </summary>
     [Theory]
     [InlineData(typeof(IValidator<RegisterCommand>))]
     [InlineData(typeof(IValidator<LoginCommand>))]
@@ -136,10 +123,6 @@ public sealed class ApplicationAuthModuleTests
         scope.ServiceProvider.GetRequiredService(validatorType).ShouldNotBeNull();
     }
 
-    /// <summary>
-    /// Each <c>IValidator&lt;T&gt;</c> is bound exactly once. A second registration mechanism would
-    /// leave "last one wins" deciding which instance a use case received.
-    /// </summary>
     [Theory]
     [InlineData(typeof(IValidator<RegisterCommand>))]
     [InlineData(typeof(IValidator<LoginCommand>))]
@@ -156,21 +139,12 @@ public sealed class ApplicationAuthModuleTests
     public void TheEntryPoint_Rejects_ANullServiceCollection() =>
         Should.Throw<ArgumentNullException>(() => ApplicationAuthModule.AddAuthApplication(null!));
 
-    /// <summary>
-    /// Nothing in this project reads settings, so the entry point takes no <c>IConfiguration</c> —
-    /// asking for configuration it does not use would invite the infrastructure knowledge the layer
-    /// exists to avoid.
-    /// </summary>
     [Fact]
     public void TheEntryPoint_AsksForNothingButTheServiceCollection() =>
         typeof(ApplicationAuthModule)
             .GetMethod(nameof(ApplicationAuthModule.AddAuthApplication))!
             .GetParameters().Length.ShouldBe(1);
 
-    /// <summary>
-    /// Scope validation plus eager building means a missing dependency fails here rather than at
-    /// the first request.
-    /// </summary>
     private static ServiceProvider BuildProvider()
     {
         var services = new ServiceCollection();
@@ -197,7 +171,6 @@ public sealed class ApplicationAuthModuleTests
         services.AddScoped(_ => Substitute.For<ICurrentAccessToken>());
         services.AddScoped(_ => Substitute.For<IDomainEventPublisher>());
 
-        // Several use cases take an ILogger, which every real host supplies.
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
         return services.BuildServiceProvider(new ServiceProviderOptions

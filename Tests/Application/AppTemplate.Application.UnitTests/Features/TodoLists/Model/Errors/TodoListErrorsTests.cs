@@ -36,7 +36,6 @@ public sealed class TodoListErrorsTests
         TodoListErrors.ListNotFound(Guid.CreateVersion7()).Code
             .ShouldNotBe(TodoListErrors.ItemNotFound(Guid.CreateVersion7()).Code);
 
-    /// <summary>Clients branch on the code rather than on the prose, so two must never collide.</summary>
     [Fact]
     public void EveryCode_IsDistinct()
     {

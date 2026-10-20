@@ -8,14 +8,8 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Files.Model.Policies;
 
-/// <summary>
-/// The three bounds, each proven to bind on its own. Without this policy, registering a file is a
-/// free way to mint signed upload URLs, so every one of these is a security assertion rather than a
-/// usability one.
-/// </summary>
 public sealed class StoredFileQuotaPolicyTests
 {
-    /// <summary>Small and unlike the defaults, so a bound read from anywhere but the category fails.</summary>
     private static readonly FileCategoryQuotaOptions _quota = new()
     {
         MaxPendingUploads = 3,
@@ -23,10 +17,6 @@ public sealed class StoredFileQuotaPolicyTests
         MaxBytes = 10_000,
     };
 
-    /// <summary>
-    /// The defaults a category gets when it declares no quota: the former global bounds, held under
-    /// concurrency.
-    /// </summary>
     [Fact]
     public void TheDefaultQuota_IsTwentyPendingAThousandFilesAndTenGibibytes()
     {
@@ -60,10 +50,6 @@ public sealed class StoredFileQuotaPolicyTests
         result.Error.Type.ShouldBe(ErrorType.Conflict);
     }
 
-    /// <summary>
-    /// The pending bound is about outstanding write rights, not about storage, so it binds even
-    /// though those registrations weigh nothing at all.
-    /// </summary>
     [Fact]
     public void TooManyPendingRegistrations_AreRefusedEvenWhenNothingIsStored()
     {
@@ -87,7 +73,6 @@ public sealed class StoredFileQuotaPolicyTests
         result.Error!.Code.ShouldBe("storedFile.quotaExceeded");
     }
 
-    /// <summary>The file ceiling counts both states: a thousand pending rows is a thousand rows.</summary>
     [Fact]
     public void TheFileCeiling_CountsPendingRowsToo()
     {
@@ -117,11 +102,6 @@ public sealed class StoredFileQuotaPolicyTests
         result.Error!.Code.ShouldBe("storedFile.quotaExceeded");
     }
 
-    /// <summary>
-    /// The one that stops the quota being walked past. Counting only confirmed bytes would let a
-    /// caller register everything first — each registration weighing nothing yet — and deposit
-    /// afterwards, at which point no check is left to run.
-    /// </summary>
     [Fact]
     public void BytesMerelyPromised_CountAgainstTheAllowance()
     {
@@ -134,10 +114,6 @@ public sealed class StoredFileQuotaPolicyTests
         StoredFileQuotaPolicy.EnsureRoomFor(usage, _quota, 1).IsFailure.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// The message describes the caller's own allowance. It must not carry anything about the store
-    /// itself or about anyone else, because it is returned verbatim.
-    /// </summary>
     [Fact]
     public void TheRefusal_SpeaksOnlyOfTheCallersOwnAllowance()
     {

@@ -74,11 +74,6 @@ public sealed class DeleteTodoListUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The ownership check on the most destructive operation in the module. Deleting the
-    /// <c>OwnerId</c> comparison lets any authenticated caller delete any list, and turns
-    /// this red.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersList_IsNotDeleted()
     {
@@ -124,11 +119,6 @@ public sealed class DeleteTodoListUseCaseTests
         _repository.Received(1).Remove(list);
     }
 
-    /// <summary>
-    /// The aggregate handed to <c>Remove</c> is the one that was loaded, not a detached
-    /// stand-in built from the id — deleting a different instance would not cascade to the
-    /// items and tags the aggregate owns.
-    /// </summary>
     [Fact]
     public async Task TheAggregateThatWasLoaded_IsTheOneRemoved()
     {

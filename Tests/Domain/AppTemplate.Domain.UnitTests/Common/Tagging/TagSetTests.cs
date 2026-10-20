@@ -5,11 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Domain.UnitTests.Common.Tagging;
 
-/// <summary>
-/// The three rules every tagged thing in this application obeys, tested here rather than once per
-/// aggregate: what the to-do item and the stored file share is not a shape but this behaviour, so
-/// this is the file that says what it is.
-/// </summary>
 public sealed class TagSetTests
 {
     private const int _capacity = 3;
@@ -26,11 +21,6 @@ public sealed class TagSetTests
         tags.Tags.Select(tag => tag.Value).ShouldBe(["urgent"]);
     }
 
-    /// <summary>
-    /// The reason the no-op is not an error: a client that had to read before writing to stay
-    /// correct would race every other client, and a retried request would fail on its second
-    /// attempt for having succeeded on its first.
-    /// </summary>
     [Fact]
     public void AddingATagAlreadyHeld_IsANoOp_EvenWhenTheSetIsFull()
     {
@@ -76,11 +66,6 @@ public sealed class TagSetTests
         tags.Tags.Select(tag => tag.Value).ShouldBe(["keep", "new"], ignoreOrder: true);
     }
 
-    /// <summary>
-    /// The cap applies to the result, not to the union of what is held and what is wanted:
-    /// swapping a full set for a different full set is not a request for twice the cap. This is the
-    /// property that makes the removals happen before the additions rather than after.
-    /// </summary>
     [Fact]
     public void ReplacingAFullSet_WithADifferentFullSet_IsAllowed()
     {
@@ -114,10 +99,6 @@ public sealed class TagSetTests
         tags.Tags.Select(tag => tag.Value).ShouldBe(["keep", "drop"], ignoreOrder: true);
     }
 
-    /// <summary>
-    /// Duplicates inside the replacement collapse before the cap is read, because
-    /// <see cref="Tag"/> normalises before it compares — so four spellings of two tags are two.
-    /// </summary>
     [Fact]
     public void Replace_CollapsesDuplicatesBeforeTheCapIsRead()
     {

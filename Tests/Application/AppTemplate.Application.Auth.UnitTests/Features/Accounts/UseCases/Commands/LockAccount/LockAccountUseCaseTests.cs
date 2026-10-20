@@ -43,11 +43,6 @@ public sealed class LockAccountUseCaseTests
         _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// Locking rotates the security stamp, which would invalidate the very access token the caller
-    /// used to make this request — an administrator could otherwise lock themselves out with no
-    /// other session left to undo it.
-    /// </summary>
     [Fact]
     public async Task ACallerTargetingThemselves_IsRefusedBeforeTouchingTheStore()
     {
@@ -80,7 +75,6 @@ public sealed class LockAccountUseCaseTests
         result.IsSuccess.ShouldBeTrue();
     }
 
-    /// <summary>The gap this whole vertical exists to close: see <c>IAccountAdministrationService</c>.</summary>
     [Fact]
     public async Task ASuccessfulLock_RevokesEveryRefreshTokenForTheTarget()
     {

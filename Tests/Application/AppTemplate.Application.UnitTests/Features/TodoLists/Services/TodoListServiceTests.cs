@@ -12,11 +12,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.TodoLists.Services;
 
-/// <summary>
-/// The one gate every mutating use case loads its aggregate through, so its own tests are
-/// where the identity/ownership/precondition matrix is proven exhaustively rather than
-/// re-proven, slightly differently, in every use case's test file.
-/// </summary>
 public sealed class TodoListServiceTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
@@ -57,10 +52,6 @@ public sealed class TodoListServiceTests
         result.Error.Code.ShouldBe("todoList.notFound");
     }
 
-    /// <summary>
-    /// "Not yours" and "does not exist" answer identically, so a caller cannot use this to
-    /// enumerate other users' list ids.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersList_IsIndistinguishableFromAMissingOne()
     {
@@ -116,10 +107,6 @@ public sealed class TodoListServiceTests
         result.Error.Code.ShouldBe("precondition.failed");
     }
 
-    /// <summary>
-    /// An empty acceptable-version set is what a caller naming a validator this application
-    /// never issued produces. It must satisfy nothing, not be treated as "no constraint".
-    /// </summary>
     [Fact]
     public async Task AnEmptyAcceptableVersionSet_SatisfiesNothing()
     {

@@ -19,11 +19,6 @@ public sealed class LogoutUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// Signing out has to revoke a specific token, so a blank one is a request that could
-    /// not end any session — it is refused before the revocation runs. Removing the
-    /// <c>IsValid</c> check turns this red.
-    /// </summary>
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -57,7 +52,6 @@ public sealed class LogoutUseCaseTests
         _securityEventLog.Received(1).Record(SecurityEvent.LoggedOut(userId));
     }
 
-    /// <summary>Nothing to attribute a log entry to when the token named no grant at all.</summary>
     [Fact]
     public async Task ATokenNobodyWasIssued_RecordsNothing()
     {
@@ -68,10 +62,6 @@ public sealed class LogoutUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// Revocation is silent about whether the token existed, and so is this: an answer that differed
-    /// would make signing out a way to test a token.
-    /// </summary>
     [Fact]
     public async Task ATokenNobodyWasIssued_IsAnsweredTheSameWay()
     {
@@ -82,7 +72,6 @@ public sealed class LogoutUseCaseTests
         forUnknown.Error.ShouldBe(forKnown.Error);
     }
 
-    /// <summary>Only the presented grant goes: signing out on one device is not signing out everywhere.</summary>
     [Fact]
     public async Task TheWholeFamily_IsNotRevoked()
     {

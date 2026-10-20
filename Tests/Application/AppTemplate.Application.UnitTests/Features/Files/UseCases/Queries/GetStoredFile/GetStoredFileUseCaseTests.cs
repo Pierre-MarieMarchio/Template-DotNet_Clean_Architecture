@@ -41,11 +41,6 @@ public sealed class GetStoredFileUseCaseTests
             Arg.Any<Guid>(), Arg.Any<UserId>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The ownership filter is passed into the query rather than applied to its result. Reading the
-    /// row first and comparing afterwards would work today and would be one careless edit away from
-    /// serving a file to whoever asked for it by id.
-    /// </summary>
     [Fact]
     public async Task TheOwnerFilter_IsTheCallerAndReachesThePort()
     {
@@ -57,10 +52,6 @@ public sealed class GetStoredFileUseCaseTests
         await _queries.Received(1).GetDetailAsync(fileId, _callerId, Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Somebody else's file answers exactly as a missing one does, because the port answers
-    /// <c>null</c> for both and this use case cannot tell them apart even if it wanted to.
-    /// </summary>
     [Fact]
     public async Task AFileThatIsNotTheCallers_IsReportedAsNotFound()
     {
@@ -88,7 +79,6 @@ public sealed class GetStoredFileUseCaseTests
         result.Value.Version.ShouldBe(3u);
     }
 
-    /// <summary>Metadata only. A URL here would be a bearer right handed out on every read.</summary>
     [Fact]
     public void TheReadModel_CarriesNoUrlAndNoContent() =>
         typeof(StoredFileDto)

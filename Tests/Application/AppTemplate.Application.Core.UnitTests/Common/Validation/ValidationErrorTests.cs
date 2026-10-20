@@ -22,10 +22,6 @@ public sealed class ValidationErrorTests
         error.Message.ShouldBe("One or more fields are invalid.");
     }
 
-    /// <summary>
-    /// The message is fixed rather than a concatenation of the failures: two unrelated failures
-    /// must not be able to change what the top-level message says.
-    /// </summary>
     [Fact]
     public void From_NeverFoldsFailureMessagesIntoTheTopLevelMessage()
     {
@@ -55,7 +51,6 @@ public sealed class ValidationErrorTests
         details["name"].ShouldBe(["A name is required."]);
     }
 
-    /// <summary>Several failures on the same field must all be kept, not just the first.</summary>
     [Fact]
     public void From_GroupsSeveralFailuresOnTheSameField()
     {
@@ -93,7 +88,6 @@ public sealed class ValidationErrorTests
 
     #region ForField
 
-    /// <summary>For a rule no validator can express, e.g. one only the store can evaluate.</summary>
     [Fact]
     public void ForField_ProducesTheSameStableCodeAndFixedMessage()
     {

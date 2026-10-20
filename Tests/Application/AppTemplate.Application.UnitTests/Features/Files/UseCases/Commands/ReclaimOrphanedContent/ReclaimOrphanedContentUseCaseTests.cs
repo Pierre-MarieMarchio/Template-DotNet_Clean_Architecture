@@ -27,10 +27,6 @@ public sealed class ReclaimOrphanedContentUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// Same trap as the abandonment purge: a background scope's current user throws rather than invent a
-    /// caller, and the objects swept here belong to every owner and to none of them.
-    /// </summary>
     [Fact]
     public void ThePass_NeverReadsTheCurrentUser()
     {
@@ -45,10 +41,6 @@ public sealed class ReclaimOrphanedContentUseCaseTests
         parameters.ShouldNotContain(parameter => parameter.ParameterType == typeof(ICurrentUser));
     }
 
-    /// <summary>
-    /// The whole guarantee, in one sentence: an object no row names is rubbish, and it is deleted —
-    /// whether or not any deletion event was ever delivered.
-    /// </summary>
     [Fact]
     public async Task AnObjectNoRowNames_IsDeleted()
     {
@@ -61,11 +53,6 @@ public sealed class ReclaimOrphanedContentUseCaseTests
         await _content.Received(1).DeleteAsync(_orphanKey, Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The other half, and the one that would be catastrophic to get wrong: an object a row still
-    /// names is left exactly where it is. Inverting the <c>live.Contains</c> test in the use case
-    /// deletes every live file in the bucket and turns this red.
-    /// </summary>
     [Fact]
     public async Task AnObjectARowStillNames_IsLeftAlone()
     {
@@ -77,12 +64,6 @@ public sealed class ReclaimOrphanedContentUseCaseTests
         await _content.DidNotReceive().DeleteAsync(_liveKey, Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The ordering that keeps a file registered mid-pass safe. The page is listed first and the
-    /// rows are asked about it second; reading the live keys first would let a file registered in
-    /// between be listed as an object with no row on record, and the pass would delete the bytes of
-    /// a file its owner had just uploaded.
-    /// </summary>
     [Fact]
     public async Task EachPage_IsListedBeforeTheRowsAreAskedAboutIt()
     {
@@ -114,10 +95,6 @@ public sealed class ReclaimOrphanedContentUseCaseTests
         askedBeforeListing.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The rows are asked about the page the store just reported, not about the whole table: the
-    /// question is bounded by what the caller already holds, whatever the size of the bucket.
-    /// </summary>
     [Fact]
     public async Task TheRows_AreAskedAboutExactlyThePageThatWasListed()
     {
@@ -137,8 +114,6 @@ public sealed class ReclaimOrphanedContentUseCaseTests
     [Fact]
     public async Task EveryPage_IsWalked()
     {
-        // Every argument of the same type needs a matcher of its own: mixing a raw value with
-        // Arg.Any for two strings is ambiguous, and NSubstitute says so rather than guessing.
         _inventory.ListKeysAsync(
                 Arg.Any<string>(),
                 Arg.Is<string?>(token => token == null),
@@ -185,10 +160,6 @@ public sealed class ReclaimOrphanedContentUseCaseTests
         await _content.DidNotReceive().DeleteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The walk starts at the reserved partition prefix, which is the first segment of every key the
-    /// domain mints. Starting anywhere else would leave part of the store unswept for ever.
-    /// </summary>
     [Fact]
     public async Task TheWalk_StartsAtThePartitionEveryKeyIsMintedUnder()
     {
@@ -203,7 +174,6 @@ public sealed class ReclaimOrphanedContentUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>A store whose listing never ends must not hang the pass: the budget ends it.</summary>
     [Fact]
     public async Task AnEndlessListing_StopsAtTheSafetyValve()
     {
@@ -214,7 +184,6 @@ public sealed class ReclaimOrphanedContentUseCaseTests
                 Arg.Any<CancellationToken>())
             .Returns(PagedResult.Keyset<string>([], 0, "always-more"));
 
-        // Reaching this assertion at all is the assertion: without the valve the walk never returns.
         var result = await UseCase().ExecuteAsync(TestToken);
 
         result.IsSuccess.ShouldBeTrue();
@@ -235,9 +204,8 @@ public sealed class ReclaimOrphanedContentUseCaseTests
         _checkpoint.Saves.ShouldBeEmpty();
     }
 
-    /// <summary>The literal is repeated on purpose: the name is a contract across releases.</summary>
     [Fact]
-    public async Task ThePass_RunsUnderItsNamedLease()
+    public async Task TheLeaseName_IsPinnedAsALiteral()
     {
         GivenTheStoreListsOnePageOf();
 

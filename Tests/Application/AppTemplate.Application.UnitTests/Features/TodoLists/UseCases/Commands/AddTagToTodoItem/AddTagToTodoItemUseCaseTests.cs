@@ -94,8 +94,6 @@ public sealed class AddTagToTodoItemUseCaseTests
         result.Value.Value.Tags.ShouldBe(["urgent"]);
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
 
-        // Tagging changes the answer the picker reads, so the entry has to go: a suggestion list
-        // that never learned about a tag the caller just added is the one staleness a user notices.
         _cache.Removed.ShouldContain(UsedTagsCache.KeyFor(UsedTagsCache.TodoItemScope, _callerId));
     }
 

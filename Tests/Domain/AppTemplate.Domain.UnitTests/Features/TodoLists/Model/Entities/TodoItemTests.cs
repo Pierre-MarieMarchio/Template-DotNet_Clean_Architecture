@@ -8,11 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Domain.UnitTests.Features.TodoLists.Model.Entities;
 
-/// <summary>
-/// Every test here drives the item through a <see cref="TodoList"/>, because that is the only
-/// way to reach it: an item that could be changed directly would put the list's invariants out
-/// of the list's reach.
-/// </summary>
 public sealed class TodoItemTests
 {
     private static readonly DateTimeOffset _now = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
@@ -75,10 +70,6 @@ public sealed class TodoItemTests
     public void Description_IsTrimmed() =>
         AnItem("Buy milk", "  Semi-skimmed  ").Description.ShouldBe("Semi-skimmed");
 
-    /// <summary>
-    /// A blank description is absence, not an empty string: two representations of "there
-    /// is no description" would have to be handled by every reader.
-    /// </summary>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -111,11 +102,6 @@ public sealed class TodoItemTests
         list.Items.ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// A tripwire on the value of the limit, not on the mechanism: every other length test above
-    /// reads the constant and is therefore blind to a change in the constant itself. The column is
-    /// sized from this number, so widening it is a schema decision and has to be a deliberate one.
-    /// </summary>
     [Fact]
     public void TheMaximumDescriptionLength_IsTwoThousandCharacters() =>
         TodoItem.MaxDescriptionLength.ShouldBe(2000);
@@ -133,10 +119,6 @@ public sealed class TodoItemTests
         item.CompletedAt.ShouldBeNull();
     }
 
-    /// <summary>
-    /// <c>IsCompleted</c> is derived, not stored, so the flag and the timestamp can never
-    /// disagree. Turning it into an independently settable field turns this red.
-    /// </summary>
     [Fact]
     public void IsCompleted_TracksTheCompletionTimestamp()
     {
@@ -156,10 +138,6 @@ public sealed class TodoItemTests
     public void IsCompleted_HasNoSetter() =>
         typeof(TodoItem).GetProperty(nameof(TodoItem.IsCompleted))!.SetMethod.ShouldBeNull();
 
-    /// <summary>
-    /// The default instant is what an uninitialised caller passes. Accepting it would leave the item
-    /// completed at 0001-01-01, a value no reader can tell apart from a real one.
-    /// </summary>
     [Fact]
     public void Complete_Rejects_TheDefaultInstant()
     {
@@ -188,10 +166,6 @@ public sealed class TodoItemTests
         list.Items.Single().TodoListId.ShouldBe(list.Id);
     }
 
-    /// <summary>
-    /// A plain foreign key rather than a back-reference navigation, so the object graph stays a
-    /// tree and cannot produce a serialisation cycle.
-    /// </summary>
     [Fact]
     public void AnItem_HasNoBackReferenceToItsList() =>
         typeof(TodoItem).GetProperties()
@@ -235,7 +209,6 @@ public sealed class TodoItemTests
         item.Tags.Count.ShouldBe(1);
     }
 
-    /// <summary>Value tripwire: widening the cap is an API change, not an implementation detail.</summary>
     [Fact]
     public void TheTagCap_IsTwentyTags() => TodoItem.MaxTags.ShouldBe(20);
 
@@ -267,10 +240,6 @@ public sealed class TodoItemTests
         Should.Throw<DomainException>(() => list.AddTagToItem(itemId, "one-too-many"));
     }
 
-    /// <summary>
-    /// Re-sending a tag the item already has stays a no-op even when the item is full: a retried
-    /// request must not start failing just because the cap was reached.
-    /// </summary>
     [Fact]
     public void AnExistingTag_IsStillANoOpOnAFullItem()
     {
@@ -291,10 +260,6 @@ public sealed class TodoItemTests
 
     #region Encapsulation
 
-    /// <summary>
-    /// Every mutator is internal to the domain assembly, which is what leaves the root as
-    /// the only thing able to change an item. Making any of them public turns this red.
-    /// </summary>
     [Theory]
     [InlineData("Complete")]
     [InlineData("Reopen")]

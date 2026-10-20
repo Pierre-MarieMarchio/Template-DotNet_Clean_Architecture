@@ -4,15 +4,10 @@ using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 
 namespace AppTemplate.Application.UnitTests.TestDoubles;
 
-/// <summary>
-/// The object keys of a store, listed in ordinal order and paged after the last key served, as the
-/// real inventories do; deleting removes a key. Only what the orphan sweep reads and writes.
-/// </summary>
 internal sealed class InMemoryBucket : IFileContentInventory, IFileContentStore
 {
     private readonly SortedSet<string> _keys = new(StringComparer.Ordinal);
 
-    /// <summary>Every <c>startAfter</c> a listing was asked for, in call order.</summary>
     public List<string?> ListedAfter { get; } = [];
 
     public IReadOnlyCollection<string> Keys => _keys;

@@ -42,11 +42,6 @@ public sealed class SetUpTwoFactorUseCaseTests
             "otpauth://totp/AppTemplate:someone@example.com?secret=ABCDEFGH&issuer=AppTemplate&digits=6");
     }
 
-    /// <summary>
-    /// Provisioning a second secret over a live one would hand back a key none of the account's
-    /// existing authenticator apps were built from, with no warning that the old one is about to stop
-    /// being checked — so this is refused rather than allowed.
-    /// </summary>
     [Fact]
     public async Task AnAlreadyEnabledAccount_IsRefused()
     {
@@ -58,7 +53,6 @@ public sealed class SetUpTwoFactorUseCaseTests
         result.Error!.Code.ShouldBe("auth.twoFactor.alreadyEnabled");
     }
 
-    /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticated()
     {

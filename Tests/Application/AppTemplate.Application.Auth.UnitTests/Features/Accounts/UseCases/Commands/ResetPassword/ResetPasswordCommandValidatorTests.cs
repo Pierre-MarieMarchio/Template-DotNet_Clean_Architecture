@@ -25,7 +25,6 @@ public sealed class ResetPasswordCommandValidatorTests
     public void ABlankToken_IsRejected(string token) =>
         ShouldFailOn(new ResetPasswordCommand("someone@example.com", token, "correct horse battery"), "Token");
 
-    /// <summary>The length policy is the store's — see <c>RegisterCommandValidatorTests</c>.</summary>
     [Fact]
     public void AShortNewPassword_IsLeftToTheStore() =>
         _validator.Validate(new ResetPasswordCommand("someone@example.com", "a-token", "a")).IsValid.ShouldBeTrue();

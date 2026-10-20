@@ -8,10 +8,6 @@ public sealed class PagedResultTests
 {
     #region Offset mode
 
-    /// <summary>
-    /// The page count is a ceiling, not a truncation: 11 rows in pages of 10 is two pages,
-    /// and an integer division would lose the second one.
-    /// </summary>
     [Theory]
     [InlineData(0, 10, 0)]
     [InlineData(1, 10, 1)]
@@ -23,10 +19,6 @@ public sealed class PagedResultTests
     public void TotalPages_RoundsUp(int totalCount, int pageSize, int expectedTotalPages) =>
         AnOffsetPage(1, pageSize, totalCount).TotalPages.ShouldBe(expectedTotalPages);
 
-    /// <summary>
-    /// A non-positive page size is guarded rather than divided by, so a malformed page
-    /// cannot turn a read into a <c>DivideByZeroException</c> — or into infinity.
-    /// </summary>
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
@@ -62,10 +54,6 @@ public sealed class PagedResultTests
 
     #region Cursor mode
 
-    /// <summary>
-    /// Counting the whole match set is the cost keyset paging exists to avoid, so a keyset page
-    /// answers no total at all rather than a wrong one.
-    /// </summary>
     [Fact]
     public void AKeysetPage_CarriesNoTotalCountOrPageNumber()
     {

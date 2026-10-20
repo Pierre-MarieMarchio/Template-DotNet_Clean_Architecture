@@ -15,18 +15,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands.FireDueReminders;
 
-/// <summary>
-/// What a pass guarantees about delivery across several passes and several reminders, against a store
-/// that commits atomically per save and refuses a write made against a version that has moved.
-/// <para>
-/// <b>The level of proof is a use-case test with a faithful double, not a database.</b>
-/// <see cref="InMemoryReminderStore"/> reproduces the two properties the behaviour turns on — a save
-/// is all or nothing, and a stale version is refused — and the contract
-/// <c>IReminderRepository.GetDueAsync</c> documents. It does not prove that the SQL implementing
-/// that contract orders and filters the same way; the integration suite covers the query, and runs
-/// only where Docker does.
-/// </para>
-/// </summary>
 public sealed class FireDueRemindersDeliveryTests
 {
     private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
@@ -39,8 +27,6 @@ public sealed class FireDueRemindersDeliveryTests
 
     public FireDueRemindersDeliveryTests()
     {
-        // Every item is outstanding: this class is about delivery, not about what an item's state
-        // does to a reminder, which FireDueRemindersUseCaseTests covers.
         _todoItems.GetCompletionStatesAsync(Arg.Any<IReadOnlyList<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(call => (IReadOnlyDictionary<Guid, bool>)call.Arg<IReadOnlyList<Guid>>()
                 .ToDictionary(id => id, _ => false));
@@ -59,13 +45,6 @@ public sealed class FireDueRemindersDeliveryTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    // ---- One conflict must not resend what was already delivered -----------------------------------
-
-    /// <summary>
-    /// Three due reminders, and the middle one is cancelled by somebody else while its notification
-    /// is in flight. The conflict may cost that one reminder; it must not cost the other two a second
-    /// notification on the next pass.
-    /// </summary>
     [Fact]
     public async Task AConflictOnOneReminder_DoesNotMakeTheNextPassResendTheOthers()
     {
@@ -80,7 +59,6 @@ public sealed class FireDueRemindersDeliveryTests
             }
         };
 
-        // What the job does with a failing pass: log it and try again at the next tick.
         await Record.ExceptionAsync(() => RunPassAsync(_start));
         await RunPassAsync(_start.AddMinutes(1));
 
@@ -113,13 +91,6 @@ public sealed class FireDueRemindersDeliveryTests
         _store.Writes.Count(write => write.State == ReminderState.Fired).ShouldBe(3);
     }
 
-    // ---- A reminder that keeps failing must not keep the others out --------------------------------
-
-    /// <summary>
-    /// More reminders that always fail than one batch holds, all due before a healthy one. With the
-    /// failures staying first in due order, the healthy reminder is never reached: the batch is full
-    /// of them on every pass, for ever.
-    /// </summary>
     [Fact]
     public async Task RemindersThatAlwaysFail_DoNotKeepALaterOneOutOfTheBatch()
     {
@@ -132,8 +103,6 @@ public sealed class FireDueRemindersDeliveryTests
         int batchSize = _store.LastRequestedBatchSize;
         batchSize.ShouldBeLessThan(failing.Count, "the scenario needs a backlog bigger than one batch");
 
-        // Everything that was waiting ahead of the healthy reminder gets one turn first, so it is
-        // reached within as many passes as there are batches ahead of it, and not later.
         int passes = (failing.Count / batchSize) + 1;
 
         for (int pass = 1; pass <= passes && _notifier.CountFor(healthy) == 0; pass++)
@@ -187,7 +156,6 @@ public sealed class FireDueRemindersDeliveryTests
 
     private async Task RunPassAsync(DateTimeOffset now)
     {
-        // A pass is a scope of its own: nothing a previous one loaded or left staged is visible.
         _store.StartNewScope();
 
         var useCase = new FireDueRemindersUseCase(
@@ -213,7 +181,6 @@ public sealed class FireDueRemindersDeliveryTests
         return recipients;
     }
 
-    /// <summary>Records every notification, and fails or reacts for the reminders a test names.</summary>
     private sealed class ScriptedNotifier : IReminderNotifier
     {
         private readonly List<(Guid TodoItemId, bool Succeeded)> _attempts = [];

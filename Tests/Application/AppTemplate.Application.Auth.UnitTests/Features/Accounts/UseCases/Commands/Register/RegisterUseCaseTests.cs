@@ -13,13 +13,14 @@ using Xunit;
 
 namespace AppTemplate.Application.Auth.UnitTests.Features.Accounts.UseCases.Commands.Register;
 
-/// <summary>
-/// Sign-up is three steps in a fixed order — create the account, mint a confirmation token, deliver
-/// the mail — and only the first of them may fail the request.
-/// </summary>
 public sealed class RegisterUseCaseTests
 {
+    private const string _email = "someone@example.com";
+    private const string _password = "correct horse battery";
     private const string _token = "confirmation-token";
+
+    private static readonly AccountEmail _confirmation = new("Confirm your email address", "<html>confirm</html>");
+    private static readonly AccountEmail _notice = new("You already have an account", "<html>notice</html>");
 
     private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
     private readonly IEmailTokensService _emailTokens = Substitute.For<IEmailTokensService>();
@@ -28,7 +29,8 @@ public sealed class RegisterUseCaseTests
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly RegisterUseCase _useCase;
 
-    public RegisterUseCaseTests() =>
+    public RegisterUseCaseTests()
+    {
         _useCase = new RegisterUseCase(
             _accounts,
             _emailTokens,
@@ -38,60 +40,206 @@ public sealed class RegisterUseCaseTests
             new RegisterCommandValidator(),
             NullLogger<RegisterUseCase>.Instance);
 
+        _emailTokens.IssueEmailConfirmationAsync(_email, Arg.Any<CancellationToken>()).Returns(_token);
+        _emailFactory.CreateConfirmationAsync(_email, _token, Arg.Any<CancellationToken>()).Returns(_confirmation);
+        _emailFactory.CreateAlreadyRegisteredAsync(_email, Arg.Any<CancellationToken>()).Returns(_notice);
+    }
+
+    public enum AddressState
+    {
+        Unknown,
+        TakenAndConfirmed,
+        TakenAndUnconfirmed,
+    }
+
+    public static TheoryData<AddressState> EveryState => [.. Enum.GetValues<AddressState>()];
+
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region The dead-password-policy regression
+    #region The three states of the address
 
-    /// <summary>
-    /// Guards the shape validation against becoming dead code: removing the
-    /// <c>if (!validation.IsValid)</c> check turns every case here red, because the account would be
-    /// created anyway.
-    /// </summary>
+    [Fact]
+    public async Task AnUnknownAddress_CreatesTheAccountAndMailsAConfirmationLink()
+    {
+        var userId = GivenTheAddressIs(AddressState.Unknown);
+
+        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        _securityEventLog.Received(1).Record(SecurityEvent.Registered(userId));
+        await _emailSender.Received(1).SendAsync(_email, _confirmation.Subject, _confirmation.HtmlBody, Arg.Any<CancellationToken>());
+        await _emailFactory.DidNotReceive().CreateAlreadyRegisteredAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ATakenConfirmedAddress_MailsANoticeAndNoToken()
+    {
+        GivenTheAddressIs(AddressState.TakenAndConfirmed);
+
+        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await _emailSender.Received(1).SendAsync(_email, _notice.Subject, _notice.HtmlBody, Arg.Any<CancellationToken>());
+        _emailTokens.ReceivedCalls().ShouldBeEmpty();
+        _securityEventLog.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ATakenUnconfirmedAddress_MailsAFreshConfirmationLink()
+    {
+        GivenTheAddressIs(AddressState.TakenAndUnconfirmed);
+
+        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await _emailSender.Received(1).SendAsync(_email, _confirmation.Subject, _confirmation.HtmlBody, Arg.Any<CancellationToken>());
+        await _emailFactory.DidNotReceive().CreateAlreadyRegisteredAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        _securityEventLog.ReceivedCalls().ShouldBeEmpty();
+    }
+
     [Theory]
-    [InlineData("", "correct horse battery")]
-    [InlineData("not-an-email", "correct horse battery")]
-    [InlineData("someone@example.com", "")]
-    [InlineData("someone@example.com", "   ")]
-    public async Task AnInvalidRequest_NeverCreatesAnAccount(string email, string password)
+    [MemberData(nameof(EveryState))]
+    public async Task EveryState_SendsExactlyOneMail_ToTheSubmittedAddress(AddressState state)
+    {
+        GivenTheAddressIs(state);
+
+        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        _emailSender.ReceivedCalls().Count().ShouldBe(1);
+        await _emailSender.Received(1).SendAsync(_email, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task EveryState_IsAnsweredIdentically()
+    {
+        var answers = new List<Result>();
+
+        foreach (var state in Enum.GetValues<AddressState>())
+        {
+            GivenTheAddressIs(state);
+            answers.Add(await _useCase.ExecuteAsync(AValidRequest(), TestToken));
+        }
+
+        answers.ShouldAllBe(answer => answer.IsSuccess && answer.Error == null);
+    }
+
+    [Theory]
+    [MemberData(nameof(EveryState))]
+    public async Task AFailedDelivery_NeverChangesTheAnswer(AddressState state)
+    {
+        GivenTheAddressIs(state);
+        _emailSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("The relay is unreachable."));
+
+        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Theory]
+    [MemberData(nameof(EveryState))]
+    public async Task AFailureWhileComposingTheMessage_NeverChangesTheAnswer(AddressState state)
+    {
+        GivenTheAddressIs(state);
+        _emailFactory.CreateConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("The template is missing."));
+        _emailFactory.CreateAlreadyRegisteredAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("The template is missing."));
+
+        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        _emailSender.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ACreatedAccount_IsKeptWhenDeliveryFails()
+    {
+        GivenTheAddressIs(AddressState.Unknown);
+        _emailSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("The relay is unreachable."));
+
+        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        _accounts.ReceivedCalls().Count().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task NoIssuedToken_SendsNothing_AndStillSucceeds()
+    {
+        GivenTheAddressIs(AddressState.TakenAndUnconfirmed);
+        _emailTokens.IssueEmailConfirmationAsync(_email, Arg.Any<CancellationToken>()).Returns((string?)null);
+
+        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        _emailSender.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Theory]
+    [MemberData(nameof(EveryState))]
+    public async Task ACancelledDelivery_Propagates(AddressState state)
+    {
+        GivenTheAddressIs(state);
+        _emailSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new OperationCanceledException());
+
+        await Should.ThrowAsync<OperationCanceledException>(() => _useCase.ExecuteAsync(AValidRequest(), TestToken));
+    }
+
+    [Fact]
+    public async Task TheConfirmationToken_IsIssuedAfterTheAccountExists()
+    {
+        GivenTheAddressIs(AddressState.Unknown);
+
+        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
+
+        Received.InOrder(() =>
+        {
+            _accounts.RegisterAsync(_email, _password, Arg.Any<CancellationToken>());
+            _emailTokens.IssueEmailConfirmationAsync(_email, Arg.Any<CancellationToken>());
+            _emailFactory.CreateConfirmationAsync(_email, _token, Arg.Any<CancellationToken>());
+            _emailSender.SendAsync(_email, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact]
+    public async Task TheCancellationToken_ReachesEveryStep()
+    {
+        GivenTheAddressIs(AddressState.Unknown);
+        using var cancellation = new CancellationTokenSource();
+
+        await _useCase.ExecuteAsync(AValidRequest(), cancellation.Token);
+
+        await _accounts.Received(1).RegisterAsync(_email, _password, cancellation.Token);
+        await _emailTokens.Received(1).IssueEmailConfirmationAsync(_email, cancellation.Token);
+        await _emailSender.Received(1).SendAsync(_email, Arg.Any<string>(), Arg.Any<string>(), cancellation.Token);
+    }
+
+    #endregion
+
+    #region Request-only refusals
+
+    [Theory]
+    [InlineData("", _password)]
+    [InlineData("not-an-email", _password)]
+    [InlineData(_email, "")]
+    [InlineData(_email, "   ")]
+    public async Task AnInvalidRequest_NeverReachesTheStore(string email, string password)
     {
         var result = await _useCase.ExecuteAsync(new RegisterCommand(email, password), TestToken);
 
-        result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
         result.Error.Code.ShouldBe("request.validationFailed");
         _accounts.ReceivedCalls().ShouldBeEmpty();
+        _emailSender.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The password policy has one authority, the store's configured <c>Identity</c> policy, so even
-    /// a one-character password is the store's to judge, and its refusal reaches the caller on the
-    /// password field.
-    /// </summary>
-    [Fact]
-    public async Task AShortPassword_IsJudgedByTheStore()
-    {
-        _accounts.CreateAsync(Arg.Any<string>(), "a", Arg.Any<CancellationToken>())
-            .Returns(AccountCreationOutcome.Rejected(null, "Passwords must be at least 12 characters."));
-
-        var result = await _useCase.ExecuteAsync(
-            new RegisterCommand("someone@example.com", "a"),
-            TestToken);
-
-        result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Details!["password"].ShouldBe(["Passwords must be at least 12 characters."]);
-    }
-
-    /// <summary>
-    /// The upper bound exists to stop an arbitrarily long PBKDF2 input from becoming a
-    /// denial of service, so it must be enforced before the hashing store is reached.
-    /// </summary>
     [Fact]
     public async Task APasswordBeyondTheMaximumLength_NeverReachesTheStore()
     {
-        string tooLong = new('a', RegisterCommandValidator.MaximumPasswordLength + 1);
-
         var result = await _useCase.ExecuteAsync(
-            new RegisterCommand("someone@example.com", tooLong),
+            new RegisterCommand(_email, new string('a', RegisterCommandValidator.MaximumPasswordLength + 1)),
             TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
@@ -103,327 +251,39 @@ public sealed class RegisterUseCaseTests
     {
         var result = await _useCase.ExecuteAsync(new RegisterCommand("", ""), TestToken);
 
-        result.Error!.Details.ShouldNotBeNull();
-        result.Error.Details.ShouldContainKey("email");
-        result.Error.Details.ShouldContainKey("password");
+        result.Error!.Details!.Keys.ShouldBe(["email", "password"], ignoreOrder: true);
     }
 
-    #endregion
-
-    #region What the store's refusal becomes
-
-    /// <summary>
-    /// A taken address cannot be hidden entirely, but the message must not say which of the two
-    /// fields collided, and it must not send mail to an address somebody else owns.
-    /// </summary>
     [Fact]
-    public async Task ATakenAddress_IsAConflictAndSendsNothing()
+    public async Task AStoreRefusal_CarriesEachExplanationOnItsFieldAndSendsNothing()
     {
-        _accounts.CreateAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
-            .Returns(AccountCreationOutcome.Conflict);
-
-        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
-
-        result.Error!.Type.ShouldBe(ErrorType.Conflict);
-        result.Error.Code.ShouldBe("auth.register.unavailable");
-        _emailTokens.ReceivedCalls().ShouldBeEmpty();
-        _emailSender.ReceivedCalls().ShouldBeEmpty();
-    }
-
-    /// <summary>
-    /// A rejection describes the submitted values, so its text is returned verbatim, attached to the
-    /// field it concerns — that is the only way a caller learns which rule the password broke, and
-    /// which field to point at.
-    /// </summary>
-    [Fact]
-    public async Task ARejection_CarriesTheStoresOwnExplanationOnThePasswordField()
-    {
-        _accounts.CreateAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
-            .Returns(AccountCreationOutcome.Rejected(null, "Passwords must have at least one digit."));
-
-        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
-
-        result.Error!.Type.ShouldBe(ErrorType.Validation);
-        result.Error.Details!["password"].ShouldContain("Passwords must have at least one digit.");
-        result.Error.Details.Keys.ShouldBe(["password"]);
-        _emailSender.ReceivedCalls().ShouldBeEmpty();
-    }
-
-    /// <summary>A refused address is pointed at that field, not at the password.</summary>
-    [Fact]
-    public async Task ARejection_CarriesEachExplanationOnTheFieldItConcerns()
-    {
-        _accounts.CreateAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
-            .Returns(AccountCreationOutcome.Rejected("Email 'x' is invalid.", null));
+        _accounts.RegisterAsync(_email, _password, Arg.Any<CancellationToken>())
+            .Returns(AccountRegistrationOutcome.Rejected("Email 'x' is invalid.", "Passwords must have at least one digit."));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
         result.Error!.Code.ShouldBe("request.validationFailed");
         result.Error.Details!["email"].ShouldBe(["Email 'x' is invalid."]);
-        result.Error.Details.ContainsKey("password").ShouldBeFalse();
-    }
-
-    #endregion
-
-    #region Commit before delivery
-
-    [Fact]
-    public async Task ACreatedAccount_IsReportedWithItsIdAndAConfirmationEmail()
-    {
-        var userId = GivenTheAccountIsCreated();
-        GivenTheConfirmationTokenIsIssued();
-
-        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
-
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.UserId.ShouldBe(userId);
-        result.Value.Email.ShouldBe("someone@example.com");
-        result.Value.ConfirmationEmailSent.ShouldBeTrue();
-    }
-
-    [Fact]
-    public async Task ACreatedAccount_IsRecordedAsARegistration()
-    {
-        var userId = GivenTheAccountIsCreated();
-        GivenTheConfirmationTokenIsIssued();
-
-        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
-
-        _securityEventLog.Received(1).Record(SecurityEvent.Registered(userId));
-    }
-
-    /// <summary>A conflict or a rejection is not a registration: nothing is created, so nothing is logged.</summary>
-    [Fact]
-    public async Task ATakenAddress_IsNotRecordedAsARegistration()
-    {
-        _accounts.CreateAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
-            .Returns(AccountCreationOutcome.Conflict);
-
-        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
-
+        result.Error.Details["password"].ShouldBe(["Passwords must have at least one digit."]);
+        _emailSender.ReceivedCalls().ShouldBeEmpty();
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The account is committed before delivery is attempted. Failing the call would leave an
-    /// unconfirmable account behind with its address taken and no way to ask for another link, so the
-    /// outage is reported as a flag and nothing undoes the account.
-    /// </summary>
-    [Fact]
-    public async Task AnUnreachableRelay_StillSucceeds_AndLeavesTheAccountAlone()
-    {
-        var userId = GivenTheAccountIsCreated();
-        GivenTheConfirmationTokenIsIssued();
-
-        _emailSender.SendAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
-            .ThrowsAsync(new InvalidOperationException("The relay is unreachable."));
-
-        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
-
-        result.IsSuccess.ShouldBeTrue("the account was created; only delivery failed.");
-        result.Value.UserId.ShouldBe(userId);
-        result.Value.ConfirmationEmailSent.ShouldBeFalse();
-
-        // Creating it is the only thing that happened to the account: there is no compensating
-        // delete, which is what makes the resend endpoint a working recovery path.
-        await _accounts.Received(1).CreateAsync(
-            "someone@example.com",
-            "correct horse battery",
-            Arg.Any<CancellationToken>());
-
-        _accounts.ReceivedCalls().Count().ShouldBe(1);
-    }
-
-    /// <summary>A failure while rendering the message is the same kind of failure as an outage.</summary>
-    [Fact]
-    public async Task AFailureWhileComposingTheMessage_StillSucceeds()
-    {
-        GivenTheAccountIsCreated();
-        GivenTheConfirmationTokenIsIssued();
-
-        _emailFactory.CreateConfirmationAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
-            .ThrowsAsync(new InvalidOperationException("The template is missing."));
-
-        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
-
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ConfirmationEmailSent.ShouldBeFalse();
-        _emailSender.ReceivedCalls().ShouldBeEmpty();
-    }
-
-    /// <summary>
-    /// Cancellation is not an outage: it must not be swallowed into
-    /// <c>confirmationEmailSent: false</c>, which would report a completed sign-up for a request
-    /// nobody is listening to any more.
-    /// </summary>
-    [Fact]
-    public async Task ACancelledDelivery_Propagates()
-    {
-        GivenTheAccountIsCreated();
-        GivenTheConfirmationTokenIsIssued();
-
-        _emailSender.SendAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
-            .ThrowsAsync(new OperationCanceledException());
-
-        await Should.ThrowAsync<OperationCanceledException>(
-            () => _useCase.ExecuteAsync(AValidRequest(), TestToken));
-    }
-
     #endregion
 
-    #region Ordering
+    private static RegisterCommand AValidRequest() => new(_email, _password);
 
-    /// <summary>
-    /// The token is derived from the stored account, so one minted before the row existed would not
-    /// confirm it. Swapping the two steps turns this red.
-    /// </summary>
-    [Fact]
-    public async Task TheConfirmationToken_IsIssuedAfterTheAccountExists()
-    {
-        GivenTheAccountIsCreated();
-        GivenTheConfirmationTokenIsIssued();
-
-        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
-
-        Received.InOrder(() =>
-        {
-            _accounts.CreateAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>());
-
-            _emailTokens.IssueEmailConfirmationAsync("someone@example.com", Arg.Any<CancellationToken>());
-
-            _emailFactory.CreateConfirmationAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>());
-
-            _emailSender.SendAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>());
-        });
-    }
-
-    /// <summary>
-    /// The mail has to carry the token that was just minted, and be addressed to the account's own
-    /// name — a link built from anything else confirms nothing.
-    /// </summary>
-    [Fact]
-    public async Task TheMail_CarriesTheIssuedTokenAndGoesToTheRegisteredAddress()
-    {
-        GivenTheAccountIsCreated();
-        GivenTheConfirmationTokenIsIssued();
-
-        await _useCase.ExecuteAsync(AValidRequest(), TestToken);
-
-        await _emailFactory.Received(1).CreateConfirmationAsync(
-            "someone@example.com",
-            _token,
-            Arg.Any<CancellationToken>());
-
-        await _emailSender.Received(1).SendAsync(
-            "someone@example.com",
-            "Confirm your email address",
-            "<html>the body</html>",
-            Arg.Any<CancellationToken>());
-    }
-
-    /// <summary>
-    /// No token means no account is waiting for one, which cannot happen straight after a successful
-    /// creation — so nothing is sent rather than a mail with an empty link.
-    /// </summary>
-    [Fact]
-    public async Task NoIssuedToken_SendsNothing_AndReportsDeliveryDidNotHappen()
-    {
-        GivenTheAccountIsCreated();
-
-        _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((string?)null);
-
-        var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
-
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ConfirmationEmailSent.ShouldBeFalse();
-        _emailFactory.ReceivedCalls().ShouldBeEmpty();
-        _emailSender.ReceivedCalls().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public async Task TheCancellationToken_ReachesEveryStep()
-    {
-        GivenTheAccountIsCreated();
-        GivenTheConfirmationTokenIsIssued();
-        using var cancellation = new CancellationTokenSource();
-
-        await _useCase.ExecuteAsync(AValidRequest(), cancellation.Token);
-
-        await _accounts.Received(1).CreateAsync(
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            cancellation.Token);
-
-        await _emailTokens.Received(1).IssueEmailConfirmationAsync(Arg.Any<string>(), cancellation.Token);
-
-        await _emailSender.Received(1).SendAsync(
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            cancellation.Token);
-    }
-
-    #endregion
-
-    private static RegisterCommand AValidRequest() =>
-        new("someone@example.com", "correct horse battery");
-
-    private Guid GivenTheAccountIsCreated()
+    private Guid GivenTheAddressIs(AddressState state)
     {
         var userId = Guid.CreateVersion7();
 
-        _accounts.CreateAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
-            .Returns(AccountCreationOutcome.Created(userId));
+        _accounts.RegisterAsync(_email, _password, Arg.Any<CancellationToken>()).Returns(state switch
+        {
+            AddressState.Unknown => AccountRegistrationOutcome.Created(userId),
+            AddressState.TakenAndConfirmed => AccountRegistrationOutcome.AlreadyRegistered(emailConfirmed: true),
+            _ => AccountRegistrationOutcome.AlreadyRegistered(emailConfirmed: false),
+        });
 
         return userId;
-    }
-
-    private void GivenTheConfirmationTokenIsIssued()
-    {
-        _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(_token);
-
-        _emailFactory.CreateConfirmationAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
-            .Returns(new AccountEmail("Confirm your email address", "<html>the body</html>"));
     }
 }

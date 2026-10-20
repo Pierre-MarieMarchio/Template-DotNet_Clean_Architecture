@@ -11,11 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.Register;
 
-/// <summary>
-/// Creates the account, then tries to mail a confirmation token for it. The account is kept even
-/// when the mail cannot be handed over, since failing the call would leave the address taken with
-/// no account able to claim it.
-/// </summary>
+/// <summary>Registers the address unless it is taken, and mails its holder one message either way.</summary>
 public sealed class RegisterUseCase(
     IAccountsService accounts,
     IEmailTokensService emailTokens,
@@ -26,7 +22,7 @@ public sealed class RegisterUseCase(
     ILogger<RegisterUseCase> logger) : IRegisterUseCase
 {
     /// <inheritdoc />
-    public async Task<Result<RegisterOutcome>> ExecuteAsync(
+    public async Task<Result> ExecuteAsync(
         RegisterCommand request,
         CancellationToken cancellationToken = default)
     {
@@ -36,71 +32,54 @@ public sealed class RegisterUseCase(
 
         if (validation.IsFailure)
         {
-            return validation.To<RegisterOutcome>();
+            return validation;
         }
 
-        var creation = await accounts.CreateAsync(
-            request.Email,
-            request.Password,
-            cancellationToken);
+        var registration = await accounts.RegisterAsync(request.Email, request.Password, cancellationToken);
 
-        if (creation.Status is not AccountCreationStatus.Created)
+        if (registration.Status is AccountRegistrationStatus.Rejected)
         {
-            return Result.Failure<RegisterOutcome>(ToError(creation));
+            return Result.Failure(AccountsErrors.RegistrationRejected(
+                registration.EmailRejection,
+                registration.PasswordRejection));
         }
 
-        securityEventLog.Record(SecurityEvent.Registered(creation.UserId));
+        if (registration.Status is AccountRegistrationStatus.Created)
+        {
+            securityEventLog.Record(SecurityEvent.Registered(registration.UserId));
+        }
 
-        // The account is committed before delivery: an unreachable relay failing the call would
-        // leave an account whose address is taken and which nothing can confirm. The outcome travels
-        // as a flag, and the resend endpoint is the recovery path.
-        bool confirmationEmailSent = await TrySendConfirmationEmailAsync(
-            creation.UserId,
-            request.Email,
-            cancellationToken);
+        await TrySendAsync(request.Email, registration, cancellationToken);
 
-        return Result.Success(new RegisterOutcome(
-            creation.UserId,
-            request.Email,
-            confirmationEmailSent));
+        return Result.Success();
     }
 
-    private static Error ToError(AccountCreationOutcome creation) =>
-        creation.Status is AccountCreationStatus.Conflict
-            ? AccountsErrors.RegistrationConflict
-            : AccountsErrors.RegistrationRejected(
-                creation.EmailRejection,
-                creation.PasswordRejection);
-
-    private async Task<bool> TrySendConfirmationEmailAsync(
-        Guid userId,
+    private async Task TrySendAsync(
         string email,
+        AccountRegistrationOutcome registration,
         CancellationToken cancellationToken)
     {
         try
         {
-            // The token is derived from the stored account, so one minted before the row was written
-            // could not confirm it.
-            var token = await emailTokens.IssueEmailConfirmationAsync(email, cancellationToken);
+            var message = registration is { Status: AccountRegistrationStatus.AlreadyRegistered, EmailConfirmed: true }
+                ? await emailFactory.CreateAlreadyRegisteredAsync(email, cancellationToken)
+                : await CreateConfirmationAsync(email, cancellationToken);
 
-            if (token is null)
+            if (message is not null)
             {
-                return false;
+                await emailSender.SendAsync(email, message.Subject, message.HtmlBody, cancellationToken);
             }
-
-            var message = await emailFactory.CreateConfirmationAsync(email, token, cancellationToken);
-
-            await emailSender.SendAsync(email, message.Subject, message.HtmlBody, cancellationToken);
-
-            return true;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Any transport or template failure. The caller is told delivery did not happen, and the
-            // exception reaches the log only.
-            logger.LogError(exception, "Failed to send the confirmation email for user {UserId}.", userId);
-
-            return false;
+            logger.LogError(exception, "Failed to send a registration email.");
         }
+    }
+
+    private async Task<AccountEmail?> CreateConfirmationAsync(string email, CancellationToken cancellationToken)
+    {
+        var token = await emailTokens.IssueEmailConfirmationAsync(email, cancellationToken);
+
+        return token is null ? null : await emailFactory.CreateConfirmationAsync(email, token, cancellationToken);
     }
 }

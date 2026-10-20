@@ -57,8 +57,7 @@
 @newEmail = ada.new@localhost
 
 ###
-# 1. Register. The account is committed before the mail is handed to the relay, so
-#    confirmationEmailSent=false means "use the resend endpoint", not "sign-up failed".
+# 1. Register. 202 {"status":"pending"}; the confirmation link arrives in Mailpit.
 # @name register
 POST {{api}}/auth/register
 Content-Type: application/json
@@ -69,8 +68,9 @@ Content-Type: application/json
 }
 
 ###
-# 2. Registering the same address again is a 409 with a stable machine-readable `code`,
-#    not a 500. Expected to fail — it is here to show the shape of a ProblemDetails body.
+# 2. Registering the same address again answers exactly as step 1 did: the response never says
+#    whether an address is taken. Mailpit shows what happened — a fresh confirmation link while
+#    the address is unconfirmed, a "you already have an account" notice once it is.
 POST {{api}}/auth/register
 Content-Type: application/json
 

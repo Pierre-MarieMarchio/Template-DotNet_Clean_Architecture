@@ -94,6 +94,16 @@ public abstract class ApiControllerBase : ControllerBase
         return result.IsSuccess ? NoContent() : result.Error!.ToActionResult(HttpContext);
     }
 
+    /// <summary>202 with <paramref name="body"/>, or the failure's problem details.</summary>
+    protected ActionResult<TValue> AcceptedOrProblem<TValue>(Result result, TValue body)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        return result.IsSuccess
+            ? new AcceptedResult { Value = body, DeclaredType = typeof(TValue) }
+            : result.Error!.ToActionResult(HttpContext);
+    }
+
     /// <summary>201 with a <c>Location</c> header, or the mapped problem response.</summary>
     protected ActionResult CreatedOrProblem<TValue>(Result<TValue> result, string routeName, object routeValues)
     {

@@ -14,9 +14,16 @@ public sealed class RecordingPasswordHasher : IPasswordHasher<AppUser>
 
     public int Verifications { get; private set; }
 
+    public int Hashes { get; private set; }
+
     public string? LastVerifiedHash { get; private set; }
 
-    public string HashPassword(AppUser user, string password) => Hash;
+    public string HashPassword(AppUser user, string password)
+    {
+        Hashes++;
+
+        return Hash;
+    }
 
     public PasswordVerificationResult VerifyHashedPassword(AppUser user, string hashedPassword, string providedPassword)
     {

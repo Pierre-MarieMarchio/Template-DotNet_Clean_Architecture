@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Security;
-using AppTemplate.Api.Features.Auth.Contracts.Mapping;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ConfirmEmail;
@@ -31,13 +30,12 @@ public sealed class RegistrationController(
     IConfirmEmailUseCase confirmEmail,
     IResendConfirmationEmailUseCase resendConfirmationEmail) : ApiControllerBase
 {
-    /// <summary>Creates an account and sends a confirmation email.</summary>
+    /// <summary>Requests an account for an address and mails the address what happened.</summary>
     [HttpPost("register")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(RegisterResponse))]
+    [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(RegisterResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
-    [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<RegisterResponse>> Register(
         [FromBody] RegisterRequest request,
         CancellationToken cancellationToken)
@@ -46,7 +44,7 @@ public sealed class RegistrationController(
 
         var command = new RegisterCommand(request.Email, request.Password);
 
-        return OkOrProblem(AuthResponseMapping.ToRegisterResponse(await register.ExecuteAsync(command, cancellationToken)));
+        return AcceptedOrProblem(await register.ExecuteAsync(command, cancellationToken), RegisterResponse.Pending);
     }
 
     /// <summary>

@@ -76,7 +76,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
             new RegisterRequest("candidate@integration.test", password),
             TestToken);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
     }
 
     /// <summary>
@@ -105,26 +105,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
             new RegisterRequest(email, ValidPassword),
             TestToken);
 
-        accepted.StatusCode.ShouldBe(HttpStatusCode.OK);
-    }
-
-    [Fact]
-    public async Task ADuplicateEmail_IsAConflictWithANeutralMessage()
-    {
-        var client = CreateClient();
-        var existing = await RegisterUserAsync(client, "first");
-
-        using var response = await client.PostAsJsonAsync(
-            $"{AuthRoute}/register",
-            new RegisterRequest(existing.Email, ValidPassword),
-            TestToken);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-
-        var problem = await ApiJson.ReadProblemAsync(response, TestToken);
-        problem.Code.ShouldBe("auth.register.unavailable");
-
-        problem.Detail.ShouldBe("That email address cannot be used.");
+        accepted.StatusCode.ShouldBe(HttpStatusCode.Accepted);
     }
 
     [Theory]

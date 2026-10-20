@@ -65,6 +65,7 @@ public sealed class EmailTemplateCoverageTests
 
         families.Keys.Order(StringComparer.Ordinal).ToList().ShouldBe(
             [
+                "AlreadyRegisteredEmailTemplate",
                 "EmailChangeEmailTemplate",
                 "PasswordResetEmailTemplate",
                 "RegisterEmailTemplate",

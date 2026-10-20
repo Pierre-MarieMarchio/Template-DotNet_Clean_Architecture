@@ -29,6 +29,8 @@ public sealed class AccountEmailTemplatesTests
     [InlineData("PasswordResetEmailTemplate", "fr", "Réinitialisez votre mot de passe")]
     [InlineData("EmailChangeEmailTemplate", "en", "Confirm your new email address")]
     [InlineData("EmailChangeEmailTemplate", "fr", "Confirmez votre nouvelle adresse e-mail")]
+    [InlineData("AlreadyRegisteredEmailTemplate", "en", "You already have an account")]
+    [InlineData("AlreadyRegisteredEmailTemplate", "fr", "Vous avez déjà un compte")]
     public void EachMail_BringsItsOwnSubject_InEachLanguage(string baseName, string tag, string subject) =>
         new EmailTemplate(_module, baseName).Render(tag, _placeholders).Subject.ShouldBe(
             subject,
@@ -51,6 +53,7 @@ public sealed class AccountEmailTemplatesTests
     [InlineData("RegisterEmailTemplate")]
     [InlineData("PasswordResetEmailTemplate")]
     [InlineData("EmailChangeEmailTemplate")]
+    [InlineData("AlreadyRegisteredEmailTemplate")]
     public void EveryMail_ShipsTheSameLanguages(string baseName) =>
         new EmailTemplate(_module, baseName).AvailableCultures
             .Order(StringComparer.Ordinal)

@@ -16,13 +16,6 @@ namespace AppTemplate.Application.Auth.Features.Accounts.Model.Errors;
 public static class AccountsErrors
 {
     /// <summary>
-    /// Registration cannot fully hide that an address is taken, but it does not have to say so.
-    /// </summary>
-    public static Error RegistrationConflict { get; } = Error.Conflict(
-        "auth.register.unavailable",
-        "That email address cannot be used.");
-
-    /// <summary>
     /// Each message describes the submitted value it is attached to — format, password policy — so
     /// it is safe to return verbatim, and attached to the field it concerns so a client renders it
     /// there instead of parsing free text.

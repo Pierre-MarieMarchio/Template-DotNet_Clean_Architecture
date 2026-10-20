@@ -5,6 +5,8 @@ using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Services;
 
@@ -39,7 +41,7 @@ internal sealed class AccountsService(
             new AppUser(),
             Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))));
 
-    public async Task<AccountCreationOutcome> CreateAsync(
+    public async Task<AccountRegistrationOutcome> RegisterAsync(
         string email,
         string password,
         CancellationToken cancellationToken = default)
@@ -53,30 +55,79 @@ internal sealed class AccountsService(
             CreatedAt = dateTimeProvider.UtcNow,
         };
 
-        var result = await userManager.CreateAsync(user, password);
+        var refusals = await RefusalsOfTheSubmittedValuesAsync(user, password);
+
+        if (refusals.Count > 0)
+        {
+            return Rejected(refusals);
+        }
+
+        var existing = await userManager.FindByEmailAsync(email);
+
+        if (existing is not null)
+        {
+            userManager.PasswordHasher.HashPassword(existing, password);
+
+            return AccountRegistrationOutcome.AlreadyRegistered(existing.EmailConfirmed);
+        }
+
+        IdentityResult result;
+
+        try
+        {
+            result = await userManager.CreateAsync(user, password);
+        }
+        catch (DbUpdateException exception)
+            when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            return await AlreadyRegisteredAfterALostRaceAsync(email);
+        }
 
         if (result.Succeeded)
         {
-            return AccountCreationOutcome.Created(user.Id);
+            return AccountRegistrationOutcome.Created(user.Id);
         }
 
-        bool isConflict = result.Errors.Any(error =>
-            error.Code is nameof(IdentityErrorDescriber.DuplicateUserName)
-                or nameof(IdentityErrorDescriber.DuplicateEmail));
+        return result.Errors.Any(IsDuplicate)
+            ? await AlreadyRegisteredAfterALostRaceAsync(email)
+            : Rejected([.. result.Errors]);
+    }
 
-        if (isConflict)
+    private async Task<List<IdentityError>> RefusalsOfTheSubmittedValuesAsync(AppUser candidate, string password)
+    {
+        var refusals = new List<IdentityError>();
+
+        foreach (var validator in userManager.PasswordValidators)
         {
-            return AccountCreationOutcome.Conflict;
+            refusals.AddRange((await validator.ValidateAsync(userManager, candidate, password)).Errors);
         }
 
-        var refusals = result.Errors.ToLookup(
+        foreach (var validator in userManager.UserValidators)
+        {
+            refusals.AddRange((await validator.ValidateAsync(userManager, candidate)).Errors.Where(error => !IsDuplicate(error)));
+        }
+
+        return refusals;
+    }
+
+    private async Task<AccountRegistrationOutcome> AlreadyRegisteredAfterALostRaceAsync(string email)
+    {
+        var winner = await userManager.FindByEmailAsync(email);
+
+        return AccountRegistrationOutcome.AlreadyRegistered(winner?.EmailConfirmed ?? false);
+    }
+
+    private static bool IsDuplicate(IdentityError error) =>
+        error.Code is nameof(IdentityErrorDescriber.DuplicateUserName) or nameof(IdentityErrorDescriber.DuplicateEmail);
+
+    private static AccountRegistrationOutcome Rejected(IReadOnlyCollection<IdentityError> refusals)
+    {
+        var byField = refusals.ToLookup(
             error => error.Code is nameof(IdentityErrorDescriber.InvalidUserName)
                 or nameof(IdentityErrorDescriber.InvalidEmail),
             error => error.Description);
 
-        return AccountCreationOutcome.Rejected(
-            JoinOrNull(refusals[true]),
-            JoinOrNull(refusals[false]));
+        return AccountRegistrationOutcome.Rejected(JoinOrNull(byField[true]), JoinOrNull(byField[false]));
     }
 
     public async Task<CredentialCheckOutcome> VerifyCredentialAsync(

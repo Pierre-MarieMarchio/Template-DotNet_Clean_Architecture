@@ -43,14 +43,10 @@ public sealed record TestSession(Guid UserId, TokenResponse Tokens);
 //#endif
 /*#if (externalAuth)
 
-/// <summary>A caller as the external provider names it: its subject, and the address its tokens carry.</summary>
 public sealed record TestUser(string Subject, string Email);
 
-/// <param name="UserId">The internal owner the API maps <see cref="TestUser.Subject"/> to.</param>
-/// <param name="Tokens">What the provider issued, in the shape a signed-in test reads it from.</param>
 public sealed record TestSession(Guid UserId, ProviderTokens Tokens);
 
-/// <param name="AccessToken">Signed by <see cref="ExternalProvider"/>, so the API accepts it.</param>
 public sealed record ProviderTokens(string AccessToken);
 #endif*/
 
@@ -293,14 +289,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     //#endif
     /*#if (externalAuth)
 
-    /// <summary>
-    /// A client carrying a token <see cref="ExternalProvider"/> signed for a subject of its own, the
-    /// caller that subject is, and the internal owner the API maps it to. The mapping is made here
-    /// through the API's own service, exactly as the first authenticated request would make it, since
-    /// no endpoint publishes the owner id.
-    /// </summary>
-    /// <param name="label">Readable in the subject and the address, for a test that signs in several callers.</param>
-    /// <param name="roles">The roles the token carries at the path the test host reads them from.</param>
     protected async Task<(HttpClient Client, TestUser User, TestSession Session)> SignInAsync(
         string? label = null,
         params string[] roles)

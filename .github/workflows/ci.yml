@@ -341,3 +341,129 @@ jobs:
             exit 1
           fi
           echo "Both healthchecks target /health."
+
+  #if (anyWeb)
+  web:
+    name: Web workspace
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: Src/Web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The version and its hash come from packageManager in Src/Web/package.json.
+      - name: Set up pnpm (from package.json)
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: Src/Web/package.json
+          cache: true
+          cache_dependency_path: Src/Web/pnpm-lock.yaml
+
+      - name: Set up Node.js (from .node-version)
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: Src/Web/.node-version
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: The API client matches the API
+        run: |
+          pnpm api
+          if ! git diff --exit-code -- packages/api-client/src/generated; then
+            echo "::error title=Stale API client::The API changed since packages/api-client was generated. Run pnpm api in Src/Web and commit the result."
+            exit 1
+          fi
+
+  # Every folder under Src/Web/apps is an app with its own image.
+  web-apps:
+    name: Web apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      apps: ${{ steps.discover.outputs.apps }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Discover the apps
+        id: discover
+        run: |
+          set -euo pipefail
+          apps=$(find Src/Web/apps -mindepth 2 -maxdepth 2 -name Dockerfile -printf '%h\n' | xargs -r -n1 basename | sort | jq -R . | jq -cs .)
+          if [ "$apps" = "[]" ]; then
+            echo "::error title=No web app::Src/Web/apps holds no app with a Dockerfile."
+            exit 1
+          fi
+          echo "apps=$apps" >> "$GITHUB_OUTPUT"
+          echo "Web apps: $apps"
+
+  web-image:
+    name: Web image (${{ matrix.app }})
+    needs: web-apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.web-apps.outputs.apps) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver-opts: image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
+
+      # The workspace is the context, so an image holds its app and the packages it uses.
+      - name: Build the image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: Src/Web
+          file: Src/Web/apps/${{ matrix.app }}/Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: web-${{ matrix.app }}:ci-${{ github.sha }}
+          cache-from: type=gha,scope=web-${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=web-${{ matrix.app }}
+
+      - name: Assert image runs unprivileged and exposes only 8080
+        env:
+          IMAGE: web-${{ matrix.app }}:ci-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          user=$(docker image inspect "$IMAGE" --format '{{.Config.User}}')
+          ports=$(docker image inspect "$IMAGE" --format '{{range $p, $_ := .Config.ExposedPorts}}{{$p}} {{end}}')
+          echo "Image USER = '${user}', exposed = '${ports}'"
+          if [ -z "$user" ] || [ "$user" = "root" ] || [ "$user" = "0" ]; then
+            echo "::error title=Image runs as root::Expected a non-root USER."
+            exit 1
+          fi
+          if [ "$(echo $ports | tr -d ' ')" != "8080/tcp" ]; then
+            echo "::error title=Unexpected exposed ports::A web image exposes 8080/tcp only."
+            exit 1
+          fi
+  #endif

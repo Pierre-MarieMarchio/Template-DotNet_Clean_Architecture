@@ -34,6 +34,13 @@ public sealed class ContainerImagePinningTests
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
         TimeSpan.FromSeconds(1));
 
+    //#if (anyWeb)
+    private static readonly Regex _composeInclude = new(
+        @"^\s+-\s+(?:path:\s*)?(?<path>\S+compose\.ya?ml)\s*$",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    //#endif
     private static readonly Regex _fixtureImage = new(
         @"(?:Builder\(\s*""(?<ref>[^""]+)""|const\s+string\s+\w*Image\w*\s*=\s*""(?<ref>[^""]+)"")",
         RegexOptions.CultureInvariant,
@@ -49,7 +56,12 @@ public sealed class ContainerImagePinningTests
         images
             .Where(image => !_pinned.IsMatch(image))
             .ShouldBeEmpty(
+                /*#if (anyWeb)*/
+                "Write each image in docker-compose.yml and in every web app's compose.yml as "
+                + "name:tag@sha256:<multi-arch index digest>. "
+                /*#else
                 "Write each image in docker-compose.yml as name:tag@sha256:<multi-arch index digest>. "
+                #endif*/
                 + "Resolve it with `docker buildx imagetools inspect name:tag`.");
     }
 
@@ -101,6 +113,25 @@ public sealed class ContainerImagePinningTests
             + "Dependabot rewrites a literal FROM and skips one built from an ARG.");
     }
 
+    //#if (anyWeb)
+    [Fact]
+    public void EveryWebApp_IsIncludedInTheRootComposeFile()
+    {
+        var included = File.ReadAllLines(RootComposeFile())
+            .Select(line => _composeInclude.Match(line))
+            .Where(match => match.Success)
+            .Select(match => match.Groups["path"].Value)
+            .ToHashSet(StringComparer.Ordinal);
+
+        WebAppComposeFiles()
+            .Select(Relative)
+            .Where(file => !included.Contains(file))
+            .ShouldBeEmpty(
+                "A web app's compose.yml is not under include: in docker-compose.yml, so docker compose up "
+                + "never starts it. Add `  - path: Src/Web/apps/<Name>/compose.yml` there.");
+    }
+
+    //#endif
     [Fact]
     public void EveryFixtureImage_IsPinned_AndIsOneTheDevelopmentStackRuns()
     {
@@ -131,9 +162,37 @@ public sealed class ContainerImagePinningTests
         _syntax.IsMatch("# syntax=docker/dockerfile:1").ShouldBeTrue();
         _fixtureImage.IsMatch("new PostgreSqlBuilder(\"postgres:17-alpine\")").ShouldBeTrue();
         _fixtureImage.IsMatch("private const string _storeImage =\n        \"a:b\";").ShouldBeTrue();
+        //#if (anyWeb)
+        _composeInclude.Match("  - path: Src/Web/apps/Site/compose.yml").Groups["path"].Value.ShouldBe("Src/Web/apps/Site/compose.yml");
+        _composeInclude.IsMatch("  - Src/Web/apps/Site/compose.yaml").ShouldBeTrue();
+        _composeInclude.IsMatch("  - db").ShouldBeFalse();
+        //#endif
     }
 
-    private static List<string> ComposeImages()
+    /*#if (anyWeb)*/
+    private static List<string> ComposeImages() =>
+        [.. new[] { RootComposeFile() }.Concat(WebAppComposeFiles()).SelectMany(ComposeImages)];
+    /*#else
+    private static List<string> ComposeImages() => ComposeImages(RootComposeFile());
+    #endif*/
+
+    private static string RootComposeFile() => Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docker-compose.yml");
+    //#if (anyWeb)
+
+    private static List<string> WebAppComposeFiles()
+    {
+        string apps = Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src", "Web", "apps");
+
+        return Directory.Exists(apps)
+            ? [.. Directory.EnumerateDirectories(apps)
+                .Select(app => Path.Combine(app, "compose.yml"))
+                .Where(File.Exists)
+                .Order(StringComparer.Ordinal)]
+            : [];
+    }
+    //#endif
+
+    private static List<string> ComposeImages(string composeFile)
     {
         var images = new List<string>();
         string? image = null;
@@ -151,7 +210,7 @@ public sealed class ContainerImagePinningTests
             built = false;
         }
 
-        foreach (string line in File.ReadAllLines(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docker-compose.yml")))
+        foreach (string line in File.ReadAllLines(composeFile))
         {
             if (line.Length > 0 && !char.IsWhiteSpace(line[0]) && line[0] != '#')
             {
@@ -188,7 +247,7 @@ public sealed class ContainerImagePinningTests
         [.. _dockerfileRoots
             .Select(directory => Path.Combine(ProjectReferenceGraph.RepositoryRoot, directory))
             .Where(Directory.Exists)
-            .SelectMany(directory => Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+            .SelectMany(SourceFiles)
             .Where(file => Path.GetFileName(file) is var name
                 && (name == "Dockerfile" || name.EndsWith(".Dockerfile", StringComparison.Ordinal)))
             .Where(IsSource)
@@ -204,6 +263,12 @@ public sealed class ContainerImagePinningTests
             .SelectMany(file => _fixtureImage
                 .Matches(File.ReadAllText(file))
                 .Select(match => (Relative(file), match.Groups["ref"].Value)))];
+
+    private static IEnumerable<string> SourceFiles(string directory) =>
+        Directory.EnumerateFiles(directory)
+            .Concat(Directory.EnumerateDirectories(directory)
+                .Where(child => Path.GetFileName(child) is not ("node_modules" or "bin" or "obj"))
+                .SelectMany(SourceFiles));
 
     private static bool IsSource(string file) =>
         !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)

@@ -2,6 +2,14 @@
 
 name: app-template
 
+#if (anyWeb)
+# One line per web app: its compose.yml declares the service, built from Src/Web.
+include:
+  #if (webPlaceholder)
+  - path: Src/Web/apps/PlaceholderSite/compose.yml
+  #endif
+
+#endif
 services:
   db:
     # Every image is pinned by tag and digest; Dependabot bumps both.
@@ -135,11 +143,11 @@ services:
       Email__FromName: ${EMAIL_FROM_NAME:-AppTemplate (dev)}
 
       #if (localAuth)
-      EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
+      EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:${WEB_PLACEHOLDER_SITE_HOST_PORT:-8081}/confirm-email}
 
-      PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
+      PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:${WEB_PLACEHOLDER_SITE_HOST_PORT:-8081}/reset-password}
 
-      EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:8080/confirm-email-change}
+      EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:${WEB_PLACEHOLDER_SITE_HOST_PORT:-8081}/confirm-email-change}
 
       # Development only; enabling it requires SEED_ADMIN_PASSWORD.
       IdentitySeed__Enabled: ${SEED_ENABLED:-false}

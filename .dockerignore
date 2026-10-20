@@ -104,3 +104,10 @@ CHANGELOG.md
 **/.dockerignore
 **/azds.yaml
 **/charts
+
+#if (anyWeb)
+# ---------------------------------------------------------------------------
+# The web workspace: each web app builds from Src/Web with its own image.
+# ---------------------------------------------------------------------------
+Src/Web/
+#endif

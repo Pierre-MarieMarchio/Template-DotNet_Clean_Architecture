@@ -79,7 +79,7 @@ public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCa
 
         bool ranHere = await _lease.TryRunExclusivelyAsync(
             _leaseName,
-            async leaseToken => reclaimed = await SweepAsync(leaseToken),
+            async cancellationToken => reclaimed = await SweepAsync(cancellationToken),
             cancellationToken);
 
         if (!ranHere && _logger.IsEnabled(LogLevel.Information))

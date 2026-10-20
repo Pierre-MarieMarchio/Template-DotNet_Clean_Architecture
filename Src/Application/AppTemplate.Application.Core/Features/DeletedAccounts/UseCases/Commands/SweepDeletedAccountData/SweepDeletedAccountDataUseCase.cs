@@ -26,7 +26,7 @@ public sealed class SweepDeletedAccountDataUseCase(
 
         bool ranHere = await lease.TryRunExclusivelyAsync(
             _leaseName,
-            async leaseToken => swept = await SweepAsync(leaseToken),
+            async cancellationToken => swept = await SweepAsync(cancellationToken),
             cancellationToken);
 
         if (!ranHere && logger.IsEnabled(LogLevel.Information))

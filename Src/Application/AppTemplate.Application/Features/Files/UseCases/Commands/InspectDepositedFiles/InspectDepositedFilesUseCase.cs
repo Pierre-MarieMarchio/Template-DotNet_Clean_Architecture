@@ -41,7 +41,7 @@ public sealed class InspectDepositedFilesUseCase(
 
         bool ranHere = await lease.TryRunExclusivelyAsync(
             _leaseName,
-            async leaseToken => decided = await InspectBatchAsync(leaseToken),
+            async cancellationToken => decided = await InspectBatchAsync(cancellationToken),
             cancellationToken);
 
         if (!ranHere && logger.IsEnabled(LogLevel.Information))

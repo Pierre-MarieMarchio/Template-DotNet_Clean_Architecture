@@ -1,6 +1,7 @@
 ﻿using System.Buffers.Text;
 using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
+using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountQueries;
 using AppTemplate.Application.Auth.Features.ExternalLogins.UseCases.Commands.SignInWithExternalProvider;
 using AppTemplate.Application.Auth.Features.Passkeys.Ports.Passkeys;
 using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventQueries;
@@ -115,9 +116,27 @@ internal static class AuthResponseMapping
             challenge.SignInOptions,
             challenge.AuthenticationState));
 
+    public static Result<PagedResponse<AccountSummaryResponse>> ToAccountPageResponse(
+        Result<PagedResult<AccountSummary>> result) =>
+        result.Map(value => PagedResponse.From(value, ToAccountSummaryResponse));
+
     public static Result<PagedResponse<SecurityEventResponse>> ToSecurityEventPageResponse(
         Result<PagedResult<SecurityEventEntry>> result) =>
         result.Map(value => PagedResponse.From(value, ToSecurityEventResponse));
+
+    private static AccountSummaryResponse ToAccountSummaryResponse(AccountSummary account)
+    {
+        ArgumentNullException.ThrowIfNull(account);
+
+        return new AccountSummaryResponse(
+            account.Id,
+            account.Email,
+            account.EmailConfirmed,
+            account.LockedOut,
+            account.TwoFactorEnabled,
+            account.Roles,
+            account.CreatedAt);
+    }
 
     private static SecurityEventResponse ToSecurityEventResponse(SecurityEventEntry entry)
     {

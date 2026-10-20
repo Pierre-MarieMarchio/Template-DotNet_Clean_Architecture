@@ -341,11 +341,13 @@ unchanged.
 
 Requires the `Administrator` policy on the whole controller — an authenticated
 non-admin gets `403`. Acting on somebody else's account: every write below refuses
-with `403` when the target id names the caller. The trail read is the exception:
-reading one's own events is exactly what `GET /auth/me/security-events` offers.
+with `403` when the target id names the caller. The two reads are the exception: the list
+includes the caller, and reading one's own events is exactly what `GET /auth/me/security-events`
+offers.
 
 | Method | Route | Success |
 |---|---|---|
+| GET | `/api/v1/auth/accounts` | 200 — the accounts ordered by address, offset-paged (`page`/`pageSize`, max 100); `email` keeps those whose address starts with it, ignoring case. Each row: id, address, whether it is confirmed, locked out and armed with a second factor, its roles and when it was created |
 | POST | `/api/v1/auth/accounts/{userId}/lockout` | 204 — locks the account out indefinitely and rotates its security stamp |
 | DELETE | `/api/v1/auth/accounts/{userId}/lockout` | 204 — lifts the lockout; a no-op on an account that was not locked |
 | PUT | `/api/v1/auth/accounts/{userId}/roles/{role}` | 204 — grants a role; 400 if the role does not exist, or if the account already has it |

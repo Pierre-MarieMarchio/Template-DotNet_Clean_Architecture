@@ -1,4 +1,126 @@
 export interface paths {
+    "/api/v1/auth/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the accounts by address, optionally those whose address starts with a prefix. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Keeps the accounts whose address starts with it, ignoring case. */
+                    Email?: string;
+                    /** @description The page to read, from 1. */
+                    Page?: number | string;
+                    /** @description The number of accounts per page. */
+                    PageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PagedResponseOfAccountSummaryResponse"];
+                        "text/json": components["schemas"]["PagedResponseOfAccountSummaryResponse"];
+                        "text/plain": components["schemas"]["PagedResponseOfAccountSummaryResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/accounts/{userId}": {
         parameters: {
             query?: never;
@@ -8626,6 +8748,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description One account as an administrator sees it in the list. */
+        AccountSummaryResponse: {
+            /** Format: date-time */
+            createdAt: string;
+            email: string;
+            emailConfirmed: boolean;
+            /** Format: uuid */
+            id: string;
+            lockedOut: boolean;
+            roles: string[];
+            twoFactorEnabled: boolean;
+        };
         /** @description Carries no list id: that travels in the route. */
         AddTodoItemRequest: {
             description: null | string;
@@ -8774,6 +8908,20 @@ export interface components {
             /** Format: date-time */
             lastModifiedAt: null | string;
             title: string;
+        };
+        /** @description One page of results, and what is needed to ask for the next. */
+        PagedResponseOfAccountSummaryResponse: {
+            hasNextPage: boolean;
+            items: components["schemas"]["AccountSummaryResponse"][];
+            nextCursor: null | string;
+            /** Format: int32 */
+            page: null | number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: null | number | string;
+            /** Format: int32 */
+            totalPages: null | number | string;
         };
         /** @description One page of results, and what is needed to ask for the next. */
         PagedResponseOfNoteSummaryResponse: {

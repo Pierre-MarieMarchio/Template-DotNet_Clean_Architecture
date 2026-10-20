@@ -1,5 +1,6 @@
 ﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountQueries;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.EmailTokens;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.ReAuthentication;
@@ -47,7 +48,7 @@ namespace AppTemplate.Application.Auth.UnitTests;
 
 public sealed class ApplicationAuthModuleTests
 {
-    private const int _knownUseCaseCount = 37;
+    private const int _knownUseCaseCount = 38;
 
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
@@ -164,6 +165,7 @@ public sealed class ApplicationAuthModuleTests
         services.AddScoped(_ => Substitute.For<ICurrentSession>());
         services.AddScoped(_ => Substitute.For<ISecurityEventLog>());
         services.AddScoped(_ => Substitute.For<ISecurityEventQueries>());
+        services.AddScoped(_ => Substitute.For<IAccountQueries>());
         services.AddScoped(_ => Substitute.For<IAccountAdministrationService>());
         services.AddScoped(_ => Substitute.For<ITwoFactorService>());
         services.AddScoped(_ => Substitute.For<IPasskeyService>());

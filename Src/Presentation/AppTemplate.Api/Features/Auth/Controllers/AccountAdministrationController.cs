@@ -9,6 +9,7 @@ using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.DeleteAcc
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.LockAccount;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.RemoveRole;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.UnlockAccount;
+using AppTemplate.Application.Auth.Features.Accounts.UseCases.Queries.ListAccounts;
 using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Queries.GetAccountSecurityEvents;
 using AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.DisableAccountTwoFactor;
 using Microsoft.AspNetCore.Authorization;
@@ -28,8 +29,24 @@ public sealed class AccountAdministrationController(
     IRemoveRoleUseCase removeRole,
     IDeleteAccountUseCase deleteAccount,
     IDisableAccountTwoFactorUseCase disableAccountTwoFactor,
-    IGetAccountSecurityEventsUseCase getAccountSecurityEvents) : ApiControllerBase
+    IGetAccountSecurityEventsUseCase getAccountSecurityEvents,
+    IListAccountsUseCase listAccounts) : ApiControllerBase
 {
+    /// <summary>Lists the accounts by address, optionally those whose address starts with a prefix.</summary>
+    [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<AccountSummaryResponse>))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
+    public async Task<ActionResult<PagedResponse<AccountSummaryResponse>>> List(
+        [FromQuery] ListAccountsRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var query = new ListAccountsQuery(request.Email, request.Page, request.PageSize);
+
+        return OkOrProblem(AuthResponseMapping.ToAccountPageResponse(await listAccounts.ExecuteAsync(query, cancellationToken)));
+    }
+
     /// <summary>Locks the account out indefinitely.</summary>
     [HttpPost("{userId:guid}/lockout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

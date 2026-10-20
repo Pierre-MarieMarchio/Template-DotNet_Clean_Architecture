@@ -1719,6 +1719,20 @@ code, and CI runs it without blocking.
 
 ## Tools and configuration
 
+**Dependencies are proposed by Dependabot, in bands, and none is ignored.** Renovate is the more
+expressive tool, but it is a GitHub App someone with organisation rights has to install, and a
+template is cloned by people who may not have that right: Dependabot is built in and needs no secret.
+Packages that release together are grouped so one servicing release is one pull request — the
+Microsoft 10.0.x band without `Microsoft.IdentityModel.*` and `Microsoft.Testing.*`, which have trains
+of their own, the test tooling, the third-party runtime libraries, the OpenTelemetry band (with
+`Npgsql.OpenTelemetry` left to `Npgsql.*`, since it follows the EF provider), every action, every image.
+A transitive security pin, if one is needed again, goes in a group of its own placed before
+`microsoft-runtime`, because Dependabot files a package under the first group whose pattern matches it;
+removing a load-bearing pin brings the advisory back and `NuGetAuditLevel=low` fails the restore. No
+`ignore` entry and no `open-pull-requests-limit: 0`: an ignored dependency is one nobody is told to
+revisit. `docker` and `docker-compose` are separate ecosystems — `docker` does not read the compose
+file — and neither raises security updates, so the weekly version bump is the whole mechanism for images.
+
 **Code carries no comment; its reasons live here.** A comment rots on its own the next time anything
 moves, and a reader who needs the reason can address it in this file. The only exceptions are what a
 tool reads: the API's one-sentence OpenAPI documentation, template markers, generated headers, and

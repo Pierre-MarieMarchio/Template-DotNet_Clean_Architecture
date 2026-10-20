@@ -1,24 +1,7 @@
 version: 2
 
-# Dependabot rather than Renovate.
-#
-# Renovate is the more expressive of the two — regex managers, dependency dashboards,
-# per-package merge policies — but it is a third-party GitHub App that somebody with org
-# admin rights has to install before a single PR appears. A template is cloned by people
-# who do not have that right and would end up with a dependency bot that silently does
-# nothing. Dependabot is built into GitHub, needs no install and no secret, and its
-# `groups` key is enough to keep the 10.0.x band down to one pull request. Swap in
-# Renovate if this repository ever needs a monorepo-wide policy engine.
-#
-# What is deliberately NOT here: `open-pull-requests-limit: 0` anywhere, and no `ignore`
-# entry on any package. An ignored dependency is one nobody is ever told to revisit, and
-# a transitive security pin is exactly the kind of entry that has to be revisited — the
-# release that finally makes it unnecessary is the release nobody would hear about.
-
 updates:
-  # ---------------------------------------------------------------------------
-  # NuGet. Every version in this repository lives in Directory.Packages.props
-  # (Central Package Management), so that is the only file Dependabot edits.
+  # NuGet: every version lives in Directory.Packages.props.
   - package-ecosystem: nuget
     directory: /
     schedule:
@@ -35,25 +18,7 @@ updates:
       prefix-development: "build(deps-dev)"
 
     groups:
-      # A transitive security pin, should this repository need one again, belongs in a group
-      # of its own placed FIRST — Dependabot puts a dependency in the first group whose
-      # patterns match it, so an entry after `microsoft-runtime` below would be swallowed by
-      # its `Microsoft.*`, and a proposal to move a pin would arrive folded into a
-      # ten-package runtime PR and get merged unread.
-      #
-      # The backstop under such a pin is indirect but real, and worth stating precisely
-      # rather than generously: nothing asserts that a given pin exists. What happens is that
-      # removing or lowering it lets the transitive resolution fall back to the version that
-      # carries the advisory, and NuGetAuditLevel=low then fails `dotnet restore` outright —
-      # so the build breaks locally and the "Vulnerable packages" CI job reports it. A PR that
-      # drops a load-bearing pin cannot merge green; it just fails for a reason one step
-      # removed.
-
-      # The 10.0.x runtime band. These ship together and are expected to move together;
-      # one PR per package would be ten PRs a month for a single servicing release.
-      # Microsoft.IdentityModel.* (8.x) and Microsoft.Testing.* (18.x for the coverage
-      # extension) are on their own release trains and are excluded so a PR never mixes
-      # two bands.
+      # The 10.0.x runtime band, one pull request per servicing release.
       microsoft-runtime:
         applies-to: version-updates
         patterns:
@@ -67,12 +32,6 @@ updates:
         patterns:
           - Microsoft.IdentityModel.*
 
-      # The test platform and what plugs into it. Microsoft.Testing.* covers the coverage
-      # extension and anything else the platform grows; xunit* covers the framework and
-      # the in-process runner it brings. A bump to either can change what `dotnet test`
-      # accepts on its command line, which is why they are grouped with the assertion and
-      # container libraries rather than with the runtime band above: one PR to read
-      # together, not six to correlate.
       test-tooling:
         applies-to: version-updates
         patterns:
@@ -92,21 +51,13 @@ updates:
           - Npgsql.*
           - Scalar.*
 
-      # The OpenTelemetry 1.x band: the OTLP exporter, the hosting extensions and the two
-      # instrumentations, which the SIG releases on one date under one version. Without this
-      # group each is a pull request of its own, and a single band move arrives as four PRs that
-      # only mean anything read together. Npgsql.OpenTelemetry is not one of them and must not
-      # be: the glob is anchored, so `Npgsql.*` above claims it, which is where it belongs — it
-      # tracks the EF provider's ActivitySource, not the SIG's release train.
+      # The OpenTelemetry 1.x band; Npgsql.OpenTelemetry stays with Npgsql.*.
       observability:
         applies-to: version-updates
         patterns:
           - OpenTelemetry.*
 
-  # ---------------------------------------------------------------------------
-  # GitHub Actions. Every `uses:` in this repository is pinned to a commit SHA with the
-  # human-readable tag in a trailing comment; Dependabot rewrites both, which is the only
-  # sustainable way to keep SHA pinning from rotting into never-updated actions.
+  # GitHub Actions, pinned by SHA with the tag in a trailing comment.
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -126,21 +77,7 @@ updates:
         patterns:
           - "*"
 
-  # ---------------------------------------------------------------------------
-  # Container base images in the Dockerfiles: the SDK and runtime bases.
-  #
-  # Every image reference in this repository is `name:tag@sha256:digest`, and Dependabot
-  # rewrites the tag and the digest together — which is what keeps digest pinning from
-  # freezing an image at whatever it was the day it was pinned. It reads only a literal
-  # FROM, which is why the Dockerfiles write their bases out rather than through an ARG.
-  # What no ecosystem here reads, and is bumped by hand: the `# syntax=` frontend line,
-  # the images the Docker actions take as `with:` inputs in the workflows, and the
-  # Testcontainers fixtures (ContainerImagePinningTests makes those follow
-  # docker-compose.yml, so a compose bump that leaves them behind fails the build).
-  #
-  # `docker` and `docker-compose` are two distinct ecosystems in GitHub's supported list,
-  # and `docker` does NOT read docker-compose.yml — so compose needs the separate block
-  # below, and listing `/` here would watch nothing while looking like it watched something.
+  # Dockerfile base images; docker-compose.yml is its own ecosystem, below.
   - package-ecosystem: docker
     directories:
       - /Src/Presentation/AppTemplate.Api
@@ -205,15 +142,7 @@ updates:
           - vitest
 
   #endif
-  # ---------------------------------------------------------------------------
-  # docker-compose.yml: postgres, mailpit, the object store and the SonarQube server, as the
-  # generation options include them. Development dependencies, but an unpatched
-  # local database is still an unpatched database, and the compose file is where a
-  # contributor's first `docker compose up` gets its images from.
-  #
-  # Neither this ecosystem nor `docker` supports Dependabot *security* updates — version
-  # updates only. So a compose image with an advisory is not raised as an alert here; the
-  # weekly bump is the whole mechanism.
+  # docker-compose.yml's images, version updates only.
   - package-ecosystem: docker-compose
     directory: /
     schedule:

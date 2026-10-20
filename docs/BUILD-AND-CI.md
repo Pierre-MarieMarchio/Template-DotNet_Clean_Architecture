@@ -139,7 +139,7 @@ an app.
 | [`Tools/NewFeature.cs`](../Tools/NewFeature.cs) | the feature generator — the skeleton of one feature in the shape, operations and concurrency chosen, plus a creation manifest, so `ADDING-A-FEATURE.md` can be about the thinking. Its `--self-test` runs the real command against throwaway trees |
 | [`Tools/RemoveFeature.cs`](../Tools/RemoveFeature.cs) | the report of what removing a feature involves, and with `--apply` the undo of a generated skeleton whose manifest hashes, folders and surroundings are all untouched. Its `--self-test` generates features with the real generator and removes them |
 | [`Tools/CheckDocPaths.cs`](../Tools/CheckDocPaths.cs) | every repository path cited in a Markdown code span resolves on disk |
-| [`Tools/CheckWorkflows.cs`](../Tools/CheckWorkflows.cs) | what a YAML parse does not catch: a dangling `needs:`, an action on a mutable tag, a container image without a digest, a missing `permissions:`, a `$VAR` in no `env:`, a script named in a `run:` and absent from disk |
+| [`Tools/CheckWorkflows.cs`](../Tools/CheckWorkflows.cs) | what a YAML parse does not catch: a dangling `needs:`, an action on a mutable tag, a container image without a digest, a missing `permissions:`, a `$VAR` in no `env:`, a script named in a `run:`, a working directory or an action's path input absent from disk |
 | [`Tools/CoverageGate.cs`](../Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |
 | [`Tools/CheckComments.cs`](../Tools/CheckComments.cs) | no comment outside the allowlist of [`CONVENTIONS.md`](CONVENTIONS.md#comments): C#, project files, the guidance lines of the configuration files, and no Markdown narrating the repository's history |
 | [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
@@ -200,8 +200,12 @@ launcher.
 #endif-->
 | Vulnerable packages | `dotnet list package --vulnerable --include-transitive`, failing on any hit |
 | Docker image | builds the image, then asserts it does not run as root and exposes only 8080 |
+<!--#if (anyWeb)-->
+| Web workspace | in `Src/Web`: `pnpm install --frozen-lockfile`, lint, test and build every app and package, then `pnpm api` and a failure if the generated API client differs from the committed one |
+| Web image | one leg per folder under `Src/Web/apps` holding a Dockerfile: builds the image from `Src/Web`, then asserts it does not run as root and exposes only 8080 |
+<!--#endif-->
 <!--#if (templateMaintenance)-->
-| Template acceptance (six legs) | install → generate under a different name with one option combination → assert the template's name leaked nowhere → bootstrap → build → Docker-free tests → no pending model change per generated context → the generated project's `hygiene` task; see [below](#template-acceptance) |
+| Template acceptance (seven legs) | install → generate under a different name with one option combination → assert the template's name leaked nowhere → bootstrap → build → Docker-free tests → no pending model change per generated context → the generated project's `hygiene` task, and on a web leg the web workspace, its images and its stack; see [below](#template-acceptance) |
 | Template refuses unsupported options | `--auth none` alone and with `--examples notes` must exit non-zero and write no file |
 <!--#endif-->
 | Load smoke | the k6 script, **non-blocking** — see [`TESTING.md`](TESTING.md#the-load-smoke-test) |
@@ -222,12 +226,18 @@ another. The legs are the combinations that exercise a different shape, not the 
 | local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false` | Persistence, Auth |
 | external auth, all examples | `--auth external --examples all --files true` | Persistence |
 | external auth, no examples, no files | `--auth external --examples none --files false` | Persistence |
+| web placeholder, smallest project | `--web placeholder --auth none --examples none --files false` | Persistence |
 
 Each leg builds with `TreatWarningsAsErrors` (from `Directory.Build.props`, as everywhere), runs the
 test projects that do not reference Testcontainers — integration tests stay with the repository's own
 build — and runs `dotnet run Tools/Tasks.cs hygiene` in the generated project, which asks the
 filesystem which gates its tree carries. Only `--auth local` generates the Auth context, so only those legs
-compare its model. The separate refusal job covers the rule the other way round: `--auth none` needs
+compare its model. A leg without a web app asserts that nothing in the tree names the web workspace.
+The web leg also adds a second app with `dotnet new cleanarch-webapp -n BackOffice --framework
+placeholder` and the two lines its README gives, then runs the workspace's install, client
+regeneration, lint, test and build, checks that a second `pnpm api` writes the same client, starts
+the whole stack with Compose until every service is healthy, and asks each app for its page, its
+security headers, `/health` and an `/api/` answer that only the API gives. The separate refusal job covers the rule the other way round: `--auth none` needs
 `--examples none` and `--files false`, enforced by hidden required parameters, and an unsupported
 combination must fail before it writes anything.
 

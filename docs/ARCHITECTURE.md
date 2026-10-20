@@ -1027,8 +1027,10 @@ of on a repository that saved inside every write.
 
 **Where the boundary reaches now.** One save of one context instance.
 <!--#if (localAuth)-->
-A refresh-token rotation commits through the identity context's own unit of work, so it shares no
-transaction with a domain write — and flushes or publishes none of its events.
+A refresh-token rotation is one transaction of its own on the identity context: the conditional
+`UPDATE` that consumes the presented grant, its successor and the session's last use commit together,
+and a transient failure replays all three. It shares no transaction with a domain write — and
+flushes or publishes none of its events.
 <!--#endif-->
 An idempotency claim commits through a second
 instance of the business context, so it shares a transaction with no domain write — and

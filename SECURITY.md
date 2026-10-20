@@ -31,7 +31,9 @@ against your production system.
 - **Opaque, rotating refresh tokens**, never JWTs. Only a hash is stored. Presenting a token always
   consumes it, and replaying one that was already consumed **revokes every session of that user**.
   `RefreshTokenTable` does the consumption as a single conditional `UPDATE` — zero affected
-  rows *is* the replay signal — so two simultaneous presentations cannot both succeed. A token of a
+  rows *is* the replay signal — so two simultaneous presentations cannot both succeed. The
+  consumption commits in one transaction with its successor, so a failed save leaves the token
+  usable rather than spent, and a retry is never mistaken for a replay. A token of a
   session that was ended — signed out, revoked by its owner, or killed by a credential change — is
   refused without that alarm: it is what a client still holding it sends next, and the revocation
   commits before or during a rotation always wins.
@@ -604,6 +606,10 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   the expensive part is constant, but a wrong password writes an access-failure count where an
   unknown address does not. It is far smaller than the hash and always the same sign, so it is
   extractable by averaging. Making it nil would mean writing for a user that does not exist.
+- **A rotation whose response is lost ends every session.** The rotation commits, the response never
+  reaches the client, and the client presents the consumed token again: by the rules that is a
+  replay, so every session of the account ends and the replay is recorded. It is the known cost of
+  strict rotation; a grace window that accepted a just-consumed token would accept a stolen one too.
 <!--#endif-->
 - **Nothing proves the process actually drains on SIGTERM.** The readiness flip is tested, but
   Kestrel finishing in-flight requests and honouring `ShutdownTimeout` are asserted nowhere. Proving

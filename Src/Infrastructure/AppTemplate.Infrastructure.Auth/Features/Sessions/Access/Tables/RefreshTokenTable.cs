@@ -80,6 +80,15 @@ internal sealed class RefreshTokenTable(AuthDbContext context) : IRefreshTokenTa
             .Select(token => new { token.UserId, token.FamilyId })
             .FirstAsync(cancellationToken);
 
+        // A retried transaction runs this again over the same context: the copy its failed attempt
+        // staged would be inserted beside the new one.
+        foreach (var stale in context.ChangeTracker.Entries<RefreshToken>()
+            .Where(entry => entry.Entity.TokenHash == replacementTokenHash)
+            .ToList())
+        {
+            stale.State = EntityState.Detached;
+        }
+
         Add(grant.UserId, grant.FamilyId, replacementTokenHash, now, replacementExpiresAt);
 
         return true;

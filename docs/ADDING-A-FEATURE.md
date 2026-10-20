@@ -130,7 +130,7 @@ afterwards. Adding `--apply` deletes the generated files, the manifest and the f
 hashes as written, nothing was added to the feature's folders, and none of the six edits above (nor any other use of the feature)
 exists yet. Otherwise it refuses before deleting anything and prints the same report. A migration is never touched.
 The first owner feature of a project generated with no feature also holds the account-deletion files every owner feature
-shares (below): `--apply` deletes them with it only when no other owner feature and none of the four registrations printed
+shares (below): `--apply` deletes them with it only when no other owner feature and none of the five registrations printed
 for them still use them, and refuses otherwise.
 
 **What it writes**, for the shape and operations chosen:
@@ -169,9 +169,11 @@ feature nobody composes is visibly registered nowhere. It prints the edits inste
 `AppDbContext`, the `Add<Features>()` of `ApplicationModule` (with, for an owner feature, the two
 faces of its account-deleted policy) and of `PersistenceModule`, the call in `Program.cs`, and the
 two test classes that list every feature — and then the migration step. When it brought the
-account-deleted reaction with it, four more edits are printed: the `AddDeletedAccountSweep()` of
+account-deleted reaction with it, five more edits are printed: the `AddDeletedAccountSweep()` of
 `ApplicationCoreModule` and its call in `Program.cs`, the `AddDeletedAccountSweepJobs()` call of
-`BackgroundJobsModule`, and the directory adapter in the composition of the accounts. It does not
+`BackgroundJobsModule`, the directory adapter in the composition of the accounts, and in the
+architecture tests' `HostComposition` the sweep in each composition with a double standing in for
+the directory, without which the container tests cannot resolve the feature's consumer. It does not
 run EF: while the project is unreleased the repository keeps one `InitialCreate` per context, so the
 step is to regenerate it, and after a release it is a named migration.
 

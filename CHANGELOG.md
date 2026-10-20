@@ -517,6 +517,14 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Fixed
 
+- **The first owner feature of a project generated without one passes the architecture tests once
+  composed.** `new-feature` printed ten edits for it, and the container tests in
+  `HostComposition.cs` then failed twelve times on an `IUserAccountDirectory` nothing registered: the
+  architecture tests compose the host's graph too, and the sweep the feature brought was absent from
+  it. An eleventh edit is now printed — `AddDeletedAccountSweep()` in each composition, and an
+  `ArchitectureTestUserAccountDirectory` double registered in `AddHostSuppliedAdapters` and
+  `AddBackgroundOnlyAdapters` — and `remove-feature` counts those lines among the registrations
+  that hold the shared account-deletion files back.
 - **A project without a feature can compose the first one the generator writes.** `new-feature`
   tells the user to call `services.AddFeature(...)` in `ApplicationModule`, and to register the
   adapters of a model-mapped feature through `AddScopedTracker` in `PersistenceModule`. Both private

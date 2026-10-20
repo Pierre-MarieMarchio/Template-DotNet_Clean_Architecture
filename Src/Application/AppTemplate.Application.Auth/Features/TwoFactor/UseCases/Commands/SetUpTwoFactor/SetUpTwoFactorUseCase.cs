@@ -5,16 +5,10 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.SetUpTwoFactor;
 
-/// <summary>Begins two-factor enrollment: hands back a shared key and an <c>otpauth://</c> URI to
-/// scan, but arms nothing yet — <see cref="Commands.ConfirmTwoFactorSetup"/> does that. No
-/// <c>CredentialInvalidationPolicy</c> here, on purpose: provisioning a secret rotates the security
-/// stamp through Identity's own <c>ResetAuthenticatorKeyAsync</c>, and revoking every refresh token
-/// on top of that would sign every device out of a step that has changed nothing yet.</summary>
 public sealed class SetUpTwoFactorUseCase(
     ITwoFactorService twoFactor,
     ICurrentUser currentUser) : ISetUpTwoFactorUseCase
 {
-    /// <inheritdoc />
     public async Task<Result<SetUpTwoFactorOutcome>> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         var userId = currentUser.RequireUserId();
@@ -38,7 +32,6 @@ public sealed class SetUpTwoFactorUseCase(
     {
         TwoFactorSetupStatus.AlreadyEnabled => TwoFactorErrors.TwoFactorAlreadyEnabled,
 
-        // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
         TwoFactorSetupStatus.NoSuchAccount => CommonErrors.NotAuthenticated,
         _ => TwoFactorErrors.TwoFactorSetupRejected,
     };

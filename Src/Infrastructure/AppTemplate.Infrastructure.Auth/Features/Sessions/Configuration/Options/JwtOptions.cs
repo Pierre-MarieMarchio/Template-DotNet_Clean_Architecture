@@ -5,38 +5,22 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Sessions.Configuration.Options;
 
-/// <summary>
-/// Access-token signing and validation settings. Bound and validated at startup, so a missing or
-/// too-short key fails the host rather than surfacing as <c>IDX10653</c> the first time somebody
-/// tries to log in.
-/// </summary>
 public sealed class JwtOptions
 {
     public const string SectionName = "Jwt";
 
-    /// <summary>HS256 requires a key at least as long as its output. Anything shorter is rejected.</summary>
     public const int MinimumKeyLengthInBytes = 32;
 
-    /// <summary>
-    /// How the signing key the template ships for local development begins. It is public, so
-    /// outside Development a key with this prefix is refused.
-    /// </summary>
     public const string DevelopmentKeyPrefix = "dev-only";
 
-    /// <summary>Symmetric signing key. Supply it through a secret store, never through appsettings.json.</summary>
     public string Key { get; set; } = string.Empty;
 
     public string Issuer { get; set; } = string.Empty;
 
     public string Audience { get; set; } = string.Empty;
 
-    /// <summary>Defaults to <c>true</c>; only a local development host has any business turning it off.</summary>
     public bool RequireHttpsMetadata { get; set; } = true;
 
-    /// <summary>
-    /// Deliberately short. An access token cannot be revoked, so its lifetime is the window during
-    /// which a stolen one remains useful; the refresh token is what provides continuity.
-    /// </summary>
     public int AccessTokenLifetimeInMinutes { get; set; } = 15;
 
     internal SymmetricSecurityKey CreateSigningKey() => new(Encoding.UTF8.GetBytes(Key));

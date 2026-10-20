@@ -10,11 +10,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ConfirmEmailChange;
 
-/// <summary>
-/// Applies the change, then invalidates every credential issued against the old address through
-/// <c>CredentialInvalidationPolicy</c>: the store's own stamp rotation fails the access tokens, and
-/// the refresh tokens it leaves alone are this call's to revoke.
-/// </summary>
 public sealed class ConfirmEmailChangeUseCase(
     IEmailTokensService emailTokens,
     ISessionTokensService sessionTokens,
@@ -22,7 +17,6 @@ public sealed class ConfirmEmailChangeUseCase(
     ICurrentUser currentUser,
     IValidator<ConfirmEmailChangeCommand> validator) : IConfirmEmailChangeUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(
         ConfirmEmailChangeCommand request,
         CancellationToken cancellationToken = default)

@@ -10,23 +10,11 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Sessions.Configuration.Options;
 
-/// <summary>
-/// Configures bearer validation from the validated <see cref="JwtOptions"/>. Done through
-/// <see cref="IConfigureNamedOptions{TOptions}"/> rather than an inline lambda over a concrete
-/// settings singleton, so the key is read after validation has run and a bad configuration cannot
-/// reach the handler.
-/// </summary>
 internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
     : IConfigureNamedOptions<JwtBearerOptions>
 {
-    /// <summary>
-    /// The stable code a client branches on when it has no usable token. Distinct from
-    /// <see cref="ForbiddenCode"/>, because the two call for different behaviour: refresh and retry
-    /// versus stop and tell the user.
-    /// </summary>
     internal const string UnauthorizedCode = "auth.required";
 
-    /// <summary>The stable code for an authenticated caller that is not permitted.</summary>
     internal const string ForbiddenCode = "auth.forbidden";
 
     public void Configure(JwtBearerOptions options) =>
@@ -48,33 +36,24 @@ internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
         {
             ValidateIssuerSigningKey = true,
 
-            // Never derived from whether a value is present: a check that switches itself off when
-            // its configuration is blank refuses nothing. JwtOptionsValidator requires both values.
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
 
-            // Small, not zero: the issuer stamps nbf and exp from IDateTimeProvider while this check reads the machine
-            // clock, so one backward step (an NTP correction, a resumed VM) would refuse every token. The framework's
-            // default of five minutes keeps a stolen token alive well past its expiry.
             ClockSkew = TimeSpan.FromSeconds(30),
             ValidIssuer = settings.Issuer,
             ValidAudience = settings.Audience,
             IssuerSigningKey = settings.CreateSigningKey(),
 
-            // Pinned, so a token cannot dictate its own algorithm.
             ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
         };
 
         options.Events = new JwtBearerEvents
         {
-            // application/problem+json with a stable `code`, like every other error this API
-            // produces, rather than the handler's own body shape.
             OnChallenge = context =>
             {
                 ArgumentNullException.ThrowIfNull(context);
 
-                // Suppresses the handler's own empty 401 so this response is the only one written.
                 context.HandleResponse();
 
                 return WriteProblemAsync(
@@ -99,8 +78,6 @@ internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
 
             OnTokenValidated = async context =>
             {
-                // The security stamp is what makes a password change or a forced sign-out take
-                // effect before the access token expires.
                 if (context.Principal?.Identity is not ClaimsIdentity identity || !identity.Claims.Any())
                 {
                     context.Fail("This token carries no claims.");
@@ -124,15 +101,6 @@ internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
         };
     }
 
-    /// <summary>
-    /// Writes the same RFC 7807 shape the rest of the API writes: a <c>ProblemDetails</c> body, the
-    /// <c>application/problem+json</c> content type, and a <c>code</c> extension a client can switch on.
-    /// <para>
-    /// The detail deliberately says nothing about <em>why</em> the token was rejected — expired, wrong
-    /// signature, revoked security stamp, absent — because each of those answers tells an unauthenticated
-    /// caller something about the system's state.
-    /// </para>
-    /// </summary>
     private static Task WriteProblemAsync(
         HttpContext httpContext,
         int status,

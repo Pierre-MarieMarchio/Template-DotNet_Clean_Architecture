@@ -3,8 +3,4 @@ using AppTemplate.Application.Core.Common.UseCases;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ResendConfirmationEmail;
 
-/// <summary>
-/// Exists because sign-up commits the account before handing the mail to the relay: without a
-/// resend path, a delivery failure would take the address forever.
-/// </summary>
 public interface IResendConfirmationEmailUseCase : IUseCase<ResendConfirmationEmailCommand, Result>;

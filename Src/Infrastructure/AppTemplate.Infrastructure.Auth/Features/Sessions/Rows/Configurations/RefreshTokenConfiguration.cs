@@ -7,7 +7,6 @@ namespace AppTemplate.Infrastructure.Auth.Features.Sessions.Rows.Configurations;
 
 internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 {
-    /// <summary>Base64url SHA-256 is always 43 characters, so the column is fixed width.</summary>
     internal const int TokenHashLength = 43;
 
     public void Configure(EntityTypeBuilder<RefreshToken> builder)
@@ -18,7 +17,6 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
 
         builder.HasKey(token => token.Id);
 
-        // The id is a UUIDv7 the model creates, so the database must not try to generate one.
         builder.Property(token => token.Id).ValueGeneratedNever();
 
         builder.Property(token => token.TokenHash)
@@ -32,13 +30,10 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
             .HasMaxLength(TokenHashLength)
             .IsFixedLength();
 
-        // Revoking a whole token family is a per-user scan; give it an index.
         builder.HasIndex(token => new { token.UserId, token.RevokedAt });
 
-        // Ending a session revokes the family's live grants by family id, not by user.
         builder.HasIndex(token => new { token.FamilyId, token.RevokedAt });
 
-        // The purge sweep is a range scan over this column; without the index it is a full table scan.
         builder.HasIndex(token => token.ExpiresAt);
 
         builder.HasOne(token => token.User)

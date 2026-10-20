@@ -11,7 +11,6 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.Register;
 
-/// <summary>Registers the address unless it is taken, and mails its holder one message either way.</summary>
 public sealed class RegisterUseCase(
     IAccountsService accounts,
     IEmailTokensService emailTokens,
@@ -21,7 +20,6 @@ public sealed class RegisterUseCase(
     IValidator<RegisterCommand> validator,
     ILogger<RegisterUseCase> logger) : IRegisterUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(
         RegisterCommand request,
         CancellationToken cancellationToken = default)

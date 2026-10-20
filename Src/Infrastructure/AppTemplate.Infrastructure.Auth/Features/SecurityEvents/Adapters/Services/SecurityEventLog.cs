@@ -12,15 +12,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Services;
 
-/// <summary>Keeps every <see cref="ISecurityEventLog"/> event twice: as a structured log entry —
-/// written first, with the user id as its own JSON field, not interpolated into text — and as a row
-/// of the <c>identity.SecurityEvents</c> table. The row is written in its own short transaction,
-/// deliberately not part of the action's: several events have none, a shared context would flush
-/// the caller's pending changes, and a row joined to the action would vanish with a rollback that is
-/// itself worth recording. If the write fails, the failure is logged at <c>Error</c> and the action's
-/// outcome is left as it was — availability over completeness, so the trail can have gaps the log
-/// does not. Synchronous, like <see cref="ISecurityEventLog.Record"/>: one small insert on a pooled
-/// connection, after the response is decided.</summary>
 internal sealed partial class SecurityEventLog(
     ILogger<SecurityEventLog> logger,
     DbContextOptions<AuthDbContext> contextOptions,
@@ -44,8 +35,6 @@ internal sealed partial class SecurityEventLog(
         int purged = 0;
         int deleted;
 
-        // Oldest first, a batch per statement: each delete is its own short transaction, so a large
-        // backlog never holds one lock over the whole table.
         do
         {
             deleted = await context.SecurityEvents
@@ -61,10 +50,6 @@ internal sealed partial class SecurityEventLog(
         return purged;
     }
 
-    /// <summary>
-    /// A context of its own, so the insert commits alone: nothing the caller's scoped context still
-    /// tracks is flushed with it, and no transaction the caller opened can take it down.
-    /// </summary>
     private void WriteRow(SecurityEvent securityEvent)
     {
         try
@@ -85,8 +70,6 @@ internal sealed partial class SecurityEventLog(
         }
         catch (Exception exception)
         {
-            // Deliberately every exception: see the class summary. The event itself is already in the
-            // log above; this line says the table is missing it.
             LogRowNotWritten(logger, exception, securityEvent.Kind, securityEvent.UserId);
         }
     }
@@ -213,10 +196,6 @@ internal sealed partial class SecurityEventLog(
     [LoggerMessage(Level = LogLevel.Information, Message = "Login succeeded for user {UserId}.")]
     private static partial void LogLoginSucceeded(ILogger logger, Guid? userId);
 
-    /// <summary>The field is <c>{Status}</c> because what it carries is a
-    /// <see cref="CredentialCheckStatus"/> — in this repository's vocabulary an <c>…Outcome</c> is
-    /// the record an operation hands back and a <c>…Status</c> the closed enum of ways it went, so
-    /// <c>{Outcome}</c> named the wrong one in the JSON an operator queries.</summary>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Authentication failed for user {UserId} with status {Status}.")]

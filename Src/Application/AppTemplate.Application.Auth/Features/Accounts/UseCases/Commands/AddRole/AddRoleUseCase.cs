@@ -9,17 +9,12 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.AddRole;
 
-/// <summary>
-/// No caller-identity guard, unlike <see cref="RemoveRole.RemoveRoleUseCase"/>: granting a role to
-/// oneself cannot strip the access the request is being made under, only add to it.
-/// </summary>
 public sealed class AddRoleUseCase(
     IAccountAdministrationService administration,
     ISessionTokensService sessionTokens,
     ISecurityEventLog securityEventLog,
     IValidator<AddRoleCommand> validator) : IAddRoleUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(AddRoleCommand request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);

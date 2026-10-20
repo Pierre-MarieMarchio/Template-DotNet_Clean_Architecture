@@ -11,16 +11,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.DisableAccountTwoFactor;
 
-/// <summary>
-/// The self-guard here is not <see cref="SelfAdministrationPolicy"/>'s usual reason. Disabling two
-/// factor on the caller's own account is not the self-inflicted, nobody-left-to-undo-it lockout that
-/// <see cref="AccountsErrors.CannotLockOwnAccount"/> and <see cref="AccountsErrors.CannotDeleteOwnAccount"/>
-/// refuse — sign-in still works afterward, just with one fewer step. It is refused for the reason
-/// this whole capability exists to close: an administrator's own session is a session like any
-/// other, and letting it reach this capability against its own account would let a stolen one strip
-/// its second factor without ever producing the password <c>ITwoFactorService.DisableAsync</c>
-/// demands of everybody else. See <see cref="TwoFactorErrors.CannotDisableOwnTwoFactor"/>.
-/// </summary>
 public sealed class DisableAccountTwoFactorUseCase(
     IAccountAdministrationService administration,
     ISessionTokensService sessionTokens,
@@ -28,7 +18,6 @@ public sealed class DisableAccountTwoFactorUseCase(
     ICurrentUser currentUser,
     IValidator<DisableAccountTwoFactorCommand> validator) : IDisableAccountTwoFactorUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(
         DisableAccountTwoFactorCommand request,
         CancellationToken cancellationToken = default)

@@ -4,19 +4,10 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.PurgeExpiredRefreshTokens;
 
-/// <summary>
-/// Deletes every refresh-token grant whose retention window has passed. Administrative rather than
-/// user-facing, like <c>PurgeExpiredIdempotencyKeysUseCase</c>: nothing about a caller's own
-/// request needs this, only the operator running the store's housekeeping. Left unpurged, this
-/// table grows by one row per rotation forever — see
-/// <see cref="ISessionTokensService"/> for why a grant still lingers a while after it expires
-/// rather than being deleted immediately.
-/// </summary>
 public sealed class PurgeExpiredRefreshTokensUseCase(
     ISessionTokensService sessionTokens,
     IDateTimeProvider dateTimeProvider) : IPurgeExpiredRefreshTokensUseCase
 {
-    /// <inheritdoc />
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default) =>
         await sessionTokens.PurgeExpiredRefreshTokensAsync(dateTimeProvider.UtcNow, cancellationToken);
 }

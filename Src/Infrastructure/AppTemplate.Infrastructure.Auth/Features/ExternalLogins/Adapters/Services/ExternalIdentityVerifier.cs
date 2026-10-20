@@ -7,43 +7,18 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace AppTemplate.Infrastructure.Auth.Features.ExternalLogins.Adapters.Services;
 
-/// <summary>
-/// <see cref="IExternalIdentityVerifier"/> over OpenID Connect, for every provider at once. One
-/// adapter, not one per provider: Google, Microsoft and Apple all mint an OIDC <c>id_token</c>,
-/// and checking one is the same four checks in all three cases (signature against the provider's
-/// published keys, issuer, audience, validity window); what differs is a set of strings, so three
-/// classes would be three copies with three constants, and a fourth provider would be a class
-/// rather than a configuration section. The one real provider-shaped difference lives at the
-/// bottom of this file: Apple sends <c>email_verified</c> as the string <c>"true"</c> where Google
-/// sends the JSON boolean.
-/// </summary>
 internal sealed class ExternalIdentityVerifier(
     IOptions<ExternalIdentityOptions> options,
     ISigningKeyDirectory signingKeys) : IExternalIdentityVerifier
 {
-    /// <summary>
-    /// Thread-safe and stateless once constructed, and building one per verification is measurable
-    /// work for no benefit.
-    /// </summary>
     private static readonly JsonWebTokenHandler _handler = new();
 
-    /// <summary>
-    /// Pinned, so a token cannot dictate how it is checked. The two asymmetric algorithms every
-    /// OpenID Connect provider in practice signs with; leaving this open is how a token signed with
-    /// <c>HS256</c> — using the provider's <em>public</em> key as the shared secret — gets accepted
-    /// as authentic.
-    /// </summary>
     private static readonly string[] _permittedAlgorithms =
     [
         SecurityAlgorithms.RsaSha256,
         SecurityAlgorithms.EcdsaSha256,
     ];
 
-    /// <summary>
-    /// Small, not zero: these timestamps are stamped by somebody else's clock, on a host this
-    /// deployment has no relationship with — and still far below the framework's five-minute
-    /// default, which keeps a token usable well past the moment its issuer said it stopped being.
-    /// </summary>
     private static readonly TimeSpan _clockSkew = TimeSpan.FromSeconds(30);
 
     public async Task<VerifiedExternalIdentity?> VerifyAsync(
@@ -63,15 +38,12 @@ internal sealed class ExternalIdentityVerifier(
         var keys = await signingKeys.GetAsync(configured, cancellationToken);
         var validation = await ValidateAsync(idToken, configured, keys);
 
-        // A key the cached set does not hold is what a rotation looks like from here, and is not a
-        // bad signature, which no re-fetch would fix. The directory decides whether to fetch.
         if (validation is { IsValid: false, Exception: SecurityTokenSignatureKeyNotFoundException })
         {
             keys = await signingKeys.RefreshAsync(configured, cancellationToken);
             validation = await ValidateAsync(idToken, configured, keys);
         }
 
-        // Everything after this point reads attacker-supplied text unless IsValid holds.
         if (!validation.IsValid || validation.SecurityToken is not JsonWebToken token)
         {
             return null;
@@ -80,8 +52,6 @@ internal sealed class ExternalIdentityVerifier(
         if (!token.TryGetPayloadValue(JwtRegisteredClaimNames.Sub, out string? subject)
             || string.IsNullOrWhiteSpace(subject))
         {
-            // A token with no subject verifies but identifies nobody, and (provider, subject) is the
-            // only key a local account is resolved by.
             return null;
         }
 
@@ -100,8 +70,6 @@ internal sealed class ExternalIdentityVerifier(
             idToken,
             new TokenValidationParameters
             {
-                // Never conditional on a value being present: a check that switches itself off when
-                // its configuration is blank refuses nothing. The options validator guarantees them.
                 RequireSignedTokens = true,
                 RequireExpirationTime = true,
                 ValidateIssuerSigningKey = true,
@@ -116,27 +84,12 @@ internal sealed class ExternalIdentityVerifier(
                 ClockSkew = _clockSkew,
             });
 
-    /// <summary><c>null</c> whenever the token carried no address, which is Apple's normal case.</summary>
     private static string? ReadEmail(JsonWebToken token) =>
         token.TryGetPayloadValue(JwtRegisteredClaimNames.Email, out string? email)
             && !string.IsNullOrWhiteSpace(email)
                 ? email
                 : null;
 
-    /// <summary>
-    /// <c>email_verified</c>. Google sends the JSON boolean and Apple sends the string
-    /// <c>"true"</c>, and reading only one of the two would silently treat every Apple address as
-    /// unverified — which refuses every first Apple sign-in with an error saying nothing about why.
-    /// <para>
-    /// One call covers both, and that is a fact about the library rather than an assumption:
-    /// <c>TryGetPayloadValue&lt;bool&gt;</c> converts the string form. It is asserted rather than
-    /// trusted — <c>ExternalIdentityVerifierTests</c> presents Apple's encoding, so a version that
-    /// stopped converting fails there instead of in production.
-    /// </para>
-    /// <para>
-    /// Absent means <c>false</c>. An omission is never read as an assurance.
-    /// </para>
-    /// </summary>
     private static bool ReadEmailVerified(JsonWebToken token) =>
         token.TryGetPayloadValue(JwtRegisteredClaimNames.EmailVerified, out bool verified) && verified;
 }

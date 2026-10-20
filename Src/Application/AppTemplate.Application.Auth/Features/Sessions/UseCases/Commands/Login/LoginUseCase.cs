@@ -10,11 +10,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Login;
 
-/// <summary>
-/// Verifies the credential, then — only once it matched — branches on whether the account has a
-/// second factor armed. Nothing is issued and no account fact is disclosed before that first step
-/// succeeds.
-/// </summary>
 public sealed class LoginUseCase(
     IAccountsService accounts,
     ISessionTokensService sessionTokens,
@@ -23,7 +18,6 @@ public sealed class LoginUseCase(
     ICurrentSession currentSession,
     IValidator<LoginCommand> validator) : ILoginUseCase
 {
-    /// <inheritdoc />
     public async Task<Result<LoginOutcome>> ExecuteAsync(
         LoginCommand request,
         CancellationToken cancellationToken = default)
@@ -42,12 +36,8 @@ public sealed class LoginUseCase(
             request.Password,
             cancellationToken);
 
-        // Every refusal collapses to one error: an unknown address, a wrong password, an unconfirmed
-        // address and a lockout are exactly what a probe is trying to tell apart.
         if (credential is not { Status: CredentialCheckStatus.Verified, Account: { } account })
         {
-            // Identity reports a lockout on the attempt that crosses the threshold and on every
-            // attempt while it lasts; each is recorded.
             if (credential is { Status: CredentialCheckStatus.LockedOut, Account: { } lockedOut })
             {
                 securityEventLog.Record(SecurityEvent.AccountLockedOut(lockedOut.UserId));
@@ -58,9 +48,6 @@ public sealed class LoginUseCase(
             return Result.Failure<LoginOutcome>(SessionsErrors.InvalidCredentials);
         }
 
-        // A verified password on a two-factor account is half a login: the challenge issued here is
-        // redeemed by VerifyTwoFactorUseCase, which is what mints the tokens. After the credential
-        // check, never before, so a guess alone reveals nothing about the account.
         if (account.TwoFactorEnabled)
         {
             var challenge = await twoFactor.IssueChallengeAsync(account.UserId, cancellationToken);
@@ -70,7 +57,6 @@ public sealed class LoginUseCase(
 
         securityEventLog.Record(SecurityEvent.LoginSucceeded(account.UserId));
 
-        // The refresh token first: it starts the session the access token names.
         var refreshToken = await sessionTokens.IssueRefreshTokenAsync(
             account.UserId,
             currentSession.Client,

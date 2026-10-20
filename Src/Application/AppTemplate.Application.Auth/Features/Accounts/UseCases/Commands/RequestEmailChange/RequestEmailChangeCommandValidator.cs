@@ -2,13 +2,8 @@
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.RequestEmailChange;
 
-/// <summary>
-/// Shape only, mirroring <c>RegisterCommandValidator</c>'s email rule. The current-password check
-/// itself is the store's, not this validator's.
-/// </summary>
 public sealed class RequestEmailChangeCommandValidator : AbstractValidator<RequestEmailChangeCommand>
 {
-    /// <summary>Presence for the password, and the same address rule registration applies.</summary>
     public RequestEmailChangeCommandValidator()
     {
         RuleFor(x => x.CurrentPassword).NotEmpty().WithMessage("Current password is required.");

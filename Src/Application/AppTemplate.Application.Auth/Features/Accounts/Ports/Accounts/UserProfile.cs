@@ -1,6 +1,5 @@
 ﻿namespace AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
 
-/// <summary>The account's own profile, as the user store holds it now.</summary>
 public sealed record UserProfile(
     Guid UserId,
     string Email,

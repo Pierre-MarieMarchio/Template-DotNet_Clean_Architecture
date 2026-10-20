@@ -5,16 +5,11 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.ListSessions;
 
-/// <summary>
-/// Lists the caller's own live sessions and marks the one the request comes from, so a client can
-/// show "this device" and offer to end the others.
-/// </summary>
 public sealed class ListSessionsUseCase(
     ISessionsService sessions,
     ICurrentUser currentUser,
     ICurrentSession currentSession) : IListSessionsUseCase
 {
-    /// <inheritdoc />
     public async Task<Result<IReadOnlyList<ListSessionsItem>>> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

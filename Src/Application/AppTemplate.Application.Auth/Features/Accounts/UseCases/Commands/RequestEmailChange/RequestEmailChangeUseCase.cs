@@ -9,10 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.RequestEmailChange;
 
-/// <summary>
-/// Once the password is verified, mails the new address a confirmation link, or the notice that an
-/// account already holds it, and succeeds the same way for both.
-/// </summary>
 public sealed class RequestEmailChangeUseCase(
     IEmailTokensService emailTokens,
     IAccountEmailFactory emailFactory,
@@ -21,7 +17,6 @@ public sealed class RequestEmailChangeUseCase(
     IValidator<RequestEmailChangeCommand> validator,
     ILogger<RequestEmailChangeUseCase> logger) : IRequestEmailChangeUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(
         RequestEmailChangeCommand request,
         CancellationToken cancellationToken = default)
@@ -48,7 +43,6 @@ public sealed class RequestEmailChangeUseCase(
             request.NewEmail,
             cancellationToken);
 
-        // A token that outlived its account, answered as GetCurrentUserUseCase answers it.
         if (issued.Status is EmailChangeRequestStatus.NoSuchAccount)
         {
             return Result.Failure(CommonErrors.NotAuthenticated);

@@ -2,20 +2,12 @@
 
 namespace AppTemplate.Infrastructure.Auth.Features.Sessions.Configuration.Options;
 
-/// <summary>Lifetime of the opaque refresh token. Its size and hashing are not configurable.</summary>
 public sealed class RefreshTokenOptions
 {
     public const string SectionName = "RefreshToken";
 
     public int LifetimeInDays { get; set; } = 7;
 
-    /// <summary>
-    /// How long an expired grant is kept before the purge sweep deletes it. <c>ReplacedByTokenHash</c>
-    /// is what makes a replay of an already-rotated token detectable; purging a row the moment it
-    /// expires would erase that evidence just as fast as it erases the row itself. Kept well past a
-    /// live grant's own lifetime so a slow client presenting a stale token still gets told "replay"
-    /// rather than "unknown".
-    /// </summary>
     public int RetentionInDays { get; set; } = 7;
 }
 

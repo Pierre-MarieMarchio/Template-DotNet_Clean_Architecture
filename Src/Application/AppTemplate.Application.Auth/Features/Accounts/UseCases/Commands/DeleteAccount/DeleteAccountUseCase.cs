@@ -11,12 +11,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.DeleteAccount;
 
-/// <summary>Removes exactly the account row and what ASP.NET Identity owns alongside it — see
-/// <see cref="IAccountAdministrationService"/> for why nothing here reaches past that. No
-/// <c>CredentialInvalidationPolicy</c> call either: there is no security stamp left to rotate once
-/// the row is gone, and the refresh-token grants go with it through the store's cascading delete.
-/// What other features own under the id is their business: the <see cref="UserAccountDeleted"/>
-/// fact published after the commit is what tells them, each through its own policy.</summary>
 public sealed class DeleteAccountUseCase(
     IAccountAdministrationService administration,
     ISecurityEventLog securityEventLog,
@@ -25,7 +19,6 @@ public sealed class DeleteAccountUseCase(
     IDateTimeProvider dateTimeProvider,
     IValidator<DeleteAccountCommand> validator) : IDeleteAccountUseCase
 {
-    /// <inheritdoc />
     public async Task<Result> ExecuteAsync(DeleteAccountCommand request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -63,8 +56,6 @@ public sealed class DeleteAccountUseCase(
 
         securityEventLog.Record(SecurityEvent.AccountDeleted(request.UserId));
 
-        // After the deletion has committed: the fact is what other features react to, and it names
-        // what is already true.
         await domainEvents.PublishAsync(
             new UserAccountDeleted(UserId.Create(request.UserId), dateTimeProvider.UtcNow),
             cancellationToken);

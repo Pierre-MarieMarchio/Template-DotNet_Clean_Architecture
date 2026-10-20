@@ -13,9 +13,6 @@ internal sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
 
         builder.ToTable("User", AuthDbContext.IdentitySchema);
 
-        // options.User.RequireUniqueEmail is true and cannot be turned off, so the database
-        // enforces it too. The inherited index is non-unique, which let two concurrent
-        // registrations both pass the application-level check and both commit.
         builder.HasIndex(user => user.NormalizedEmail)
             .HasDatabaseName("EmailIndex")
             .IsUnique();

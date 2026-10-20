@@ -3,20 +3,10 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Common.Options;
 
-/// <summary>
-/// Password, lockout and sign-in policy. This section is the one authority on the password policy:
-/// ASP.NET Identity applies it to every new password, at registration, change and reset, and the
-/// application layer checks nothing beyond <see cref="PasswordInputPolicy"/>. Every member has a safe default, so a section that is
-/// absent or only partly filled in tightens nothing and loosens nothing. That is load-bearing:
-/// whatever is bound here overwrites ASP.NET Identity's own secure defaults, so a member left to
-/// <c>false</c> or <c>0</c> by omission would silently loosen the policy rather than leave it
-/// alone.
-/// </summary>
 public sealed class IdentityPolicyOptions
 {
     public const string SectionName = "Identity";
 
-    /// <summary>A floor configuration cannot go below, enforced both by validation and by clamping.</summary>
     public const int AbsoluteMinimumPasswordLength = 8;
 
     public int PasswordRequiredLength { get; set; } = 12;
@@ -31,7 +21,6 @@ public sealed class IdentityPolicyOptions
 
     public bool PasswordRequireNonAlphanumeric { get; set; } = true;
 
-    /// <summary>Lockout is what bounds online password guessing. It is on by default.</summary>
     public bool LockoutEnabled { get; set; } = true;
 
     public int LockoutMaxFailedAccessAttempts { get; set; } = 5;
@@ -42,7 +31,6 @@ public sealed class IdentityPolicyOptions
 
     public bool RequireUniqueEmail { get; set; } = true;
 
-    /// <summary>The value actually handed to ASP.NET Identity, never below the hard floor.</summary>
     internal int EffectivePasswordRequiredLength =>
         Math.Max(PasswordRequiredLength, AbsoluteMinimumPasswordLength);
 }

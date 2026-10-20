@@ -6,15 +6,10 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Queries.GetMySecurityEvents;
 
-/// <summary>
-/// Reads the caller's own trail: the account id is the caller's, never an input, so the answer can
-/// only ever be the caller's rows.
-/// </summary>
 public sealed class GetMySecurityEventsUseCase(
     ISecurityEventQueries queries,
     ICurrentUser currentUser) : IGetMySecurityEventsUseCase
 {
-    /// <inheritdoc />
     public async Task<Result<PagedResult<SecurityEventEntry>>> ExecuteAsync(
         GetMySecurityEventsQuery query,
         CancellationToken cancellationToken = default)

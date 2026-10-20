@@ -6,10 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Access.Queries;
 
-/// <summary>
-/// Reads the trail over the <c>(UserId, OccurredAt)</c> index, untracked. The id breaks a tie
-/// between two events stamped the same instant, so a page boundary never repeats or skips one.
-/// </summary>
 internal sealed class SecurityEventQueries(AuthDbContext context) : ISecurityEventQueries
 {
     public async Task<PagedResult<SecurityEventEntry>> GetForUserAsync(

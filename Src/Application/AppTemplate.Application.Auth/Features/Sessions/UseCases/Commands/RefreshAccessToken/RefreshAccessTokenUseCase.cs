@@ -9,11 +9,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.RefreshAccessToken;
 
-/// <summary>
-/// Rotates the grant first and re-asks whether the account may still sign in second, so a replay
-/// is refused before anything is revalidated and a suspended account cannot refresh its way
-/// onwards.
-/// </summary>
 public sealed class RefreshAccessTokenUseCase(
     IAccountsService accounts,
     ISessionTokensService sessionTokens,
@@ -21,7 +16,6 @@ public sealed class RefreshAccessTokenUseCase(
     ICurrentSession currentSession,
     IValidator<RefreshAccessTokenCommand> validator) : IRefreshAccessTokenUseCase
 {
-    /// <inheritdoc />
     public async Task<Result<RefreshAccessTokenOutcome>> ExecuteAsync(
         RefreshAccessTokenCommand request,
         CancellationToken cancellationToken = default)
@@ -35,8 +29,6 @@ public sealed class RefreshAccessTokenUseCase(
             return validation.To<RefreshAccessTokenOutcome>();
         }
 
-        // Rotation comes first and is single-use, so a replayed token is refused here rather than
-        // after the account has been revalidated.
         var rotation = await sessionTokens.RotateRefreshTokenAsync(
             request.RefreshToken,
             currentSession.Client,
@@ -47,8 +39,6 @@ public sealed class RefreshAccessTokenUseCase(
             return Result.Failure<RefreshAccessTokenOutcome>(SessionsErrors.InvalidRefreshToken);
         }
 
-        // A grant issued before the account was locked out or disabled must not keep minting tokens,
-        // and the successor has to go with it — otherwise the holder simply refreshes again.
         if (!await accounts.CanSignInAsync(userId, cancellationToken))
         {
             await sessionTokens.RevokeAllRefreshTokensAsync(userId, cancellationToken: cancellationToken);

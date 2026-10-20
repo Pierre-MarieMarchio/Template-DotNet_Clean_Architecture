@@ -2,13 +2,8 @@
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Services;
 
-/// <summary>The link an account mail carries, and where its single-use token is put.</summary>
 internal static class EmailLinkFactory
 {
-    /// <summary>
-    /// Parameters URL-encoded and carried in the fragment rather than the query, so the token never
-    /// reaches a server log, a browser history entry or a <c>Referer</c> header.
-    /// </summary>
     internal static string Create(Uri page, string email, string token) =>
         string.Format(
             CultureInfo.InvariantCulture,

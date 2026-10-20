@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Configurations;
 
-/// <inheritdoc cref="UserRoleConfiguration"/>
 internal sealed class UserLoginConfiguration : IEntityTypeConfiguration<IdentityUserLogin<Guid>>
 {
     public void Configure(EntityTypeBuilder<IdentityUserLogin<Guid>> builder)

@@ -453,8 +453,8 @@ internal static class Tasks
         OptionalGate(repoRoot, "CheckWorkflows.cs", "--self-test");
         OptionalGate(repoRoot, "CheckWorkflows.cs", repoRoot);
         Step("dotnet", "run", Gate(repoRoot, "CoverageGate.cs"), "--self-test");
-        OptionalGate(repoRoot, "CheckNarrativeComments.cs", "--self-test");
-        OptionalGate(repoRoot, "CheckNarrativeComments.cs", repoRoot);
+        OptionalGate(repoRoot, "CheckComments.cs", "--self-test");
+        OptionalGate(repoRoot, "CheckComments.cs", repoRoot);
     }
 
     /// <summary>Runs one gate's command when the tree carries the gate, and skips it when it does not.</summary>

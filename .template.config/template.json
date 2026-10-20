@@ -243,7 +243,7 @@
             ".github/workflows/template-acceptance.yml",
             "Tools/CheckDocPaths.cs",
             "Tools/CheckWorkflows.cs",
-            "Tools/CheckNarrativeComments.cs"
+            "Tools/CheckComments.cs"
           ]
         },
         {

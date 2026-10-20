@@ -3,23 +3,10 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Presentation.Core.Common.Localization;
 
-/// <summary>The language this deployment writes to a reader who has not said which one they read.
-/// Deliberately <b>no list of supported languages here</b>: what a mail can be written in is what
-/// templates the infrastructure modules embed, and a list in configuration would be a second
-/// statement of that — free to name a language no template backs, or omit one that ships; a request
-/// asking for a language nothing was written in falls back on its own. Public because it is bound
-/// from configuration; one class for every host, so two processes cannot disagree about what an
-/// unattributed mail reads like.</summary>
 public sealed class LocalizationOptions
 {
-    /// <summary>The configuration section this binds, and part of the deployment contract.</summary>
     public const string SectionName = "Localization";
 
-    /// <summary>
-    /// A culture name — <c>en</c>, <c>fr</c>, <c>fr-CA</c>. Used wherever a host has nothing more
-    /// specific to go on: a request carrying no usable <c>Accept-Language</c>, or a process with no
-    /// request at all, for which it is the language of every mail it sends.
-    /// </summary>
     public string DefaultCulture { get; set; } = "en";
 }
 
@@ -35,8 +22,6 @@ internal sealed class LocalizationOptionsValidator : IValidateOptions<Localizati
                 $"'{LocalizationOptions.SectionName}:{nameof(LocalizationOptions.DefaultCulture)}' is required.");
         }
 
-        // Shape only: the build uses InvariantGlobalization, so the runtime cannot say whether 'fr' is real, and
-        // which tags a deployment can write depends on the templates it ships; the renderers fall back on their own.
         if (!CurrentLanguage.IsWellFormed(options.DefaultCulture))
         {
             return ValidateOptionsResult.Fail(

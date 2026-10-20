@@ -7,14 +7,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Features.Reminders.Jobs;
 
-/// <summary>
-/// Runs <see cref="IFireDueRemindersUseCase"/> on a timer — the only caller it ever has, since it
-/// must never run behind a request.
-/// <para>
-/// One pass takes one <see cref="AsyncServiceScope"/>, and the whole pass is switched on or off by
-/// a single option. A failing pass is logged and retried at the next tick.
-/// </para>
-/// </summary>
 internal sealed class ReminderBackgroundService(
     IServiceScopeFactory scopeFactory,
     IOptions<JobsRemindersOptions> options,
@@ -44,8 +36,6 @@ internal sealed class ReminderBackgroundService(
     {
         if (!settings.Enabled)
         {
-            // Counted and logged every time: a loop switched off by configuration has to look
-            // different both from a healthy quiet pass and from a loop that died.
             ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>(JobTags.Outcome, "disabled"));
 
             if (logger.IsEnabled(LogLevel.Information))
@@ -67,8 +57,6 @@ internal sealed class ReminderBackgroundService(
 
             if (result.IsSuccess)
             {
-                // Unconditional: a pass that notified nobody for days because the due-date query
-                // stopped matching has to look different from one that simply had nothing due.
                 ReminderInstruments.Iterations.Add(1, new KeyValuePair<string, object?>(JobTags.Outcome, "success"));
                 ReminderInstruments.Notified.Add(result.Value);
                 activity?.SetTag("reminders.notified", result.Value);
@@ -91,7 +79,6 @@ internal sealed class ReminderBackgroundService(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Shutdown, not a failed pass: it ends the loop instead of being logged as an error.
             throw;
         }
         catch (Exception exception)

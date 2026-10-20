@@ -11,20 +11,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.Reminders.Controllers;
 
-/// <summary>The reminder aggregate's HTTP surface.</summary>
-/// <remarks>
-/// <b>Two addressing schemes, not one.</b> Scheduling and listing are reached through the item a
-/// reminder is about, because <see cref="ScheduleReminderCommand"/> and
-/// <see cref="GetRemindersQuery"/> both need that context. Rescheduling and cancelling are reached
-/// by the reminder's own id alone: a reminder is its own aggregate root, unlike a <c>TodoItem</c>,
-/// which is reachable only through its list.
-/// <para>
-/// Scheduling takes no precondition and listing carries no <c>ETag</c>: neither
-/// <see cref="ScheduleReminderCommand"/> nor <see cref="GetRemindersQuery"/> has a version for
-/// <c>If-Match</c> to compare against. There is no single-reminder <c>GET</c> either — the
-/// application layer exposes only the query scoped to a <c>TodoItemId</c>.
-/// </para>
-/// </remarks>
 [Route("api/v{version:apiVersion}")]
 [Asp.Versioning.ApiVersion("1.0")]
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
@@ -49,10 +35,6 @@ public sealed class RemindersController(
     }
 
     /// <summary>Schedules a reminder for one item.</summary>
-    /// <remarks>
-    /// Idempotent: send an <c>Idempotency-Key</c> header to make a retried request safe, on the
-    /// same terms as <c>TodoListsController.Create</c>.
-    /// </remarks>
     [HttpPost("todo-lists/{todoListId:guid}/items/{todoItemId:guid}/reminders")]
     [Idempotent]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(ReminderResponse))]
@@ -102,11 +84,6 @@ public sealed class RemindersController(
     }
 
     /// <summary>Cancels a reminder before it fires.</summary>
-    /// <remarks>
-    /// <c>DELETE</c>, not <c>POST .../cancel</c>: cancelling is a one-way, terminal transition —
-    /// the same shape as <c>DeleteTodoList</c> — and needs no request body, unlike a <c>POST</c>
-    /// that would have to carry an empty one.
-    /// </remarks>
     [HttpDelete("reminders/{reminderId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]

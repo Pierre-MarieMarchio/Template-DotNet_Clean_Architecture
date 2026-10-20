@@ -6,22 +6,6 @@
     <DockerfileContext>..\..\..</DockerfileContext>
   </PropertyGroup>
 
-  <!-- AV0029 and AV0030 ask for the per-version OpenAPI integration in Asp.Versioning.OpenApi,
-       which is a separate package. Program.cs already produces one document per version, by hand,
-       and the two are equivalent in structure: the same 38 paths, the same 49 schemas and the same
-       bearer scheme come out either way. What differs is the prose. That package replaces the XML
-       comment source generator in Microsoft.AspNetCore.OpenApi with a transformer of its own, and
-       10.2.3 renders <see cref="..."/> as the empty string — so 26 schema descriptions in this
-       document lose the type they name and read "for the reason  gives." It handles <para> and
-       <c> better than the generator does, which is the trade on offer, and it is not one a
-       reference page can take: a sentence with a hole in it is worse than a paragraph break that
-       did not happen.
-
-       Suppressed at the project level rather than with a #pragma because AV0029 also fires inside
-       OpenApiXmlCommentSupport.generated.cs, which no source-level directive can reach.
-
-       Revisit when Asp.Versioning.OpenApi resolves a cref to the type name. The check is
-       OpenApiDocumentTests, which asserts on exactly the descriptions that regress. -->
   <PropertyGroup>
     <NoWarn>$(NoWarn);AV0029;AV0030</NoWarn>
   </PropertyGroup>
@@ -33,22 +17,16 @@
     </PackageReference>
     <PackageReference Include="Asp.Versioning.Mvc" />
     <!--#if (externalAuth)-->
-    <!-- For Features/ExternalIdentity: bearer validation against an external provider. -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <!--#endif-->
     <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
-    <!-- Referenced by the host, not by any module: the outbound policy is installed once on the
-         factory's defaults by AppTemplate.Presentation.Core, so no infrastructure module needs the package to
-         benefit from it. -->
     <PackageReference Include="Npgsql.OpenTelemetry" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
     <PackageReference Include="Scalar.AspNetCore" />
   </ItemGroup>
 
-  <!-- One reference per infrastructure module. The host is the only place that knows the full
-       set, which is what lets a module be added or dropped without any other module noticing. -->
   <ItemGroup>
     <ProjectReference Include="..\..\Application\AppTemplate.Application\AppTemplate.Application.csproj" />
     <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
@@ -67,16 +45,6 @@
     <ProjectReference Include="..\..\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
   </ItemGroup>
 
-  <!-- EntityTagMapping, IfMatchPrecondition and ProblemDetailsNormaliser.Normalise are internal on
-       purpose: nothing outside this assembly may read or mint a version token, or skip the one
-       normaliser every ProblemDetails producer funnels through. The option validators, the
-       registration extensions, the idempotency filter and the request-log middleware are internal
-       for the converse reason: the container or the pipeline reaches them, never a caller. A test
-       restricted to the public surface could reach their branches only through a live HTTP
-       pipeline, which would not isolate the microsecond-scale decision from everything MVC does
-       around it. Granted to exactly one
-       assembly, for the same reason AppTemplate.Application grants its own internals to exactly its
-       unit tests. -->
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>AppTemplate.Api.UnitTests</_Parameter1>

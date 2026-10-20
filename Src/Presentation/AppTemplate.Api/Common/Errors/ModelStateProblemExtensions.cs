@@ -4,14 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Common.Errors;
 
-/// <summary>
-/// Makes a model-binding failure answer with the same graph as an application validation failure
-/// (<see cref="ErrorMapping"/>): 400, <c>title = "Invalid request"</c>, per-field <c>errors</c>, and
-/// the same <c>code</c>, <c>traceId</c> and <c>type</c> every other producer carries. Without this,
-/// MVC's default factory answers a bare <c>ValidationProblemDetails</c> with the framework's own
-/// title and no <c>code</c> or <c>traceId</c> at all — a different dialect for the one distinction
-/// (malformed request body vs. failed business rule) a client should never have to make.
-/// </summary>
 internal static class ModelStateProblemExtensions
 {
     public static IServiceCollection AddApiModelStateProblemDetails(this IServiceCollection services)
@@ -20,9 +12,6 @@ internal static class ModelStateProblemExtensions
 
         services.Configure<ApiBehaviorOptions>(options => options.InvalidModelStateResponseFactory = CreateResponse);
 
-        // Left on, the JSON input formatter copies a JsonException's text — the CLR type and byte offset — into the
-        // model error and out to the client. Qualified because Microsoft.AspNetCore.Http.Json declares its own
-        // JsonOptions; a controller's input formatter reads MVC's.
         services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(
             options => options.AllowInputFormatterExceptionMessages = false);
 
@@ -38,8 +27,6 @@ internal static class ModelStateProblemExtensions
             .ToDictionary(
                 entry => NormalizeKey(entry.Key),
                 entry => entry.Value!.Errors
-                    // A deserialisation failure carries the exception and no text, so the fixed
-                    // sentence stands in: what a caller can act on is the field, which is the key.
                     .Select(error => string.IsNullOrEmpty(error.ErrorMessage)
                         ? "The value is invalid."
                         : error.ErrorMessage)
@@ -52,7 +39,6 @@ internal static class ModelStateProblemExtensions
             Title = "Invalid request",
         };
 
-        // Same code an application validation failure carries: the two are one dialect, not two.
         problem.Extensions["code"] = ValidationError.Code;
 
         ProblemDetailsNormaliser.Normalise(problem, context.HttpContext);
@@ -64,8 +50,6 @@ internal static class ModelStateProblemExtensions
         };
     }
 
-    // Model-binding keys are not guaranteed camelCase: a route parameter or an [FromForm] field can
-    // arrive PascalCase.
     private static string NormalizeKey(string key) =>
         string.Join('.', key.Split('.').Select(NormalizeSegment));
 

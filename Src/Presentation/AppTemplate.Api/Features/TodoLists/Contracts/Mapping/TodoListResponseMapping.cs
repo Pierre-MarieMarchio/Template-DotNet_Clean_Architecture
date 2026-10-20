@@ -6,10 +6,6 @@ using AppTemplate.Application.Features.TodoLists.Model.Dtos;
 
 namespace AppTemplate.Api.Features.TodoLists.Contracts.Mapping;
 
-/// <summary>
-/// Projects the feature's application DTOs onto its wire contracts. Positional records plus
-/// <c>TreatWarningsAsErrors</c> make a member added on either side fail the build here.
-/// </summary>
 internal static class TodoListResponseMapping
 {
     public static TodoItemResponse ToResponse(TodoItemDto item)
@@ -70,7 +66,6 @@ internal static class TodoListResponseMapping
         Result<Versioned<IReadOnlyList<TodoItemDto>>> result) =>
         result.Map(value => new Versioned<TodoItemsResponse>(ToResponse(value.Value), value.Version));
 
-    /// <summary>The tags this caller has used on their items.</summary>
     public static Result<UsedTagsResponse> ToUsedTagsResponse(
         Result<IReadOnlyList<string>> result) =>
         result.Map(tags => new UsedTagsResponse(tags));

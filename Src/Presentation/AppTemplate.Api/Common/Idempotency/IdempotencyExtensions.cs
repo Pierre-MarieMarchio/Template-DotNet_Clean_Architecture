@@ -16,9 +16,6 @@ internal static class IdempotencyExtensions
 
         services.AddSingleton<IValidateOptions<IdempotencyOptions>, IdempotencyOptionsValidator>();
 
-        // Global rather than per-controller, and registered here rather than in a host's
-        // AddControllers call: the filter is inert on any action without [Idempotent], so this is
-        // safe, and it is one fewer thing every host and every controller has to remember.
         services.Configure<MvcOptions>(options => options.Filters.Add<IdempotencyFilter>());
 
         return services;

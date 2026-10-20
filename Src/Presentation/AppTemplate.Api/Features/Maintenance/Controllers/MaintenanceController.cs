@@ -8,12 +8,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.Maintenance.Controllers;
 
-/// <summary>Administrative operations with no user-facing counterpart.</summary>
-/// <remarks>
-/// The purge here is also run by the API's maintenance job. This endpoint is what a scheduler outside
-/// the process calls, such as a cloud scheduler. Features add their own purges under the same route
-/// prefix, as authentication does for expired refresh-token grants.
-/// </remarks>
 [Route("api/v{version:apiVersion}/maintenance")]
 [Asp.Versioning.ApiVersion("1.0")]
 [Authorize(Policy = AuthorizationPolicies.Administrator)]
@@ -28,5 +22,4 @@ public sealed class MaintenanceController(
     public async Task<ActionResult<PurgeResponse>> PurgeExpiredIdempotencyKeys(CancellationToken cancellationToken) =>
         OkOrProblem(
             MaintenanceResponseMapping.ToPurgeResponse(await purgeExpiredIdempotencyKeys.ExecuteAsync(cancellationToken)));
-
 }

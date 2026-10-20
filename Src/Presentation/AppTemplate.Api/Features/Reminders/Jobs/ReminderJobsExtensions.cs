@@ -4,10 +4,6 @@ namespace AppTemplate.Api.Features.Reminders.Jobs;
 
 internal static class ReminderJobsExtensions
 {
-    /// <summary>
-    /// Binds and validates <see cref="JobsRemindersOptions"/> and starts the timer that fires due
-    /// reminders.
-    /// </summary>
     internal static IServiceCollection AddReminderJobs(
         this IServiceCollection services,
         IConfiguration configuration)

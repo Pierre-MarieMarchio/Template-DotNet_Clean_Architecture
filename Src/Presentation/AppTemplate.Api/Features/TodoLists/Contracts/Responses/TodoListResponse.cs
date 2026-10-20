@@ -1,6 +1,6 @@
 ﻿namespace AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 
-/// <summary>The wire shape of one todo list with its items: the aggregate's full representation.</summary>
+/// <summary>One todo list with all its items.</summary>
 /// <param name="Items">Ordered by title.</param>
 public sealed record TodoListResponse(
     Guid Id,

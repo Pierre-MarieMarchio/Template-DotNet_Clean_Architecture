@@ -2,24 +2,10 @@
 
 namespace AppTemplate.Api.Common.Hosting;
 
-/// <summary>
-/// How long the host waits for in-flight work once shutdown begins.
-/// <para>
-/// Public because it is bound from configuration and its section name is part of the template's
-/// contract with whoever deploys it.
-/// </para>
-/// </summary>
 public sealed class ShutdownOptions
 {
-    /// <summary>The configuration section this type is bound from.</summary>
     public const string SectionName = "Shutdown";
 
-    /// <summary>
-    /// 30 seconds by default: the deployment must allow at least this long after signalling
-    /// shutdown before it stops the process. Long enough for a normal request — including one
-    /// retrying underneath, see <see cref="RequestTimeoutsOptions.Default"/> — to finish; not so
-    /// long that a genuinely stuck one holds the process open past what deploys can tolerate.
-    /// </summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
 }
 

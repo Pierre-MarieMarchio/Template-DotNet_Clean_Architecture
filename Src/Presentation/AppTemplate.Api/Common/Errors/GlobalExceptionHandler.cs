@@ -6,11 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Common.Errors;
 
-/// <summary>
-/// Last-resort handler for anything that escapes a use case. It answers
-/// <c>application/problem+json</c> with the same stable <c>code</c> extension as
-/// <see cref="ErrorMapping"/>, and never puts <c>exception.Message</c> in the response.
-/// </summary>
 internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
@@ -18,9 +13,6 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         Exception exception,
         CancellationToken cancellationToken)
     {
-        // A timeout cancels the same RequestAborted token a client disconnect does, so only this feature can tell a
-        // deadline from a hangup. A net rather than a path: RequestTimeoutsMiddleware answers a timeout itself, so
-        // nothing reaches this arm today.
         bool isServerTimeout = exception is OperationCanceledException
             && httpContext.Features.Get<IHttpRequestTimeoutFeature>() is not null;
 
@@ -32,9 +24,6 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
                 "concurrency.conflict",
                 "The resource was changed by another request. Reload it and apply the change again."),
 
-            // 400 rather than 500: a caller drove an aggregate into a forbidden state. A net, not a path — every write
-            // use case catches it at its own boundary. The type is visible only through AppTemplate.Application's
-            // reference to the domain, which is why this project has no ProjectReference to AppTemplate.Domain.
             DomainException => (
                 StatusCodes.Status400BadRequest,
                 "Invalid request",
@@ -59,9 +48,6 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
 
         if (status == StatusCodes.Status499ClientClosedRequest)
         {
-            // ExceptionHandlerMiddleware has already put 500 on the response, and left alone every
-            // client cancellation would report as a server error to the request log and the duration
-            // metric. No body follows: the client has hung up.
             if (!httpContext.Response.HasStarted)
             {
                 httpContext.Response.StatusCode = status;
@@ -77,7 +63,6 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
 
         if (status == StatusCodes.Status409Conflict)
         {
-            // A lost update is a normal outcome of concurrent writers, not a defect to alert on.
             if (logger.IsEnabled(LogLevel.Warning))
             {
                 logger.LogWarning(
@@ -89,7 +74,6 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         }
         else if (status == StatusCodes.Status504GatewayTimeout)
         {
-            // The service failing its own deadline, not a client hanging up: loud enough to alert on.
             if (logger.IsEnabled(LogLevel.Warning))
             {
                 logger.LogWarning(

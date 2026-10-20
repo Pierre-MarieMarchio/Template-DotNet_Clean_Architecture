@@ -2,74 +2,37 @@
 
 namespace AppTemplate.Api.Features.ExternalIdentity.Configuration.Options;
 
-/// <summary>
-/// The external OpenID Connect provider this API accepts access tokens from, and how a token's claims
-/// become a caller.
-/// <para>
-/// Public because it is bound from configuration and its section name is part of the template's
-/// contract with whoever deploys it.
-/// </para>
-/// </summary>
 public sealed class AuthenticationExternalOptions
 {
-    /// <summary>The configuration section this type is bound from.</summary>
     public const string SectionName = "Authentication:External";
 
-    /// <summary>
-    /// The provider's issuer URL. Its discovery document supplies the signing keys and the issuer a
-    /// token must name.
-    /// </summary>
     public string Authority { get; set; } = string.Empty;
 
-    /// <summary>The audience a token must be issued for: this API's identifier at the provider.</summary>
     public string Audience { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Refuses an <c>http</c> authority. Off only for a provider on a developer's machine: the
-    /// discovery document is where the signing keys come from.
-    /// </summary>
     public bool RequireHttpsMetadata { get; set; } = true;
 
-    /// <summary>The claim naming the provider's subject. Mapped to an internal owner, never used as one.</summary>
     public string SubjectClaim { get; set; } = "sub";
 
-    /// <summary>The claim carrying the caller's email address, kept for notifications unless the
-    /// token's <c>email_verified</c> says it is unverified.</summary>
     public string EmailClaim { get; set; } = "email";
 
-    /// <summary>The claim carrying the caller's display name, kept for notifications.</summary>
     public string NameClaim { get; set; } = "name";
 
-    /// <summary>Where a caller's roles come from.</summary>
     public RolesOptions Roles { get; set; } = new();
 
-    /// <summary>Where a caller's roles come from, and which one administers.</summary>
     public sealed class RolesOptions
     {
-        /// <summary>
-        /// <see cref="RoleSource.Local"/> by default: no role is taken from a token until the
-        /// deployment says which claim carries them.
-        /// </summary>
         public RoleSource Source { get; set; } = RoleSource.Local;
 
-        /// <summary>
-        /// A dot path into the token naming a string or an array of strings — <c>roles</c> for Entra
-        /// ID, <c>realm_access.roles</c> for Keycloak, a namespaced claim for Auth0. Required when
-        /// <see cref="Source"/> is <see cref="RoleSource.Claim"/>.
-        /// </summary>
         public string? ClaimPath { get; set; }
 
-        /// <summary>The role the <c>Administrator</c> policy requires.</summary>
         public string AdministratorRole { get; set; } = "Admin";
     }
 
-    /// <summary>The two places a role can be read from.</summary>
     public enum RoleSource
     {
-        /// <summary>The provider's token, at <see cref="RolesOptions.ClaimPath"/>.</summary>
         Claim = 1,
 
-        /// <summary>This application's own role-assignment table.</summary>
         Local = 2,
     }
 }

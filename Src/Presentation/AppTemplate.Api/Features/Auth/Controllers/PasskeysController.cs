@@ -19,21 +19,6 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
-/// <summary>Registering, listing, removing and signing in with passkeys — every endpoint of the
-/// WebAuthn ceremonies, over the support ASP.NET Core Identity itself provides.</summary>
-/// <remarks>
-/// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
-/// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the
-/// <c>[Authorize]</c> on the actions beside it. The tight
-/// <see cref="RateLimitingExtensions.Authentication"/> budget goes on the four ceremony steps and
-/// no other, so the list and the removal — which handle no credential — cannot spend the
-/// brute-force allowance. The two options responses are <c>[NoStore]</c>: each carries a challenge
-/// this API minted for one ceremony, and the sign-in response carries a token pair, which RFC
-/// 6749 §5.1 keeps out of any cache. The ceremony state that travels with a challenge is opaque
-/// to the client and verified against what the client posts back — this API issues no cookie to
-/// hold it. Six classes under the one <c>auth</c> prefix, and the prefix is the surface: no path
-/// depends on which class answers it.
-/// </remarks>
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]
 public sealed class PasskeysController(
@@ -44,10 +29,10 @@ public sealed class PasskeysController(
     IBeginPasskeySignInUseCase beginPasskeySignIn,
     ICompletePasskeySignInUseCase completePasskeySignIn) : ApiControllerBase
 {
-    /// <summary>The first step of registering a passkey: creation options for
-    /// <c>navigator.credentials.create()</c>, and the state to post back with the credential that
-    /// results. Arms nothing on its own — nothing is stored until
-    /// <see cref="CompletePasskeyRegistration"/> has both parts.</summary>
+    /// <summary>
+    /// Starts a passkey registration: options for <c>navigator.credentials.create()</c> and the
+    /// state to post back.
+    /// </summary>
     [HttpPost("passkeys/register/options")]
     [Authorize]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -59,13 +44,10 @@ public sealed class PasskeysController(
         OkOrProblem(AuthResponseMapping.ToRegistrationOptionsResponse(
             await beginPasskeyRegistration.ExecuteAsync(cancellationToken)));
 
-    /// <summary>The second step of registering a passkey: the credential the client created, the
-    /// state the options named, an optional label — and the current password, for the reason
-    /// <see cref="TwoFactorController.ConfirmTwoFactorSetup"/> gives: a stolen session alone must not
-    /// be able to arm a complete way in. An account with no password is held instead to an access
-    /// token issued less than five minutes ago, answered
-    /// <c>403 auth.account.reAuthenticationRequired</c> when the calling one is older.</summary>
-    /// <remarks>Sessions are untouched: registering a credential changes what future sign-ins can present, not what the sessions already open are worth.</remarks>
+    /// <summary>
+    /// Completes a passkey registration with the created credential, its state, an optional label
+    /// and the current password.
+    /// </summary>
     [HttpPost("passkeys/register")]
     [Authorize]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -89,11 +71,7 @@ public sealed class PasskeysController(
             await completePasskeyRegistration.ExecuteAsync(command, cancellationToken)));
     }
 
-    /// <summary>
-    /// The passkeys registered on the caller's account, the newest first — the ids the removal
-    /// route takes, so a client can offer "sign in with a passkey" next to the list of what is
-    /// already armed.
-    /// </summary>
+    /// <summary>Lists the passkeys registered on the caller's account, newest first.</summary>
     [HttpGet("passkeys")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PasskeysResponse))]
@@ -102,12 +80,7 @@ public sealed class PasskeysController(
         OkOrProblem(AuthResponseMapping.ToPasskeysResponse(
             await listPasskeys.ExecuteAsync(cancellationToken)));
 
-    /// <summary>Removes one of the caller's passkeys by the id the passkey list names. A passkey
-    /// that belongs to somebody else answers 404, exactly as an unknown id does, so the route cannot
-    /// be used to learn which credentials exist; one already removed gets the same 404. Every other
-    /// session of the account ends with the removal, as with a password change.</summary>
-    /// <remarks>An id that is not the base64url the list hands out gets the same 404: it names no
-    /// passkey this account holds.</remarks>
+    /// <summary>Removes one of the caller's passkeys by the id the passkey list names.</summary>
     [HttpDelete("passkeys/{credentialId}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -131,10 +104,10 @@ public sealed class PasskeysController(
         return NoContentOrProblem(await removePasskey.ExecuteAsync(command, cancellationToken));
     }
 
-    /// <summary>The first step of signing in with a passkey: request options for
-    /// <c>navigator.credentials.get()</c>, and the state to post back with the assertion that
-    /// results. No account is named and none is disclosed — the authenticator names one by offering
-    /// a discoverable credential.</summary>
+    /// <summary>
+    /// Starts a passkey sign-in: options for <c>navigator.credentials.get()</c> and the state to
+    /// post back.
+    /// </summary>
     [HttpPost("passkeys/sign-in/options")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -145,13 +118,7 @@ public sealed class PasskeysController(
         OkOrProblem(AuthResponseMapping.ToSignInOptionsResponse(
             await beginPasskeySignIn.ExecuteAsync(cancellationToken)));
 
-    /// <summary>The second step of signing in with a passkey: the assertion the client obtained,
-    /// exchanged for the same response shape as <c>login</c> — always the <c>authenticated</c>
-    /// branch, since a user-verified passkey is the whole of a sign-in. One sign-in, one session,
-    /// exactly as a password's.</summary>
-    /// <remarks>One 401 for every refusal, so the route answers a guess with nothing it can act
-    /// on. See <see cref="SessionsController.LoginWithTwoFactor"/> for the two-step shape a
-    /// password sign-in takes instead.</remarks>
+    /// <summary>Completes a passkey sign-in, exchanging the assertion for a token pair.</summary>
     [HttpPost("passkeys/sign-in")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]

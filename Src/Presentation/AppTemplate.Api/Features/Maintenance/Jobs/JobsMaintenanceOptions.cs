@@ -2,17 +2,10 @@
 
 namespace AppTemplate.Api.Features.Maintenance.Jobs;
 
-/// <summary>
-/// The maintenance timer's cadence: how often it wakes up, and whether the idempotency purge runs
-/// when it does. Every other purge owns its own switch under this same section, so an operator who
-/// runs one cleanup some other way is not forced into the rest, and a feature removed from the
-/// template takes its keys with it.
-/// </summary>
 public sealed class JobsMaintenanceOptions
 {
     public const string SectionName = "Jobs:Maintenance";
 
-    /// <summary>How long to wait between iterations. The same value governs every task.</summary>
     public TimeSpan Interval { get; set; } = TimeSpan.FromHours(1);
 
     public bool PurgeExpiredIdempotencyKeysEnabled { get; set; } = true;

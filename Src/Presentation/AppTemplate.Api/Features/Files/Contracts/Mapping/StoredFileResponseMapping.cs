@@ -9,9 +9,6 @@ using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 
 namespace AppTemplate.Api.Features.Files.Contracts.Mapping;
 
-/// <summary>
-/// Projects the feature's application DTOs onto its wire contracts.
-/// </summary>
 internal static class StoredFileResponseMapping
 {
     public static StoredFileResponse ToResponse(StoredFileDto file)
@@ -54,8 +51,6 @@ internal static class StoredFileResponseMapping
     public static Result<StoredFileRegistrationResponse> ToRegistrationResponse(Result<RegisterFileOutcome> result) =>
         result.Map(ToResponse);
 
-    /// <summary>A string on the wire rather than the enum's number, in the words <c>StoredFileFilter</c> parses, so a client filters with the value it just read.</summary>
-    /// <remarks>Every member is named and the default arm throws, so a state added without a word here fails loudly in tests rather than as a 500 on the first read.</remarks>
     private static string ToStatus(StoredFileState state) => state switch
     {
         StoredFileState.Pending => "pending",
@@ -65,7 +60,6 @@ internal static class StoredFileResponseMapping
         _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown stored file state."),
     };
 
-    /// <summary>The tags this caller has used on their files.</summary>
     public static Result<UsedTagsResponse> ToUsedTagsResponse(
         Result<IReadOnlyList<string>> result) =>
         result.Map(tags => new UsedTagsResponse(tags));

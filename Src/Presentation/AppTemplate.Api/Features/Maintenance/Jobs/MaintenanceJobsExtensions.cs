@@ -7,10 +7,6 @@ namespace AppTemplate.Api.Features.Maintenance.Jobs;
 
 internal static class MaintenanceJobsExtensions
 {
-    /// <summary>
-    /// Binds and validates <see cref="JobsMaintenanceOptions"/>, registers the idempotency purge,
-    /// and starts the timer that runs it and every other registered <see cref="IMaintenanceTask"/>.
-    /// </summary>
     internal static IServiceCollection AddMaintenanceJobs(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -35,11 +31,6 @@ internal static class MaintenanceJobsExtensions
         return services;
     }
 
-    /// <summary>Adds one purge to the maintenance timer. Tasks run in the order they were registered.</summary>
-    /// <param name="services">The container being built.</param>
-    /// <param name="label">What the task is called in logs, spans and counters.</param>
-    /// <param name="disabledConsequence">What accumulates while the task is off.</param>
-    /// <param name="isEnabled">Reads the task's own switch from the options it is bound to.</param>
     internal static IServiceCollection AddMaintenanceTask<TUseCase>(
         this IServiceCollection services,
         string label,

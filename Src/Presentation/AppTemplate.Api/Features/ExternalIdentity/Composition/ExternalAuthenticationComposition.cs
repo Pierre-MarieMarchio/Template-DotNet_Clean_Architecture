@@ -11,18 +11,8 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Features.ExternalIdentity.Composition;
 
-/// <summary>
-/// Everything the API composes to authenticate callers with an external OpenID Connect provider
-/// instead of local accounts, behind one call: a host chooses this or <c>AddAuthFeature</c>, never both.
-/// </summary>
 internal static class ExternalAuthenticationComposition
 {
-    /// <summary>
-    /// Registers bearer validation against <c>Authentication:External</c> (validated at start-up), the
-    /// mapping of each token's subject to an internal owner with its tables' stores, the roles from
-    /// the configured source, and the <see cref="AuthorizationPolicies.Administrator"/> policy.
-    /// </summary>
-    /// <remarks>The mapping lives in the business database, so this adds no readiness check of its own: the host's business database check already covers it.</remarks>
     internal static IServiceCollection AddExternalAuthentication(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -33,9 +23,6 @@ internal static class ExternalAuthenticationComposition
         services.AddExternalIdentity();
         services.AddExternalIdentityPersistence(configuration);
 
-        // Whether an id still names an account, read from the mapping: what the features reacting to a deleted
-        // account re-derive through, as AuthComposition's counterpart. Composed with the accounts, so a feature that
-        // owns user data can never resolve nothing.
         //#if (anyFeature)
         services.AddScoped<IUserAccountDirectory, ExternalIdentityUserAccountDirectory>();
         //#endif
@@ -56,8 +43,6 @@ internal static class ExternalAuthenticationComposition
         services.AddSingleton<IConfigureOptions<JwtBearerOptions>, ConfigureExternalJwtBearerOptions>();
         services.AddScoped<ExternalPrincipalMapper>();
 
-        // Read from the validated options when the policies are built, so the role a deployment names
-        // is the one required.
         services.AddOptions<AuthorizationOptions>()
             .Configure<IOptions<AuthenticationExternalOptions>>((authorization, external) =>
                 authorization.AddPolicy(

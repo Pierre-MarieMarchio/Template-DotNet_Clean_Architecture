@@ -503,6 +503,33 @@ public sealed class PasskeyServiceTests
             Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task BeginSignInAsync_KeepsASpentRecordFiveMinutesPastItsStatesExpiry()
+    {
+        var ledger = new SpentCeremonyLedger();
+        GivenAVerifiedSignIn();
+        _handler.MakeRequestOptionsAsync(Arg.Any<AppUser?>(), Arg.Any<HttpContext>())
+            .Returns(new PasskeyRequestOptionsResult { RequestOptionsJson = "{}", AssertionState = "another-state" });
+        var clock = new MovableDateTimeProvider(_clockAtTheMachinesTime.UtcNow);
+
+        await CreateService(clock: clock, spentCeremonies: ledger)
+            .CompleteSignInAsync("the-credential", SignInState(), TestToken);
+        ledger.Count.ShouldBe(1);
+
+        clock.Advance(_lifetime + TimeSpan.FromMinutes(5) - TimeSpan.FromSeconds(1));
+        await CreateService(clock: clock, spentCeremonies: ledger).BeginSignInAsync(TestToken);
+
+        ledger.Count.ShouldBe(
+            1,
+            "a second short of five minutes past the state's expiry, another instance whose clock runs " +
+            "behind may still accept the state, so its spent record has to survive the purge.");
+
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await CreateService(clock: clock, spentCeremonies: ledger).BeginSignInAsync(TestToken);
+
+        ledger.Count.ShouldBe(0, "five minutes past the state's expiry, the grace is over and the record goes.");
+    }
+
     private IUserPasskeyStore<AppUser> Store => (IUserPasskeyStore<AppUser>)_store;
 
     private IUserSecurityStampStore<AppUser> StampStore => (IUserSecurityStampStore<AppUser>)_store;
@@ -587,7 +614,8 @@ public sealed class PasskeyServiceTests
 
     private PasskeyService CreateService(
         IUserValidator<AppUser>[]? validators = null,
-        MovableDateTimeProvider? clock = null)
+        MovableDateTimeProvider? clock = null,
+        ISpentPasskeyCeremonyTable? spentCeremonies = null)
     {
         var userManager = new UserManager<AppUser>(
             _store,
@@ -606,9 +634,31 @@ public sealed class PasskeyServiceTests
             _httpContextAccessor,
             _directory,
             _dataProtection,
-            _spentCeremonies,
+            spentCeremonies ?? _spentCeremonies,
             clock ?? _clockAtTheMachinesTime,
             new OptionsWrapper<PasskeyOptions>(new PasskeyOptions()));
+    }
+}
+
+file sealed class SpentCeremonyLedger : ISpentPasskeyCeremonyTable
+{
+    private readonly Dictionary<string, DateTimeOffset> _spent = new(StringComparer.Ordinal);
+
+    public int Count => _spent.Count;
+
+    public Task<bool> TrySpendAsync(
+        string stateHash,
+        DateTimeOffset expiresAt,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(_spent.TryAdd(stateHash, expiresAt));
+
+    public Task<int> PurgeExpiredAsync(DateTimeOffset cutoff, CancellationToken cancellationToken = default)
+    {
+        var expired = _spent.Where(record => record.Value <= cutoff).Select(record => record.Key).ToList();
+
+        expired.ForEach(stateHash => _spent.Remove(stateHash));
+
+        return Task.FromResult(expired.Count);
     }
 }
 

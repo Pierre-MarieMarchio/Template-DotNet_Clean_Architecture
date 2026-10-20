@@ -253,6 +253,49 @@ public sealed class TwoFactorServiceChallengeTests
             "make the lifetime a value an attacker controls.");
     }
 
+    [Theory]
+    [InlineData("not-a-number")]
+    [InlineData("-1")]
+    [InlineData("")]
+    [InlineData("99999999999")]
+    public async Task RedeemChallengeAsync_AnUnreadableAttemptCount_ReadsAsExhausted(string storedAttempts)
+    {
+        var challenges = CreateChallenges();
+        var user = GivenTheAccountExists();
+        string sharedKey = GivenAnAuthenticatorKey(user);
+        var issued = await challenges.IssueChallengeAsync(_userId, TestToken);
+        GivenTheStoredChallengeEndsWith($":{storedAttempts}");
+
+        var redemption = await challenges.RedeemChallengeAsync(
+            issued.ChallengeToken,
+            AuthenticatorCodes.CurrentCodeFor(sharedKey),
+            TestToken);
+
+        redemption.Status.ShouldBe(
+            TwoFactorRedemptionStatus.InvalidChallenge,
+            "a count that cannot be read back must read as the ceiling, never as zero: reading it as " +
+            "zero would hand a corrupted challenge a fresh set of guesses.");
+        _tokens.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RedeemChallengeAsync_ALegacyTwoPartChallenge_CountsAsNoAttemptSpent()
+    {
+        var challenges = CreateChallenges(maxChallengeAttempts: 2);
+        var user = GivenTheAccountExists();
+        GivenAnAuthenticatorKey(user);
+        var issued = await challenges.IssueChallengeAsync(_userId, TestToken);
+        GivenTheStoredChallengeEndsWith(string.Empty);
+
+        var wrong = await challenges.RedeemChallengeAsync(issued.ChallengeToken, "000000", TestToken);
+
+        wrong.Status.ShouldBe(TwoFactorRedemptionStatus.InvalidCode);
+        _tokens.ShouldHaveSingleItem().Value.Split(':')[^1].ShouldBe(
+            "1",
+            "a challenge stored before the count existed has had no attempt counted against it, so " +
+            "the first wrong code is its first.");
+    }
+
     [Fact]
     public async Task IssueChallengeAsync_CalledAgain_SupersedesThePreviousChallenge()
     {
@@ -265,6 +308,15 @@ public sealed class TwoFactorServiceChallengeTests
         var redemption = await challenges.RedeemChallengeAsync(first.ChallengeToken, AuthenticatorCodes.CurrentCodeFor(sharedKey), TestToken);
 
         redemption.Status.ShouldBe(TwoFactorRedemptionStatus.InvalidChallenge);
+    }
+
+    private void GivenTheStoredChallengeEndsWith(string attemptsPart)
+    {
+        var stored = _tokens.ShouldHaveSingleItem();
+        string[] parts = stored.Value.Split(':');
+
+        parts.Length.ShouldBe(3);
+        _tokens[stored.Key] = $"{parts[0]}:{parts[1]}{attemptsPart}";
     }
 
     private string GivenAnAuthenticatorKey(AppUser user)
